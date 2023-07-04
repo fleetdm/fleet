@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -44,12 +45,12 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	initHost := func(seenTime time.Time, distributedInterval uint, configTLSRefresh uint, teamID *uint) *fleet.Host {
 		hostCount += 1
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
-			OsqueryHostID:       strconv.Itoa(hostCount),
+			OsqueryHostID:       ptr.String(strconv.Itoa(hostCount)),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
 			PolicyUpdatedAt:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
-			NodeKey:             strconv.Itoa(hostCount),
+			NodeKey:             ptr.String(strconv.Itoa(hostCount)),
 			DistributedInterval: distributedInterval,
 			ConfigTLSRefresh:    configTLSRefresh,
 			TeamID:              teamID,
@@ -99,23 +100,23 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	metrics, err := ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
-	assert.Equal(t, uint(3), metrics.OfflineHosts) // mia hosts are also included in offline hosts as of Fleet 4.15
+	assert.Equal(t, uint(3), metrics.OfflineHosts) // metrics.MissingInActionHosts are also included in offline hosts as of Fleet 4.15
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
 	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}, LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
-	assert.Equal(t, uint(3), metrics.OfflineHosts) // mia hosts are also included in offline hosts as of Fleet 4.15
+	assert.Equal(t, uint(3), metrics.OfflineHosts) // metrics.MissingInActionHosts are also included in offline hosts as of Fleet 4.15
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
 	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}, LabelIDs: []uint{l1.ID, l2.ID}, TeamIDs: []uint{team1.ID, team2.ID}}, mockClock.Now())
 	require.Nil(t, err)
-	assert.Equal(t, uint(6), metrics.TotalHosts)
-	assert.Equal(t, uint(3), metrics.OfflineHosts) // mia hosts are also included in offline hosts as of Fleet 4.15
-	assert.Equal(t, uint(3), metrics.OnlineHosts)
-	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
+	assert.Equal(t, uint(4), metrics.TotalHosts)
+	assert.Equal(t, uint(2), metrics.OfflineHosts) // metrics.MissingInActionHosts are also included in offline hosts as of Fleet 4.15
+	assert.Equal(t, uint(2), metrics.OnlineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
 	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}}, mockClock.Now())
 	require.Nil(t, err)
@@ -166,13 +167,62 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(2), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID}, TeamIDs: []uint{team2.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(2), metrics.TotalHosts)
+	assert.Equal(t, uint(1), metrics.OnlineHosts)
+	assert.Equal(t, uint(1), metrics.OfflineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
+
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team3.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(0), metrics.TotalHosts)
+	assert.Equal(t, uint(0), metrics.OnlineHosts)
+	assert.Equal(t, uint(0), metrics.OfflineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
+
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}, TeamIDs: []uint{team3.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(0), metrics.TotalHosts)
+	assert.Equal(t, uint(0), metrics.OnlineHosts)
+	assert.Equal(t, uint(0), metrics.OfflineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
+
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID}, TeamIDs: []uint{team1.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(1), metrics.TotalHosts)
+	assert.Equal(t, uint(1), metrics.OnlineHosts)
+	assert.Equal(t, uint(0), metrics.OfflineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
+
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l2.ID}, TeamIDs: []uint{team2.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(2), metrics.TotalHosts)
+	assert.Equal(t, uint(1), metrics.OnlineHosts)
+	assert.Equal(t, uint(1), metrics.OfflineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
+
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l2.ID}, TeamIDs: []uint{team2.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(3), metrics.TotalHosts)
+	assert.Equal(t, uint(2), metrics.OnlineHosts)
+	assert.Equal(t, uint(1), metrics.OfflineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
+
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team1.ID, team2.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(4), metrics.TotalHosts)
+	assert.Equal(t, uint(2), metrics.OnlineHosts)
+	assert.Equal(t, uint(2), metrics.OfflineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
+
 	// Advance clock so all hosts are offline
 	mockClock.AddTime(2 * time.Minute)
 	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
-	assert.Equal(t, uint(6), metrics.OfflineHosts) // mia hosts are also included in offline hosts as of Fleet 4.15
+	assert.Equal(t, uint(6), metrics.OfflineHosts) // metrics.MissingInActionHosts are also included in offline hosts as of Fleet 4.15
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
@@ -215,8 +265,8 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	h, err := ds.EnrollHost(context.Background(), "1", "key1", nil, 0)
-	require.Nil(t, err)
+	h, err := ds.EnrollHost(context.Background(), false, "1", "", "", "key1", nil, 0)
+	require.NoError(t, err)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
@@ -226,7 +276,11 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 
 	expectOnline := fleet.TargetMetrics{TotalHosts: 1, OnlineHosts: 1}
 	expectOffline := fleet.TargetMetrics{TotalHosts: 1, OfflineHosts: 1}
-	expectMIA := fleet.TargetMetrics{TotalHosts: 1, OfflineHosts: 1, MissingInActionHosts: 1} // mia hosts are also included in offline hosts as of Fleet 4.15
+	expectMIA := fleet.TargetMetrics{
+		TotalHosts:           1,
+		OfflineHosts:         1, // MissingInActionHosts are also included in offline hosts as of Fleet 4.15
+		MissingInActionHosts: 1,
+	}
 
 	testCases := []struct {
 		seenTime            time.Time
@@ -275,83 +329,389 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: user}
 
 	hostCount := 0
-	initHost := func() *fleet.Host {
+	initHost := func(teamID *uint, platform string) *fleet.Host {
 		hostCount += 1
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
-			OsqueryHostID:   strconv.Itoa(hostCount),
-			NodeKey:         strconv.Itoa(hostCount),
+			OsqueryHostID:   ptr.String(strconv.Itoa(hostCount)),
+			NodeKey:         ptr.String(strconv.Itoa(hostCount)),
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
+			TeamID:          teamID,
+			Platform:        platform,
 		})
 		require.Nil(t, err)
 		return h
 	}
 
-	h1 := initHost()
-	h2 := initHost()
-	h3 := initHost()
-	h4 := initHost()
-	h5 := initHost()
-	h6 := initHost()
+	// Run MigrateData to populate built-in labels.
+	err := ds.MigrateData(context.Background())
+	require.NoError(t, err)
 
-	l1 := fleet.LabelSpec{
-		ID:    1,
-		Name:  "label foo",
-		Query: "query foo",
+	t1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	t2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	t3, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+
+	h1 := initHost(&t1.ID, "darwin")
+	h2 := initHost(&t2.ID, "centos")
+	h3 := initHost(&t2.ID, "ubuntu")
+	h4 := initHost(&t2.ID, "windows")
+	h5 := initHost(nil, "windows")
+	h6 := initHost(nil, "darwin")
+
+	// Load and record results for builtin labels.
+	allHosts, err := ds.Label(context.Background(), 6)
+	require.NoError(t, err)
+	macOS, err := ds.Label(context.Background(), 7)
+	require.NoError(t, err)
+	ubuntuLinux, err := ds.Label(context.Background(), 8)
+	require.NoError(t, err)
+	centOSLinux, err := ds.Label(context.Background(), 9)
+	require.NoError(t, err)
+	msWindows, err := ds.Label(context.Background(), 10)
+	require.NoError(t, err)
+	redHatLinux, err := ds.Label(context.Background(), 11)
+	require.NoError(t, err)
+	allLinux, err := ds.Label(context.Background(), 12)
+	require.NoError(t, err)
+
+	allBuiltIn := []*fleet.Label{
+		allHosts, macOS, ubuntuLinux, centOSLinux, msWindows, redHatLinux, allLinux,
 	}
-	l2 := fleet.LabelSpec{
-		ID:    2,
-		Name:  "label bar",
-		Query: "query bar",
+	for _, item := range []struct {
+		host   *fleet.Host
+		labels map[*fleet.Label]struct{}
+	}{
+		{
+			host: h1,
+			labels: map[*fleet.Label]struct{}{
+				allHosts: {},
+				macOS:    {},
+			},
+		},
+		{
+			host: h2,
+			labels: map[*fleet.Label]struct{}{
+				allHosts:    {},
+				centOSLinux: {},
+				allLinux:    {},
+			},
+		},
+		{
+			host: h3,
+			labels: map[*fleet.Label]struct{}{
+				allHosts:    {},
+				ubuntuLinux: {},
+				allLinux:    {},
+			},
+		},
+		{
+			host: h4,
+			labels: map[*fleet.Label]struct{}{
+				allHosts:  {},
+				msWindows: {},
+			},
+		},
+		{
+			host: h5,
+			labels: map[*fleet.Label]struct{}{
+				allHosts:  {},
+				msWindows: {},
+			},
+		},
+		{
+			host: h6,
+			labels: map[*fleet.Label]struct{}{
+				allHosts: {},
+				macOS:    {},
+			},
+		},
+	} {
+		for _, label := range allBuiltIn {
+			value := false
+			if _, ok := item.labels[label]; ok {
+				value = true
+			}
+			err := ds.RecordLabelQueryExecutions(context.Background(), item.host, map[uint]*bool{label.ID: ptr.Bool(value)}, time.Now(), false)
+			require.NoError(t, err)
+		}
 	}
-	err := ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2})
-	require.Nil(t, err)
+
+	// Create and record results for custom labels.
+	l1, err := ds.NewLabel(context.Background(), &fleet.Label{
+		Name:      "label foo",
+		Query:     "query foo",
+		LabelType: fleet.LabelTypeRegular,
+	})
+	require.NoError(t, err)
+	l2, err := ds.NewLabel(context.Background(), &fleet.Label{
+		Name:      "label bar",
+		Query:     "query bar",
+		LabelType: fleet.LabelTypeRegular,
+	})
+	require.NoError(t, err)
+	l3, err := ds.NewLabel(context.Background(), &fleet.Label{
+		Name:      "label zoo",
+		Query:     "query zoo",
+		LabelType: fleet.LabelTypeRegular,
+	})
+	require.NoError(t, err)
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
 		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 	}
-
 	for _, h := range []*fleet.Host{h3, h4, h5} {
 		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now(), false)
-		assert.Nil(t, err)
+		require.NoError(t, err)
+	}
+	for _, h := range []*fleet.Host{h1, h2, h3, h4, h5, h6} {
+		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l3.ID: ptr.Bool(false)}, time.Now(), false)
+		require.NoError(t, err)
 	}
 
-	ids, err := ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}})
-	require.Nil(t, err)
-	assert.Equal(t, []uint{1, 2, 3, 4, 5, 6}, ids)
+	// Scenario:
+	//
+	// Expected behavior:
+	// Any target selected within one of the two categories "labels" and "teams" is understood as a union.
+	// But the combination of the categories is understood as an intersection.
+	//
+	// Builtin labels (aka Platforms):
+	//	- allHosts: { h1, h2, h3, h4, h5, h6 }
+	//	- macOS: { h1, h6 }
+	//	- ubuntuLinux: { h3 }
+	//	- centOSLinux: { h2 }
+	//	- msWindows: { h4, h5 }
+	//	- redHatLinux: { }
+	//	- allLinux: { h2, h3 }
+	//
+	// Custom labels (non-builtin labels):
+	// 	- Label l1: { h1, h2, h3, h6 }
+	// 	- Label l2: { h3, h4, h5 }
+	// 	- Label l3: { }
+	//
+	// Teams:
+	// 	- Team t1: { h1 }
+	// 	- Team t2: { h2, h3, h4 }
+	// 	- Team t3: { }
+	//
+	// - Hosts h5, h6 are global.
 
-	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID}})
-	require.Nil(t, err)
-	assert.Equal(t, []uint{1}, ids)
+	for i, tc := range []struct {
+		name string
 
-	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l1.ID}})
-	require.Nil(t, err)
-	assert.Equal(t, []uint{1, 2, 3, 6}, ids)
+		targetHostIDs  []uint
+		targetLabelIDs []uint
+		targetTeamIDs  []uint
 
-	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{4}, LabelIDs: []uint{l1.ID}})
-	require.Nil(t, err)
-	assert.Equal(t, []uint{1, 2, 3, 4, 6}, ids)
+		expectedHostIDs []uint
+	}{
+		{
+			name:           "All hosts only",
+			targetLabelIDs: []uint{allHosts.ID},
 
-	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{4}, LabelIDs: []uint{l2.ID}})
-	require.Nil(t, err)
-	assert.Equal(t, []uint{3, 4, 5}, ids)
+			expectedHostIDs: []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID, h6.ID},
+		},
+		{
+			name:           "The two labels should return all hosts",
+			targetLabelIDs: []uint{l1.ID, l2.ID},
 
-	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{}, LabelIDs: []uint{l2.ID}})
-	require.Nil(t, err)
-	assert.Equal(t, []uint{3, 4, 5}, ids)
+			expectedHostIDs: []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID, h6.ID},
+		},
+		{
+			name:           "All hosts should always return all hosts",
+			targetLabelIDs: []uint{l1.ID, allHosts.ID},
 
-	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{1, 6}, LabelIDs: []uint{l2.ID}})
-	require.Nil(t, err)
-	assert.Equal(t, []uint{1, 3, 4, 5, 6}, ids)
+			expectedHostIDs: []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID, h6.ID},
+		},
+		{
+			name:           "All hosts should always return all hosts (with empty label)",
+			targetLabelIDs: []uint{l3.ID, allHosts.ID},
+
+			expectedHostIDs: []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID, h6.ID},
+		},
+		{
+			name:          "One host only",
+			targetHostIDs: []uint{h1.ID},
+
+			expectedHostIDs: []uint{h1.ID},
+		},
+		{
+			name:           "One host and a label the host is member of",
+			targetHostIDs:  []uint{h1.ID},
+			targetLabelIDs: []uint{l1.ID},
+
+			expectedHostIDs: []uint{h1.ID, h2.ID, h3.ID, h6.ID},
+		},
+		{
+			name:           "One host and a label the host is not member of",
+			targetHostIDs:  []uint{h4.ID},
+			targetLabelIDs: []uint{l1.ID},
+
+			expectedHostIDs: []uint{h1.ID, h2.ID, h3.ID, h4.ID, h6.ID},
+		},
+		{
+			name:           "One host, a label the host is member of and a platform the host is member of",
+			targetHostIDs:  []uint{h4.ID},
+			targetLabelIDs: []uint{l2.ID, msWindows.ID},
+
+			expectedHostIDs: []uint{h4.ID, h5.ID},
+		},
+		{
+			name:           "Label 2 and a platform none of the label 2 hosts is",
+			targetLabelIDs: []uint{l2.ID, macOS.ID},
+
+			expectedHostIDs: nil,
+		},
+		{
+			name:           "Host selection + custom label selection + platform selection",
+			targetHostIDs:  []uint{h1.ID},
+			targetLabelIDs: []uint{l1.ID, macOS.ID},
+
+			expectedHostIDs: []uint{h1.ID, h6.ID},
+		},
+		{
+			name:           "Host selection + custom label selection + platform selection + team selection",
+			targetHostIDs:  []uint{h1.ID},
+			targetLabelIDs: []uint{l1.ID, allLinux.ID},
+			targetTeamIDs:  []uint{t1.ID, t2.ID},
+
+			expectedHostIDs: []uint{h1.ID, h2.ID, h3.ID},
+		},
+		{
+			name:          "Host selection + team selection",
+			targetHostIDs: []uint{h1.ID, h2.ID},
+			targetTeamIDs: []uint{t1.ID, t2.ID},
+
+			expectedHostIDs: []uint{h1.ID, h2.ID, h3.ID, h4.ID},
+		},
+		{
+			name:            "No selection",
+			expectedHostIDs: []uint{},
+		},
+		{
+			name:          "One team and an empty team selection",
+			targetTeamIDs: []uint{t1.ID, t3.ID},
+
+			expectedHostIDs: []uint{h1.ID},
+		},
+		{
+			name:          "One team selection",
+			targetTeamIDs: []uint{t2.ID},
+
+			expectedHostIDs: []uint{h2.ID, h3.ID, h4.ID},
+		},
+		{
+			name:           "One non-builtin label and team selection",
+			targetLabelIDs: []uint{l1.ID},
+			targetTeamIDs:  []uint{t2.ID},
+
+			expectedHostIDs: []uint{h2.ID, h3.ID},
+		},
+		{
+			name:          "Empty team selection",
+			targetTeamIDs: []uint{t3.ID},
+
+			expectedHostIDs: nil,
+		},
+		{
+			name:           "Two labels and an empty team",
+			targetLabelIDs: []uint{l1.ID, l2.ID},
+			targetTeamIDs:  []uint{t3.ID},
+
+			expectedHostIDs: nil,
+		},
+		{
+			name:           "Empty label selection",
+			targetLabelIDs: []uint{l3.ID},
+
+			expectedHostIDs: nil,
+		},
+		{
+			name:           "Empty label and two teams should select no hosts",
+			targetLabelIDs: []uint{l3.ID},
+			targetTeamIDs:  []uint{t1.ID, t2.ID},
+
+			expectedHostIDs: nil,
+		},
+		{
+			name:           "Label and team intersection",
+			targetLabelIDs: []uint{l1.ID},
+			targetTeamIDs:  []uint{t1.ID},
+
+			expectedHostIDs: []uint{h1.ID},
+		},
+		{
+			name:           "Another label and team intersection",
+			targetLabelIDs: []uint{l2.ID},
+			targetTeamIDs:  []uint{t2.ID},
+
+			expectedHostIDs: []uint{h3.ID, h4.ID},
+		},
+		{
+			name:           "Host selection + non-builtin label selection + team selection",
+			targetHostIDs:  []uint{h1.ID},
+			targetLabelIDs: []uint{l2.ID},
+			targetTeamIDs:  []uint{t2.ID},
+
+			expectedHostIDs: []uint{h1.ID, h3.ID, h4.ID},
+		},
+		{
+			name:          "Two teams selection",
+			targetTeamIDs: []uint{t1.ID, t2.ID},
+
+			expectedHostIDs: []uint{h1.ID, h2.ID, h3.ID, h4.ID},
+		},
+		{
+			name:           "Two platform labels",
+			targetLabelIDs: []uint{centOSLinux.ID, ubuntuLinux.ID},
+
+			expectedHostIDs: []uint{h2.ID, h3.ID},
+		},
+		{
+			name:           "Two platform labels and a custom label",
+			targetLabelIDs: []uint{centOSLinux.ID, ubuntuLinux.ID, l2.ID},
+
+			expectedHostIDs: []uint{h3.ID},
+		},
+		{
+			name:           "All platforms and all labels should return all hosts",
+			targetLabelIDs: []uint{macOS.ID, ubuntuLinux.ID, centOSLinux.ID, msWindows.ID, redHatLinux.ID, l1.ID, l2.ID},
+
+			expectedHostIDs: []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID, h6.ID},
+		},
+		{
+			name:           "All platforms but one and all labels should return all hosts but one",
+			targetLabelIDs: []uint{macOS.ID, ubuntuLinux.ID, msWindows.ID, redHatLinux.ID, l1.ID, l2.ID},
+
+			expectedHostIDs: []uint{h1.ID, h3.ID, h4.ID, h5.ID, h6.ID},
+		},
+	} {
+		t.Run(fmt.Sprintf("%d.%s", i, tc.name), func(t *testing.T) {
+			targets := fleet.HostTargets{
+				HostIDs:  tc.targetHostIDs,
+				LabelIDs: tc.targetLabelIDs,
+				TeamIDs:  tc.targetTeamIDs,
+			}
+			ids, err := ds.HostIDsInTargets(context.Background(), filter, targets)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedHostIDs, ids)
+
+			metrics, err := ds.CountHostsInTargets(context.Background(), filter, targets, time.Now())
+			require.NoError(t, err)
+			require.Len(t, tc.expectedHostIDs, int(metrics.TotalHosts))
+		})
+	}
 
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
 
 	// observer not included
-	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{1, 6}, LabelIDs: []uint{l2.ID}})
+	ids, err := ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{1, 6}, LabelIDs: []uint{l2.ID}})
 	require.Nil(t, err)
 	assert.Len(t, ids, 0)
 
@@ -372,12 +732,12 @@ func testTargetsHostIDsInTargetsTeam(t *testing.T, ds *Datastore) {
 	initHost := func(seenTime time.Time, distributedInterval uint, configTLSRefresh uint, teamID *uint) *fleet.Host {
 		hostCount += 1
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
-			OsqueryHostID:       strconv.Itoa(hostCount),
+			OsqueryHostID:       ptr.String(strconv.Itoa(hostCount)),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
 			PolicyUpdatedAt:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
-			NodeKey:             strconv.Itoa(hostCount),
+			NodeKey:             ptr.String(strconv.Itoa(hostCount)),
 			DistributedInterval: distributedInterval,
 			ConfigTLSRefresh:    configTLSRefresh,
 			TeamID:              teamID,

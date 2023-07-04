@@ -7,19 +7,22 @@ import { browserHistory } from "react-router";
 import Button from "components/buttons/Button/Button";
 
 interface ILinkCellProps {
-  value: string;
+  value: string | JSX.Element;
   path: string;
   title?: string;
   classes?: string;
+  customOnClick?: () => void;
 }
 
 const LinkCell = ({
   value,
   path,
   title,
-  classes = "w250",
+  classes,
+  customOnClick,
 }: ILinkCellProps): JSX.Element => {
   const onClick = (): void => {
+    customOnClick && customOnClick();
     browserHistory.push(path);
   };
 

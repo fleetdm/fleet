@@ -23,7 +23,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error)
+type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error)
 
 // parseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
 func parseTag(tag string) (string, bool, error) {
@@ -143,7 +143,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			if r.Header.Get("content-encoding") == "gzip" {
 				gzr, err := gzip.NewReader(buf)
 				if err != nil {
-					return nil, badRequestErr("gzip decoder error: %w", err)
+					return nil, badRequestErr("gzip decoder error", err)
 				}
 				defer gzr.Close()
 				body = gzr
@@ -152,7 +152,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			if !isBodyDecoder {
 				req := v.Interface()
 				if err := json.NewDecoder(body).Decode(req); err != nil {
-					return nil, badRequestErr("json decoder error: %w", err)
+					return nil, badRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
 			}
@@ -209,7 +209,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 							if err == errBadRoute && optional {
 								continue
 							}
-							return nil, badRequestErr("intFromRequest: %w", err)
+							return nil, badRequestErr("intFromRequest", err)
 						}
 						field.SetInt(v)
 
@@ -219,7 +219,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 							if err == errBadRoute && optional {
 								continue
 							}
-							return nil, badRequestErr("uintFromRequest: %w", err)
+							return nil, badRequestErr("uintFromRequest", err)
 						}
 						field.SetUint(v)
 
@@ -229,7 +229,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 							if err == errBadRoute && optional {
 								continue
 							}
-							return nil, badRequestErr("stringFromRequest: %w", err)
+							return nil, badRequestErr("stringFromRequest", err)
 						}
 						field.SetString(v)
 
@@ -270,7 +270,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				case reflect.Uint:
 					queryValUint, err := strconv.Atoi(queryVal)
 					if err != nil {
-						return nil, badRequestErr("parsing uint from query: %w", err)
+						return nil, badRequestErr("parsing uint from query", err)
 					}
 					field.SetUint(uint64(queryValUint))
 				case reflect.Bool:
@@ -292,7 +292,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					default:
 						queryValInt, err = strconv.Atoi(queryVal)
 						if err != nil {
-							return nil, badRequestErr("parsing int from query: %w", err)
+							return nil, badRequestErr("parsing int from query", err)
 						}
 					}
 					field.SetInt(int64(queryValInt))
@@ -335,13 +335,16 @@ func badRequest(msg string) error {
 	return &fleet.BadRequestError{Message: msg}
 }
 
-func badRequestErr(msg string, err error) error {
+func badRequestErr(publicMsg string, internalErr error) error {
 	// ensure timeout errors don't become BadRequestErrors.
 	var opErr *net.OpError
-	if errors.As(err, &opErr) {
-		return fmt.Errorf(msg, err)
+	if errors.As(internalErr, &opErr) {
+		return fmt.Errorf(publicMsg+", internal: %w", internalErr)
 	}
-	return &fleet.BadRequestError{Message: fmt.Errorf(msg, err).Error()}
+	return &fleet.BadRequestError{
+		Message:     publicMsg,
+		InternalErr: internalErr,
+	}
 }
 
 type authEndpointer struct {

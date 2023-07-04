@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -22,9 +24,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/micromdm/nanodep/tokenpki"
+	"go.mozilla.org/pkcs7"
 
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -264,7 +271,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
 		return nil
 	}
-	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
 		// we should not get this far before we see the directory being created
 		return nil, errors.New("shouldn't happen")
 	}
@@ -347,6 +354,7 @@ func TestScanVulnerabilities(t *testing.T) {
 		expected := `
 {
   "cve": "CVE-2022-39348",
+  "cve_published": "2022-10-26T14:15:00Z",
   "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-39348",
   "epss_probability": 0.0089,
   "cvss_score": 5.4,
@@ -380,7 +388,7 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
 		return nil
 	}
-	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
 		iterator := &softwareIterator{
 			softwares: []*fleet.Software{
 				{
@@ -403,10 +411,16 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
-		return 1, nil
+	ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
+		return true, nil
 	}
-	ds.AddCPEForSoftwareFunc = func(ctx context.Context, software fleet.Software, cpe string) error {
+	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		return int64(0), nil
+	}
+	ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		return int64(0), nil
+	}
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
 		return nil
 	}
 	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
@@ -463,8 +477,8 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.HostsBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
-		return []*fleet.HostShort{
+	ds.HostVulnSummariesBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
+		return []fleet.HostVulnerabilitySummary{
 			{
 				ID:          1,
 				Hostname:    "1",
@@ -473,12 +487,13 @@ func TestScanVulnerabilities(t *testing.T) {
 		}, nil
 	}
 
-	vulnPath := t.TempDir()
+	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")
 
 	config := config.VulnerabilitiesConfig{
 		DatabasesPath:         vulnPath,
 		Periodicity:           10 * time.Second,
 		CurrentInstanceChecks: "auto",
+		DisableDataSync:       true,
 	}
 
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
@@ -824,4 +839,233 @@ func TestDebugMux(t *testing.T) {
 			require.Equal(t, c.want, res.Code)
 		})
 	}
+}
+
+func TestCronActivitiesStreaming(t *testing.T) {
+	ds := new(mock.Store)
+
+	newActivity := func(
+		id uint,
+		actorName string,
+		actorID uint,
+		actorGravatar, actorEmail, actType string,
+		details string,
+	) *fleet.Activity {
+		jsonRawMessage := json.RawMessage(details)
+		return &fleet.Activity{
+			ID:            id,
+			ActorFullName: &actorName,
+			ActorID:       &actorID,
+			ActorGravatar: &actorGravatar,
+			ActorEmail:    &actorEmail,
+			Type:          actType,
+			Details:       &jsonRawMessage,
+		}
+	}
+
+	a1 := newActivity(1, "foo1", 7, "foo1_gravatar", "foo1_email", "foobar1", `{"foo1":"bar1"}`)
+	a2 := newActivity(2, "foo2", 8, "foo2_gravatar", "foo2_email", "foobar2", `{"foo2":"bar2"}`)
+	a3 := newActivity(3, "foo3", 9, "foo3_gravatar", "foo3_email", "foobar3", `{"foo3":"bar3"}`)
+
+	t.Run("basic", func(t *testing.T) {
+		as := []*fleet.Activity{a1, a2, a3}
+
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+			return as, nil, nil
+		}
+
+		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
+			require.Equal(t, []uint{1, 2, 3}, activityIDs)
+			return nil
+		}
+
+		var auditLogger jsonLogger
+		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
+		require.NoError(t, err)
+		require.Len(t, auditLogger.logs, 3)
+		for i, m := range auditLogger.logs {
+			var a *fleet.Activity
+			err := json.Unmarshal([]byte(m), &a)
+			require.NoError(t, err)
+			require.Equal(t, as[i], a)
+		}
+	})
+
+	t.Run("fail_to_stream_an_activity", func(t *testing.T) {
+		as := []*fleet.Activity{a1, a2, a3}
+
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+			return as, nil, nil
+		}
+
+		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
+			require.Equal(t, []uint{1}, activityIDs)
+			return nil
+		}
+
+		auditLogger := jsonLogger{failAfter: 1}
+		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
+		require.Error(t, err)
+		require.ErrorIs(t, err, errStreamFailed)
+		require.Len(t, auditLogger.logs, 1)
+		var a *fleet.Activity
+		err = json.Unmarshal([]byte(auditLogger.logs[0]), &a)
+		require.NoError(t, err)
+		require.Equal(t, a1, a)
+	})
+
+	t.Run("bigger_than_batch", func(t *testing.T) {
+		// Make slice that will require three iterations (3 pages,
+		// two pages of ActivitiesToStreamBatchCount and one extra page of one item.
+		as := make([]*fleet.Activity, ActivitiesToStreamBatchCount*2+1)
+		for i := range as {
+			as[i] = newActivity(uint(i), "foo", uint(i), "foog", "fooe", "bar", `{"bar": "foo"}`)
+		}
+
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+			require.Equal(t, opt.PerPage, ActivitiesToStreamBatchCount)
+			switch opt.Page {
+			case 0:
+				return as[:ActivitiesToStreamBatchCount], nil, nil
+			case 1:
+				return as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2], nil, nil
+			case 2:
+				return as[ActivitiesToStreamBatchCount*2:], nil, nil
+			default:
+				t.Fatalf("invalid page requested: %d", opt.Page)
+				return nil, nil, nil
+			}
+		}
+
+		call := 0
+		firstBatch := make([]uint, ActivitiesToStreamBatchCount)
+		secondBatch := make([]uint, ActivitiesToStreamBatchCount)
+		for i := range as[:ActivitiesToStreamBatchCount] {
+			firstBatch[i] = as[i].ID
+		}
+		for i := range as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2] {
+			secondBatch[i] = as[int(ActivitiesToStreamBatchCount)+i].ID
+		}
+		thirdBatch := []uint{as[len(as)-1].ID}
+		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
+			switch call {
+			case 0:
+				require.Equal(t, firstBatch, activityIDs)
+			case 1:
+				require.Equal(t, secondBatch, activityIDs)
+			case 2:
+				require.Equal(t, thirdBatch, activityIDs)
+			default:
+				t.Fatalf("invalid number of calls: %d", call)
+			}
+			call += 1
+			return nil
+		}
+
+		var auditLogger jsonLogger
+		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
+		require.NoError(t, err)
+		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1)
+		require.Equal(t, 3, call)
+	})
+}
+
+var errStreamFailed = errors.New("streaming failed")
+
+type jsonLogger struct {
+	logs      []string
+	failAfter int
+}
+
+func (j *jsonLogger) Write(ctx context.Context, logs []json.RawMessage) error {
+	for _, log := range logs {
+		if j.failAfter > 0 && len(j.logs) == j.failAfter {
+			return errStreamFailed
+		}
+		j.logs = append(j.logs, string(log))
+	}
+	return nil
+}
+
+func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+
+	testBMToken := &nanodep_client.OAuth1Tokens{
+		ConsumerKey:       "test_consumer",
+		ConsumerSecret:    "test_secret",
+		AccessToken:       "test_access_token",
+		AccessSecret:      "test_access_secret",
+		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+
+	recoveryKey := "AAA-BBB-CCC"
+	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{testCert})
+	require.NoError(t, err)
+	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
+
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+
+	now := time.Now()
+
+	t.Run("able to decrypt", func(t *testing.T) {
+		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+			return []fleet.HostDiskEncryptionKey{
+				{HostID: 1, Base64Encrypted: base64EncryptedKey, UpdatedAt: now},
+				{HostID: 2, Base64Encrypted: base64EncryptedKey, UpdatedAt: now.Add(time.Hour)},
+				{HostID: 3, Base64Encrypted: "BAD-KEY", UpdatedAt: now.Add(-time.Hour)},
+			}, nil
+		}
+
+		calls := 0
+		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error {
+			calls++
+			require.Equal(t, now.Add(time.Hour), threshold)
+
+			// first call, decryptable values
+			if decryptable {
+				require.EqualValues(t, []uint{1, 2}, hostIDs)
+				return nil
+			}
+
+			// second call, non-decryptable values
+			require.EqualValues(t, []uint{3}, hostIDs)
+			return nil
+		}
+
+		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
+		require.NoError(t, err)
+		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
+		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
+		require.Equal(t, 2, calls)
+	})
+
+	t.Run("unable to decrypt", func(t *testing.T) {
+		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+			return []fleet.HostDiskEncryptionKey{{HostID: 1, Base64Encrypted: "RANDOM"}}, nil
+		}
+
+		calls := 0
+		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error {
+			calls++
+			if !encryptable {
+				require.EqualValues(t, []uint{1}, hostIDs)
+				return nil
+			}
+			require.Empty(t, hostIDs)
+			return nil
+		}
+
+		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
+		require.NoError(t, err)
+		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
+		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
+		require.Equal(t, 2, calls)
+	})
 }

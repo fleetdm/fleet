@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Fleetd for Chrome",
+  "description": "<filled in by webpack>",
+  "version": "<filled in by webpack>",
+  "update_url": "https://chrome.fleetdm.com/updates.xml",
+  "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.bundle.js",
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "permissions": [
+    "activeTab",
+    "alarms",
+    "cookies",
+    "enterprise.deviceAttributes",
+    "enterprise.hardwarePlatform",
+    "enterprise.networkingAttributes",
+    "enterprise.platformKeys",
+    "gcm",
+    "history",
+    "identity",
+    "identity.email",
+    "idle",
+    "loginState",
+    "management",
+    "privacy",
+    "proxy",
+    "platformKeys",
+    "sessions",
+    "storage",
+    "system.cpu",
+    "system.display",
+    "system.memory",
+    "system.storage",
+    "unlimitedStorage",
+    "tabs"
+  ],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "storage": {
+    "managed_schema": "schema.json"
+  }
+}

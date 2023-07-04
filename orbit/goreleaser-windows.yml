@@ -1,0 +1,38 @@
+project_name: orbit
+
+builds:
+  - id: orbit
+    dir: ./orbit/cmd/orbit/
+    binary: orbit
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+    flags:
+      - -trimpath
+    ldflags:
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version={{.Version}}
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit={{.Commit}}
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date={{.Date}}
+    hooks:
+      pre: "go run ./orbit/tools/build/build-windows.go -version {{.Version}} -input ./orbit/cmd/orbit -resource=true"
+
+archives:
+  - id: orbit
+    builds:
+      - orbit
+    name_template: orbit_{{.Version}}_{{.Os}}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ .Tag }}-untagged"
+
+changelog:
+  skip: true

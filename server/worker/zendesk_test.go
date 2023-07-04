@@ -22,11 +22,15 @@ import (
 
 func TestZendeskRun(t *testing.T) {
 	ds := new(mock.Store)
-	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
-		return []*fleet.HostShort{
+	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
+		return []fleet.HostVulnerabilitySummary{
 			{
 				ID:       1,
 				Hostname: "test",
+				SoftwareInstalledPaths: []string{
+					"/some/path/1",
+					"/some/path/2",
+				},
 			},
 		}, nil
 	}
@@ -53,7 +57,8 @@ func TestZendeskRun(t *testing.T) {
 		}, nil
 	}
 
-	var expectedSubject, expectedDescription, expectedNotInDescription string
+	var expectedSubject, expectedNotInDescription string
+	var expectedDescription []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(501)
@@ -69,8 +74,10 @@ func TestZendeskRun(t *testing.T) {
 		if expectedSubject != "" {
 			require.Contains(t, string(body), expectedSubject)
 		}
-		if expectedDescription != "" {
-			require.Contains(t, string(body), expectedDescription)
+		if len(expectedDescription) != 0 {
+			for _, s := range expectedDescription {
+				require.Contains(t, string(body), s)
+			}
 		}
 		if expectedNotInDescription != "" {
 			require.NotContains(t, string(body), expectedNotInDescription)
@@ -90,23 +97,19 @@ func TestZendeskRun(t *testing.T) {
 		licenseTier              string
 		payload                  string
 		expectedSubject          string
-		expectedDescription      string
+		expectedDescription      []string
 		expectedNotInDescription string
 	}{
-		{
-			"old vuln format free",
-			fleet.TierFree,
-			`{"cve":"CVE-1234-5678"}`,
-			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
-			`"group_id":123`,
-			"Probability of exploit",
-		},
 		{
 			"vuln free",
 			fleet.TierFree,
 			`{"vulnerability":{"cve":"CVE-1234-5678"}}`,
 			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
-			`"group_id":123`,
+			[]string{
+				`"group_id":123`,
+				"/some/path/1",
+				"/some/path/2",
+			},
 			"Probability of exploit",
 		},
 		{
@@ -114,7 +117,11 @@ func TestZendeskRun(t *testing.T) {
 			fleet.TierFree,
 			`{"vulnerability":{"cve":"CVE-1234-5678","epss_probability":3.4,"cvss_score":50,"cisa_known_exploit":true}}`,
 			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
-			`"group_id":123`,
+			[]string{
+				`"group_id":123`,
+				"/some/path/1",
+				"/some/path/2",
+			},
 			"Probability of exploit",
 		},
 		{
@@ -122,7 +129,7 @@ func TestZendeskRun(t *testing.T) {
 			fleet.TierFree,
 			`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [{"id": 123, "hostname": "host-123"}]}}`,
 			`"subject":"test-policy policy failed on 1 host(s)"`,
-			"\\u0026policy_id=1\\u0026policy_response=failing",
+			[]string{"\\u0026policy_id=1\\u0026policy_response=failing"},
 			"\\u0026team_id=",
 		},
 		{
@@ -130,23 +137,19 @@ func TestZendeskRun(t *testing.T) {
 			fleet.TierPremium,
 			`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": [{"id": 1, "hostname": "host-1"}, {"id": 2, "hostname": "host-2"}]}}`,
 			`"subject":"test-policy-2 policy failed on 2 host(s)"`,
-			"\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing",
+			[]string{"\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing"},
 			"",
-		},
-		{
-			"old vuln format premium",
-			fleet.TierPremium,
-			`{"cve":"CVE-1234-5678"}`,
-			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
-			`"group_id":123`,
-			"Probability of exploit",
 		},
 		{
 			"vuln premium",
 			fleet.TierPremium,
 			`{"vulnerability":{"cve":"CVE-1234-5678"}}`,
 			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
-			`"group_id":123`,
+			[]string{
+				`"group_id":123`,
+				"/some/path/1",
+				"/some/path/2",
+			},
 			"Probability of exploit",
 		},
 		{
@@ -154,7 +157,23 @@ func TestZendeskRun(t *testing.T) {
 			fleet.TierPremium,
 			`{"vulnerability":{"cve":"CVE-1234-5678","epss_probability":3.4,"cvss_score":50,"cisa_known_exploit":true}}`,
 			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
-			"Probability of exploit",
+			[]string{
+				"Probability of exploit",
+				"/some/path/1",
+				"/some/path/2",
+			},
+			"",
+		},
+		{
+			"vuln with published date",
+			fleet.TierPremium,
+			`{"vulnerability":{"cve":"CVE-1234-5678","cve_published":"2012-04-23T18:25:43.511Z","epss_probability":3.4,"cvss_score":50,"cisa_known_exploit":true}}`,
+			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			[]string{
+				"Published (reported by [NVD|https://nvd.nist.gov/]): 2012-04-23",
+				"/some/path/1",
+				"/some/path/2",
+			},
 			"",
 		},
 	}

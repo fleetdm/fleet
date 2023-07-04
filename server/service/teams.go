@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -25,7 +26,7 @@ type listTeamsResponse struct {
 
 func (r listTeamsResponse) error() error { return r.Err }
 
-func listTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listTeamsRequest)
 	teams, err := svc.ListTeams(ctx, req.ListOptions)
 	if err != nil {
@@ -62,7 +63,7 @@ type getTeamResponse struct {
 
 func (r getTeamResponse) error() error { return r.Err }
 
-func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getTeamRequest)
 	team, err := svc.GetTeam(ctx, req.ID)
 	if err != nil {
@@ -94,7 +95,7 @@ type teamResponse struct {
 
 func (r teamResponse) error() error { return r.Err }
 
-func createTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createTeamRequest)
 
 	team, err := svc.NewTeam(ctx, req.TeamPayload)
@@ -121,7 +122,7 @@ type modifyTeamRequest struct {
 	fleet.TeamPayload
 }
 
-func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamRequest)
 	team, err := svc.ModifyTeam(ctx, req.ID, req.TeamPayload)
 	if err != nil {
@@ -152,7 +153,7 @@ type deleteTeamResponse struct {
 
 func (r deleteTeamResponse) error() error { return r.Err }
 
-func deleteTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteTeamRequest)
 	err := svc.DeleteTeam(ctx, req.ID)
 	if err != nil {
@@ -188,16 +189,37 @@ func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader) e
 			return ctxerr.Wrap(ctx, err, "strict decode team specs")
 		}
 	}
+
+	// the MacOSSettings field must be validated separately, since it
+	// JSON-decodes into a free-form map.
+	for _, spec := range req.Specs {
+		if spec == nil || spec.MDM.MacOSSettings == nil {
+			continue
+		}
+
+		var macOSSettings fleet.MacOSSettings
+		validMap := macOSSettings.ToMap()
+
+		// the keys provided must be valid
+		for k := range spec.MDM.MacOSSettings {
+			if _, ok := validMap[k]; !ok {
+				return ctxerr.Wrap(ctx, fleet.NewUserMessageError(
+					fmt.Errorf("json: unknown field %q", k),
+					http.StatusBadRequest), "strict decode team specs")
+			}
+		}
+	}
 	return nil
 }
 
 type applyTeamSpecsResponse struct {
-	Err error `json:"error,omitempty"`
+	Err           error           `json:"error,omitempty"`
+	TeamIDsByName map[string]uint `json:"team_ids_by_name,omitempty"`
 }
 
 func (r applyTeamSpecsResponse) error() error { return r.Err }
 
-func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyTeamSpecsRequest)
 
 	// remove any nil spec (may happen in conversion from YAML to JSON with fleetctl, but also
@@ -209,22 +231,22 @@ func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.
 		}
 	}
 
-	err := svc.ApplyTeamSpecs(ctx, actualSpecs, fleet.ApplySpecOptions{
+	idsByName, err := svc.ApplyTeamSpecs(ctx, actualSpecs, fleet.ApplySpecOptions{
 		Force:  req.Force,
 		DryRun: req.DryRun,
 	})
 	if err != nil {
 		return applyTeamSpecsResponse{Err: err}, nil
 	}
-	return applyTeamSpecsResponse{}, nil
+	return applyTeamSpecsResponse{TeamIDsByName: idsByName}, nil
 }
 
-func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
+func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) (map[string]uint, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -238,7 +260,7 @@ type modifyTeamAgentOptionsRequest struct {
 	json.RawMessage
 }
 
-func modifyTeamAgentOptionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyTeamAgentOptionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamAgentOptionsRequest)
 	team, err := svc.ModifyTeamAgentOptions(ctx, req.ID, req.RawMessage, fleet.ApplySpecOptions{
 		Force:  req.Force,
@@ -267,7 +289,7 @@ type listTeamUsersRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
-func listTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listTeamUsersRequest)
 	users, err := svc.ListTeamUsers(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
@@ -301,7 +323,7 @@ type modifyTeamUsersRequest struct {
 	Users []fleet.TeamUser `json:"users"`
 }
 
-func addTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func addTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamUsersRequest)
 	team, err := svc.AddTeamUsers(ctx, req.TeamID, req.Users)
 	if err != nil {
@@ -318,7 +340,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 	return nil, fleet.ErrMissingLicense
 }
 
-func deleteTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamUsersRequest)
 	team, err := svc.DeleteTeamUsers(ctx, req.TeamID, req.Users)
 	if err != nil {
@@ -350,7 +372,7 @@ type teamEnrollSecretsResponse struct {
 
 func (r teamEnrollSecretsResponse) error() error { return r.Err }
 
-func teamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func teamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*teamEnrollSecretsRequest)
 	secrets, err := svc.TeamEnrollSecrets(ctx, req.TeamID)
 	if err != nil {
@@ -377,7 +399,7 @@ type modifyTeamEnrollSecretsRequest struct {
 	Secrets []fleet.EnrollSecret `json:"secrets"`
 }
 
-func modifyTeamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyTeamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamEnrollSecretsRequest)
 	secrets, err := svc.ModifyTeamEnrollSecrets(ctx, req.TeamID, req.Secrets)
 	if err != nil {

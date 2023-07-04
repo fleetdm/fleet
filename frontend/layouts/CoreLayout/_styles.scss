@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background-color: $ui-off-white;
 }
 
 .core-wrapper {
@@ -31,10 +32,9 @@
   }
 }
 
-.site-nav {
-  background: $gradients-dark-gradient;
+.site-nav-container {
+  background: $core-fleet-black;
   box-sizing: border-box;
-  display: flex;
   top: 0;
   left: 0;
   z-index: 100;

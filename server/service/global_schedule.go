@@ -23,7 +23,7 @@ type getGlobalScheduleResponse struct {
 
 func (r getGlobalScheduleResponse) error() error { return r.Err }
 
-func getGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getGlobalScheduleRequest)
 
 	gp, err := svc.GetGlobalScheduledQueries(ctx, req.ListOptions)
@@ -72,7 +72,7 @@ type globalScheduleQueryResponse struct {
 
 func (r globalScheduleQueryResponse) error() error { return r.Err }
 
-func globalScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func globalScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*globalScheduleQueryRequest)
 
 	scheduled, err := svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{
@@ -122,7 +122,7 @@ type modifyGlobalScheduleResponse struct {
 
 func (r modifyGlobalScheduleResponse) error() error { return r.Err }
 
-func modifyGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyGlobalScheduleRequest)
 
 	sq, err := svc.ModifyGlobalScheduledQueries(ctx, req.ID, req.ScheduledQueryPayload)
@@ -166,7 +166,7 @@ type deleteGlobalScheduleResponse struct {
 
 func (r deleteGlobalScheduleResponse) error() error { return r.Err }
 
-func deleteGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteGlobalScheduleRequest)
 	err := svc.DeleteGlobalScheduledQueries(ctx, req.ID)
 	if err != nil {

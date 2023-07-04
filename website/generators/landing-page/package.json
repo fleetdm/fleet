@@ -1,0 +1,26 @@
+{
+  "name": "@eashaw/sails-generate-landing-page",
+  "version": "1.0.0",
+  "description": "sails generate landing-page",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'No further automated tests have been implemented for this generator yet.'",
+    "pretest": "npm run lint",
+    "lint": "node ./node_modules/eslint/bin/eslint . --max-warnings=0"
+  },
+  "keywords": [
+    "landing-page",
+    "generator",
+    "sails",
+    "generate",
+    "plugin"
+  ],
+  "author": "eashaw",
+  "license": "MIT",
+  "repository": {"type":"git","url":"git://github.com/eashaw/sails-generate-landing-page.git"},
+  "sailsGenerator": {
+    "type": "landing-page",
+    "behavior": "Implements or overrides `sails generate landing-page`",
+    "sailsVersion": "^1.0.0"
+  }
+}

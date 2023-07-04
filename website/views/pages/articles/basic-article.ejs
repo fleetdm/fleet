@@ -4,13 +4,16 @@
       <h1><%=thisPage.meta.articleTitle %></h1>
       <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
     </div>
-    <div purpose="article-details" class="d-flex flex-row align-items-center">
-    <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
-    <span class="px-2">|</span>
-    <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
-    <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+    <div class="d-flex flex-sm-row flex-column justify-content-between">
+      <div purpose="article-details" class="d-flex flex-row align-items-center">
+      <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+      <span class="px-2">|</span>
+      <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
+      <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+      </div>
+      <a purpose="rss-button" class="px-0 px-sm-2 pt-3 pt-sm-1" taget="_blank" :href="'/rss/'+articleCategorySlug"><span>Subscribe</span></a>
     </div>
-    <div purpose="article-content" class="d-flex flex-column">
+    <div purpose="article-content" class="d-flex flex-column" parasails-has-no-page-script>
       <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
     </div>
     <hr>
@@ -25,7 +28,7 @@
           <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
           Join <span purpose="large-button-text">&nbsp;the&nbsp;</span> Fleet <span purpose="large-button-text">&nbsp;community&nbsp;</span>on Slack
         </a>
-        <a href="https://calendly.com/fleetdm/demo?utm_source=article+demo+top" target="_blank" class="d-flex flex-fill btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-md-0  mr-0" purpose="next-steps-button">
+        <a @click="clickOpenChatWidget()" class="d-flex flex-fill btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-md-0  mr-0" purpose="next-steps-button">
           Talk to an expert
         </a>
       </div>

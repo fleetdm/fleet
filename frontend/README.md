@@ -20,10 +20,13 @@ Visit the [overview of Fleet UI testing](../docs/Contributing/Fleet-UI-Testing.m
 
 To run unit or integration tests in `ComponentName.tests.tsx`, run `yarn test -- ComponentName.tests.tsx`. To [test all Javascript components](https://fleetdm.com/docs/contributing/testing-and-local-development#javascript-unit-tests) run `yarn test`.
 
-To run E2E tests, visit [our Cypress testing documentation](../cypress/README.md).
 
-For more information on how our front-end tests work, visit our [frontend test directory](./test/README.md).
+[QA Wolf](https://www.qawolf.com/) manages our E2E test and will maintain the tests as well as raise
+any issues found from these tests. Engineers should not have to worry about working with E2E testing
+code or raising issues themselves.
 
+For more information on how our front-end tests work, visit our [frontend test
+directory](./test/README.md).
 
 ## Directory structure
 

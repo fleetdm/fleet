@@ -3,14 +3,15 @@ import URL_PREFIX from "router/url_prefix";
 import { IUser } from "interfaces/user";
 
 export interface INavItem {
-  icon: string;
   name: string;
-  iconName: string;
+  icon?: string;
+  iconName?: string;
   location: {
     regex: RegExp;
     pathname: string;
   };
-  withContext?: boolean;
+  exclude?: boolean;
+  withParams?: { type: "query"; names: string[] };
 }
 
 export default (
@@ -19,11 +20,18 @@ export default (
   isAnyTeamAdmin = false,
   isAnyTeamMaintainer = false,
   isGlobalMaintainer = false,
-  isNoAccess = false
+  isNoAccess = false,
+  isSandboxMode = false
 ): INavItem[] => {
   if (!user) {
     return [];
   }
+
+  const isMaintainerOrAdmin =
+    isGlobalMaintainer ||
+    isAnyTeamMaintainer ||
+    isGlobalAdmin ||
+    isAnyTeamAdmin;
 
   const logo = [
     {
@@ -37,78 +45,66 @@ export default (
     },
   ];
 
-  const userNavItems = [
+  const navItems: INavItem[] = [
     {
-      icon: "hosts",
       name: "Hosts",
-      iconName: "hosts",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
       },
-      withContext: true,
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
-      icon: "software",
+      name: "Controls",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/controls/`),
+        pathname: PATHS.CONTROLS,
+      },
+      exclude: isSandboxMode || !isMaintainerOrAdmin,
+      withParams: { type: "query", names: ["team_id"] },
+    },
+    {
       name: "Software",
-      iconName: "software",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/software/`),
         pathname: PATHS.MANAGE_SOFTWARE,
       },
-      withContext: true,
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
-      icon: "query",
       name: "Queries",
-      iconName: "queries",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
       },
     },
-  ];
-
-  const policiesTab = [
     {
-      icon: "policies",
-      name: "Policies",
-      iconName: "policies",
-      location: {
-        regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
-        pathname: PATHS.MANAGE_POLICIES,
-      },
-    },
-  ];
-
-  const maintainerOrAdminNavItems = [
-    {
-      icon: "packs",
       name: "Schedule",
-      iconName: "packs",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
         pathname: PATHS.MANAGE_SCHEDULE,
       },
+      exclude: !isMaintainerOrAdmin,
+      withParams: { type: "query", names: ["team_id"] },
+    },
+    {
+      name: "Policies",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
+        pathname: PATHS.MANAGE_POLICIES,
+      },
+      withParams: { type: "query", names: ["team_id"] },
     },
   ];
-
-  if (
-    isGlobalMaintainer ||
-    isAnyTeamMaintainer ||
-    isGlobalAdmin ||
-    isAnyTeamAdmin
-  ) {
-    return [
-      ...logo,
-      ...userNavItems,
-      ...maintainerOrAdminNavItems,
-      ...policiesTab,
-    ];
-  }
 
   if (isNoAccess) {
     return [...logo];
   }
-  return [...logo, ...userNavItems, ...policiesTab];
+
+  return [
+    ...logo,
+    ...navItems.filter((item) => {
+      return !item.exclude;
+    }),
+  ];
 };

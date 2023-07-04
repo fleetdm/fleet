@@ -22,6 +22,7 @@ fi
 
 codesign -s "$CODESIGN_IDENTITY" -i com.fleetdm.orbit -f -v --timestamp --options runtime "$1"
 zip -r dist/orbit-macos_darwin_all dist/orbit-macos_darwin_all
-xcrun notarytool submit dist/orbit-macos_darwin_all.zip --apple-id "$AC_USERNAME" --password "$AC_PASSWORD" --team-id "$AC_TEAM_ID" --wait
+# Note that we set a 5m timeout, so this could complete without the signing being completed.
+xcrun notarytool submit dist/orbit-macos_darwin_all.zip --apple-id "$AC_USERNAME" --password "$AC_PASSWORD" --team-id "$AC_TEAM_ID" --wait --timeout 5m
 
-echo "Signed successfully"
+echo "Submitted successfully. Check notarytool submit output for status."

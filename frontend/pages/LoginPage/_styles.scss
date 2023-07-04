@@ -1,3 +1,11 @@
+.login-page {
+  &__loading-spinner.centered {
+    margin: 0;
+    position: absolute;
+    left: 50vw;
+    top: 40vh;
+  }
+}
 .login-form-animation-leave {
   transform: scale(1);
   opacity: 1;

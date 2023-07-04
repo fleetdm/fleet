@@ -3,6 +3,8 @@ import classnames from "classnames";
 import { formatDistanceToNow } from "date-fns";
 
 import SandboxExpiryMessage from "components/Sandbox/SandboxExpiryMessage";
+import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
+
 import SandboxGate from "components/Sandbox/SandboxGate";
 import { AppContext } from "context/app";
 
@@ -25,17 +27,33 @@ const MainContent = ({
   className,
 }: IMainContentProps): JSX.Element => {
   const classes = classnames(baseClass, className);
-  const { sandboxExpiry } = useContext(AppContext);
+  const {
+    sandboxExpiry,
+    config,
+    isSandboxMode,
+    isPremiumTier,
+    noSandboxHosts,
+  } = useContext(AppContext);
 
-  const expiry =
+  const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
+
+  const sandboxExpiryTime =
     sandboxExpiry === undefined
       ? "..."
       : formatDistanceToNow(new Date(sandboxExpiry));
 
   return (
     <div className={classes}>
+      {isAppleBmTermsExpired && isPremiumTier && !isSandboxMode && (
+        <AppleBMTermsMessage />
+      )}
       <SandboxGate
-        fallbackComponent={() => <SandboxExpiryMessage expiry={expiry} />}
+        fallbackComponent={() => (
+          <SandboxExpiryMessage
+            expiry={sandboxExpiryTime}
+            noSandboxHosts={noSandboxHosts}
+          />
+        )}
       />
       {children}
     </div>

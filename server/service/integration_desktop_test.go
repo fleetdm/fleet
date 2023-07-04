@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -51,6 +52,18 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token", nil, http.StatusUnauthorized)
 	res.Body.Close()
 
+	// set the  mdm configured flag
+	ctx := context.Background()
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		appCfg.MDM.EnabledAndConfigured = false
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+	})
+
 	// get host with valid token
 	var getHostResp getDeviceHostResponse
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
@@ -62,12 +75,15 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Nil(t, getHostResp.Host.Policies)
 	require.NotNil(t, getHostResp.Host.Batteries)
 	require.Equal(t, &fleet.HostBattery{CycleCount: 1, Health: "Normal"}, (*getHostResp.Host.Batteries)[0])
+	require.True(t, getHostResp.GlobalConfig.MDM.EnabledAndConfigured)
 	hostDevResp := getHostResp.Host
 
-	// make request for same host on the host details API endpoint, responses should match, except for policies
+	// make request for same host on the host details API endpoint,
+	// responses should match, except for policies and DEP assignment
 	getHostResp = getDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
 	getHostResp.Host.Policies = nil
+	getHostResp.Host.DEPAssignedToFleet = ptr.Bool(false)
 	require.Equal(t, hostDevResp, getHostResp.Host)
 
 	// request a refetch for that valid host
@@ -153,8 +169,8 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -209,12 +225,40 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
-func (s *integrationTestSuite) TestDesktopRateLimit() {
+func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 	headers := map[string]string{
 		"X-Forwarded-For": "1.2.3.4",
 	}
-	for i := 0; i < desktopRateLimitMaxBurst+1; i++ { // rate limiting off-by-one
-		s.DoRawWithHeaders("GET", "/api/latest/fleet/device/"+uuid.NewString(), nil, http.StatusUnauthorized, headers).Body.Close()
+
+	testCases := []struct {
+		endpoint string
+		verb     string
+		payload  interface{}
+		burst    int
+		status   int
+	}{
+		{
+			endpoint: "/api/latest/fleet/forgot_password",
+			verb:     "POST",
+			payload:  forgotPasswordRequest{Email: "some@one.com"},
+			burst:    forgotPasswordRateLimitMaxBurst - 1,
+			status:   http.StatusAccepted,
+		},
+		{
+			endpoint: "/api/latest/fleet/device/" + uuid.NewString(),
+			verb:     "GET",
+			burst:    desktopRateLimitMaxBurst + 1,
+			status:   http.StatusUnauthorized,
+		},
 	}
-	s.DoRawWithHeaders("GET", "/api/latest/fleet/device/"+uuid.NewString(), nil, http.StatusTooManyRequests, headers).Body.Close()
+
+	for _, tCase := range testCases {
+		b, err := json.Marshal(tCase.payload)
+		require.NoError(s.T(), err)
+
+		for i := 0; i < tCase.burst; i++ {
+			s.DoRawWithHeaders(tCase.verb, tCase.endpoint, b, tCase.status, headers).Body.Close()
+		}
+		s.DoRawWithHeaders(tCase.verb, tCase.endpoint, b, http.StatusTooManyRequests, headers).Body.Close()
+	}
 }

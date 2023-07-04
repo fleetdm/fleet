@@ -2,7 +2,11 @@
 import specAPI from "services/entities/spec";
 import teamsAPI from "services/entities/teams";
 
-import { IEnrollSecret } from "interfaces/enroll_secret";
+import {
+  IEnrollSecret,
+  IEnrollSecretsResponse,
+} from "interfaces/enroll_secret";
+import { API_NO_TEAM_ID } from "interfaces/team";
 
 export default {
   getGlobalEnrollSecrets: () => {
@@ -13,10 +17,27 @@ export default {
       .applyEnrollSecretSpec({ spec: { secrets } })
       .then((res) => res.spec);
   },
-  getTeamEnrollSecrets: (teamId: number) => {
+  getTeamEnrollSecrets: (teamId?: number): Promise<IEnrollSecretsResponse> => {
+    if (!teamId || teamId <= API_NO_TEAM_ID) {
+      return Promise.reject(
+        new Error(
+          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+        )
+      );
+    }
     return teamsAPI.getEnrollSecrets(teamId);
   },
-  modifyTeamEnrollSecrets: (teamId: number, secrets: IEnrollSecret[]) => {
+  modifyTeamEnrollSecrets: (
+    teamId: number | undefined,
+    secrets: IEnrollSecret[]
+  ): Promise<IEnrollSecretsResponse> => {
+    if (!teamId || teamId <= API_NO_TEAM_ID) {
+      return Promise.reject(
+        new Error(
+          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+        )
+      );
+    }
     return teamsAPI.modifyEnrollSecrets(teamId, secrets);
   },
 };

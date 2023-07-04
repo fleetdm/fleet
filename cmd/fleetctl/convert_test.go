@@ -41,6 +41,7 @@ func TestConvertFileOutput(t *testing.T) {
 
 func TestConvertFileStdout(t *testing.T) {
 	r, w, _ := os.Pipe()
+	oldStdout := os.Stdout
 	os.Stdout = w
 
 	// setup the cli and the convert command
@@ -60,6 +61,7 @@ func TestConvertFileStdout(t *testing.T) {
 	err = app.Run(args)
 	require.NoError(t, err)
 
+	os.Stdout = oldStdout
 	w.Close()
 	out, _ := ioutil.ReadAll(r)
 	require.Equal(t, expected, out)

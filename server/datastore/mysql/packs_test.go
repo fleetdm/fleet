@@ -521,7 +521,7 @@ func testPacksTeamScheduleNamesMigrateToNewFormat(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// insert team pack by hand with the old naming scheme
-	_, err = ds.writer.Exec(
+	_, err = ds.writer(context.Background()).Exec(
 		"INSERT INTO packs(name, description, platform, disabled, pack_type) VALUES (?, ?, ?, ?, ?)",
 		teamSchedulePackType(team1), "desc", "windows", false, teamSchedulePackType(team1),
 	)
@@ -598,7 +598,7 @@ func testPacksApplyStatsNotLocking(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -621,7 +621,7 @@ func testPacksApplyStatsNotLocking(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 
 				amount := rand.Intn(5000)
-				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
+				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
 			}
 		}
 	}()
@@ -645,7 +645,7 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -673,7 +673,7 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 					require.NoError(t, err)
 
 					amount := rand.Intn(5000)
-					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
+					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
 				}
 			}
 		}()

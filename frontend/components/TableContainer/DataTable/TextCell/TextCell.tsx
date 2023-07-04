@@ -1,8 +1,9 @@
 import React from "react";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ITextCellProps {
-  value: string | number | boolean;
-  formatter?: (val: any) => string; // string, number, or null
+  value?: string | number | boolean | { timeString: string };
+  formatter?: (val: any) => JSX.Element | string; // string, number, or null
   greyed?: boolean;
   classes?: string;
 }
@@ -18,10 +19,12 @@ const TextCell = ({
   if (typeof value === "boolean") {
     val = value.toString();
   }
-
+  if (!val) {
+    greyed = true;
+  }
   return (
     <span className={`text-cell ${classes} ${greyed && "grey-cell"}`}>
-      {formatter(val)}
+      {formatter(val) || DEFAULT_EMPTY_CELL_VALUE}
     </span>
   );
 };

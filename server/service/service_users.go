@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -29,6 +31,14 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) 
 }
 
 func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+	license, _ := license.FromContext(ctx)
+	if license == nil {
+		return nil, ctxerr.New(ctx, "license not found")
+	}
+	if err := fleet.ValidateUserRoles(true, p, *license); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate role")
+	}
+
 	user, err := p.User(svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return nil, err
@@ -38,6 +48,27 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	if err != nil {
 		return nil, err
 	}
+
+	adminUser := authz.UserFromContext(ctx)
+	if adminUser == nil {
+		// In case of invites the user created herself.
+		adminUser = user
+	}
+	if err := svc.ds.NewActivity(
+		ctx,
+		adminUser,
+		fleet.ActivityTypeCreatedUser{
+			UserID:    user.ID,
+			UserName:  user.Name,
+			UserEmail: user.Email,
+		},
+	); err != nil {
+		return nil, err
+	}
+	if err := fleet.LogRoleChangeActivities(ctx, svc.ds, adminUser, nil, nil, user); err != nil {
+		return nil, err
+	}
+
 	return user, nil
 }
 

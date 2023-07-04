@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
+
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -18,11 +19,9 @@ import (
 func TestDownloadEPSSFeed(t *testing.T) {
 	nettest.Run(t)
 
-	client := fleethttp.NewClient()
-
 	tempDir := t.TempDir()
 
-	err := DownloadEPSSFeed(tempDir, client)
+	err := DownloadEPSSFeed(tempDir)
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tempDir, strings.TrimSuffix(epssFilename, ".gz")))
@@ -31,11 +30,9 @@ func TestDownloadEPSSFeed(t *testing.T) {
 func TestDownloadCISAKnownExploitsFeed(t *testing.T) {
 	nettest.Run(t)
 
-	client := fleethttp.NewClient()
-
 	tempDir := t.TempDir()
 
-	err := DownloadCISAKnownExploitsFeed(tempDir, client)
+	err := DownloadCISAKnownExploitsFeed(tempDir)
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tempDir, cisaKnownExploitsFilename))
@@ -51,7 +48,9 @@ func TestLoadCVEMeta(t *testing.T) {
 	}
 
 	logger := log.NewNopLogger()
-	err := LoadCVEMeta(logger, "../testdata", ds)
+	err := LoadCVEMeta(license.NewContext(context.Background(), &fleet.LicenseInfo{
+		Tier: "premium",
+	}), logger, "../testdata", ds)
 	require.NoError(t, err)
 	require.True(t, ds.InsertCVEMetaFuncInvoked)
 
@@ -67,7 +66,7 @@ func TestLoadCVEMeta(t *testing.T) {
 	require.Equal(t, false, *meta.CISAKnownExploit)
 
 	meta = metaMap["CVE-2022-22587"]
-	require.Equal(t, (*float64)(nil), meta.CVSSScore)
+	require.Equal(t, float64(9.8), *meta.CVSSScore)
 	require.Equal(t, float64(0.01843), *meta.EPSSProbability)
 	require.Equal(t, true, *meta.CISAKnownExploit)
 }
@@ -75,11 +74,9 @@ func TestLoadCVEMeta(t *testing.T) {
 func TestDownloadCPETranslations(t *testing.T) {
 	nettest.Run(t)
 
-	client := fleethttp.NewClient()
-
 	tempDir := t.TempDir()
 
-	err := DownloadCPETranslations(tempDir, client, "")
+	err := DownloadCPETranslationsFromGithub(tempDir, "")
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tempDir, cpeTranslationsFilename))

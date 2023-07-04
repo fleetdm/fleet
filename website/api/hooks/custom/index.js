@@ -70,6 +70,11 @@ will be disabled and/or hidden in the UI.
       // This will determine whether or not to enable various billing features.
       sails.config.custom.enableBillingFeatures = !isMissingStripeConfig;
 
+
+      // Override the default sails.LOOKS_LIKE_ASSET_RX with a regex that does not match paths starting with '/release/'.
+      // Otherwise, our release blog posts are treated as assets because they contain periods in their URL (e.g., fleetdm.com/releases/fleet-4.29.0)
+      sails.LOOKS_LIKE_ASSET_RX = /^(?!\/releases\/.*$)[^?]*\/[^?\/]+\.[^?\/]+(\?.*)?$/;
+
       // After "sails-hook-organics" finishes initializing, configure Stripe
       // and Sendgrid packs with any available credentials.
       sails.after('hook:organics:loaded', ()=>{
@@ -84,6 +89,16 @@ will be disabled and/or hidden in the UI.
           fromName: sails.config.custom.fromName,
         });
 
+        if(sails.config.environment === 'production'){
+          sails.helpers.http.post.with({
+            url: `https://crawler.algolia.com/api/1/crawlers/${sails.config.custom.algoliaCrawlerId}/reindex`,
+            headers: { 'Authorization': sails.config.custom.algoliaCrawlerApiToken}
+          }).exec((err)=>{
+            if(err){
+              sails.log.warn('When trying to send a request to Algolia to refresh the Fleet website search index, an error occurred: '+err);
+            }
+          });//_∏_
+        }
       });//_∏_
 
       // ... Any other app-specific setup code that needs to run on lift,

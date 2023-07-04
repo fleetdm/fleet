@@ -24,23 +24,23 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 	lic, _ := license.FromContext(ctx)
 
 	computeStats := func(stats *fleet.StatisticsPayload, since time.Time) error {
-		enrolledHostsByOS, amountEnrolledHosts, err := amountEnrolledHostsByOSDB(ctx, ds.writer)
+		enrolledHostsByOS, amountEnrolledHosts, err := amountEnrolledHostsByOSDB(ctx, ds.writer(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount enrolled hosts by os")
 		}
-		amountUsers, err := amountUsersDB(ctx, ds.writer)
+		amountUsers, err := amountUsersDB(ctx, ds.writer(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount users")
 		}
-		amountTeams, err := amountTeamsDB(ctx, ds.writer)
+		amountTeams, err := amountTeamsDB(ctx, ds.writer(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount teams")
 		}
-		amountPolicies, err := amountPoliciesDB(ctx, ds.writer)
+		amountPolicies, err := amountPoliciesDB(ctx, ds.writer(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount policies")
 		}
-		amountLabels, err := amountLabelsDB(ctx, ds.writer)
+		amountLabels, err := amountLabelsDB(ctx, ds.writer(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount labels")
 		}
@@ -48,11 +48,11 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "statistics app config")
 		}
-		amountWeeklyUsers, err := amountActiveUsersSinceDB(ctx, ds.writer, since)
+		amountWeeklyUsers, err := amountActiveUsersSinceDB(ctx, ds.writer(ctx), since)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount active users")
 		}
-		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.writer)
+		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.writer(ctx))
 		if err == sql.ErrNoRows {
 			level.Debug(ds.logger).Log("msg", "amount policy violation days", "err", err) //nolint:errcheck
 		} else if err != nil {
@@ -62,15 +62,15 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "statistics error store")
 		}
-		amountHostsNotResponding, err := countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+		amountHostsNotResponding, err := countHostsNotRespondingDB(ctx, ds.writer(ctx), ds.logger, config)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount hosts not responding")
 		}
-		amountHostsByOrbitVersion, err := amountHostsByOrbitVersionDB(ctx, ds.writer)
+		amountHostsByOrbitVersion, err := amountHostsByOrbitVersionDB(ctx, ds.writer(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount hosts by orbit version")
 		}
-		amountHostsByOsqueryVersion, err := amountHostsByOsqueryVersionDB(ctx, ds.writer)
+		amountHostsByOsqueryVersion, err := amountHostsByOsqueryVersionDB(ctx, ds.writer(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
 		}
@@ -100,14 +100,14 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 	}
 
 	dest := statistics{}
-	err := sqlx.GetContext(ctx, ds.writer, &dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			anonIdentifier, err := server.GenerateRandomText(64)
 			if err != nil {
 				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "generate random text")
 			}
-			_, err = ds.writer.ExecContext(ctx, `INSERT INTO statistics(anonymous_identifier) VALUES (?)`, anonIdentifier)
+			_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO statistics(anonymous_identifier) VALUES (?)`, anonIdentifier)
 			if err != nil {
 				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "insert statistics")
 			}
@@ -154,7 +154,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 }
 
 func (ds *Datastore) RecordStatisticsSent(ctx context.Context) error {
-	_, err := ds.writer.ExecContext(ctx, `UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
 	return ctxerr.Wrap(ctx, err, "update statistics")
 }
 

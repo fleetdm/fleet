@@ -45,6 +45,7 @@ module.exports = {
   fn: async function ({template, raw}) {
 
     var path = require('path');
+    var moment = require('moment');
     var url = require('url');
     var util = require('util');
     // Determine appropriate email layout and fake data to use.
@@ -87,6 +88,28 @@ module.exports = {
           lastName: 'user',
         };
         break;
+      case 'email-subscription-renewal-confirmation':
+        layout = 'layout-email';
+        fakeData = {
+          firstName: 'Fleet',
+          lastName: 'user',
+        };
+        break;
+      case 'email-upcoming-subscription-renewal':
+        layout = 'layout-email';
+        fakeData = {
+          firstName: 'Fleet',
+          lastName: 'user',
+          subscriptionPriceInWholeDollars: 60,
+          numberOfHosts: 10,
+          subscriptionCostPerHost: 6,
+          nextBillingAt: Date.now() + (1000 * 60 * 60 * 24 * 7),
+        };
+        break;
+      case 'email-signed-csr-for-apns':
+        layout = 'layout-email';
+        fakeData = {};
+        break;
       default:
         layout = 'layout-email-newsletter';
         fakeData = {
@@ -107,7 +130,7 @@ module.exports = {
 
     let sampleHtml = await sails.renderView(
       emailTemplatePath,
-      Object.assign({layout, url, util, _ }, fakeData)
+      Object.assign({layout, url, util, _, moment }, fakeData)
     )
     .intercept((err)=>{
       err.message = 'Whoops, that email template failed to render.  Could there be some fake data missing for this particular template in the `switch` statement api/controllers/admin/view-email-template-preview.js?  Any chance you need to re-lift the app after making backend changes?\nMore details: '+err.message;

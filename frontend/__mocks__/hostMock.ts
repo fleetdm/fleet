@@ -1,4 +1,19 @@
 import { IHost } from "interfaces/host";
+import { IHostMacMdmProfile } from "interfaces/mdm";
+
+const DEFAULT_HOST_PROFILE_MOCK: IHostMacMdmProfile = {
+  profile_id: 1,
+  name: "Test Profile",
+  operation_type: "install",
+  status: "verified",
+  detail: "This is verified",
+};
+
+export const createMockHostMacMdmProfile = (
+  overrides?: Partial<IHostMacMdmProfile>
+): IHostMacMdmProfile => {
+  return { ...DEFAULT_HOST_PROFILE_MOCK, ...overrides };
+};
 
 const DEFAULT_HOST_MOCK: IHost = {
   id: 1,
@@ -10,6 +25,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   last_enrolled_at: "2022-01-02T12:00:00Z",
   seen_time: "2022-04-06T02:11:41Z",
   refetch_requested: false,
+  refetch_critical_queries_until: null,
   hostname: "9b20fc72a247",
   display_name: "9b20fc72a247",
   display_text: "mock host 1",
@@ -32,6 +48,21 @@ const DEFAULT_HOST_MOCK: IHost = {
   hardware_version: "",
   hardware_serial: "",
   computer_name: "9b20fc72a247",
+  mdm: {
+    encryption_key_available: false,
+    enrollment_status: "Off",
+    server_url: "https://www.example.com/1",
+    profiles: [],
+    macos_settings: {
+      disk_encryption: null,
+      action_required: null,
+    },
+    macos_setup: {
+      bootstrap_package_status: "",
+      details: "",
+      bootstrap_package_name: "",
+    },
+  },
   public_ip: "",
   primary_ip: "172.23.0.3",
   primary_mac: "02:42:ac:17:00:03",

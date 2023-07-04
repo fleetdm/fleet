@@ -2,6 +2,8 @@ package service
 
 import (
 	"encoding/json"
+	"net/url"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -17,12 +19,49 @@ func (c *Client) ListTeams(query string) ([]fleet.Team, error) {
 	return responseBody.Teams, nil
 }
 
+// CreateTeam creates a new team.
+func (c *Client) CreateTeam(teamPayload fleet.TeamPayload) (*fleet.Team, error) {
+	req := createTeamRequest{
+		TeamPayload: teamPayload,
+	}
+	verb, path := "POST", "/api/latest/fleet/teams"
+	var responseBody teamResponse
+	err := c.authenticatedRequest(req, verb, path, &responseBody)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.Team, nil
+}
+
+// DeleteTeam deletes a team.
+func (c *Client) DeleteTeam(teamID uint) error {
+	verb, path := "DELETE", "/api/latest/fleet/teams/"+strconv.FormatUint(uint64(teamID), 10)
+	var responseBody deleteTeamResponse
+	return c.authenticatedRequest(nil, verb, path, &responseBody)
+}
+
 // ApplyTeams sends the list of Teams to be applied to the
 // Fleet instance.
-func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions) (map[string]uint, error) {
 	verb, path := "POST", "/api/latest/fleet/spec/teams"
 	var responseBody applyTeamSpecsResponse
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"specs": specs}, verb, path, &responseBody, opts.RawQuery())
+	err := c.authenticatedRequestWithQuery(map[string]interface{}{"specs": specs}, verb, path, &responseBody, opts.RawQuery())
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.TeamIDsByName, nil
+}
+
+// ApplyTeamProfiles sends the list of profiles to be applied for the specified
+// team.
+func (c *Client) ApplyTeamProfiles(tmName string, profiles [][]byte, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/mdm/apple/profiles/batch"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
+	}
+	query.Add("team_name", tmName)
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query.Encode())
 }
 
 // ApplyPolicies sends the list of Policies to be applied to the

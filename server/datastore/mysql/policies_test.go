@@ -45,6 +45,8 @@ func TestPolicies(t *testing.T) {
 		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
 		{"DeleteAllPolicyMemberships", testDeleteAllPolicyMemberships},
 		{"PolicyViolationDays", testPolicyViolationDays},
+		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
+		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -197,24 +199,24 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host1, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   "1234",
+		OsqueryHostID:   ptr.String("1234"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
 
 	host2, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   "5679",
+		OsqueryHostID:   ptr.String("5679"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
@@ -325,11 +327,11 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create hosts in each team
-	host3, err := ds.EnrollHost(ctx, "3", "3", &team1.ID, 0)
+	host3, err := ds.EnrollHost(ctx, false, "3", "", "", "3", &team1.ID, 0)
 	require.NoError(t, err)
-	host4, err := ds.EnrollHost(ctx, "4", "4", &team2.ID, 0)
+	host4, err := ds.EnrollHost(ctx, false, "4", "", "", "4", &team2.ID, 0)
 	require.NoError(t, err)
-	host5, err := ds.EnrollHost(ctx, "5", "5", &team2.ID, 0)
+	host5, err := ds.EnrollHost(ctx, false, "5", "", "", "5", &team2.ID, 0)
 	require.NoError(t, err)
 
 	// create some policy results
@@ -638,12 +640,12 @@ func newTestHostWithPlatform(t *testing.T, ds *Datastore, hostname, platform str
 	nodeKey, err := server.GenerateRandomText(32)
 	require.NoError(t, err)
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID:   uuid.NewString(),
+		OsqueryHostID:   ptr.String(uuid.NewString()),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         nodeKey,
+		NodeKey:         &nodeKey,
 		UUID:            uuid.NewString(),
 		Hostname:        hostname,
 		Platform:        platform,
@@ -878,12 +880,12 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID:   "1234",
+		OsqueryHostID:   ptr.String("1234"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -894,12 +896,12 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID:   "5679",
+		OsqueryHostID:   ptr.String("5679"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
@@ -990,7 +992,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "pass", policies[0].Response)
 
 	// Manually insert a global policy with null resolution.
-	res, err := ds.writer.ExecContext(context.Background(), `INSERT INTO policies (name, query, description) VALUES (?, ?, ?)`, q.Name+"2", q.Query, q.Description)
+	res, err := ds.writer(context.Background()).ExecContext(context.Background(), `INSERT INTO policies (name, query, description) VALUES (?, ?, ?)`, q.Name+"2", q.Query, q.Description)
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
@@ -1036,17 +1038,17 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	host1, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   "1234",
+		OsqueryHostID:   ptr.String("1234"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
-	host2, err := ds.EnrollHost(ctx, "2", "2", &team1.ID, 0)
+	host2, err := ds.EnrollHost(ctx, false, "2", "", "", "2", &team1.ID, 0)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host1.ID}))
@@ -1111,12 +1113,12 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(1, 1, 1, 2)
 
 	// all host policies are removed when a host is enrolled in the same team
-	_, err = ds.EnrollHost(ctx, "2", "2", &team1.ID, 0)
+	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", &team1.ID, 0)
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 
 	// team policies are removed if the host is enrolled in a different team
-	_, err = ds.EnrollHost(ctx, "2", "2", &team2.ID, 0)
+	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", &team2.ID, 0)
 	require.NoError(t, err)
 	// both hosts are now in team2
 	checkPassingCount(0, 0, 1, 1)
@@ -1126,7 +1128,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(1, 0, 2, 2)
 
 	// all host policies are removed when a host is re-enrolled
-	_, err = ds.EnrollHost(ctx, "2", "2", nil, 0)
+	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", nil, 0)
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 }
@@ -1395,12 +1397,12 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	ctx := context.Background()
 	host1, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   "test-1",
+		OsqueryHostID:   ptr.String("test-1"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "test-1",
+		NodeKey:         ptr.String("test-1"),
 		UUID:            "test-1",
 		Hostname:        "foo.local",
 		Platform:        "windows",
@@ -1594,12 +1596,12 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	for i, pl := range platforms {
 		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			OsqueryHostID:   id,
+			OsqueryHostID:   &id,
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         id,
+			NodeKey:         &id,
 			UUID:            id,
 			Hostname:        id,
 			Platform:        pl,
@@ -1614,12 +1616,12 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	for i, pl := range platforms {
 		id := fmt.Sprintf("g%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			OsqueryHostID:   id,
+			OsqueryHostID:   &id,
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         id,
+			NodeKey:         &id,
 			UUID:            id,
 			Hostname:        id,
 			Platform:        pl,
@@ -1758,7 +1760,7 @@ func assertPolicyMembership(t *testing.T, ds *Datastore, polsByName map[string]*
 		HostID   uint `db:"host_id"`
 	}
 	var rows []polHostIDs
-	err = ds.writer.SelectContext(context.Background(), &rows, loadMembershipStmt, args...)
+	err = ds.writer(context.Background()).SelectContext(context.Background(), &rows, loadMembershipStmt, args...)
 	require.NoError(t, err)
 
 	// index the host IDs by policy ID
@@ -1784,9 +1786,9 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	then := time.Now().Add(-48 * time.Hour)
 
 	setStatsTimestampDB := func(updatedAt time.Time) error {
-		_, err := ds.writer.ExecContext(ctx, `
-			UPDATE aggregated_stats SET created_at = ?, updated_at = ? WHERE id = ? AND type = ?
-		`, then, updatedAt, 0, "policy_violation_days")
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE aggregated_stats SET created_at = ?, updated_at = ? WHERE id = ? AND global_stats = ? AND type = ?
+		`, then, updatedAt, 0, true, aggregatedStatsTypePolicyViolationsDays)
 		return err
 	}
 
@@ -1796,12 +1798,12 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	for i, name := range []string{"h1", "h2", "h3"} {
 		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			OsqueryHostID:   id,
+			OsqueryHostID:   &id,
 			DetailUpdatedAt: then,
 			LabelUpdatedAt:  then,
 			PolicyUpdatedAt: then,
 			SeenTime:        then,
-			NodeKey:         id,
+			NodeKey:         &id,
 			UUID:            id,
 			Hostname:        name,
 		})
@@ -1810,7 +1812,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	}
 
 	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at) VALUES (?, ?, '', ?, ?, ?, ?)`
-	res, err := ds.writer.ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", then, then)
+	res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", then, then)
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
 	pol, err := ds.Policy(ctx, uint(id))
@@ -1826,7 +1828,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	// setup db for test: starting counts zero, more than 24h since last updated, one outstanding violation
 	require.NoError(t, setStatsTimestampDB(time.Now().Add(-25*time.Hour)))
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
-	actual, possible, err := amountPolicyViolationDaysDB(ctx, ds.reader)
+	actual, possible, err := amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	// actual should increment from 0 -> 1 (+1 outstanding violation)
 	require.Equal(t, 1, actual)
@@ -1838,7 +1840,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	// setup for test: starting counts zero, less than 24h since last updated, one outstanding violation
 	require.NoError(t, setStatsTimestampDB(time.Now().Add(-1*time.Hour)))
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
-	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	// count should not increment from zero
 	require.Equal(t, 0, actual)
@@ -1850,7 +1852,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false))
 	require.NoError(t, setStatsTimestampDB(time.Now().Add(-25*time.Hour)))
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
-	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	// actual should increment from 0 -> 2 (+2 outstanding violations)
 	require.Equal(t, 2, actual) // leave count at two for next test
@@ -1862,7 +1864,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(true)}, time.Now(), false))
 	require.NoError(t, setStatsTimestampDB(time.Now().Add(-25*time.Hour)))
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
-	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	// actual should increment from 2 -> 3 (+1 outstanding violation)
 	require.Equal(t, 3, actual)
@@ -1872,7 +1874,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 
 	// attempt again immediately after last update, counts should not increment
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
-	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	require.Equal(t, 3, actual)
 	require.Equal(t, 6, possible)
@@ -1889,12 +1891,12 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	for i, pl := range platforms {
 		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			OsqueryHostID:   id,
+			OsqueryHostID:   &id,
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         id,
+			NodeKey:         &id,
 			UUID:            id,
 			Hostname:        id,
 			Platform:        pl,
@@ -1914,7 +1916,7 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	may2020 := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC)
 	pols := make([]*fleet.Policy, 3)
 	for i, dt := range []time.Time{jan2020, feb2020, mar2020} {
-		res, err := ds.writer.ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i+1), "select 1", user.ID, "", dt, dt)
+		res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i+1), "select 1", user.ID, "", dt, dt)
 		require.NoError(t, err)
 		id, _ := res.LastInsertId()
 		pol, err := ds.Policy(ctx, uint(id))
@@ -2025,7 +2027,7 @@ func updatePolicyWithTimestamp(t *testing.T, ds *Datastore, p *fleet.Policy, ts 
 		UPDATE policies
 			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, updated_at = ?
 			WHERE id = ?`
-	_, err := ds.writer.ExecContext(context.Background(), sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID)
+	_, err := ds.writer(context.Background()).ExecContext(context.Background(), sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID)
 	require.NoError(t, err)
 }
 
@@ -2041,12 +2043,12 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   "567898",
+		OsqueryHostID:   ptr.String("567898"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "4",
+		NodeKey:         ptr.String("4"),
 		UUID:            "4",
 		Hostname:        "bar.local",
 	})
@@ -2066,14 +2068,109 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.Len(t, hostPolicies, 1)
 
 	var count int
-	err = ds.writer.Get(&count, "select COUNT(*) from policy_membership")
+	err = ds.writer(ctx).Get(&count, "select COUNT(*) from policy_membership")
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
-	err = deleteAllPolicyMemberships(ctx, ds.writer, []uint{host.ID})
+	err = deleteAllPolicyMemberships(ctx, ds.writer(ctx), []uint{host.ID})
 	require.NoError(t, err)
 
-	err = ds.writer.Get(&count, "select COUNT(*) from policy_membership")
+	err = ds.writer(ctx).Get(&count, "select COUNT(*) from policy_membership")
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+}
+
+func testIncreasePolicyAutomationIteration(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	pol1, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy1"})
+	require.NoError(t, err)
+	pol2, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy2"})
+	require.NoError(t, err)
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol1.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	type at []struct {
+		PolicyID  uint `db:"policy_id"`
+		Iteration int  `db:"iteration"`
+	}
+	var automations at
+	err = ds.writer(ctx).Select(&automations, `SELECT policy_id, iteration FROM policy_automation_iterations;`)
+	require.NoError(t, err)
+	require.ElementsMatch(t, automations, at{
+		{pol1.ID, 1},
+		{pol2.ID, 3},
+	})
+}
+
+func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h1, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: ptr.String("host1"), NodeKey: ptr.String("host1")})
+	require.NoError(t, err)
+	h2, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: ptr.String("host2"), NodeKey: ptr.String("host2")})
+	require.NoError(t, err)
+
+	pol1, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy1"})
+	require.NoError(t, err)
+	pol2, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy2"})
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{pol1.ID: ptr.Bool(false), pol2.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	err = ds.RecordPolicyQueryExecutions(ctx, h2, map[uint]*bool{pol1.ID: ptr.Bool(false), pol2.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	batch, err := ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
+
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol1.ID))
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{
+		{
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h1.ID,
+			},
+		},
+		{
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h2.ID,
+			},
+		},
+	})
+
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
+
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol1.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{
+		{
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h1.ID,
+			},
+		}, {
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h2.ID,
+			},
+		}, {
+			PolicyID: pol2.ID,
+			Host: fleet.PolicySetHost{
+				ID: h2.ID,
+			},
+		},
+	})
+
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
 }

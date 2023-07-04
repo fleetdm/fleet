@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Row } from "react-table";
 import { useQuery } from "react-query";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 
@@ -72,13 +72,20 @@ const DEBOUNCE_DELAY = 500;
 const STALE_TIME = 60000;
 
 const isLabel = (entity: ISelectTargetsEntity) => "label_type" in entity;
+const isAllHosts = (entity: ISelectTargetsEntity) =>
+  "label_type" in entity &&
+  entity.name === "All Hosts" &&
+  entity.label_type === "builtin";
 
 const parseLabels = (list?: ILabelSummary[]) => {
   const allHosts = list?.filter((l) => l.name === "All Hosts") || [];
   const platforms =
     list?.filter(
       (l) =>
-        l.name === "macOS" || l.name === "MS Windows" || l.name === "All Linux"
+        l.name === "macOS" ||
+        l.name === "MS Windows" ||
+        l.name === "All Linux" ||
+        l.name === "chrome"
     ) || [];
   const other = list?.filter((l) => l.label_type === "regular") || [];
 
@@ -96,6 +103,8 @@ const TargetPillSelector = ({
         return "All hosts";
       case "All Linux":
         return "Linux";
+      case "chrome":
+        return "ChromeOS";
       default:
         return entity.name || "Missing display name"; // TODO
     }
@@ -265,9 +274,30 @@ const SelectTargets = ({
       : targetedTeams;
 
     // if the target was previously selected, we want to remove it now
-    const newTargets = prevTargets.filter((t) => t.id !== selectedEntity.id);
+    let newTargets = prevTargets.filter((t) => t.id !== selectedEntity.id);
     // if the length remains the same, the target was not previously selected so we want to add it now
     prevTargets.length === newTargets.length && newTargets.push(selectedEntity);
+
+    // Logic when to deselect/select "all hosts" when using more granulated filters
+    // If "all hosts" is selected
+    if (isAllHosts(selectedEntity)) {
+      // and "all hosts" is already selected, deselect it
+      if (targetedLabels.some((t) => isAllHosts(t))) {
+        newTargets = [];
+      } // else deselect everything but "all hosts"
+      else {
+        newTargets = [selectedEntity];
+      }
+      setTargetedTeams([]);
+      setTargetedHosts([]);
+    }
+    // else deselect "all hosts"
+    else {
+      if (targetedLabels.some((t) => isAllHosts(t))) {
+        setTargetedLabels([]);
+      }
+      newTargets = newTargets.filter((t) => !isAllHosts(t));
+    }
 
     isLabel(selectedEntity)
       ? setTargetedLabels(newTargets as ILabel[])
@@ -278,6 +308,11 @@ const SelectTargets = ({
     const selectedHost = row.original as IHost;
     setTargetedHosts((prevHosts) => prevHosts.concat(selectedHost));
     setSearchText("");
+
+    // If "all hosts" is already selected when using host target picker, deselect "all hosts"
+    if (targetedLabels.some((t) => isAllHosts(t))) {
+      setTargetedLabels([]);
+    }
   };
 
   const handleRowRemove = (row: Row) => {

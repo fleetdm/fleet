@@ -60,9 +60,9 @@ How to schedule a query:
 
 5. Select **Schedule**.
 
-With [the teams feature](https://fleetdm.com/docs/using-fleet/teams), you can schedule queries for groups of hosts. This allows you to collect different data for each group.
+With Fleet Premium, you can schedule queries for groups of hosts using [the teams feature](https://fleetdm.com/docs/using-fleet/teams). This allows you to collect different data for each group.
 
-> In Fleet, groups of hosts are called "teams."
+> In Fleet Premium, groups of hosts are called "teams."
 
 How to use teams to schedule queries for a group of hosts:
 
@@ -87,13 +87,15 @@ How to update agent options:
 
 2. On the Organization settings page, select **Agent options** on the left side of the page.
 
-3. To see all agent options, head to the [agent options documentation](https://fleetdm.com/docs/deploying/configuration#agent-options).
+3. Use Fleet's YAML editor to configure your osquery options, decorators, or set command line flags.
+
+To see all agent options, head to the [agent options documentation](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options).
 
 4. Place your new setting one level below the `options` key. The new setting's key should be below and one tab to the right of `options`.
 
 5. Select **Save**.
 
-The agents may take several seconds to update because Fleet has to wait for the hosts to check in.
+The agents may take several seconds to update because Fleet has to wait for the hosts to check in. Additionally, hosts enrolled with removed enroll secrets must properly rotate their secret to have the new changes take effect.
 
 <meta name="title" value="Fleet UI">
 

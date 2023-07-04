@@ -91,6 +91,7 @@ const EditPackForm = ({
           name="name"
           error={errors.name}
           inputWrapperClass={`${baseClass}__pack-title`}
+          autofocus
         />
         <InputField
           onChange={onChangePackDescription}

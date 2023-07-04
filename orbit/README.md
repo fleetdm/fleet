@@ -57,8 +57,9 @@ Orbit is inspired by the success of [Kolide Launcher](https://github.com/kolide/
 Additionally, Orbit aims to tackle problems out of scope for Launcher:
 
 - Configure updates via release channels, providing more granular control over agent versioning.
+- Manage osquery startup flags from a remote (Fleet) server.
 - Support for deploying and updating osquery extensions (🔜).
-- Manage osquery versions and startup flags from a remote (Fleet) server (🔜).
+- Manage osquery versions from a remote (Fleet) server (🔜).
 - Further control of osquery performance via cgroups (🔜).
 
 ### Is Orbit Free?
@@ -73,6 +74,6 @@ Orbit uses a configurable update server. We expect that many folks will just use
 
 #### Chat
 
-Please join us in the #fleet channel on [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+Please join us in the #fleet channel on [osquery Slack](https://fleetdm.com/slack).
 
 <a href="https://fleetdm.com"><img alt="Banner featuring a futuristic cloud city with the Fleet logo" src="https://user-images.githubusercontent.com/618009/98254443-eaf21100-1f41-11eb-9e2c-63a0545601f3.jpg"/></a>

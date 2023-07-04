@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	"github.com/google/go-github/v37/github"
 )
@@ -34,14 +34,14 @@ func main() {
 	panicif(err)
 
 	now := time.Now()
-	httpC := http.DefaultClient
+	httpC := fleethttp.NewGithubClient()
 
 	ctx := context.Background()
 	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, wd)
-	msrcAPI := io.NewMSRCClient(httpC, inPath, io.MSRCBaseURL)
+	msrcAPI := msrc.NewMSRCClient(httpC, inPath, msrc.MSRCBaseURL)
 
 	fmt.Println("Downloading existing bulletins...")
-	eBulletins, err := ghAPI.Bulletins(ctx)
+	eBulletins, err := ghAPI.MSRCBulletins(ctx)
 	panicif(err)
 
 	var bulletins []*parsed.SecurityBulletin
@@ -67,8 +67,8 @@ func main() {
 func update(
 	m time.Month,
 	y int,
-	eBulletins map[io.SecurityBulletinName]string,
-	msrcClient io.MSRCAPI,
+	eBulletins map[io.MetadataFileName]string,
+	msrcClient msrc.MSRCAPI,
 	ghClient io.GitHubAPI,
 ) ([]*parsed.SecurityBulletin, error) {
 	fmt.Println("Downloading current feed...")
@@ -108,8 +108,8 @@ func update(
 	return bulletins, nil
 }
 
-func backfill(upToM time.Month, upToY int, client io.MSRCAPI) ([]*parsed.SecurityBulletin, error) {
-	from := time.Date(io.MSRCMinYear, 1, 1, 0, 0, 0, 0, time.UTC)
+func backfill(upToM time.Month, upToY int, client msrc.MSRCAPI) ([]*parsed.SecurityBulletin, error) {
+	from := time.Date(msrc.MSRCMinYear, 1, 1, 0, 0, 0, 0, time.UTC)
 	upTo := time.Date(upToY, upToM+1, 1, 0, 0, 0, 0, time.UTC)
 
 	bulletins := make(map[string]*parsed.SecurityBulletin)
@@ -153,7 +153,7 @@ func serialize(b *parsed.SecurityBulletin, d time.Time, dir string) error {
 	if err != nil {
 		return err
 	}
-	fileName := io.FileName(b.ProductName, d)
+	fileName := io.MSRCFileName(b.ProductName, d)
 	filePath := filepath.Join(dir, fileName)
 
 	return os.WriteFile(filePath, payload, 0o644)

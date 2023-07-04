@@ -7,16 +7,18 @@ interface IPlatformCellProps {
 
 const baseClass = "platform-cell";
 
-const ICONS: Record<string, "darwin" | "linux" | "windows"> = {
+const ICONS: Record<string, "darwin" | "windows" | "linux" | "chrome"> = {
   darwin: "darwin",
-  linux: "linux",
   windows: "windows",
+  linux: "linux",
+  chrome: "chrome",
 };
 
 const DISPLAY_ORDER = [
   "darwin",
-  "linux",
   "windows",
+  "linux",
+  "chrome",
   // "None",
   // "Invalid query",
 ];

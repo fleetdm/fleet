@@ -13,6 +13,9 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
 
+  // Bypass the `is-logged-in` policy for experiments, such as temporary landing pages.
+  'imagine/*': true,
+
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
   'webhooks/*': true,
@@ -32,7 +35,6 @@ module.exports.policies = {
   'download-sitemap': true,
   'view-transparency': true,
   'view-press-kit': true,
-  'view-platform': true,
   'view-landing': true,
   'deliver-demo-signup': true,
   'articles/*': true,
@@ -44,5 +46,18 @@ module.exports.policies = {
   'create-or-update-one-newsletter-subscription': true,
   'unsubscribe-from-all-newsletters': true,
   'view-osquery-table-details': true,
-
+  'view-connect-vanta': true,
+  'view-vanta-authorization': true,
+  'create-vanta-authorization-request': true,
+  'view-fleet-mdm': true,
+  'deliver-mdm-beta-signup': true,
+  'deliver-apple-csr': true,
+  'download-rss-feed': true,
+  'view-upgrade': true,
+  'deliver-premium-upgrade-form': true,
+  'view-compliance': true,
+  'view-osquery-management': true,
+  'view-vulnerability-management': true,
+  'deliver-mdm-demo-email': true,
+  'view-support': true,
 };

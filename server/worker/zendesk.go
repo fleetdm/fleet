@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -47,6 +49,8 @@ Probability of exploit (reported by [FIRST.org/epss](https://www.first.org/epss/
 {{ end }}
 {{ if .CVSSScore }}CVSS score (reported by [NVD](https://nvd.nist.gov/)): {{ .CVSSScore }}
 {{ end }}
+{{ if .CVEPublished }}Published (reported by [NVD|https://nvd.nist.gov/]): {{ .CVEPublished }}
+{{ end }}
 {{ if .CISAKnownExploit }}Known exploits (reported by [CISA](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
 &nbsp;
 {{ end }}{{ end }}
@@ -56,6 +60,9 @@ Affected hosts:
 {{ $end := len .Hosts }}{{ if gt $end 50 }}{{ $end = 50 }}{{ end }}
 {{ range slice .Hosts 0 $end }}
 * [{{ .DisplayName }}]({{ $.FleetURL }}/hosts/{{ .ID }})
+{{ range $path := .SoftwareInstalledPaths }}
+    * {{ $path }}
+{{ end }}
 {{ end }}
 
 View the affected software and more affected hosts:
@@ -94,7 +101,7 @@ type zendeskVulnTplArgs struct {
 	NVDURL   string
 	FleetURL string
 	CVE      string
-	Hosts    []*fleet.HostShort
+	Hosts    []fleet.HostVulnerabilitySummary
 
 	IsPremium bool
 
@@ -102,6 +109,7 @@ type zendeskVulnTplArgs struct {
 	EPSSProbability  *float64
 	CVSSScore        *float64
 	CISAKnownExploit *bool
+	CVEPublished     *time.Time
 }
 
 // ZendeskClient defines the method required for the client that makes API calls
@@ -218,9 +226,6 @@ func (z *Zendesk) Name() string {
 
 // zendeskArgs are the arguments for the Zendesk integration job.
 type zendeskArgs struct {
-	// CVE is deprecated but kept for backwards compatibility (there may be jobs
-	// enqueued in that format to process).
-	CVE           string             `json:"cve,omitempty"`
 	Vulnerability *vulnArgs          `json:"vulnerability,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
 }
@@ -263,15 +268,23 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
 	vargs := args.Vulnerability
 	if vargs == nil {
-		// support the old format of vulnerability args, where only the CVE
-		// is provided.
-		vargs = &vulnArgs{
-			CVE: args.CVE,
-		}
+		return errors.New("invalid job args")
 	}
-	hosts, err := z.Datastore.HostsByCVE(ctx, vargs.CVE)
+
+	var hosts []fleet.HostVulnerabilitySummary
+	var err error
+
+	// Default to deprecated method in case we are processing an 'old' job payload
+	// we are deprecating this because of performance reasons - querying by software_id should be
+	// way more efficient than by CVE.
+	if len(vargs.AffectedSoftwareIDs) == 0 {
+		hosts, err = z.Datastore.HostsByCVE(ctx, vargs.CVE)
+	} else {
+		hosts, err = z.Datastore.HostVulnSummariesBySoftwareIDs(ctx, vargs.AffectedSoftwareIDs)
+	}
+
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "find hosts by cve")
+		return ctxerr.Wrap(ctx, err, "fetching hosts")
 	}
 
 	tplArgs := &zendeskVulnTplArgs{
@@ -283,6 +296,7 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 		EPSSProbability:  vargs.EPSSProbability,
 		CVSSScore:        vargs.CVSSScore,
 		CISAKnownExploit: vargs.CISAKnownExploit,
+		CVEPublished:     vargs.CVEPublished,
 	}
 
 	createdTicket, err := z.createTemplatedTicket(ctx, cli, zendeskTemplates.VulnSummary, zendeskTemplates.VulnDescription, tplArgs)
@@ -364,17 +378,18 @@ func QueueZendeskVulnJobs(
 	sort.Strings(cves)
 	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
-	uniqCVEs := make(map[string]bool)
+	cveGrouped := make(map[string][]uint)
 	for _, v := range recentVulns {
-		uniqCVEs[v.GetCVE()] = true
+		cveGrouped[v.GetCVE()] = append(cveGrouped[v.GetCVE()], v.Affected())
 	}
 
-	for cve := range uniqCVEs {
-		args := vulnArgs{CVE: cve}
+	for cve, sIDs := range cveGrouped {
+		args := vulnArgs{CVE: cve, AffectedSoftwareIDs: sIDs}
 		if meta, ok := cveMeta[cve]; ok {
 			args.EPSSProbability = meta.EPSSProbability
 			args.CVSSScore = meta.CVSSScore
 			args.CISAKnownExploit = meta.CISAKnownExploit
+			args.CVEPublished = meta.Published
 		}
 		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{Vulnerability: &args})
 		if err != nil {

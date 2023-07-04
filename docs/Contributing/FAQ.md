@@ -6,7 +6,7 @@
 - [How do I connect to the MailHog simulated mail server?](#how-do-i-connect-to-the-mailhog-simulated-mail-server)
 - [Adding hosts for testing](#adding-hosts-for-testing)
 - [Why am I getting an error about self-signed certificates when running `fleetctl preview`?](#why-am-i-getting-an-error-about-self-signed-certificates-when-running-fleetctl-preview)
-- [Will updating fleetctl lead to loss of data in fleetctl preview?](will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview?)
+- [Will updating fleetctl lead to loss of data in fleetctl preview?](#will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview?)
 
 
 ## Enrolling in multiple Fleet servers
@@ -91,3 +91,4 @@ If you also have Orbit running on hosts, it will need access to these API endpoi
 * `/api/fleet/orbit/config`
 * `/api/fleet/orbit/device_token`
 * `/api/fleet/orbit/ping`
+* `/api/osquery/log`

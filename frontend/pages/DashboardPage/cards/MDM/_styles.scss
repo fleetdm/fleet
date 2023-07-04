@@ -1,27 +1,12 @@
 .home-mdm {
   margin-top: $pad-large;
   position: relative;
+  height: 100%; // centers loading spinner
 
   .component__tabs-wrapper .table-container__header {
     display: none;
   }
-  &__empty-mdm {
-    width: 364px;
-    margin: $pad-large auto 0;
 
-    h1 {
-      font-size: $small;
-      font-weight: $bold;
-      margin-bottom: $pad-medium;
-    }
-
-    p {
-      color: $core-fleet-black;
-      font-weight: $regular;
-      font-size: $x-small;
-      margin: 0;
-    }
-  }
   .data-table-block {
     .data-table__table {
       table-layout: fixed;
@@ -52,12 +37,13 @@
           text-overflow: ellipsis;
         }
         .mdm-solution-link {
-          visibility: hidden;
+          opacity: 0;
+          transition: 250ms;
           text-overflow: none;
         }
         tr:hover {
           .mdm-solution-link {
-            visibility: visible;
+            opacity: 1;
           }
         }
       }

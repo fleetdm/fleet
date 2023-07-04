@@ -5,15 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/pkg/download"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
@@ -31,67 +32,81 @@ const (
 
 var cpeDBRegex = regexp.MustCompile(`^cpe-.*\.sqlite\.gz$`)
 
-func GetLatestNVDRelease(client *http.Client) (*github.RepositoryRelease, error) {
-	ghclient := github.NewClient(client)
-	ctx := context.Background()
-	releases, _, err := ghclient.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{Page: 0, PerPage: 10})
+// GetGithubNVDAsset looks at the last 10 releases and returns the first (release, asset) pair that
+// matches pred
+func GetGithubNVDAsset(pred func(rel *github.ReleaseAsset) bool) (*github.RepositoryRelease, *github.ReleaseAsset, error) {
+	ghClient := github.NewClient(fleethttp.NewGithubClient())
+
+	releases, _, err := ghClient.Repositories.ListReleases(
+		context.Background(),
+		owner,
+		repo,
+		&github.ListOptions{Page: 0, PerPage: 10},
+	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, release := range releases {
 		// skip draft releases
-		if !release.GetDraft() {
-			return release, nil
+		if release.GetDraft() {
+			continue
 		}
+
+		for _, asset := range release.Assets {
+			if pred(asset) {
+				return release, asset, nil
+			}
+		}
+
 	}
 
-	return nil, errors.New("no nvd release found")
+	return nil, nil, errors.New("no nvd release found")
 }
 
 // DownloadCPEDB downloads the CPE database to the given vulnPath. If cpeDBURL is empty, attempts to download it
 // from the latest release of github.com/fleetdm/nvd. Skips downloading if CPE database is newer than the release.
-func DownloadCPEDB(
-	vulnPath string,
-	client *http.Client,
-	cpeDBURL string,
-) error {
+func DownloadCPEDBFromGithub(vulnPath string, cpeDBURL string) error {
 	path := filepath.Join(vulnPath, cpeDBFilename)
 
 	if cpeDBURL == "" {
-		release, err := GetLatestNVDRelease(client)
-		if err != nil {
-			return err
-		}
 		stat, err := os.Stat(path)
 		switch {
 		case errors.Is(err, os.ErrNotExist):
 			// okay
 		case err != nil:
 			return err
-		default:
-			if stat.ModTime().After(release.CreatedAt.Time) {
-				// file is newer than release, do nothing
-				return nil
-			}
+		case stat.ModTime().Truncate(24 * time.Hour).Equal(time.Now().Truncate(24 * time.Hour)):
+			// Vulnerability assets are published once per day - if the asset in question has a
+			// mod date of 'today', then we can assume that is already up to day so there's nothing
+			// else to do.
+			return nil
 		}
 
-		for _, asset := range release.Assets {
-			if cpeDBRegex.MatchString(asset.GetName()) {
-				cpeDBURL = asset.GetBrowserDownloadURL()
-				break
-			}
+		rel, asset, err := GetGithubNVDAsset(func(asset *github.ReleaseAsset) bool {
+			return cpeDBRegex.MatchString(asset.GetName())
+		})
+		if err != nil {
+			return err
 		}
-		if cpeDBURL == "" {
+		if asset == nil {
 			return errors.New("failed to find cpe database in nvd release")
 		}
+		if stat != nil && stat.ModTime().After(rel.CreatedAt.Time) {
+			// file is newer than release, do nothing
+			return nil
+		}
+
+		cpeDBURL = asset.GetBrowserDownloadURL()
 	}
 
 	u, err := url.Parse(cpeDBURL)
 	if err != nil {
 		return err
 	}
-	if err := download.DownloadAndExtract(client, u, path); err != nil {
+
+	githubClient := fleethttp.NewGithubClient()
+	if err := download.DownloadAndExtract(githubClient, u, path); err != nil {
 		return err
 	}
 
@@ -158,7 +173,12 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 	if err != nil {
 		return "", fmt.Errorf("translate software: %w", err)
 	}
+
 	if match {
+		if translation.Skip {
+			return "", nil
+		}
+
 		ds := goqu.Dialect("sqlite").From(goqu.I("cpe_2").As("c")).
 			Select(
 				"c.rowid",
@@ -293,6 +313,48 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 	return "", nil
 }
 
+func consumeCPEBuffer(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	batch []fleet.SoftwareCPE,
+) error {
+	var toDelete []fleet.SoftwareCPE
+	var toUpsert []fleet.SoftwareCPE
+
+	for i := range batch {
+		// This could be because of a new translation rule or because we fixed a bug with the CPE
+		// detection process
+		if batch[i].CPE == "" {
+			toDelete = append(toDelete, batch[i])
+			continue
+		}
+		toUpsert = append(toUpsert, batch[i])
+	}
+
+	if len(toUpsert) != 0 {
+		upserted, err := ds.UpsertSoftwareCPEs(ctx, toUpsert)
+		if err != nil {
+			return err
+		}
+		if int(upserted) != len(toUpsert) {
+			level.Debug(logger).Log("toUpsert", len(toUpsert), "upserted", upserted)
+		}
+	}
+
+	if len(toDelete) != 0 {
+		deleted, err := ds.DeleteSoftwareCPEs(ctx, toDelete)
+		if err != nil {
+			return err
+		}
+		if int(deleted) != len(toDelete) {
+			level.Debug(logger).Log("toDelete", len(toDelete), "deleted", deleted)
+		}
+	}
+
+	return nil
+}
+
 func TranslateSoftwareToCPE(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -302,9 +364,14 @@ func TranslateSoftwareToCPE(
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
 	// Skip software from sources for which we will be using OVAL for vulnerability detection.
-	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx, oval.SupportedSoftwareSources)
+	iterator, err := ds.AllSoftwareIterator(
+		ctx,
+		fleet.SoftwareIterQueryOptions{
+			ExcludedSources: oval.SupportedSoftwareSources,
+		},
+	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "all software iterator")
+		return ctxerr.Wrap(ctx, err, "software iterator")
 	}
 	defer iterator.Close()
 
@@ -322,6 +389,9 @@ func TranslateSoftwareToCPE(
 
 	reCache := newRegexpCache()
 
+	var buffer []fleet.SoftwareCPE
+	bufferMaxSize := 500
+
 	for iterator.Next() {
 		software, err := iterator.Value()
 		if err != nil {
@@ -332,13 +402,25 @@ func TranslateSoftwareToCPE(
 			level.Error(logger).Log("software->cpe", "error translating to CPE, skipping...", "err", err)
 			continue
 		}
-		if cpe == "" {
+		if cpe == software.GenerateCPE {
 			continue
 		}
-		err = ds.AddCPEForSoftware(ctx, *software, cpe)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting cpe")
+
+		buffer = append(buffer, fleet.SoftwareCPE{SoftwareID: software.ID, CPE: cpe})
+		if len(buffer) == bufferMaxSize {
+			if err = consumeCPEBuffer(ctx, ds, logger, buffer); err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting cpe")
+			}
+			buffer = nil
 		}
+	}
+
+	if err = consumeCPEBuffer(ctx, ds, logger, buffer); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting cpe")
+	}
+
+	if err := iterator.Err(); err != nil {
+		return ctxerr.Wrap(ctx, err, "iterator contains error at the end of iteration")
 	}
 
 	return nil

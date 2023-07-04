@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,14 +87,17 @@ func (s *mockStore) create(requestID, originalURL, metadata string, lifetimeSecs
 	return nil
 }
 
-func (s *mockStore) Get(requestID string) (*Session, error) {
+func (s *mockStore) get(requestID string) (*Session, error) {
 	if s.session == nil {
-		return nil, ErrSessionNotFound
+		return nil, fleet.NewAuthRequiredError("session not found")
 	}
 	return s.session, nil
 }
 
-func (s *mockStore) Expire(requestID string) error {
+func (s *mockStore) expire(requestID string) error {
 	s.session = nil
 	return nil
+}
+func (s *mockStore) Fullfill(requestID string) (*Session, *Metadata, error) {
+	return s.session, &Metadata{}, nil
 }

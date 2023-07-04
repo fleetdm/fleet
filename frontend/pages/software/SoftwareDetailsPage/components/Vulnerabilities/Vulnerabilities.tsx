@@ -5,6 +5,7 @@ import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
+import EmptyTable from "components/EmptyTable";
 
 import generateVulnTableHeaders from "./VulnTableConfig";
 
@@ -13,35 +14,38 @@ const baseClass = "vulnerabilities";
 interface IVulnerabilitiesProps {
   isLoading: boolean;
   isPremiumTier: boolean;
+  isSandboxMode?: boolean;
   software: ISoftware;
 }
 
 const NoVulnsDetected = (): JSX.Element => {
   return (
-    <div className={`${baseClass}__empty-vulnerabilities`}>
-      <div className="empty-vulnerabilities__inner">
-        <h1>No vulnerabilities detected for this software item.</h1>
-        <p>
+    <EmptyTable
+      header="No vulnerabilities detected for this software item."
+      info={
+        <>
           Expecting to see vulnerabilities?{" "}
           <CustomLink
             url={GITHUB_NEW_ISSUE_LINK}
             text="File an issue on GitHub"
             newTab
           />
-        </p>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 };
 
 const Vulnerabilities = ({
   isLoading,
   isPremiumTier,
+  isSandboxMode = false,
   software,
 }: IVulnerabilitiesProps): JSX.Element => {
-  const tableHeaders = useMemo(() => generateVulnTableHeaders(isPremiumTier), [
-    isPremiumTier,
-  ]);
+  const tableHeaders = useMemo(
+    () => generateVulnTableHeaders(isPremiumTier, isSandboxMode),
+    [isPremiumTier, isSandboxMode]
+  );
 
   return (
     <div className="section section--vulnerabilities">

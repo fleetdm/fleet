@@ -44,7 +44,7 @@
             "cpu_subtype": "Intel x86-64h Haswell",
             "cpu_type": "x86_64h",
             "hardware_model": "MacBookPro11,4",
-            "hardware_serial": "D02R835DG8WK",
+            "hardware_serial": "{{ .SerialNumber }}",
             "hardware_vendor": "Apple Inc.",
             "hardware_version": "1.0",
             "hostname": "{{ .CachedString "hostname" }}",
@@ -135,7 +135,7 @@
 [
   {
     "hostname":"{{ .CachedString "hostname" }}",
-    "uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB",
+    "uuid": "{{ .UUID }}",
     "cpu_type":"x86_64h",
     "cpu_subtype":"Intel x86-64h Haswell",
     "cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
@@ -146,7 +146,7 @@
     "hardware_vendor":"Apple Inc.",
     "hardware_model":"MacBookPro11,4",
     "hardware_version":"1.0",
-    "hardware_serial":"C02R262BM8LN",
+    "hardware_serial":"{{ .SerialNumber }}",
     "computer_name":"{{ .CachedString "hostname" }}",
     "local_hostname":"{{ .CachedString "hostname" }}"
   }
@@ -162,6 +162,16 @@
     "total_seconds":"16691"
   }
 ]
+{{- end }}
+
+{{ define "fleet_detail_query_disk_encryption_key_darwin" -}}
+{{- if .DiskEncryptionEnabled }}
+[
+  {"line": "MIAGCSqGSIb3DQEHA6CAMIACAQAxggFtMIIBaQIBADBRMEgxHzAdBgNVBAMMFkZpbGVWYXVsdCBSZWNvdmVyeSBLZXkxJTAjBgNVBA0MHFJvYmVydG9zLU1hY0Jvb2stUHJvLTIubG9jYWwCBQCovxm3MA0GCSqGSIb3DQEBAQUABIIBAHiz8IGpXp+vqfTes7ejbvS11XpnaHCxDeaMYjmEJgZKtwdQhOJZy9clsypwqFv6h/Cva3/SuOEcwBoS2N/YY766jDP8nU4OcUaZWqEcMhRsSs1mil4T+rTnUfQEUKU9xW1j/iFq3xVWDTaBY+5cBgwUmdZb8XoWhXUVoF73OD0NpitnXxsxHokXv+UZzPoydlsCzhfAngl11hELAuFe6/mfq801E1hT+zvzDEDvfwSBMDC14OGDoFORVe/HCBS3NFGpVV+IrqpIpT1wbNx2dazmngduviErpXTgZG2vrCMQN1rN0OeLRtOMcjE6rer+ruuc5hfvTGMwWOgteqd2YQUwgAYJKoZIhvcNAQcBMBQGCCqGSIb3DQMHBAhwRO3eyigWMaCABBhy88Lm9qisQ9sOaf8u8GSzoWFdw2LkjRMECAKJG0H5K6iTAAAAAAAAAAAAAA=="},
+]
+{{- else }}
+[]
+{{- end }}
 {{- end }}
 
 {{/* all hosts */}}

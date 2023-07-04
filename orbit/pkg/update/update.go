@@ -14,10 +14,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/rs/zerolog/log"
@@ -40,6 +42,7 @@ const (
 type Updater struct {
 	opt    Options
 	client *client.Client
+	mu     sync.Mutex
 }
 
 // Options are the options that can be provided when creating an Updater.
@@ -58,6 +61,14 @@ type Options struct {
 	LocalStore client.LocalStore
 	// Targets holds the targets the Updater keeps track of.
 	Targets Targets
+	// ServerCertificatePath is the TLS certificate CA file path to use for certificate
+	// verification.
+	//
+	// If not set, then the OS CA certificate store is used.
+	ServerCertificatePath string
+	// ClientCertificate is the client TLS certificate to use to authenticate
+	// to the update server.
+	ClientCertificate *tls.Certificate
 }
 
 // Targets is a map of target name and its tracking information.
@@ -68,6 +79,20 @@ func (ts Targets) SetTargetChannel(target, channel string) {
 	t := ts[target]
 	t.Channel = channel
 	ts[target] = t
+}
+
+// SetTargetInfo sets/updates the TargetInfo for the given target.
+func (u *Updater) SetTargetInfo(name string, info TargetInfo) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.opt.Targets[name] = info
+}
+
+// RemoveTargetInfo removes the TargetInfo for the given target.
+func (u *Updater) RemoveTargetInfo(name string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	delete(u.opt.Targets, name)
 }
 
 // TargetInfo holds all the information to track target updates.
@@ -92,9 +117,23 @@ func NewUpdater(opt Options) (*Updater, error) {
 		return nil, errors.New("opt.LocalStore must be non-nil")
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+	tlsConfig := &tls.Config{
 		InsecureSkipVerify: opt.InsecureTransport,
-	}))
+	}
+
+	if opt.ServerCertificatePath != "" {
+		rootCAs, err := certificate.LoadPEM(opt.ServerCertificatePath)
+		if err != nil {
+			return nil, fmt.Errorf("loading server root CA: %w", err)
+		}
+		tlsConfig.RootCAs = rootCAs
+	}
+
+	if opt.ClientCertificate != nil {
+		tlsConfig.Certificates = []tls.Certificate{*opt.ClientCertificate}
+	}
+
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
 
 	remoteOpt := &client.HTTPRemoteOptions{
 		UserAgent: fmt.Sprintf("orbit/%s (%s %s)", build.Version, runtime.GOOS, runtime.GOARCH),
@@ -190,6 +229,22 @@ func (u *Updater) DirLocalPath(target string) (string, error) {
 	return localTarget.DirPath, nil
 }
 
+// LocalTargetPaths returns (path, execPath, dirPath) to be used by this
+// package for a given TargetInfo target.
+func LocalTargetPaths(rootDir string, targetName string, t TargetInfo) (path, execPath, dirPath string) {
+	path = filepath.Join(
+		rootDir, binDir, targetName, t.Platform, t.Channel, t.TargetFile,
+	)
+
+	execPath = path
+	if strings.HasSuffix(path, ".tar.gz") {
+		execPath = filepath.Join(append([]string{filepath.Dir(path)}, t.ExtractedExecSubPath...)...)
+		dirPath = filepath.Join(filepath.Dir(path), t.ExtractedExecSubPath[0])
+	}
+
+	return path, execPath, dirPath
+}
+
 // LocalTarget holds local paths of a target.
 //
 // E.g., for a osqueryd target:
@@ -224,16 +279,12 @@ func (u *Updater) localTarget(target string) (*LocalTarget, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown target: %s", target)
 	}
+	path, execPath, dirPath := LocalTargetPaths(u.opt.RootDirectory, target, t)
 	lt := &LocalTarget{
-		Info: t,
-		Path: filepath.Join(
-			u.opt.RootDirectory, binDir, target, t.Platform, t.Channel, t.TargetFile,
-		),
-	}
-	lt.ExecPath = lt.Path
-	if strings.HasSuffix(lt.Path, ".tar.gz") {
-		lt.ExecPath = filepath.Join(append([]string{filepath.Dir(lt.Path)}, t.ExtractedExecSubPath...)...)
-		lt.DirPath = filepath.Join(filepath.Dir(lt.Path), lt.Info.ExtractedExecSubPath[0])
+		Info:     t,
+		Path:     path,
+		ExecPath: execPath,
+		DirPath:  dirPath,
 	}
 	return lt, nil
 }

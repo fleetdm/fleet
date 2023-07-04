@@ -59,5 +59,46 @@
       "product": ["7-zip"],
       "vendor": ["7-zip"]
     }
+  },
+  {
+    "software": {
+      "name": ["Docs"],
+      "source": ["chrome_extensions"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": [
+        "/(?i)com\\.microsoft\\.(powerpoint|word|excel|onenote|outlook)/"
+      ],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": [
+        "/(?i)(com\\.docker\\.docker|com\\.electron\\.dockerdesktop|com\\.electron\\.docker-frontend)/"
+      ],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["docker_desktop"],
+      "vendor": ["docker"]
+    }
+  },
+  {
+    "software": {
+      "name": ["docker"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
   }
 ]

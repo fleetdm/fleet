@@ -6,12 +6,14 @@ $core-vibrant-red: #ff5c83;
 $core-fleet-purple: #ae6ddf;
 $core-white: #ffffff;
 $core-dark-blue-grey: #506e92;
+$site-nav-on-hover: #0e1533;
 
 // UI
 $ui-fleet-black-75: #515774;
 $ui-fleet-black-50: #8b8fa2;
 $ui-fleet-black-25: #c5c7d1;
-$ui-fleet-blue-15: #e2e4ea;
+$ui-fleet-black-10: #e2e4ea;
+$ui-fleet-blue-10: #f9fafc;
 $ui-dark-blue-gray: #afbec1;
 $ui-blue-gray: #dbe3e5;
 $ui-gray: #e3e3e3;
@@ -28,11 +30,13 @@ $ui-success: #3db67b;
 $ui-warning: #ebbc43;
 $ui-error: #d66c7b;
 $ui-info: #6a67fe;
-$ui-expiry-message: #fef7e0;
+$ui-yellow-banner: #fef7e0;
+$ui-yellow-banner-outline: #ece0bb;
 
 // Rainbow
 $rainbow-orange: #faa669;
 $rainbow-green: #63c740;
+$rainbow-blue: #5cabdf;
 
 // Gradients
 $gradients-dark-gradient: linear-gradient(270deg, #201e43 0%, #353d62 100%);
@@ -46,8 +50,9 @@ $gradients-bright-gradient: linear-gradient(180deg, #ae6ddf 0%, #6a67fe 100%);
 // Colors for over (hover) and down (active) buttons styles
 $core-vibrant-red-over: #e93661;
 $core-vibrant-red-down: #cb3559;
-$core-vibrant-blue-over: #5855eb;
-$core-vibrant-blue-down: #3f3cd4;
+$core-vibrant-blue-over: #5d5ae7;
+$core-vibrant-blue-down: #4b4ab4;
+$core-focused-outline: #d9d9fe;
 $core-fleet-blue-over: #303860;
 $core-fleet-blue-down: $core-fleet-black;
 

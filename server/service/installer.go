@@ -65,7 +65,7 @@ func (r getInstallerResponse) hijackRender(ctx context.Context, w http.ResponseW
 	r.fileReader.Close()
 }
 
-func getInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(getInstallerRequest)
 
 	fileReader, fileLength, err := svc.GetInstaller(ctx, fleet.Installer{
@@ -73,7 +73,6 @@ func getInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Kind:         req.Kind,
 		Desktop:      req.Desktop,
 	})
-
 	if err != nil {
 		return getInstallerResponse{Err: err}, nil
 	}
@@ -124,7 +123,7 @@ type checkInstallerResponse struct {
 
 func (r checkInstallerResponse) error() error { return r.Err }
 
-func checkInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func checkInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*checkInstallerRequest)
 
 	err := svc.CheckInstallerExistence(ctx, fleet.Installer{
@@ -132,7 +131,6 @@ func checkInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.
 		Kind:         req.Kind,
 		Desktop:      req.Desktop,
 	})
-
 	if err != nil {
 		return checkInstallerResponse{Err: err}, nil
 	}
@@ -165,7 +163,7 @@ func (svc *Service) CheckInstallerExistence(ctx context.Context, installer fleet
 	}
 
 	if !exists {
-		return notFoundError{}
+		return newNotFoundError()
 	}
 
 	return nil

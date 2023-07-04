@@ -41,11 +41,12 @@ parasails.registerPage('generate-license', {
   methods: {
     handleSubmittingForm: async function() {
       let validToDate = new Date(this.formData.expiresAt);
-      let validToTimestamp = validToDate.getTime();
+      let licenseExpiresAt = validToDate.getTime();
+
       this.generatedLicenseKey = await Cloud.generateLicenseKey.with({
         numberOfHosts: this.formData.numberOfHosts,
         organization: this.formData.organization,
-        expiresAt: validToTimestamp
+        expiresAt: licenseExpiresAt
       });
     },
 

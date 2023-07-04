@@ -6,7 +6,6 @@ import { DEFAULT_POLICY, DEFAULT_POLICIES } from "pages/policies/constants";
 
 import { IPolicyNew } from "interfaces/policy";
 
-import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 
 import Button from "components/buttons/Button";
@@ -27,7 +26,6 @@ const AddPolicyModal = ({
   teamId,
   teamName,
 }: IAddPolicyModalProps): JSX.Element => {
-  const { currentTeam } = useContext(AppContext);
   const {
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -36,9 +34,11 @@ const AddPolicyModal = ({
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
     setPolicyTeamId,
+    setDefaultPolicy,
   } = useContext(PolicyContext);
 
   const onAddPolicy = (selectedPolicy: IPolicyNew) => {
+    setDefaultPolicy(true);
     teamName
       ? setLastEditedQueryName(`${selectedPolicy.name} (${teamName})`)
       : setLastEditedQueryName(selectedPolicy.name);
@@ -48,14 +48,18 @@ const AddPolicyModal = ({
     setLastEditedQueryCritical(selectedPolicy.critical || false);
     setPolicyTeamId(teamId);
     setLastEditedQueryPlatform(selectedPolicy.platform || null);
-    router.push(PATHS.NEW_POLICY);
+    router.push(
+      !teamId ? PATHS.NEW_POLICY : `${PATHS.NEW_POLICY}?team_id=${teamId}`
+    );
   };
 
   const onCreateYourOwnPolicyClick = useCallback(() => {
-    setPolicyTeamId(currentTeam?.id || 0);
+    setPolicyTeamId(teamId);
     setLastEditedQueryBody(DEFAULT_POLICY.query);
-    router.push(PATHS.NEW_POLICY);
-  }, [currentTeam]);
+    router.push(
+      !teamId ? PATHS.NEW_POLICY : `${PATHS.NEW_POLICY}?team_id=${teamId}`
+    );
+  }, [router, setLastEditedQueryBody, setPolicyTeamId, teamId]);
 
   const policiesAvailable = DEFAULT_POLICIES.map((policy: IPolicyNew) => {
     return (
@@ -66,7 +70,12 @@ const AddPolicyModal = ({
         onClick={() => onAddPolicy(policy)}
       >
         <>
-          <span className="info__header">{policy.name}</span>
+          <div className={`${baseClass}__policy-name`}>
+            <span className="info__header">{policy.name}</span>
+            {policy.mdm_required && (
+              <span className={`${baseClass}__mdm-policy`}>Requires MDM</span>
+            )}
+          </div>
           <span className="info__data">{policy.description}</span>
         </>
       </Button>
@@ -74,13 +83,20 @@ const AddPolicyModal = ({
   });
 
   return (
-    <Modal title="Add a policy" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Add a policy"
+      onExit={onCancel}
+      className={baseClass}
+      width="xlarge"
+    >
       <>
-        Choose a policy template to get started or{" "}
-        <Button variant="text-link" onClick={onCreateYourOwnPolicyClick}>
-          create your own policy
-        </Button>
-        .
+        <div className={`${baseClass}__create-policy`}>
+          Choose a policy template to get started or{" "}
+          <Button variant="text-link" onClick={onCreateYourOwnPolicyClick}>
+            create your own policy
+          </Button>
+          .
+        </div>
         <div className={`${baseClass}__policy-selection`}>
           {policiesAvailable}
         </div>

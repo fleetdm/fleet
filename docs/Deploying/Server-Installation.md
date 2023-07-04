@@ -13,7 +13,10 @@
   - [Running Fleet with systemd](#running-fleet-with-systemd-1)
   - [Installing and running osquery](#installing-and-running-osquery-1)
 - [Fleet on Kubernetes](#deploying-fleet-on-kubernetes)
-  - [Installing infrastructure dependencies](#installing-infrastructure-dependencies)
+  - [Installing Fleet with kubectl](#installing-fleet-with-kubectl)
+  - [Installing Helm](#installing-helm)
+  - [Installing Fleet with Helm](#installing-fleet-with-helm)
+  - [Installing infrastructure dependencies](#installing-infrastructure-dependencies-with-helm)
     - [MySQL](#mysql-2)
     - [Redis](#redis-2)
   - [Setting up and installing Fleet](#setting-up-and-installing-Fleet)
@@ -126,7 +129,7 @@ echo 'CREATE DATABASE fleet;' | mysql -u root -p
 To install the Redis server files, run the following:
 
 ```
-sudo rpm -Uvh http://dl.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
+sudo rpm -Uvh https://archives.fedoraproject.org/pub/archive/epel/6/i386/epel-release-6-8.noarch.rpm
 sudo yum install redis
 ```
 
@@ -241,6 +244,10 @@ If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/h
 
 In this guide, we will focus on deploying Fleet only on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
 
+There are 2 primary ways to deploy the Fleet server to a Kubernetes cluster. The first is via `kubectl` with a `deployment.yml` file. The second is using Helm, the Kubernetes Package Manager.
+
+### Deploying Fleet with kubectl
+
 We will assume you have `kubectl` and MySQL and Redis are all set up and running. Optionally you have minikube to test your deployment locally on your machine.
 
 To deploy the Fleet server and connect to its dependencies(MySQL and Redis), we will set up a `deployment.yml` file with the following specifications:
@@ -264,7 +271,7 @@ spec:
     spec:
       containers:
       - name: fleet
-        image: fleetdm/fleet:4.24.1
+        image: fleetdm/fleet:4.32.0
         env:
           # if running Fleet behind external ingress controller that terminates TLS
           - name: FLEET_SERVER_TLS
@@ -320,13 +327,33 @@ Let's tell Kubernetes to create the cluster by running the below command.
 `kubectl apply -f ./deployment.yml`
 
 
-### Installing infrastructure dependencies
+### Initializing Helm
 
-For the sake of this tutorial, we will use Helm, the Kubernetes Package Manager, to install MySQL and Redis. If you would like to use Helm and you've never used it before, you must run the following to initialize your cluster:
+If you have not used Helm before, you must run the following to initialize your cluster prior to installing Fleet:
 
 ```
 helm init
 ```
+
+### Deploying Fleet with Helm
+
+To configure preferences for Fleet for use in Helm, including secret names, MySQL and Redis hostnames, and TLS certificates, download the [values.yaml](https://raw.githubusercontent.com/fleetdm/fleet/main/charts/fleet/values.yaml) and change the settings to match your configuration.
+
+Please note you will need all dependencies configured prior to installing the Fleet Helm Chart as it will try and run database migrations immediately.
+
+Once you have those configured, run the following:
+
+```
+helm upgrade --install fleet fleet \
+  --repo https://fleetdm.github.io/fleet/charts \
+  --values values.yaml
+```
+
+The Fleet Helm Chart [README.md](https://github.com/fleetdm/fleet/blob/main/charts/fleet/README.md) also includes an example using namespaces, which is outside the scope of the examples below.
+
+### Installing infrastructure dependencies with Helm
+
+For the sake of this tutorial, we will again use Helm, this time to install MySQL and Redis.
 
 #### MySQL
 
@@ -350,9 +377,11 @@ This helm package will create a Kubernetes `Service` which exposes the MySQL ser
 fleet-database-mysql:3306
 ```
 
-We will use this address when we configure the Kubernetes deployment and database migration job, but if you're not using a Helm-installed MySQL in your deployment, you'll have to change this in your Kubernetes config files.
+We will use this address when we configure the Kubernetes deployment and database migration job, but if you're not using a Helm-installed MySQL in your deployment, you'll have to change this in your Kubernetes config files. For the Fleet Helm Chart, this will be used in the `values.yaml`.
 
 ##### Database migrations
+
+Note: this step is not neccessary when using the Fleet Helm Chart as it handles migrations automatically.
 
 The last step is to run the Fleet database migrations on your new MySQL server. To do this, run the following:
 
@@ -382,7 +411,7 @@ This helm package will create a Kubernetes `Service` which exposes the Redis ser
 fleet-cache-redis:6379
 ```
 
-We will use this address when we configure the Kubernetes deployment, but if you're not using a Helm-installed Redis in your deployment, you'll have to change this in your Kubernetes config files.
+We will use this address when we configure the Kubernetes deployment, but if you're not using a Helm-installed Redis in your deployment, you'll have to change this in your Kubernetes config files. If you are using the Fleet Helm Chart, this will also be used in the `values.yaml` file.
 
 ### Setting up and installing Fleet
 

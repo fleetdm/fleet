@@ -16,6 +16,8 @@ type notFoundError struct {
 	Name         string
 	Message      string
 	ResourceType string
+
+	fleet.ErrorWithUUID
 }
 
 var _ fleet.NotFoundError = (*notFoundError)(nil)
@@ -68,6 +70,9 @@ func (e *notFoundError) Is(other error) bool {
 type existsError struct {
 	Identifier   interface{}
 	ResourceType string
+	TeamID       *uint
+
+	fleet.ErrorWithUUID
 }
 
 func alreadyExists(kind string, identifier interface{}) error {
@@ -80,8 +85,17 @@ func alreadyExists(kind string, identifier interface{}) error {
 	}
 }
 
+func (e *existsError) WithTeamID(teamID uint) error {
+	e.TeamID = &teamID
+	return e
+}
+
 func (e *existsError) Error() string {
-	return fmt.Sprintf("%s %v already exists", e.ResourceType, e.Identifier)
+	msg := fmt.Sprintf("%s %v already exists", e.ResourceType, e.Identifier)
+	if e.TeamID != nil {
+		msg += fmt.Sprintf(" with TeamID %d", *e.TeamID)
+	}
+	return msg
 }
 
 func (e *existsError) IsExists() bool {
@@ -101,6 +115,8 @@ func isDuplicate(err error) bool {
 type foreignKeyError struct {
 	Name         string
 	ResourceType string
+
+	fleet.ErrorWithUUID
 }
 
 func foreignKey(kind string, name string) error {

@@ -32,6 +32,6 @@ func FleetFlags(fleetURL *url.URL) []string {
 		"--carver_disable_function=false",
 		"--carver_start_endpoint=" + path.Join(prefix, "/api/v1/osquery/carve/begin"),
 		"--carver_continue_endpoint=" + path.Join(prefix, "/api/v1/osquery/carve/block"),
-		"--carver_block_size=2000000",
+		"--carver_block_size=8000000",
 	}
 }

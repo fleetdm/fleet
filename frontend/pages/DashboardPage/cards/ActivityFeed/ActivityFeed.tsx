@@ -6,7 +6,7 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
-import { IActivity, IActivityDetails } from "interfaces/activity";
+import { IActivityDetails } from "interfaces/activity";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
@@ -19,26 +19,29 @@ import ActivityItem from "./ActivityItem";
 const baseClass = "activity-feed";
 interface IActvityCardProps {
   setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
+  isPremiumTier: boolean;
+  isSandboxMode?: boolean;
 }
 
 const DEFAULT_PAGE_SIZE = 8;
 
 const ActivityFeed = ({
   setShowActivityFeedTitle,
+  isPremiumTier,
+  isSandboxMode = false,
 }: IActvityCardProps): JSX.Element => {
   const [pageIndex, setPageIndex] = useState(0);
-  const [showMore, setShowMore] = useState(true);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const queryShown = useRef("");
 
   const {
-    data: activities,
+    data: activitiesData,
     error: errorActivities,
     isFetching: isFetchingActivities,
   } = useQuery<
     IActivitiesResponse,
     Error,
-    IActivity[],
+    IActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
@@ -52,14 +55,8 @@ const ActivityFeed = ({
     {
       keepPreviousData: true,
       staleTime: 5000,
-      select: (data) => {
-        return data.activities;
-      },
-      onSuccess: (results) => {
+      onSuccess: (data) => {
         setShowActivityFeedTitle(true);
-        if (results.length < DEFAULT_PAGE_SIZE) {
-          setShowMore(false);
-        }
       },
       onError: () => {
         setShowActivityFeedTitle(true);
@@ -68,7 +65,6 @@ const ActivityFeed = ({
   );
 
   const onLoadPrevious = () => {
-    setShowMore(true);
     setPageIndex(pageIndex - 1);
   };
 
@@ -101,6 +97,9 @@ const ActivityFeed = ({
   // Renders opaque information as activity feed is loading
   const opacity = isFetchingActivities ? { opacity: 0.4 } : { opacity: 1 };
 
+  const activities = activitiesData?.activities;
+  const meta = activitiesData?.meta;
+
   return (
     <div className={baseClass}>
       {errorActivities && renderError()}
@@ -117,6 +116,8 @@ const ActivityFeed = ({
             {activities?.map((activity) => (
               <ActivityItem
                 activity={activity}
+                isPremiumTier={isPremiumTier}
+                isSandboxMode={isSandboxMode}
                 onDetailsClick={handleDetailsClick}
                 key={activity.id}
               />
@@ -128,7 +129,7 @@ const ActivityFeed = ({
         (!isEmpty(activities) || (isEmpty(activities) && pageIndex > 0)) && (
           <div className={`${baseClass}__pagination`}>
             <Button
-              disabled={isFetchingActivities || pageIndex === 0}
+              disabled={isFetchingActivities || !meta?.has_previous_results}
               onClick={onLoadPrevious}
               variant="unstyled"
               className={`${baseClass}__load-activities-button`}
@@ -138,7 +139,7 @@ const ActivityFeed = ({
               </>
             </Button>
             <Button
-              disabled={isFetchingActivities || !showMore}
+              disabled={isFetchingActivities || !meta?.has_next_results}
               onClick={onLoadNext}
               variant="unstyled"
               className={`${baseClass}__load-activities-button`}

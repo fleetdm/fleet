@@ -10,121 +10,102 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetInsertUpdateCronStats(t *testing.T) {
+func TestInsertUpdateCronStats(t *testing.T) {
+	const (
+		scheduleName = "test_sched"
+		instanceID   = "test_instance"
+	)
 	ctx := context.Background()
 	ds := CreateMySQLDS(t)
-	start := time.Now().UTC().Truncate(time.Second)
 
-	cases := []fleet.CronStats{
-		{
-			StatsType: fleet.CronStatsTypeScheduled,
-			Name:      "sched1",
-			Instance:  "inst1",
-			Status:    fleet.CronStatsStatusPending,
-		},
-		{
-			StatsType: fleet.CronStatsTypeScheduled,
-			Name:      "sched1",
-			Instance:  "inst1",
-			Status:    fleet.CronStatsStatusPending,
-		},
-		{
-			StatsType: fleet.CronStatsTypeScheduled,
-			Name:      "sched2",
-			Instance:  "inst1",
-			Status:    fleet.CronStatsStatusPending,
-		},
-		{
-			StatsType: fleet.CronStatsTypeScheduled,
-			Name:      "sched2",
-			Instance:  "inst2",
-			Status:    fleet.CronStatsStatusCompleted,
-		},
-		{
-			StatsType: fleet.CronStatsTypeScheduled,
-			Name:      "sched2",
-			Instance:  "inst2",
-			Status:    fleet.CronStatsStatusPending,
-		},
-		{
-			StatsType: fleet.CronStatsTypeTriggered,
-			Name:      "sched2",
-			Instance:  "inst2",
-			Status:    fleet.CronStatsStatusCompleted,
-		},
-	}
+	id, err := ds.InsertCronStats(ctx, fleet.CronStatsTypeScheduled, scheduleName, instanceID, fleet.CronStatsStatusPending)
+	require.NoError(t, err)
 
-	var results []fleet.CronStats
+	res, err := ds.GetLatestCronStats(ctx, scheduleName)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.Equal(t, id, res[0].ID)
+	require.Equal(t, fleet.CronStatsTypeScheduled, res[0].StatsType)
+	require.Equal(t, fleet.CronStatsStatusPending, res[0].Status)
 
-	for i, c := range cases {
-		now := time.Now().UTC().Truncate(time.Second)
-		_, err := ds.InsertCronStats(ctx, c.StatsType, c.Name, c.Instance, c.Status)
-		require.NoError(t, err)
-		res, err := ds.GetLatestCronStats(ctx, c.Name)
-		require.NoError(t, err)
-		require.Equal(t, i+1, res.ID)
-		require.Equal(t, c.StatsType, res.StatsType)
-		require.Equal(t, c.Name, res.Name)
-		require.Equal(t, c.Instance, res.Instance)
-		require.Equal(t, c.Status, res.Status)
-		require.WithinRange(t, res.CreatedAt, now, now.Add(1*time.Second))
-		require.WithinRange(t, res.UpdatedAt, now, now.Add(1*time.Second))
-		results = append(results, res)
-	}
+	err = ds.UpdateCronStats(ctx, id, fleet.CronStatsStatusCompleted)
+	require.NoError(t, err)
 
-	time.Sleep(time.Until(start.Add(2 * time.Second)))
-	for _, r := range results {
-		err := ds.UpdateCronStats(ctx, r.ID, fleet.CronStatsStatusCompleted)
+	res, err = ds.GetLatestCronStats(ctx, scheduleName)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.Equal(t, id, res[0].ID)
+	require.Equal(t, fleet.CronStatsTypeScheduled, res[0].StatsType)
+	require.Equal(t, fleet.CronStatsStatusCompleted, res[0].Status)
+}
+
+func TestGetLatestCronStats(t *testing.T) {
+	const (
+		scheduleName = "test_sched"
+		instanceID   = "test_instance"
+	)
+	ctx := context.Background()
+	ds := CreateMySQLDS(t)
+
+	insertTestCS := func(name string, statsType fleet.CronStatsType, status fleet.CronStatsStatus, createdAt time.Time) {
+		stmt := `INSERT INTO cron_stats (stats_type, name, instance, status, created_at) VALUES (?, ?, ?, ?, ?)`
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, statsType, name, instanceID, status, createdAt)
 		require.NoError(t, err)
 	}
 
-	var updatedResults []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &updatedResults, "SELECT * FROM cron_stats ORDER BY id")
-	require.NoError(t, err)
-	require.Len(t, updatedResults, len(cases))
-	for i, r := range updatedResults {
-		require.Equal(t, results[i].ID, r.ID)
-		require.Equal(t, results[i].StatsType, r.StatsType)
-		require.Equal(t, results[i].Name, r.Name)
-		require.Equal(t, results[i].Instance, r.Instance)
-		require.Equal(t, fleet.CronStatsStatusCompleted, r.Status)
-		require.Equal(t, results[i].CreatedAt, r.CreatedAt)
-		if cases[i].Status != fleet.CronStatsStatusCompleted {
-			require.WithinRange(t, r.UpdatedAt, start.Add(2*time.Second), time.Now())
-		} else {
-			require.Equal(t, results[i].UpdatedAt, r.UpdatedAt)
-		}
-	}
+	then := time.Now().UTC().Truncate(time.Second).Add(-24 * time.Hour)
 
-	// GetLatestCronStats always returns the last inserted for the named schedule
-	res, err := ds.GetLatestCronStats(ctx, "sched1")
-	require.NoError(t, err)
-	// second case was the last inserted for sched1
-	require.Equal(t, 2, res.ID)
-	require.Equal(t, cases[1].StatsType, res.StatsType)
-	require.Equal(t, cases[1].Name, res.Name)
-	require.Equal(t, cases[1].Instance, res.Instance)
-	require.Equal(t, fleet.CronStatsStatusCompleted, res.Status)
-	require.Equal(t, results[1].CreatedAt, res.CreatedAt)
-	require.WithinRange(t, res.UpdatedAt, start.Add(2*time.Second), time.Now()) // second case was updated from pending to completed
+	// insert two "scheduled" stats
+	insertTestCS(scheduleName, fleet.CronStatsTypeScheduled, fleet.CronStatsStatusPending, then.Add(2*time.Minute))
+	insertTestCS(scheduleName, fleet.CronStatsTypeScheduled, fleet.CronStatsStatusCompleted, then.Add(1*time.Minute))
 
-	res, err = ds.GetLatestCronStats(ctx, "sched2")
+	// most recent record is returned for "scheduled" stats type
+	res, err := ds.GetLatestCronStats(ctx, scheduleName)
 	require.NoError(t, err)
-	// sixth case was the last inserted for sched2
-	require.Equal(t, 6, res.ID)
-	require.Equal(t, cases[5].Name, res.Name)
-	require.Equal(t, cases[5].Instance, res.Instance)
-	require.Equal(t, fleet.CronStatsStatusCompleted, res.Status)
-	require.Equal(t, results[5].CreatedAt, res.CreatedAt)
-	require.Equal(t, results[5].CreatedAt, res.CreatedAt)
-	require.Equal(t, results[5].UpdatedAt, res.UpdatedAt) // sixth case wasn't updated
+	require.Len(t, res, 1)
+	require.Equal(t, fleet.CronStatsTypeScheduled, res[0].StatsType)
+	require.Equal(t, fleet.CronStatsStatusPending, res[0].Status)
+	require.Equal(t, then.Add(2*time.Minute), res[0].CreatedAt)
+
+	// insert two "triggered" stats
+	insertTestCS(scheduleName, fleet.CronStatsTypeTriggered, fleet.CronStatsStatusCompleted, then.Add(2*time.Hour))
+	insertTestCS(scheduleName, fleet.CronStatsTypeTriggered, fleet.CronStatsStatusCompleted, then.Add(1*time.Hour))
+
+	// most recent record is returned for both "scheduled" stats type and "triggered" stats type
+	res, err = ds.GetLatestCronStats(ctx, scheduleName)
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+	require.Equal(t, fleet.CronStatsTypeScheduled, res[0].StatsType)
+	require.Equal(t, fleet.CronStatsStatusPending, res[0].Status)
+	require.Equal(t, then.Add(2*time.Minute), res[0].CreatedAt)
+	require.Equal(t, fleet.CronStatsTypeTriggered, res[1].StatsType)
+	require.Equal(t, fleet.CronStatsStatusCompleted, res[1].Status)
+	require.Equal(t, then.Add(2*time.Hour), res[1].CreatedAt)
+
+	// insert some other stats that shouldn't be returned
+	insertTestCS(scheduleName, fleet.CronStatsTypeScheduled, fleet.CronStatsStatusExpired, then.Add(3*time.Hour))    // expired status shouldn't be returned
+	insertTestCS(scheduleName, fleet.CronStatsTypeTriggered, fleet.CronStatsStatusExpired, then.Add(3*time.Hour))    // expired status shouldn't be returned
+	insertTestCS(scheduleName, fleet.CronStatsTypeScheduled, fleet.CronStatsStatusCanceled, then.Add(4*time.Hour))   // canceled status shouldn't be returned
+	insertTestCS(scheduleName, fleet.CronStatsTypeTriggered, fleet.CronStatsStatusCanceled, then.Add(4*time.Hour))   // canceled status shouldn't be returned
+	insertTestCS("schedule_1337", fleet.CronStatsTypeTriggered, fleet.CronStatsStatusPending, then.Add(5*time.Hour)) // different name shouldn't be returned
+
+	// most recent record is returned for both "scheduled" stats type and "triggered" stats type
+	res, err = ds.GetLatestCronStats(ctx, scheduleName)
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+	require.Equal(t, fleet.CronStatsTypeScheduled, res[0].StatsType)
+	require.Equal(t, fleet.CronStatsStatusPending, res[0].Status)
+	require.Equal(t, then.Add(2*time.Minute), res[0].CreatedAt)
+	require.Equal(t, fleet.CronStatsTypeTriggered, res[1].StatsType)
+	require.Equal(t, fleet.CronStatsStatusCompleted, res[1].Status)
+	require.Equal(t, then.Add(2*time.Hour), res[1].CreatedAt)
 }
 
 func TestCleanupCronStats(t *testing.T) {
 	ctx := context.Background()
 	ds := CreateMySQLDS(t)
 	now := time.Now().UTC().Truncate(time.Second)
-	twoWeeksAgo := now.Add(-14 * 24 * time.Hour)
+	twoDaysAgo := now.Add(-2 * 24 * time.Hour)
 	name := "test_sched"
 	instance := "test_instance"
 
@@ -171,13 +152,13 @@ func TestCleanupCronStats(t *testing.T) {
 			shouldCleanupMaxAge:     false,
 		},
 		{
-			createdAt:               twoWeeksAgo.Add(1 * time.Hour),
+			createdAt:               twoDaysAgo.Add(1 * time.Hour),
 			status:                  fleet.CronStatsStatusCompleted,
 			shouldCleanupMaxPending: false,
 			shouldCleanupMaxAge:     false,
 		},
 		{
-			createdAt:               twoWeeksAgo.Add(-1 * time.Hour),
+			createdAt:               twoDaysAgo.Add(-1 * time.Hour),
 			status:                  fleet.CronStatsStatusCompleted,
 			shouldCleanupMaxPending: false,
 			shouldCleanupMaxAge:     true,
@@ -186,12 +167,12 @@ func TestCleanupCronStats(t *testing.T) {
 
 	for _, c := range cases {
 		stmt := `INSERT INTO cron_stats (stats_type, name, instance, status, created_at) VALUES (?, ?, ?, ?, ?)`
-		_, err := ds.writer.ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, name, instance, c.status, c.createdAt)
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, name, instance, c.status, c.createdAt)
 		require.NoError(t, err)
 	}
 
 	var stats []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
 	for i, s := range stats {
@@ -203,7 +184,7 @@ func TestCleanupCronStats(t *testing.T) {
 	require.NoError(t, err)
 
 	stats = []fleet.CronStats{}
-	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases)-1) // case[7] was deleted because it exceeded max age
 	for i, c := range cases {
@@ -269,12 +250,12 @@ func TestUpdateAllCronStatsForInstance(t *testing.T) {
 
 	for _, c := range cases {
 		stmt := `INSERT INTO cron_stats (stats_type, name, instance, status) VALUES (?, ?, ?, ?)`
-		_, err := ds.writer.ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, c.schedName, c.instance, c.status)
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, c.schedName, c.instance, c.status)
 		require.NoError(t, err)
 	}
 
 	var stats []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
 	for i, s := range stats {
@@ -287,7 +268,7 @@ func TestUpdateAllCronStatsForInstance(t *testing.T) {
 	require.NoError(t, err)
 
 	stats = []fleet.CronStats{}
-	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
 	for i, c := range cases {

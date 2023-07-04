@@ -19,7 +19,10 @@
       </div>
       <div purpose="category-title" v-else>
         <h1>{{articleCategory}}</h1>
-        <p>{{categoryDescription}}</p>
+        <div class="d-flex flex-sm-row flex-column justify-content-between">
+          <p>{{categoryDescription}}</p>
+          <a purpose="rss-button" class="px-0 px-sm-2 pt-sm-1" :href="'/rss/'+category" target="_blank"><span>Subscribe</span></a>
+        </div>
       </div>
       <div purpose="articles" class="card-deck d-flex justify-content-center" v-if="selectedArticles.length > 0">
         <div purpose="article-card" class="card" v-for="article in selectedArticles">

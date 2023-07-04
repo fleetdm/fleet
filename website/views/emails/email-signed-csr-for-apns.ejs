@@ -1,0 +1,23 @@
+<% /* Note: This is injected into `views/layouts/layout-email.ejs` */ %>
+<p style="margin-bottom: 32px;">Your certificate signing request (CSR) for Apple Push Notification Service is attached to this email.</p>
+
+<p style="margin-bottom: 32px; font-weight: 700;">What to do next</p>
+
+<ol style="margin-bottom: 32px">
+  <li style="margin-bottom: 16px;">
+    Sign in to <a style="color: #6A67FE; text-decoration: none;" href="https://identity.apple.com/pushcert" target="_blank">Apple Push Certificates Portal</a> using a Managed Apple ID (recommended). Refer to <a style="color: #6A67FE; text-decoration: none;" href="https://support.apple.com/guide/apple-business-manager/use-managed-apple-ids-axm78b477c81/web" target="_blank">this guide</a> to learn more about Managed Apple IDs and how to set one up.
+  </li>
+  <li style="margin-bottom: 16px;">
+    In Apple Push Certificates Portal, select <span style="font-style: italic;">Create a Certificate</span>, upload your CSR, and download your APNS certificate.
+  </li>
+  <li style="margin-bottom: 0px;">
+    Deploy Fleet using this certificate. <a style="color: #6A67FE; text-decoration: none;" href="https://fleetdm.com/docs/deploying/configuration#apple-apns-cert" target="_blank">Click here to see how</a>.
+  </li>
+</ol>
+
+<div style="display: flex; padding: 12px 16px 12px 16px; margin-bottom: 32px; background-color: #F1F0FF; border: 1px solid #d9d9fe; border-radius: 6px;">
+ <img alt="A lightbulb" style="display: inline; margin-right: 8px; margin-top: 4px; height: 16px; width: 16px;" src="<%= url.resolve(sails.config.custom.baseUrl,'/images/icon-lightbulb-16x16@2x.png') %>">
+  <p style="margin: 0">
+    <strong>Tip: </strong>Keep a note of the Managed Apple ID you use when creating APNS certificates for use with MDM. Certificates expire annually, and you will need your Managed Apple ID when you renew the certificate.
+  </p>
+</div>

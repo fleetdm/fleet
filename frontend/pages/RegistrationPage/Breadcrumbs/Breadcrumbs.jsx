@@ -36,6 +36,7 @@ class Breadcrumbs extends Component {
         [`${pageBaseClass}--complete`]: pageProgress > 1,
       }
     );
+    const page2TabIndex = pageProgress >= 2 ? 0 : -1;
     const page2ClassName = classnames(
       pageBaseClass,
       `${pageBaseClass}--2`,
@@ -45,6 +46,7 @@ class Breadcrumbs extends Component {
         [`${pageBaseClass}--complete`]: pageProgress > 2,
       }
     );
+    const page3TabIndex = pageProgress >= 3 ? 0 : -1;
     const page3ClassName = classnames(
       pageBaseClass,
       `${pageBaseClass}--3`,
@@ -60,10 +62,18 @@ class Breadcrumbs extends Component {
         <button className={page1ClassName} onClick={onClick(1)}>
           Setup user
         </button>
-        <button className={page2ClassName} onClick={onClick(2)}>
+        <button
+          className={page2ClassName}
+          onClick={onClick(2)}
+          tabIndex={page2TabIndex}
+        >
           Organization details
         </button>
-        <button className={page3ClassName} onClick={onClick(3)}>
+        <button
+          className={page3ClassName}
+          onClick={onClick(3)}
+          tabIndex={page3TabIndex}
+        >
           Set Fleet URL
         </button>
       </div>

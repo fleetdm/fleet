@@ -68,8 +68,8 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 		},
 	}
 
-	var reader bytes.Buffer
-	err = xml.NewEncoder(&reader).Encode(settings.Metadata)
+	var metadataWriter bytes.Buffer
+	err = xml.NewEncoder(&metadataWriter).Encode(settings.Metadata)
 	if err != nil {
 		return "", fmt.Errorf("encoding metadata creating auth request: %w", err)
 	}
@@ -77,7 +77,7 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 	// cache metadata so we can check the signatures on the response we get from the IDP
 	err = settings.SessionStore.create(requestID,
 		settings.OriginalURL,
-		reader.String(),
+		metadataWriter.String(),
 		cacheLifetime,
 	)
 	if err != nil {

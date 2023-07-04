@@ -10,7 +10,9 @@
     "policy_updated_at": "0001-01-01T00:00:00Z",
     "last_enrolled_at": "0001-01-01T00:00:00Z",
     "seen_time": "0001-01-01T00:00:00Z",
+    "software_updated_at": "0001-01-01T00:00:00Z",
     "refetch_requested": false,
+    "refetch_critical_queries_until": null,
     "hostname": "test_host",
     "uuid": "",
     "platform": "",
@@ -37,6 +39,12 @@
     "distributed_interval": 0,
     "config_tls_refresh": 0,
     "logger_tls_period": 0,
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": null,
+      "name": "",
+      "server_url": null
+    },
     "team_id": null,
     "pack_stats": null,
     "team_name": null,

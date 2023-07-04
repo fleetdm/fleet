@@ -1,0 +1,61 @@
+<div id="connect-vanta" class="container d-flex flex-row justify-content-center" v-cloak>
+  <div style="max-width: 620px;">
+    <h1>Connect Fleet and Vanta</h1>
+    <p>This page allows you to set up an integration between Fleet and Vanta. Once set up, Fleet will submit host and user information to Vanta for compliance purposes.</p>
+    <div purpose="vanta-notes">
+      <p class="font-weight-bold">Please note:</p>
+      <ul>
+        <li>Vanta only supports up to 1000 hosts.</li>
+        <li>The integration currently only supports macOS and Windows hosts.</li>
+        <li>We are currently unable to provide screen lock status. In Vanta, all hosts will appear as false. <a href="/queries/screen-lock-enabled-mac-os" target="_blank">Use this query for macOS hosts</a>, and <a href="/queries/screen-lock-enabled-windows" target="_blank">this query for Windows hosts</a> to see the true list of hosts with screen lock turned on via MDM.</li>
+        <li>This integration is only available to Fleet Premium customers.</li>
+      </ul>
+    </div>
+    <div class="card card-body" purpose="vanta-form">
+    <ajax-form :handle-submitting="handleSubmittingAuthorizationForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedAuthorizationForm()">
+      <div class="form-group mb-4">
+        <label for="emailAddress">Email</label>
+        <input id="emailAddress" type="text" class="form-control d-flex w-100" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress">
+        <div class="invalid-feedback">This doesn’t appear to be a valid email address</div>
+        <p purpose="input-bottom-label">In case we need to contact you.</p>
+      </div>
+      <div class="form-group mb-4">
+        <label for="fleetInstanceUrl">URL of your Fleet instance</label>
+        <input id="fleetInstanceUrl" type="text" class="form-control d-flex w-100" :class="[formErrors.fleetInstanceUrl ? 'is-invalid' : '']" v-model.trim="formData.fleetInstanceUrl">
+        <div class="invalid-feedback">This doesn't appear to be a valid url. Please make sure you include the protocol (e.g., https://)</div>
+        <p purpose="input-bottom-label">The full url of your fleet instance (e.g. https://fleet.acme.com)</p>
+      </div>
+      <div class="form-group mb-4">
+        <label for="fleetInstanceUrl">API-only user token (admin only)</label>
+        <input id="fleetApiKey" type="text" class="form-control d-flex w-100" :class="[formErrors.fleetApiKey ? 'is-invalid' : '']" v-model.trim="formData.fleetApiKey">
+        <div class="invalid-feedback"></div>
+        <p purpose="input-bottom-label">Here’s how you can create an <a href="/docs/using-fleet/fleetctl-cli#create-an-api-only-user" target="_blank">API-only user.</a></p>
+      </div>
+      <cloud-error purpose="cloud-error" v-if="cloudError === 'fleetInstanceNotResponding'">
+        The Fleet instance could not be reached at the provided URL. Please check to make sure that the provided URL is correct and try resubmitting.
+      </cloud-error>
+      <cloud-error purpose="cloud-error" v-else-if="cloudError === 'invalidToken'">
+        The API key provided could not be used to authorize requests to the provided Fleet instance. Please check that the token provided is valid.
+      </cloud-error>
+      <cloud-error purpose="cloud-error" v-else-if="cloudError === 'nonApiOnlyUser'">
+        The API key provided is not associated with an API-only user. <a href="/docs/using-fleet/fleetctl-cli#create-an-api-only-user" target="_blank">Click here</a> to learn how to create one.
+      </cloud-error>
+      <cloud-error purpose="cloud-error" v-else-if="cloudError === 'insufficientPermissions'">
+        The API key provided has insuffienct permissions. Please configure the API-only user associated with this token to have the Admin role.
+      </cloud-error>
+      <cloud-error purpose="cloud-error" v-else-if="cloudError === 'connectionAlreadyExists'">
+        The Fleet instance URL provided is already connected to a Vanta account. To change or disable this integration, <a href="/contact">contact us.</a>
+      </cloud-error>
+      <cloud-error purpose="cloud-error" v-else-if="cloudError === 'invalidLicense'">
+        This integration is only available for Fleet Premium customers.
+      </cloud-error>
+      <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
+      <ajax-button style="height: 44px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!cloudError">Connect</ajax-button>
+      <ajax-button style="height: 44px;" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="cloudError" @click="clickClearErrors()">Try again</ajax-button>
+    </ajax-form>
+
+    </div>
+  </div>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

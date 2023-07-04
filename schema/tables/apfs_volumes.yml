@@ -1,0 +1,79 @@
+name: apfs_volumes
+platforms:
+  - darwin
+description: Information about APFS volumes from the `diskutil apfs list -plist` command.
+columns:
+  - name: container_uuid
+    type: text
+    required: false
+    description: The UUID of the APFS Contianer
+  - name: container_designated_physical_store
+    type: text
+    required: false
+    description: |
+      The disk displayed as the backing store of the container. There may be multiple,
+      use `apfs_physical_stores` to see all actual physical stores
+  - name: container_reference
+    type: text
+    required: false
+    description: The current reference for the APFS container, e.g. "disk3"
+  - name: container_fusion
+    type: text
+    required: false
+    description: Whether this container is on a "fusion drive" (i.e. SSHD)
+  - name: container_capacity_ceiling
+    type: bigint
+    required: false
+    description: The total amount of space in the container
+  - name: container_capacity_free
+    type: bigint
+    required: false
+    description: The amount of remaining free space in the container
+  - name: uuid
+    type: text
+    required: false
+    description: The UUID of the volume
+  - name: device_identifier
+    type: text
+    required: false
+    description: The current identifier of the volume (e.g. disk3s2)
+  - name: name
+    type: text
+    required: false
+    description: The user-selected name of the volume (e.g. "Macintosh HD")
+  - name: role
+    type: text
+    required: false
+    description: |
+      The first role of the volume. User-created volumes will have no role (this will be empty).
+      System volumes might have roles like "Data", "Hardware", etc.
+  - name: capacity_in_use
+    type: bigint
+    required: false
+    description: Storage space used by the volume
+  - name: capacity_quota
+    type: bigint
+    required: false
+    description: Storage quota for the volume, or 0 if disabled
+  - name: capacity_reserve
+    type: bigint
+    required: false
+    description: Storage reserved for this volume even if contianer is otherwise full, or 0 if disabled
+  - name: crypto_migration_on
+    type: integer
+    required: false
+    description: Whether the volume is in the process of being encrypted
+  - name: encryption
+    type: integer
+    required: false
+    description: Whether the volume is encrypted, including without requiring a password
+  - name: filevault
+    type: integer
+    required: false
+    description: Whether the volume requires a password to decrypt
+  - name: locked
+    type: integer
+    required: false
+    description: Whether the volume is unreadable because it does not have a key entered
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+evented: false

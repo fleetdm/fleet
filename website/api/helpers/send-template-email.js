@@ -127,6 +127,7 @@ module.exports = {
     var path = require('path');
     var url = require('url');
     var util = require('util');
+    var moment = require('moment');
 
 
     if (!_.startsWith(path.basename(template), 'email-')) {
@@ -167,7 +168,7 @@ module.exports = {
     // > `util` package (for dumping debug data in internal emails).
     var htmlEmailContents = await sails.renderView(
       emailTemplatePath,
-      _.extend({layout: emailTemplateLayout, url, util }, templateData)
+      _.extend({layout: emailTemplateLayout, url, util, moment }, templateData)
     )
     .intercept((err)=>{
       err.message =

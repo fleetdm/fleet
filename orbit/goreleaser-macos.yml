@@ -1,0 +1,38 @@
+project_name: orbit
+
+builds:
+  - id: orbit-macos
+    dir: ./orbit/cmd/orbit/
+    binary: orbit
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version={{.Version}}
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit={{.Commit}}
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date={{.Date}}
+
+universal_binaries:
+  - replace: true
+    id: orbit-macos
+    hooks:
+      post: ./orbit/tools/build/sign-macos.sh {{ .Path }}
+
+archives:
+  - id: orbit-macos
+    builds:
+      - orbit-macos
+    name_template: orbit_{{.Version}}_macos
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ .Tag }}-untagged"
+

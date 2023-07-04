@@ -23,6 +23,20 @@ func WriteExpiredLicenseBanner(w io.Writer) {
 	warningColor.Fprintln(w)
 }
 
+func WriteAppleBMTermsExpiredBanner(w io.Writer) {
+	warningColor := color.New(color.FgWhite, color.Bold, color.BgRed)
+	warningColor.Fprintf(
+		w,
+		`Your organization can’t automatically enroll macOS hosts until you accept the new terms `+
+			`and conditions for Apple Business Manager (ABM). An ABM administrator can accept these terms. `+
+			`Go to ABM: https://business.apple.com/`,
+	)
+	// We need to disable color and print a new line to make it look somewhat neat, otherwise colors continue to the
+	// next line
+	warningColor.DisableColor()
+	warningColor.Fprintln(w)
+}
+
 // JSONStrictDecode unmarshals the JSON value from the provided reader r into
 // the destination value v. It returns an error if the unmarshaling fails.
 // Compared to standard json.Unmarshal, this function will return an error if

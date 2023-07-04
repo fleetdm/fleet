@@ -29,10 +29,12 @@
       width: 260px;
       padding: 8px 15px;
       border: 1px solid @core-vibrant-blue-15;
+      background: #FFF;
       border-radius: 8px;
       input {
         border: 0;
         padding: 0;
+        width: 100%;
       }
       input::placeholder {
         font-size: 16px;
@@ -78,7 +80,7 @@
   }
   [purpose='left-sidebar'] {
     scrollbar-width: none;
-    background: #FFF;
+    -ms-overflow-style: none;
     min-width: 245px;
     max-width: 250px;
     padding-top: 60px;
@@ -297,7 +299,7 @@
       padding: 4px 6px;
       background-color: @core-vibrant-blue-15;
       border-radius: 4px;
-      width: 100px;
+      width: 102px;
       span {
         vertical-align: middle;
         font-weight: 600;
@@ -326,7 +328,7 @@
     cursor: pointer;
     border: 1px solid @core-vibrant-blue;
     border-radius: 4px;
-    width: fit-content;
+    width: 108px;
     padding: 8px 12px;
     text-decoration: none;
     line-height: 20px;

@@ -2,8 +2,8 @@
   background-color: $core-white;
   box-sizing: border-box;
   border-left: 1px solid $ui-gray;
-  min-width: $sidepanel-width;
-  width: $sidepanel-width;
+  min-width: 340px;
+  width: 340px;
   padding: $pad-xxlarge;
   // need relative positioning for a close icon that is on some sidebars have
   position: relative;

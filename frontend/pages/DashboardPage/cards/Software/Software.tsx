@@ -1,18 +1,19 @@
-import React from "react";
+import React, { useContext, useMemo } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 
+import { AppContext } from "context/app";
 import { buildQueryStringFromParams } from "utilities/url";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
 
 import generateTableHeaders from "./SoftwareTableConfig";
-import EmptySoftware from "../../../software/components/EmptySoftware";
 
 interface ISoftwareCardProps {
   errorSoftware: Error | null;
@@ -20,6 +21,7 @@ interface ISoftwareCardProps {
   isSoftwareFetching: boolean;
   isSoftwareEnabled?: boolean;
   software: any;
+  teamId?: number;
   pageIndex: number;
   navTabIndex: any;
   onTabChange: any;
@@ -48,12 +50,15 @@ const Software = ({
   onTabChange,
   onQueryChange,
   software,
+  teamId,
   router,
 }: ISoftwareCardProps): JSX.Element => {
-  const tableHeaders = generateTableHeaders();
+  const { noSandboxHosts } = useContext(AppContext);
+
+  const tableHeaders = useMemo(() => generateTableHeaders(teamId), [teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = { software_id: row.original.id };
+    const queryParams = { software_id: row.original.id, team_id: teamId };
 
     const path = queryParams
       ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
@@ -87,21 +92,18 @@ const Software = ({
                   columns={tableHeaders}
                   data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
-                  defaultSortHeader={"hosts_count"}
+                  defaultSortHeader={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"software"}
-                  emptyComponent={() =>
-                    EmptySoftware(
-                      (!isSoftwareEnabled && "disabled") ||
-                        (isCollectingInventory && "collecting") ||
-                        "default"
-                    )
-                  }
+                  emptyComponent={() => (
+                    <EmptySoftwareTable
+                      isCollectingSoftware={isCollectingInventory}
+                      noSandboxHosts={noSandboxHosts}
+                    />
+                  )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
-                  disableActionButton
                   pageSize={SOFTWARE_DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
                   disableMultiRowSelect
@@ -119,19 +121,17 @@ const Software = ({
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_HEADER}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"software"}
-                  emptyComponent={() =>
-                    EmptySoftware(
-                      (!isSoftwareEnabled && "disabled") ||
-                        (isCollectingInventory && "collecting") ||
-                        "default"
-                    )
-                  }
+                  emptyComponent={() => (
+                    <EmptySoftwareTable
+                      isCollectingSoftware={isCollectingInventory}
+                      noSandboxHosts={noSandboxHosts}
+                      isFilterVulnerable
+                    />
+                  )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
-                  disableActionButton
                   pageSize={SOFTWARE_DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
                   disableMultiRowSelect

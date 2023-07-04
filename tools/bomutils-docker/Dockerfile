@@ -1,4 +1,4 @@
-FROM debian:stable-slim AS builder
+FROM debian:stable-slim@sha256:0f116858482fd8222b4f7e9b4cdc9a054051e67fbb8a57bc22651f0d56b45ad8 AS builder
 
 RUN apt-get update
 RUN apt-get install -y build-essential autoconf libxml2-dev libssl-dev zlib1g-dev curl
@@ -19,7 +19,7 @@ COPY patch.txt .
 RUN cd xar-xar-1.6.1/xar && patch < ../../patch.txt && autoconf && ./configure && make && make install
 
 
-FROM debian:stable-slim
+FROM debian:stable-slim@sha256:0f116858482fd8222b4f7e9b4cdc9a054051e67fbb8a57bc22651f0d56b45ad8
 
 RUN apt-get update && apt-get install -y --no-install-recommends libxml2  && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/bin /usr/bin/

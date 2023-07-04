@@ -10,6 +10,8 @@ At its core, Fleet Desktop gives your end users visibility into the security pos
 * Self-remediation: end users can see which policies they are failing and resolution steps, reducing the need for IT and security teams to intervene
 * Scope Transparency: end users can see what the Fleet agent can do on their machines, eliminating ambiguity between end users and their IT and security teams
 
+> Self-remediation is only available for users with Fleet Premium
+
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
 </div>

@@ -11,7 +11,16 @@ export enum PolicyResponse {
 }
 
 export const DEFAULT_GRAVATAR_LINK =
-  "https://fleetdm.com/images/permanent/icon-avatar-default-128x128-2x.png";
+  "https://fleetdm.com/images/permanent/icon-avatar-default-transparent-64x64%402x.png";
+
+export const DEFAULT_GRAVATAR_LINK_DARK =
+  "https://fleetdm.com/images/permanent/icon-avatar-default-dark-24x24%402x.png";
+
+export const DEFAULT_GRAVATAR_LINK_FALLBACK =
+  "/assets/images/icon-avatar-default-transparent-64x64%402x.png";
+
+export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
+  "/assets/images/icon-avatar-default-dark-24x24%402x.png";
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 900, label: "Every 15 minutes" },
@@ -134,8 +143,13 @@ export const DEFAULT_CAMPAIGN_STATE = {
 
 export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
   darwin: "macOS",
-  linux: "Linux",
+  macOS: "macOS",
   windows: "Windows",
+  Windows: "Windows",
+  linux: "Linux",
+  Linux: "Linux",
+  chrome: "ChromeOS",
+  ChromeOS: "ChromeOS",
 };
 
 // as returned by the TARGETS API; based on display_text
@@ -147,6 +161,7 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
   "MS Windows": "Windows",
   "Red Hat Linux": "Red Hat Linux",
   "Ubuntu Linux": "Ubuntu Linux",
+  chrome: "ChromeOS",
 };
 
 export const PLATFORM_LABEL_DISPLAY_ORDER = [
@@ -166,25 +181,34 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
   "MS Windows": "platform",
   "Red Hat Linux": "platform",
   "Ubuntu Linux": "platform",
+  chrome: "platform",
 };
 
 interface IPlatformDropdownOptions {
-  label: "All" | "Windows" | "Linux" | "macOS";
-  value: "all" | "windows" | "linux" | "darwin";
+  label: "All" | "Windows" | "Linux" | "macOS" | "ChromeOS";
+  value: "all" | "windows" | "linux" | "darwin" | "chrome";
   path: string;
 }
 export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "All", value: "all", path: paths.DASHBOARD },
+  { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
   { label: "Windows", value: "windows", path: paths.DASHBOARD_WINDOWS },
   { label: "Linux", value: "linux", path: paths.DASHBOARD_LINUX },
-  { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
+  { label: "ChromeOS", value: "chrome", path: paths.DASHBOARD_CHROME },
 ];
+
+// Schedules does not support ChromeOS
+export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = PLATFORM_DROPDOWN_OPTIONS.slice(
+  0,
+  -1
+);
 
 export const PLATFORM_NAME_TO_LABEL_NAME = {
   all: "",
   darwin: "macOS",
   windows: "MS Windows",
   linux: "All Linux",
+  chrome: "ChromeOS",
 };
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
@@ -209,6 +233,14 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
   },
 ];
 
+// Keys from API
+export const MDM_STATUS_TOOLTIP: Record<string, string> = {
+  "On (automatic)": `<span>MDM was turned on automatically using Apple Automated Device Enrollment (DEP) or Windows Autopilot. Administrators can block end users from turning MDM off.</span>`,
+  "On (manual)": `<span>MDM was turned on manually. End users can turn MDM off.</span>`,
+  Off: `<span>Hosts with MDM off don&apos;t receive macOS <br /> settings and macOS update encouragement.</span>`,
+  Pending: `<span>Hosts ordered via Apple Business Manager <br /> (ABM). These will automatically enroll to Fleet <br /> and turn on MDM when they&apos;re unboxed.</span>`,
+};
+
 export const DEFAULT_CREATE_USER_ERRORS = {
   email: "",
   name: "",
@@ -220,3 +252,5 @@ export const DEFAULT_CREATE_USER_ERRORS = {
 export const EMPTY_AGENT_OPTIONS = {
   config: {},
 };
+
+export const DEFAULT_EMPTY_CELL_VALUE = "---";

@@ -5,8 +5,8 @@ import ConfirmationPage from "components/forms/RegistrationForm/ConfirmationPage
 
 describe("ConfirmationPage - form", () => {
   const formData = {
-    name: "Rachel Perkins",
-    email: "rachel@fleet.com",
+    name: "Test User",
+    email: "test@example.com",
     org_name: "Fleet",
     server_url: "http://localhost:8080",
   };

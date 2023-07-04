@@ -42,7 +42,29 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil
 	}
 
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
+
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hostIDs []uint) ([]string, error) {
+		return nil, nil
+	}
+
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
+		return nil
+	}
+
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
+	require.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByLabel(t *testing.T) {
@@ -76,7 +98,29 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return nil
 	}
 
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
+
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hostIDs []uint) ([]string, error) {
+		return nil, nil
+	}
+
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
+		return nil
+	}
+
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--label", "label1"}))
+	require.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByStatus(t *testing.T) {
@@ -109,8 +153,30 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return nil
 	}
 
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
+
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hostIDs []uint) ([]string, error) {
+		return nil, nil
+	}
+
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
+		return nil
+	}
+
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t,
 		[]string{"hosts", "transfer", "--team", "team1", "--status", "online"}))
+	require.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
@@ -144,6 +210,28 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return nil
 	}
 
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
+
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hostIDs []uint) ([]string, error) {
+		return nil, nil
+	}
+
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
+		return nil
+	}
+
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t,
 		[]string{"hosts", "transfer", "--team", "team1", "--status", "online", "--search_query", "somequery"}))
+	require.True(t, ds.NewActivityFuncInvoked)
 }

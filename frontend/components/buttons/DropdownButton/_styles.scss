@@ -1,6 +1,7 @@
 .dropdown-button {
+  padding: 8px 24px 8px 0;
   &__wrapper {
-    display: inline-block;
+    display: flex;
     position: relative;
   }
 
@@ -22,7 +23,7 @@
     border-radius: 2px;
     background-color: $core-white;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
-
+    animation: fade-in 150ms ease-out;
     &--opened {
       display: inline-block;
     }

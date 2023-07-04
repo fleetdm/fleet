@@ -1,17 +1,82 @@
 import React from "react";
 import { find, lowerCase, noop } from "lodash";
-import { formatDistanceToNowStrict } from "date-fns";
+import { intlFormat, formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { addGravatarUrlToResource } from "utilities/helpers";
+import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import ReactTooltip from "react-tooltip";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 const baseClass = "activity-item";
 
-const DEFAULT_GRAVATAR_URL =
-  "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
+const PREMIUM_ACTIVITIES = new Set([
+  "created_team",
+  "deleted_team",
+  "applied_spec_team",
+  "changed_user_team_role",
+  "deleted_user_team_role",
+  "read_host_disk_encryption_key",
+  "enabled_macos_disk_encryption",
+  "disabled_macos_disk_encryption",
+  "enabled_macos_setup_end_user_auth",
+  "disabled_macos_setup_end_user_auth",
+  "tranferred_hosts",
+]);
+
+const getProfileMessageSuffix = (
+  isPremiumTier: boolean,
+  teamName?: string | null
+) => {
+  let messageSuffix = <>all macOS hosts</>;
+  if (isPremiumTier) {
+    messageSuffix = teamName ? (
+      <>
+        macOS hosts assigned to the <b>{teamName}</b> team
+      </>
+    ) : (
+      <>macOS hosts with no team</>
+    );
+  }
+  return messageSuffix;
+};
+
+const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
+  return teamName ? (
+    <>
+      {" "}
+      assigned to the <b>{teamName}</b> team
+    </>
+  ) : (
+    <>with no team</>
+  );
+};
+
+const getMacOSSetupAssistantMessage = (
+  action: "added" | "deleted",
+  name?: string,
+  teamName?: string | null
+) => {
+  const suffix = teamName ? (
+    <>
+      {" "}
+      that automatically enroll to the <b>{teamName}</b> team
+    </>
+  ) : (
+    <>that automatically enroll to no team</>
+  );
+
+  return (
+    <>
+      {" "}
+      changed the macOS Setup Assistant ({action} <b>{name}</b>) for hosts{" "}
+      {suffix}.
+    </>
+  );
+};
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (
@@ -71,14 +136,11 @@ const TAGGED_TEMPLATES = {
     const count = activity.details?.teams?.length;
     return count === 1 && activity.details?.teams ? (
       <>
-        edited <b>{activity.details?.teams[0].name}</b> team using fleetctl.
+        edited the <b>{activity.details?.teams[0].name}</b> team using fleetctl.
       </>
     ) : (
       "edited multiple teams using fleetctl."
     );
-  },
-  userAddedBySSOTempalte: () => {
-    return "was added to Fleet by SSO.";
   },
   editAgentOptions: (activity: IActivity) => {
     return activity.details?.global ? (
@@ -89,7 +151,200 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  userAddedBySSOTempalte: () => {
+    return "was added to Fleet by SSO.";
+  },
+  userLoggedIn: (activity: IActivity) => {
+    return `successfully logged in from public IP ${activity.details?.public_ip}.`;
+  },
+  userFailedLogin: (activity: IActivity) => {
+    return (
+      <>
+        Somebody using <b>{activity.details?.email}</b> failed to log in from
+        public IP {activity.details?.public_ip}.
+      </>
+    );
+  },
+  userCreated: (activity: IActivity) => {
+    return (
+      <>
+        created a user <b> {activity.details?.user_email}</b>.
+      </>
+    );
+  },
+  userDeleted: (activity: IActivity) => {
+    return (
+      <>
+        deleted a user <b>{activity.details?.user_email}</b>.
+      </>
+    );
+  },
+  userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        changed <b>{activity.details?.user_email}</b> to{" "}
+        <b>{activity.details?.role}</b>
+        {isPremiumTier && " for all teams"}.
+      </>
+    );
+  },
+  userDeletedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        removed <b>{activity.details?.user_email}</b> as{" "}
+        <b>{activity.details?.role}</b>
+        {isPremiumTier && " for all teams"}.
+      </>
+    );
+  },
+  userChangedTeamRole: (activity: IActivity) => {
+    return (
+      <>
+        changed <b>{activity.details?.user_email}</b> to{" "}
+        <b>{activity.details?.role}</b> for the{" "}
+        <b>{activity.details?.team_name}</b> team.
+      </>
+    );
+  },
+  userDeletedTeamRole: (activity: IActivity) => {
+    return (
+      <>
+        removed <b>{activity.details?.user_email}</b> from the{" "}
+        <b>{activity.details?.team_name}</b> team.
+      </>
+    );
+  },
+  mdmEnrolled: (activity: IActivity) => {
+    return (
+      <>
+        An end user turned on MDM features for a host with serial number{" "}
+        <b>
+          {activity.details?.host_serial} (
+          {activity.details?.installed_from_dep ? "automatic" : "manual"})
+        </b>
+        .
+      </>
+    );
+  },
+  mdmUnenrolled: (activity: IActivity) => {
+    return (
+      <>
+        {activity.actor_full_name
+          ? " told Fleet to turn off mobile device management (MDM) for"
+          : "Mobile device management (MDM) was turned off for"}{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  editedMacosMinVersion: (activity: IActivity) => {
+    const editedActivity =
+      activity.details?.minimum_version === "" ? "removed" : "updated";
 
+    const versionSection = activity.details?.minimum_version ? (
+      <>
+        to <b>{activity.details.minimum_version}</b>
+      </>
+    ) : null;
+
+    const deadlineSection = activity.details?.deadline ? (
+      <>(deadline: {activity.details.deadline})</>
+    ) : null;
+
+    const teamSection = activity.details?.team_id ? (
+      <>
+        the <b>{activity.details.team_name}</b> team
+      </>
+    ) : (
+      <>no team</>
+    );
+
+    return (
+      <>
+        {editedActivity} the minimum macOS version {versionSection}{" "}
+        {deadlineSection} on hosts assigned to {teamSection}.
+      </>
+    );
+  },
+
+  readHostDiskEncryptionKey: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+
+  createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        added{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        .
+      </>
+    );
+  },
+
+  deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        deleted{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
+        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+      </>
+    );
+  },
+
+  editMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  enableMacDiskEncryption: (activity: IActivity) => {
+    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    return <> enforced disk encryption for macOS hosts {suffix}.</>;
+  },
+  disableMacDiskEncryption: (activity: IActivity) => {
+    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    return <>removed disk encryption enforcement for macOS hosts {suffix}.</>;
+  },
+  changedMacOSSetupAssistant: (activity: IActivity) => {
+    return getMacOSSetupAssistantMessage(
+      "added",
+      activity.details?.name,
+      activity.details?.team_name
+    );
+  },
+  deletedMacOSSetupAssistant: (activity: IActivity) => {
+    return getMacOSSetupAssistantMessage(
+      "deleted",
+      activity.details?.name,
+      activity.details?.team_name
+    );
+  },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
@@ -100,15 +355,133 @@ const TAGGED_TEMPLATES = {
     return !entityName ? (
       `${activityType}.`
     ) : (
-      <span>
+      <>
         {activityType} <b>{entityName}</b>.
-      </span>
+      </>
     );
+  },
+  addedMDMBootstrapPackage: (activity: IActivity) => {
+    const packageName = activity.details?.bootstrap_package_name;
+    return (
+      <>
+        {" "}
+        added a bootstrap package{" "}
+        {packageName ? (
+          <>
+            &#40;<b>{packageName}</b>&#41;{" "}
+          </>
+        ) : (
+          ""
+        )}
+        for macOS hosts that automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  deletedMDMBootstrapPackage: (activity: IActivity) => {
+    const packageName = activity.details?.bootstrap_package_name;
+    return (
+      <>
+        {" "}
+        deleted a bootstrap package{" "}
+        {packageName ? (
+          <>
+            &#40;<b>{packageName}</b>&#41;{" "}
+          </>
+        ) : (
+          ""
+        )}
+        for macOS hosts that automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  enabledMacOSSetupEndUserAuth: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        required end user authentication for macOS hosts that automatically
+        enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  disabledMacOSSetupEndUserAuth: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        removed end user authentication requirement for macOS hosts that
+        automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  transferredHosts: (activity: IActivity) => {
+    const hostNames = activity.details?.host_display_names || [];
+    const teamName = activity.details?.team_name;
+    if (hostNames.length === 1) {
+      return (
+        <>
+          {" "}
+          transferred host <b>{hostNames[0]}</b> to {teamName ? "team " : ""}
+          <b>{teamName || "no team"}</b>.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        transferred {hostNames.length} hosts to {teamName ? "team " : ""}
+        <b>{teamName || "no team"}</b>.
+      </>
+    );
+  },
+
+  enabledWindowsMdm: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        told Fleet to turn on MDM features for all Windows hosts (servers
+        excluded).
+      </>
+    );
+  },
+  disabledWindowsMdm: (activity: IActivity) => {
+    return <> told Fleet to turn off MDM features for all Windows hosts.</>;
   },
 };
 
 const getDetail = (
   activity: IActivity,
+  isPremiumTier: boolean,
   onDetailsClick?: (details: IActivityDetails) => void
 ) => {
   switch (activity.type) {
@@ -130,11 +503,89 @@ const getDetail = (
     case ActivityType.AppliedSpecTeam: {
       return TAGGED_TEMPLATES.editTeamCtlActivityTemplate(activity);
     }
+    case ActivityType.EditedAgentOptions: {
+      return TAGGED_TEMPLATES.editAgentOptions(activity);
+    }
     case ActivityType.UserAddedBySSO: {
       return TAGGED_TEMPLATES.userAddedBySSOTempalte();
     }
-    case ActivityType.EditedAgentOptions: {
-      return TAGGED_TEMPLATES.editAgentOptions(activity);
+    case ActivityType.UserLoggedIn: {
+      return TAGGED_TEMPLATES.userLoggedIn(activity);
+    }
+    case ActivityType.UserFailedLogin: {
+      return TAGGED_TEMPLATES.userFailedLogin(activity);
+    }
+    case ActivityType.UserCreated: {
+      return TAGGED_TEMPLATES.userCreated(activity);
+    }
+    case ActivityType.UserDeleted: {
+      return TAGGED_TEMPLATES.userDeleted(activity);
+    }
+    case ActivityType.UserChangedGlobalRole: {
+      return TAGGED_TEMPLATES.userChangedGlobalRole(activity, isPremiumTier);
+    }
+    case ActivityType.UserDeletedGlobalRole: {
+      return TAGGED_TEMPLATES.userDeletedGlobalRole(activity, isPremiumTier);
+    }
+    case ActivityType.UserChangedTeamRole: {
+      return TAGGED_TEMPLATES.userChangedTeamRole(activity);
+    }
+    case ActivityType.UserDeletedTeamRole: {
+      return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
+    }
+    case ActivityType.MdmEnrolled: {
+      return TAGGED_TEMPLATES.mdmEnrolled(activity);
+    }
+    case ActivityType.MdmUnenrolled: {
+      return TAGGED_TEMPLATES.mdmUnenrolled(activity);
+    }
+    case ActivityType.EditedMacosMinVersion: {
+      return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
+    }
+    case ActivityType.ReadHostDiskEncryptionKey: {
+      return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
+    }
+    case ActivityType.CreatedMacOSProfile: {
+      return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.DeletedMacOSProfile: {
+      return TAGGED_TEMPLATES.deleteMacOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedMacOSProfile: {
+      return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EnabledMacDiskEncryption: {
+      return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);
+    }
+    case ActivityType.DisabledMacDiskEncryption: {
+      return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
+    }
+    case ActivityType.AddedBootstrapPackage: {
+      return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.DeletedBootstrapPackage: {
+      return TAGGED_TEMPLATES.deletedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.ChangedMacOSSetupAssistant: {
+      return TAGGED_TEMPLATES.changedMacOSSetupAssistant(activity);
+    }
+    case ActivityType.DeletedMacOSSetupAssistant: {
+      return TAGGED_TEMPLATES.deletedMacOSSetupAssistant(activity);
+    }
+    case ActivityType.EnabledMacOSSetupEndUserAuth: {
+      return TAGGED_TEMPLATES.enabledMacOSSetupEndUserAuth(activity);
+    }
+    case ActivityType.DisabledMacOSSetupEndUserAuth: {
+      return TAGGED_TEMPLATES.disabledMacOSSetupEndUserAuth(activity);
+    }
+    case ActivityType.TransferredHosts: {
+      return TAGGED_TEMPLATES.transferredHosts(activity);
+    }
+    case ActivityType.EnabledWindowsMdm: {
+      return TAGGED_TEMPLATES.enabledWindowsMdm(activity);
+    }
+    case ActivityType.DisabledWindowsMdm: {
+      return TAGGED_TEMPLATES.disabledWindowsMdm(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -144,6 +595,8 @@ const getDetail = (
 
 interface IActivityItemProps {
   activity: IActivity;
+  isPremiumTier: boolean;
+  isSandboxMode?: boolean;
 
   /** A handler for handling clicking on the details of an activity. Not all
    * activites have more details so this is optional. An example of additonal
@@ -154,34 +607,72 @@ interface IActivityItemProps {
 
 const ActivityItem = ({
   activity,
+  isPremiumTier,
+  isSandboxMode = false,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
   const { actor_email } = activity;
-  const { gravatarURL } = actor_email
+  const { gravatar_url } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
-    : { gravatarURL: DEFAULT_GRAVATAR_URL };
+    : { gravatar_url: DEFAULT_GRAVATAR_LINK };
+
+  const activityCreatedAt = new Date(activity.created_at);
+  const indicatePremiumFeature =
+    isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
   return (
     <div className={baseClass}>
       <Avatar
         className={`${baseClass}__avatar-image`}
-        user={{ gravatarURL }}
+        user={{ gravatar_url }}
         size="small"
+        hasWhiteBackground
       />
       <div className={`${baseClass}__details`}>
         <p>
+          {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
-            <b>{activity.actor_full_name}</b>{" "}
-            {getDetail(activity, onDetailsClick)}
+            {activity.type === ActivityType.UserLoggedIn ? (
+              <b>{activity.actor_email} </b>
+            ) : (
+              <b>{activity.actor_full_name} </b>
+            )}
+            {getDetail(activity, isPremiumTier, onDetailsClick)}
           </span>
           <br />
-          <span className={`${baseClass}__details-bottomline`}>
-            {formatDistanceToNowStrict(new Date(activity.created_at), {
+          <span
+            className={`${baseClass}__details-bottomline`}
+            data-tip
+            data-for={`activity-${activity.id}`}
+          >
+            {formatDistanceToNowStrict(activityCreatedAt, {
               addSuffix: true,
             })}
           </span>
+          <ReactTooltip
+            className="date-tooltip"
+            place="top"
+            type="dark"
+            effect="solid"
+            id={`activity-${activity.id}`}
+            backgroundColor="#3e4771"
+          >
+            {intlFormat(
+              activityCreatedAt,
+              {
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+                hour: "numeric",
+                minute: "numeric",
+                second: "numeric",
+              },
+              { locale: window.navigator.languages[0] }
+            )}
+          </ReactTooltip>
         </p>
       </div>
+      <div className={`${baseClass}__dash`} />
     </div>
   );
 };

@@ -11,6 +11,7 @@ parasails.registerPage('osquery-table-details', {
       'darwin': 'macOS',
       'linux': 'Linux',
       'windows': 'Windows',
+      'chrome': 'ChromeOS',
       'all': 'All platforms'
     },
   },
@@ -19,8 +20,7 @@ parasails.registerPage('osquery-table-details', {
     filteredTables: function () {
       return this.allTables.filter(
         (table) =>
-          this._isIncluded(table.platforms, this.selectedPlatform) &&
-          this._isIncluded(table.title, this.search)
+          this._isIncluded(table.platforms, this.selectedPlatform)
       );
     },
     numberOfTablesDisplayed: function() {
@@ -35,6 +35,20 @@ parasails.registerPage('osquery-table-details', {
 
   },
   mounted: async function() {
+
+    // Algolia DocSearch
+    if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
+      docsearch({
+        appId: 'NZXAYZXDGH',
+        apiKey: this.algoliaPublicKey,
+        indexName: 'fleetdm',
+        inputSelector: '#docsearch-query',
+        debug: false,
+        algoliaOptions: {
+          'facetFilters': ['section:tables']
+        },
+      });
+    }
 
     // Check the URL to see if a platformFilter was provided.
     if(window.location.search) {
@@ -69,11 +83,12 @@ parasails.registerPage('osquery-table-details', {
         // Now iterate through the keywordsToHighlight, replacing all matches in the elements innerHTML.
         let replacementHMTL = block.innerHTML;
         for(let keywordInExample of keywordsToHighlight) {
-          replacementHMTL = replacementHMTL.replaceAll(keywordInExample, '<span class="hljs-attr">'+keywordInExample+'</span>');
+          let regexForThisExample = new RegExp(keywordInExample, 'g');
+          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+keywordInExample+'</span>');
         }
         $(block).html(replacementHMTL);
         // After we've highlighted our keywords, we'll highlight the rest of the codeblock
-        window.hljs.highlightBlock(block);
+        window.hljs.highlightElement(block);
       });
       // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
       $('.hljs-keyword').each((i, el)=>{
@@ -84,6 +99,7 @@ parasails.registerPage('osquery-table-details', {
     })();
     // Adjust the height of the sidebar navigation to match the height of the html partial
     (()=>{
+      $('[purpose="table-of-contents"]').css({'max-height': 120});
       let tablePartialHeight = $('[purpose="table-container"]').height();
       $('[purpose="table-of-contents"]').css({'max-height': tablePartialHeight - 120});
     })();

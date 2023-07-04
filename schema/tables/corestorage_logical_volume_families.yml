@@ -1,0 +1,80 @@
+name: corestorage_logical_volume_families
+platforms:
+  - darwin
+description: Information about CoreStorage Logical Volume Families from the `diskutil coreStorage list -plist` command.
+columns:
+  - name: vg_UUID
+    type: text
+    required: false
+    description: The unique identifier of the containing volume group
+  - name: vg_Version
+    type: integer
+    required: false
+    description: The version of the volume group, probably 1
+  - name: vg_FreeSpace
+    type: bigint
+    required: false
+    description: |
+      Amount of space, in bytes, in the volume group that have not been allocated by any logical volume
+  - name: vg_FusionDrive
+    type: integer
+    required: false
+    description: Whether the volume group is a "fusion drive" (i.e. SSHD)
+  - name: vg_Name
+    type: text
+    required: false
+    description: The customizable name of the volume group
+  - name: vg_Sequence
+    type: bigint
+    required: false
+    description: Current sequence number of the volume group
+  - name: vg_Size
+    type: bigint
+    required: false
+    description: Total (i.e. either allocated or unallocated) size of the volume group
+  - name: vg_Sparse
+    type: integer
+    required: false
+    description: Whether the volume group allows overcommitting storage
+  - name: vg_Status
+    type: text
+    required: false
+    description: Status of the volume group, e.g. "Online"
+  - name: UUID
+    type: text
+    required: false
+    description: Unique ID of the logical volume family
+  - name: EncryptionStatus
+    type: text
+    required: false
+    description: Unlock status of the logical volume family, e.g. "Locked" or "Unlocked"
+  - name: EncryptionType
+    type: text
+    required: false
+    description: Encryption algorithm for the logical volume family, normally "AES-XTS" or "None"
+  - name: HasVisibleUsers
+    type: integer
+    required: false
+    description: Undocumented field returned from `diskutil cs info`
+  - name: HasVolumeKey
+    type: integer
+    required: false
+    description: Whether there is an encryption key assigned for the logical volume
+  - name: IsAcceptingNewUsers
+    type: integer
+    required: false
+    description: Whether new users may be granted access to the logical volume family encryption key
+  - name: IsFullySecure
+    type: integer
+    required: false
+    description: Undocumented field returned from `diskutil cs info`
+  - name: MayHaveEncryptedEvents
+    type: integer
+    required: false
+    description: Undocumented field returned from `diskutil cs info`
+  - name: RequiresPasswordUnlock
+    type: integer
+    required: false
+    description: Whether a password is currently required to unlock the volume
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+evented: false

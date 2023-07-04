@@ -38,11 +38,13 @@ POST https://server.com/example
     "epss_probability": 0.7, // Premium feature only
     "cvss_score": 5.7, // Premium feature only
     "cisa_known_exploit": true, // Premium feature only
+    "cve_published": "2020-10-28T00:00:00Z", // Premium feature only
     "hosts_affected": [
       {
         "id": 1,
         "hostname": "macbook-1",
-        "url": "https://fleet.example.com/hosts/1"
+        "url": "https://fleet.example.com/hosts/1",
+        "software_installed_paths": ["/usr/lib/some-path"],
       },
       {
         "id": 2,

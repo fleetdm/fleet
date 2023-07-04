@@ -28,7 +28,7 @@
 
   &.Select {
     border-radius: $border-radius;
-    border: 1px solid $ui-fleet-blue-15;
+    border: 1px solid $ui-fleet-black-10;
 
     &.is-focused,
     &:hover {
@@ -97,13 +97,6 @@
           border-bottom-right-radius: 0;
           border-bottom-left-radius: 0;
         }
-      }
-
-      .Select-value {
-        line-height: 34px;
-        border: 1px solid $ui-fleet-black-75;
-        margin-top: 5px;
-        margin-bottom: 0;
       }
     }
   }
@@ -215,33 +208,6 @@
   &.is-disabled {
     .Select-value-label {
       padding: 0 $pad-medium;
-    }
-  }
-
-  @include breakpoint(ltdesktop) {
-    .Select-menu-outer {
-      .Select-menu {
-        min-width: 665px;
-
-        &::after {
-          display: none;
-        }
-      }
-    }
-
-    &.show-preview {
-      .Select-menu-outer {
-        .Select-menu {
-          left: auto;
-          right: 0;
-        }
-      }
-
-      .Select-menu {
-        left: 0;
-        right: auto;
-        position: absolute;
-      }
     }
   }
 }

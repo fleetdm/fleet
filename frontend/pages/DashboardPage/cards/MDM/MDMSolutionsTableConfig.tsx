@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IMdmSolution } from "interfaces/macadmins";
+import { IMdmSolution } from "interfaces/mdm";
 
 import { greyCell } from "utilities/helpers";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -9,12 +9,17 @@ import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
+
+interface IMDMSolutionWithPlatformId extends IMdmSolution {
+  selectedPlatformLabelId?: number;
+}
+
 interface ICellProps {
   cell: {
     value: string;
   };
   row: {
-    original: IMdmSolution;
+    original: IMDMSolutionWithPlatformId;
   };
 }
 
@@ -36,11 +41,14 @@ interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
   Cell: (props: ICellProps) => JSX.Element;
+  disableGlobalFilter?: boolean;
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
 
-const solutionsTableHeaders = [
+export const generateSolutionsTableHeaders = (
+  teamId?: number
+): IDataColumn[] => [
   {
     title: "Name",
     Header: "Name",
@@ -80,8 +88,9 @@ const solutionsTableHeaders = [
     Cell: (cellProps: IStringCellProps) => {
       return (
         <ViewAllHostsLink
-          queryParams={{ mdm_id: cellProps.row.original.id }}
+          queryParams={{ mdm_id: cellProps.row.original.id, team_id: teamId }}
           className="mdm-solution-link"
+          platformLabelId={cellProps.row.original.selectedPlatformLabelId}
         />
       );
     },
@@ -89,28 +98,27 @@ const solutionsTableHeaders = [
   },
 ];
 
-export const generateSolutionsTableHeaders = (): IDataColumn[] => {
-  return solutionsTableHeaders;
-};
-
-const enhanceSolutionsData = (solutions: IMdmSolution[]): IMdmSolution[] => {
+const enhanceSolutionsData = (
+  solutions: IMdmSolution[],
+  selectedPlatformLabelId?: number
+): IMdmSolution[] => {
   return Object.values(solutions).map((solution) => {
     return {
       id: solution.id,
       name: solution.name || "Unknown",
       server_url: solution.server_url,
       hosts_count: solution.hosts_count,
+      selectedPlatformLabelId,
     };
   });
 };
 
 export const generateSolutionsDataSet = (
-  solutions: IMdmSolution[] | null
+  solutions: IMdmSolution[] | null,
+  selectedPlatformLabelId?: number
 ): IMdmSolution[] => {
   if (!solutions) {
     return [];
   }
-  return [...enhanceSolutionsData(solutions)];
+  return [...enhanceSolutionsData(solutions, selectedPlatformLabelId)];
 };
-
-export default { generateSolutionsTableHeaders, generateSolutionsDataSet };

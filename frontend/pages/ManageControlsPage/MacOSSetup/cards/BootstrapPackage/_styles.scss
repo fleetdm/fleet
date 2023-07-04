@@ -1,0 +1,24 @@
+.bootstrap-package {
+  > h2 {
+    margin: 0 0 $pad-large;
+    padding-bottom: $pad-small;
+    font-size: $medium;
+    font-weight: $regular;
+    color: $core-fleet-black;
+    border-bottom: solid 1px $ui-fleet-black-10;
+  }
+
+  &__content {
+    max-width: $break-1600;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: $pad-xxlarge;
+  }
+
+  @media (max-width: $break-990) {
+    &__content {
+      flex-direction: column;
+    }
+  }
+}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -38,8 +39,6 @@ type baseClient struct {
 
 func (bc *baseClient) parseResponse(verb, path string, response *http.Response, responseDest interface{}) error {
 	switch response.StatusCode {
-	case http.StatusOK:
-		// ok
 	case http.StatusNotFound:
 		return notFoundErr{}
 	case http.StatusUnauthorized:
@@ -47,21 +46,27 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 	case http.StatusPaymentRequired:
 		return ErrMissingLicense
 	default:
-		return fmt.Errorf(
-			"%s %s received status %d %s",
-			verb, path,
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
+		if response.StatusCode >= 200 && response.StatusCode < 300 {
+			break
+		}
+
+		e := &statusCodeErr{
+			code: response.StatusCode,
+			body: extractServerErrorText(response.Body),
+		}
+		return fmt.Errorf("%s %s received status %w", verb, path, e)
 	}
 
 	bc.setServerCapabilities(response)
 
 	if responseDest != nil {
-		if err := json.NewDecoder(response.Body).Decode(&responseDest); err != nil {
-			return fmt.Errorf("decode %s %s response: %w", verb, path, err)
+		b, err := io.ReadAll(response.Body)
+		if err != nil {
+			return fmt.Errorf("reading response body: %w", err)
 		}
-
+		if err := json.Unmarshal(b, &responseDest); err != nil {
+			return fmt.Errorf("decode %s %s response: %w, body: %s", verb, path, err, b)
+		}
 		if e, ok := responseDest.(errorer); ok {
 			if e.error() != nil {
 				return fmt.Errorf("%s %s error: %w", verb, path, e.error())
@@ -109,7 +114,13 @@ func (bc *baseClient) setClientCapabilitiesHeader(req *http.Request) {
 	req.Header.Set(fleet.CapabilitiesHeader, bc.clientCapabilities.String())
 }
 
-func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, capabilities fleet.CapabilityMap) (*baseClient, error) {
+func newBaseClient(
+	addr string,
+	insecureSkipVerify bool,
+	rootCA, urlPrefix string,
+	fleetClientCert *tls.Certificate,
+	capabilities fleet.CapabilityMap,
+) (*baseClient, error) {
 	baseURL, err := url.Parse(addr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing URL: %w", err)
@@ -126,6 +137,10 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 		// Osquery itself requires >= TLS 1.2.
 		// https://github.com/osquery/osquery/blob/9713ad9e28f1cfe6c16a823fb88bd531e39e192d/osquery/remote/transports/tls.cpp#L97-L98
 		MinVersion: tls.VersionTLS12,
+	}
+
+	if fleetClientCert != nil {
+		tlsConfig.Certificates = []tls.Certificate{*fleetClientCert}
 	}
 
 	switch {

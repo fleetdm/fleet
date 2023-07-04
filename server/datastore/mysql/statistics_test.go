@@ -82,12 +82,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
-		OsqueryHostID:   "M",
+		OsqueryHostID:   ptr.String("M"),
 		OsqueryVersion:  "4.9.0",
 	})
 	require.NoError(t, err)
@@ -153,14 +153,14 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	// Initialize policy violation days for test
 	pvdJSON, err := json.Marshal(PolicyViolationDays{FailingHostCount: 5, TotalHostCount: 10})
 	require.NoError(t, err)
-	_, err = ds.writer.ExecContext(ctx, `
+	_, err = ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO
-			aggregated_stats (id, type, json_value, created_at, updated_at)
-		VALUES (?, ?, CAST(? AS JSON), ?, ?)
+			aggregated_stats (id, global_stats, type, json_value, created_at, updated_at)
+		VALUES (?, ?, ?, CAST(? AS JSON), ?, ?)
 		ON DUPLICATE KEY UPDATE
 			json_value = VALUES(json_value),
 			updated_at = VALUES(updated_at)
-	`, 0, "policy_violation_days", pvdJSON, time.Now().Add(-48*time.Hour), time.Now().Add(-7*24*time.Hour))
+	`, 0, true, aggregatedStatsTypePolicyViolationsDays, pvdJSON, time.Now().Add(-48*time.Hour), time.Now().Add(-7*24*time.Hour))
 	require.NoError(t, err)
 
 	require.NoError(t, err)
@@ -214,12 +214,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "foo.local2",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
-		OsqueryHostID:   "S",
+		OsqueryHostID:   ptr.String("S"),
 		Platform:        "rhel",
 		OSVersion:       "Fedora 35",
 	})
@@ -230,12 +230,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "3",
+		NodeKey:         ptr.String("3"),
 		UUID:            "3",
 		Hostname:        "foo.local3",
 		PrimaryIP:       "192.168.1.3",
 		PrimaryMac:      "40-65-EC-6F-C4-59",
-		OsqueryHostID:   "T",
+		OsqueryHostID:   ptr.String("T"),
 		Platform:        "rhel",
 		OSVersion:       "Fedora 35",
 	})
@@ -246,12 +246,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "4",
+		NodeKey:         ptr.String("4"),
 		UUID:            "4",
 		Hostname:        "foo.local4",
 		PrimaryIP:       "192.168.1.4",
 		PrimaryMac:      "50-65-EC-6F-C4-59",
-		OsqueryHostID:   "U",
+		OsqueryHostID:   ptr.String("U"),
 		Platform:        "macos",
 		OSVersion:       "10.11.12",
 	})
@@ -262,12 +262,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "5",
+		NodeKey:         ptr.String("5"),
 		UUID:            "5",
 		Hostname:        "foo.local5",
 		PrimaryIP:       "192.168.1.5",
 		PrimaryMac:      "60-65-EC-6F-C4-59",
-		OsqueryHostID:   "V",
+		OsqueryHostID:   ptr.String("V"),
 		Platform:        "rhel",
 		OSVersion:       "Fedora 36",
 	})
@@ -331,12 +331,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "6",
+		NodeKey:         ptr.String("6"),
 		UUID:            "6",
 		Hostname:        "non-responsive.local",
 		PrimaryIP:       "192.168.1.6",
 		PrimaryMac:      "30-65-EC-6F-C4-66",
-		OsqueryHostID:   "NR",
+		OsqueryHostID:   ptr.String("NR"),
 	})
 	require.NoError(t, err)
 

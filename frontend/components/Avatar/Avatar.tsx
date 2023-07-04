@@ -4,18 +4,25 @@ import classnames from "classnames";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 
 interface IAvatarUserInterface {
-  gravatarURL?: string;
+  gravatar_url?: string;
+  gravatar_url_dark?: string;
 }
 
 export interface IAvatarInterface {
   className?: string;
   size?: string;
   user: IAvatarUserInterface;
+  hasWhiteBackground?: boolean;
 }
 
 const baseClass = "avatar";
 
-const Avatar = ({ className, size, user }: IAvatarInterface): JSX.Element => {
+const Avatar = ({
+  className,
+  size,
+  user,
+  hasWhiteBackground,
+}: IAvatarInterface): JSX.Element => {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
@@ -28,15 +35,16 @@ const Avatar = ({ className, size, user }: IAvatarInterface): JSX.Element => {
 
   const avatarClasses = classnames(baseClass, className, {
     [`${baseClass}--${size?.toLowerCase()}`]: !!size,
+    "has-white-background": !!hasWhiteBackground,
   });
-  const { gravatarURL } = user;
+  const { gravatar_url } = user;
 
   return (
     <div className="avatar-wrapper">
       <img
         alt={"User avatar"}
         className={`${avatarClasses} ${isLoading || isError ? "default" : ""}`}
-        src={gravatarURL || DEFAULT_GRAVATAR_LINK}
+        src={gravatar_url || DEFAULT_GRAVATAR_LINK}
         onError={onError}
         onLoad={onLoad}
       />

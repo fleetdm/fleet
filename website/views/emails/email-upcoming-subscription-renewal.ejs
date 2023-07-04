@@ -1,0 +1,18 @@
+<% /* Note: This is injected into `views/layouts/layout-email.ejs` */ %>
+<h1 style="margin-bottom: 32px; font-weight: bold; font-size: 24px;">Your subscription will renew soon</h1>
+<p style="margin-bottom: 32px;">Hello <%= firstName+' '+lastName %>,</p>
+
+<p style="margin-bottom: 32px;">This is a reminder that your Fleet Premium subscription for <span style="font-weight: 700;">$<%= subscriptionPriceInWholeDollars %>/year</span> (<%= numberOfHosts %> devices @ $<%= subscriptionCostPerHost %>/device/month) will automatically renew <span style="font-weight: 700;"><%= moment(nextBillingAt).fromNow() %></span>.</p>
+
+
+<p style="margin-bottom: 32px;">To avoid disruptions to you service, please log in to your  <a style="color: #6A67FE;" href="<%= url.resolve(sails.config.custom.baseUrl,'/customers/dashboard')%>">customer dashboard</a> to check if your payment method/billing information is up to date.</p>
+
+<div style="margin-bottom: 32px; text-align: left;">
+  <div style="background: #6A67FE; display: inline-block; color: white; text-decoration: none; border-radius: 4px; text-align: center; padding: 8px 16px 8px 16px" >
+    <a style="color: #EEE;  text-decoration: none;" href="<%= url.resolve(sails.config.custom.baseUrl,'/customers/dashboard') %>">Go to your customer dashboard</a>
+  </div>
+</div>
+
+<p style="margin-bottom: 32px;">To change your number of devices, or to cancel your subscription, please reply to this email or <a style="color: #6A67FE;" href="<%= url.resolve(sails.config.custom.baseUrl,'/contact') %>">contact us</a>.</p>
+
+<p style="margin-bottom: 32px;">Thank you again for using Fleet!</p>

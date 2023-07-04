@@ -1,12 +1,12 @@
-import React, { useEffect } from "react";
+import React from "react";
 import PATHS from "router/paths";
 
-import { ILabelSummary } from "interfaces/label";
-import { ISelectedPlatform } from "interfaces/platform";
-
-import { buildQueryStringFromParams } from "utilities/url";
-
+import labelsAPI from "services/entities/labels";
 import DataError from "components/DataError";
+import { ISelectedPlatform } from "interfaces/platform";
+import { useQuery } from "react-query";
+import { ILabelSpecResponse } from "interfaces/label";
+
 import SummaryTile from "./SummaryTile";
 
 const baseClass = "hosts-summary";
@@ -16,13 +16,11 @@ interface IHostSummaryProps {
   macCount: number;
   windowsCount: number;
   linuxCount: number;
+  chromeCount: number;
   isLoadingHostsSummary: boolean;
   showHostsUI: boolean;
   errorHosts: boolean;
   selectedPlatform?: ISelectedPlatform;
-  selectedPlatformLabelId?: number;
-  labels?: ILabelSummary[];
-  setActionURL?: (url: string) => void;
 }
 
 const HostsSummary = ({
@@ -30,84 +28,101 @@ const HostsSummary = ({
   macCount,
   windowsCount,
   linuxCount,
+  chromeCount,
   isLoadingHostsSummary,
   showHostsUI,
   errorHosts,
   selectedPlatform,
-  selectedPlatformLabelId,
-  labels,
-  setActionURL,
 }: IHostSummaryProps): JSX.Element => {
-  // build the manage hosts URL
-  useEffect(() => {
-    if (labels) {
-      const queryParams = {
-        team_id: currentTeamId,
-      };
-
-      const queryString = buildQueryStringFromParams(queryParams);
-      const endpoint = selectedPlatformLabelId
-        ? PATHS.MANAGE_HOSTS_LABEL(selectedPlatformLabelId)
-        : PATHS.MANAGE_HOSTS;
-      const path = `${endpoint}?${queryString}`;
-
-      setActionURL && setActionURL(path);
-    }
-  }, [labels, selectedPlatformLabelId, currentTeamId]);
-
   // Renders semi-transparent screen as host information is loading
   let opacity = { opacity: 0 };
   if (showHostsUI) {
     opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
   }
+  // get the id for the label for chrome hosts - this will be unique to each Fleet instance
+  const { isLoading: isLoadingChromeLabelId, data: chromeLabelId } = useQuery<
+    ILabelSpecResponse,
+    Error,
+    number
+  >("chromeLabelId", () => labelsAPI.specByName("chrome"), {
+    select: ({ specs }) => specs.id,
+  });
 
-  const renderMacCount = () => (
+  const renderMacCount = (teamId?: number) => (
     <SummaryTile
       iconName="darwin-purple"
       count={macCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
-      title="macOS hosts"
-      path={PATHS.MANAGE_HOSTS_LABEL(7)}
+      title={`macOS host${macCount === 1 ? "" : "s"}`}
+      path={PATHS.MANAGE_HOSTS_LABEL(7).concat(
+        teamId !== undefined ? `?team_id=${teamId}` : ""
+      )}
     />
   );
 
-  const renderWindowsCount = () => (
+  const renderWindowsCount = (teamId?: number) => (
     <SummaryTile
       iconName="windows-blue"
       count={windowsCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
-      title="Windows hosts"
-      path={PATHS.MANAGE_HOSTS_LABEL(10)}
+      title={`Windows host${windowsCount === 1 ? "" : "s"}`}
+      path={PATHS.MANAGE_HOSTS_LABEL(10).concat(
+        teamId !== undefined ? `?team_id=${teamId}` : ""
+      )}
     />
   );
 
-  const renderLinuxCount = () => (
+  const renderLinuxCount = (teamId?: number) => (
     <SummaryTile
       iconName="linux-green"
       count={linuxCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
-      title="Linux hosts"
-      path={PATHS.MANAGE_HOSTS_LABEL(12)}
+      title={`Linux host${linuxCount === 1 ? "" : "s"}`}
+      path={PATHS.MANAGE_HOSTS_LABEL(12).concat(
+        teamId !== undefined ? `?team_id=${teamId}` : ""
+      )}
     />
   );
 
-  const renderCounts = () => {
+  const renderChromeCount = (teamId?: number) => {
+    if (isLoadingChromeLabelId || chromeLabelId === undefined) {
+      return <></>;
+    }
+
+    return (
+      <SummaryTile
+        iconName="chrome-red"
+        count={chromeCount}
+        isLoading={isLoadingHostsSummary}
+        showUI={showHostsUI}
+        title={`Chromebook${chromeCount === 1 ? "" : "s"}`}
+        path={PATHS.MANAGE_HOSTS_LABEL(chromeLabelId).concat(
+          teamId !== undefined ? `?team_id=${teamId}` : ""
+        )}
+      />
+    );
+  };
+
+  const renderCounts = (teamId?: number) => {
     switch (selectedPlatform) {
       case "darwin":
-        return renderMacCount();
+        return renderMacCount(teamId);
       case "windows":
-        return renderWindowsCount();
+        return renderWindowsCount(teamId);
       case "linux":
-        return renderLinuxCount();
+        return renderLinuxCount(teamId);
+      case "chrome":
+        return renderChromeCount(teamId);
       default:
         return (
           <>
-            {renderMacCount()}
-            {renderWindowsCount()}
-            {renderLinuxCount()}
+            {renderMacCount(teamId)}
+            {renderWindowsCount(teamId)}
+            {renderLinuxCount(teamId)}
+            {renderChromeCount(teamId)}
           </>
         );
     }
@@ -124,7 +139,7 @@ const HostsSummary = ({
       }`}
       style={opacity}
     >
-      {renderCounts()}
+      {renderCounts(currentTeamId)}
     </div>
   );
 };

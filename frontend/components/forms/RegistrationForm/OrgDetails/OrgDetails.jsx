@@ -5,7 +5,7 @@ import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import Button from "components/buttons/Button";
 import helpers from "components/forms/RegistrationForm/OrgDetails/helpers";
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import InputField from "components/forms/fields/InputField";
 
 const formFields = ["org_name", "org_logo_url"];
 const { validate } = helpers;
@@ -37,22 +37,22 @@ class OrgDetails extends Component {
 
   render() {
     const { className, currentPage, fields, handleSubmit } = this.props;
-    const tabIndex = currentPage ? 1 : -1;
+    const tabIndex = currentPage ? 0 : -1;
 
     return (
       <form onSubmit={handleSubmit} className={className} autoComplete="off">
         <div className="registration-fields">
-          <InputFieldWithIcon
+          <InputField
             {...fields.org_name}
-            placeholder="Organization name"
+            label="Organization name"
             tabIndex={tabIndex}
             ref={(input) => {
               this.firstInput = input;
             }}
           />
-          <InputFieldWithIcon
+          <InputField
             {...fields.org_logo_url}
-            placeholder="Organization logo URL (optional)"
+            label="Organization logo URL (optional)"
             tabIndex={tabIndex}
             hint="Personalize Fleet with your brand.  For best results, use a square image at least 150px wide, like https://fleetdm.com/logo.png."
           />

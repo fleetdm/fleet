@@ -1,6 +1,6 @@
 # Fleet 4.5.0 with new team admin role, live OS compatibility checking, query performance impact, and a new-look dashboard
 
-![Fleet 4.5.0](../website/assets/images/articles/fleet-4.5.0-cover-700x393@2x.png)
+![Fleet 4.5.0](../website/assets/images/articles/fleet-4.5.0-cover-1600x900@2x.jpg)
 
 It’s been another exciting month at Fleet, and we are proud to announce the release of Fleet 4.5.0, which brings with it new and improved features for the osquery and Fleet community.
 

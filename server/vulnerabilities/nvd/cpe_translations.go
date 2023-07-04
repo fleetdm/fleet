@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/download"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/go-github/v37/github"
 )
 
 const cpeTranslationsFilename = "cpe_translations.json"
@@ -31,44 +33,45 @@ func loadCPETranslations(path string) (CPETranslations, error) {
 	return translations, nil
 }
 
-// DownloadCPETranslations downloads the CPE translations to the given vulnPath. If cpeTranslationsURL is empty, attempts to download it
+// DownloadCPETranslationsFromGithub downloads the CPE translations to the given vulnPath. If cpeTranslationsURL is empty, attempts to download it
 // from the latest release of github.com/fleetdm/nvd. Skips downloading if CPE translations is newer than the release.
-func DownloadCPETranslations(vulnPath string, client *http.Client, cpeTranslationsURL string) error {
+func DownloadCPETranslationsFromGithub(vulnPath string, cpeTranslationsURL string) error {
 	path := filepath.Join(vulnPath, cpeTranslationsFilename)
 
 	if cpeTranslationsURL == "" {
-		release, err := GetLatestNVDRelease(client)
-		if err != nil {
-			return err
-		}
 		stat, err := os.Stat(path)
 		switch {
 		case errors.Is(err, os.ErrNotExist):
 			// okay
 		case err != nil:
 			return err
-		default:
-			if stat.ModTime().After(release.CreatedAt.Time) {
-				// file is newer than release, do nothing
-				return nil
-			}
+		case stat.ModTime().Truncate(24 * time.Hour).Equal(time.Now().Truncate(24 * time.Hour)):
+			// Vulnerability assets are published once per day - if the asset in question has a
+			// mod date of 'today', then we can assume that is already up to day.
+			return nil
 		}
 
-		for _, asset := range release.Assets {
-			if cpeTranslationsFilename == asset.GetName() {
-				cpeTranslationsURL = asset.GetBrowserDownloadURL()
-				break
-			}
+		release, asset, err := GetGithubNVDAsset(func(asset *github.ReleaseAsset) bool {
+			return cpeTranslationsFilename == asset.GetName()
+		})
+		if err != nil {
+			return err
 		}
-		if cpeTranslationsURL == "" {
+		if asset == nil {
 			return errors.New("failed to find cpe translations in nvd release")
 		}
+		if stat != nil && stat.ModTime().After(release.CreatedAt.Time) {
+			// file is newer than release, do nothing
+			return nil
+		}
+		cpeTranslationsURL = asset.GetBrowserDownloadURL()
 	}
 
 	u, err := url.Parse(cpeTranslationsURL)
 	if err != nil {
 		return err
 	}
+	client := fleethttp.NewGithubClient()
 	if err := download.Download(client, u, path); err != nil {
 		return err
 	}
@@ -212,4 +215,6 @@ type CPETranslation struct {
 	Product  []string `json:"product"`
 	Vendor   []string `json:"vendor"`
 	TargetSW []string `json:"target_sw"`
+	// If Skip is set, no NVD vulnerabilities will be reported for the matching software.
+	Skip bool `json:"skip"`
 }

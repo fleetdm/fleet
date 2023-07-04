@@ -24,6 +24,22 @@
     }
   }
 
+  [purpose='rss-button'] {
+    padding: 4px 8px;
+    display: inline;
+    max-width: min-content;
+    color: #192147;
+    text-decoration: none;
+    font-size: 14px;
+    span::before {
+      vertical-align: baseline;
+      font-family: 'FontAwesome';
+      content: '\f09e';
+      color: #192147;
+      padding-right: 8px;
+      font-size: 16px;
+    }
+  }
   [purpose='article-details'] {
     font-size: 14px;
     line-height: 20px;
@@ -74,6 +90,18 @@
       margin-top: 24px;
       margin-bottom: 24px;
     }
+    h2 > code:not(.bash):not(.nohighlight):not(.mermaid) {
+      padding: 0px 4px;
+      font-weight: 400;
+      font-size: 22px;
+      line-height: inherit;
+    }
+    h3 > code:not(.bash):not(.nohighlight):not(.mermaid) {
+      padding: 0px 4px;
+      font-weight: 400;
+      font-size: 18px;
+      line-height: inherit;
+    }
     p {
       font-size: 16px;
       line-height: 28px;
@@ -95,6 +123,9 @@
     }
     li::marker {
       color: @core-vibrant-blue;
+    }
+    .markdown-heading {
+      scroll-margin-top: 140px;
     }
     [purpose='checklist-item'] {
       display: flex;
@@ -160,6 +191,9 @@
       margin-left: auto;
       margin-right: auto;
       background: #fff;
+      svg {
+        max-height: 600px;
+      }
     }
     blockquote {
       margin: 24px 0 32px 32px;
@@ -177,14 +211,15 @@
       font-size: 16px;
     }
     [purpose='large-quote']::before, [purpose='quote']::before {
-      display: inline;
-      position: absolute;
-      content: '“';
+      content: ' ';
+      background-image: url('/images/icon-quote-mark-22x18@2x.png');
+      background-size: 22px 18px;
+      display: block;
+      position: relative;
       top: 16px;
-      left: -34px;
-      font-size: 64px;
-      padding-right: 8px;
-      color: @core-vibrant-blue;
+      left: -32px;
+      width: 22px;
+      height: 18px;
     }
     [purpose='tip'] {
       margin: 16px 0 32px;

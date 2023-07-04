@@ -11,6 +11,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/go-cmp/cmp"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,6 +64,7 @@ func TestLabels(t *testing.T) {
 		{"DeleteLabel", testDeleteLabel},
 		{"LabelsSummary", testLabelsSummary},
 		{"ListHostsInLabelFailingPolicies", testListHostsInLabelFailingPolicies},
+		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -77,7 +80,7 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	var host *fleet.Host
 	var err error
 	for i := 0; i < 10; i++ {
-		host, err = db.EnrollHost(context.Background(), fmt.Sprint(i), fmt.Sprint(i), nil, 0)
+		host, err = db.EnrollHost(context.Background(), false, fmt.Sprint(i), "", "", fmt.Sprint(i), nil, 0)
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
@@ -246,8 +249,8 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -258,8 +261,8 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "2",
-		NodeKey:         "2",
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
@@ -270,8 +273,8 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "3",
-		NodeKey:         "3",
+		OsqueryHostID:   ptr.String("3"),
+		NodeKey:         ptr.String("3"),
 		UUID:            "3",
 		Hostname:        "baz.local",
 	})
@@ -279,6 +282,24 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5))
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10))
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15))
+
+	ctx := context.Background()
+	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
+	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM) // enrollment: automatic
+	require.NoError(t, err)
+	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMKandji) // enrollment: automatic
+	require.NoError(t, err)
+	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM) // enrollment: unenrolled
+	require.NoError(t, err)
+
+	var simpleMDMID uint
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &simpleMDMID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, simpleMDM)
+	})
+	var kandjiID uint
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &kandjiID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMKandji, kandji)
+	})
 
 	l1 := &fleet.LabelSpec{
 		ID:    1,
@@ -303,6 +324,12 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(25)}, 2)
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(15)}, 1)
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(5)}, 0)
+
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMIDFilter: ptr.Uint(99)}, 0)
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMIDFilter: ptr.Uint(simpleMDMID)}, 2)
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMIDFilter: ptr.Uint(kandjiID)}, 1)
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM)}, 2)
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM), MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 1)
 }
 
 func listHostsInLabelCheckCount(
@@ -323,8 +350,8 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -336,8 +363,8 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  lastSeenTime,
 		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
-		OsqueryHostID:   "2",
-		NodeKey:         "2",
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
@@ -347,8 +374,8 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  lastSeenTime,
 		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
-		OsqueryHostID:   "3",
-		NodeKey:         "3",
+		OsqueryHostID:   ptr.String("3"),
+		NodeKey:         ptr.String("3"),
 		UUID:            "3",
 		Hostname:        "baz.local",
 	})
@@ -386,8 +413,8 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -399,8 +426,8 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 		LabelUpdatedAt:  lastSeenTime,
 		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
-		OsqueryHostID:   "2",
-		NodeKey:         "2",
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
@@ -422,28 +449,70 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 
 	require.NoError(t, db.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))
 
-	filter := fleet.TeamFilter{User: test.UserAdmin}
+	userFilter := fleet.TeamFilter{User: test.UserAdmin}
+	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
+	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team
+
 	for _, h := range []*fleet.Host{h1, h2} {
 		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), deferred)
 		assert.Nil(t, err)
 	}
 
 	{
-		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}, 1)
+		hosts := listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}, 1)
 		assert.Equal(t, "foo.local", hosts[0].Hostname)
 	}
 
 	{
-		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusMIA}, 1)
+		hosts := listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusMIA}, 1)
 		assert.Equal(t, "bar.local", hosts[0].Hostname)
 	}
 
 	{
-		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID}, 1)
+		hosts := listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID}, 1)
 		assert.Equal(t, "foo.local", hosts[0].Hostname)
 	}
 
-	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)        // no hosts assigned to team 2
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterZero}, 1) // h2 not assigned to any team
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, 2)  // h1 and h2
+
+	// test team filter in combination with macos settings filter
+	require.NoError(t, db.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileID:         1,
+			ProfileIdentifier: "identifier",
+			HostUUID:          h1.UUID, // hosts[0] is assgined to team 1
+			CommandUUID:       "command-uuid-1",
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryVerifying,
+			Checksum:          []byte("csum"),
+		},
+	}))
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: fleet.MacOSSettingsVerifying}, 1) // h1
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: &team2.ID, MacOSSettingsFilter: fleet.MacOSSettingsVerifying}, 0) // wrong team
+	// macos settings filter does not support "all teams" so teamIDFilterNil acts the same as teamIDFilterZero
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterZero, MacOSSettingsFilter: fleet.MacOSSettingsVerifying}, 0) // no team
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: fleet.MacOSSettingsVerifying}, 0)  // no team
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{MacOSSettingsFilter: fleet.MacOSSettingsVerifying}, 0)                               // no team
+
+	require.NoError(t, db.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileID:         1,
+			ProfileIdentifier: "identifier",
+			HostUUID:          h2.UUID, // hosts[9] is assgined to no team
+			CommandUUID:       "command-uuid-2",
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryVerifying,
+			Checksum:          []byte("csum"),
+		},
+	}))
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: fleet.MacOSSettingsVerifying}, 1) // h1
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: &team2.ID, MacOSSettingsFilter: fleet.MacOSSettingsVerifying}, 0) // wrong team
+	// macos settings filter does not support "all teams" so both teamIDFilterNil acts the same as teamIDFilterZero
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterZero, MacOSSettingsFilter: fleet.MacOSSettingsVerifying}, 1) // h2
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: fleet.MacOSSettingsVerifying}, 1)  // h2
+	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{MacOSSettingsFilter: fleet.MacOSSettingsVerifying}, 1)                               // h2
 }
 
 func testLabelsBuiltIn(t *testing.T, db *Datastore) {
@@ -468,8 +537,8 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         strconv.Itoa(i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(strconv.Itoa(i)),
 			UUID:            strconv.Itoa(i),
 			Hostname:        fmt.Sprintf("host_%d", i),
 		})
@@ -591,8 +660,8 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         strconv.Itoa(i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(strconv.Itoa(i)),
 			UUID:            strconv.Itoa(i),
 			Hostname:        strconv.Itoa(i),
 		})
@@ -640,7 +709,10 @@ func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 	for _, s := range expectedSpecs {
 		spec, err := ds.GetLabelSpec(context.Background(), s.Name)
 		require.Nil(t, err)
-		assert.Equal(t, s, spec)
+
+		require.True(t, cmp.Equal(s, spec, cmp.FilterPath(func(p cmp.Path) bool {
+			return p.String() == "ID"
+		}, cmp.Ignore())))
 	}
 }
 
@@ -674,8 +746,8 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -704,7 +776,7 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 }
 
 func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
-	host, err := db.EnrollHost(context.Background(), "0", "0", nil, 0)
+	host, err := db.EnrollHost(context.Background(), false, "0", "", "", "0", nil, 0)
 	require.NoError(t, err, "enrollment should succeed")
 
 	host.Platform = "rhel"
@@ -738,8 +810,8 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -844,8 +916,8 @@ func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -931,4 +1003,139 @@ func checkLabelHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, lid 
 	require.NoError(t, err)
 	assert.Equal(t, expected, hostById.HostIssues.FailingPoliciesCount)
 	assert.Equal(t, expected, hostById.HostIssues.TotalIssuesCount)
+}
+
+func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// seed hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+
+	// set up data
+	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0))
+	require.NoError(t, err)
+
+	// verifying status
+	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
+	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
+	createDiskEncryptionRecord(ctx, ds, t, hosts[0].ID, "key-1", true, oneMinuteAfterThreshold)
+	createDiskEncryptionRecord(ctx, ds, t, hosts[1].ID, "key-1", true, oneMinuteAfterThreshold)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
+
+	// action required status
+	upsertHostCPs(
+		[]*fleet.Host{hosts[2], hosts[3]},
+		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
+		fleet.MDMAppleOperationTypeInstall,
+		&fleet.MDMAppleDeliveryVerifying, ctx, ds, t,
+	)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[2].ID}, false, oneMinuteAfterThreshold)
+	require.NoError(t, err)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[3].ID}, false, oneMinuteAfterThreshold)
+	require.NoError(t, err)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
+
+	// enforcing status
+
+	// host profile status is `pending`
+	upsertHostCPs(
+		[]*fleet.Host{hosts[4]},
+		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
+		fleet.MDMAppleOperationTypeInstall,
+		&fleet.MDMAppleDeliveryPending, ctx, ds, t,
+	)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
+
+	// host profile status does not exist
+	upsertHostCPs(
+		[]*fleet.Host{hosts[5]},
+		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
+		fleet.MDMAppleOperationTypeInstall,
+		nil, ctx, ds, t,
+	)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
+
+	// host profile status is verifying but decryptable key field does not exist
+	upsertHostCPs(
+		[]*fleet.Host{hosts[6]},
+		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
+		fleet.MDMAppleOperationTypeInstall,
+		&fleet.MDMAppleDeliveryPending, ctx, ds, t,
+	)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[6].ID}, false, oneMinuteAfterThreshold)
+	require.NoError(t, err)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 3)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
+
+	// failed status
+	upsertHostCPs([]*fleet.Host{hosts[7], hosts[8]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryFailed, ctx, ds, t)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 3)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
+
+	// removing enforcement status
+	upsertHostCPs([]*fleet.Host{hosts[9]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryPending, ctx, ds, t)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 3)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 1)
+
+	// verified status
+	upsertHostCPs([]*fleet.Host{hosts[0]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerified, ctx, ds, t)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 3)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 1)
 }

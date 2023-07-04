@@ -1,0 +1,121 @@
+package main
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+const (
+	// These are just example keys generated locally with openssl. They are intentionally published
+	// and should never be used in production.
+	exampleKeyPassphrase = "password"
+	exampleKeyPEM        = `-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-EDE3-CBC,5F4D77F29A9E2675
+
+Ki45akvkUE6tSof503eozg377rb4Lv96ER2PFq2z9lxEQBEZMgumQiw5q9D2hfin
+r2Fa8khvTXIlfvc57jYncs3u3KEGn62K0BueX1bvBivBmNhAvaDGBHdeosnoUCdb
+/YxDZL1jOVuDVHVqYyM/3bIUZwRtmrqfcVtVIaD9gpe6bXL83pbUuq7O4VNexxHJ
+8IS7kLausazyuXMMC+gcJ5ODb8gxzRicPnQBYgYZ4GGBKUJDR09OdVSibq4k1slG
+RztWBPoKfS9uVUE5cHWQbjh8qMHWXKa4/bNNhW4THlt9Iqs7Cf5eKNpxakEgUuL5
+V/BA0webBdNb/FwyBXCay6s4t9ORYLJuzTVxXylyv7hiRA3qmAoy9h5a+uKGBNUI
+nP/9hcy7wQaYvFfUWwYOTGRjdwQj4bxUen6J/B3xxP4xcA0DTByghlkfezioktV5
+zXJRM8OYhUfneTFgEPGSBmox6Y/yDfKy3ujkOkYakDJpcGaDDr9EpgX0r8V5bqRk
+HzGS+Uj4WzCAsaV7L+cwCT70ifq65FaVWqe2/GxkGqV2wXyZh2P/ZToEwi1mGqYD
+e9G0CmAZuKjAxUbQgYaA7GNI825DLVyddsCBwqwn4TJr5xPFtsGBNBMJVfk/gyNk
+Ee48WKtVOFPLCq4Na/8et8Ms3NpQ2odofe9zP82BSwmxqWjeSS2GVah7a56x92vF
+74bJgnZIp0Xj61nBAziZu/o6P+Rzc7iPuo5VDnKL3KTTdFvwJ92WDii2aNQzGGcw
+Y546qIVUawMIX/v9RiKD51mkXnF++HAdDza5SPCAeVcA4bysYGpb91P9HnhTPU9B
+4150G0CHee1fVyMX0eWD/cn/fsCEFAAECECBHjoNW4A0WEXsIAl7PhqsnLQhVhDZ
+ZavjIo0k6DIkmyS25Q7cv+ZUV74wBx/ZrxLlW88g6tIIY3FEEUehxMvr8hszTQrH
+A/e6WhGAWngYCmFOcmsrQawDO6nig9x9SKGgBXU3HOwFWIh6ChAmvIKmOaO+VyzL
+wZXSSKWhaUkO+THtcWJ8JXyCrqLcmoq/UmfCfmia5ur8ZVYONJ2DNJoOJq2I6GNA
+QVbq2JsfDlJvWq6DGG1Vp6vijvF8NXJNfx+cQmnCCy+wI09fFKQWS1JVQGsFMalF
+r5b/V9Qy3ISmqVJ8JMAsoCZ+Glw6SN0bgCxpmdupf6u2wWbRalRQYBySSfOwJV0X
+4OZEvm6cHYAolo6zTWRYxHV9RLC0CFY+qeMFrQMAKPKyo5dqkDjIQhVdF7+V395v
+0ihD6o8/ZHgEX5DGqNOnxBiiAch6wUXpr1PBAXKeraAd8QB+dQqoLjajwqMxkCw3
+UFjDMLoT/iX3du3MEB84McVRjPqsY2LnPuEiSDZuMVOi6mgDHPvXwL08btJl/b0n
+fV/8DefbteQGPeUPzNqAeA0W/0kkokvj+TM4BC+5pRRKkuWGyScSuj9qHUmVBuMa
+Lxha5zWMzaqJKglw2Q8ncS62Pdo7JD7JcfzJZgbX7bIpt4+e1w9wscpqZ/gxa954
+MQ6XF/Q8fYIsb2Yb8W7uCdryGSQeK+WzXVI36ntz2TcBw+ruKs7NPQ==
+-----END RSA PRIVATE KEY-----
+`
+	exampleCertPEM = `-----BEGIN CERTIFICATE-----
+MIICojCCAYoCCQCxnl1Vm8TXcTANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQKDAdF
+eGFtcGxlMCAXDTIyMTIwMTE4NDAxM1oYDzIwNTAwNDE3MTg0MDEzWjASMRAwDgYD
+VQQKDAdFeGFtcGxlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlfUB
+FNavVyY/8pK9amfE5w2VYgCjZ1YKnCX/Dfg9c1WvpfClsFCFdJIg5WpCjVLnN3q9
+VqGGzptXPhFKz9PR/X5os60WoOvdGYlMskwz9OTd535FUWhGy3ldsU0heb1waKoN
+fLN4wPhcfKcgio5jr8PadpF2iiXuI0eZqV/Gdxt9Id3RRPC1mckEPh0Xm+Ir4hyY
+6crzCAFLhHVpcTDEjMtOz1seUS1A0qxiJCF447EFmvE2WYOIfgZcjxjqe2INXBtd
+7qElg17ZzgAZJwQCoyA+lFhWt7i4J6V4z24SWPEAmZQVApu8/t8Que3Z9NJV100+
+yUqZacMopz/MQqRzMwIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQAQ03Qpp24vNDPT
+luhRIuEgIUgIT5KvUqPnw1CWWdmSS2GErlUA4kwGXeFVEYEpCSG1vH+lWGt1Lgcw
+SMzWsDwCzaJbwlQDpA4qRXfkQugCriQ3N5v63iFLcyKmJeBjrb+kZOl/Br1hmwYB
+zOXZ0eZVQfnsjMK18m2VjEZVnlmqGDC7PYMF7//036T9JSpSAneVd/Ui/ttmc0bH
+ien666o0TuMMFme/9nXFTLlSD3RX8PfUzOTB7uvKPZ9IE+sgUGs2JIRHgKWko648
+aNIqfbreT0nTN011omnBU4PxDLR7uz4n6G7OI1mUfKIilUia5M8YjoJRFrAlojux
+qM2SuvO6
+-----END CERTIFICATE-----
+`
+	exampleCSR = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ2VEQ0NBV0FDQVFBd016RVFNQTRHQTFVRUNoTUhSWGhoYlhCc1pURWZNQjBHQ1NxR1NJYjNEUUVKQVF3UQpkR1Z6ZEVCbGVHRnRjR3hsTG1OdmJUQ0NBU0l3RFFZSktvWklodmNOQVFFQkJRQURnZ0VQQURDQ0FRb0NnZ0VCCkFONis2RkVReTNrYXVSMWMxeU9TQldic0F6UmN2RG9JYkREVk9PSVcwOUZYOEhlcVJLRjVSWFBGbkk5Yk5CR0MKTUFDVExtSUZLZFFxR0tSMDBSQ0l4eTdjTVdMUVVLbkNzRkFJckhSTFVpRlhINWlHam5BM05kVml6N0tObHBYMwpxTHQyRXhiTFRublhoZ09WZDB0enVxVW8rMUJRK05jZFFZcnVHbjZvQkF1Nm1mNSs2TkNxOXVYUVRQTUVlYmxnCnVMd2JRRndscUM4MEV5UlF3UnZJQ2RlQnh1TGdpY0V1b0M5cDlBWnRqaTBwM0x1YktXa3c1U0RzK1JHTmFGblIKKzgwcVlEcUhIaVYxRjdjeGZPZnlRM3RkOXhSRjJSaG5TSHVsbUxCd2R6cXFjazVEZ251L0lxdGMzU013ME5LeQp3TVZFWlBPajN5VnBvemRxRDhrWjMxRUNBd0VBQWFBQU1BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRQzRMdzJTClFLcnhJbDRQR3hCeFBUQzFBYy9XdzcwenlVSFZ6R1VQUmRqcWdXSmZFUEZIcGRrTFMxWWd5MWZ2SU9FTGxDYUkKeWZlNlhaVFh0ajZobk1HRllpdm5qbnlRYVNUN1RpcE9ySGl5V081R1NIRkszVkVqdkRXZy9xem8rNzR2NW5KZQptMkZiSmtIS2NVTDZxY25mdTdyMnFEcTJ3a1kzSzYwTTF0Wi9nVWRQYkg1WFI4ZlZkV1N6cVBnTGxUUjNQcTdOCnpldkJxZXlVZmh2eGw3a1RhUDNOcGN6cWtkbExBWG1JWlMzMktWYjRtcFY0aFQybVp0VG1wQS9DTGZ6YU9vSDUKSWhXem9JVkJMcWJHbzI4WFprVmNEdnJzZUgxR2l4c09FOTNpdUJTRnd3SW51Q0JDM2ZXRzNtc2VWU1cyTFVsQQpxMEw1aFV4R2VlRzB2dnNNCi0tLS0tRU5EIENFUlRJRklDQVRFIFJFUVVFU1QtLS0tLQo="
+)
+
+func TestSuccess(t *testing.T) {
+	t.Parallel()
+	// This makes network requests to Apple's servers for the cert chain, so could possibly flake on
+	// network or Apple server issues.
+	res, err := processRequest(exampleCertPEM, exampleKeyPEM, exampleKeyPassphrase, exampleCSR)
+	require.NoError(t, err)
+	assert.Equal(t, "test@example.com", res.Email)
+	assert.Equal(t, "Example", res.Org)
+	assert.NotEmpty(t, res.Request)
+}
+
+func TestVendorCertMalformed(t *testing.T) {
+	t.Parallel()
+	_, err := processRequest(exampleCertPEM[0:64], exampleKeyPEM, exampleKeyPassphrase, exampleCSR)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parse vendor cert")
+}
+
+func TestVendorKeyMalformed(t *testing.T) {
+	t.Parallel()
+	_, err := processRequest(exampleCertPEM, exampleKeyPEM[0:64], exampleKeyPassphrase, exampleCSR)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "load vendor private key")
+}
+
+func TestVendorKeyPassphraseIncorrect(t *testing.T) {
+	t.Parallel()
+	_, err := processRequest(exampleCertPEM, exampleKeyPEM, "badpassphrase", exampleCSR)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "load vendor private key")
+}
+
+func TestCSRMalformed(t *testing.T) {
+	t.Parallel()
+	_, err := processRequest(exampleCertPEM, exampleKeyPEM, exampleKeyPassphrase, exampleCSR[0:64])
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "decode csr")
+}
+
+func TestCSRTooManySubjects(t *testing.T) {
+	t.Parallel()
+	// This CSR has multiple "organization" subjects
+	const csr = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ2lqQ0NBWElDQVFBd1JURWlNQTRHQTFVRUNoTUhSWGhoYlhCc1pUQVFCZ05WQkFvTUNXVjRkSEpoWDI5eQpaekVmTUIwR0NTcUdTSWIzRFFFSkFRd1FkR1Z6ZEVCbGVHRnRjR3hsTG1OdmJUQ0NBU0l3RFFZSktvWklodmNOCkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFLN283eFdPWERERDE0UHU5dFlIa0hwTklGSWprZXFYcUs2Y1NoVkcKaCtJR0JPOHg5VG9EcjBDYm52WE16VDFRVndneEJkZmlLTk9jSnZaMk5YOFY2M2xGc3dJR2RlR05EektTb1RrNQprMDdZWHZxTUVyUEtSbnBIYjBKemlucjVPV2Zlb1RpY0JublBkcXJIb01TQVprRSthT3hYUXRON3RFUVJpODJ6ClQ4dGhtdlNYM25ZSHlUSThWM3dOa01qK3plaTlFSVFQNjdxTmE1WUgwNm5QVldxamNTZVNDTndqall4ZEFrY0gKdWVjeVlvWEdpZmZFZXR2WTFlV3dpUk5jMHVhWUxOL3BTZUdMQWc3QWlEWVhCeFJiUStpdlZMdWZsUUJmaG11cwo0V0hZVTBUbGE4enQ3cGtGcm1uaW5Qc0JiYmpDV2w1QVRtRXdtMGpaWHF6ZUlEa0NBd0VBQWFBQU1BMEdDU3FHClNJYjNEUUVCQ3dVQUE0SUJBUUFES29Zd0JRbkhJeWJBS3Y1MzlVVU4zU0dqL1UrankvV3FmRUxaeW05Wi9acWMKSGxPWlhIcTg4NjFqa0Q0Vk1wZ2FHRENpQnQrQXNjSFZTVmNqTEZoNWNvcXhJL25lTVZ0ekduYlJ5L2xQQ2RPTAozY0w1akN1eW9qeVROWVpXY3VWbXBtYlh2MkhMTXhBSFhGeHAvZ2cvSGNXbUJ3STJTckg5RHpjbDI4VUl0SnE0CmJIOVl6c3JYUXRHR29LWmtIMCtJdE9qN1RmeS9BUEJFWEI5Z2JYeS83MnBWeGVaSzhFMGNlTEVSamtXOHFMcGQKOHQ5TCtFUVZ5Sy9vRXZUNHhITVBKN3B2QWhDQWpLWnk3TW9aMUNmMWMvSjFvL2FzSldWdGI4T1FjNlNJU216cQpRZTd4L2E5Rzdyc3NqZmxtY3VKS2FzbGJZTzhIalp2ZXYvS211dHlhCi0tLS0tRU5EIENFUlRJRklDQVRFIFJFUVVFU1QtLS0tLQo="
+	_, err := processRequest(exampleCertPEM, exampleKeyPEM, exampleKeyPassphrase, csr)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must have exactly 2 subjects")
+}
+
+func TestCSRSubjectTypeInvalid(t *testing.T) {
+	t.Parallel()
+	// This CSR has a subject with type 1.3.3.7
+	const csr = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ2NqQ0NBVm9DQVFBd0xURVFNQTRHQTFVRUNoTUhSWGhoYlhCc1pURVpNQmNHQXlzREJ3d1FkR1Z6ZEVCbAplR0Z0Y0d4bExtTnZiVENDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFNSzFFaDNWCjVMSXB4OVluK1Z6SGxuVEg3alltVmdiRzllV1RGOVFTZWx1TUkvM09xN0I0aDI2aG92U3k0bUZ6YlpDN3VJMGcKaDB2WDRjSCtiUDdvT1BQZWhsVzNuOTlBdjFHRWJST2tWL0hOMXk3WEpmcnFoOThRSkNIcmFRVFE5dVNZK3lVZApZdTFLcVhNcHkybUtEWjVWTzVUaEg5dGh5OWZUMTdKaGIzVG1OYTBjYXlRWWQrcTROLzFCTVJOR3AvT1p2LzZxCjNvSmRNMzhLNnloTzY4UXNCRTdtTktjbWl1cTdIRWJsaHdUY3VLeVRxZFBrbkFGMTFvcDZHRzVrOGtWbjBuMGoKNUdIYkdmK3RsN3lldE8zQUg5c2dsVU1yTFUvV01wZ2F0THBabUhzazJJNXZneEVneU12azJlRlZtSnlpVzhZOQowUDlUemNqdTZOUWEySlVDQXdFQUFhQUFNQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUJnVDlxeEU3TkdkemcxCmNITHRuc29IMGVWRDQwT3JTQ2s5eHNLY3RZMGtoTHY1Mjd1WHpnc0FmTElpNzMyaVdvRDNNYVU0MHI0VWZjSXIKSmhGcWloQisreDYzTllqSGdncENuVVNoQVhsbHROUGExdEhncURGWFl4SDcrc2xoRkNvT3JmZ3NTR08wcnY4SwpsQkFUM1UrWUl0bGdnVWdWaVR5UUc3czlaUG56Z09WNFhUeTJZaVZyVVpVSmg3RDhoemNOdHdsdnJUdS9tcEVKCkZ1alFMUjEwb1NqSkx3SGZNMkN2cHRqbHJwK01tMmpCLzVVeUtEalNoaXZlTm5QalBjQUZzbGYrWVFrb254SEYKa3k0UXlMTXYxMmVCZzNJY2t3T2tXeEE1YnZZbUlnQ1NTeWExbDdvYXVNWmVQRW5US1ozeTBuelQyRGpyUWZFTAp1VDl1dTdOMgotLS0tLUVORCBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K"
+	_, err := processRequest(exampleCertPEM, exampleKeyPEM, exampleKeyPassphrase, csr)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected subject")
+}

@@ -1,14 +1,20 @@
-import React, { useContext, useMemo } from "react";
+import React, { useMemo } from "react";
 import classnames from "classnames";
-import { ITeamSummary } from "interfaces/team";
+import {
+  APP_CONTEXT_ALL_TEAMS_SUMMARY,
+  ITeamSummary,
+  APP_CONTEX_NO_TEAM_SUMMARY,
+} from "interfaces/team";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { AppContext } from "context/app";
+import ReactTooltip from "react-tooltip";
+import { uniqueId } from "lodash";
 
 const generateDropdownOptions = (
   teams: ITeamSummary[] | undefined,
-  includeAll: boolean
+  includeAll: boolean,
+  includeNoTeams?: boolean
 ) => {
   if (!teams) {
     return [];
@@ -20,21 +26,23 @@ const generateDropdownOptions = (
     value: team.id,
   }));
 
-  if (includeAll) {
-    options.unshift({
-      disabled: false,
-      label: "All teams",
-      value: 0,
-    });
-  }
+  const filtered = options.filter(
+    (o) =>
+      !(
+        (o.label === APP_CONTEX_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
+        (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAll)
+      )
+  );
 
-  return options;
+  return filtered;
 };
 interface ITeamsDropdownProps {
   currentUserTeams: ITeamSummary[];
   selectedTeamId?: number;
   includeAll?: boolean; // Include the "All Teams" option;
+  includeNoTeams?: boolean;
   isDisabled?: boolean;
+  isSandboxMode?: boolean;
   onChange: (newSelectedValue: number) => void;
   onOpen?: () => void;
   onClose?: () => void;
@@ -46,17 +54,16 @@ const TeamsDropdown = ({
   currentUserTeams,
   selectedTeamId,
   includeAll = true,
-  isDisabled,
+  includeNoTeams = false,
+  isDisabled = false,
+  isSandboxMode = false,
   onChange,
   onOpen,
   onClose,
 }: ITeamsDropdownProps): JSX.Element => {
-  const { isOnGlobalTeam = false } = useContext(AppContext);
-
   const teamOptions = useMemo(
-    () =>
-      generateDropdownOptions(currentUserTeams, includeAll && isOnGlobalTeam),
-    [currentUserTeams, includeAll, isOnGlobalTeam]
+    () => generateDropdownOptions(currentUserTeams, includeAll, includeNoTeams),
+    [currentUserTeams, includeAll, includeNoTeams]
   );
 
   const selectedValue = teamOptions.find(
@@ -69,23 +76,62 @@ const TeamsDropdown = ({
     disabled: isDisabled || undefined,
   });
 
-  return (
-    <div className={dropdownWrapperClasses}>
-      {teamOptions.length && (
+  const renderDropdown = () => {
+    if (isSandboxMode) {
+      const tooltipId = uniqueId();
+      return (
+        <>
+          <span data-tip data-for={tooltipId}>
+            <Dropdown
+              value={selectedValue}
+              placeholder="All teams"
+              options={teamOptions}
+              className={baseClass}
+              searchable={false}
+              disabled
+            />
+          </span>
+          <ReactTooltip
+            type="light"
+            effect="solid"
+            id={tooltipId}
+            clickable
+            delayHide={200}
+            arrowColor="transparent"
+            overridePosition={(pos: { left: number; top: number }) => {
+              return {
+                left: pos.left - 150,
+                top: pos.top + 78,
+              };
+            }}
+          >
+            {`Teams allow you to segment hosts into specific groups of endpoints. This feature is included in Fleet Premium.`}
+            <br />
+            <a href="https://calendly.com/fleetdm/demo">
+              Contact us to learn more.
+            </a>
+          </ReactTooltip>
+        </>
+      );
+    }
+    if (teamOptions.length) {
+      return (
         <Dropdown
           value={selectedValue}
           placeholder="All teams"
           className={baseClass}
           options={teamOptions}
           searchable={false}
-          disabled={isDisabled || false}
+          disabled={isDisabled}
           onChange={onChange}
           onOpen={onOpen}
           onClose={onClose}
         />
-      )}
-    </div>
-  );
+      );
+    }
+  };
+
+  return <div className={dropdownWrapperClasses}>{renderDropdown()}</div>;
 };
 
 export default TeamsDropdown;

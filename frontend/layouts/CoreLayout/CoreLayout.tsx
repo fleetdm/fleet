@@ -1,5 +1,7 @@
 import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
+import { Params } from "react-router/lib/Router";
+
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { TableContext } from "context/table";
@@ -11,12 +13,21 @@ import SiteTopNav from "components/top_nav/SiteTopNav";
 import CustomLink from "components/CustomLink";
 import { INotification } from "interfaces/notification";
 import { licenseExpirationWarning } from "utilities/helpers";
+import { QueryParams } from "utilities/url";
 
 import smallScreenImage from "../../../assets/images/small-screen-160x80@2x.png";
 
 interface ICoreLayoutProps {
   children: React.ReactNode;
   router: InjectedRouter; // v3
+  // TODO: standardize typing and usage of location across app components
+  location: {
+    pathname: string;
+    search: string;
+    hash?: string;
+    query: QueryParams;
+  };
+  params: Params;
 }
 
 const expirationMessage = (
@@ -32,7 +43,12 @@ const expirationMessage = (
   </>
 );
 
-const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
+const CoreLayout = ({
+  children,
+  router,
+  location,
+  params: routeParams,
+}: ICoreLayoutProps) => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
   const { notification, hideFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
@@ -100,8 +116,6 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
     return null;
   }
 
-  const { pathname } = global.window.location;
-
   return (
     <div className="app-wrap">
       <div className="overlay">
@@ -111,13 +125,13 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
           <p>Please enlarge your browser or try again on a computer.</p>
         </div>
       </div>
-      <nav className="site-nav">
+      <nav className="site-nav-container">
         <SiteTopNav
           config={config}
+          currentUser={currentUser}
+          location={location}
           onLogoutUser={onLogoutUser}
           onNavItemClick={onNavItemClick}
-          pathname={pathname}
-          currentUser={currentUser}
         />
       </nav>
       <div className="core-wrapper">

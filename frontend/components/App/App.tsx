@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
 import { QueryClient, QueryClientProvider } from "react-query";
-import classnames from "classnames";
 
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
@@ -13,6 +12,7 @@ import useDeepEffect from "hooks/useDeepEffect";
 
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
+import hostCountAPI from "services/entities/host_count";
 
 import { ErrorBoundary } from "react-error-boundary";
 // @ts-ignore
@@ -22,14 +22,16 @@ import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
+import { QueryParams } from "utilities/url";
 
 interface IAppProps {
   children: JSX.Element;
-  location:
-    | {
-        pathname: string;
-      }
-    | undefined;
+  location?: {
+    pathname: string;
+    search: string;
+    hash?: string;
+    query: QueryParams;
+  };
 }
 
 const baseClass = "app";
@@ -46,6 +48,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setConfig,
     setEnrollSecret,
     setSandboxExpiry,
+    setNoSandboxHosts,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -56,6 +59,9 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       if (config.sandbox_enabled) {
         const timestamp = await configAPI.loadSandboxExpiry();
         setSandboxExpiry(timestamp as string);
+        const hostCount = await hostCountAPI.load({});
+        const noSandboxHosts = hostCount.count === 0;
+        setNoSandboxHosts(noSandboxHosts);
       }
       setConfig(config);
     } catch (error) {
@@ -71,7 +77,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     try {
       const { user, available_teams } = await usersAPI.me();
       setCurrentUser(user);
-      setAvailableTeams(available_teams);
+      setAvailableTeams(user, available_teams);
       fetchConfig();
     } catch (error) {
       if (!location?.pathname.includes("/login/reset")) {

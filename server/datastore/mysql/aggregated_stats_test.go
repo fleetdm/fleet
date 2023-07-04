@@ -21,7 +21,7 @@ func slowStats(t *testing.T, ds *Datastore, id uint, percentile int, table, colu
 	if table == "queries" {
 		queryToRun = queriesSQL
 	}
-	rows, err := ds.writer.Queryx(queryToRun, id)
+	rows, err := ds.writer(context.Background()).Queryx(queryToRun, id)
 	require.NoError(t, err)
 	defer rows.Close()
 
@@ -54,11 +54,11 @@ func TestAggregatedStats(t *testing.T) {
 
 	start := time.Now()
 	for i := 0; i < queryCount; i++ {
-		_, err := ds.writer.Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
+		_, err := ds.writer(context.Background()).Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 	for i := 0; i < scheduledQueryCount; i++ {
-		_, err := ds.writer.Exec(`INSERT INTO scheduled_queries(query_id,name,query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
+		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id,name,query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 	insertScheduledQuerySQL := `INSERT IGNORE INTO scheduled_query_stats(host_id, scheduled_query_id, system_time, user_time, executions) VALUES %s`
@@ -66,7 +66,7 @@ func TestAggregatedStats(t *testing.T) {
 	for i := 0; i < scheduledQueryStatsCount; i++ {
 		if len(args) > batchSize {
 			values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(args)/5), ",")
-			_, err := ds.writer.Exec(fmt.Sprintf(insertScheduledQuerySQL, values), args...)
+			_, err := ds.writer(context.Background()).Exec(fmt.Sprintf(insertScheduledQuerySQL, values), args...)
 			require.NoError(t, err)
 			args = []interface{}{}
 		}
@@ -74,17 +74,17 @@ func TestAggregatedStats(t *testing.T) {
 	}
 	if len(args) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(args)/5), ",")
-		_, err := ds.writer.Exec(fmt.Sprintf(insertScheduledQuerySQL, values), args...)
+		_, err := ds.writer(context.Background()).Exec(fmt.Sprintf(insertScheduledQuerySQL, values), args...)
 		require.NoError(t, err)
 	}
 
 	// Make sure we have some queries and scheduled queries that don't have stats
 	for i := queryCount; i < queryCount+4; i++ {
-		_, err := ds.writer.Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
+		_, err := ds.writer(context.Background()).Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 	for i := scheduledQueryCount; i < scheduledQueryCount+4; i++ {
-		_, err := ds.writer.Exec(`INSERT INTO scheduled_queries(query_id,name,query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
+		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id,name,query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 
@@ -92,11 +92,11 @@ func TestAggregatedStats(t *testing.T) {
 
 	testcases := []struct {
 		table     string
-		aggregate string
+		aggregate aggregatedStatsType
 		aggFunc   func(ctx context.Context) error
 	}{
-		{"scheduled_queries", "scheduled_query", ds.UpdateScheduledQueryAggregatedStats},
-		{"queries", "query", ds.UpdateQueryAggregatedStats},
+		{"scheduled_queries", aggregatedStatsTypeScheduledQuery, ds.UpdateScheduledQueryAggregatedStats},
+		{"queries", aggregatedStatsTypeQuery, ds.UpdateQueryAggregatedStats},
 	}
 	for _, tt := range testcases {
 		t.Run(tt.table, func(t *testing.T) {
@@ -105,23 +105,26 @@ func TestAggregatedStats(t *testing.T) {
 			t.Log("Generated stats for ", tt.table, " in:,", time.Since(start))
 
 			var stats []struct {
-				ID uint `db:"id"`
+				ID          uint `db:"id"`
+				GlobalStats bool `db:"global_stats"`
 				fleet.AggregatedStats
 			}
 			require.NoError(t,
-				ds.writer.Select(&stats,
+				ds.writer(context.Background()).Select(&stats,
 					`
-select 
-       id, 
-       JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50, 
+select
+       id,
+			 global_stats,
+       JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
        JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
-       JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50, 
+       JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
        JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
        JSON_EXTRACT(json_value, '$.total_executions') as total_executions
 from aggregated_stats where type=?`, tt.aggregate))
 
 			require.True(t, len(stats) > 0)
 			for _, stat := range stats {
+				require.False(t, stat.GlobalStats)
 				checkAgainstSlowStats(t, ds, stat.ID, 50, tt.table, "user_time", stat.UserTimeP50)
 				checkAgainstSlowStats(t, ds, stat.ID, 95, tt.table, "user_time", stat.UserTimeP95)
 				checkAgainstSlowStats(t, ds, stat.ID, 50, tt.table, "system_time", stat.SystemTimeP50)

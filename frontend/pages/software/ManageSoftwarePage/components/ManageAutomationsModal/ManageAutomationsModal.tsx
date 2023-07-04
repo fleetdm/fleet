@@ -26,10 +26,11 @@ import Slider from "components/forms/fields/Slider";
 import Radio from "components/forms/fields/Radio";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import useDeepEffect from "hooks/useDeepEffect";
-import { size } from "lodash";
+import { isEmpty, omit } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
@@ -60,12 +61,15 @@ interface IManageAutomationsModalProps {
 const validateWebhookURL = (url: string) => {
   const errors: { [key: string]: string } = {};
 
-  if (url === "") {
+  if (!url) {
     errors.url = "Please add a destination URL";
+  } else if (!validUrl({ url })) {
+    errors.url = `${url} is not a valid URL`;
+  } else {
+    delete errors.url;
   }
 
-  const valid = !size(errors);
-  return { valid, errors };
+  return { valid: isEmpty(errors), errors };
 };
 
 const baseClass = "manage-automations-modal";
@@ -186,19 +190,23 @@ const ManageAutomationsModal = ({
   const handleSaveAutomation = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const { valid: validUrl, errors: newErrors } = validateWebhookURL(
-      destinationUrl
-    );
-    setErrors({
-      ...errors,
-      ...newErrors,
-    });
+    const {
+      valid: validWebhookUrl,
+      errors: errorsWebhookUrl,
+    } = validateWebhookURL(destinationUrl);
+    if (!validWebhookUrl) {
+      setErrors((prevErrs) => ({ ...prevErrs, ...errorsWebhookUrl }));
+    } else {
+      setErrors((prevErrs) => omit(prevErrs, "url"));
+    }
 
     // Original config keys for software automation (webhook_settings, integrations)
     const configSoftwareAutomations: ISoftwareAutomations = {
       webhook_settings: {
         vulnerabilities_webhook: {
-          destination_url: destinationUrl,
+          destination_url: validWebhookUrl
+            ? destinationUrl
+            : currentDestinationUrl, // if new destination url is not valid, revert to current destination url
           enable_vulnerabilities_webhook: softwareVulnerabilityWebhookEnabled,
         },
       },
@@ -208,7 +216,7 @@ const ManageAutomationsModal = ({
       },
     };
 
-    const updateSoftwareAutomation = () => {
+    const readyForSubmission = (): boolean => {
       if (!softwareAutomationsEnabled) {
         // set enable_vulnerabilities_webhook
         // jira.enable_software_vulnerabilities
@@ -229,11 +237,11 @@ const ManageAutomationsModal = ({
           }
         );
         configSoftwareAutomations.integrations.zendesk = disableAllZendesk;
-        return;
+        return true;
       }
       if (!integrationEnabled) {
-        if (!validUrl) {
-          return;
+        if (!isEmpty(errorsWebhookUrl)) {
+          return false;
         }
         // set enable_vulnerabilities_webhook to true
         // all jira.enable_software_vulnerabilities to false
@@ -257,7 +265,7 @@ const ManageAutomationsModal = ({
           }
         );
         configSoftwareAutomations.integrations.zendesk = disableAllZendesk;
-        return;
+        return true;
       }
       // set enable_vulnerabilities_webhook to false
       // all jira.enable_software_vulnerabilities to false
@@ -288,9 +296,12 @@ const ManageAutomationsModal = ({
         }
       );
       configSoftwareAutomations.integrations.zendesk = enableSelectedZendeskIntegrationOnly;
+      return true;
     };
 
-    updateSoftwareAutomation();
+    if (!readyForSubmission()) {
+      return;
+    }
     onCreateWebhookSubmit(configSoftwareAutomations);
     onReturnToApp();
   };
@@ -431,8 +442,9 @@ const ManageAutomationsModal = ({
       onExit={onReturnToApp}
       title={"Manage automations"}
       className={baseClass}
+      width="large"
     >
-      <div className={baseClass}>
+      <>
         <div className={`${baseClass}__software-select-items`}>
           <Slider
             value={softwareAutomationsEnabled}
@@ -520,7 +532,7 @@ const ManageAutomationsModal = ({
             Cancel
           </Button>
         </div>
-      </div>
+      </>
     </Modal>
   );
 };

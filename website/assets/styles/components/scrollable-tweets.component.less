@@ -1,0 +1,95 @@
+
+/**
+ * <scrollable-tweets>
+ *
+ * App-wide styles for horizontally scrolling rows of tweets.
+ */
+
+ [parasails-component='scrollable-tweets'] {
+  font-size: 13px;
+  line-height: 20px;
+
+
+  [purpose='tweets']::-webkit-scrollbar {
+    display: none;
+  }
+
+  [purpose='tweets'] {
+    overflow-x: scroll;
+    scroll-behavior: smooth;
+    padding-left: 120px;
+    padding-right: 120px;
+    margin-top: 80px;
+    padding-bottom: 16px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  [purpose='tweet-card'] {
+    max-width: 367px;
+    min-width: 367px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-left: 8px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    text-align: left;
+    background: #FFFFFF;
+    padding: 40px;
+    border: 1px solid @core-vibrant-blue-15;
+    box-sizing: border-box;
+    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+  }
+
+  [purpose='tweets-page-indicator'] {
+    margin-bottom: 80px;
+    cursor: pointer;
+    li {
+      padding: 4px;
+      height: 16px;
+      width: 16px;
+      border-radius: 100%;
+      margin-right: 8px;
+      background-color: @core-vibrant-blue-15;
+    }
+    li.selected {
+      background-color: @core-fleet-black-50;
+    }
+  }
+
+
+
+  @media (max-width: 991px) {
+    [purpose='tweets'] {
+      padding-left: 80px;
+      padding-right: 80px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    [purpose='tweets'] {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+  }
+
+  @media (max-width: 575px) {
+    [purpose='tweets'] {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+    [purpose='tweet-card'] {
+      min-width: 280px;
+      padding: 20px;
+      border-radius: 16px;
+    }
+    [purpose='tweets-page-indicator'] {
+      li {
+        padding: 12px;
+      }
+    }
+  }
+
+}

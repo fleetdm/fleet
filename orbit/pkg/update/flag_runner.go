@@ -12,20 +12,14 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/rs/zerolog/log"
 )
-
-// OrbitConfigFetcher allows fetching Orbit configuration.
-type OrbitConfigFetcher interface {
-	// GetConfig returns the Orbit configuration.
-	GetConfig() (*service.OrbitConfig, error)
-}
 
 // FlagRunner is a specialized runner to periodically check and update flags from Fleet
 // It is designed with Execute and Interrupt functions to be compatible with oklog/run
 //
-// It uses an OrbitClient, along with FlagUpdateOptions to connect to Fleet
+// It uses an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
+// with FlagUpdateOptions to connect to Fleet
 type FlagRunner struct {
 	configFetcher OrbitConfigFetcher
 	opt           FlagUpdateOptions
@@ -124,6 +118,178 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 		return false, fmt.Errorf("error writing flags to disk: %w", err)
 	}
 	return true, nil
+}
+
+// ExtensionRunner is a specialized runner to periodically check and update flags from Fleet
+// It is designed with Execute and Interrupt functions to be compatible with oklog/run
+//
+// It uses an an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
+// with ExtensionUpdateOptions and updateRunner to connect to Fleet.
+type ExtensionRunner struct {
+	configFetcher OrbitConfigFetcher
+	opt           ExtensionUpdateOptions
+	cancel        chan struct{}
+	updateRunner  *Runner
+}
+
+// ExtensionUpdateOptions is options provided for the extensions fetch/update runner
+type ExtensionUpdateOptions struct {
+	// CheckInterval is the interval to check for updates
+	CheckInterval time.Duration
+	// RootDir is the root directory for orbit state
+	RootDir string
+}
+
+// NewExtensionConfigUpdateRunner creates a new runner with provided options
+// The runner must be started with Execute
+func NewExtensionConfigUpdateRunner(configFetcher OrbitConfigFetcher, opt ExtensionUpdateOptions, updateRunner *Runner) *ExtensionRunner {
+	return &ExtensionRunner{
+		configFetcher: configFetcher,
+		opt:           opt,
+		cancel:        make(chan struct{}),
+		updateRunner:  updateRunner,
+	}
+}
+
+// Execute starts the loop checking for updates
+func (r *ExtensionRunner) Execute() error {
+	log.Debug().Msg("starting extension runner")
+
+	ticker := time.NewTicker(r.opt.CheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-r.cancel:
+			return nil
+		case <-ticker.C:
+			log.Debug().Msg("calling /config API to fetch/update extensions")
+			extensionsCleared, err := r.DoExtensionConfigUpdate()
+			if err != nil {
+				log.Info().Err(err).Msg("ext update failed")
+			}
+			if extensionsCleared {
+				log.Info().Msg("extensions were cleared on the server")
+				return nil
+			}
+		}
+		ticker.Reset(r.opt.CheckInterval)
+	}
+}
+
+// Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
+func (r *ExtensionRunner) Interrupt(err error) {
+	close(r.cancel)
+	log.Debug().Err(err).Msg(("interrupt extension runner"))
+}
+
+// DoExtensionConfigUpdate calls the /config API endpoint to grab extensions from Fleet
+// It parses the extensions, computes the local hash, and writes the binary path to extension.load file
+//
+// It returns a (bool, error), where bool indicates whether orbit should restart
+// It only returns (true, nil) when extensions were previously configured and now are cleared
+func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
+	// call "/config" API endpoint to grab orbit configs from Fleet
+	config, err := r.configFetcher.GetConfig()
+	if err != nil {
+		// we do not want orbit to restart
+		return false, fmt.Errorf("extensionsUpdate: error getting extensions config from fleet: %w", err)
+	}
+
+	extensionAutoLoadFile := filepath.Join(r.opt.RootDir, "extensions.load")
+	if len(config.Extensions) == 0 {
+		// Extensions from Fleet is empty
+		// this can be either because of:
+		// 1. the default state, where no extensions are configured to begin with, or
+		// 2. extensions were previously configured, but now are deleted and reverted to empty state
+		switch stat, err := os.Stat(extensionAutoLoadFile); {
+		// Handle case 1, where our autoload file does not exist, so there is nothing to update and no error
+		case errors.Is(err, os.ErrNotExist):
+			log.Debug().Msg(extensionAutoLoadFile + " not found, nothing to update")
+			// we do not want orbit to restart
+			return false, nil
+		case err == nil:
+			// handle case 2: create/truncate the extensions.load file and let the runner interrupt, so that
+			// osquery can't startup without the extensions that were previously loaded
+			// WriteFile will create the file if it doesn't exist, and it handles Close for us
+			if stat.Size() > 0 {
+				err := os.WriteFile(extensionAutoLoadFile, []byte(""), constant.DefaultFileMode)
+				if err != nil {
+					// we do not want orbit to restart
+					return false, fmt.Errorf("extensionsUpdate: error creating file %s, %w", extensionAutoLoadFile, err)
+				}
+				// we want to return true here, and restart with the empty extensions.load file
+				// so that we "unload" the previously loaded extensions
+				return true, nil
+			}
+			// we do not want orbit to restart
+			return false, nil
+		default:
+			// we do not want orbit to restart, just log the error
+			return false, fmt.Errorf("stat file: %s", extensionAutoLoadFile)
+		}
+	}
+
+	type ExtensionInfo struct {
+		Platform string `json:"platform"`
+		Channel  string `json:"channel"`
+	}
+
+	var data map[string]ExtensionInfo
+	err = json.Unmarshal(config.Extensions, &data)
+	if err != nil {
+		// we do not want orbit to restart
+		return false, fmt.Errorf("error unmarshing json extensions config from fleet: %w", err)
+	}
+
+	var sb strings.Builder
+	for extensionName, extensionInfo := range data {
+		// infer filename from extension name
+		// osquery enforces .ext, so we just add that
+		// we expect filename to match extension name
+		filename := extensionName + ".ext"
+
+		// we don't want path traversal and the like in the filename
+		if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
+			log.Info().Msgf("invalid characters found in filename (%s) for extension (%s): skipping", filename, extensionName)
+			continue
+		}
+
+		// add "extensions/" as a prefix to the targetName, since that's the namespace we expect for extensions on TUF
+		targetName := "extensions/" + extensionName
+		platform := extensionInfo.Platform
+		channel := extensionInfo.Channel
+
+		rootDir := r.updateRunner.updater.opt.RootDirectory
+
+		// update our view of targets
+		r.updateRunner.AddRunnerOptTarget(targetName)
+		r.updateRunner.updater.SetTargetInfo(targetName, TargetInfo{Platform: platform, Channel: channel, TargetFile: filename})
+
+		// the full path to where the extension would be on disk, for e.g. for extension name "hello_world"
+		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext
+		path := filepath.Join(rootDir, "bin", "extensions", extensionName, platform, channel, filename)
+
+		if err := r.updateRunner.updater.UpdateMetadata(); err != nil {
+			// Consider this a non-fatal error since it will be common to be offline
+			// or otherwise unable to retrieve the metadata.
+			return false, fmt.Errorf("update metadata: %w", err)
+		}
+
+		if err := r.updateRunner.StoreLocalHash(targetName); err != nil {
+			// we do not want orbit to restart
+			return false, fmt.Errorf("unable to lookup metadata for target: %s, %w", targetName, err)
+		}
+
+		sb.WriteString(path + "\n")
+	}
+	if err := os.WriteFile(extensionAutoLoadFile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
+		return false, fmt.Errorf("error writing extensions autoload file: %w", err)
+	}
+
+	// we do not want orbit to restart
+	// runner.UpdateAction() will fetch the new targets and restart for us if needed
+	return false, nil
 }
 
 // getFlagsFromJSON converts a json document of the form

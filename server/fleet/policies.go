@@ -35,7 +35,6 @@ var (
 	errPolicyEmptyName       = errors.New("policy name cannot be empty")
 	errPolicyEmptyQuery      = errors.New("policy query cannot be empty")
 	errPolicyIDAndQuerySet   = errors.New("both fields \"queryID\" and \"query\" cannot be set")
-	errPolicyInvalidQuery    = errors.New("invalid policy query")
 	errPolicyInvalidPlatform = errors.New("invalid policy platform")
 )
 
@@ -74,9 +73,6 @@ func verifyPolicyQuery(query string) error {
 	if emptyString(query) {
 		return errPolicyEmptyQuery
 	}
-	if validateSQLRegexp.MatchString(query) {
-		return errPolicyInvalidQuery
-	}
 	return nil
 }
 
@@ -86,7 +82,7 @@ func verifyPolicyPlatforms(platforms string) error {
 	}
 	for _, s := range strings.Split(platforms, ",") {
 		switch strings.TrimSpace(s) {
-		case "windows", "linux", "darwin":
+		case "windows", "linux", "darwin", "chrome":
 			// OK
 		default:
 			return errPolicyInvalidPlatform

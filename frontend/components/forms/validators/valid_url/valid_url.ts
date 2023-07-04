@@ -1,13 +1,20 @@
-const URL_REGEX_PATTERN = new RegExp(
-  "^(https?:\\/\\/)?" + // protocol
-    "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // domain name
-    "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
-    "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
-    "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
-    "(\\#[-a-z\\d_]*)?$",
-  "i"
-); // fragment locator
+interface IValidUrl {
+  url: string;
+  /**  Validate protocol specified; http validates both http and https */
+  protocol?: "http" | "https";
+}
 
-export default (url: string): boolean => {
-  return !!URL_REGEX_PATTERN.test(url);
+export default ({ url, protocol }: IValidUrl): boolean => {
+  try {
+    const newUrl = new URL(url);
+    if (protocol === "http") {
+      return newUrl.protocol === "http:" || newUrl.protocol === "https:";
+    }
+    if (protocol === "https") {
+      return newUrl.protocol === "https:";
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
 };

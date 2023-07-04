@@ -1,4 +1,10 @@
 name: chrome_extensions
+platforms:
+  - darwin
+  - windows
+  - linux
+  - chrome
+description: Installed extensions (plugins) for [Chromium-based](https://en.wikipedia.org/wiki/Chromium_(web_browser)) browsers, including [Google Chrome](https://en.wikipedia.org/wiki/Google_Chrome), [Edge](https://en.wikipedia.org/wiki/Microsoft_Edge), [Brave](https://en.wikipedia.org/wiki/Brave_(web_browser)), [Opera](https://en.wikipedia.org/wiki/Opera_(web_browser)), and [Yandex](https://en.wikipedia.org/wiki/Yandex_Browser).
 examples: >-
   List Chrome extensions by user and profile which have full access to HTTPS
   browsing.
@@ -11,3 +17,92 @@ examples: >-
 columns:
   - name: uid
     requires_user_context: true
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: profile
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: profile_path
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: referenced_identifier
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: default_locale
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: current_locale
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: author
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: persistent
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: path
+    type: string
+    description: Defaults to '' on ChromeOS
+  - name: optional_permissions
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: optional_permissions_json
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: manifest_hash
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: referenced
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: from_webstore
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: state
+    type: string
+  - name: install_time
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: install_timestamp
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: manifest_json
+    platforms: 
+      - darwin
+      - windows
+      - linux
+  - name: key
+    platforms: 
+      - darwin
+      - windows
+      - linux

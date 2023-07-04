@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -56,7 +57,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 		return fleet.TargetMetrics{TotalHosts: 1}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
@@ -89,7 +90,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.NoError(t, err)
 
-	pathHandler := makeStreamDistributedQueryCampaignResultsHandler(svc, kitlog.NewNopLogger())
+	pathHandler := makeStreamDistributedQueryCampaignResultsHandler(config.TestConfig().Server, svc, kitlog.NewNopLogger())
 	s := httptest.NewServer(pathHandler("/api/latest/fleet/results/"))
 	defer s.Close()
 	// Convert http://127.0.0.1 to ws://127.0.0.1

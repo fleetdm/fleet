@@ -56,31 +56,6 @@
     }
   }
 
-  &__empty-software {
-    margin: 80px auto 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    .empty-software__inner {
-      display: flex;
-      flex-direction: column;
-
-      h1 {
-        font-size: $small;
-        font-weight: $bold;
-        margin-bottom: $pad-medium;
-      }
-
-      p {
-        color: $core-fleet-black;
-        font-weight: $regular;
-        font-size: $x-small;
-        margin: 0;
-      }
-    }
-  }
-
   &__table {
     .table-container {
       &__header-left {
@@ -89,7 +64,7 @@
             margin: 0;
           }
           .manage-software-page__vuln_dropdown {
-            width: 219px;
+            width: 225px;
             .Select-menu-outer {
               width: 364px;
               max-height: 310px;
@@ -134,12 +109,13 @@
           .data-table__table {
             tr {
               .software-link {
-                visibility: hidden;
+                opacity: 0;
+                transition: opacity 250ms;
               }
 
               &:hover {
                 .software-link {
-                  visibility: visible;
+                  opacity: 1;
                 }
               }
             }
@@ -151,6 +127,10 @@
               .version__header {
                 width: 0;
               }
+              .vulnerabilities__header {
+                display: none;
+                width: 0;
+              }
               .source__header {
                 display: none;
                 width: 0;
@@ -158,6 +138,11 @@
               .hosts_count__header {
                 width: auto;
                 border-right: 0;
+              }
+              @media (min-width: $break-990) {
+                .vulnerabilities__header {
+                  display: table-cell;
+                }
               }
               @media (min-width: $break-990) {
                 .version__header {
@@ -174,6 +159,11 @@
             tbody {
               .name__cell {
                 width: $col-md;
+
+                // Tooltip does not get cut off
+                .children-wrapper {
+                  overflow: initial;
+                }
               }
               .version__cell {
                 width: 0;
@@ -183,6 +173,8 @@
                 width: 0;
               }
               .vulnerabilities__cell {
+                display: none;
+                width: 0;
                 span {
                   display: inline;
                 }
@@ -205,6 +197,11 @@
               @media (min-width: $break-990) {
                 .version_cell {
                   width: $col-md;
+                }
+              }
+              @media (min-width: $break-990) {
+                .vulnerabilities__cell {
+                  display: table-cell;
                 }
               }
               @media (min-width: $break-1400) {

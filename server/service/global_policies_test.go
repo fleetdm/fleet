@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -10,6 +11,31 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCheckPolicySpecAuthorization(t *testing.T) {
+	t.Run("when team not found", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return nil, sql.ErrNoRows
+		}
+
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		req := []*fleet.PolicySpec{
+			{
+				Team: "some_team",
+			},
+		}
+
+		user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+		actual := svc.ApplyPolicySpecs(ctx, req)
+		var expected *notFoundError
+
+		require.ErrorAs(t, actual, &expected)
+	})
+}
 
 func TestGlobalPoliciesAuth(t *testing.T) {
 	ds := new(mock.Store)
@@ -40,7 +66,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy) error {

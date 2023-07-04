@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import {
@@ -10,14 +10,18 @@ import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
+
 import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
-import munkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
+import generateMunkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
 
 interface IMunkiCardProps {
   errorMacAdmins: Error | null;
   isMacAdminsFetching: boolean;
   munkiIssuesData: IMunkiIssuesAggregate[];
   munkiVersionsData: IMunkiVersionsAggregate[];
+  selectedTeamId?: number;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -25,40 +29,19 @@ const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 8;
 const baseClass = "home-munki";
 
-const EmptyMunkiIssues = (): JSX.Element => (
-  <div className={`${baseClass}__empty-munki`}>
-    <h2>No Munki issues detected</h2>
-    <p>
-      This report is updated every hour to protect the performance of your
-      devices.
-    </p>
-  </div>
-);
-
-const EmptyMunkiVersions = (): JSX.Element => (
-  <div className={`${baseClass}__empty-munki`}>
-    <h2>Unable to detect Munki versions</h2>
-    <p>
-      To see Munki versions, deploy&nbsp;
-      <a
-        href="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Fleet&apos;s osquery installer
-      </a>
-      .
-    </p>
-  </div>
-);
-
 const Munki = ({
   errorMacAdmins,
   isMacAdminsFetching,
   munkiIssuesData,
   munkiVersionsData,
+  selectedTeamId,
 }: IMunkiCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
+
+  const tableHeaders = useMemo(
+    () => generateMunkiIssuesTableHeaders(selectedTeamId),
+    [selectedTeamId]
+  );
 
   const onTabChange = (index: number) => {
     setNavTabIndex(index);
@@ -86,19 +69,23 @@ const Munki = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={munkiIssuesTableHeaders}
+                  columns={tableHeaders}
                   data={munkiIssuesData || []}
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"Munki"}
-                  emptyComponent={EmptyMunkiIssues}
+                  emptyComponent={() => (
+                    <EmptyTable
+                      header="No Munki issues detected"
+                      info="This report is updated every hour to protect the performance of your
+      devices."
+                    />
+                  )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   isClientSidePagination
                   disableCount
-                  disableActionButton
                   disablePagination
                   pageSize={PAGE_SIZE}
                 />
@@ -114,14 +101,27 @@ const Munki = ({
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"Munki"}
-                  emptyComponent={EmptyMunkiVersions}
+                  emptyComponent={() => (
+                    <EmptyTable
+                      header="Unable to detect Munki versions"
+                      info={
+                        <>
+                          To see Munki versions, deploy&nbsp;
+                          <CustomLink
+                            url="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
+                            text="Fleet's osquery installer"
+                            newTab
+                          />
+                          .
+                        </>
+                      }
+                    />
+                  )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   isClientSidePagination
                   disableCount
-                  disableActionButton
                   disablePagination
                   pageSize={PAGE_SIZE}
                 />

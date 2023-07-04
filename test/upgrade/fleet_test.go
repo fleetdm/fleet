@@ -53,7 +53,7 @@ func NewFleet(t *testing.T, version string) *Fleet {
 	//nolint:gosec // does not need to be secure for tests
 	projectName := "fleet-test-" + strconv.FormatUint(rand.Uint64(), 16)
 
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		t.Fatalf("create docker client: %v", err)
 	}
@@ -161,7 +161,6 @@ func (f *Fleet) setupFleet() error {
 }
 
 func (f *Fleet) waitMYSQL() error {
-
 	// get the random mysql host port assigned by docker
 	port, err := f.getPublicPort("mysql", 3306)
 	if err != nil {
@@ -259,7 +258,6 @@ func (f *Fleet) cleanup() {
 }
 
 func (f *Fleet) execCompose(env map[string]string, args ...string) (string, error) {
-
 	// docker compose variables via environment eg FLEET_VERSION_A
 	e := os.Environ()
 	for k, v := range env {

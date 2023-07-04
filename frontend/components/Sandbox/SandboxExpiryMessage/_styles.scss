@@ -2,29 +2,33 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px $pad-large;
+  padding: $pad-large $pad-xlarge;
   margin-bottom: $pad-large;
-  background-color: $ui-expiry-message;
-  border: 1px solid #ece0bb;
+  background-color: $ui-vibrant-blue-10;
+  border: 1px solid $ui-vibrant-blue-50;
   border-radius: $border-radius;
-  font-size: $xx-small;
-
+  font-size: $x-small;
   color: $core-fleet-black;
   font-weight: $regular;
-
-  &:hover {
-    cursor: pointer;
-  }
+  position: relative; // Position in front of settings sticky header space
+  z-index: 9; // Position in front of settings sticky header space
 
   p {
     margin: 0;
   }
 
-  span {
+  &__tip {
     display: flex;
     align-items: center;
-    color: $core-fleet-black;
+    gap: $pad-small;
+
+    button {
+      margin-left: $pad-small;
+    }
+  }
+
+  .button {
+    font-size: $xx-small;
     font-weight: $bold;
-    text-align: right;
   }
 }

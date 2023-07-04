@@ -7,6 +7,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import { IIntegrations } from "interfaces/integration";
 import {
+  API_NO_TEAM_ID,
   INewMembersBody,
   IRemoveMembersBody,
   ITeamConfig,
@@ -39,6 +40,12 @@ export interface IUpdateTeamFormData {
   name: string;
   webhook_settings: Partial<ITeamWebhookSettings>;
   integrations: IIntegrations;
+  mdm: {
+    macos_updates: {
+      minimum_version: string;
+      deadline: string;
+    };
+  };
 }
 
 export default {
@@ -53,7 +60,14 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  load: (teamId: number): Promise<ILoadTeamResponse> => {
+  load: (teamId: number | undefined): Promise<ILoadTeamResponse> => {
+    if (!teamId || teamId <= API_NO_TEAM_ID) {
+      return Promise.reject(
+        new Error(
+          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+        )
+      );
+    }
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
 
@@ -73,7 +87,7 @@ export default {
     return sendRequest("GET", path);
   },
   update: (
-    { name, webhook_settings, integrations }: Partial<IUpdateTeamFormData>,
+    { name, webhook_settings, integrations, mdm }: Partial<IUpdateTeamFormData>,
     teamId?: number
   ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {
@@ -102,16 +116,36 @@ export default {
         zendesk: zendesk?.map((z) => pick(z, teamIntegrationProps)),
       };
     }
+    if (mdm) {
+      requestBody.mdm = mdm;
+    }
 
     return sendRequest("PATCH", path, requestBody);
   },
-  addMembers: (teamId: number, newMembers: INewMembersBody) => {
+  addMembers: (teamId: number | undefined, newMembers: INewMembersBody) => {
+    if (!teamId || teamId <= API_NO_TEAM_ID) {
+      return Promise.reject(
+        new Error(
+          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+        )
+      );
+    }
     const { TEAMS_MEMBERS } = endpoints;
     const path = TEAMS_MEMBERS(teamId);
 
     return sendRequest("PATCH", path, newMembers);
   },
-  removeMembers: (teamId: number, removeMembers: IRemoveMembersBody) => {
+  removeMembers: (
+    teamId: number | undefined,
+    removeMembers: IRemoveMembersBody
+  ) => {
+    if (!teamId || teamId <= API_NO_TEAM_ID) {
+      return Promise.reject(
+        new Error(
+          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+        )
+      );
+    }
     const { TEAMS_MEMBERS } = endpoints;
     const path = TEAMS_MEMBERS(teamId);
 

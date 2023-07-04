@@ -5,12 +5,7 @@ import { useErrorHandler } from "react-error-boundary";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import { QUERIES_PAGE_STEPS } from "utilities/constants";
-import { DEFAULT_POLICY } from "pages/policies/constants";
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
-import hostAPI from "services/entities/hosts";
-import statusAPI from "services/entities/status";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import {
@@ -20,19 +15,31 @@ import {
 } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 import { ITeam } from "interfaces/team";
+import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
+import hostAPI from "services/entities/hosts";
+import statusAPI from "services/entities/status";
+import { QUERIES_PAGE_STEPS } from "utilities/constants";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
 import SelectTargets from "components/LiveQuery/SelectTargets";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
+import Spinner from "components/Spinner/Spinner";
 import CustomLink from "components/CustomLink";
 import RunQuery from "pages/policies/PolicyPage/screens/RunQuery";
+import { DEFAULT_POLICY } from "pages/policies/constants";
 
 interface IPolicyPageProps {
   router: InjectedRouter;
   params: Params;
-  location: { query: { host_ids: string; team_id: string } };
+  location: {
+    pathname: string;
+    search: string;
+    query: { host_ids: string; team_id: string };
+    hash?: string;
+  };
 }
 
 const baseClass = "policy-page";
@@ -40,21 +47,18 @@ const baseClass = "policy-page";
 const PolicyPage = ({
   router,
   params: { id: paramsPolicyId },
-  location: { query: URLQuerySearch },
+  location,
 }: IPolicyPageProps): JSX.Element => {
-  const policyId = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
-  const policyTeamId = parseInt(URLQuerySearch.team_id, 10) || 0;
+  const policyId = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null; // TODO(sarah): What should happen if this doesn't parse (e.g. the string is "foo")?
   const handlePageError = useErrorHandler();
   const {
-    currentUser,
-    currentTeam,
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
-    setCurrentTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryBody,
+    policyTeamId,
     selectedOsqueryTable,
     setSelectedOsqueryTable,
     setLastEditedQueryId,
@@ -66,6 +70,48 @@ const PolicyPage = ({
     setLastEditedQueryPlatform,
     setPolicyTeamId,
   } = useContext(PolicyContext);
+
+  const {
+    isRouteOk,
+    isTeamAdmin,
+    isTeamMaintainer,
+    isTeamObserver,
+    teamIdForApi,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+    permittedAccessByTeamRole: {
+      admin: true,
+      maintainer: true,
+      observer: true,
+      observer_plus: true,
+    },
+  });
+
+  // // TODO(Sarah): What should happen if a user without save permissions tries to directly navigate
+  // // to the new policy page? Should we redirect to the manage policies page?
+  // const hasSavePermissions =
+  //   isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  //
+  // useEffect(() => {
+  //   if (!isRouteOk) {
+  //     return;
+  //   }
+  //   if (trimEnd(location.pathname, "/").endsWith("/new")) {
+  //     !hasSavePermissions && router.push(paths.MANAGE_POLICIES);
+  //   }
+  // }, [hasSavePermissions, isRouteOk, location.pathname, router]);
+
+  useEffect(() => {
+    if (!isRouteOk) {
+      return;
+    }
+    if (policyTeamId !== teamIdForApi) {
+      setPolicyTeamId(teamIdForApi || 0);
+    }
+  }, [isRouteOk, teamIdForApi, policyTeamId, setPolicyTeamId]);
 
   useEffect(() => {
     if (lastEditedQueryBody === "") {
@@ -80,15 +126,6 @@ const PolicyPage = ({
       setLastEditedQueryPlatform(null);
     };
   }, []);
-
-  if (currentUser && currentUser.teams.length && policyTeamId && !currentTeam) {
-    const thisPolicyTeam = currentUser.teams.find(
-      (team) => team.id === policyTeamId
-    );
-    if (thisPolicyTeam) {
-      setCurrentTeam(thisPolicyTeam);
-    }
-  }
 
   const [step, setStep] = useState(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
@@ -108,12 +145,9 @@ const PolicyPage = ({
     error: storedPolicyError,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["policy", policyId],
-    () =>
-      policyTeamId
-        ? teamPoliciesAPI.load(policyTeamId, policyId as number)
-        : globalPoliciesAPI.load(policyId as number),
+    () => globalPoliciesAPI.load(policyId as number), // Note: Team members have access to policies through global API
     {
-      enabled: !!policyId,
+      enabled: isRouteOk && !!policyId, // Note: this justifies the number type assertions above
       refetchOnWindowFocus: false,
       retry: false,
       select: (data: IStoredPolicyResponse) => data.policy,
@@ -125,6 +159,8 @@ const PolicyPage = ({
         setLastEditedQueryResolution(returnedQuery.resolution);
         setLastEditedQueryCritical(returnedQuery.critical);
         setLastEditedQueryPlatform(returnedQuery.platform);
+        // TODO(sarah): What happens if the team id in the policy response doesn't match the
+        // url param? In theory, the backend should ensure this doesn't happen.
         setPolicyTeamId(returnedQuery.team_id || 0);
       },
       onError: (error) => handlePageError(error),
@@ -134,9 +170,9 @@ const PolicyPage = ({
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
     () =>
-      hostAPI.loadHostDetails(parseInt(URLQuerySearch.host_ids as string, 10)),
+      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)), // TODO(sarah): What should happen if this doesn't parse (e.g. the string is "foo")? Also, note that "1,2,3" parses as 1.
     {
-      enabled: !!URLQuerySearch.host_ids,
+      enabled: isRouteOk && !!location.query.host_ids,
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
@@ -212,6 +248,9 @@ const PolicyPage = ({
       showOpenSchemaActionText,
       storedPolicy,
       isStoredPolicyLoading,
+      isTeamAdmin,
+      isTeamMaintainer,
+      isTeamObserver,
       storedPolicyError,
       createPolicy,
       onOsqueryTableSelect,
@@ -259,6 +298,10 @@ const PolicyPage = ({
     isFirstStep &&
     isSidebarOpen &&
     (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
+
+  if (!isRouteOk) {
+    return <Spinner />;
+  }
 
   return (
     <>

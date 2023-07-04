@@ -10,7 +10,7 @@ body {
   color: $core-fleet-black;
   padding: 0;
   margin: 0;
-  font-family: "Nunito Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: $medium;
   height: 100%;
 }
@@ -19,10 +19,15 @@ html,
 body {
   height: 100%;
 
-  .__react_component_tooltip.show {
-    opacity: 1; // Overrides 0.9 default opacity
+  .__react_component_tooltip {
     text-align: center;
     padding: 6px;
+    max-width: 320px;
+    height: auto;
+
+    &.show {
+      opacity: 1; // Overrides 0.9 default opacity
+    }
   }
 }
 
@@ -30,6 +35,13 @@ h1,
 h2,
 h3 {
   line-height: 1.2;
+}
+
+p {
+  // Desired default line-height for text is 1.5x the font size for paragrah text.
+  // This allows for a comfortable reading experience by adding space between
+  // multiline paragraphs.
+  line-height: 1.5;
 }
 
 h1 {
@@ -45,6 +57,12 @@ a {
   font-weight: $bold;
   font-size: $x-small;
   text-decoration: none;
+}
+
+.__react_component_tooltip {
+  a {
+    color: $core-white;
+  }
 }
 
 .body-wrap {
@@ -69,7 +87,7 @@ a {
 input,
 textarea,
 button {
-  font-family: "Nunito Sans", sans-serif;
+  font-family: "Inter", sans-serif;
 
   &:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
@@ -89,7 +107,7 @@ input {
 
 // syntax highlighting for pretty-printed JSON
 pre {
-  padding: 15px;
+  padding: $pad-large;
   background-color: $core-fleet-black;
   color: $core-white;
   border-radius: 4px;
@@ -102,7 +120,7 @@ pre {
     color: $rainbow-orange;
   }
   .boolean {
-    color: blue;
+    color: $rainbow-blue;
   }
   .null {
     color: magenta;
@@ -116,5 +134,5 @@ hr {
   margin-top: $pad-xlarge;
   margin-bottom: $pad-xlarge;
   border: none;
-  border-bottom: 1px solid $ui-fleet-blue-15;
+  border-bottom: 1px solid $ui-fleet-black-10;
 }

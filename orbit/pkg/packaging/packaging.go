@@ -41,8 +41,25 @@ type Options struct {
 	SignIdentity string
 	// Notarize sets whether macOS packages should be Notarized.
 	Notarize bool
-	// FleetCertificate is a path to a server certificate to include in the package.
+	// FleetCertificate is a file path to a Fleet server certificate to include in the package.
 	FleetCertificate string
+	// FleetTLSClientCertificate is a file path to a client certificate to use when
+	// connecting to the Fleet server.
+	//
+	// If set, then FleetTLSClientKey must be set too.
+	FleetTLSClientCertificate string
+	// FleetTLSClientKey is a file path to a client private key to use when
+	// connecting to the Fleet server.
+	//
+	// If set, then FleetTLSClientCertificate must be set too.
+	FleetTLSClientKey string
+	// FleetDesktopAlternativeBrowserHost is an alternative host:port to use for Fleet Desktop in the browser.
+	//
+	// This may be required when using TLS client authentication for connecting to Fleet via a proxy.
+	// Otherwise users would need to configure client certificates on their browsers.
+	//
+	// If not set, then FleetURL is used instead.
+	FleetDesktopAlternativeBrowserHost string
 	// DisableUpdates disables auto updates on the generated package.
 	DisableUpdates bool
 	// OrbitChannel is the update channel to use for Orbit.
@@ -55,6 +72,18 @@ type Options struct {
 	UpdateURL string
 	// UpdateRoots is the root JSON metadata for update server (TUF repository).
 	UpdateRoots string
+	// UpdateTLSServerCertificate is a file path to an update server certificate to include in the package.
+	UpdateTLSServerCertificate string
+	// UpdateTLSClientCertificate is a file path to a client certificate to use when
+	// connecting to the update server.
+	//
+	// If set, then UpdateTLSClientKey must be set too.
+	UpdateTLSClientCertificate string
+	// UpdateTLSClientKey is a file path to a client private key to use when
+	// connecting to the update server.
+	//
+	// If set, then UpdateTLSClientCertificate must be set too.
+	UpdateTLSClientKey string
 	// OsqueryFlagfile is the (optional) path to a flagfile to provide to osquery.
 	OsqueryFlagfile string
 	// Debug determines whether to enable debug logging for the agent.
@@ -78,6 +107,10 @@ type Options struct {
 	AppStoreConnectAPIKeyIssuer string
 	// AppStoreConnectAPIKeyContent is the content of the App Store API Key
 	AppStoreConnectAPIKeyContent string
+	// UseSystemConfiguration tells fleetd to try to read FleetURL and
+	// EnrollSecret from a system configuration that's present on the host.
+	// Currently only macOS profiles are supported.
+	UseSystemConfiguration bool
 }
 
 func initializeTempDir() (string, error) {
@@ -192,9 +225,13 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	}, nil
 }
 
+// writeSecret writes the orbit enroll secret to the designated file.
+//
+// This implementation is very similar to the one in orbit/cmd/orbit but
+// intentionally kept separate to prevent issues since the writes happen at two
+// completely different circumstances.
 func writeSecret(opt Options, orbitRoot string) error {
-	// Enroll secret
-	path := filepath.Join(orbitRoot, "secret.txt")
+	path := filepath.Join(orbitRoot, constant.OsqueryEnrollSecretFileName)
 	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}

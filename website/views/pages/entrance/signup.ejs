@@ -6,7 +6,7 @@
       <div purpose="customer-portal-form" class="d-flex flex-row justify-content-between">
         <div class="order-first flex-grow-1">
           <div class="card card-body">
-            <ajax-form action="signup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
+            <ajax-form action="signup" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
               <div class="form-group">
                 <label for="email-address">Email</label>
                 <span style="float: right" class="text-right small"><a href="/customers/login">I have an account</a></span>

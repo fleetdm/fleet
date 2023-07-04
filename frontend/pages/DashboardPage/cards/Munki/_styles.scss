@@ -8,22 +8,6 @@
   .component__tabs-wrapper .table-container__header {
     display: none;
   }
-  &__empty-munki {
-    margin: $pad-medium auto 0;
-
-    h2 {
-      font-size: $small;
-      font-weight: $bold;
-      margin-bottom: $pad-medium;
-    }
-
-    p {
-      color: $core-fleet-black;
-      font-weight: $regular;
-      font-size: $x-small;
-      margin: 0;
-    }
-  }
   .data-table-block {
     .data-table__table {
       table-layout: fixed;
@@ -71,13 +55,14 @@
           }
 
           .munki-issue-link {
-            visibility: hidden;
+            opacity: 0;
+            transition: 250ms;
             text-overflow: none;
           }
 
           &:hover {
             .munki-issue-link {
-              visibility: visible;
+              opacity: 1;
             }
           }
         }

@@ -121,7 +121,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell classes="w400" value={cellProps.cell.value} />
+        <TextCell value={cellProps.cell.value} />
       ),
     },
     {
@@ -236,10 +236,6 @@ const enhanceAllScheduledQueryData = (
       system_time_p50: scheduledQuery.stats?.system_time_p50,
       total_executions: scheduledQuery.stats?.total_executions,
     };
-    console.log(
-      "performanceIndicator(scheduledQueryPerformance)",
-      performanceIndicator(scheduledQueryPerformance)
-    );
     return {
       name: scheduledQuery.name,
       query_name: scheduledQuery.query_name,

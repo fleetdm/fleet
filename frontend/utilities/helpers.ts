@@ -1,4 +1,17 @@
-import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
+import {
+  isEmpty,
+  flatMap,
+  omit,
+  pick,
+  size,
+  memoize,
+  reduce,
+  trim,
+  trimEnd,
+  union,
+} from "lodash";
+import { buildQueryStringFromParams } from "utilities/url";
+
 import md5 from "js-md5";
 import {
   formatDistanceToNow,
@@ -21,12 +34,16 @@ import {
   IPackTargets,
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
-import { IUser } from "interfaces/user";
+import { IUser, UserRole } from "interfaces/user";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
 import {
+  DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
+  DEFAULT_GRAVATAR_LINK_FALLBACK,
+  DEFAULT_GRAVATAR_LINK_DARK,
+  DEFAULT_GRAVATAR_LINK_DARK_FALLBACK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
@@ -36,14 +53,30 @@ const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
 export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
+  const gravatarAvailable =
+    localStorage.getItem("gravatar_available") !== "false"; // Only fallback if explicitly set to "false"
 
   const emailHash = md5(email.toLowerCase());
-  const gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
-    DEFAULT_GRAVATAR_LINK
-  )}&size=200`;
+
+  let gravatar_url;
+  let gravatar_url_dark;
+
+  if (gravatarAvailable) {
+    gravatar_url = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
+      DEFAULT_GRAVATAR_LINK
+    )}&size=200`;
+    gravatar_url_dark = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
+      DEFAULT_GRAVATAR_LINK_DARK
+    )}&size=200`;
+  } else {
+    gravatar_url = DEFAULT_GRAVATAR_LINK_FALLBACK;
+    gravatar_url_dark = DEFAULT_GRAVATAR_LINK_DARK_FALLBACK;
+  }
+
   return {
     ...resource,
-    gravatarURL,
+    gravatar_url,
+    gravatar_url_dark,
   };
 };
 
@@ -142,7 +175,6 @@ export const formatConfigDataForServer = (config: any): any => {
   ]);
   const ssoSettingsAttrs = pick(config, [
     "entity_id",
-    "issuer_uri",
     "idp_image_url",
     "metadata",
     "metadata_url",
@@ -457,31 +489,26 @@ export const formatPackForClient = (pack: IPack): IPack => {
 
 export const generateRole = (
   teams: ITeam[],
-  globalRole: string | null
-): string => {
+  globalRole: UserRole | null
+): UserRole => {
   if (globalRole === null) {
-    const listOfRoles: (string | undefined)[] = teams.map((team) => team.role);
+    const listOfRoles = teams.map<UserRole | undefined>((team) => team.role);
 
     if (teams.length === 0) {
       // no global role and no teams
       return "Unassigned";
     } else if (teams.length === 1) {
       // no global role and only one team
-      return stringUtils.capitalize(teams[0].role ?? "");
-    } else if (
-      listOfRoles.every(
-        (role: string | undefined): boolean => role === "maintainer"
-      )
-    ) {
+      return stringUtils.capitalizeRole(teams[0].role || "Unassigned");
+    } else if (listOfRoles.every((role): boolean => role === "maintainer")) {
       // only team maintainers
       return "Maintainer";
-    } else if (
-      listOfRoles.every(
-        (role: string | undefined): boolean => role === "observer"
-      )
-    ) {
+    } else if (listOfRoles.every((role): boolean => role === "observer")) {
       // only team observers
       return "Observer";
+    } else if (listOfRoles.every((role): boolean => role === "observer_plus")) {
+      // only team observers plus
+      return "Observer+";
     }
 
     return "Various"; // no global role and multiple teams
@@ -489,14 +516,14 @@ export const generateRole = (
 
   if (teams.length === 0) {
     // global role and no teams
-    return stringUtils.capitalize(globalRole);
+    return stringUtils.capitalizeRole(globalRole);
   }
   return "Various"; // global role and one or more teams
 };
 
 export const generateTeam = (
   teams: ITeam[],
-  globalRole: string | null
+  globalRole: UserRole | null
 ): string => {
   if (globalRole === null) {
     if (teams.length === 0) {
@@ -558,7 +585,7 @@ export const humanHostLastRestart = (
   if (
     !detailUpdatedAt ||
     !uptime ||
-    detailUpdatedAt === "---" ||
+    detailUpdatedAt === DEFAULT_EMPTY_CELL_VALUE ||
     detailUpdatedAt < "2016-07-28T00:00:00Z" ||
     typeof uptime !== "number"
   ) {
@@ -579,7 +606,7 @@ export const humanHostLastRestart = (
       restartDate.getMilliseconds() - millisecondsLastRestart
     );
 
-    return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
+    return restartDate.toString();
   } catch {
     return "Unavailable";
   }
@@ -588,6 +615,9 @@ export const humanHostLastRestart = (
 export const humanHostLastSeen = (lastSeen: string): string => {
   if (!lastSeen || lastSeen < "2016-07-28T00:00:00Z") {
     return "Never";
+  }
+  if (lastSeen === "Unavailable") {
+    return "Unavailable";
   }
   return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
@@ -617,7 +647,7 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   }
 };
 
-const DISK_ENCRYPTION_MESSAGES = {
+const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
   darwin: {
     enabled:
       "The disk is encrypted. The user must enter their<br/> password when they start their computer.",
@@ -631,15 +661,20 @@ const DISK_ENCRYPTION_MESSAGES = {
   },
 };
 
-export const humanHostDiskEncryptionEnabled = (
-  platform?: string,
-  isDiskEncrypted = false
-): string => {
-  if (platform !== "windows" && platform !== "darwin") {
+export const getHostDiskEncryptionTooltipMessage = (
+  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
+  diskEncryptionEnabled = false
+) => {
+  if (platform === "chrome") {
+    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
+  }
+
+  if (!["windows", "darwin"].includes(platform)) {
     return "Disk encryption is enabled.";
   }
-  const encryptionStatus = isDiskEncrypted ? "enabled" : "disabled";
-  return DISK_ENCRYPTION_MESSAGES[platform][encryptionStatus];
+  return MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES[platform][
+    diskEncryptionEnabled ? "enabled" : "disabled"
+  ];
 };
 
 export const hostTeamName = (teamName: string | null): string => {
@@ -666,6 +701,16 @@ export const humanQueryLastRun = (lastRun: string): string => {
 
 export const licenseExpirationWarning = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
+};
+
+export const readableDate = (date: string) => {
+  const dateString = new Date(date);
+
+  return new Intl.DateTimeFormat(navigator.language, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(dateString);
 };
 
 export const performanceIndicator = (
@@ -760,28 +805,6 @@ export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
     .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
 );
 
-export const getValidatedTeamId = (
-  teams: ITeam[] | ITeamSummary[],
-  teamId: number,
-  currentUser: IUser | null,
-  isOnGlobalTeam: boolean
-) => {
-  let currentUserTeams: ITeamSummary[] = [];
-  if (isOnGlobalTeam) {
-    currentUserTeams = teams;
-  } else if (currentUser && currentUser.teams) {
-    currentUserTeams = currentUser.teams;
-  }
-
-  const currentUserTeamIds = currentUserTeams.map((t) => t.id);
-  const validatedTeamId =
-    !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
-      ? teamId
-      : undefined;
-
-  return validatedTeamId;
-};
-
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
   hostData: Partial<IHost>
@@ -795,7 +818,7 @@ export const normalizeEmptyValues = (
       if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
         Object.assign(result, { [key]: value });
       } else {
-        Object.assign(result, { [key]: "---" });
+        Object.assign(result, { [key]: DEFAULT_EMPTY_CELL_VALUE });
       }
       return result;
     },
@@ -807,7 +830,47 @@ export const wrapFleetHelper = (
   helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
   value: string
 ): string => {
-  return value === "---" ? value : helperFn(value);
+  return value === DEFAULT_EMPTY_CELL_VALUE ? value : helperFn(value);
+};
+
+interface ILocationParams {
+  pathPrefix?: string;
+  routeTemplate?: string;
+  routeParams?: { [key: string]: string };
+  queryParams?: { [key: string]: string | number | undefined };
+}
+
+type RouteParams = Record<string, string>;
+
+const createRouteString = (routeTemplate: string, routeParams: RouteParams) => {
+  let routeString = "";
+  if (!isEmpty(routeParams)) {
+    routeString = reduce(
+      routeParams,
+      (string, value, key) => {
+        return string.replace(`:${key}`, encodeURIComponent(value));
+      },
+      routeTemplate
+    );
+  }
+  return routeString;
+};
+
+export const getNextLocationPath = ({
+  pathPrefix = "",
+  routeTemplate = "",
+  routeParams = {},
+  queryParams = {},
+}: ILocationParams): string => {
+  const routeString = createRouteString(routeTemplate, routeParams);
+  const queryString = buildQueryStringFromParams(queryParams);
+
+  const nextLocation = trimEnd(
+    union(trim(pathPrefix, "/").split("/"), routeString.split("/")).join("/"),
+    "/"
+  );
+
+  return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };
 
 export default {
@@ -830,17 +893,17 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
-  humanHostDiskEncryptionEnabled,
+  getHostDiskEncryptionTooltipMessage,
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,
   licenseExpirationWarning,
+  readableDate,
   secondsToHms,
   secondsToDhms,
   labelSlug,
   setupData,
   syntaxHighlight,
-  getValidatedTeamId,
   normalizeEmptyValues,
   wrapFleetHelper,
 };

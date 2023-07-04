@@ -14,7 +14,9 @@ import (
 	"runtime"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/kolide/kit/version"
 	"github.com/urfave/cli/v2"
 )
@@ -25,11 +27,11 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 		return nil, err
 	}
 
-	return unauthenticatedClientFromConfig(cc, getDebug(c), c.App.Writer)
+	return unauthenticatedClientFromConfig(cc, getDebug(c), c.App.Writer, c.App.ErrWriter)
 }
 
 func clientFromCLI(c *cli.Context) (*service.Client, error) {
-	fleet, err := unauthenticatedClientFromCLI(c)
+	fleetClient, err := unauthenticatedClientFromCLI(c)
 	if err != nil {
 		return nil, err
 	}
@@ -38,8 +40,8 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 
 	// if a config file is explicitly provided, do not set an invalid arbitrary token
 	if !c.IsSet("config") && flag.Lookup("test.v") != nil {
-		fleet.SetToken("AAAA")
-		return fleet, nil
+		fleetClient.SetToken("AAAA")
+		return fleetClient, nil
 	}
 
 	// Add authentication token
@@ -57,12 +59,12 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 		fmt.Fprintln(os.Stderr, "Token missing. Please log in with: fleetctl login")
 		return nil, errors.New("token config value missing")
 	}
-	fleet.SetToken(token)
+	fleetClient.SetToken(token)
 
 	// Check if version matches fleet server. Also ensures that the token is valid.
 	clientInfo := version.Version()
 
-	serverInfo, err := fleet.Version()
+	serverInfo, err := fleetClient.Version()
 	if err != nil {
 		if errors.Is(err, service.ErrUnauthenticated) {
 			fmt.Fprintln(os.Stderr, "Token invalid or session expired. Please log in with: fleetctl login")
@@ -79,11 +81,29 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 		// This is just a warning, continue ...
 	}
 
-	return fleet, nil
+	// check that AppConfig's Apple BM terms are not expired.
+	var sce kithttp.StatusCoder
+	switch appCfg, err := fleetClient.GetAppConfig(); {
+	case err == nil:
+		if appCfg.MDM.AppleBMTermsExpired {
+			fleet.WriteAppleBMTermsExpiredBanner(os.Stderr)
+			// This is just a warning, continue ...
+		}
+	case errors.As(err, &sce) && sce.StatusCode() == http.StatusForbidden:
+		// OK, could be a user without permissions to read app config (e.g. gitops).
+	default:
+		return nil, err
+	}
+
+	return fleetClient, nil
 }
 
-func unauthenticatedClientFromConfig(cc Context, debug bool, w io.Writer) (*service.Client, error) {
-	options := []service.ClientOption{service.SetClientWriter(w)}
+func unauthenticatedClientFromConfig(cc Context, debug bool, outputWriter io.Writer, errWriter io.Writer) (*service.Client, error) {
+	options := []service.ClientOption{
+		service.SetClientOutputWriter(outputWriter),
+		service.SetClientErrorWriter(errWriter),
+	}
+
 	if len(cc.CustomHeaders) > 0 {
 		options = append(options, service.WithCustomHeaders(cc.CustomHeaders))
 	}

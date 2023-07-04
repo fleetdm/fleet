@@ -8,6 +8,9 @@ import (
 
 //go:generate mockimpl -o datastore_mock.go "s *DataStore" "fleet.Datastore"
 //go:generate mockimpl -o datastore_installers.go "s *InstallerStore" "fleet.InstallerStore"
+//go:generate mockimpl -o nanomdm/storage.go "s *Storage" "github.com/micromdm/nanomdm/storage.AllStorage"
+//go:generate mockimpl -o nanodep/storage.go "s *Storage" "github.com/micromdm/nanodep/storage.AllStorage"
+//go:generate mockimpl -o scep/depot.go "d *Depot" "depot.Depot"
 
 var _ fleet.Datastore = (*Store)(nil)
 
@@ -15,7 +18,7 @@ type Store struct {
 	DataStore
 }
 
-func (m *Store) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (m *Store) EnrollOrbit(ctx context.Context, isMDMEnabled bool, orbitHostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	return nil, nil
 }
 

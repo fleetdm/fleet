@@ -123,7 +123,8 @@ resource "cloudflare_record" "wildcard" {
 }
 
 module "s3_bucket_for_logs" {
-  source = "terraform-aws-modules/s3-bucket/aws"
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "3.6.0"
 
   bucket = "${var.prefix}-alb-logs"
   acl    = "log-delivery-write"
@@ -180,7 +181,8 @@ resource "aws_athena_database" "logs" {
 }
 
 module "athena-s3-bucket" {
-  source = "terraform-aws-modules/s3-bucket/aws"
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "3.6.0"
 
   bucket = "${var.prefix}-alb-logs-athena"
   acl    = "log-delivery-write"

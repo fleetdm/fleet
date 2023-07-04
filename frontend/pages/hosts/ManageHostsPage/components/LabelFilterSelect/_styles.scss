@@ -11,10 +11,9 @@
   }
 
   .label-filter-select__control {
-    border: 1px solid $ui-fleet-blue-15;
+    border: 1px solid $ui-fleet-black-10;
     background-color: $ui-light-grey;
     border-radius: $border-radius;
-    height: 40px;
 
     &--is-focused,
     &--menu-is-open,
@@ -34,7 +33,7 @@
       content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
       transform: scale(0.5);
       left: -6px;
-      top: -1px;
+      margin-top: 4px;
     }
   }
 
@@ -45,7 +44,7 @@
   }
 
   .label-filter-select__placeholder {
-    width: 70px;
+    width: 75px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -67,6 +66,7 @@
     width: 300px;
     margin-top: 0;
     z-index: 2;
+    animation: fade-in 150ms ease-out;
   }
 
   .label-filter-select__menu-list {
@@ -119,5 +119,11 @@
     &:hover {
       cursor: pointer;
     }
+  }
+}
+
+@media (min-width: 1100px) {
+  .label-filter-select {
+    width: 180px;
   }
 }

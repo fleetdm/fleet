@@ -7,6 +7,7 @@ on:
       - 'docs/**'
       - 'handbook/**'
       - 'schema/**'
+      - 'articles/**'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -56,4 +57,4 @@ jobs:
     - run: cd website/ && npm test
 
     # Compile assets
-    - run: cd website/ && npm run build-for-prod
+    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_RELEASE_GITHUB_PAT }}" npm run build-for-prod

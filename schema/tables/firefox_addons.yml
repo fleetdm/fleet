@@ -1,4 +1,5 @@
 name: firefox_addons
+description: Firefox browser [add-ons](https://addons.mozilla.org/en-US/firefox/) (plugins).
 examples: >-
   See Firefox extensions by user as well as information about their creator and
   automatic update status.

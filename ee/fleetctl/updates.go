@@ -248,7 +248,13 @@ func updatesAddFunc(c *cli.Context) error {
 		// E.g.
 		// 	- an ".app.tar.gz" file for target=osqueryd is expected to be called "osqueryd.app.tar.gz".
 		// 	- an ".exe" file for target=osqueryd is expected to be called "osqueryd.exe".
-		dstPath := filepath.Join(name, platform, tag, name)
+		var dstPath string
+		// check if we are adding extensions, which we namespace as "extensions/<ext_name>"
+		if strings.HasPrefix(name, "extensions/") {
+			dstPath = filepath.Join(name, platform, tag, strings.TrimPrefix(name, "extensions/"))
+		} else {
+			dstPath = filepath.Join(name, platform, tag, name)
+		}
 		switch {
 		case name == "desktop" && platform == "windows":
 			// This is a special case for the desktop target on Windows.
@@ -260,6 +266,9 @@ func updatesAddFunc(c *cli.Context) error {
 			dstPath += ".exe"
 		case strings.HasSuffix(target, ".app.tar.gz"):
 			dstPath += ".app.tar.gz"
+		// osquery extensions require the .ext suffix
+		case strings.HasSuffix(target, ".ext"):
+			dstPath += ".ext"
 		}
 		fullPath := filepath.Join(targetsPath, dstPath)
 		paths = append(paths, dstPath)
@@ -586,11 +595,11 @@ func copyTarget(srcPath, dstPath string) error {
 	}
 	defer src.Close()
 
-	if err := secure.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(dstPath), 0o700); err != nil {
 		return fmt.Errorf("create dst dir for copy: %w", err)
 	}
 
-	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0o644)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
 		return fmt.Errorf("open dst for copy: %w", err)
 	}

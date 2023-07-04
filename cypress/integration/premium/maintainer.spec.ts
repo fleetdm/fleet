@@ -82,18 +82,8 @@ describe("Premium tier - Maintainer user", () => {
       beforeEach(() => {
         hostDetailsPage.visitsHostDetailsPage(1);
       });
-      it("allows global maintainer to transfer host to an existing team", () => {
-        hostDetailsPage.allowsTransferHost();
-        hostDetailsPage.verifiesTransferredHost();
-      });
       it("allows global maintainer to create an operating system policy", () => {
         hostDetailsPage.allowsCreateOsPolicy();
-      });
-      it("allows global maintainer to custom query a host", () => {
-        hostDetailsPage.allowsCustomQueryHost();
-      });
-      it("allows global maintainer to delete a host", () => {
-        hostDetailsPage.allowsDeleteHost();
       });
     });
     describe("Manage software page", () => {

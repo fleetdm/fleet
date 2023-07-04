@@ -1,13 +1,12 @@
 .info-flex,
 .gigs_disk_space_available__cell {
-  overflow: auto;
   white-space: nowrap;
 
   &__disk-space {
     display: inline-block;
     height: 4px;
     width: 50px;
-    background-color: $ui-fleet-blue-15;
+    background-color: $ui-fleet-black-10;
     border-radius: 2px;
     margin-right: $pad-small;
     overflow: hidden;

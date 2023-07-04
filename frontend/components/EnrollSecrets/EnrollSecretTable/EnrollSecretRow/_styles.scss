@@ -7,6 +7,7 @@
 
   .form-field {
     margin-bottom: 0;
+    width: 500px; // TODO: configurable from classname in reusable component
   }
 
   &__secret-input {
@@ -15,8 +16,8 @@
       font-size: $x-small;
       font-weight: $bold;
       margin-bottom: 0;
-      width: 500px;
       height: 0;
+      min-height: 0;
     }
 
     .input-field {
@@ -43,7 +44,7 @@
     display: flex;
     align-items: center;
     position: absolute;
-    right: 16px;
+    right: 4px;
     top: 12px;
     height: 16px;
 

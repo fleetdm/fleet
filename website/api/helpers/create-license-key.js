@@ -22,7 +22,7 @@ module.exports = {
     expiresAt: {
       type: 'number',
       required: true,
-      description: 'A JS Timestamp representing when this license will expire.'
+      description: 'A JS timestamp representing when this license will expire.'
     }
 
   },
@@ -37,16 +37,17 @@ module.exports = {
   },
 
 
-  fn: async function (inputs) {
+  fn: async function ({numberOfHosts, organization, expiresAt}) {
 
     let jwt = require('jsonwebtoken');
 
+    let expirationTimestampInSeconds = (expiresAt / 1000);
     let token = jwt.sign(
       {
         iss: 'Fleet Device Management Inc.',
-        exp: inputs.expiresAt,
-        sub: inputs.organization,
-        devices: inputs.numberOfHosts,
+        exp: expirationTimestampInSeconds,
+        sub: organization,
+        devices: numberOfHosts,
         note: 'Created with Fleet License key dispenser',
         tier: 'premium',
       },

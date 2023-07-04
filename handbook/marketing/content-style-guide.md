@@ -46,11 +46,19 @@ For Fleet the product, we say either “Fleet” or “Fleet for osquery.”
 
 Employees are “Fleeties.”
 
+#### Capitalizing "fleets"
+
+When talking about a group of devices or virtual servers, use "fleet" or "fleets" (lowercase).  When talking about the product or company, use "Fleet" (capitalized).
+
 #### Capitalizing osquery
 Osquery should always be written in lowercase unless used to start a sentence or heading:
 
 - Open-source software, built on osquery.
 - Osquery and Fleet provide structured, convenient access to information about your devices.
+
+#### Device vs endpoint
+When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
+
 
 ## Grammar and mechanics
 
@@ -72,16 +80,40 @@ Keep headings brief, organized, and in a logical order:
 
 Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
 
-#### Sentence case
-Fleet uses sentence case capitalization for all headings across the Fleet product, fleetdm.com, our documentation, and our marketing material. In sentence case, we write titles as if they were sentences:
+#### Punctuation in headings
+Fleet headings do not use end punctuation unless the heading is a question:
+
+> Learn how to use osquery, nanoMDM, and Nudge to manage and monitor laptops and servers running Linux, Windows, ChromeOS, and macOS
+
+If the heading is a question, end the heading with a question mark.
+
+
+### Sentence case
+Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
+
+In sentence case, we write and capitalize words as if they were in sentences:
 
 > Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
 
-As we use sentence case, only the first word of a heading and subheading is capitalized. However, if a word would normally be capitalized in the sentence (e.g., a proper noun) it should remain capitalized in the heading.
+As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized.
 
-Note the capitalization of “macOS” in the example above. Although this is a proper noun, macOS uses its own style guide from Apple, to which we adhere.
+- Proper nouns _("Nudge", "Skimbleshanks", "Kleenex")_
+  - "Yeah, we use Nudge"
+  - "Introducing our friend Skimbleshanks"
+  - "Please, can I have a Kleenex?"
+- Acronyms _("MDM", "REST", "API", "JSON")_
+  - "MDM commands in Fleet are available over a REST API that returns JSON"
+- Stylizations _("macOS", "osquery", "MySQL")
+  - "Although 'macOS' is a proper noun, macOS uses its own style guide from Apple, to which we adhere"
+  - "Zach is the co-creator of osquery"
+  - "Does it work with MySQL?"
 
-You might’ve noticed that there isn’t a period at the end of the example heading. Fleet headings do not use end punctuation unless the heading is a question. If the heading is a question, end the heading with a question mark.
+#### Why sentence case?
+The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
+
+> Struggling with this?  It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself.  Many contributors have given the feedback that this opinionated solution is a huge relief once you build the habit of using sentence case capitalization, since it frees up mental capacity in every copywriting situation.  You don't have to think as hard, nor choose between flouting and laboriously adhering to the (likely somewhat complex and out of date) styleguide.
+
+> TODO: extrapolate the bulk of this whole sentence-case section to "Why this way", since it applies for every department at Fleet
 
 ### Contractions
 They’re great! Don’t be afraid to use them. They’ll help your writing sound more approachable.
@@ -269,6 +301,7 @@ Give an overview of the topic. You don’t need to mention everything at the beg
 
 #### Explanation
 You’ve let users know why they’re reading your doc. It’s time to make sure they understand the topic. This will be most of your documentation. Don’t shy away from details.
+
 #### Reference
 Support your explanation with relevant references. This shows users how to put your explanation into practice. Such material will keep users coming back.
 
@@ -283,5 +316,5 @@ You don’t need to wait until a change has been made to write a new doc. Starti
 Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before committing a line of code.
 
 
-<meta name="maintainedBy" value="chris-mcgillicuddy">
+<meta name="maintainedBy" value="jarodreyes">
 <meta name="title" value="Content style guide">

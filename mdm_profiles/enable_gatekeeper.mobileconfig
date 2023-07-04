@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>This profile configuration is designed to apply the CIS Benchmark for macOS 10.14 (v2.0.0), 10.15 (v2.0.0), 11.0 (v2.0.0), and 12.0 (v1.0.0)</string>
+	<key>PayloadDisplayName</key>
+	<string>Turn on Gatekeeper</string>
+	<key>PayloadIdentifier</key>
+	<string>cis.macOSBenchmark.section2.GateKeeper</string>
+	<key>PayloadOrganization</key>
+	<string>Center for Internet Security</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>CA95CACF-8D79-4D6F-B804-653B90D7E437</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>TargetDeviceType</key>
+	<integer>5</integer>
+    <key>PayloadRemovalDisallowed</key>
+    <true/>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>2.5.2.1 - Ensure Gatekeeper Is Enabled</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.systempolicy.control</string>
+			<key>PayloadType</key>
+			<string>com.apple.systempolicy.control</string>
+			<key>PayloadUUID</key>
+			<string>38554FF7-80E0-4EF1-BA44-7DE20B407797</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>AllowIdentifiedDevelopers</key>
+			<true/>
+			<key>EnableAssessment</key>
+			<true/>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -1,5 +1,6 @@
 #dashboard {
-  padding-top: 80px;
+  padding-top: 40px;
+
   h1 {
     font-size: 28px;
     line-height: 38px;
@@ -21,6 +22,30 @@
     font-size: 16px;
   }
 
+  [purpose='renewal-notification'] {
+    margin-bottom: 40px;
+    background: #E7FAF1;
+    border: 1px solid #3DB67B;
+    border-radius: 4px;
+    padding: 16px;
+    p {
+      margin-bottom: 0px;
+    }
+  }
+  [purpose='subscription-expiring-notification'] {
+    margin-bottom: 40px;
+    background: #F1F0FF;
+    border: 1px solid #B4B2FE;
+    border-radius: 4px;
+    padding: 16px;
+    p {
+      margin-bottom: 0px;
+    }
+    a {
+      color: #192147;
+      font-weight: 700;
+    }
+  }
   [purpose='customer-portal-form'] {
     label {
       font-weight: 700;

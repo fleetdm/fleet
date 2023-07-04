@@ -29,7 +29,7 @@ type getQueryResponse struct {
 
 func (r getQueryResponse) error() error { return r.Err }
 
-func getQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getQueryRequest)
 	query, err := svc.GetQuery(ctx, req.ID)
 	if err != nil {
@@ -61,7 +61,7 @@ type listQueriesResponse struct {
 
 func (r listQueriesResponse) error() error { return r.Err }
 
-func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listQueriesRequest)
 	queries, err := svc.ListQueries(ctx, req.ListOptions)
 	if err != nil {
@@ -125,7 +125,7 @@ type createQueryResponse struct {
 
 func (r createQueryResponse) error() error { return r.Err }
 
-func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createQueryRequest)
 	query, err := svc.NewQuery(ctx, req.QueryPayload)
 	if err != nil {
@@ -185,10 +185,12 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeCreatedSavedQuery,
-		&map[string]interface{}{"query_id": query.ID, "query_name": query.Name},
+		fleet.ActivityTypeCreatedSavedQuery{
+			ID:   query.ID,
+			Name: query.Name,
+		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for query creation")
 	}
 
 	return query, nil
@@ -210,7 +212,7 @@ type modifyQueryResponse struct {
 
 func (r modifyQueryResponse) error() error { return r.Err }
 
-func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyQueryRequest)
 	query, err := svc.ModifyQuery(ctx, req.ID, req.QueryPayload)
 	if err != nil {
@@ -220,8 +222,13 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
-	// First make sure the user can read queries
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
+	query, err := svc.ds.Query(ctx, id)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, err
+	}
+
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -229,16 +236,6 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
 		})
-	}
-
-	query, err := svc.ds.Query(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Then we make sure they can modify them
-	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
-		return nil, err
 	}
 
 	if p.Name != nil {
@@ -266,10 +263,12 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeEditedSavedQuery,
-		&map[string]interface{}{"query_id": query.ID, "query_name": query.Name},
+		fleet.ActivityTypeEditedSavedQuery{
+			ID:   query.ID,
+			Name: query.Name,
+		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for query modification")
 	}
 
 	return query, nil
@@ -289,7 +288,7 @@ type deleteQueryResponse struct {
 
 func (r deleteQueryResponse) error() error { return r.Err }
 
-func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteQueryRequest)
 	err := svc.DeleteQuery(ctx, req.Name)
 	if err != nil {
@@ -299,17 +298,12 @@ func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
-	// First make sure the user can read queries
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
-		return err
-	}
-
 	query, err := svc.ds.QueryByName(ctx, name)
 	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return err
 	}
 
-	// Then we make sure they can modify them
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -318,12 +312,16 @@ func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 		return err
 	}
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedSavedQuery,
-		&map[string]interface{}{"query_name": name},
-	)
+		fleet.ActivityTypeDeletedSavedQuery{
+			Name: name,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for query deletion")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -340,7 +338,7 @@ type deleteQueryByIDResponse struct {
 
 func (r deleteQueryByIDResponse) error() error { return r.Err }
 
-func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteQueryByIDRequest)
 	err := svc.DeleteQueryByID(ctx, req.ID)
 	if err != nil {
@@ -350,17 +348,12 @@ func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
-	// First make sure the user can read queries
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
-		return err
-	}
-
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return ctxerr.Wrap(ctx, err, "lookup query by ID")
 	}
 
-	// Then we make sure they can modify them
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -369,12 +362,16 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedSavedQuery,
-		&map[string]interface{}{"query_name": query.Name},
-	)
+		fleet.ActivityTypeDeletedSavedQuery{
+			Name: query.Name,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for query deletion by id")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -392,7 +389,7 @@ type deleteQueriesResponse struct {
 
 func (r deleteQueriesResponse) error() error { return r.Err }
 
-func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteQueriesRequest)
 	deleted, err := svc.DeleteQueries(ctx, req.IDs)
 	if err != nil {
@@ -402,18 +399,13 @@ func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
-	// First make sure the user can read queries
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
-		return 0, err
-	}
-
 	for _, id := range ids {
 		query, err := svc.ds.Query(ctx, id)
 		if err != nil {
+			setAuthCheckedOnPreAuthErr(ctx)
 			return 0, ctxerr.Wrap(ctx, err, "lookup query by ID")
 		}
 
-		// Then we make sure they can modify them
 		if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 			return 0, err
 		}
@@ -424,16 +416,15 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		return n, err
 	}
 
-	err = svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedMultipleSavedQuery,
-		&map[string]interface{}{"query_ids": ids},
-	)
-	if err != nil {
-		return n, err
+		fleet.ActivityTypeDeletedMultipleSavedQuery{
+			IDs: ids,
+		},
+	); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "create activity for query deletions")
 	}
-
 	return n, nil
 }
 
@@ -451,7 +442,7 @@ type applyQuerySpecsResponse struct {
 
 func (r applyQuerySpecsResponse) error() error { return r.Err }
 
-func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyQuerySpecsRequest)
 	err := svc.ApplyQuerySpecs(ctx, req.Specs)
 	if err != nil {
@@ -461,7 +452,6 @@ func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec) error {
-	// check that the user can create queries
 	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -499,12 +489,16 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		return ctxerr.Wrap(ctx, err, "applying queries")
 	}
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeAppliedSpecSavedQuery,
-		&map[string]interface{}{"specs": specs},
-	)
+		fleet.ActivityTypeAppliedSpecSavedQuery{
+			Specs: specs,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for query spec")
+	}
+	return nil
 }
 
 func queryFromSpec(spec *fleet.QuerySpec) *fleet.Query {
@@ -526,7 +520,7 @@ type getQuerySpecsResponse struct {
 
 func (r getQuerySpecsResponse) error() error { return r.Err }
 
-func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	specs, err := svc.GetQuerySpecs(ctx)
 	if err != nil {
 		return getQuerySpecsResponse{Err: err}, nil
@@ -570,7 +564,7 @@ type getQuerySpecResponse struct {
 
 func (r getQuerySpecResponse) error() error { return r.Err }
 
-func getQuerySpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getQuerySpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getGenericSpecRequest)
 	spec, err := svc.GetQuerySpec(ctx, req.Name)
 	if err != nil {

@@ -380,24 +380,14 @@ describe("Premium tier - Global Admin user", () => {
     });
     it("allows global admin to see and click all CTA buttons", () => {
       manageHostsPage.allowsAddHosts();
-      manageHostsPage.allowsManageAndAddSecrets();
       manageHostsPage.allowsAddLabelForm();
+      manageHostsPage.allowsManageAndAddSecrets();
     });
   });
   describe("Host details page", () => {
     beforeEach(() => hostDetailsPage.visitsHostDetailsPage(1));
-    it("allows global admin to transfer host to an existing team", () => {
-      hostDetailsPage.allowsTransferHost("andCreate");
-      hostDetailsPage.verifiesTransferredHost();
-    });
     it("allows global admin to create an operating system policy", () => {
       hostDetailsPage.allowsCreateOsPolicy();
-    });
-    it("allows global admin to custom query a host", () => {
-      hostDetailsPage.allowsCustomQueryHost();
-    });
-    it("allows global admin to delete a host", () => {
-      hostDetailsPage.allowsDeleteHost();
     });
   });
   describe("Manage software page", () => {
@@ -578,7 +568,7 @@ describe("Premium tier - Global Admin user", () => {
     });
     it("allows access to Fleet Desktop settings", () => {
       cy.visit("settings/organization");
-      cy.getAttached(".org-settings-form__form-nav-list").within(() => {
+      cy.findByRole("navigation", { name: "settings" }).within(() => {
         cy.findByText(/organization info/i).should("exist");
         cy.findByText(/fleet desktop/i)
           .should("exist")
@@ -587,13 +577,13 @@ describe("Premium tier - Global Admin user", () => {
       cy.getAttached("[id=transparency_url")
         .should("have.value", "https://fleetdm.com/transparency")
         .clear()
-        .type("example.com/transparency");
+        .type("http://example.com/transparency");
       cy.findByRole("button", { name: /save/i }).click();
       cy.findByText(/successfully updated/i).should("exist");
       cy.visit("settings/organization/fleet-desktop");
       cy.getAttached("[id=transparency_url").should(
         "have.value",
-        "example.com/transparency"
+        "http://example.com/transparency"
       );
     });
   });

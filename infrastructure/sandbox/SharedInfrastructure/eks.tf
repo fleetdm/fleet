@@ -87,7 +87,7 @@ data "aws_iam_policy_document" "fluentbit_logs" {
 }
 
 module "aws-eks-accelerator-for-terraform" {
-  source       = "github.com/aws-samples/aws-eks-accelerator-for-terraform.git"
+  source       = "github.com/aws-ia/terraform-aws-eks-blueprints.git?ref=v4.20.0"
   cluster_name = var.prefix
 
   # EKS Cluster VPC and Subnets
@@ -103,6 +103,8 @@ module "aws-eks-accelerator-for-terraform" {
       node_group_name = "managed-ondemand"
       instance_types  = ["t3.medium"]
       subnet_ids      = var.vpc.private_subnets
+      max_size        = 20
+      min_size        = 20
     }
   }
 
@@ -143,7 +145,7 @@ data "aws_eks_cluster_auth" "cluster" {
 }
 
 module "kubernetes-addons" {
-  source = "github.com/aws-samples/aws-eks-accelerator-for-terraform.git//modules/kubernetes-addons"
+  source = "github.com/aws-ia/terraform-aws-eks-blueprints.git//modules/kubernetes-addons?ref=v4.20.0"
 
   eks_cluster_id               = module.aws-eks-accelerator-for-terraform.eks_cluster_id
   eks_cluster_endpoint         = module.aws-eks-accelerator-for-terraform.eks_cluster_endpoint

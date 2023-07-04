@@ -46,24 +46,24 @@ jobs:
     - id: gen
       run: |
         UUID=$(uuidgen)
-        echo "::set-output name=subdomain::fleet-test-$UUID"
-        echo "::set-output name=domain::fleet-test-$UUID.fleetuem.com"
-        echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
+        echo "subdomain=fleet-test-$UUID" >> $GITHUB_OUTPUT
+        echo "domain=fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
+        echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
         ENROLL=$(uuidgen)
-        echo "::set-output name=enroll_secret::$ENROLL"
+        echo "enroll_secret=$ENROLL" >> $GITHUB_OUTPUT
 
   run-server:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.4']
+        go-version: ['^1.19.10']
         mysql: ['mysql:5.7']
     runs-on: ubuntu-latest
     needs: gen
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -132,7 +132,7 @@ jobs:
 
     - name: Upload fleet logs
       if: always()
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: fleet-logs
         path: |
@@ -145,13 +145,13 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.4']
+        go-version: ['^1.19.10']
     runs-on: ubuntu-latest
     needs: gen
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -185,12 +185,12 @@ jobs:
   build-macos-targets:
     strategy:
       matrix:
-        go-version: ['^1.19.4']
+        go-version: ['^1.19.10']
     runs-on: macos-latest
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -203,7 +203,7 @@ jobs:
         make osqueryd-app-tar-gz version=$OSQUERY_VERSION out-path=.
 
     - name: Upload desktop.app.tar.gz and osqueryd.app.tar.gz
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: macos-pre-built-apps
         path: |
@@ -227,13 +227,13 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.4']
+        go-version: ['^1.19.10']
     runs-on: ubuntu-latest
     needs: [gen, build-macos-targets]
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -269,21 +269,21 @@ jobs:
         ./tools/tuf/test/main.sh
 
     - name: Upload PKG installer
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: fleet-osquery.pkg
         path: |
           fleet-osquery.pkg
 
     - name: Upload DEB installer
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: fleet-osquery_42.0.0_amd64.deb
         path: |
           fleet-osquery_42.0.0_amd64.deb
 
     - name: Upload MSI installer
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: fleet-osquery.msi
         path: |
@@ -331,7 +331,7 @@ jobs:
 
     - name: Upload orbit logs
       if: always()
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: orbit-logs
         path: |
@@ -380,7 +380,7 @@ jobs:
 
     - name: Upload orbit logs
       if: always()
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: orbit-logs
         path: |
@@ -406,7 +406,7 @@ jobs:
     - name: Install msi
       shell: pwsh
       run: |
-        msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv log.txt
+        Start-Process msiexec -ArgumentList "/i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv log.txt" -Wait
 
     - name: Wait enroll
       run: |
@@ -496,7 +496,7 @@ jobs:
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: orbit-logs-windows
         path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log

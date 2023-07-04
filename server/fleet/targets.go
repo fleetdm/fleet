@@ -32,15 +32,36 @@ type TargetMetrics struct {
 	NewHosts uint `db:"new"`
 }
 
-// HostTargets is the set of targets for a campaign (live query). These
-// targets are additive (include all hosts and all hosts in labels and all hosts
-// in teams).
+// HostTargets is the set of targets for a campaign (live query).
+//
+// HostIDs
+//
+//	If a host is explicitly included in HostIDs, then it is assured that
+//	the query will be selected to run on it (no matter the contents of
+//	LabelIDs and TeamIDs).
+//
+// LabelIDs
+//
+//	Label IDs can contain builtin label IDs or custom label IDs (regular).
+//	If provided, builtin labels are OR'ed on the selection.
+//	If provided, custom labels are OR'ed on the selection.
+//	When both types of labels are provided, builtin labels and custom
+//	labels are AND'ed on the selection.
+//
+//	There's a special case with the "All hosts" builtin label. If such
+//	label is selected, then all other labels and team selections are ignored
+//	(and all hosts will be selected).
+//
+// TeamIDs
+//
+//	When provided, team IDs are OR'ed on the selection.
+//	When provided together with LabelIDs then they are AND'ed on the selection.
 type HostTargets struct {
-	// HostIDs is the IDs of hosts to be targeted
+	// HostIDs is the IDs of hosts to be targeted.
 	HostIDs []uint `json:"hosts"`
-	// LabelIDs is the IDs of labels to be targeted
+	// LabelIDs is the IDs of labels to be targeted.
 	LabelIDs []uint `json:"labels"`
-	// TeamIDs is the IDs of teams to be targeted
+	// TeamIDs is the IDs of teams to be targeted.
 	TeamIDs []uint `json:"teams"`
 }
 

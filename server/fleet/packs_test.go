@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -106,4 +107,29 @@ func TestPack_Marshal(t *testing.T) {
 	err = json.Unmarshal(b, &m)
 	require.NoError(t, err)
 	require.NotNil(t, m["disabled"], "marshalled pack does not contain disabled field: %s", string(b))
+}
+
+func TestPack_TeamPack(t *testing.T) {
+	p := Pack{
+		ID:   13,
+		Name: "team-foobar",
+		Type: ptr.String("team-27"),
+	}
+	id, err := p.teamPack()
+	require.NoError(t, err)
+	assert.Equal(t, uint(27), *id)
+
+	p.Type = ptr.String("other")
+	id, err = p.teamPack()
+	assert.NoError(t, err)
+	assert.Nil(t, id)
+
+	p.Type = nil
+	id, err = p.teamPack()
+	assert.NoError(t, err)
+	assert.Nil(t, id)
+
+	p.Type = ptr.String("team-foobar")
+	_, err = p.teamPack()
+	assert.Error(t, err)
 }

@@ -16,7 +16,7 @@
 
 In Fleet, you can group hosts together in a team.
 
-With hosts segmented into exclusive teams, you can apply specific queries, packs, and agent options to each team.
+With hosts segmented into exclusive teams, you can apply specific queries, policies, and agent options to each team.
 
 For example, you might create a team for each type of system in your organization. You can name the teams `Workstations`, `Workstations - sandbox`, `Servers`, and `Servers - sandbox`.
 

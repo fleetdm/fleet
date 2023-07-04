@@ -10,6 +10,22 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+type aggregatedStatsType string
+
+const (
+	aggregatedStatsTypeQuery                = "query"
+	aggregatedStatsTypeScheduledQuery       = "scheduled_query"
+	aggregatedStatsTypeMunkiVersions        = "munki_versions"
+	aggregatedStatsTypeMunkiIssues          = "munki_issues"
+	aggregatedStatsTypeOSVersions           = "os_versions"
+	aggregatedStatsTypePolicyViolationsDays = "policy_violation_days"
+	// those types are partial because the actual stats type is by platform,
+	// which is computed with this stats type and the platform type (see
+	// platformKey function).
+	aggregatedStatsTypeMDMStatusPartial    = "mdm_status"
+	aggregatedStatsTypeMDMSolutionsPartial = "mdm_solutions"
+)
+
 // These queries are a bit annoyingly written. The main reason they are this way is that we want rownum sorted. There's
 // a slightly simpler version but that adds the rownum before sorting.
 
@@ -58,17 +74,17 @@ const (
 	queryTotalExecutions          = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats sqs JOIN scheduled_queries sq ON (sqs.scheduled_query_id=sq.id) JOIN queries q ON (q.id=sq.query_id) WHERE sq.query_id=?`
 )
 
-func getPercentileQuery(aggregate string, time string, percentile string) string {
+func getPercentileQuery(aggregate aggregatedStatsType, time string, percentile string) string {
 	switch aggregate {
-	case "scheduled_query":
+	case aggregatedStatsTypeScheduledQuery:
 		return fmt.Sprintf(scheduledQueryPercentileQuery, time, time, time, percentile)
-	case "query":
+	case aggregatedStatsTypeQuery:
 		return fmt.Sprintf(queryPercentileQuery, time, time, time, percentile)
 	}
 	return ""
 }
 
-func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate string, time string, id uint, statsMap map[string]interface{}) error {
+func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate aggregatedStatsType, time string, id uint, statsMap map[string]interface{}) error {
 	var p50, p95 float64
 
 	err := sqlx.GetContext(ctx, tx, &p50, getPercentileQuery(aggregate, time, "0.5"), id, id)
@@ -92,10 +108,8 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate stri
 }
 
 func (ds *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
-	statsTypeScheduledQuery := "scheduled_query"
-
-	err := walkIdsInTable(ctx, ds.reader, "scheduled_queries", func(id uint) error {
-		return calculatePercentiles(ctx, ds.writer, statsTypeScheduledQuery, id)
+	err := walkIdsInTable(ctx, ds.reader(ctx), "scheduled_queries", func(id uint) error {
+		return calculatePercentiles(ctx, ds.writer(ctx), aggregatedStatsTypeScheduledQuery, id)
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "looping through ids")
@@ -105,10 +119,8 @@ func (ds *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) er
 }
 
 func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
-	statsTypeQuery := "query"
-
-	err := walkIdsInTable(ctx, ds.reader, "queries", func(id uint) error {
-		return calculatePercentiles(ctx, ds.writer, statsTypeQuery, id)
+	err := walkIdsInTable(ctx, ds.reader(ctx), "queries", func(id uint) error {
+		return calculatePercentiles(ctx, ds.writer(ctx), aggregatedStatsTypeQuery, id)
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "looping through ids")
@@ -117,7 +129,7 @@ func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	return nil
 }
 
-func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate string, id uint) error {
+func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate aggregatedStatsType, id uint) error {
 	var totalExecutions int
 	statsMap := make(map[string]interface{})
 
@@ -141,8 +153,15 @@ func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate str
 		return ctxerr.Wrap(ctx, err, "marshaling stats")
 	}
 
+	// NOTE: this function gets called for query and scheduled_query, so the id
+	// refers to a query/scheduled_query id, and it never computes "global"
+	// stats. For that reason, we always set global_stats=0.
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO aggregated_stats(id, type, json_value) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)`,
+		`
+		INSERT INTO aggregated_stats(id, type, global_stats, json_value)
+		VALUES (?, ?, 0, ?)
+		ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)
+		`,
 		id, aggregate, statsJson,
 	)
 	if err != nil {
@@ -151,11 +170,11 @@ func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate str
 	return nil
 }
 
-func getTotalExecutionsQuery(aggregate string) string {
+func getTotalExecutionsQuery(aggregate aggregatedStatsType) string {
 	switch aggregate {
-	case "scheduled_query":
+	case aggregatedStatsTypeScheduledQuery:
 		return scheduledQueryTotalExecutions
-	case "query":
+	case aggregatedStatsTypeQuery:
 		return queryTotalExecutions
 	}
 	return ""

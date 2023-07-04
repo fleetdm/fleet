@@ -1,15 +1,16 @@
 .input-field {
   line-height: 1.5;
   background-color: $ui-light-grey;
-  border: solid 1px $ui-fleet-blue-15;
+  border: solid 1px $ui-fleet-black-10;
   border-radius: 4px;
   font-size: $small;
   padding: 7px 12px;
   color: $core-fleet-blue;
-  font-family: "Nunito Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   box-sizing: border-box;
   height: 40px;
   transition: border-color 100ms;
+  width: 100%;
 
   &::placeholder {
     color: $ui-fleet-black-50;

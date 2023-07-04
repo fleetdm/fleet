@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useState } from "react";
 
 import { IPack } from "interfaces/pack";
+import { IEmptyTableProps } from "interfaces/empty_table";
 import Button from "components/buttons/Button";
 
 import TableContainer from "components/TableContainer";
-import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
+import EmptyTable from "components/EmptyTable";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
 
 const baseClass = "packs-table";
-const noPacksClass = "no-packs";
 
 interface IPacksTableProps {
   onDeletePackClick: (selectedTablePackIds: number[]) => void;
@@ -54,40 +55,32 @@ const PacksTable = ({
     [setSearchString]
   );
 
-  const NoPacksComponent = useCallback(() => {
-    return (
-      <div className={`${noPacksClass}`}>
-        <div className={`${noPacksClass}__inner`}>
-          <div className={`${noPacksClass}__inner-text`}>
-            {searchString ? (
-              <>
-                <h2>No packs match the current search criteria.</h2>
-                <p>
-                  Expecting to see packs? Try again in a few seconds as the
-                  system catches up.
-                </p>
-              </>
-            ) : (
-              <>
-                <h2>You don&apos;t have any packs</h2>
-                <p>
-                  Query packs allow you to schedule recurring queries for your
-                  hosts.
-                </p>
-                <Button
-                  variant="brand"
-                  className={`${baseClass}__create-button`}
-                  onClick={onCreatePackClick}
-                >
-                  Create new pack
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }, [searchString]);
+  // TODO: useCallback search string
+  const emptyState = () => {
+    const emptyPacks: IEmptyTableProps = {
+      iconName: "empty-packs",
+      header: "You don't have any packs",
+      info:
+        "Query packs allow you to schedule recurring queries for your hosts.",
+      primaryButton: (
+        <Button
+          variant="brand"
+          className={`${baseClass}__create-button`}
+          onClick={onCreatePackClick}
+        >
+          Create new pack
+        </Button>
+      ),
+    };
+    if (searchString) {
+      delete emptyPacks.iconName;
+      emptyPacks.header = "No packs match the current search criteria.";
+      emptyPacks.info =
+        "Expecting to see packs? Try again in a few seconds as the system catches up.";
+      delete emptyPacks.primaryButton;
+    }
+    return emptyPacks;
+  };
 
   const tableHeaders = generateTableHeaders();
 
@@ -97,14 +90,14 @@ const PacksTable = ({
       onActionButtonClick: onEnablePackClick,
       buttonText: "Enable",
       variant: "text-icon",
-      icon: "check",
+      iconSvg: "check",
     },
     {
       name: "disable",
       onActionButtonClick: onDisablePackClick,
       buttonText: "Disable",
       variant: "text-icon",
-      icon: "disable",
+      iconSvg: "disable",
     },
   ];
   return (
@@ -122,12 +115,22 @@ const PacksTable = ({
         inputPlaceHolder="Search by name"
         searchable={packs && packs.length > 0}
         disablePagination
-        onPrimarySelectActionClick={onDeletePackClick}
-        primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="delete"
-        primarySelectActionButtonText={"Delete"}
+        primarySelectAction={{
+          name: "delete pack",
+          buttonText: "Delete",
+          iconSvg: "trash",
+          variant: "text-icon",
+          onActionButtonClick: onDeletePackClick,
+        }}
         secondarySelectActions={secondarySelectActions}
-        emptyComponent={NoPacksComponent}
+        emptyComponent={() =>
+          EmptyTable({
+            iconName: emptyState().iconName,
+            header: emptyState().header,
+            info: emptyState().info,
+            primaryButton: emptyState().primaryButton,
+          })
+        }
       />
     </div>
   );

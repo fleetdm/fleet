@@ -31,7 +31,7 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 		args.Query = q.Query
 		args.Description = q.Description
 	}
-	res, err := ds.writer.ExecContext(ctx,
+	res, err := ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		args.Name, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
 	)
@@ -47,11 +47,11 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
-	return policyDB(ctx, ds.writer, uint(lastIdInt64), nil)
+	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil)
 }
 
 func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
-	return policyDB(ctx, ds.reader, id, nil)
+	return policyDB(ctx, ds.reader(ctx), id, nil)
 }
 
 func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint) (*fleet.Policy, error) {
@@ -91,7 +91,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?
 			WHERE id = ?
 	`
-	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.ID)
+	result, err := ds.writer(ctx).ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
@@ -103,7 +103,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
-	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer, p.ID, p.Platform)
+	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), p.ID, p.Platform)
 }
 
 // FlippingPoliciesForHost fetches previous policy membership results and returns:
@@ -151,7 +151,7 @@ func (ds *Datastore) FlippingPoliciesForHost(
 	if err != nil {
 		return nil, nil, ctxerr.Wrapf(ctx, err, "build select policy_membership query")
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader, &fetchedPolicyResults, selectQuery, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &fetchedPolicyResults, selectQuery, args...); err != nil {
 		return nil, nil, ctxerr.Wrapf(ctx, err, "select policy_membership")
 	}
 	prevPolicyResults := make(map[uint]bool)
@@ -264,7 +264,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 }
 
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader, nil, nil)
+	return listPoliciesDB(ctx, ds.reader(ctx), nil, nil)
 }
 
 // returns the list of policies associated with the provided teamID, or the
@@ -328,7 +328,7 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	var policies []*fleet.Policy
 	err = sqlx.SelectContext(
 		ctx,
-		ds.reader,
+		ds.reader(ctx),
 		&policies,
 		query, args...,
 	)
@@ -350,7 +350,7 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 }
 
 func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
-	return deletePolicyDB(ctx, ds.writer, ids, nil)
+	return deletePolicyDB(ctx, ds.writer(ctx), ids, nil)
 }
 
 func deletePolicyDB(ctx context.Context, q sqlx.ExtContext, ids []uint, teamID *uint) ([]uint, error) {
@@ -382,7 +382,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens, as the host
 		// won't be receiving any policies targeted for specific platforms.
-		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID)) //nolint:errcheck
+		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
 	q := dialect.From("policies").Select(
 		goqu.I("id"),
@@ -406,7 +406,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting policies sql build")
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader, &rows, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting policies for host")
 	}
 	results := make(map[string]string)
@@ -426,7 +426,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Query = q.Query
 		args.Description = q.Description
 	}
-	res, err := ds.writer.ExecContext(ctx,
+	res, err := ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical)
 	switch {
@@ -441,16 +441,16 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
-	return policyDB(ctx, ds.writer, uint(lastIdInt64), &teamID)
+	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), &teamID)
 }
 
 func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
-	teamPolicies, err = listPoliciesDB(ctx, ds.reader, &teamID, nil)
+	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 	// get inherited (global) policies with counts of hosts for that team
-	inheritedPolicies, err = listPoliciesDB(ctx, ds.reader, nil, &teamID)
+	inheritedPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), nil, &teamID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -458,11 +458,11 @@ func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint) (teamPol
 }
 
 func (ds *Datastore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
-	return deletePolicyDB(ctx, ds.writer, ids, &teamID)
+	return deletePolicyDB(ctx, ds.writer(ctx), ids, &teamID)
 }
 
 func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
-	return policyDB(ctx, ds.reader, policyID, &teamID)
+	return policyDB(ctx, ds.reader(ctx), policyID, &teamID)
 }
 
 // ApplyPolicySpecs applies the given policy specs, creating new policies and updating the ones that
@@ -633,6 +633,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	const (
 		recentlyUpdatedPoliciesInterval = 24 * time.Hour
 
+		// Using `p.created_at < p.updated.at` to ignore newly created.
 		updatedPoliciesStmt = `
 			SELECT
 				p.id,
@@ -641,7 +642,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 				policies p
 			WHERE
 				p.updated_at >= DATE_SUB(?, INTERVAL ? SECOND) AND
-				p.created_at < p.updated_at`  // ignore newly created
+				p.created_at < p.updated_at`
 
 		deleteMembershipStmt = `
 			DELETE
@@ -658,7 +659,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	)
 
 	var pols []*fleet.Policy
-	if err := sqlx.SelectContext(ctx, ds.reader, &pols, updatedPoliciesStmt, now, int(recentlyUpdatedPoliciesInterval.Seconds())); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &pols, updatedPoliciesStmt, now, int(recentlyUpdatedPoliciesInterval.Seconds())); err != nil {
 		return ctxerr.Wrap(ctx, err, "select recently updated policies")
 	}
 
@@ -673,7 +674,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 			expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
 		}
 
-		if _, err := ds.writer.ExecContext(ctx, deleteMembershipStmt, pol.ID, strings.Join(expandedPlatforms, ",")); err != nil {
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteMembershipStmt, pol.ID, strings.Join(expandedPlatforms, ",")); err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete outdated hosts membership for policy: %d; platforms: %v", pol.ID, expandedPlatforms)
 		}
 	}
@@ -697,10 +698,76 @@ func (ds *Datastore) IncrementPolicyViolationDays(ctx context.Context) error {
 	})
 }
 
+func (ds *Datastore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO policy_automation_iterations (policy_id, iteration) VALUES (?,1)
+			ON DUPLICATE KEY UPDATE iteration = iteration + 1;
+		`, policyID)
+		return err
+	})
+}
+
+// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
+func (ds *Datastore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.PolicyFailure, error) {
+	var failures []fleet.PolicyFailure
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		failures = failures[:0] // In case of retry (from withRetryTxx) empty the list of failures.
+		var hostIDs []uint
+
+		rows, err := tx.QueryContext(ctx, `
+			SELECT ai.policy_id, pm.host_id, h.hostname, h.computer_name
+				FROM policy_automation_iterations ai
+			    JOIN policy_membership pm ON pm.policy_id = ai.policy_id
+			        AND (pm.automation_iteration < ai.iteration
+			               OR pm.automation_iteration IS NULL)
+				JOIN hosts h ON pm.host_id = h.id
+				WHERE NOT pm.passes
+				LIMIT 1000
+				FOR UPDATE;
+		`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var f fleet.PolicyFailure
+			if err := rows.Scan(&f.PolicyID, &f.Host.ID, &f.Host.Hostname, &f.Host.DisplayName); err != nil {
+				return err
+			}
+			failures = append(failures, f)
+			hostIDs = append(hostIDs, f.Host.ID)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		if len(hostIDs) == 0 {
+			return nil
+		}
+		query := `
+			UPDATE policy_membership pm SET pm.automation_iteration = (
+				SELECT ai.iteration
+				FROM policy_automation_iterations ai
+				WHERE pm.policy_id = ai.policy_id
+		   ) WHERE pm.host_id IN (?);`
+		query, args, err := sqlx.In(query, hostIDs)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, query, args...)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return failures, nil
+}
+
 func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 	const (
 		statsID        = 0
-		statsType      = "policy_violation_days"
+		globalStats    = true
+		statsType      = aggregatedStatsTypePolicyViolationsDays
 		updateInterval = 24 * time.Hour
 	)
 
@@ -710,21 +777,21 @@ func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 
 	// get current count of policy violation days from `aggregated_stats``
 	selectStmt := `
-		SELECT 
-			json_value, 
-			created_at, 
-			updated_at 
-		FROM 
-			aggregated_stats 
-		WHERE 
-			id = ? AND type = ?`
+		SELECT
+			json_value,
+			created_at,
+			updated_at
+		FROM
+			aggregated_stats
+		WHERE
+			id = ? AND global_stats = ? AND type = ?`
 	dest := struct {
 		CreatedAt time.Time       `json:"created_at" db:"created_at"`
 		UpdatedAt time.Time       `json:"updated_at" db:"updated_at"`
 		StatsJSON json.RawMessage `json:"json_value" db:"json_value"`
 	}{}
 
-	err := sqlx.GetContext(ctx, tx, &dest, selectStmt, statsID, statsType)
+	err := sqlx.GetContext(ctx, tx, &dest, selectStmt, statsID, globalStats, statsType)
 	switch {
 	case err == sql.ErrNoRows:
 		// no previous counts exists so initialize counts as zero and proceed to increment
@@ -766,12 +833,12 @@ func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 
 	// upsert `aggregated_stats` with new count
 	upsertStmt := `
-		INSERT INTO 
-			aggregated_stats (id, type, json_value) 
-		VALUES (?, ?, ?)
-		ON DUPLICATE KEY UPDATE 
+		INSERT INTO
+			aggregated_stats (id, global_stats, type, json_value)
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
 			json_value = VALUES(json_value)`
-	if _, err := tx.ExecContext(ctx, upsertStmt, statsID, statsType, statsJSON); err != nil {
+	if _, err := tx.ExecContext(ctx, upsertStmt, statsID, globalStats, statsType, statsJSON); err != nil {
 		return ctxerr.Wrap(ctx, err, "update policy violation days aggregated stats")
 	}
 
@@ -786,8 +853,9 @@ func (ds *Datastore) InitializePolicyViolationDays(ctx context.Context) error {
 
 func initializePolicyViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 	const (
-		statsID   = 0
-		statsType = "policy_violation_days"
+		statsID     = 0
+		globalStats = true
+		statsType   = aggregatedStatsTypePolicyViolationsDays
 	)
 
 	statsJSON, err := json.Marshal(PolicyViolationDays{})
@@ -796,13 +864,13 @@ func initializePolicyViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) er
 	}
 
 	stmt := `
-		INSERT INTO 
-			aggregated_stats (id, type, json_value) 
-		VALUES (?, ?, ?)
-		ON DUPLICATE KEY UPDATE 
+		INSERT INTO
+			aggregated_stats (id, global_stats, type, json_value)
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
 			json_value = VALUES(json_value),
 			created_at = CURRENT_TIMESTAMP`
-	if _, err := tx.ExecContext(ctx, stmt, statsID, statsType, statsJSON); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, statsID, globalStats, statsType, statsJSON); err != nil {
 		return ctxerr.Wrap(ctx, err, "initialize policy violation days aggregated stats")
 	}
 
@@ -811,18 +879,19 @@ func initializePolicyViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) er
 
 func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (int, int, error) {
 	const (
-		statsID   = 0
-		statsType = "policy_violation_days"
+		statsID     = 0
+		globalStats = true
+		statsType   = aggregatedStatsTypePolicyViolationsDays
 	)
 	var statsJSON json.RawMessage
 	if err := sqlx.GetContext(ctx, tx, &statsJSON, `
-		SELECT 
-			json_value 
-		FROM 
-			aggregated_stats 
-		WHERE 
-			id = ? AND type = ?
-	`, statsID, statsType); err != nil {
+		SELECT
+			json_value
+		FROM
+			aggregated_stats
+		WHERE
+			id = ? AND global_stats = ? AND type = ?
+	`, statsID, globalStats, statsType); err != nil {
 		return 0, 0, err
 	}
 

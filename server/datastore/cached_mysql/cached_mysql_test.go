@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -459,5 +460,80 @@ func TestCachedTeamFeatures(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = ds.TeamFeatures(context.Background(), testTeam.ID)
+	require.Error(t, err)
+}
+
+func TestCachedTeamMDMConfig(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithTeamFeaturesExpiration(100*time.Millisecond))
+	ao := json.RawMessage(`{}`)
+
+	testMDMConfig := fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("1992-03-01"),
+		},
+	}
+
+	testTeam := fleet.Team{
+		ID:        1,
+		CreatedAt: time.Now(),
+		Name:      "test",
+		Config: fleet.TeamConfig{
+			MDM:          testMDMConfig,
+			AgentOptions: &ao,
+		},
+	}
+
+	deleted := false
+	mockedDS.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		if deleted {
+			return nil, errors.New("not found")
+		}
+		return &testMDMConfig, nil
+	}
+	mockedDS.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	mockedDS.DeleteTeamFunc = func(ctx context.Context, teamID uint) error {
+		deleted = true
+		return nil
+	}
+
+	mdmConfig, err := ds.TeamMDMConfig(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, testMDMConfig, *mdmConfig)
+
+	// saving a team updates config in cache
+	updateMDMConfig := fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("13.13.13"),
+			Deadline:       optjson.SetString("2022-03-01"),
+		},
+	}
+	updateTeam := &fleet.Team{
+		ID:        testTeam.ID,
+		CreatedAt: testTeam.CreatedAt,
+		Name:      testTeam.Name,
+		Config: fleet.TeamConfig{
+			MDM:          updateMDMConfig,
+			AgentOptions: &ao,
+		},
+	}
+
+	_, err = ds.SaveTeam(context.Background(), updateTeam)
+	require.NoError(t, err)
+
+	mdmConfig, err = ds.TeamMDMConfig(context.Background(), testTeam.ID)
+	require.NoError(t, err)
+	require.Equal(t, updateMDMConfig, *mdmConfig)
+
+	// deleting a team removes the config from the cache
+	err = ds.DeleteTeam(context.Background(), testTeam.ID)
+	require.NoError(t, err)
+
+	_, err = ds.TeamMDMConfig(context.Background(), testTeam.ID)
 	require.Error(t, err)
 }

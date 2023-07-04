@@ -1,5 +1,7 @@
 @import "var/global.scss";
 
+$base-font-size: 16;
+
 @function px-to-rem($px) {
   @return ($px / $base-font-size) + rem;
 }

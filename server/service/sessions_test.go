@@ -185,3 +185,189 @@ func TestGetSessionByKey(t *testing.T) {
 		})
 	}
 }
+
+type testAuth struct {
+	userID              string
+	userDisplayName     string
+	requestID           string
+	assertionAttributes []fleet.SAMLAttribute
+}
+
+var _ fleet.Auth = (*testAuth)(nil)
+
+func (a *testAuth) UserID() string {
+	return a.userID
+}
+
+func (a *testAuth) UserDisplayName() string {
+	return a.userDisplayName
+}
+
+func (a *testAuth) RequestID() string {
+	return a.requestID
+}
+
+func (a *testAuth) AssertionAttributes() []fleet.SAMLAttribute {
+	return a.assertionAttributes
+}
+
+func TestGetSSOUser(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
+	})
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO:             true,
+				EnableSSOIdPLogin:     true,
+				EnableJITProvisioning: true,
+			},
+		}, nil
+	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, newNotFoundError()
+	}
+
+	var newUser *fleet.User
+	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+		newUser = user
+		return user, nil
+	}
+
+	auth := &testAuth{
+		userID:          "foo@example.com",
+		userDisplayName: "foo@example.com",
+		requestID:       "foobar",
+		assertionAttributes: []fleet.SAMLAttribute{
+			{
+				Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+				Values: []fleet.SAMLAttributeValue{
+					{Value: "admin"},
+				},
+			},
+		},
+	}
+
+	// Test SSO login with a non-existent user.
+	_, err := svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.NotNil(t, newUser)
+	require.NotNil(t, newUser.GlobalRole)
+	require.Equal(t, "admin", *newUser.GlobalRole)
+	require.Empty(t, newUser.Teams)
+
+	// Test SSO login with the same (now existing) user (should update roles).
+
+	// (1) Check that when a user's role attributes are unchanged then SavedUser is not called.
+
+	ds.SaveUserFunc = func(ctx context.Context, user *fleet.User) error {
+		return nil
+	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return newUser, nil
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.False(t, ds.SaveUserFuncInvoked)
+
+	// (2) Test SSO login with the same user with roles updated in its attributes.
+
+	var savedUser *fleet.User
+	ds.SaveUserFunc = func(ctx context.Context, user *fleet.User) error {
+		savedUser = user
+		return nil
+	}
+
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid}, nil
+	}
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "maintainer"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.NotNil(t, savedUser)
+	require.Nil(t, savedUser.GlobalRole)
+	require.Len(t, savedUser.Teams, 1)
+	require.Equal(t, uint(2), savedUser.Teams[0].ID)
+	require.Equal(t, "maintainer", savedUser.Teams[0].Role)
+
+	require.True(t, ds.SaveUserFuncInvoked)
+
+	// (3) Test existing user's role is not changed after a new login if EnableJITProvisioning is false.
+
+	ds.SaveUserFuncInvoked = false
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO:             true,
+				EnableSSOIdPLogin:     true,
+				EnableJITProvisioning: false,
+			},
+		}, nil
+	}
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "admin"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.False(t, ds.SaveUserFuncInvoked)
+
+	// (4) Test with invalid team ID in the attributes
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO:             true,
+				EnableSSOIdPLogin:     true,
+				EnableJITProvisioning: true,
+			},
+		}, nil
+	}
+
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return nil, newNotFoundError()
+	}
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_TEAM_3",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "maintainer"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.Error(t, err)
+}

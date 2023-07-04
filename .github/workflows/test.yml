@@ -8,17 +8,9 @@ on:
   pull_request:
     paths:
       - assets/**
-      - cypress/**
-      - ee/**
       - frontend/**
-      - pkg/**
-      - server/**
-      - tools/**
-      - go.mod
-      - go.sum
       - package.json
       - yarn.lock
-      - docker-compose.yml
       - webpack.config.js
       - tsconfig.json
 
@@ -36,96 +28,6 @@ permissions:
   contents: read
 
 jobs:
-  test-e2e:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        go-version: ['^1.19.4']
-        fleet-tier: [free, premium]
-    runs-on: ${{ matrix.os }}
-    steps:
-    - name: Install Node
-      uses: actions/setup-node@1f8c6b94b26d0feae1e387ca63ccbdc44d27b561 # v2
-      with:
-        node-version: '14'
-    - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
-      with:
-        go-version: ${{ matrix.go-version }}
-    - name: Checkout Code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
-
-    # Pre-starting dependencies here means they are ready to go when we need them.
-    - name: Start Infra Dependencies
-      # Use & to background this
-      run: docker-compose up -d mysql_test redis mailhog saml_idp &
-
-    - name: JS Dependency Cache
-      id: js-cache
-      uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77 # v2
-      with:
-        path: |
-          **/node_modules
-          ~/.cache/Cypress
-        # Use a separate cache for this from other JS jobs since we run the
-        # webpack steps and will have more to cache.
-        key: ${{ runner.os }}-e2e-modules-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-e2e-modules-
-
-    - name: Go Cache
-      id: go-cache
-      uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77 # v2
-      with:
-        # In order:
-        # * Module download cache
-        # * Build cache (Linux)
-        # * Build cache (Mac)
-        # * Build cache (Windows)
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-          ~/Library/Caches/go-build
-          %LocalAppData%\go-build
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-
-    - name: Install JS Dependencies
-      if: steps.js-cache.outputs.cache-hit != 'true'
-      run: make deps-js
-
-    - name: Install Go Dependencies
-      if: steps.go-cache.outputs.cache-hit != 'true'
-      run: make deps-go
-
-    - name: Build Fleet
-      run: |
-        export PATH=$PATH:~/go/bin
-        make generate-ci
-        make
-
-    - name: Run E2E Tests
-      id: e2e
-      run: |
-        .github/scripts/check-infra-dependencies.sh all
-        make e2e-reset-db
-        make e2e-serve-${{ matrix.fleet-tier }} &
-        sleep 3
-        make e2e-setup
-        yarn cypress run --config-file cypress/cypress-${{ matrix.fleet-tier }}.json
-
-    - name: Upload artifacts
-      if: failure()
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
-      with:
-        name: cypress
-        path: |
-          cypress/screenshots/
-          cypress/videos/
-
-
   test-js:
     strategy:
       matrix:
@@ -138,7 +40,7 @@ jobs:
 
     - name: JS Dependency Cache
       id: js-cache
-      uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77 # v2
+      uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
       with:
         path: |
           **/node_modules
@@ -153,8 +55,12 @@ jobs:
 
     - name: Run JS Tests
       run: |
-        make test-js
+        yarn test:ci
 
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
+      with:
+        flags: frontend
 
   lint-js:
     strategy:
@@ -168,7 +74,7 @@ jobs:
 
     - name: JS Dependency Cache
       id: js-cache
-      uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77 # v2
+      uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
       with:
         path: |
           **/node_modules

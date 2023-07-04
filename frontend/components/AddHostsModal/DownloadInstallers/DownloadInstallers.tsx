@@ -103,8 +103,9 @@ const DownloadForm: FunctionComponent<IDownloadFormProps> = ({
           className={`${baseClass}__button--download`}
           disabled={!selectedInstaller}
           type="submit"
+          isLoading={isCheckingForInstaller}
         >
-          {isCheckingForInstaller ? <Spinner /> : "Download installer"}
+          Download installer
         </Button>
       )}
     </form>
@@ -239,7 +240,7 @@ const DownloadInstallers = ({
           Include&nbsp;
           <TooltipWrapper
             tipContent={
-              "<p>Lightweight application that allows end users<br/> to see information about their device.</p>"
+              "<p>Include Fleet Desktop if your’re adding workstations.</p>"
             }
           >
             Fleet Desktop

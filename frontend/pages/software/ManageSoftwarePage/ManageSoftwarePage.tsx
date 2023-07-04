@@ -9,10 +9,13 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
-import { useDebouncedCallback } from "use-debounce";
+import { RouteProps } from "react-router/lib/Route";
+import { isEmpty, isEqual } from "lodash";
+// import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import {
   IConfig,
   CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
@@ -24,52 +27,53 @@ import {
 } from "interfaces/integration";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { ITeamConfig } from "interfaces/team";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+
 import configAPI from "services/entities/config";
-import softwareAPI from "services/entities/software";
+import softwareAPI, {
+  ISoftwareCountQueryKey,
+  ISoftwareQueryKey,
+} from "services/entities/software";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   GITHUB_NEW_ISSUE_LINK,
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import TableDataError from "components/DataError";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
-import Spinner from "components/Spinner";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/DataError";
-import TeamsDropdownHeader, {
-  ITeamsDropdownState,
-} from "components/PageHeader/TeamsDropdownHeader";
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
-import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TeamsDropdown from "components/TeamsDropdown";
+import { getNextLocationPath } from "utilities/helpers";
+
+import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
-import EmptySoftware from "../components/EmptySoftware";
 
 interface IManageSoftwarePageProps {
+  route: RouteProps;
   router: InjectedRouter;
   location: {
     pathname: string;
-    query: { vulnerable?: string };
+    query: {
+      team_id?: string;
+      vulnerable?: string;
+      page?: string;
+      query?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
+    };
     search: string;
   };
-}
-
-interface ISoftwareQueryKey {
-  scope: string;
-  page: number;
-  perPage: number;
-  query: string;
-  orderKey: string;
-  orderDir?: "asc" | "desc";
-  vulnerable: boolean;
-  teamId?: number;
 }
 
 interface ISoftwareConfigQueryKey {
@@ -86,9 +90,6 @@ interface ISoftwareAutomations {
     zendesk: IZendeskIntegration[];
   };
 }
-interface IHeaderButtonsState extends ITeamsDropdownState {
-  isLoading: boolean;
-}
 
 interface IRowProps extends Row {
   original: {
@@ -102,31 +103,104 @@ const DEFAULT_PAGE_SIZE = 20;
 const baseClass = "manage-software-page";
 
 const ManageSoftwarePage = ({
+  route,
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
+  const routeTemplate = route?.path ?? "";
+  const queryParams = location.query;
   const {
-    availableTeams,
     config: globalConfig,
-    currentTeam,
+    isFreeTier,
+    isGlobalAdmin,
+    isGlobalMaintainer,
     isOnGlobalTeam,
     isPremiumTier,
+    isSandboxMode,
+    noSandboxHosts,
+    filteredSoftwarePath,
+    setFilteredSoftwarePath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
+  const {
+    currentTeamId,
+    isAnyTeamSelected,
+    isRouteOk,
+    teamIdForApi,
+    userTeams,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
+
+  const canManageAutomations =
+    isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
+
   const DEFAULT_SORT_HEADER = isPremiumTier ? "vulnerabilities" : "hosts_count";
 
-  // TODO: refactor usage of vulnerable query param in accordance with new patterns for query params
-  // and management of URL state
-  const [filterVuln, setFilterVuln] = useState(
-    location?.query?.vulnerable === "true" || false
-  );
-  const [searchQuery, setSearchQuery] = useState("");
+  const initialQuery = (() => {
+    let query = "";
+
+    if (queryParams && queryParams.query) {
+      query = queryParams.query;
+    }
+
+    return query;
+  })();
+
+  const initialSortHeader = (() => {
+    let sortHeader = isPremiumTier ? "vulnerabilities" : "hosts_count";
+
+    if (queryParams && queryParams.order_key) {
+      sortHeader = queryParams.order_key;
+    }
+
+    return sortHeader;
+  })();
+
+  const initialSortDirection = ((): "asc" | "desc" | undefined => {
+    let sortDirection = "desc";
+
+    if (queryParams && queryParams.order_direction) {
+      sortDirection = queryParams.order_direction;
+    }
+
+    return sortDirection as "asc" | "desc" | undefined;
+  })();
+
+  const initialPage = (() => {
+    let page = 0;
+
+    if (queryParams && queryParams.page) {
+      page = parseInt(queryParams.page, 10);
+    }
+
+    return page;
+  })();
+
+  const initialVulnFilter = (() => {
+    let isFilteredByVulnerabilities = false;
+
+    if (queryParams && queryParams.vulnerable === "true") {
+      isFilteredByVulnerabilities = true;
+    }
+
+    return isFilteredByVulnerabilities;
+  })();
+
+  const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
-  >(DEFAULT_SORT_DIRECTION);
-  const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
-  const [pageIndex, setPageIndex] = useState(0);
+  >(initialSortDirection);
+  const [sortHeader, setSortHeader] = useState(initialSortHeader);
+  const [page, setPage] = useState(initialPage);
+  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
@@ -134,9 +208,18 @@ const ManageSoftwarePage = ({
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
 
   useEffect(() => {
-    setFilterVuln(location?.query?.vulnerable === "true" || false);
-    // TODO: handle invalid values for vulnerable param
+    setFilterVuln(initialVulnFilter);
+    setPage(initialPage);
+    setSearchQuery(initialQuery);
+    // TODO: handle invalid values for params
   }, [location]);
+
+  useEffect(() => {
+    const path = location.pathname + location.search;
+    if (filteredSoftwarePath !== path) {
+      setFilteredSoftwarePath(path);
+    }
+  }, [filteredSoftwarePath, location, setFilteredSoftwarePath]);
 
   // softwareConfig is either the global config or the team config of the currently selected team
   const {
@@ -150,12 +233,13 @@ const ManageSoftwarePage = ({
     IConfig | ITeamConfig,
     ISoftwareConfigQueryKey[]
   >(
-    [{ scope: "softwareConfig", teamId: currentTeam?.id }],
+    [{ scope: "softwareConfig", teamId: teamIdForApi }],
     ({ queryKey }) => {
       const { teamId } = queryKey[0];
       return teamId ? teamsAPI.load(teamId) : configAPI.loadAll();
     },
     {
+      enabled: isRouteOk,
       select: (data) => ("team" in data ? data.team : data),
     }
   );
@@ -209,25 +293,22 @@ const ManageSoftwarePage = ({
     [
       {
         scope: "software",
-        page: pageIndex,
+        page: tableQueryData?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
-        orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
+        orderDirection: sortDirection,
         // API expects "epss_probability" rather than "vulnerabilities"
         orderKey:
           isPremiumTier && sortHeader === "vulnerabilities"
             ? "epss_probability"
             : sortHeader,
-        teamId: currentTeam?.id,
-        vulnerable: !!location.query.vulnerable,
+        teamId: teamIdForApi,
+        vulnerable: filterVuln,
       },
     ],
     ({ queryKey }) => softwareAPI.load(queryKey[0]),
     {
-      enabled:
-        isSoftwareConfigLoaded &&
-        (isOnGlobalTeam ||
-          !!availableTeams?.find((t) => t.id === currentTeam?.id)),
+      enabled: isRouteOk && isSoftwareConfigLoaded,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -237,28 +318,18 @@ const ManageSoftwarePage = ({
     data: softwareCount,
     error: softwareCountError,
     isFetching: isFetchingCount,
-  } = useQuery<
-    ISoftwareCountResponse,
-    Error,
-    number,
-    Partial<ISoftwareQueryKey>[]
-  >(
+  } = useQuery<ISoftwareCountResponse, Error, number, ISoftwareCountQueryKey[]>(
     [
       {
         scope: "softwareCount",
         query: searchQuery,
-        vulnerable: !!location.query.vulnerable,
-        teamId: currentTeam?.id,
+        vulnerable: filterVuln,
+        teamId: teamIdForApi,
       },
     ],
-    ({ queryKey }) => {
-      return softwareAPI.count(queryKey[0]);
-    },
+    ({ queryKey }) => softwareAPI.count(queryKey[0]),
     {
-      enabled:
-        isSoftwareConfigLoaded &&
-        (isOnGlobalTeam ||
-          !!availableTeams?.find((t) => t.id === currentTeam?.id)),
+      enabled: isRouteOk && isSoftwareConfigLoaded,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
@@ -267,14 +338,23 @@ const ManageSoftwarePage = ({
     }
   );
 
-  const onQueryChange = useDebouncedCallback(
-    async ({
-      pageIndex: newPageIndex,
-      searchQuery: newSearchQuery,
-      sortDirection: newSortDirection,
-      sortHeader: newSortHeader,
-    }: ITableQueryData) => {
-      pageIndex !== newPageIndex && setPageIndex(newPageIndex);
+  // NOTE: this is called once on initial render and every time the query changes
+  const onQueryChange = useCallback(
+    async (newTableQuery: ITableQueryData) => {
+      if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
+        return;
+      }
+
+      setTableQueryData({ ...newTableQuery });
+
+      const {
+        pageIndex,
+        searchQuery: newSearchQuery,
+        sortDirection: newSortDirection,
+      } = newTableQuery;
+      let { sortHeader: newSortHeader } = newTableQuery;
+
+      pageIndex !== page && setPage(pageIndex);
       searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
       sortDirection !== newSortDirection &&
         setSortDirection(
@@ -287,8 +367,44 @@ const ManageSoftwarePage = ({
         newSortHeader = "epss_probability";
       }
       sortHeader !== newSortHeader && setSortHeader(newSortHeader);
+
+      // Rebuild queryParams to dispatch new browser location to react-router
+      const newQueryParams: { [key: string]: string | number | undefined } = {};
+      if (!isEmpty(newSearchQuery)) {
+        newQueryParams.query = newSearchQuery;
+      }
+      newQueryParams.page = pageIndex;
+      newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
+      newQueryParams.order_direction =
+        newSortDirection || DEFAULT_SORT_DIRECTION;
+
+      newQueryParams.vulnerable = filterVuln ? "true" : undefined;
+
+      if (teamIdForApi !== undefined) {
+        newQueryParams.team_id = teamIdForApi;
+      }
+
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_SOFTWARE,
+        routeTemplate,
+        queryParams: newQueryParams,
+      });
+      router.replace(locationPath);
     },
-    300
+    [
+      isRouteOk,
+      teamIdForApi,
+      tableQueryData,
+      page,
+      searchQuery,
+      sortDirection,
+      isPremiumTier,
+      sortHeader,
+      DEFAULT_SORT_HEADER,
+      filterVuln,
+      routeTemplate,
+      router,
+    ]
   );
 
   const toggleManageAutomationsModal = useCallback(() => {
@@ -325,48 +441,42 @@ const ManageSoftwarePage = ({
     }
   };
 
-  const onTeamSelect = () => {
-    setPageIndex(0);
-  };
-
-  // TODO: refactor/replace team dropdown header component in accordance with new patterns
-  const renderHeaderButtons = useCallback(
-    (state: IHeaderButtonsState): JSX.Element | null => {
-      const {
-        teamId,
-        isLoading,
-        isGlobalAdmin,
-        isPremiumTier: isPremium,
-      } = state;
-      const canManageAutomations =
-        isGlobalAdmin && (!isPremium || teamId === 0);
-      if (canManageAutomations && !softwareError && !isLoading) {
-        return (
-          <Button
-            onClick={toggleManageAutomationsModal}
-            className={`${baseClass}__manage-automations button`}
-            variant="brand"
-          >
-            <span>Manage automations</span>
-          </Button>
-        );
-      }
-      return null;
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamChange(teamId);
+      setPage(0);
     },
-    [softwareError, toggleManageAutomationsModal]
+    [handleTeamChange]
   );
 
-  // TODO: refactor/replace team dropdown header component in accordance with new patterns
-  const renderHeaderDescription = (state: ITeamsDropdownState) => {
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData(
+      (prevState) =>
+        ({
+          ...prevState,
+          pageIndex: 0,
+        } as ITableQueryData)
+    );
+    setResetPageIndex(true);
+  };
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    // TODO: cleanup this effect
+    setResetPageIndex(false);
+  }, [queryParams]);
+
+  const renderHeaderDescription = () => {
     return (
       <p>
         Search for installed software{" "}
-        {(state.isGlobalAdmin || state.isGlobalMaintainer) &&
-          (!state.isPremiumTier || state.teamId === 0) &&
+        {(isGlobalAdmin || isGlobalMaintainer) &&
+          (!isPremiumTier || !isAnyTeamSelected) &&
           "and manage automations for detected vulnerabilities (CVEs)"}{" "}
         on{" "}
         <b>
-          {state.isPremiumTier && !!state.teamId
+          {isPremiumTier && isAnyTeamSelected
             ? "all hosts assigned to this team"
             : "all of your hosts"}
         </b>
@@ -374,26 +484,6 @@ const ManageSoftwarePage = ({
       </p>
     );
   };
-
-  // TODO: refactor/replace team dropdown header component in accordance with new patterns
-  const renderHeader = useCallback(() => {
-    return (
-      <TeamsDropdownHeader
-        location={location}
-        router={router}
-        baseClass={baseClass}
-        onChange={onTeamSelect}
-        defaultTitle="Software"
-        description={renderHeaderDescription}
-        buttons={(state) =>
-          renderHeaderButtons({
-            ...state,
-            isLoading: !isSoftwareConfigLoaded,
-          })
-        }
-      />
-    );
-  }, [router, location, isSoftwareConfigLoaded, renderHeaderButtons]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
@@ -436,45 +526,21 @@ const ManageSoftwarePage = ({
     isSoftwareEnabled,
   ]);
 
-  // TODO: refactor in accordance with new patterns for query params and management of URL state
-  const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
-    queryString = queryString.startsWith("?")
-      ? queryString.slice(1)
-      : queryString;
-    const queryParams = queryString.split("&").filter((el) => el.includes("="));
-    const index = queryParams.findIndex((el) => el.includes("vulnerable"));
+  const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+    handleResetPageIndex();
 
-    if (vulnerable) {
-      const vulnParam = `vulnerable=${vulnerable}`;
-      if (index >= 0) {
-        // replace old vuln param
-        queryParams.splice(index, 1, vulnParam);
-      } else {
-        // add new vuln param
-        queryParams.push(vulnParam);
-      }
-    } else {
-      // remove old vuln param
-      index >= 0 && queryParams.splice(index, 1);
-    }
-    queryString = queryParams.length ? "?".concat(queryParams.join("&")) : "";
-
-    return queryString;
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_SOFTWARE,
+        routeTemplate,
+        queryParams: {
+          ...queryParams,
+          vulnerable: isFilterVulnerable,
+          page: 0, // resets page index
+        },
+      })
+    );
   };
-
-  // TODO: refactor in accordance with new patterns for query params and management of URL state
-  const onVulnFilterChange = useCallback(
-    (vulnerable: boolean) => {
-      setFilterVuln(vulnerable);
-      setPageIndex(0);
-      const queryString = buildUrlQueryString(location?.search, vulnerable);
-      if (location?.search !== queryString) {
-        const path = location?.pathname?.concat(queryString);
-        !!path && router.replace(path);
-      }
-    },
-    [location, router]
-  );
 
   const renderVulnFilterDropdown = () => {
     return (
@@ -483,7 +549,7 @@ const ManageSoftwarePage = ({
         className={`${baseClass}__vuln_dropdown`}
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
-        onChange={onVulnFilterChange}
+        onChange={handleVulnFilterDropdownChange}
       />
     );
   };
@@ -506,79 +572,142 @@ const ManageSoftwarePage = ({
   const isCollectingInventory =
     !searchQuery &&
     !filterVuln &&
-    !currentTeam?.id &&
-    !pageIndex &&
+    page === 0 &&
     !software?.software &&
     software?.counts_updated_at === null;
 
   const isLastPage =
+    tableQueryData &&
     !!softwareCount &&
-    DEFAULT_PAGE_SIZE * pageIndex + (software?.software?.length || 0) >=
+    DEFAULT_PAGE_SIZE * page + (software?.software?.length || 0) >=
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(router, isPremiumTier),
-    [isPremiumTier, router]
+    () =>
+      generateSoftwareTableHeaders(
+        router,
+        isPremiumTier,
+        isSandboxMode,
+        currentTeamId
+      ),
+    [isPremiumTier, isSandboxMode, router, currentTeamId]
   );
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = { software_id: row.original.id };
+    const hostsBySoftwareParams = {
+      software_id: row.original.id,
+      team_id: currentTeamId,
+    };
 
-    const path = queryParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
+    const path = hostsBySoftwareParams
+      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
+          hostsBySoftwareParams
+        )}`
       : PATHS.MANAGE_HOSTS;
 
     router.push(path);
   };
 
-  return !availableTeams ||
-    !globalConfig ||
-    (!softwareConfig && !softwareConfigError) ? (
-    <Spinner />
-  ) : (
+  const searchable =
+    isSoftwareEnabled &&
+    (!!software?.software ||
+      searchQuery !== "" ||
+      queryParams.vulnerable === "true");
+
+  const renderSoftwareTable = () => {
+    if (
+      isFetchingCount ||
+      isFetchingSoftware ||
+      !globalConfig ||
+      (!softwareConfig && !softwareConfigError)
+    ) {
+      return <Spinner />;
+    }
+    if (
+      (softwareError && !isFetchingSoftware) ||
+      (softwareConfigError && !isFetchingSoftwareConfig)
+    ) {
+      return <TableDataError />;
+    }
+    return (
+      <TableContainer
+        columns={softwareTableHeaders}
+        data={(isSoftwareEnabled && software?.software) || []}
+        isLoading={false}
+        resultsTitle={"software items"}
+        emptyComponent={() => (
+          <EmptySoftwareTable
+            isSoftwareDisabled={!isSoftwareEnabled}
+            isFilterVulnerable={filterVuln}
+            isSandboxMode={isSandboxMode}
+            isCollectingSoftware={isCollectingInventory}
+            isSearching={searchQuery !== ""}
+            noSandboxHosts={noSandboxHosts}
+          />
+        )}
+        defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+        defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+        defaultPageIndex={page || 0}
+        defaultSearchQuery={searchQuery}
+        manualSortBy
+        pageSize={DEFAULT_PAGE_SIZE}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        resetPageIndex={resetPageIndex}
+        disableNextPage={isLastPage}
+        searchable={searchable}
+        inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
+        onQueryChange={onQueryChange}
+        additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
+        // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
+        // the TableContainer
+        customControl={searchable ? renderVulnFilterDropdown : undefined}
+        stackControls
+        renderCount={renderSoftwareCount}
+        renderFooter={renderTableFooter}
+        disableMultiRowSelect
+        onSelectSingleRow={handleRowSelect}
+      />
+    );
+  };
+
+  return (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
-        {renderHeader()}
-        <div className={`${baseClass}__table`}>
-          {(softwareError && !isFetchingSoftware) ||
-          (softwareConfigError && !isFetchingSoftwareConfig) ? (
-            <TableDataError />
-          ) : (
-            <TableContainer
-              columns={softwareTableHeaders}
-              data={(isSoftwareEnabled && software?.software) || []}
-              isLoading={isFetchingSoftware || isFetchingCount}
-              resultsTitle={"software items"}
-              emptyComponent={() =>
-                EmptySoftware(
-                  (!isSoftwareEnabled && "disabled") ||
-                    (isCollectingInventory && "collecting") ||
-                    "default"
-                )
-              }
-              defaultSortHeader={DEFAULT_SORT_HEADER}
-              defaultSortDirection={DEFAULT_SORT_DIRECTION}
-              manualSortBy
-              pageSize={DEFAULT_PAGE_SIZE}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              disableNextPage={isLastPage}
-              searchable
-              inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
-              onQueryChange={onQueryChange}
-              additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
-              // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
-              // the TableContainer
-              customControl={renderVulnFilterDropdown}
-              stackControls
-              renderCount={renderSoftwareCount}
-              renderFooter={renderTableFooter}
-              disableActionButton
-              hideActionButton
-              disableMultiRowSelect
-              onSelectSingleRow={handleRowSelect}
-            />
+        <div className={`${baseClass}__header-wrap`}>
+          <div className={`${baseClass}__header`}>
+            <div className={`${baseClass}__text`}>
+              <div className={`${baseClass}__title`}>
+                {isFreeTier && <h1>Software</h1>}
+                {isPremiumTier &&
+                  ((userTeams && userTeams.length > 1) || isOnGlobalTeam) && (
+                    <TeamsDropdown
+                      currentUserTeams={userTeams || []}
+                      selectedTeamId={currentTeamId}
+                      onChange={onTeamChange}
+                      isSandboxMode={isSandboxMode}
+                    />
+                  )}
+                {isPremiumTier &&
+                  !isOnGlobalTeam &&
+                  userTeams &&
+                  userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
+              </div>
+            </div>
+          </div>
+          {canManageAutomations && !softwareError && isSoftwareConfigLoaded && (
+            <Button
+              onClick={toggleManageAutomationsModal}
+              className={`${baseClass}__manage-automations button`}
+              variant="brand"
+            >
+              <span>Manage automations</span>
+            </Button>
           )}
         </div>
+        <div className={`${baseClass}__description`}>
+          {renderHeaderDescription()}
+        </div>
+        <div className={`${baseClass}__table`}>{renderSoftwareTable()}</div>
         {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}

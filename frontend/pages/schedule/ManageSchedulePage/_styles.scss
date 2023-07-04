@@ -60,14 +60,6 @@
     align-items: flex-start;
   }
 
-  .button {
-    font-size: $x-small;
-
-    img {
-      transform: scale(0.5);
-    }
-  }
-
   &__advanced-button {
     margin-right: $pad-medium;
   }
@@ -100,6 +92,7 @@
         tbody {
           .query_name__cell {
             width: $col-lg;
+            max-width: 175px; // Truncates at smaller widths
           }
           .interval__cell {
             width: auto;
@@ -116,109 +109,8 @@
       }
     }
 
-    &__empty-table {
-      text-align: center;
-      font-size: $x-small;
-      color: $core-fleet-black;
-    }
-  }
-
-  .no-schedule {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding-top: $pad-xxxlarge;
-
-    h1 {
-      font-size: $large;
-      font-weight: $regular;
-      line-height: normal;
-      letter-spacing: normal;
-      color: $core-fleet-black;
-    }
-
-    h2 {
-      font-size: $small;
-      font-weight: $bold;
-      margin: 0 0 $pad-large;
-      line-height: 20px;
-      color: $core-fleet-black;
-    }
-
-    ul {
-      margin: 0;
-      padding: 0;
-      color: $core-fleet-black;
-      list-style: none;
-
-      li {
-        &::before {
-          content: "•";
-          color: $core-vibrant-blue;
-          margin-right: $pad-medium;
-        }
-      }
-    }
-
-    &__inner {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-
-      h1 {
-        font-size: $small;
-        font-weight: $bold;
-        margin-bottom: $pad-medium;
-      }
-
-      img {
-        width: 322px;
-      }
-
-      p {
-        color: $core-fleet-black;
-        font-weight: $regular;
-        font-size: $x-small;
-        margin: 0;
-        margin-bottom: $pad-large;
-      }
-
-      .no-filter-results {
-        display: flex;
-        flex-direction: column;
-        width: 350px;
-      }
-    }
-
-    &__inner-text {
-      width: 400px;
-      padding: $pad-xxlarge 0;
-    }
-
-    &__schedule-button {
-      margin-right: $pad-medium;
-    }
-
-    .query-pagination__pager-wrap {
-      margin-top: $pad-medium;
-    }
-
-    &__no-hosts-contact {
-      text-align: left;
-      margin-top: $pad-large;
-
-      p {
-        color: $core-fleet-black;
-        font-weight: $bold;
-        font-size: $x-small;
-        margin: 0;
-      }
-    }
-
-    &__cta-buttons {
-      display: flex;
-      justify-content: center;
+    .empty-table__container {
+      max-width: 465px; // Fixes wider font causing orphaned word on all teams empty state
     }
   }
 

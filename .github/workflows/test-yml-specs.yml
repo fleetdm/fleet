@@ -1,0 +1,49 @@
+name: Test yml specs
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+    paths:
+      - 'ee/cis/**.yml'
+      - '.github/workflows/test-yml-specs.yml'
+  pull_request:
+    paths:
+      - 'ee/cis/**.yml'
+      - '.github/workflows/test-yml-specs.yml'
+  workflow_dispatch: # Manual
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  test-yml-specs:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        go-version: ['^1.19.10']
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v4.0.1
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+
+    - name: Run apply spec tests
+      run: |
+        go test -v ./pkg/spec/...

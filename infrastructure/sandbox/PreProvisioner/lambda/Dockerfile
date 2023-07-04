@@ -1,4 +1,4 @@
-FROM rust:latest AS builder
+FROM rust:latest@sha256:02a53e734724bef4a58d856c694f826aa9e7ea84353516b76d9a6d241e9da60e AS builder
 
 ARG transporter_url=https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/resources/download/public/Transporter__Linux/bin
 
@@ -6,7 +6,7 @@ RUN cargo install --version 0.16.0 apple-codesign \
   && curl -sSf $transporter_url -o transporter_install.sh \
   && sh transporter_install.sh --target transporter --accept --noexec
 
-FROM golang:1.19.4-bullseye
+FROM golang:1.19.10-bullseye@sha256:0a2cfaee31baf5363dc433adc23c2c8ec395e9c456f5c42e8b725dfb8efb2ced
 
 RUN apt-get update \
   && dpkg --add-architecture i386 \

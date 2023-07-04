@@ -5,7 +5,7 @@ import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import Button from "components/buttons/Button";
 import helpers from "components/forms/RegistrationForm/FleetDetails/helpers";
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import InputField from "components/forms/fields/InputField";
 
 const formFields = ["server_url"];
 const { validate } = helpers;
@@ -36,14 +36,14 @@ class FleetDetails extends Component {
 
   render() {
     const { className, currentPage, fields, handleSubmit } = this.props;
-    const tabIndex = currentPage ? 1 : -1;
+    const tabIndex = currentPage ? 0 : -1;
 
     return (
       <form onSubmit={handleSubmit} className={className} autoComplete="off">
         <div className="registration-fields">
-          <InputFieldWithIcon
+          <InputField
             {...fields.server_url}
-            placeholder="Fleet web address"
+            label="Fleet web address"
             tabIndex={tabIndex}
             hint={[
               "Don’t include ",

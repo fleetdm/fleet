@@ -1,7 +1,6 @@
 .user-menu {
   button {
     background-color: transparent;
-    height: 50px;
 
     &.focus-visible {
       border: 1px solid $ui-vibrant-blue-10;
@@ -27,7 +26,7 @@
 
     .dropdown-button__option:last-child,
     .dropdown-button__option:nth-last-child(2) {
-      border-top: 1px solid $ui-fleet-blue-15;
+      border-top: 1px solid $ui-fleet-black-10;
     }
   }
 }

@@ -34,7 +34,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-const defaultTableHeaders = [
+const generateDefaultTableHeaders = (teamId?: number): IDataColumn[] => [
   {
     title: "Name",
     Header: "Name",
@@ -74,8 +74,9 @@ const defaultTableHeaders = [
           <span className="hosts-cell__link">
             <ViewAllHostsLink
               queryParams={{
-                os_name: encodeURIComponent(name_only),
-                os_version: encodeURIComponent(version),
+                os_name: name_only,
+                os_version: version,
+                team_id: teamId,
               }}
               className="os-hosts-link"
             />
@@ -86,8 +87,16 @@ const defaultTableHeaders = [
   },
 ];
 
-const generateTableHeaders = (): IDataColumn[] => {
-  return defaultTableHeaders;
+const generateTableHeaders = (
+  includeName: boolean,
+  teamId?: number
+): IDataColumn[] => {
+  if (!includeName) {
+    return generateDefaultTableHeaders(teamId).filter(
+      (column) => column.title !== "Name"
+    );
+  }
+  return generateDefaultTableHeaders(teamId);
 };
 
 export default generateTableHeaders;

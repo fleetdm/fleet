@@ -131,7 +131,7 @@ resource "aws_lambda_function" "jitprovisioner" {
   role                           = aws_iam_role.jitprovisioner.arn
   reserved_concurrent_executions = -1
   kms_key_arn                    = var.kms_key.arn
-  timeout                        = 10
+  timeout                        = 5
   memory_size                    = 512
   vpc_config {
     security_group_ids = [aws_security_group.jitprovisioner.id]
@@ -151,6 +151,44 @@ resource "aws_lambda_function" "jitprovisioner" {
   }
 }
 
+module "jitprovisioner-lambda-warmer" {
+  source        = "Nuagic/lambda-warmer/aws"
+  version       = "3.0.1"
+  function_name = aws_lambda_function.jitprovisioner.function_name
+  function_arn  = aws_lambda_function.jitprovisioner.arn
+# This just needs to have a request to parse.
+  input         = <<EOINPUT
+{
+    "requestContext": {
+        "elb": {
+            "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/lambda-279XGJDqGZ5rsrHC2Fjr/49e9d65c45c6791a"
+        }
+    },
+    "httpMethod": "GET",
+    "path": "/health",
+    "queryStringParameters": {
+        "query": "1234ABCD"
+    },
+    "multiValueHeaders": {
+        "accept": ["text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"],
+        "accept-encoding": ["gzip"],
+        "accept-language": ["en-US,en;q=0.9"],
+        "connection": ["keep-alive"],
+        "host": ["lambda-alb-123578498.us-east-2.elb.amazonaws.com"],
+        "upgrade-insecure-requests": ["1"],
+        "user-agent": ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"],
+        "x-amzn-trace-id": ["Root=1-5c536348-3d683b8b04734faae651f476"],
+        "x-forwarded-for": ["72.12.164.125"],
+        "x-forwarded-port": ["80"],
+        "x-forwarded-proto": ["http"],
+        "x-imforwards": ["20"]
+    },
+    "body": "",
+    "isBase64Encoded": false
+}
+EOINPUT
+}
+
 resource "random_password" "authorization" {
   length  = 16
   special = false
@@ -166,9 +204,23 @@ resource "random_uuid" "jitprovisioner" {
   }
 }
 
-resource "local_file" "standard-query-library" {
-  content  = file("${path.module}/../../../docs/01-Using-Fleet/standard-query-library/standard-query-library.yml")
-  filename = "${path.module}/lambda/standard-query-library.yml"
+# Use the local to make the trigger work.
+locals {
+  fleet_tag = "v4.33.1"
+}
+
+resource "null_resource" "standard-query-library" {
+  triggers = {
+    # Trick this to run if the file doesn't exist or if tag changes.
+    # In the case it doesn't exist, this will say it needs to apply twice,
+    # so not truly idempotent, but as close as null_resource allows.
+    file_exists = fileexists("${path.module}/lambda/standard-query-library.yml") ? local.fleet_tag : timestamp()
+  }
+
+  provisioner "local-exec" {
+    working_dir = "${path.module}/../../../"
+    command     = "git archive fleet-${local.fleet_tag} docs/01-Using-Fleet/standard-query-library/standard-query-library.yml | tar -xO docs/01-Using-Fleet/standard-query-library/standard-query-library.yml > infrastructure/sandbox/JITProvisioner/lambda/standard-query-library.yml"
+  }
 }
 
 data "archive_file" "jitprovisioner" {
@@ -176,7 +228,7 @@ data "archive_file" "jitprovisioner" {
   output_path = "${path.module}/.jitprovisioner.zip"
   source_dir  = "${path.module}/lambda"
   depends_on = [
-    local_file.standard-query-library
+    null_resource.standard-query-library
   ]
 }
 
@@ -190,7 +242,7 @@ resource "docker_registry_image" "jitprovisioner" {
     platform    = "linux/amd64"
   }
   depends_on = [
-    local_file.standard-query-library
+    null_resource.standard-query-library
   ]
 }
 

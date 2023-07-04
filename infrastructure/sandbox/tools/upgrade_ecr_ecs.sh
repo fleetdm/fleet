@@ -28,12 +28,15 @@ case "$(uname)" in
 esac
 
 # TF_VAR_slack_webhook is redundant, but let's provide a common
-# interface.
+# interface.  Since we tag Sandcastle builds separate from the
+# released version, we need the separate ECR_IMAGE_VERSION
+# variable.
 
 EXPECTED_VARIABLES=(
 	TF_VAR_slack_webhook
 	CLOUDFLARE_API_TOKEN
 	FLEET_VERSION
+	ECR_IMAGE_VERSION
 )
 
 for VARIABLE in ${EXPECTED_VARIABLES[@]}; do
@@ -41,7 +44,7 @@ for VARIABLE in ${EXPECTED_VARIABLES[@]}; do
 done
 
 FLEET_ECR_REPO="411315989055.dkr.ecr.us-east-2.amazonaws.com"
-FLEET_ECR_IMAGE="${FLEET_ECR_REPO:?}/sandbox-prod-eks:${FLEET_VERSION:?}"
+FLEET_ECR_IMAGE="${FLEET_ECR_REPO:?}/sandbox-prod-eks:${ECR_IMAGE_VERSION:?}"
 FLEET_DOCKERHUB_IMAGE="fleetdm/fleet:${FLEET_VERSION:?}"
 
 pushd "$(dirname ${0})/.."
@@ -56,7 +59,15 @@ docker tag "${FLEET_DOCKERHUB_IMAGE:?}" "${FLEET_ECR_IMAGE:?}"
 docker push "${FLEET_ECR_IMAGE:?}"
 
 # Update the terraform to deploy FLEET_VERSION.  Requires gsed on Darwin!
-${SED:?} -i '/name  = "imageTag"/!b;n;c\    value = "'${FLEET_VERSION:?}'"' PreProvisioner/lambda/deploy_terraform/main.tf
+# This assumes the ECR_IMAGE_VERSION matches "fleet-${ECR_IMAGE_VERSION}".
+# If this is not correct for any reason, this will fail.  Manually correct
+# and apply.
+
+${SED:?} -i '/name  = "imageTag"/!b;n;c\    value = "'${ECR_IMAGE_VERSION:?}'"' PreProvisioner/lambda/deploy_terraform/main.tf
+${SED:?} -i 's/^\(  fleet_tag = \).*/\1"'${ECR_IMAGE_VERSION:?}'"/g' JITProvisioner/jitprovisioner.tf
+
+# Before running terraform, clean up the deprovisioner just in case
+rm -rf ./JITProvisioner/deprovisioner/deploy_terraform/.terraform
 
 terraform init --backend-config=backend-prod.conf
 

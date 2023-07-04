@@ -69,9 +69,10 @@ type Locker interface {
 
 // CronStatsStore allows a Schedule to store and retrieve statistics pertaining to the Schedule
 type CronStatsStore interface {
-	// GetLatestCronStats returns the most recent cron stats for the named cron schedule. If no rows
-	// are found, it returns an empty CronStats struct
-	GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error)
+	// GetLatestCronStats returns a slice of no more than two cron stats records, where index 0 (if
+	// present) is the most recently created scheduled run, and index 1 (if present) represents a
+	// triggered run that is currently pending.
+	GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error)
 	// InsertCronStats inserts cron stats for the named cron schedule
 	InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record
@@ -151,6 +152,10 @@ func New(
 	for _, fn := range opts {
 		fn(sch)
 	}
+	if sch.logger == nil {
+		sch.logger = log.NewNopLogger()
+	}
+	sch.logger = log.With(sch.logger, "instanceID", instanceID)
 	return sch
 }
 
@@ -158,13 +163,13 @@ func New(
 //
 // All jobs must be added before calling Start.
 func (s *Schedule) Start() {
-	prevStats, err := s.getLatestStats()
+	prevScheduledRun, _, err := s.getLatestStats()
 	if err != nil {
 		level.Error(s.logger).Log("err", "start schedule", "details", err)
 		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
-	s.setIntervalStartedAt(prevStats.CreatedAt)
+	s.setIntervalStartedAt(prevScheduledRun.CreatedAt)
 
 	initialWait := 10 * time.Second
 	if schedInterval := s.getSchedInterval(); schedInterval < initialWait {
@@ -181,7 +186,7 @@ func (s *Schedule) Start() {
 		}()
 
 		for {
-			level.Debug(s.logger).Log("waiting", fmt.Sprintf("%v remaining until next tick", s.getRemainingInterval(s.intervalStartedAt)))
+			level.Debug(s.logger).Log("msg", fmt.Sprintf("%v remaining until next tick", s.getRemainingInterval(s.intervalStartedAt)))
 
 			select {
 			case <-s.ctx.Done():
@@ -190,23 +195,50 @@ func (s *Schedule) Start() {
 				return
 
 			case <-s.trigger:
-				level.Debug(s.logger).Log("waiting", "done, trigger received")
+				level.Debug(s.logger).Log("msg", "done, trigger received")
 
 				ok, cancelHold := s.holdLock()
 				if !ok {
 					level.Debug(s.logger).Log("msg", "unable to acquire lock")
 					continue
 				}
+
 				s.runWithStats(fleet.CronStatsTypeTriggered)
+
+				prevScheduledRun, _, err := s.getLatestStats()
+				if err != nil {
+					level.Error(s.logger).Log("err", "trigger get cron stats", "details", err)
+					sentry.CaptureException(err)
+					ctxerr.Handle(s.ctx, err)
+				}
+
 				clearScheduleChannels(s.trigger, schedTicker.C) // in case another signal arrived during this run
+
+				intervalStartedAt := s.getIntervalStartedAt()
+				if prevScheduledRun.CreatedAt.After(intervalStartedAt) {
+					// if there's a diff between the datastore and our local value, we use the
+					// more recent timestamp and update our local value accordingly
+					s.setIntervalStartedAt(prevScheduledRun.CreatedAt)
+					intervalStartedAt = s.getIntervalStartedAt()
+				}
+
+				// if the triggered run spanned the schedule interval, we need to wait until the start of the next full interval
+				schedInterval := s.getSchedInterval()
+				if time.Since(intervalStartedAt) > schedInterval+1*time.Second { // we use 2s tolerance here because MySQL timestamps are truncated to 1s
+					newStart := intervalStartedAt.Add(time.Since(intervalStartedAt).Truncate(schedInterval)) // advances start time by the number of full interval elasped
+					s.setIntervalStartedAt(newStart)
+					schedTicker.Reset(s.getRemainingInterval(newStart))
+					level.Debug(s.logger).Log("msg", fmt.Sprintf("triggered run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
+				}
+
 				cancelHold()
 
 			case <-schedTicker.C:
-				level.Debug(s.logger).Log("waiting", "done, tick received")
+				level.Debug(s.logger).Log("msg", "done, tick received")
 
 				schedInterval := s.getSchedInterval()
 
-				stats, err := s.getLatestStats()
+				prevScheduledRun, prevTriggeredRun, err := s.getLatestStats()
 				if err != nil {
 					level.Error(s.logger).Log("err", "get cron stats", "details", err)
 					sentry.CaptureException(err)
@@ -216,33 +248,35 @@ func (s *Schedule) Start() {
 					continue
 				}
 
-				if stats.Status == fleet.CronStatsStatusPending {
+				if prevScheduledRun.Status == fleet.CronStatsStatusPending || prevTriggeredRun.Status == fleet.CronStatsStatusPending {
 					// skip ahead to the next interval
+					level.Info(s.logger).Log("msg", fmt.Sprintf("pending job might still be running, wait %v", schedInterval))
 					schedTicker.Reset(schedInterval)
 					continue
 				}
 
-				prevStart := s.getIntervalStartedAt()
-				if stats.CreatedAt.After(prevStart) {
+				intervalStartedAt := s.getIntervalStartedAt()
+				if prevScheduledRun.CreatedAt.After(intervalStartedAt) {
 					// if there's a diff between the datastore and our local value, we use the
 					// more recent timestamp and update our local value accordingly
-					s.setIntervalStartedAt(stats.CreatedAt)
-					prevStart = s.getIntervalStartedAt()
+					s.setIntervalStartedAt(prevScheduledRun.CreatedAt)
+					intervalStartedAt = s.getIntervalStartedAt()
 				}
 
-				if time.Since(prevStart) < schedInterval {
+				if time.Since(intervalStartedAt) < schedInterval {
 					// wait for the remaining interval plus a small buffer
-					schedTicker.Reset(s.getRemainingInterval(prevStart) + 100*time.Millisecond)
+					newWait := s.getRemainingInterval(intervalStartedAt) + 100*time.Millisecond
+					level.Info(s.logger).Log("msg", fmt.Sprintf("wait remaining interval %v", newWait))
+					schedTicker.Reset(newWait)
 					continue
 				}
 
-				prevFinish := stats.UpdatedAt.Truncate(time.Second)
-				prevRuntime := prevFinish.Sub(prevStart)
-				if prevRuntime > schedInterval {
-					// if the previous run took longer than the schedule interval, we wait until the start of the next full interval
-					newStart := prevStart.Add(time.Since(prevStart).Truncate(schedInterval)) // advances start time by the number of full interval elasped
+				// if the previous run took longer than the schedule interval, we wait until the start of the next full interval
+				if time.Since(intervalStartedAt) > schedInterval+2*time.Second { // we use a 2s tolerance here because MySQL timestamps are truncated to 1s
+					newStart := intervalStartedAt.Add(time.Since(intervalStartedAt).Truncate(schedInterval)) // advances start time by the number of full interval elasped
 					s.setIntervalStartedAt(newStart)
 					schedTicker.Reset(s.getRemainingInterval(newStart))
+					level.Debug(s.logger).Log("msg", fmt.Sprintf("prior run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
 					continue
 				}
 
@@ -272,6 +306,7 @@ func (s *Schedule) Start() {
 					s.setIntervalStartedAt(newStart)
 				}
 				clearScheduleChannels(s.trigger, schedTicker.C) // in case another signal arrived during this run
+
 				schedTicker.Reset(s.getRemainingInterval(newStart))
 				cancelHold()
 			}
@@ -343,12 +378,16 @@ func (s *Schedule) Start() {
 // is blocked or otherwise unavailable to publish the signal. From the caller's perspective, both
 // cases are deemed to be equivalent.
 func (s *Schedule) Trigger() (*fleet.CronStats, error) {
-	stats, err := s.getLatestStats()
-	if err != nil {
+	sched, trig, err := s.getLatestStats()
+	switch {
+	case err != nil:
 		return nil, err
-	}
-	if stats.Status == fleet.CronStatsStatusPending {
-		return &stats, nil
+	case sched.Status == fleet.CronStatsStatusPending:
+		return &sched, nil
+	case trig.Status == fleet.CronStatsStatusPending:
+		return &trig, nil
+	default:
+		// ok
 	}
 
 	select {
@@ -450,7 +489,7 @@ func (s *Schedule) setIntervalStartedAt(start time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.intervalStartedAt = start.Truncate(time.Second)
+	s.intervalStartedAt = start.Truncate(1 * time.Second)
 }
 
 // getRemainingInterval returns the interval minus the remainder of dividing the time since state by
@@ -517,8 +556,29 @@ func (s *Schedule) holdLock() (bool, context.CancelFunc) {
 	return true, cancelFn
 }
 
-func (s *Schedule) getLatestStats() (fleet.CronStats, error) {
-	return s.statsStore.GetLatestCronStats(s.ctx, s.name)
+func (s *Schedule) getLatestStats() (fleet.CronStats, fleet.CronStats, error) {
+	var scheduled, triggered fleet.CronStats
+
+	cs, err := s.statsStore.GetLatestCronStats(s.ctx, s.name)
+	if err != nil {
+		return fleet.CronStats{}, fleet.CronStats{}, err
+	}
+	if len(cs) > 2 {
+		return fleet.CronStats{}, fleet.CronStats{}, fmt.Errorf("get latest stats expected length to be no more than two but got length: %d", len(cs))
+	}
+
+	for _, stats := range cs {
+		switch stats.StatsType {
+		case fleet.CronStatsTypeScheduled:
+			scheduled = stats
+		case fleet.CronStatsTypeTriggered:
+			triggered = stats
+		default:
+			level.Error(s.logger).Log("msg", fmt.Sprintf("get latest stats unexpected type: %s", stats.StatsType))
+		}
+	}
+
+	return scheduled, triggered, nil
 }
 
 func (s *Schedule) insertStats(statsType fleet.CronStatsType, status fleet.CronStatsStatus) (int, error) {

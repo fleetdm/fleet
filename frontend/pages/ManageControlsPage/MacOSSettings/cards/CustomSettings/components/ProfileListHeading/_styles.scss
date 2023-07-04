@@ -1,0 +1,11 @@
+.profile-list-heading {
+  display: flex;
+  justify-content: space-between;
+  font-size: $x-small;
+  font-weight: $bold;
+
+  &__actions-heading {
+    text-align: right;
+    margin-right: 40px; // align with left side of buttons below it
+  }
+}

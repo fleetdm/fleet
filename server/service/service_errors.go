@@ -1,23 +1,37 @@
 package service
 
-type alreadyExistsError struct{}
+import "github.com/fleetdm/fleet/v4/server/fleet"
 
-func (a alreadyExistsError) Error() string {
+type alreadyExistsError struct {
+	fleet.ErrorWithUUID
+}
+
+func (a *alreadyExistsError) Error() string {
 	return "Entity already exists"
 }
 
-func (a alreadyExistsError) IsExists() bool {
+func (a *alreadyExistsError) IsExists() bool {
 	return true
 }
 
-type notFoundError struct{}
+func newAlreadyExistsError() *alreadyExistsError {
+	return &alreadyExistsError{}
+}
 
-func (e notFoundError) Error() string {
+type notFoundError struct {
+	fleet.ErrorWithUUID
+}
+
+func (e *notFoundError) Error() string {
 	return "not found"
 }
 
-func (e notFoundError) IsNotFound() bool {
+func (e *notFoundError) IsNotFound() bool {
 	return true
+}
+
+func newNotFoundError() *notFoundError {
+	return &notFoundError{}
 }
 
 // ssoErrCode defines a code for the type of SSO error that occurred. This is
@@ -38,12 +52,21 @@ const (
 type ssoError struct {
 	err  error
 	code ssoErrCode
+
+	fleet.ErrorWithUUID
 }
 
-func (e ssoError) Error() string {
+func newSSOError(err error, code ssoErrCode) *ssoError {
+	return &ssoError{
+		err:  err,
+		code: code,
+	}
+}
+
+func (e *ssoError) Error() string {
 	return string(e.code) + ": " + e.err.Error()
 }
 
-func (e ssoError) Unwrap() error {
+func (e *ssoError) Unwrap() error {
 	return e.err
 }

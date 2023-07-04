@@ -87,31 +87,44 @@ const QuertResultsHeading = ({
   return (
     <div className={`${baseClass}`}>
       <h1>{pageTitle}</h1>
-      <div className={`${baseClass}__targeted-wrapper`}>
-        <span className={`${baseClass}__targeted-count`}>
-          {targetsTotalCount}
-        </span>
-        <span>&nbsp;{pluralizeHost(targetsTotalCount)} targeted</span>
-      </div>
-      <div className={`${baseClass}__percent-responded`}>
-        {!isQueryFinished && <span>Fleet is talking to your hosts,&nbsp;</span>}
-        <span>
-          ({`${percentResponded}% `}
-          <TooltipWrapper
-            tipContent={`
+      <div className={`${baseClass}__query-information`}>
+        <div className={`${baseClass}__targeted-wrapper`}>
+          <span className={`${baseClass}__targeted-count`}>
+            {targetsTotalCount}
+          </span>
+          <span>&nbsp;{pluralizeHost(targetsTotalCount)} targeted</span>
+        </div>
+        <div className={`${baseClass}__percent-responded`}>
+          {!isQueryFinished && (
+            <span>Fleet is talking to your hosts,&nbsp;</span>
+          )}
+          <span>
+            ({`${percentResponded}% `}
+            <TooltipWrapper
+              tipContent={`
                 Hosts that respond may<br /> return results, errors, or <br />no results`}
-          >
-            responded
-          </TooltipWrapper>
-          )
-        </span>
+            >
+              responded
+            </TooltipWrapper>
+            )
+          </span>
+          {!isQueryFinished && (
+            <Spinner
+              size="x-small"
+              centered={false}
+              includeContainer={false}
+              className={`${baseClass}__responding-spinner`}
+            />
+          )}
+        </div>
         {!isQueryFinished && (
-          <Spinner
-            size="x-small"
-            centered={false}
-            includeContainer={false}
-            className={`${baseClass}__responding-spinner`}
-          />
+          <div className={`${baseClass}__tooltip`}>
+            <TooltipWrapper
+              tipContent={`The hosts’ distributed interval can <br/>impact live query response times.`}
+            >
+              Taking longer than 15 seconds?
+            </TooltipWrapper>
+          </div>
         )}
       </div>
       {isQueryFinished ? (

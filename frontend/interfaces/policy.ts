@@ -47,9 +47,25 @@ export interface IPolicyStats extends IPolicy {
   osquery_policy_ms: number;
 }
 
+export interface IPolicyWebhookPreviewPayload {
+  id: number;
+  name: string;
+  query: string;
+  description: string;
+  author_id: number;
+  author_name: string;
+  author_email: string;
+  resolution: string;
+  passing_host_count: number;
+  failing_host_count: number;
+  critical?: boolean;
+}
+
+export type PolicyStatusResponse = "pass" | "fail" | "";
+
 // Used on the host details page and other places where the status of individual hosts are displayed
 export interface IHostPolicy extends IPolicy {
-  response: string;
+  response: PolicyStatusResponse;
 }
 
 export interface ILoadAllPoliciesResponse {
@@ -80,4 +96,5 @@ export interface IPolicyNew {
   resolution: string;
   critical: boolean;
   platform: IPlatformString;
+  mdm_required?: boolean;
 }

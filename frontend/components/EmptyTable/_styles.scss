@@ -1,0 +1,66 @@
+.empty-table {
+  &__container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 96px auto $pad-large; // 96px to top of div
+    max-width: 450px; // standard empty state width
+    gap: $pad-medium; // 16px between image, text, and buttons
+  }
+
+  &__inner {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small; // 4px from header to info text
+
+    h3,
+    h3 a {
+      text-align: center;
+      font-size: $small;
+      font-weight: $bold;
+      margin: 0;
+    }
+
+    p {
+      text-align: center;
+      color: $core-fleet-blue;
+      font-size: $x-small;
+      margin: 0;
+    }
+
+    ul {
+      margin: 0;
+      padding: 0;
+      color: $core-fleet-black;
+      list-style: none;
+
+      li {
+        &::before {
+          content: "•";
+          color: $core-vibrant-blue;
+          margin-right: $pad-medium;
+        }
+      }
+    }
+  }
+
+  &__cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: $pad-medium; // 16px between buttons
+  }
+}
+
+// more flexible styling for empty tables within tabs
+.react-tabs {
+  .empty-table {
+    &__container {
+      align-self: center;
+      justify-content: center;
+      margin: 0;
+      margin-bottom: 20px;
+      min-height: 155px;
+      max-width: none;
+    }
+  }
+}

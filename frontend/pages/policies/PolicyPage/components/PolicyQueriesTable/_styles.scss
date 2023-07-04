@@ -2,7 +2,7 @@
   border-collapse: collapse;
 
   &__wrapper {
-    border: 1px solid $ui-fleet-blue-15;
+    border: 1px solid $ui-fleet-black-10;
     border-radius: 4px;
     overflow: hidden;
     margin-top: $pad-medium;
@@ -18,7 +18,7 @@
 
   thead {
     background-color: $ui-off-white;
-    border-bottom: 1px solid $ui-fleet-blue-15;
+    border-bottom: 1px solid $ui-fleet-black-10;
 
     th {
       font-size: $x-small;

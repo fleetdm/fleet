@@ -22,6 +22,9 @@ interface IQueryEditorProps {
   storedPolicyError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredPolicyLoading: boolean;
+  isTeamAdmin: boolean;
+  isTeamMaintainer: boolean;
+  isTeamObserver: boolean;
   createPolicy: (formData: IPolicyFormData) => Promise<any>;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -37,13 +40,18 @@ const QueryEditor = ({
   storedPolicyError,
   showOpenSchemaActionText,
   isStoredPolicyLoading,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
   createPolicy,
   onOsqueryTableSelect,
   goToSelectTargets,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryEditorProps): JSX.Element | null => {
-  const { currentUser } = useContext(AppContext);
+  const { currentUser, isPremiumTier, filteredPoliciesPath } = useContext(
+    AppContext
+  );
   const { renderFlash } = useContext(NotificationContext);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
@@ -77,8 +85,20 @@ const QueryEditor = ({
       formData.team_id = policyTeamId;
     }
     setIsUpdatingPolicy(true);
+    const payload: IPolicyFormData = {
+      name: formData.name,
+      description: formData.description,
+      query: formData.query,
+      resolution: formData.resolution,
+      platform: formData.platform,
+    };
+    if (isPremiumTier) {
+      payload.critical = formData.critical;
+      payload.team_id = formData.team_id;
+    }
+
     try {
-      const policy: IPolicy = await createPolicy(formData).then(
+      const policy: IPolicy = await createPolicy(payload).then(
         (data) => data.policy
       );
       setIsUpdatingPolicy(false);
@@ -153,10 +173,15 @@ const QueryEditor = ({
     return null;
   }
 
+  // Function instead of constant eliminates race condition with filteredSoftwarePath
+  const backToPoliciesPath = () => {
+    return filteredPoliciesPath || PATHS.MANAGE_POLICIES;
+  };
+
   return (
     <div className={`${baseClass}__form`}>
       <div className={`${baseClass}__header-links`}>
-        <BackLink text="Back to policies" path={PATHS.MANAGE_POLICIES} />
+        <BackLink text="Back to policies" path={backToPoliciesPath()} />
       </div>
       <PolicyForm
         onCreatePolicy={onCreatePolicy}
@@ -170,6 +195,9 @@ const QueryEditor = ({
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
         backendValidators={backendValidators}
+        isTeamAdmin={isTeamAdmin}
+        isTeamMaintainer={isTeamMaintainer}
+        isTeamObserver={isTeamObserver}
         isUpdatingPolicy={isUpdatingPolicy}
       />
     </div>

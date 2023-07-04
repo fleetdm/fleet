@@ -13,6 +13,15 @@ import (
 	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 )
 
+// ChmodRestrictFile sets the appropriate permissions on a file so it can not be read by everyone
+// On POSIX this is a normal chmod call.
+func ChmodRestrictFile(path string) error {
+	if err := os.Chmod(path, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("chmod restrict file: %w", err)
+	}
+	return nil
+}
+
 // ChmodExecutableDirectory sets the appropriate permissions on an executable
 // file. On POSIX this is a normal chmod call.
 func ChmodExecutableDirectory(path string) error {
@@ -79,4 +88,13 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 
 func GetSMBiosUUID() (string, UUIDSource, error) {
 	return "", UUIDSourceInvalid, errors.New("not implemented.")
+}
+
+// RunUpdateQuirks is a no-op on non-windows platforms
+func PreUpdateQuirks() {
+}
+
+// IsInvalidReparsePoint is a no-op on non-windows platforms
+func IsInvalidReparsePoint(err error) bool {
+	return false
 }

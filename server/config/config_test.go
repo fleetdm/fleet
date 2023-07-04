@@ -460,7 +460,7 @@ func TestAppleAPNSSCEPConfig(t *testing.T) {
 				} else {
 					require.NoError(t, err)
 					require.NotNil(t, got)
-					require.Nil(t, got.Leaf) // SCEP cert is not kept, not needed
+					require.NotNil(t, got.Leaf) // SCEP cert is not kept, not needed
 					require.NotEmpty(t, pemCert)
 					require.NotEmpty(t, pemKey)
 				}
@@ -509,6 +509,52 @@ func TestAppleBMConfig(t *testing.T) {
 			_, err := c.in.AppleBM()
 			require.Error(t, err)
 			require.Regexp(t, c.errMatches, err.Error())
+		})
+	}
+}
+
+func TestMicrosoftWSTEPConfig(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile, garbageFile, invalidKeyFile := filepath.Join(dir, "cert"),
+		filepath.Join(dir, "key"),
+		filepath.Join(dir, "garbage"),
+		filepath.Join(dir, "invalid_key")
+	require.NoError(t, os.WriteFile(certFile, testCert, 0o600))
+	require.NoError(t, os.WriteFile(keyFile, testKey, 0o600))
+	require.NoError(t, os.WriteFile(garbageFile, []byte("zzzz"), 0o600))
+	require.NoError(t, os.WriteFile(invalidKeyFile, unrelatedTestKey, 0o600))
+
+	cases := []struct {
+		name       string
+		in         MDMConfig
+		errMatches string
+	}{
+		{"missing cert", MDMConfig{MicrosoftWSTEPIdentityKey: keyFile}, `Microsoft MDM WSTEP configuration: no certificate provided`},
+		{"missing key", MDMConfig{MicrosoftWSTEPIdentityCert: certFile}, "Microsoft MDM WSTEP configuration: no key provided"},
+		{"cert file does not exist", MDMConfig{MicrosoftWSTEPIdentityCert: "no-such-file", MicrosoftWSTEPIdentityKey: keyFile}, `open no-such-file: no such file or directory`},
+		{"key file does not exist", MDMConfig{MicrosoftWSTEPIdentityKey: "no-such-file", MicrosoftWSTEPIdentityCert: certFile}, `open no-such-file: no such file or directory`},
+		{"valid file pairs", MDMConfig{MicrosoftWSTEPIdentityCert: certFile, MicrosoftWSTEPIdentityKey: keyFile}, ""},
+		{"invalid file pairs", MDMConfig{MicrosoftWSTEPIdentityCert: certFile, MicrosoftWSTEPIdentityKey: invalidKeyFile}, "tls: private key does not match public key"},
+		{"invalid file key", MDMConfig{MicrosoftWSTEPIdentityCert: certFile, MicrosoftWSTEPIdentityKey: garbageFile}, "tls: failed to find any PEM data"},
+		{"invalid file cert", MDMConfig{MicrosoftWSTEPIdentityCert: garbageFile, MicrosoftWSTEPIdentityKey: keyFile}, "tls: failed to find any PEM data"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if c.in.MicrosoftWSTEPIdentityCert != "" || c.in.MicrosoftWSTEPIdentityKey != "" {
+				got, pemCert, pemKey, err := c.in.MicrosoftWSTEP()
+				if c.errMatches != "" {
+					require.Error(t, err)
+					require.Nil(t, got)
+					require.Regexp(t, c.errMatches, err.Error())
+				} else {
+					require.NoError(t, err)
+					require.NotNil(t, got)
+					require.NotNil(t, got.Leaf) // TODO: confirm cert is not kept, not needed?
+					require.NotEmpty(t, pemCert)
+					require.NotEmpty(t, pemKey)
+				}
+			}
 		})
 	}
 }

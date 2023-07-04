@@ -80,8 +80,8 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 		// immediately so that RunReplication is unblocked too.
 		defer cancel()
 
-		primary := ds.writer
-		replica := ds.reader.(*sqlx.DB)
+		primary := ds.primary
+		replica := ds.replica.(*sqlx.DB)
 		replicaDB := testName + testReplicaDatabaseSuffix
 		last := time.Now().Add(-time.Minute)
 
@@ -275,7 +275,7 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
-	err := fn(ds.writer)
+	err := fn(ds.primary)
 	require.NoError(tb, err)
 }
 
@@ -294,9 +294,11 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
-		"app_config_json":         true,
-		"migration_status_tables": true,
-		"osquery_options":         true,
+		"app_config_json":           true,
+		"migration_status_tables":   true,
+		"osquery_options":           true,
+		"mdm_apple_delivery_status": true,
+		"mdm_apple_operation_types": true,
 	}
 	ctx := context.Background()
 
@@ -374,4 +376,41 @@ func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args 
 	if err := tw.Flush(); err != nil {
 		panic(err)
 	}
+}
+
+func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint: unused
+	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT * FROM %s`, tableName))
+	require.NoError(t, err)
+	defer rows.Close()
+
+	t.Logf(">> dumping table %s:", tableName)
+
+	var anyDst []any
+	var strDst []sql.NullString
+	var sb strings.Builder
+	for rows.Next() {
+		if anyDst == nil {
+			cols, err := rows.Columns()
+			require.NoError(t, err)
+			anyDst = make([]any, len(cols))
+			strDst = make([]sql.NullString, len(cols))
+			for i := 0; i < len(cols); i++ {
+				anyDst[i] = &strDst[i]
+			}
+			t.Logf("%v", cols)
+		}
+		require.NoError(t, rows.Scan(anyDst...))
+
+		sb.Reset()
+		for _, v := range strDst {
+			if v.Valid {
+				sb.WriteString(v.String)
+			} else {
+				sb.WriteString("NULL")
+			}
+			sb.WriteString("\t")
+		}
+		t.Logf("%s", sb.String())
+	}
+	t.Logf("<< dumping table %s completed", tableName)
 }

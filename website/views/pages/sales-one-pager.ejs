@@ -8,7 +8,7 @@
           <h4>Any operating system, deployed anywhere.</h4>
           <div purpose="cta-buttons" style="max-width: 500px;" class="flex-row row mx-md-0 mx-4 pt-2">
             <a href="/try-fleet/register?tryitnow" class="btn btn-primary col-md-6 col-12">Try it out</a>
-            <a purpose="demo-btn" style="color: #F9FAFC; max-width: 220px;" href="https://calendly.com/fleetdm/demo?utm_source=overview+demo+top" target="_blank" class="btn col-md-6 col-12 mx-auto">Talk to an expert</a>
+            <a purpose="demo-btn" style="color: #F9FAFC; max-width: 220px;" @click="clickOpenChatWidget()" class="btn col-md-6 col-12 mx-auto">Talk to an expert</a>
           </div>
         </div>
         <div class="d-none d-lg-block px-0 px-sm-auto" purpose="banner-hero">
@@ -114,9 +114,9 @@
       </div>
     </div>
     <div class="container pt-0" purpose="content">
-      <div style="padding-bottom: 80px; max-width: 500px;" class="flex-md-row flex-column row justify-content-center align-items-center mx-auto">
-        <a href="/try-fleet/register?tryitnow" class="btn btn-primary btn-block col-md-6 col-12">Try it out</a>
-        <a purpose="demo-btn" style="color:#000; max-width: 220px;" href="https://calendly.com/fleetdm/demo?utm_source=overview+demo+mid" target="_blank" class="btn col-md-6 col-12">Talk to an expert</a>
+      <div purpose="button-row" style="padding-bottom: 80px; max-width: 500px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
+        <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try Fleet today</a>
+        <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
       </div>
     </div>
   </div>
@@ -180,7 +180,7 @@
       </div>
       <div purpose="cta-buttons" class="mx-auto d-flex flex-sm-row flex-column justify-content-center">
         <a style="max-width: 220px;" class="text-white mr-sm-4 ml-sm-0 d-sm-flex align-items-center justify-content-center btn btn-block btn-primary mx-auto" href="/try-fleet/register?tryitnow">Get started</a>
-        <a purpose="demo-btn" style="max-width: 220px;" class="btn btn-lg text-white btn-white mr-2 pl-0 mx-auto mx-sm-0 mt-2 mt-sm-0" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=overview+demo+bottom">Talk to an expert</a>
+        <a purpose="demo-btn" style="max-width: 220px;" class="btn btn-lg text-white btn-white mr-2 pl-0 mx-auto mx-sm-0 mt-2 mt-sm-0" @click="clickOpenChatWidget()">Talk to an expert</a>
       </div>
     </div>
   </div>

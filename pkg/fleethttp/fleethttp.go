@@ -3,9 +3,13 @@
 package fleethttp
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
+	"os"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 type clientOpts struct {
@@ -107,4 +111,21 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 
 func noFollowRedirect(*http.Request, []*http.Request) error {
 	return http.ErrUseLastResponse
+}
+
+// NewGithubClient returns an HTTP client customized for accessing Github.
+//
+// - If the NETWORK_TEST_GITHUB_TOKEN variable is empty, then this is equivalent to
+// call `NewClient()`.
+// - If the NETWORK_TEST_GITHUB_TOKEN variable is set, then the client will use the
+// token for authentication (as OAuth2 static token).
+func NewGithubClient() *http.Client {
+	if githubToken := os.Getenv("NETWORK_TEST_GITHUB_TOKEN"); githubToken != "" {
+		return oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
+			&oauth2.Token{
+				AccessToken: githubToken,
+			},
+		))
+	}
+	return NewClient()
 }

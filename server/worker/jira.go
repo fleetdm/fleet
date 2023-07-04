@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
 	"text/template"
+	"time"
 
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -46,6 +48,8 @@ var jiraTemplates = struct {
 {{ end }}
 {{ if .CVSSScore }}CVSS score (reported by [NVD|https://nvd.nist.gov/]): {{ .CVSSScore }}
 {{ end }}
+{{ if .CVEPublished }}Published (reported by [NVD|https://nvd.nist.gov/]): {{ .CVEPublished }}
+{{ end }}
 {{ if .CISAKnownExploit }}Known exploits (reported by [CISA|https://www.cisa.gov/known-exploited-vulnerabilities-catalog]): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
 \\
 {{ end }}{{ end }}
@@ -55,6 +59,9 @@ Affected hosts:
 {{ $end := len .Hosts }}{{ if gt $end 50 }}{{ $end = 50 }}{{ end }}
 {{ range slice .Hosts 0 $end }}
 * [{{ .DisplayName }}|{{ $.FleetURL }}/hosts/{{ .ID }}]
+{{ range $path := .SoftwareInstalledPaths }}
+** {{ $path }}
+{{ end }}
 {{ end }}
 
 View the affected software and more affected hosts:
@@ -93,7 +100,7 @@ type jiraVulnTplArgs struct {
 	NVDURL   string
 	FleetURL string
 	CVE      string
-	Hosts    []*fleet.HostShort
+	Hosts    []fleet.HostVulnerabilitySummary
 
 	IsPremium bool
 
@@ -101,6 +108,7 @@ type jiraVulnTplArgs struct {
 	EPSSProbability  *float64
 	CVSSScore        *float64
 	CISAKnownExploit *bool
+	CVEPublished     *time.Time
 }
 
 // JiraClient defines the method required for the client that makes API calls
@@ -216,9 +224,6 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 
 // jiraArgs are the arguments for the Jira integration job.
 type jiraArgs struct {
-	// CVE is deprecated but kept for backwards compatibility (there may be jobs
-	// enqueued in that format to process).
-	CVE           string             `json:"cve,omitempty"`
 	Vulnerability *vulnArgs          `json:"vulnerability,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
 }
@@ -261,15 +266,22 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error {
 	vargs := args.Vulnerability
 	if vargs == nil {
-		// support the old format of vulnerability args, where only the CVE
-		// is provided.
-		vargs = &vulnArgs{
-			CVE: args.CVE,
-		}
+		return errors.New("invalid job args")
 	}
-	hosts, err := j.Datastore.HostsByCVE(ctx, vargs.CVE)
+
+	var hosts []fleet.HostVulnerabilitySummary
+	var err error
+
+	// Default to deprecated method in case we are processing an 'old' job payload
+	// we are deprecating this because of performance reasons - querying by software_id should be
+	// way more efficient than by CVE.
+	if len(vargs.AffectedSoftwareIDs) == 0 {
+		hosts, err = j.Datastore.HostsByCVE(ctx, vargs.CVE)
+	} else {
+		hosts, err = j.Datastore.HostVulnSummariesBySoftwareIDs(ctx, vargs.AffectedSoftwareIDs)
+	}
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "find hosts by cve")
+		return ctxerr.Wrap(ctx, err, "fetching hosts")
 	}
 
 	tplArgs := &jiraVulnTplArgs{
@@ -281,6 +293,7 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 		EPSSProbability:  vargs.EPSSProbability,
 		CVSSScore:        vargs.CVSSScore,
 		CISAKnownExploit: vargs.CISAKnownExploit,
+		CVEPublished:     vargs.CVEPublished,
 	}
 
 	createdIssue, err := j.createTemplatedIssue(ctx, cli, jiraTemplates.VulnSummary, jiraTemplates.VulnDescription, tplArgs)
@@ -369,17 +382,18 @@ func QueueJiraVulnJobs(
 	sort.Strings(cves)
 	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
-	uniqCVEs := make(map[string]bool)
+	cveGrouped := make(map[string][]uint)
 	for _, v := range recentVulns {
-		uniqCVEs[v.GetCVE()] = true
+		cveGrouped[v.GetCVE()] = append(cveGrouped[v.GetCVE()], v.Affected())
 	}
 
-	for cve := range uniqCVEs {
-		args := vulnArgs{CVE: cve}
+	for cve, sIDs := range cveGrouped {
+		args := vulnArgs{CVE: cve, AffectedSoftwareIDs: sIDs}
 		if meta, ok := cveMeta[cve]; ok {
 			args.EPSSProbability = meta.EPSSProbability
 			args.CVSSScore = meta.CVSSScore
 			args.CISAKnownExploit = meta.CISAKnownExploit
+			args.CVEPublished = meta.Published
 		}
 		job, err := QueueJob(ctx, ds, jiraName, jiraArgs{Vulnerability: &args})
 		if err != nil {

@@ -1,1 +1,0 @@
-* Added `fleet serve` configuration flags for Apple Push Notification service (APNs) and Simple Certificate Enrollment Protocol (SCEP) certificates and keys.

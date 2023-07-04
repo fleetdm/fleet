@@ -100,6 +100,7 @@ func TranslateCPEToCVE(
 	vulnPath string,
 	logger kitlog.Logger,
 	collectVulns bool,
+	periodicity time.Duration,
 ) ([]fleet.SoftwareVulnerability, error) {
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
@@ -131,11 +132,25 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
+	knownNVDBugRules, err := GetKnownNVDBugRules()
+	if err != nil {
+		return nil, err
+	}
+
 	// we are using a map here to remove any duplicates - a vulnerability can be present in more than one
 	// NVD feed file.
 	vulns := make(map[string]fleet.SoftwareVulnerability)
 	for _, file := range files {
-		foundVulns, err := checkCVEs(ctx, ds, logger, parsed, file, collectVulns)
+
+		foundVulns, err := checkCVEs(
+			ctx,
+			ds,
+			logger,
+			parsed,
+			file,
+			collectVulns,
+			knownNVDBugRules,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -147,18 +162,25 @@ func TranslateCPEToCVE(
 
 	var newVulns []fleet.SoftwareVulnerability
 	for _, vuln := range vulns {
-		newCount, err := ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{vuln}, fleet.NVDSource)
+		ok, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.NVDSource)
 		if err != nil {
 			level.Error(logger).Log("cpe processing", "error", "err", err)
 			continue
 		}
 
-		// collect vuln only if newCount > 0, otherwise we would send
+		// collect vuln only if inserted, otherwise we would send
 		// webhook requests for the same vulnerability over and over again until
 		// it is older than 2 days.
-		if collectVulns && newCount > 0 {
+		if collectVulns && ok {
 			newVulns = append(newVulns, vuln)
 		}
+	}
+
+	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
+	// updated was more than `2 * periodicity` ago. This assumes that the whole vulnerability
+	// process completes in less than `periodicity` units of time.
+	if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*periodicity); err != nil {
+		level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
 	}
 
 	return newVulns, nil
@@ -171,6 +193,7 @@ func checkCVEs(
 	softwareCPEs []softwareCPEWithNVDMeta,
 	file string,
 	collectVulns bool,
+	knownNVDBugRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, error) {
 	dict, err := cvefeed.LoadJSONDictionary(file)
 	if err != nil {
@@ -208,6 +231,14 @@ func checkCVEs(
 					for _, matches := range cacheHits {
 						if len(matches.CPEs) == 0 {
 							continue
+						}
+
+						if rule, ok := knownNVDBugRules.FindMatch(
+							matches.CVE.ID(),
+						); ok {
+							if !rule.CPEMatches(softwareCPE.meta) {
+								continue
+							}
 						}
 
 						vuln := fleet.SoftwareVulnerability{

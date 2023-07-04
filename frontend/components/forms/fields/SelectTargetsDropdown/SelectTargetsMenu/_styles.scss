@@ -1,11 +1,13 @@
 .target-list {
+  max-height: 100%;
+
   &__type {
     padding: 0 8px $pad-xsmall;
     margin: $pad-medium 0 0;
     font-weight: $bold;
     font-size: $x-small;
     color: $core-fleet-black;
-    border-bottom: 1px solid $ui-fleet-blue-15;
+    border-bottom: 1px solid $ui-fleet-black-10;
 
     &::first-letter {
       text-transform: uppercase;
@@ -18,13 +20,19 @@
   &__options {
     width: 50%;
     float: left;
-    overflow-y: auto;
-    min-height: 500px;
     position: relative;
-    z-index: 2;
+    overflow-y: scroll;
+    max-height: 100%;
     padding: 0 $pad-large;
-    border-right: 1px solid $ui-fleet-blue-15;
+    border-right: 1px solid $ui-fleet-black-10;
     background-color: $core-white;
+  }
+
+  &__option-details {
+    width: 50%;
+    height: 100%;
+    float: right;
+    padding: 0 $pad-large;
   }
 
   &__no-hosts {
@@ -43,7 +51,8 @@
     float: right;
     overflow-y: auto;
     background-color: $core-white;
-    min-height: 500px;
+    min-height: 450px;
+    padding-top: $pad-large;
     position: relative;
     z-index: 1;
   }

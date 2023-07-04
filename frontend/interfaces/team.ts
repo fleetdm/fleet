@@ -2,6 +2,7 @@ import PropTypes from "prop-types";
 import { IConfigFeatures, IWebhookSettings } from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { IIntegrations } from "./integration";
+import { UserRole } from "./user";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -9,7 +10,8 @@ export default PropTypes.shape({
   name: PropTypes.string.isRequired,
   description: PropTypes.string,
   agent_options: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-  role: PropTypes.string, // role value is included when the team is in the context of a user
+  role: PropTypes.any, // eslint-disable-line react/forbid-prop-types
+  // role value is included when the team is in the context of a user
   user_count: PropTypes.number,
   host_count: PropTypes.number,
   secrets: PropTypes.arrayOf(enrollSecretInterface),
@@ -40,7 +42,22 @@ export interface ITeam extends ITeamSummary {
   user_count?: number;
   host_count?: number;
   secrets?: IEnrollSecret[];
-  role?: string; // role value is included when the team is in the context of a user
+  role?: UserRole; // role value is included when the team is in the context of a user
+  mdm?: {
+    macos_updates: {
+      minimum_version: string;
+      deadline: string;
+    };
+    macos_settings: {
+      custom_settings: null; // TODO: types?
+      enable_disk_encryption: boolean;
+    };
+    macos_setup: {
+      bootstrap_package: string | null;
+      enable_end_user_authentication: boolean;
+      macos_setup_assistant: string | null; // TODO: types?
+    };
+  };
 }
 
 /**
@@ -67,9 +84,9 @@ export type ITeamConfig = ITeam & ITeamAutomationsConfig;
 /**
  * The shape of a new member to add to a team
  */
-interface INewMember {
+export interface INewMember {
   id: number;
-  role: string;
+  role: UserRole;
 }
 
 /**
@@ -92,3 +109,20 @@ export interface INewTeamSecretBody {
 export interface IRemoveTeamSecretBody {
   secrets: { secret: string }[];
 }
+
+export const API_ALL_TEAMS_ID = undefined;
+export const APP_CONTEXT_ALL_TEAMS_ID = -1;
+export const APP_CONTEXT_ALL_TEAMS_SUMMARY: ITeamSummary = {
+  id: APP_CONTEXT_ALL_TEAMS_ID,
+  name: "All teams",
+} as const;
+
+export const API_NO_TEAM_ID = 0;
+export const APP_CONTEXT_NO_TEAM_ID = 0;
+export const APP_CONTEX_NO_TEAM_SUMMARY: ITeamSummary = {
+  id: APP_CONTEXT_NO_TEAM_ID,
+  name: "No team",
+} as const;
+
+export const isAnyTeamSelected = (currentTeamId?: number) =>
+  currentTeamId !== undefined && currentTeamId > APP_CONTEXT_NO_TEAM_ID;

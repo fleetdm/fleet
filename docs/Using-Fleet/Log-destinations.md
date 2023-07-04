@@ -1,18 +1,29 @@
 # Log destinations
 
-- [Amazon Kinesis Data Firehose](#amazon-kinesis-data-firehose)
-- [Snowflake](#snowflake)
-- [Splunk](#splunk)
-- [Amazon Kinesis Data Streams](#amazon-kinesis-data-streams)
-- [AWS Lambda](#aws-lambda)
-- [Google Cloud Pub/Sub](#google-cloud-pubsub)
-- [Apache Kafka](#apache-kafka)
-- [Stdout](#stdout)
-- [Filesystem](#filesystem)
+- [Log destinations](#log-destinations)
+  - [Amazon Kinesis Data Firehose](#amazon-kinesis-data-firehose)
+  - [Snowflake](#snowflake)
+  - [Splunk](#splunk)
+  - [Amazon Kinesis Data Streams](#amazon-kinesis-data-streams)
+  - [AWS Lambda](#aws-lambda)
+  - [Google Cloud Pub/Sub](#google-cloud-pubsub)
+  - [Apache Kafka](#apache-kafka)
+  - [Stdout](#stdout)
+  - [Filesystem](#filesystem)
+  - [Sending logs outside of Fleet](#sending-logs-outside-of-fleet)
 
 This document provides a list of the supported log destinations in Fleet.
 
-To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for [osquery logging configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin).
+Log destinations can be used in Fleet to log:
+- Osquery [status logs](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs).
+- Osquery [schedule query result logs](https://osquery.readthedocs.io/en/stable/deployment/logging/#results-logs).
+- Fleet audit logs. 
+
+To configure each log destination, you must set the correct logging configuration options in Fleet.
+Check out the reference documentation for:
+  - [Osquery status logging configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin).
+  - [Osquery result logging configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin).
+  - [Activity audit logging configuration options](https://fleetdm.com/docs/deploying/configuration#activity_audit_log_plugin).
 
 ## Amazon Kinesis Data Firehose
 
@@ -54,8 +65,8 @@ Logs are written to [Amazon Kinesis Data Streams (Kinesis)](https://aws.amazon.c
 
 Note that Kinesis logging has limits [discussed in the
 documentation](https://docs.aws.amazon.com/kinesis/latest/dev/limits.html).
-When Fleet encounters osquery logs that are too big for Kinesis, notifications appear
-in the Fleet server logs. Those osquery logs **will not** be sent to Kinesis.
+When Fleet encounters logs that are too big for Kinesis, notifications appear
+in the Fleet server logs. Those logs **will not** be sent to Kinesis.
 
 ## AWS Lambda
 
@@ -102,7 +113,7 @@ Logs are written to stdout.
 - Plugin name: `stdout`
 - Flag namespace: [stdout](https://fleetdm.com/docs/deploying/configuration#stdout)
 
-With the stdout plugin, osquery result and/or status logs are written to stdout
+With the stdout plugin, logs are written to stdout
 on the Fleet server. This is typically used for debugging or with a log
 forwarding setup that will capture and forward stdout logs into a logging
 pipeline. 
@@ -119,7 +130,7 @@ The default log destination.
 - Plugin name: `filesystem`
 - Flag namespace: [filesystem](https://fleetdm.com/docs/deploying/configuration#filesystem)
 
-With the filesystem plugin, osquery result and/or status logs are written to the local filesystem on the Fleet server. This is typically used with a log forwarding agent on the Fleet server that will push the logs into a logging pipeline. 
+With the filesystem plugin, logs are written to the local filesystem on the Fleet server. This is typically used with a log forwarding agent on the Fleet server that will push the logs into a logging pipeline. 
 
 Note that if multiple load-balanced Fleet servers are used, the logs will be load-balanced across those servers (not duplicated).
 

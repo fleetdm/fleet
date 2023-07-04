@@ -539,7 +539,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
-  tags: compliance, hardening, built-in
+  tags: MDM required, compliance, hardening, built-in
   platform: darwin
   contributors: groob
 ---
@@ -550,7 +550,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to enabled secure keyboard entry for the Terminal application."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application."
-  tags: compliance, hardening, built-in
+  tags: MDM required, compliance, hardening, built-in
   platform: darwin
   contributors: groob
 ---
@@ -637,7 +637,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Application is up to date or not present (macOS)
+  name: Docker application is up to date or not present (macOS)
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM apps a1 WHERE a1.bundle_identifier = 'com.electron.dockerdesktop' AND a1.bundle_short_version>='4.6.1') OR NOT EXISTS (SELECT 1 FROM apps a2 WHERE a2.bundle_identifier = 'com.electron.dockerdesktop');
   description: "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this query and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications."
   resolution: "Update Docker or remove it if not used."
@@ -685,7 +685,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';
   description: "Checks that a mobile device management (MDM) solution configures the Mac to enable screen lock."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables screen lock."
-  tags: compliance, hardening, built-in
+  tags: MDM required, compliance, hardening, built-in
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -729,7 +729,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically check for updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates."
-  tags: compliance, CIS, CIS1.2
+  tags: MDM required, compliance, CIS, CIS1.2
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -740,7 +740,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads."
-  tags: compliance, CIS, CIS1.3
+  tags: MDM required, compliance, CIS, CIS1.3
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -751,7 +751,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install updates to App Store applications."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of application updates."
-  tags: compliance, CIS, CIS1.4
+  tags: MDM required, compliance, CIS, CIS1.4
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -762,7 +762,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates to built-in macOS security tools such as malware removal tools."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation."
-  tags: compliance, CIS, CIS1.5
+  tags: MDM required, compliance, CIS, CIS1.5
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -773,7 +773,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install operating system updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates."
-  tags: compliance, CIS, CIS1.6
+  tags: MDM required, compliance, CIS, CIS1.6
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -784,7 +784,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically update the time and date."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration."
-  tags: compliance, CIS, CIS2.2.1
+  tags: MDM required, compliance, CIS, CIS2.2.1
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -795,7 +795,7 @@ spec:
   query: SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);
   description: "Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less."
-  tags: compliance, CIS, CIS2.3.1, CIS5.8
+  tags: MDM required, compliance, CIS, CIS2.3.1, CIS5.8
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -806,7 +806,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='forceInternetSharingOff' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent Internet sharing."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing."
-  tags: compliance, CIS, CIS2.4.2
+  tags: MDM required, compliance, CIS, CIS2.4.2
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -817,7 +817,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to disable content caching."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching."
-  tags: compliance, CIS, CIS2.4.10
+  tags: MDM required, compliance, CIS, CIS2.4.10
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -828,7 +828,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to limit advertisement tracking."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking."
-  tags: compliance, CIS, CIS2.5.6
+  tags: MDM required, compliance, CIS, CIS2.5.6
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -839,7 +839,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.icloud.managed' AND name='DisableCloudSync' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent iCloud Desktop and Documents sync."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync."
-  tags: compliance, CIS, CIS2.6.1.4
+  tags: MDM required, compliance, CIS, CIS2.6.1.4
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -850,7 +850,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to log firewall activity."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging."
-  tags: compliance, CIS, CIS3.6
+  tags: MDM required, compliance, CIS, CIS3.6
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -861,7 +861,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent the use of a guest account."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account."
-  tags: compliance, CIS, CIS6.1.3
+  tags: MDM required, compliance, CIS, CIS6.1.3
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -872,7 +872,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AppleFileServer' AND name='guestAccess' AND value='0' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent guest access to shared folders."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders."
-  tags: compliance, CIS, CIS6.1.4
+  tags: MDM required, compliance, CIS, CIS6.1.4
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -881,7 +881,7 @@ kind: policy
 spec:
   name: No 1Password emergency kit stored on desktop or in downloads (macOS)
   query: SELECT EXISTS(SELECT 1 FROM file WHERE filename like '%Emergency Kit%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%')) as does_1p_ek_exist;
-  description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits." 
+  description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits."
   resolution: "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location."
   platform: darwin
   tags: compliance, built-in
@@ -985,7 +985,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: Link-Local Multicast Name Resolution (LLMNR) disabled (Windows)
-  query:  SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
   description: "Checks if a Group Policy configures the computer to disable LLMNR. Disabling LLMNR can prevent malicious actors from gaining access to the computer's credentials. Some auditors require that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system."
   platforms: Windows
@@ -997,7 +997,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: Automatic updates enabled (Windows)
-  query:   SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;
   description: "Checks if a Group Policy configures the computer to enable Automatic Updates. When enabled, the computer downloads and installs security and other important updates automatically. Some auditors require that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates."
   platforms: Windows
@@ -1022,7 +1022,7 @@ spec:
   name: Geolocate via ipapi.co
   platform: darwin, linux, windows
   description: Geolocate a host using the (ipapi.co)[https://ipapi.co] in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
-  query: >- 
+  query: >-
     SELECT JSON_EXTRACT(result, '$.ip') AS ip,
     JSON_EXTRACT(result, '$.city') AS city,
     JSON_EXTRACT(result, '$.region') AS region,
@@ -1033,4 +1033,15 @@ spec:
     WHERE url = 'http://ipapi.co/json';
   purpose: inventory
   tags: inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Crowdstrike Falcon network content filter status
+  platform: darwin
+  description: Get the status of the Crowdstrike Falcon network content filter (as in "System Settings" > "Network > "Filters").
+  query: /* Load up the plist */ WITH extensions_plist AS (SELECT *, rowid FROM plist WHERE path = '/Library/Preferences/com.apple.networkextension.plist') /* Find the first "Enabled" key after the key indicating the crowdstrike app */ SELECT value AS enabled FROM extensions_plist WHERE subkey = 'Enabled' AND rowid > (SELECT rowid FROM extensions_plist WHERE value = 'com.crowdstrike.falcon.App') LIMIT 1;
+  purpose: Informational
+  tags: crowdstrike, plist, network, content filter
   contributors: zwass

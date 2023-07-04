@@ -1,6 +1,7 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 
 interface IDiskSpaceGraphProps {
   baseClass: string;
@@ -8,6 +9,7 @@ interface IDiskSpaceGraphProps {
   percentDiskSpaceAvailable: number;
   id: string;
   platform: string;
+  tooltipPosition?: "top" | "bottom";
 }
 
 const DiskSpaceGraph = ({
@@ -16,6 +18,7 @@ const DiskSpaceGraph = ({
   percentDiskSpaceAvailable,
   id,
   platform,
+  tooltipPosition = "top",
 }: IDiskSpaceGraphProps): JSX.Element => {
   const getDiskSpaceIndicatorColor = (): string => {
     // return space-dependent graph colors for mac and windows hosts, green for linux
@@ -65,11 +68,11 @@ const DiskSpaceGraph = ({
       {diskSpaceTooltipText && (
         <ReactTooltip
           className={"disk-space-tooltip"}
-          place="top"
+          place={tooltipPosition}
           type="dark"
           effect="solid"
           id={`tooltip-${id}`}
-          backgroundColor="#3e4771"
+          backgroundColor={COLORS["tooltip-bg"]}
         >
           <span
             className={`${baseClass}__tooltip-text`}

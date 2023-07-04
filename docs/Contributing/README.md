@@ -3,6 +3,9 @@
 ### [Building Fleet](./Building-Fleet.md) 
 Learn about building the code, development infrastructure, and database migrations.
 
+### [Build And Run Orbit From Local Code](./Run-Locally-Built-Orbit.md)
+Building and running your modified code.
+
 ### [Testing](./Testing-and-local-development.md) 
 Look at Fleet's full test suite and integration tests.
 

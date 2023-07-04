@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import Button from "components/buttons/Button";
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import InputField from "components/forms/fields/InputField";
 import helpers from "./helpers";
 
 const formFields = ["name", "password", "password_confirmation", "email"];
@@ -39,14 +39,14 @@ class AdminDetails extends Component {
 
   render() {
     const { className, currentPage, fields, handleSubmit } = this.props;
-    const tabIndex = currentPage ? 1 : -1;
+    const tabIndex = currentPage ? 0 : -1;
 
     return (
       <form onSubmit={handleSubmit} className={className} autoComplete="off">
         <div className="registration-fields">
-          <InputFieldWithIcon
+          <InputField
             {...fields.name}
-            placeholder="Full name"
+            label="Full name"
             tabIndex={tabIndex}
             autofocus={currentPage}
             ref={(input) => {
@@ -56,25 +56,21 @@ class AdminDetails extends Component {
               maxLength: "80",
             }}
           />
-          <InputFieldWithIcon
-            {...fields.email}
-            placeholder="Email"
-            tabIndex={tabIndex}
-          />
-          <InputFieldWithIcon
+          <InputField {...fields.email} label="Email" tabIndex={tabIndex} />
+          <InputField
             {...fields.password}
-            placeholder="Password"
+            label="Password"
             type="password"
             tabIndex={tabIndex}
             hint={[
               "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
             ]}
           />
-          <InputFieldWithIcon
+          <InputField
             {...fields.password_confirmation}
-            placeholder="Confirm password"
             type="password"
             tabIndex={tabIndex}
+            label="Confirm password"
           />
         </div>
         <Button

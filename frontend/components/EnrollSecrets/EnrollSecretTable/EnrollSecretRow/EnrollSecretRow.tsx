@@ -78,7 +78,7 @@ const EnrollSecretRow = ({
             className={`${baseClass}__copy-secret-icon`}
             onClick={onCopySecret}
           >
-            <Icon name="clipboard" />
+            <Icon name="copy" />
           </Button>
           <Button
             variant="unstyled"
@@ -98,6 +98,7 @@ const EnrollSecretRow = ({
       key={uniqueId()}
       data-testid="osquery-secret"
     >
+      {/* TODO: replace with InputFieldHiddenContent component */}
       <InputField
         disabled
         inputWrapperClass={`${baseClass}__secret-input`}

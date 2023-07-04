@@ -27,6 +27,7 @@ func TestAppConfig(t *testing.T) {
 		{"EnrollSecretsCaseSensitive", testAppConfigEnrollSecretsCaseSensitive},
 		{"EnrollSecretRoundtrip", testAppConfigEnrollSecretRoundtrip},
 		{"EnrollSecretUniqueness", testAppConfigEnrollSecretUniqueness},
+		{"AggregateEnrollSecretPerTeam", testAggregateEnrollSecretPerTeam},
 		{"Defaults", testAppConfigDefaults},
 		{"Backwards Compatibility", testAppConfigBackwardsCompatibility},
 	}
@@ -330,7 +331,7 @@ func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
 
 func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 	insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
-	_, err := ds.writer.Exec(insertAppConfigQuery, `{}`)
+	_, err := ds.writer(context.Background()).Exec(insertAppConfigQuery, `{}`)
 	require.NoError(t, err)
 
 	ac, err := ds.AppConfig(context.Background())
@@ -340,7 +341,7 @@ func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 	require.True(t, ac.Features.EnableHostUsers)
 	require.False(t, ac.Features.EnableSoftwareInventory)
 
-	_, err = ds.writer.Exec(
+	_, err = ds.writer(context.Background()).Exec(
 		insertAppConfigQuery,
 		`{"webhook_settings": {"interval": "12h"}, "features": {"enable_host_users": false}}`,
 	)
@@ -356,7 +357,7 @@ func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 
 func testAppConfigBackwardsCompatibility(t *testing.T, ds *Datastore) {
 	insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
-	_, err := ds.writer.Exec(insertAppConfigQuery, `
+	_, err := ds.writer(context.Background()).Exec(insertAppConfigQuery, `
 {
   "host_settings": {
     "enable_host_users": false,
@@ -373,4 +374,60 @@ func testAppConfigBackwardsCompatibility(t *testing.T, ds *Datastore) {
 	require.False(t, ac.Features.EnableHostUsers)
 	require.True(t, ac.Features.EnableSoftwareInventory)
 	require.NotNil(t, ac.Features.AdditionalQueries)
+}
+
+func testAggregateEnrollSecretPerTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	defer TruncateTables(t, ds)
+
+	// Add global secret
+	err := ds.ApplyEnrollSecrets(ctx, nil,
+		[]*fleet.EnrollSecret{
+			{Secret: "global_secret"},
+		},
+	)
+	assert.NoError(t, err)
+
+	// a team with two enroll secrets
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(context.Background(), &team1.ID, []*fleet.EnrollSecret{
+		{Secret: "team_1_secret_1"},
+		{Secret: "team_1_secret_2"},
+	})
+	require.NoError(t, err)
+
+	// a team with no enroll secrets
+	_, err = ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// a team with a single enroll secret
+	team3, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(context.Background(), &team3.ID, []*fleet.EnrollSecret{
+		{Secret: "team_3_secret_1"},
+	})
+	require.NoError(t, err)
+
+	agg, err := ds.AggregateEnrollSecretPerTeam(ctx)
+	require.NoError(t, err)
+
+	require.Len(t, agg, 4)
+	sort.Slice(agg, func(i, j int) bool {
+		if agg[i].TeamID == nil {
+			return true
+		}
+
+		if agg[j].TeamID == nil {
+			return false
+		}
+		return *agg[i].TeamID < *agg[j].TeamID
+	})
+
+	require.ElementsMatch(t, []*fleet.EnrollSecret{
+		{TeamID: nil, Secret: "global_secret"},
+		{TeamID: ptr.Uint(1), Secret: "team_1_secret_1"},
+		{TeamID: ptr.Uint(2), Secret: ""},
+		{TeamID: ptr.Uint(3), Secret: "team_3_secret_1"},
+	}, agg)
 }

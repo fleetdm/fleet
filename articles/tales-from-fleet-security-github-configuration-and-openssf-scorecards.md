@@ -72,7 +72,7 @@ Over a longer period, we are also planning to add DAST (Dynamic application secu
 
 If you have read this far, you’re probably already thinking of ways you can use tools like Scorecards in your daily work.
 
-1. Compare our [GitHub security guide](https://fleetdm.com/handbook/security#git-hub-security) with your current configuration.
+1. Compare our [GitHub security guide](https://fleetdm.com/handbook/security#github-security) with your current configuration.
 2. Set Scorecard up in your repositories, and try to improve your score over time.
 3. Add the [CII Best Practices Badge](https://bestpractices.coreinfrastructure.org/) to your public repositories to give everyone a quick way to see the maturity level of the repository.
 4. If you use GitHub but for private repositories, try out [OpenSSF Allstar](https://github.com/ossf/allstar) to secure them. You can also use tools like [Peril](https://github.com/JupiterOne/peril) by JupiterOne to evaluate the risk on each pull request.

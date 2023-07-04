@@ -23,7 +23,9 @@ module.exports = {
     let YAML = require('yaml');
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
-    let VERSION_OF_OSQUERY_SCHEMA_TO_USE = '5.4.0';
+    require('assert')(sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation, 'Please set sails.config.custom.sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation to the version of osquery to use, for example \'5.8.1\'.');
+    let VERSION_OF_OSQUERY_SCHEMA_TO_USE = sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation;
+
     // Getting the specified osquery schema from the osquery/osquery-site GitHub repo.
     let rawOsqueryTables = await sails.helpers.http.get('https://raw.githubusercontent.com/osquery/osquery-site/source/src/data/osquery_schema_versions/'+VERSION_OF_OSQUERY_SCHEMA_TO_USE+'.json');
 
@@ -39,7 +41,7 @@ module.exports = {
       try {
         parsedYamlTable = YAML.parse(tableYaml, {prettyErrors: true});
       } catch(err) {
-        throw new Error(`Could not parse the Fleet overrides YAMl at ${yamlSchema} on line ${err.linePos.start.line}. To resolve, make sure the YAML is valid, then try running this script again`+err.stack);
+        throw new Error(`Could not parse the Fleet overrides YAMl at ${yamlSchema} on line ${err.linePos.start.line}. To resolve, make sure the YAML is valid, then try running this script again: `+err.stack);
       }
       if(parsedYamlTable.name) {
         if(typeof parsedYamlTable.name !== 'string') {
@@ -69,9 +71,24 @@ module.exports = {
         expandedTableToPush.url = 'https://fleetdm.com/tables/'+encodeURIComponent(expandedTableToPush.name);
         // Since we don't have a Fleet override for this table, we'll set the fleetRepoUrl for this table to be a link to create the Fleet override table YAML.
         // This is done by adding a 'filename' and 'value' as search parameters to a url that creates a new folder in the schema/tables/ folder.
-        let sampleYamlSchemaForThisTable =`name: ${expandedTableToPush.name}\ndescription: >- # (required) string - The description for this table. Note: this field supports markdown\n\t# Add description here\nexamples: >- # (optional) string - An example query for this table. Note: This field supports markdown\n\t# Add examples here\nnotes: >- # (optional) string - Notes about this table. Note: This field supports markdown.\n\t# Add notes here\ncolumns: # (required)\n\t- name: # (required) string - The name of the column\n\t  description: # (required) string - The column's description\n\t  type: # (required) string - the column's data type\n\t  required: # (required) boolean - whether or not this column is required to query this table.`;
+        let sampleYamlSchemaForThisTable =`name: ${expandedTableToPush.name}\ndescription: | # (required) string - The description for this table. Note: this field supports markdown\n\t# Add description here\nexamples: | # (optional) string - An example query for this table. Note: This field supports markdown\n\t# Add examples here\nnotes: | # (optional) string - Notes about this table. Note: This field supports markdown.\n\t# Add notes here\ncolumns: # (required)\n\t- name: # (required) string - The name of the column\n\t  description: # (required) string - The column's description\n\t  type: # (required) string - the column's data type\n\t  required: # (required) boolean - whether or not this column is required to query this table.`;
 
-        expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/new/main/schema/tables/?filename='+encodeURIComponent('/tables/'+expandedTableToPush.name)+'.yml&value='+encodeURIComponent(sampleYamlSchemaForThisTable);
+        expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/new/main/schema?filename='+encodeURIComponent('tables/'+expandedTableToPush.name)+'.yml&value='+encodeURIComponent(sampleYamlSchemaForThisTable);
+
+        // As the table might have multiple examples, we grab only one until we
+        // adjust the UI to better display multiple examples (paddings, UX,
+        // etc.)
+        //
+        // We pick the last example in the array as they progressively build in
+        // complexity and the last is usually the richest.
+        //
+        // TODO: adjust the UI to show all examples.
+        let examplesFromOsquerySchema = expandedTableToPush.examples;
+        if (examplesFromOsquerySchema.length > 0) {
+          // Examples are parsed as markdown, so we wrap the example in a code
+          // fence so it renders as a code block.
+          expandedTableToPush.examples = '```\n' + examplesFromOsquerySchema[examplesFromOsquerySchema.length - 1] + '\n```';
+        }
 
         expandedTables.push(expandedTableToPush);
       } else { // If this table exists in the Fleet overrides schema, we'll override the values
@@ -132,6 +149,8 @@ module.exports = {
                 for(let platform of columnHasFleetOverrides.platforms) {
                   if(platform === 'darwin') {
                     platformWithNormalizedNames.push('macOS');
+                  } else if(platform === 'chrome') {
+                    platformWithNormalizedNames.push('ChromeOS');
                   } else {
                     platformWithNormalizedNames.push(_.capitalize(platform));
                   }
@@ -226,9 +245,13 @@ module.exports = {
 
         if(!fleetOverrideToPush.description) {
           throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table is missing a 'description' value. To resolve, add a description to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}. Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at https://github.com/osquery/osquery-site/source/src/data/osquery_schema_versions/${VERSION_OF_OSQUERY_SCHEMA_TO_USE}.json`);
+        } else if(typeof fleetOverrideToPush.description !== 'string'){
+          throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, The "description" of the "${fleetOverridesForTable.name}" table is an invalid type (Eexpected a string, but instead got a ${typeof fleetOverrideToPush.description}). to resolve, change the tables's "description" to be a string.`);
         }
         if(!fleetOverrideToPush.platforms) {
           throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table is missing a 'platforms' value. To resolve, add an array of platforms to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}. Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at https://github.com/osquery/osquery-site/source/src/data/osquery_schema_versions/${VERSION_OF_OSQUERY_SCHEMA_TO_USE}.json`);
+        } else if(!_.isArray(fleetOverrideToPush.platforms)) {
+          throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table has an invalid 'platforms' value. (expected an array, but instead got a ${typeof fleetOverrideToPush.platforms}) To resolve, change the "platforms" value to be an array of values, then try runing this script again.`);
         }
         if(fleetOverrideToPush.evented === undefined) {
           throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table is missing a 'evented' value. To resolve, add an evented value to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')} .\n Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema https://github.com/osquery/osquery-site/source/src/data/osquery_schema_versions/${VERSION_OF_OSQUERY_SCHEMA_TO_USE}.json`);
@@ -237,6 +260,8 @@ module.exports = {
         }
         if(!fleetOverrideToPush.columns) {
           throw new Error(`Could not add a new table from the Fleet overrides to final merged schema. The "${fleetOverrideToPush.name}" table is missing a "columns" value. To resolve, add an array of columns to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}. Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at https://github.com/osquery/osquery-site/source/src/data/osquery_schema_versions/${VERSION_OF_OSQUERY_SCHEMA_TO_USE}.json`);
+        } else if(!_.isArray(fleetOverrideToPush.columns)){
+          throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table has an invalid "columns" value. (Expected an array, but instead got a ${typeof fleetOverrideToPush.columns}) To resolve, change the "columns" value to be an array of values, then try runing this script again.`);
         } else {
 
           for(let columnToValidate of fleetOverrideToPush.columns) { // Check each column in the table to make sure it has the required values, and that all values are the correct type.
@@ -275,7 +300,7 @@ module.exports = {
         }
         // After we've made sure that this table has all the required values, we'll add the url of the table's YAML file in the Fleet GitHub repo as the `fleetRepoUrl`  and the location of this table on fleetdm.com as the `url` before adding it to our merged schema.
         fleetOverrideToPush.url = 'https://fleetdm.com/tables/'+encodeURIComponent(fleetOverrideToPush.name);
-        fleetOverrideToPush.fleetRepoUrl = 'https://github.com/edit/fleetdm/fleet/schema/tables/'+encodeURIComponent(fleetOverrideToPush.name)+'.yml';
+        fleetOverrideToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/blob/main/schema/tables/'+encodeURIComponent(fleetOverrideToPush.name)+'.yml';
         expandedTables.push(fleetOverrideToPush);
       }//∞ After each Fleet overrides table
     }

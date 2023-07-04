@@ -1,32 +1,36 @@
 # Adding hosts
 
-- [Introduction](#introduction)
-- [Add hosts with Orbit](#add-hosts-with-orbit)
-  - [Signing installers](#signing-installers)
-  - [Including Fleet Desktop](#including-fleet-desktop)
-  - [Adding multiple hosts](#adding-multiple-hosts)
-  - [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
-  - [Configuration options](#configuration-options)
-- [Add hosts with plain osquery](#add-hosts-with-plain-osquery)
-  - [Set an environment variable with an enroll secret](#set-an-environment-variable-with-an-enroll-secret)
-  - [Deploy the TLS certificate that osquery will use to communicate with Fleet](#deploy-the-tls-certificate-that-osquery-will-use-to-communicate-with-fleet)
-  - [Launching osqueryd](#launching-osqueryd)
-  - [Using a flag file to manage flags](#using-a-flag-file-to-manage-flags)
-    - [Flag file on Windows](#flag-file-on-windows)
-  - [Migrating from plain osquery to osquery installer](#migrating-from-plain-osquery-to-osquery-installer)
-    - [Generate installer](#generate-installer)
-    - [Migrate](#migrate)
-- [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos)
-  - [Creating the configuration profile](#creating-the-configuration-profile)
-    - [Obtaining identifiers](#obtaining-identifiers)
-    - [Creating the profile](#creating-the-profile)
-    - [Test the profile](#test-the-profile)
+- [Adding hosts](#adding-hosts)
+  - [Introduction](#introduction)
+  - [Add hosts with Orbit](#add-hosts-with-orbit)
+    - [Signing installers](#signing-installers)
+    - [Including Fleet Desktop](#including-fleet-desktop)
+    - [Adding multiple hosts](#adding-multiple-hosts)
+    - [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
+    - [Configuration options](#configuration-options)
+  - [Add hosts with plain osquery](#add-hosts-with-plain-osquery)
+    - [Set up your Fleet enroll secret](#set-up-your-fleet-enroll-secret)
+    - [Provide the TLS certificate that osquery will use to communicate with Fleet](#provide-the-tls-certificate-that-osquery-will-use-to-communicate-with-fleet)
+    - [Configure and launch osquery](#configure-and-launch-osquery)
+      - [Launching osqueryd using command-line flags](#launching-osqueryd-using-command-line-flags)
+      - [Launching osqueryd using a flag file](#launching-osqueryd-using-a-flag-file)
+    - [Migrating from plain osquery to osquery installer](#migrating-from-plain-osquery-to-osquery-installer)
+      - [Generate installer](#generate-installer)
+      - [Migrate](#migrate)
+  - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos)
+    - [Creating the configuration profile](#creating-the-configuration-profile)
+      - [Obtaining identifiers](#obtaining-identifiers)
+      - [Creating the profile](#creating-the-profile)
+      - [Test the profile](#test-the-profile)
 
 ## Introduction
 
 Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recomended way to install osquery is using [Orbit](https://fleetdm.com/docs/using-fleet/orbit), Fleet's lightweight osquery runtime and autoupdater. 
 
 You can also install plain osquery on your hosts and connect to Fleet using osquery's `TLS API` plugins.
+
+> For ChromeOS hosts, the fleetd Chrome extension is installed instead of osquery. This Chrome browser extension is only supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). 
+
 ## Add hosts with Orbit
 
 To create an Orbit installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
@@ -44,7 +48,7 @@ When you install the generated Orbit installer on a host, this host will automat
 
 ### Signing installers
 
-  >**Note:** Currently, the `fleetclt package` does not provide support for signing Windows Orbit installers. Windows installers can be signed after building.
+  >**Note:** Currently, the `fleetctl package` does not provide support for signing Windows Orbit installers. Windows installers can be signed after building.
 
 The `fleetctl package` provides support for signing and notarizing macOS osquery installers via the
 `--sign-identity` and `--notarize` flags.
@@ -111,31 +115,32 @@ To generate an osquery installer for a team:
 
 The following command-line flags allow you to configure an osquery installer further to communicate with a specific Fleet instance.
 
-|Flag | Options|
-|------|--------|
-|  --type |  **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.)|
-|--fleet-desktop |      Include Fleet Desktop. |
-|--enroll-secret |      Enroll secret for authenticating to Fleet server |
-|--fleet-url |          URL (`host:port`) of Fleet server |
-|--fleet-certificate |  Path to server certificate bundle |
-|--identifier |         Identifier for package product (default: `com.fleetdm.orbit`) |
-|--version |            Version for package product (default: `0.0.3`) |
-| --insecure  |             Disable TLS certificate verification (default: `false`) |
-| --service   |             Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`) |
-|--sign-identity |      Identity to use for macOS codesigning |
-| --notarize |             Whether to notarize macOS packages (default: `false`) |
-| --disable-updates |   Disable auto updates on the generated package (default: false) |
-|--osqueryd-channel |   Update channel of osqueryd to use (default: `stable`) |
-|--orbit-channel |      Update channel of Orbit to use (default: `stable`) |
-|--desktop-channel |    Update channel of desktop to use (default: `stable`) |
-|--update-url |         URL for update server (default: `https://tuf.fleetctl.com`) |
-|--update-roots |       Root key JSON metadata for update server (from fleetctl updates roots) |
-| --debug     |             Enable debug logging (default: `false`) |
-| --verbose   |             Log detailed information when building the package (default: false) |
-| --help, -h    |             show help (default: `false`) |
+| Flag                       | Options                                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| --type                     | **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.) |
+| --fleet-desktop            | Include Fleet Desktop.                                                                                                                  |
+| --enroll-secret            | Enroll secret for authenticating to Fleet server                                                                                        |
+| --fleet-url                | URL (`host:port`) of Fleet server                                                                                                       |
+| --fleet-certificate        | Path to server certificate bundle                                                                                                       |
+| --identifier               | Identifier for package product (default: `com.fleetdm.orbit`)                                                                           |
+| --version                  | Version for package product (default: `0.0.3`)                                                                                          |
+| --insecure                 | Disable TLS certificate verification (default: `false`)                                                                                 |
+| --service                  | Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`)                                                   |
+| --sign-identity            | Identity to use for macOS codesigning                                                                                                   |
+| --notarize                 | Whether to notarize macOS packages (default: `false`)                                                                                   |
+| --disable-updates          | Disable auto updates on the generated package (default: false)                                                                          |
+| --osqueryd-channel         | Update channel of osqueryd to use (default: `stable`)                                                                                   |
+| --orbit-channel            | Update channel of Orbit to use (default: `stable`)                                                                                      |
+| --desktop-channel          | Update channel of desktop to use (default: `stable`)                                                                                    |
+| --update-url               | URL for update server (default: `https://tuf.fleetctl.com`)                                                                             |
+| --update-roots             | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
+| --use-system-configuration | Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)               |
+| --debug                    | Enable debug logging (default: `false`)                                                                                                 |
+| --verbose                  | Log detailed information when building the package (default: false)                                                                     |
+| --help, -h                 | show help (default: `false`)                                                                                                            |
 
 
-Fleet supports other methods for adding your hosts to Fleet, such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
+Fleet supports other methods for adding your hosts to Fleet, such as the [plain osquery binaries](#add-hosts-with-plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
 
 ## Add hosts with plain osquery
 
@@ -180,18 +185,18 @@ In order for osquery to connect to the fleet server, there are some flags that n
  --tls_server_certs=/etc/osquery/fleet.crt
  --tls_hostname=fleet.example.com 
  --host_identifier=uuid 
- --enroll_tls_endpoint=/api/v1/osquery/enroll 
+ --enroll_tls_endpoint=/api/osquery/enroll 
  --config_plugin=tls 
- --config_tls_endpoint=/api/v1/osquery/config 
+ --config_tls_endpoint=/api/osquery/config 
  --config_refresh=10 
  --disable_distributed=false
  --distributed_plugin=tls 
  --distributed_interval=10 
  --distributed_tls_max_attempts=3 
- --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read 
- --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write 
+ --distributed_tls_read_endpoint=/api/osquery/distributed/read 
+ --distributed_tls_write_endpoint=/api/osquery/distributed/write 
  --logger_plugin=tls 
- --logger_tls_endpoint=/api/v1/osquery/log 
+ --logger_tls_endpoint=/api/osquery/log 
  --logger_tls_period=10
  ```
 These can be specified directly in the command line or saved to a flag file. 
@@ -206,18 +211,18 @@ sudo osqueryd \
  --tls_server_certs=/etc/osquery/fleet.crt \
  --tls_hostname=fleet.example.com \
  --host_identifier=uuid \
- --enroll_tls_endpoint=/api/v1/osquery/enroll \
+ --enroll_tls_endpoint=/api/osquery/enroll \
  --config_plugin=tls \
- --config_tls_endpoint=/api/v1/osquery/config \
+ --config_tls_endpoint=/api/osquery/config \
  --config_refresh=10 \
  --disable_distributed=false \
  --distributed_plugin=tls \
  --distributed_interval=10 \
  --distributed_tls_max_attempts=3 \
- --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
- --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
+ --distributed_tls_read_endpoint=/api/osquery/distributed/read \
+ --distributed_tls_write_endpoint=/api/osquery/distributed/write \
  --logger_plugin=tls \
- --logger_tls_endpoint=/api/v1/osquery/log \
+ --logger_tls_endpoint=/api/osquery/log \
  --logger_tls_period=10
 ```
 
@@ -256,7 +261,7 @@ If you currently ship a certificate (`fleet.pem`), also include this in the gene
 `--fleet-certificate [/path/to/fleet.pem]`.
 
 Fleet automatically manages most of the osquery flags to connect to the Fleet server. There's no
-need to set any of the flags mentioned above in [Launching osqueryd](#launching-osqueryd). To
+need to set any of the flags mentioned above in [Configure and launch osquery](#configure-and-launch-osquery). To
 include other osquery flags, provide a flagfile when packaging with `--osquery-flagfile
 [/path/to/osquery.flags]`.
 
@@ -273,6 +278,22 @@ If the existing enrolled hosts use `--host_identifier=uuid` (or the `uuid` setti
 installation should appear as the same host in the Fleet UI. If other settings are used, duplicate
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration setting. To configure this setting, in the Fleet UI, head to **Settings > Organization settings > Advanced options**. 
+
+## Add Chromebooks with the Fleetd Chrome extension
+
+Visit the Google Admin console. In the navigation menu, visit Devices > Chrome > Apps & Extensions > Users & browsers.
+
+Select the relevant organizational unit, users, or group where you want the fleetd Chrome extension to be installed.
+
+In the bottom right, click the yellow "+" button and select "Add Chrome app or extension by ID."
+
+Visit your Fleet instance and select Hosts > Add Hosts and select ChromeOS in the popup modal.
+
+Enter the "Extension ID," "Installation URL," and "Policy for extensions" using the data provided in the modal.
+
+Under "Installation Policy", select "Force install". Under "Update URL", select "Installation URL (see above)".
+
+> For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which

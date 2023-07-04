@@ -1,12 +1,16 @@
 package fleet
 
 import (
+	"strings"
 	"time"
 )
 
 // Must be kept in sync with the vendor column definition.
-const SoftwareVendorMaxLength = 114
-const SoftwareVendorMaxLengthFmt = "%.111s..."
+const (
+	SoftwareVendorMaxLength    = 114
+	SoftwareVendorMaxLengthFmt = "%.111s..."
+	SoftwareFieldSeparator     = "\u0000"
+)
 
 type Vulnerabilities []CVE
 
@@ -39,7 +43,7 @@ type Software struct {
 	// GenerateCPE is the CPE23 string that corresponds to the current software
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
 
-	// Vulnerabilities lists all the found CVEs for the CPE
+	// Vulnerabilities lists all found vulnerablities
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
 	// HostsCount indicates the number of hosts with that software, filled only
 	// if explicitly requested.
@@ -57,6 +61,17 @@ func (Software) AuthzType() string {
 	return "software"
 }
 
+// ToUniqueStr creates a unique string representation of the software
+func (s Software) ToUniqueStr() string {
+	ss := []string{s.Name, s.Version, s.Source, s.BundleIdentifier}
+	// Release, Vendor and Arch fields were added on a migration,
+	// thus we only include them in the string if at least one of them is defined.
+	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
+		ss = append(ss, s.Release, s.Vendor, s.Arch)
+	}
+	return strings.Join(ss, SoftwareFieldSeparator)
+}
+
 // AuthzSoftwareInventory is used for access controls on software inventory.
 type AuthzSoftwareInventory struct {
 	// TeamID is the ID of the team. A value of nil means global scope.
@@ -68,10 +83,21 @@ func (s *AuthzSoftwareInventory) AuthzType() string {
 	return "software_inventory"
 }
 
+type HostSoftwareEntry struct {
+	// Software details
+	Software
+	// Where this software was installed on the host, value is derived from the
+	// host_software_installed_paths table.
+	InstalledPaths []string `json:"installed_paths,omitempty"`
+}
+
 // HostSoftware is the set of software installed on a specific host
 type HostSoftware struct {
 	// Software is the software information.
-	Software []Software `json:"software,omitempty" csv:"-"`
+	Software []HostSoftwareEntry `json:"software,omitempty" csv:"-"`
+
+	// SoftwareUpdatedAt is the time that the host software was last updated
+	SoftwareUpdatedAt time.Time `json:"software_updated_at" db:"software_updated_at" csv:"software_updated_at"`
 }
 
 type SoftwareIterator interface {
@@ -94,4 +120,53 @@ type SoftwareListOptions struct {
 	// counts of hosts per software, and include only those software that have
 	// a count of hosts > 0.
 	WithHostCounts bool
+}
+
+type SoftwareIterQueryOptions struct {
+	ExcludedSources []string // what sources to exclude
+	IncludedSources []string // what sources to include
+}
+
+// IsValid checks that either ExcludedSources or IncludedSources is specified but not both
+func (siqo SoftwareIterQueryOptions) IsValid() bool {
+	return !(len(siqo.IncludedSources) != 0 && len(siqo.ExcludedSources) != 0)
+}
+
+// UpdateHostSoftwareDBResult stores the 'result' of calling 'ds.UpdateHostSoftware' for a host,
+// contains the software installed on the host pre-mutations all the mutations performed: what was
+// inserted and what was deleted.
+type UpdateHostSoftwareDBResult struct {
+	// What software was installed on the host before performing any mutations
+	WasCurrInstalled []Software
+	// What software was deleted
+	Deleted []Software
+	// What software was inserted
+	Inserted []Software
+}
+
+// CurrInstalled returns all software that should be currently installed on the host by looking at
+// was currently installed, removing anything that was deleted and adding anything that was inserted
+func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
+	var r []Software
+
+	if uhsdbr == nil {
+		return r
+	}
+
+	deleteMap := map[uint]struct{}{}
+	for _, d := range uhsdbr.Deleted {
+		deleteMap[d.ID] = struct{}{}
+	}
+
+	for _, c := range uhsdbr.WasCurrInstalled {
+		if _, ok := deleteMap[c.ID]; !ok {
+			r = append(r, c)
+		}
+	}
+
+	for _, i := range uhsdbr.Inserted {
+		r = append(r, i)
+	}
+
+	return r
 }

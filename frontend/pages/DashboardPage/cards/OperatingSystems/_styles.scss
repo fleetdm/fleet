@@ -2,23 +2,6 @@
   margin-top: $pad-large;
   position: relative;
 
-  &__empty-os {
-    margin: 0 auto;
-
-    h1 {
-      font-size: $small;
-      font-weight: $bold;
-      margin-bottom: $pad-medium;
-    }
-
-    p {
-      color: $core-fleet-black;
-      font-weight: $regular;
-      font-size: $x-small;
-      margin: 0;
-    }
-  }
-
   .data-table__wrapper {
     overflow-x: auto;
   }
@@ -30,12 +13,13 @@
   }
 
   .os-hosts-link {
-    visibility: hidden;
+    opacity: 0;
+    transition: 250ms;
   }
 
   tr:hover {
     .os-hosts-link {
-      visibility: visible;
+      opacity: 1;
     }
   }
 
@@ -45,5 +29,10 @@
 
   .count-error {
     color: $ui-error;
+  }
+
+  &__os-empty-table.empty-table__container {
+    // overriding base component styles so this look correct for this card
+    margin-top: $pad-large
   }
 }

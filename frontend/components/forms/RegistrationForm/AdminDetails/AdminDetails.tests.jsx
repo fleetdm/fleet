@@ -10,8 +10,8 @@ describe("AdminDetails - form", () => {
   it("renders", () => {
     render(<AdminDetails handleSubmit={onSubmitSpy} />);
 
-    expect(screen.getByPlaceholderText("Password")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Confirm password")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirm password")).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", { name: "Full name" })
     ).toBeInTheDocument();
@@ -55,11 +55,8 @@ describe("AdminDetails - form", () => {
       <AdminDetails handleSubmit={onSubmitSpy} currentPage />
     );
 
-    await user.type(screen.getByPlaceholderText("Password"), "p@ssw0rd");
-    await user.type(
-      screen.getByPlaceholderText("Confirm password"),
-      "password123"
-    );
+    await user.type(screen.getByLabelText("Password"), "p@ssw0rd");
+    await user.type(screen.getByLabelText("Confirm password"), "password123");
     await user.click(screen.getByRole("button", { name: "Next" }));
     // then
     expect(onSubmitSpy).not.toHaveBeenCalled();
@@ -73,11 +70,8 @@ describe("AdminDetails - form", () => {
       <AdminDetails handleSubmit={onSubmitSpy} currentPage />
     );
 
-    await user.type(screen.getByPlaceholderText("Password"), "passw0rd");
-    await user.type(
-      screen.getByPlaceholderText("Confirm password"),
-      "passw0rd"
-    );
+    await user.type(screen.getByLabelText("Password"), "passw0rd");
+    await user.type(screen.getByLabelText("Confirm password"), "passw0rd");
     await user.click(screen.getByRole("button", { name: "Next" }));
     // then
     expect(onSubmitSpy).not.toHaveBeenCalled();
@@ -95,11 +89,8 @@ describe("AdminDetails - form", () => {
       screen.getByRole("textbox", { name: "Email" }),
       "hi@gnar.dog"
     );
-    await user.type(screen.getByPlaceholderText("Password"), "password123#");
-    await user.type(
-      screen.getByPlaceholderText("Confirm password"),
-      "password123#"
-    );
+    await user.type(screen.getByLabelText("Password"), "password123#");
+    await user.type(screen.getByLabelText("Confirm password"), "password123#");
     await user.type(
       screen.getByRole("textbox", { name: "Full name" }),
       "Gnar Dog"

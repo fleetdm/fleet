@@ -1,11 +1,30 @@
+.site-nav-content {
+  flex-grow: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 2px;
+}
+
+.site-nav-list {
+  list-style: none;
+  height: 50px;
+  width: 671px;
+  margin: 0;
+  padding: 0;
+  display: flex;
+}
+
 .site-nav-item {
   position: relative;
   transition: color 200ms ease-in-out;
   cursor: pointer;
-  max-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
-    background-color: $core-fleet-black;
+    background-color: $site-nav-on-hover;
   }
 
   &--multiple.site-nav-item--active {
@@ -44,58 +63,51 @@
       overflow: hidden;
       user-select: none;
       pointer-events: none;
-      font-weight: $bold;
+      font-weight: $xbold;
     }
   }
 
   &__link {
     color: $core-white;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    padding: 14px 20px 17px;
+    padding: 15px 24px;
     text-decoration: none;
+
+    // Prevents user menu from overlapping with nav bar buttons
+    @media (max-width: 825px) {
+      padding: 15px 18px;
+    }
+  }
+
+  &__logo-wrapper {
+    overflow: hidden;
   }
 
   &__logo {
     text-align: center;
-    display: table-cell;
-    vertical-align: middle;
-    width: 64px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
   &--active {
-    border-bottom: 3px solid $core-vibrant-blue;
-    background-color: $core-fleet-black;
-    height: 47px;
+    background-color: $site-nav-on-hover;
+
+    &::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: $core-vibrant-blue;
+    }
 
     &:hover {
-      background-color: $core-fleet-black;
+      background-color: $site-nav-on-hover;
     }
 
     .site-nav-item__name {
-      font-weight: $bold;
+      font-weight: $xbold;
     }
   }
-}
-
-.logo {
-  height: 48px;
-  transform: scale(0.5);
-  position: relative;
-  top: 1px;
-}
-
-.site-nav-container {
-  flex-grow: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.site-nav-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
 }

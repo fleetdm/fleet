@@ -28,7 +28,6 @@ func DownloadAndExtract(client *http.Client, u *url.URL, path string) error {
 }
 
 func download(client *http.Client, u *url.URL, path string, extract bool) error {
-
 	// atomically write to file
 	dir, file := filepath.Split(path)
 	if dir == "" {

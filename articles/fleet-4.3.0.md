@@ -1,6 +1,6 @@
 # Fleet 4.3.0
 
-![Fleet 4.3.0](../website/assets/images/articles/fleet-4.3.0-cover-700x393@2x.jpg)
+![Fleet 4.3.0](../website/assets/images/articles/fleet-4.3.0-cover-1600x900@2x.jpg)
 
 Fleet 4.3.0 is now available. Visit our [updating Fleet](https://fleetdm.com/docs/using-fleet/updating-fleet) guide for instructions on how to update.
 

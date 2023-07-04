@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -72,12 +73,12 @@ func createHostsWithSoftware(t *testing.T, db *sqlx.DB) []*fleet.Host {
 	hosts := make([]*fleet.Host, 2)
 	for i := range hosts {
 		host := &fleet.Host{
-			OsqueryHostID:   strconv.Itoa(i + 1),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i + 1)),
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         strconv.Itoa(i + 1),
+			NodeKey:         ptr.String(strconv.Itoa(i + 1)),
 			UUID:            strconv.Itoa(i + 1),
 			Hostname:        fmt.Sprintf("foo%d.local", i+1),
 		}

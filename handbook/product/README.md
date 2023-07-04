@@ -1,104 +1,22 @@
 # Product
 
-⚗️ Roadmap: https://github.com/orgs/fleetdm/projects/41/views/2
+Contributors in Fleet's product department [prioritize](#prioritizing-improvements) and [define](https://fleetdm.com/handbook/company/product-groups#drafting) the [changes we make to the product](https://fleetdm.com/handbook/company/product-groups#making-changes).
 
-## Job to be done
+Changes begin as [ideas](#intake) or [code](#outside-contributions) that can be contributed by anyone.
 
-Every product should have a single job that it strives to do. We use the [Jobs to be Done
-(JTBD) framework](https://about.gitlab.com/handbook/engineering/ux/jobs-to-be-done/). Fleet's
-overarching job to be done is the following:
+> You can read what's coming in the next 3-6 weeks in Fleet's [⚗️ Drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
-"I need a way to see what laptops and servers I have and what I need to do to keep them secure and
-compliant."
+## Product design
 
-## Objectives and key results (OKRs) and Key Performance Indicators (KPIs)
+The product team is responsible for product design tasks like drafting [changes to the Fleet product](https://fleetdm.com/handbook/company/development-groups#making-changes), reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering these changes to the engineering team. 
 
-Fleet uses objectives and key results (OKRs) to align the organization with measurable
-goals, and key performance indicators (KPIs) to measure the work that achieves the goals of the OKRs. Rephased, the objectives and key results describes what you want to accomplish and the key performance indicators describe how you know you're making progress.
+> Learn more about Fleet's philosophy and process for [making iterative changes to the product](https://fleetdm.com/handbook/company/development-groups#making-changes), or [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-The product team is responsible for sub-OKRs that contribute to organization-wide OKRs.
+### Wireframing
 
-| Year, Quarter  | OKR file |   
-|---------------|------------------|
-| 2022, Q2      | [internal doc](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit?usp=sharing)   |
-| 2022, Q3      | [internal doc](https://docs.google.com/document/d/1i0ovyamy6MqyFDgiMtPO_OkAzetPuNKryAeu12KbMFk/edit?usp=sharing)   |
-| 2022, Q4      | TODO             |
+At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-## Q1 2022 product objectives
-
-In Q1 2022, Fleet set company-wide objectives. The product team was responsible for
-the product objectives that contributed to the company-wide objectives.
-
-The following list includes the company-wide objectives, product objectives ("How?" sections), and whether or not the
-product team hit or missed each objective:
-
-#### Ultimate source of truth
-
-Fleet + osquery gives organizations the ability to see an almost [endless amount of
-data](https://osquery.io/schema/5.1.0/) for all their devices. We want to build on this reputation
-by consistently providing the freshest, most accurate, and most understandable data possible
-in the UI and API.
-
-##### How?
-
-- Solve the "Undetermined" performance impact limitation for new scheduled queries as well as
-reflect unfinished policy runs in the UI/API (Miss).
-- Only advertise working osquery tables inside the product by looking at your `wifi_networks` table
-  (Miss).
-
-#### Programmable
-
-Fleet differentiates itself from other security tools by providing a simple and easy-to-use API and
-CLI tool (fleetctl). This allows users and customers to leverage Fleet's superb ability to gather
-device data in unique ways to their organization.
-
-##### How?
-
-- Add integrations for policy and vulnerability automations (Miss).
-- Take steps toward feature parity with other vulnerability management solutions (Miss).
-- Roll up software and vulnerabilities across the entire organization and teams (Hit).
-
-#### Who's watching the watchers
-
-Many current Fleet users and customers hire Fleet to increase their confidence that other security
-tools are functioning properly. We will continue to expose valuable information about these tools to meet customer requirements.
-
-##### How?
-
-- Detect the health of other installed agents and verify device enrollment in Jamf,
-Kandji, and SimpleMDM. (Hit)
-- Roll up mobile device management (MDM) and Munki data across the entire organization and teams. (Hit)
-
-#### Self-service, 2-way IT
-
-Fleet is poised to enable an organization's employees to resolve issues with their devices on their own. This saves for IT administrators and security practitioners, but it also builds
-trust so that an organization can focus on achieving its business outcomes together.
-
-##### How?
-
-- Enable end-users to self-serve issues with their devices using Fleet Desktop(Miss).
-- Enable end-users to see what information is collected about their device by maintaining the scope transparency(Hit).
-
-#### Easy to use
-
-We'd like to make maintaining secure laptops and servers as easy as possible.
-
-##### How?
-
-- Improve the standard query library to include 80% of the most common
-policies that any organization needs(Miss).
-
-## Product design process
-
-The product team is responsible for product design tasks. These include drafting
-changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
-these changes to the engineering team. 
-
-Look here for more information about [Using Figma](https://fleetdm.com/handbook/digital-experience#fleet-website).
-
-### Drafting
-
-* Move an issue that is assigned to you from the "Ready" column of the [🛸 Product team (weekly) board](https://github.com/orgs/fleetdm/projects/17) to the "In progress" column.
+* Take the top issue that is assigned to you in the "Prioritized" column of the drafting board.
 
 * Create a page in the [Fleet EE (scratchpad, dev-ready) Figma file](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-dev-ready%2C-scratchpad?node-id=3923%3A208793) and combine your issue's number and
   title to name the Figma page.
@@ -107,123 +25,91 @@ Look here for more information about [Using Figma](https://fleetdm.com/handbook/
   yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate
   Figma page in Fleet EE (scratchpad, dev-ready).
 
-* While drafting, reach out to sales, customer success, and marketing for a new perspective.
+* While drafting, reach out to sales, customer success, and marketing for a business perspective.
 
 * While drafting, engage engineering to gain insight into technical costs and feasibility.
 
-### Review
+### Scheduling design reviews
 
-* Move the issue into the "Ready for review" column. The drafted changes that correspond to each
-  issue in this column will be reviewed during the recurring product huddle meeting.
+- Prepare your draft in the user story issue.
+- Prepare the agenda for your design review meeting, which should be an empty document other than the proposed changes you will present.
+- Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/business-operations/ceo-handbook). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
+- During the review meeting, take detailed notes of any feedback on the draft.
+- Address the feedback by modifying your draft.
+- Rinse and repeat at subsequent sessions until there is no more feedback.
 
-* During the product huddle meeting, record any feedback on the drafted changes.
+> As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
-### Deliver
+#### Estimating
 
-* Once your work is complete and all feedback is addressed, make sure that the issue is updated with
-  a link to the correct page in the Fleet EE (scratchpad) Figma. This page is where the design
-  specifications live.
+Once the draft has been approved: 
+* move it to the "Designed" column in the drafting board
+* make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
 
-* Add the issue to the 🏛 Architect column in [the 🛸 Product project](https://github.com/orgs/fleetdm/projects/27). This way, an architect on the engineering team knows that the issue is ready for engineering specifications and, later,
-  engineering estimation.
+Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
-#### Priority drafting
+### Expedited drafting
 
-Priority drafting is the revision of drafted changes currently being developed by
-the engineering team. Priority drafting aims to quickly adapt to unknown edge cases and
-changing specifications while ensuring
-that Fleet meets our brand and quality guidelines. 
+Expedited drafting is the revision of drafted changes currently being developed by
+the engineering team. Expedited drafting aims to quickly adapt to unknown edge cases and
+changing specifications while ensuring that Fleet meets our brand and quality guidelines. 
 
-Priority drafting occurs in the following scenarios:
+You'll know it's time for expedited drafting when:
+- The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
+- A user story is taking more effort than was originally estimated, and Product Manager wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
 
-* A drafted UI change is missing crucial information that prevents the engineering team from
-  continuing the development task.
-
-* Functionality included in a drafted UI change must be cut down in order to ship the improvement in
-  the currently scheduled release.
-
-What happens during priority drafting?
-
+What happens during expedited drafting?
 1. Everyone on the product and engineering teams know that a drafted change was brought back
-   to drafting and prioritized. 
-
+   to drafting and prioritized.
 2. Drafts are updated to cover edge cases or reduce functionality.
+3. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back to the engineering team to continue the development task.
 
-3. UI changes are reviewed, and the UI changes are brought back to the engineering team to continue
-  the development task.
+## Outside contributions
 
-## Planning
+[Anyone can contribute](https://fleetdm.com/handbook/company#openness) at Fleet, from inside or outside the company.  Since contributors from the wider community don't receive a paycheck from Fleet, they work on whatever they want.
 
-- The intake process for a given group (how new issues are received from a given requestor and estimated within the group's timeframe) is up to each group's PM. For example, the Interface group's intake process consists of attending Interface PM's office hours and making a case, at which time a decision about whether to draft an estimate will be made on the spot.
+Many open source contributions that start as a small, seemingly innocuous pull request come with lots of additional [unplanned work](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) down the road: unforseen side effects, documentation, testing, potential breaking changes, database migrations, [and more](https://fleetdm.com/handbook/company/development-groups#defining-done).
 
-- New unestimated issues are created in the Planning board, which is shared by each group.
+Thus, to ensure consistency, completeness, and secure development practices, no matter where a contribution comes from, Fleet will still follow the standard process for [prioritizing](#prioritizing-improvements) and [drafting](https://fleetdm.com/handbook/company/development-groups#drafting) a feature when it comes from the community.
 
-- The estimation process to use is up to the EM of each group (with buy-in from the PM), with the goal of delivering estimated issues within the group's timeframe, which is set for each group by the Head of Product. No matter the group, only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's EM and occurs on the Planning board. Some groups may choose to use "timeboxes" rather than estimates.
+## Prioritizing improvements
+Product Managers prioritize all potential product improvements worked on by Fleeties. Anyone (Fleeties, customers, and community members) are invited to suggest improvements. See [the intake section](#intake) for more information on how Fleet's product team intakes new feature requests.
 
-- Prioritization will now occur at the point of intake by the PM of the group. Besides the 20% "engineering initiatives," only issues prioritized by the group PM or worked on or estimated. On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per group. 
+## Prioritizing bugs
+Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
 
-- Work that does not "fit" into the scheduled release (due to lack of capacity or otherwise) remains in the "Estimated" column of the product board and is removed from that board if it is not prioritized in the following release.
+If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the Estimated for the next sprint. If a bug [requires drafting](https://fleetdm.com/handbook/engineering#in-product-drafting-as-needed) to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
-### Process
+If a bug is not addressed within 6 weeks, [it is sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). During the sprint kickoff review ritual, each product group PM should review every bug which is marked in this way with the Head of Product and recommended whether a bug should be kept for the next sprint or de-prioritized. A de-prioritized bugs might include action items such as documentation of the defect. The Head of Product then reviews the bug recommendations with the CEO in the bug de-prioritization review ritual. 
 
-1. **Intake:** Each group has a "time til estimated" timeframe, which measures the time from when an idea is first received until it is written up as an estimated issue and the requestor is notified exactly which aspects are scheduled for release. How intake works, and the estimation timeframe, vary per group, but every group has an estimation timeframe.
+If a bug should be kept for the next sprint, the group PM should
+- Remove the :product label.
+- Move the bug to the "Inbox" column on the bugs board and assign it to the appropriate EM.
 
-2. **Estimation:** The estimation process varies per group. In the Interface group, it consists of drafting, API design, and either planning poker or a quick timebox decided by the group EM. When the Interface group relies on the Platform group for part of an issue, only the Interface group's work is estimated. It is up to the Interface PM to obtain estimated Platform issues for any needed work and thus make sure it is scheduled in the appropriate release. It is up to the Platform PM to get those specced (in consultation with Engineering), then up to the Engineering to estimate and communicate promptly if issues arise. We avoid having more estimated issues than capacity in the next release. If the team is fully allocated, no more issues will be estimated, or the PM will decide whether to swap anything out. Once estimated, an issue is scheduled for release. 
+## Writing user stories
+Product Managers [write user stories](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
 
-3. **Development:** Development starts on the first day of the new release. Only estimated issues are scheduled for release.
+## Drafting user stories
+Product Designers [draft user stories](https://fleetdm.com/handbook/company/development-groups#drafting).
 
-4. **Quality assurance (QA):** Everyone in each group is responsible for quality: engineers, PM, and the EM. The QA process varies per group and is set by the group's PM. For example, in the Interface group, every issue is QA'd (i.e. a per-change basis), as well as a holistic "smoke test" during the last few days of each release.
+## Estimating user stories
+Engineering Managers estimate user stories.  They are responsible for delivering planned work in the current sprint (0-3 weeks) while quickly getting user stories estimated for the next sprint (3-6 weeks).  Only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's Engineering Manager and occurs on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
-5. **Release:** Release dates are time-based and happen even if all features are not complete (± a day or two sometimes, if there's an emergency. Either way, the next release cycle starts on time). If anything is not finished, or can only be finished with changes, the PM finds out immediately and notifies the requestor right away.
+## Sprints
+Sprints align with Fleet's [3-week release cycle](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence).
 
-### Timeframes
+On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per group. 
 
-These are effectively internal SLAs. We moved away from the term "SLA" to avoid potential confusion with future, contractual Service Level Agreements Fleet might sign with its customers.
+Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible). To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
 
-#### Prioritization
+### Sprint numbering
+Sprints are numbered according to the release version. For example, for the sprint ending on June 30th, 2023, on which date we expect to release Fleet v4.34, the sprint is called the 4.34 sprint. 
 
-≤Five business days from when the initial request is weighed by PM, requestor has heard back from the group PM whether the request will be prioritized.
-
-#### Release
-
-≤Six weeks from when the initial request is weighed by PM, this is released into the hands of the Fleet community, generally available (no feature flags or limitations except as originally specced or as adjusted if necessary).
-
-Work that is prioritized by the group PM should be released in the six week timeframe (two releases). Work that is too large for this timeframe should be split up.
-
-#### Estimation
-
-≤Five business days from the initial request, an issue is created with a summary of the purpose, the goal, and the plan to achieve it. The level of detail in that plan is up to the PM of the product group. The issue also has an estimation, expressed in story points, which is either determined through planning poker or a "timebox."
-
-For the Interface group, "estimated" means UI wireframes and API design are completed, and the work to implement them has been estimated.
-
-#### Adjustment
-
-≤One business day from discovering some blocker or change necessary to already prioritized and estimated work. The group PM decides how the usage/UI will be changed and notifies the original requestor of changes to the spec.
-
-## UI design
-
-### Communicating design changes to the engineering team.
-NEW feature that have been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
-1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
-2. Detail the required changes (including page links to the relevant layouts), then assign the issue to the __"Initiatives"__ project.
-
-<img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
-
-> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current) are final assets, ready for implementation. Therefore, it’s important NOT to use the "idea" label, as designs in this document are more than ideas - they are something that WILL be implemented.
-
-3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), hit "+ Add cards," pick the new issue, and drag it into the "🤩Inspire me" column. 
-
-<img src="https://user-images.githubusercontent.com/78363703/129840496-54ea4301-be20-46c2-9138-b70bff7198d0.png" alt="Add cards"/>
-
-<img src="https://user-images.githubusercontent.com/78363703/129840735-3b270429-a92a-476d-87b4-86b93057b2dd.png" alt="Inspire me"/>
-
-### Communicating unplanned design changes
-
-For issues related to something that was ALREADY in Figma Fleet EE (current, dev-ready), but __implemented differently__, e.g., padding/spacing inconsistency, etc. Create a [bug issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) and detail the required changes.
-
-### Design conventions
+### Product design conventions
 
 We have certain design conventions that we include in Fleet. We will document more of these over time.
+
+> TODO: Link to style guide here instead, and deduplicate all of this content (or as much as possible).
 
 **Table empty states**
 
@@ -253,50 +139,24 @@ There are two types of tooltips. The two types of tooltips have some unique styl
 
 ## Release 
 
-This section outlines the communication between the product team, growth team, product team,
-and customer success team prior to a release of Fleet.
+This section outlines the communication between the product, marketing, and customer success teams prior to a release of Fleet.
 
-### Goal
+These measures exist to keep all contributors (including other departments besides engineering and product) up to date with improvements and changes to the Fleet product.  This helps folks plan and communicate with customers and users more effectively.
 
-Keep the business up to date with improvements and changes to the Fleet product so that all stakeholders can communicate
-with customers and users.
+### Ranking features
+After the kickoff of a product sprint, the marketing and product teams decide which improvements are most important to highlight in this release, whether that's through social media "drumbeat" tweets, collaboration with partners, or emphasized [content blocks](https://about.gitlab.com/handbook/marketing/blog/release-posts/#3rd-to-10th) within the release blog post.
+
+When an improvement gets scheduled for release, the Head of Product sets its "echelon" to determine the emphasis the company will place on it.  This leveling is based on the improvement's desirability and timeliness, and will affect marketing effort for the feature.
+
+- **Echelon 1: A major product feature announcement.** The most important release types, these require a specific and custom marketing package. Usually including an individual blog post, a demo video and potentially a press release or official product marketing launch. There is a maximum of one _echelon 1_ product announcement per release sprint.
+- **Echelon 2: A highlighted feature in the release notes.** This product feature will be highlighted at the top of the Sprint Release blog post. Depending on the feature specifics this will include: a 1-2 paragraph write-up of the feature, a demo video (if applicable) and a link to the docs. Ideally there would be no more than three _echelon 2_ features in a release post, otherwise the top features will be crowded.
+- **Echelon 3: A notable feature to mention in the [changelog](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md)**. Most product improvements fit into this echelon. This includes 1-2 sentences in the changelog and [release blog post](https://fleetdm.com/releases).
 
 ### Blog post
 
-The product team is responsible for providing the [growth team](../growth/README.md) with the necessary information for writing
-the release blog post. This is accomplished by filing a release blog post issue and adding
-the issue to the growth board on GitHub.
+Before each release, the Head of Product [creates a "Release" issue](https://github.com/fleetdm/confidential/issues/new/choose), which includes a list of all improvements included in the upcoming release.  Each improvement links to the relevant bug or user story issue on GitHub so it is easy to read the related discussion and history.
 
-The release blog post issue includes a list of the primary features included in the upcoming
-release. This list of features should point the reader to the GitHub issue that explains each
-feature in more detail.
-
-Find an example release blog post issue [here](https://github.com/fleetdm/fleet/issues/3465).
-
-### Customer announcement
-
-The product team is responsible for providing the [customer success team](../customers/README.md) with the necessary information
-for writing a release customer announcement. This is accomplished by filing a release customer announcement issue and adding
-the issue to the customer success board on GitHub. 
-
-
-The release blog post issue is filed in the private fleetdm/confidential repository because the
-comment section may contain private information about Fleet's customers.
-
-Find an example release customer announcement blog post issue [here](https://github.com/fleetdm/confidential/issues/747).
-
-## Beta features
-
-At Fleet, features are advertised as "beta" if there are concerns that the feature may not work as intended in certain Fleet
-deployments. For example, these concerns could be related to the feature's performance in Fleet
-deployments with hundreds of thousands of hosts.
-
-The following highlights should be considered when deciding if we promote a feature as "beta:"
-
-- The feature will not be advertised as "beta" permanently. This means that the Directly
-  Responsible Individual (DRI) who decides a feature is advertised as "beta" is also responsible for creating an issue that
-  explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
-- The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
+The product team is responsible for providing the marketing team with the necessary information for writing the release blog post. Every three weeks after the sprint is kicked off, the product team meets with the relevant marketing team members to go over the features for that sprint and recommend items to highlight as _echelon 2_ features and provide relevant context for other features to help marketing decide which features to highlight.
 
 ## Feature flags
 
@@ -311,72 +171,149 @@ The following highlights should be considered when deciding if we should leverag
   release.
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
-Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
+> Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
+
+### Beta features
+
+At Fleet, features are advertised as "beta" if there are concerns that the feature may not work as intended in certain Fleet
+deployments. For example, these concerns could be related to the feature's performance in Fleet
+deployments with hundreds of thousands of hosts.
+
+The following highlights should be considered when deciding if we promote a feature as "beta:"
+
+- The feature will not be advertised as "beta" permanently. This means that the Directly
+  Responsible Individual (DRI) who decides a feature is advertised as "beta" is also responsible for creating an issue that
+  explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
+- The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
+
+## Breaking changes
+
+For product changes that cause breaking API or configuration changes or major impact for users (or even just the _impression_ of major impact!), the company plans migration thoughtfully.  That means the product department and E-group:
+
+1. **Written:** Write a migration guide, even if that's just a Google Doc
+2. **Tested:** Test out the migration ourselves, first-hand, as an engineer.
+3. **Gamed out:** We pretend we are one or two key customers and try it out as a role play.
+4. **Adapt:** If it becomes clear that the plan is insufficient, then fix it.
+5. **Communicate:** Develop a plan for how to proactively communicate the change to customers.
+
+That all happens prior to work getting prioritized for the change.
 
 ## Competition
 
 We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
 
-## Intake process
+## Intake
 
-Intake for new product ideas (requests) happens at the 🗣 Product office hours meeting.
+- [Making a request](#making-a-request)
+- [How features are evaluated](#how-features-are-evaluated)
+- [After the feature is accepted](#after-the-feature-is-accepted)
+- [Why this way?](#why-this-way)
 
-At the 🗣 Product office hours meeting, the product team weighs all requests. When the team weighs a request, it is prioritized or put to the side.
-
-The team prioritizes a request when the business perceives it as an immediate priority. When this happens, the team sets the request to be estimated or deferred within five business days.
-
-The team puts a request to the side when the business perceives competing priorities as more pressing in the immediate moment.
-
-### Why this way?
-
-At Fleet, we use objectives and key results (OKRs) to align the organization with measurable goals.
-These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.)
-and engineering capacity. 
-
-This means there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the
-greater Fleet community.
-
-> Note Fleet always prioritizes bugs.
-
-At Fleet, we tell the requestor whether their
-request is prioritized or put to the side within one business day from when the team weighs the request.
-
-The 🗣 Product office hours meeting is a recurring ritual to make sure that the team weighs all requests.
+To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis in the [regular 🎁🗣 Feature Fest meeting](#rituals). Anyone in the company is invited to submit requests or simply listen in on the 🎁🗣 Feature Fest meeting. Folks from the wider community can also [request an invite](https://fleetdm.com/contact). 
 
 ### Making a request
 
-To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣 Product office hours Google
-doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
-Then attend the next scheduled 🗣 Product office hours meeting.
+To make a feature request or advocate for a feature request from a customer or community member, add your request to the list in the [🎁🗣 Feature Fest agenda](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q) and attend the next scheduled 🎁🗣 Feature Fest meeting. 
 
-All members of the Fleet organization are welcome to attend the 🗣 Product office hours meeting. Requests will be
-weighed from top to bottom while prioritizing attendee requests. 
+Requests are weighed from top to bottom while prioritizing attendee requests. This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
-This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
+To be acceptable for consideration, a request must:
+- Have a clear proposed change
+- Have a well-articulated underlying user need
+- Specify the requestor (either internal stakeholder or customer or community user)
 
-All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Product office hours
-folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
-Google drive.
+To help the product team, other pieces of information can be optionally included:
+- How would they solve the problem without any changes if pressed?
+- How does this change fit into the requester's overall usage of Fleet?
+- What other potential changes to the product have you considered?
 
-Each week Noah Talerman follows the [directions in this document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the Product office hours document is created and dropped in the [Product office hours backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
+To maximize your chances of having a feature accepted, requesters can visit the [🗣 Product office hours](#rituals) meeting to get feedback on requests prior to being accepted. 
+
+### How feature requests are evaluated
+Digestion of these new product ideas (requests) happens at the **🎁🗣 Feature Fest** meeting.
+
+At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all requests in the agenda. When the team weighs a request, it is immediately prioritized or put to the side.
+- A _request is prioritized_ when the DRI decides it is a priority. When this happens, the team sets the request to be estimated within five business days.
+- A _request is put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
+
+If a feature is not prioritized, it only means that the feature has been rejected _at that time_. It is up to the requestor to bring the request back again at another 🎁🗣 Feature Fest meeting.
+
+Requests are weighed by:
+- The completeness of the request (see [making a request](#making-a-request)
+- How urgent the need is for the customer
+- How much impact the request will have. This may be a wide impact across many customers and/or high impact on one
+- How well the request fits within Fleet's product vision and roadmap
+- Whether the feature seems like it can be designed, estimated, and developed in 6 weeks, given its individual complexity and when combined with other work already accepted
+
+### After the feature is accepted
+- After the 🎁🗣 Feature Fest meeting, the Head of Product resets the agenda to blank by doing the following:
+  - Create issues for accepted items
+  - Notify absent requesters of decisions
+  - Move that week's feature requests to the backup journal document
+
+> The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature. 
+
+Potential reasons for why a feature may be de-prioritized include:
+- The work was not designed in time. Since Fleet's engineering sprints are 3 weeks each, this means that a prioritized feature has 3 weeks to be designed, approved, and estimated in order to make it to the engineering sprint. At the prioritization meeting, the perceived design complexity of proposed features will inevitably be different from the actual complexity. 
+  - This may be because other higher-priority design work took longer than expected or the work itself was more complex than expected
+- The was designed but was not selected for the sprint. When a new sprint starts, it is populated with bugs, features, and technical tasks. Depending on the size and quantity of non-feature work, certain features may not be selected for the sprint.
+
+Just as when a feature request is not accepted in the 🎁🗣 Feature Fest meeting, whenever a feature is de-prioritized after it has been accepted, it only means that the feature has been _de-prioritized at this time_. It is up to the requester to bring the request back again at another 🎁🗣 Feature Fest meeting.
+
+### Why this way?
+
+Most requests are not prioritized.  The goal is to narrow our focus and avoid creating an overflowing, aspirational backlog where good ideas inevitably go to die.  Instead, at Fleet we manage a small "frontlog" of changes we intend to ship. Responsibility for keeping backlogs then belong to the stakeholder who is closest to the customer. 
+
+### Misc.
+- All 🎁🗣 Feature Fest meetings are recorded and uploaded to Gong.
+- 🎁🗣 Feature Fest is located on the "Office hours" calendar.
 
 ## Usage statistics
 
 In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
 
-Fleet team members can view these statistics in the Google spreadsheet [Fleet
+Fleeties can view these statistics in the Google spreadsheet [Fleet
 usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0)
 available in Google Drive.
+
+Some of the data is forwarded to [Datadog](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleeties.
+
+## Maintenance
+Fleet's product offerings depend on the capabilities of other platforms. This requires the ongoing attention of the product and engineering teams to ensure that we are up-to-date with new capabilities and that our existing capabilities continue to function. The first step to staying up-to-date with Fleet's partners is to know when the partner platform changes. 
+
+Every week, a member of the product team (as determined in the [rituals](#rituals) section) looks up whether there is:
+1. a new major or minor version of [macOS](https://support.apple.com/en-us/HT201260)
+2. a new major or minor version of [CIS Benchmarks Windows 10 Enterprise](https://workbench.cisecurity.org/community/2/benchmarks?q=windows+10+enterprise&status=&sortBy=version&type=desc)
+3. a new major or minor version of [CIS Benchmarks macOS 13 Ventura](https://workbench.cisecurity.org/community/20/benchmarks?q=macos+13.0+Ventura&status=&sortBy=version&type=desc)
+4. a release of CIS Benchmarks for [macOS 14 Sonoma](https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
+5. a new major or minor version of [ChromeOS](https://chromereleases.googleblog.com/search/label/Chrome%20OS)
+
+If there are changes, the DRI should send a message in the #help-product Slack channel, noting the current versions and whether any of the above has changed.
 
 ## Rituals
 
 Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| 🗣 Product office hours  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
-| ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
-| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Mo Zhu |
+|:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
+| Design sprint review (CX) | Sprintly (Wednesday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
+| Design sprint review (MDM) | Sprintly (Thursday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The group PM collects all items that were de-prioritized and, if desired, puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
+| 🎁 Feature fest prep | Sprintly (Thursday) | The Head of Product reviews the agenda and pre-comments on items in order to be well-prepared for the discussion. | Mo Zhu |
+| 🎁🗣 Feature fest  | Sprintly (Thursday) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
+| 🎁 Feature fest cleanup | Sprintly (Thursday) | Clean up the agenda in anticipation of the next meeting | Mo Zhu |
+| Design sprint kickoff (CX) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
+| Design sprint kickoff (MDM) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
+| 🗣 Product office hours  | Weekly (Tuesday) | Ask questions to the product team | Mo Zhu |
+| Sprint Kickoff Review (CX) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the Estimated column with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
+| Sprint Kickoff Review (MDM) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the Estimated column with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
+| Sprint release notes kick-off meeting | Sprintly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare. | Mo Zhu |
+| ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
+| ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
+| Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
+| Report number of estimated stories (CX) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Zay Hanlon |
+| Report number of estimated stories (MDM) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Noah Talerman |
+
+| Bug de-prioritization | Sprintly  | CEO and Head of Product review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to continue into the next sprint and which can be de-prioritized. | Mo Zhu |
 
 ## Slack channels
 
@@ -385,10 +322,8 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Mo Zhu                                                              |
-| `#g-platform`                       | Mo Zhu                                                              |
-| `#g-interface`                      | Noah Talerman                                                       |
-| `#g-agent`                          | Mo Zhu                                                              |
-| `#g-mdm`                            | Mo Zhu                                                              |
+| `#g-mdm`                            | Noah Talerman                                                       |
+| `#g-cx`                             | Mo Zhu                                                              |
 
 <meta name="maintainedBy" value="zhumo">
 <meta name="title" value="⚗️ Product">

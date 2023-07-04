@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Restrictions</string>
+			<key>PayloadIdentifier</key>
+			<string>com.github.erikberglund.ProfileCreator.7E6F9053-A8AF-4BD2-B254-8C4E2B8748F0.com.apple.applicationaccess.722287B0-ADCF-418F-8F8F-F2B5DB977355</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadUUID</key>
+			<string>722287B0-ADCF-418F-8F8F-F2B5DB977355</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>allowActivityContinuation</key>
+			<true/>
+			<key>allowAirDrop</key>
+			<true/>
+			<key>allowAutoUnlock</key>
+			<true/>
+			<key>allowCamera</key>
+			<true/>
+			<key>allowCloudBTMM</key>
+			<false/>
+			<key>allowCloudDesktopAndDocuments</key>
+			<false/>
+			<key>allowCloudFMM</key>
+			<true/>
+			<key>allowCloudKeychainSync</key>
+			<true/>
+			<key>allowCloudMail</key>
+			<true/>
+			<key>allowCloudNotes</key>
+			<true/>
+			<key>allowCloudPhotoLibrary</key>
+			<true/>
+			<key>allowCloudPrivateRelay</key>
+			<true/>
+			<key>allowCloudReminders</key>
+			<true/>
+			<key>allowContentCaching</key>
+			<false/>
+			<key>allowDiagnosticSubmission</key>
+			<false/>
+			<key>allowFingerprintForUnlock</key>
+			<true/>
+			<key>allowMailPrivacyProtection</key>
+			<true/>
+			<key>allowScreenShot</key>
+			<true/>
+			<key>allowiTunesFileSharing</key>
+			<true/>
+			<key>enforcedFingerprintTimeout</key>
+			<integer>172800</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Various restriction settings</string>
+	<key>PayloadIdentifier</key>
+	<string>com.github.erikberglund.ProfileCreator.7E6F9053-A8AF-4BD2-B254-8C4E2B8748F0</string>
+	<key>PayloadOrganization</key>
+	<string>FleetDM</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>7E6F9053-A8AF-4BD2-B254-8C4E2B8748F0</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -1,29 +1,12 @@
 # fleetctl CLI
 
-- [Introduction](#introduction)
-- [Using fleetctl](#using-fleetctl)
-  - [Available commands](#available-commands)
-  - [Get more info about a command](#get-more-info-about-a-command)
-- [Setting Up Fleet](#setting-up-fleet)
-  - [Running Fleet](#running-fleet)
-  - [`fleetctl config`](#fleetctl-config)
-  - [`fleetctl setup`](#fleetctl-setup)
-  - [Query hosts](#query-hosts)
-- [Logging in to an existing Fleet instance](#logging-in-to-an-existing-fleet-instance)
-- [Using fleetctl to configure Fleet](#using-fleetctl-to-configure-fleet)
-- [Using fleetctl with an API-only user](#using-fleetctl-with-an-api-only-user)
-- [File carving](#file-carving)
-  - [Configuration](#configuration)
-  - [Usage](#usage)
-  - [Troubleshooting](#troubleshooting)
-
-## Introduction
-
-Fleetctl (pronounced "Fleet control") is a CLI tool for managing Fleet from the command line. Fleetctl enables a GitOps workflow with Fleet and osquery. With fleetctl, you can manage configurations, queries, packs, generate osquery installers, etc.
+Fleetctl (pronounced "Fleet control") is a CLI tool for managing Fleet from the command line. Fleetctl enables a GitOps workflow with Fleet and osquery. With fleetctl, you can manage configurations, queries, generate osquery installers, etc.
 
 Fleetctl also provides a quick way to work with all the data exposed by Fleet without having to use the Fleet UI or work directly with the Fleet API.
 
 ## Using fleetctl
+
+To install the latest version of `fleetctl` run `npm install -g fleetctl` or download the binary from [GitHub](https://github.com/fleetdm/fleet/releases).
 
 You can use `fleetctl` to accomplish many tasks you would typically need to do through the Fleet UI. You can even set up or apply configuration files to the Fleet server.
 
@@ -33,28 +16,9 @@ You can use `fleetctl` to accomplish many tasks you would typically need to do t
 
 ### Available commands
 
-Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate osquery installers to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
+Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate agent (fleetd) installers to add new hosts, get information about existing hosts, and more!
 
-   | Command                    | Description                                                        |
-   |:---------------------------|:-------------------------------------------------------------------|
-   | apply                      | Apply files to declaratively manage osquery configurations         |
-   | delete                     | Specify files to declaratively batch delete osquery configurations |
-   | setup                      | Set up a Fleet instance                                            |
-   | login                      | Login to Fleet                                                     |
-   | logout                     | Log out of Fleet                                                   |
-   | query                      | Run a live query                                                   |
-   | get                        | Get/list resources                                                 |
-   | config                     | Modify Fleet server connection settings                            |
-   | convert                    | Convert osquery packs into decomposed Fleet configs                |
-   | goquery                    | Start the goquery interface                                        |
-   | user                       | Manage Fleet users                                                 |
-   | debug                      | Tools for debugging Fleet                                          |
-   | preview                    | Start a preview deployment of the Fleet server                     |
-   | updates                    | Manage client updates                                              |
-   | hosts                      | Manage Fleet hosts                                                 |
-   | vulnerability-data-stream  | Download the vulnerability data stream                             |
-   | package                    | Create an Orbit installer package                                  |
-   | help, h                    | Shows a list of commands or help for one command                   |
+To see the commands you can run with fleetctl, run the `fleetctl --help` command.
 
 ### Get more info about a command
 
@@ -218,42 +182,15 @@ Fleet configuration can be retrieved and applied using the `fleetctl` tool.
 
 ### Fleetctl get
 
-The `fleetctl get <fleet-entity-here> > <configuration-file-name-here>.yml` command allows you retrieve the current configuration and create a new file for specified Fleet entity (queries, packs, etc.)
+The `fleetctl get <fleet-entity-here> > <configuration-file-name-here>.yml` command allows you retrieve the current configuration and create a new file for specified Fleet entity (queries, hosts, etc.)
 
 ### Fleetctl apply
 
-The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file.
+The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file. 
 
-Check out the [configuration files](https://fleetdm.com/docs/deploying/configuration) section of the documentation for example yaml files.
+When a new configuration is applied, agent options are validated. If any errors are found, you will receive an error message describing the issue and the new configuration will not be applied. You can also verify that your agent options are valid without applying using the `--dry-run` flag. Validation is based on the latest version of osquery. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
-### Fleetctl convert
-
-`fleetctl` includes easy tooling to convert osquery pack JSON into the
-`fleetctl` format. Use `fleetctl convert` with a path to the pack file:
-
-You can optionally supply `-o file_name` to output to a file destination.
-```
-fleetctl convert -f test.json
----
-apiVersion: v1
-kind: pack
-spec:
-  name: test
-  queries:
-  - description: "this is a test query"
-    interval: 10
-    name: processes
-    query: processes
-    removed: false
-  targets:
-    labels: null
----
-apiVersion: v1
-kind: query
-spec:
-  name: processes
-  query: SELECT * FROM processes
-```
+Check out the [configuration files](https://fleetdm.com/docs/using-fleet/configuration-files) section of the documentation for example yaml files.
 
 ## Using fleetctl with an API-only user
 
@@ -268,14 +205,28 @@ To create your new API-only user, run `fleetctl user create` and pass values for
 fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only
 ```
 
-### Permissions for an API-only user
+### Creating an API-only user
 An API-only user can be given the same permissions as a regular user. The default access level is `Observer`. For more information on permissions, see the [user permissions documentation](https://fleetdm.com/docs/using-fleet/permissions#user-permissions).
 
 If you'd like your API-only user to have a different access level than the default `Observer` role, you can specify what level of access the new user should have using the `--global-role` flag:
 
 ```
-fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only --global-role admin
+fleetctl user create --name "API User" --email api@example.com --password temp#pass --api-only --global-role admin
 ```
+
+On Fleet Premium, use the `--team` flag setting `team_id:role` to create an API-only user on a team:
+
+```
+fleetctl user create --name "API Team Maintainer User" --email apimaintainer@example.com --password temp#pass --team 4:maintainer
+```
+
+Assigning the [GitOps role](https://fleetdm.com/docs/using-fleet/permissions#gitops) to a user is also completed using this method because GitOps is an API-only role.  
+
+### Changing permissions of an API-only user
+
+To change roles of a current user, log into the Fleet UI as an admin and navigate to **Settings > Users**.
+
+> Suggestion: To disable/enable a user's access to the UI (converting a regular user to an API-only user or vice versa), create a new user.
 
 ### Use fleetctl as an API-only user
 
@@ -335,6 +286,10 @@ Password:
 
 Running a command with no context will use the default profile.
 
+## MDM commands
+
+With fleetctl, you can run MDM commands to take some action on your macOS hosts, like restart the host, remotely. Learn how [here](./MDM-commands.md). 
+
 ## File carving
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
@@ -350,7 +305,7 @@ Given a working flagfile for connecting osquery agents to Fleet, add the followi
 --carver_disable_function=false
 --carver_start_endpoint=/api/v1/osquery/carve/begin
 --carver_continue_endpoint=/api/v1/osquery/carve/block
---carver_block_size=2097152
+--carver_block_size=8000000
 ```
 
 The default flagfile provided in the "Add New Host" dialog also includes this configuration.
@@ -360,16 +315,12 @@ The default flagfile provided in the "Add New Host" dialog also includes this co
 The `carver_block_size` flag should be configured in osquery.
 
 For the (default) MySQL Backend, the configured value must be less than the value of
-`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for MySQL 5.7
-is 4MB and for MySQL 8 it is 64MB. 2MiB (`2097152`) is a good starting value.
+`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 5.7](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_allowed_packet)
+is 4MB and for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB.
 
 For the S3/Minio backend, this value must be set to at least 5MiB (`5242880`) due to the
 [constraints of S3's multipart
 uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
-
-Using a smaller value for `carver_block_size` will lead to more HTTP requests during the carving
-process, resulting in longer carve times and higher load on the Fleet server. If the value is too
-high, HTTP requests may run long enough to cause server timeouts.
 
 #### Compression
 
@@ -452,7 +403,7 @@ When using the MySQL backend (default), this value must be less than the `max_al
 setting in MySQL. If it is too large, MySQL will reject the writes.
 
 When using S3, the value must be at least 5MiB (5242880 bytes), as smaller multipart upload
-sizes are rejected. Additionally [S3
+sizes are rejected. Additionally, [S3
 limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html) the maximum number of
 parts to 10,000.
 

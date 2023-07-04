@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useContext } from "react";
 import { syntaxHighlight } from "utilities/helpers";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import { AppContext } from "context/app";
+import { IPolicyWebhookPreviewPayload } from "interfaces/policy";
 
 const baseClass = "preview-data-modal";
 
@@ -11,10 +13,24 @@ interface IPreviewPayloadModalProps {
   onCancel: () => void;
 }
 
+interface IHostPreview {
+  id: number;
+  display_name: string;
+  url: string;
+}
+
+interface IPreviewPayload {
+  timestamp: string;
+  policy: IPolicyWebhookPreviewPayload;
+  hosts: IHostPreview[];
+}
+
 const PreviewPayloadModal = ({
   onCancel,
 }: IPreviewPayloadModalProps): JSX.Element => {
-  const json = {
+  const { isFreeTier } = useContext(AppContext);
+
+  const json: IPreviewPayload = {
     timestamp: "0000-00-00T00:00:00Z",
     policy: {
       id: 1,
@@ -42,6 +58,9 @@ const PreviewPayloadModal = ({
       },
     ],
   };
+  if (isFreeTier) {
+    delete json.policy.critical;
+  }
 
   return (
     <Modal

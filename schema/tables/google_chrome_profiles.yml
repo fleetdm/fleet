@@ -1,7 +1,10 @@
 name: google_chrome_profiles
-notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 description: Profiles configured in Google Chrome.
-platforms: darwin, windows, linux
+platforms: 
+  - darwin
+  - windows
+  - linux
 evented: false
 examples: >-
   List the Google Chrome accounts logged in to with `fleetdm.com` email addresses, joined to the

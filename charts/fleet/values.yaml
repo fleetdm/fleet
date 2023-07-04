@@ -2,7 +2,7 @@
 # All settings related to how Fleet is deployed in Kubernetes
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
-imageTag: v4.24.1 # Version of Fleet to deploy
+imageTag: v4.33.1 # Version of Fleet to deploy
 podAnnotations: {} # Additional annotations to add to the Fleet pod
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
 resources:
@@ -160,9 +160,11 @@ mysql:
   connMaxLifetime: 0
   tls:
     enabled: false
-    caCertKey: ca.cert
-    certKey: client.cert
-    keyKey: client.key
+    ## Commented options below are optional.  Uncomment to use.
+    # caCertKey: ca.cert
+    ## Client certificates require both the certKey and keyKey
+    # certKey: client.cert
+    # keyKey: client.key
     config: ""
     serverName: ""
 
@@ -189,3 +191,16 @@ gke:
     useManagedCertificate: false
   # Workload Identity allows the K8s service account to assume the IAM permissions of a GCP service account
   workloadIdentityEmail: ""
+
+## Section: Environment Variables
+# All of the environment variables that can be set for Fleet
+environments:
+  # MDM Settings
+  # The following environment variables are used to configure Fleet to work with
+  # Apple's MDM service. These are optional and only required if you are using
+  # Fleet to manage Apple devices.
+  # To more information: https://fleetdm.com/docs/using-fleet/mdm-setup#step-3-configure-fleet-with-the-required-files
+  FLEET_MDM_APPLE_APNS_CERT_BYTES: ""
+  FLEET_MDM_APPLE_APNS_KEY_BYTES: ""
+  FLEET_MDM_APPLE_SCEP_CERT_BYTES: ""
+  FLEET_MDM_APPLE_SCEP_KEY_BYTES: ""

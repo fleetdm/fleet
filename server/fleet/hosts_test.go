@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -119,5 +120,123 @@ func TestPlatformFromHost(t *testing.T) {
 		fleetPlatform := PlatformFromHost(tc.host)
 		require.Equal(t, tc.expPlatform, fleetPlatform)
 
+	}
+}
+
+func TestHostDisplayName(t *testing.T) {
+	const (
+		computerName   = "K0mpu73rN4M3"
+		hostname       = "h0s7N4ME"
+		hardwareModel  = "M0D3l"
+		hardwareSerial = "53r14l"
+	)
+	for _, tc := range []struct {
+		host     Host
+		expected string
+	}{
+		{
+			host:     Host{ComputerName: computerName, Hostname: hostname, HardwareModel: hardwareModel, HardwareSerial: hardwareSerial},
+			expected: computerName, // If ComputerName is present, DisplayName is ComputerName
+		},
+		{
+			host:     Host{ComputerName: "", Hostname: "h0s7N4ME", HardwareModel: "M0D3l", HardwareSerial: "53r14l"},
+			expected: hostname, // If ComputerName is empty, DisplayName is Hostname (if present)
+		},
+		{
+			host:     Host{ComputerName: "", Hostname: "", HardwareModel: "M0D3l", HardwareSerial: "53r14l"},
+			expected: fmt.Sprintf("%s (%s)", hardwareModel, hardwareSerial), // If ComputerName and Hostname are empty, DisplayName is composite of HardwareModel and HardwareSerial (if both are present)
+		},
+		{
+			host:     Host{ComputerName: "", Hostname: "", HardwareModel: "", HardwareSerial: hardwareSerial},
+			expected: "", // If HarwareModel and/or HardwareSerial are empty, DisplayName is also empty
+		},
+		{
+			host:     Host{ComputerName: "", Hostname: "", HardwareModel: hardwareModel, HardwareSerial: ""},
+			expected: "", // If HarwareModel and/or HardwareSerial are empty, DisplayName is also empty
+		},
+		{
+			host:     Host{ComputerName: "", Hostname: "", HardwareModel: "", HardwareSerial: ""},
+			expected: "", // If HarwareModel and/or HardwareSerial are empty, DisplayName is also empty
+		},
+	} {
+		require.Equal(t, tc.expected, tc.host.DisplayName())
+	}
+}
+
+func TestMDMEnrollmentStatus(t *testing.T) {
+	for _, tc := range []struct {
+		hostMDM  HostMDM
+		expected string
+	}{
+		{
+			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: true},
+			expected: "On (automatic)",
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false},
+			expected: "On (manual)",
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: true},
+			expected: "Pending",
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: false},
+			expected: "Off",
+		},
+	} {
+		require.Equal(t, tc.expected, tc.hostMDM.EnrollmentStatus())
+	}
+}
+
+func TestIsEnrolledInThirdPartyMDM(t *testing.T) {
+	for _, tc := range []struct {
+		hostMDM  HostMDM
+		expected bool
+	}{
+		{
+			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMSimpleMDM},
+			expected: true,
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMSimpleMDM},
+			expected: false,
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMFleet},
+			expected: false,
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMFleet},
+			expected: false,
+		},
+	} {
+		require.Equal(t, tc.expected, tc.hostMDM.IsEnrolledInThirdPartyMDM())
+	}
+}
+
+func TestIsDEPCapable(t *testing.T) {
+	for _, tc := range []struct {
+		hostMDM  HostMDM
+		expected bool
+	}{
+		{
+			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: true},
+			expected: true,
+		},
+		{
+			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: true},
+			expected: false,
+		},
+		{
+			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: false},
+			expected: false,
+		},
+		{
+			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: false},
+			expected: false,
+		},
+	} {
+		require.Equal(t, tc.expected, tc.hostMDM.IsDEPCapable())
 	}
 }

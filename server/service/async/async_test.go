@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -262,8 +263,8 @@ func createHosts(t *testing.T, ds fleet.Datastore, count int, ts time.Time) []ui
 			LabelUpdatedAt:  ts,
 			PolicyUpdatedAt: ts,
 			SeenTime:        ts,
-			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
-			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 		})

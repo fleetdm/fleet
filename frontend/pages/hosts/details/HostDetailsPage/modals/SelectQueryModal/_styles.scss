@@ -10,8 +10,33 @@
     }
   }
 
-  &__query-modal {
+  &__modal {
+    .info {
+      &__header {
+        display: block;
+        color: $core-fleet-black;
+        font-weight: $bold;
+        font-size: $x-small;
+        text-align: center;
+      }
+
+      &__data {
+        display: block;
+        color: $core-fleet-black;
+        font-weight: normal;
+        font-size: $x-small;
+        text-align: center;
+      }
+    }
+    .modal-cta-wrap {
+      justify-content: center;
+    }
+  }
+
+  &__filter-create-wrapper {
     display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
   }
 
   &__filter-queries {
@@ -29,6 +54,10 @@
       left: 8px;
     }
 
+    .form-field {
+      margin-bottom: 0;
+    }
+
     .input-field {
       padding-left: 44px;
     }
@@ -44,10 +73,11 @@
 
   &__create-query {
     display: flex;
+    align-items: center;
 
     span {
       margin: 15px;
-      font-weight: bold;
+      font-weight: $bold;
     }
   }
 

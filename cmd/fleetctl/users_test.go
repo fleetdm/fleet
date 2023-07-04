@@ -34,6 +34,10 @@ func TestUserDelete(t *testing.T) {
 		deletedUser = id
 		return nil
 	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		assert.Equal(t, fleet.ActivityTypeDeletedUser{}.ActivityName(), activity.ActivityName())
+		return nil
+	}
 
 	assert.Equal(t, "", runAppForTest(t, []string{"user", "delete", "--email", "user1@test.com"}))
 	assert.Equal(t, uint(42), deletedUser)
@@ -61,6 +65,9 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, &notFoundError{}
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
 	}
 
 	for _, tc := range []struct {
@@ -117,6 +124,9 @@ func TestCreateBulkUsers(t *testing.T) {
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, nil
 	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
 
 	csvFile := writeTmpCsv(t,
 		`Name,Email,SSO,API Only,Global Role,Teams
@@ -132,11 +142,13 @@ func TestCreateBulkUsers(t *testing.T) {
 
 	assert.Equal(t, "", runAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles", "--json"}))
-
 }
 
 func TestDeleteBulkUsers(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
 	csvFilePath := writeTmpCsv(t,
 		`Email
 	user11@example.com

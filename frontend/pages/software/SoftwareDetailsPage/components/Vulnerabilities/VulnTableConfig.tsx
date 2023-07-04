@@ -2,11 +2,14 @@ import React from "react";
 
 import { IVulnerability } from "interfaces/vulnerability";
 import { formatFloatAsPercentage } from "utilities/helpers";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 interface IHeaderProps {
   column: {
@@ -42,7 +45,7 @@ interface IDataColumn {
 
 const formatSeverity = (float: number | null) => {
   if (float === null) {
-    return "---";
+    return DEFAULT_EMPTY_CELL_VALUE;
   }
 
   let severity = "";
@@ -59,7 +62,10 @@ const formatSeverity = (float: number | null) => {
   return `${severity} (${float.toFixed(1)})`;
 };
 
-const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
+const generateVulnTableHeaders = (
+  isPremiumTier: boolean,
+  isSandboxMode: boolean
+): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
       title: "Vunerability",
@@ -95,10 +101,13 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
           </TooltipWrapper>
         );
         return (
-          <HeaderCell
-            value={titleWithToolTip}
-            isSortedDesc={headerProps.column.isSortedDesc}
-          />
+          <>
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+            <HeaderCell
+              value={titleWithToolTip}
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+          </>
         );
       },
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
@@ -121,10 +130,13 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
           </TooltipWrapper>
         );
         return (
-          <HeaderCell
-            value={titleWithToolTip}
-            isSortedDesc={headerProps.column.isSortedDesc}
-          />
+          <>
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+            <HeaderCell
+              value={titleWithToolTip}
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+          </>
         );
       },
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
@@ -148,15 +160,51 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
           </TooltipWrapper>
         );
         return (
-          <HeaderCell
-            value={titleWithToolTip}
-            isSortedDesc={headerProps.column.isSortedDesc}
-          />
+          <>
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+            <HeaderCell
+              value={titleWithToolTip}
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+          </>
         );
       },
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
         <TextCell value={value ? "Yes" : "No"} />
       ),
+    },
+    {
+      title: "Published",
+      accessor: "cve_published",
+      disableSortBy: false,
+      sortType: "boolean",
+      Header: (headerProps: IHeaderProps): JSX.Element => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={`The date this vulnerability was published in the National Vulnerability Database (NVD).`}
+          >
+            Published
+          </TooltipWrapper>
+        );
+        return (
+          <>
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+            <HeaderCell
+              value={titleWithToolTip}
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+          </>
+        );
+      },
+      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => {
+        const valString = typeof value === "number" ? value.toString() : value;
+        return (
+          <TextCell
+            value={valString ? { timeString: valString } : undefined}
+            formatter={valString ? HumanTimeDiffWithDateTip : undefined}
+          />
+        );
+      },
     },
   ];
 

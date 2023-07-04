@@ -8,13 +8,23 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 var (
 	ErrNoContext             = errors.New("context key not set")
 	ErrPasswordResetRequired = &passwordResetRequiredError{}
 	ErrMissingLicense        = &licenseError{}
+	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
 )
+
+// ErrWithStatusCode is an interface for errors that should set a specific HTTP
+// status code.
+type ErrWithStatusCode interface {
+	error
+	StatusCode() int
+}
 
 // ErrWithInternal is an interface for errors that include extra "internal"
 // information that should be logged in server logs but not sent to clients.
@@ -56,9 +66,38 @@ func (e invalidArgWithStatusError) Status() int {
 	return e.code
 }
 
+// ErrorUUIDer is the interface for errors that contain a UUID.
+type ErrorUUIDer interface {
+	// UUID returns the error's UUID.
+	UUID() string
+}
+
+// ErrorWithUUID can be embedded to error types to implement ErrorUUIDer.
+type ErrorWithUUID struct {
+	uuid string
+}
+
+var _ ErrorUUIDer = (*ErrorWithUUID)(nil)
+
+// UUID implements the ErrorUUIDer interface.
+func (e *ErrorWithUUID) UUID() string {
+	if e.uuid == "" {
+		uuid, err := uuid.NewRandom()
+		if err != nil {
+			panic(err)
+		}
+		e.uuid = uuid.String()
+	}
+	return e.uuid
+}
+
 // InvalidArgumentError is the error returned when invalid data is presented to
 // a service method.
-type InvalidArgumentError []InvalidArgument
+type InvalidArgumentError struct {
+	Errors []InvalidArgument
+
+	ErrorWithUUID
+}
 
 // InvalidArgument is the details about a single invalid argument.
 type InvalidArgument struct {
@@ -70,25 +109,19 @@ type InvalidArgument struct {
 // one error.
 func NewInvalidArgumentError(name, reason string) *InvalidArgumentError {
 	var invalid InvalidArgumentError
-	invalid = append(invalid, InvalidArgument{
-		name:   name,
-		reason: reason,
-	})
+	invalid.Append(name, reason)
 	return &invalid
 }
 
 func (e *InvalidArgumentError) Append(name, reason string) {
-	*e = append(*e, InvalidArgument{
+	e.Errors = append(e.Errors, InvalidArgument{
 		name:   name,
 		reason: reason,
 	})
 }
 
 func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface{}) {
-	*e = append(*e, InvalidArgument{
-		name:   name,
-		reason: fmt.Sprintf(reasonFmt, args...),
-	})
+	e.Append(name, fmt.Sprintf(reasonFmt, args...))
 }
 
 // WithStatus returns an error that combines the InvalidArgumentError
@@ -98,25 +131,25 @@ func (e InvalidArgumentError) WithStatus(code int) error {
 }
 
 func (e *InvalidArgumentError) HasErrors() bool {
-	return len(*e) != 0
+	return len(e.Errors) != 0
 }
 
 // Error implements the error interface.
 func (e InvalidArgumentError) Error() string {
-	switch len(e) {
+	switch len(e.Errors) {
 	case 0:
 		return "validation failed"
 	case 1:
-		return fmt.Sprintf("validation failed: %s %s", e[0].name, e[0].reason)
+		return fmt.Sprintf("validation failed: %s %s", e.Errors[0].name, e.Errors[0].reason)
 	default:
-		return fmt.Sprintf("validation failed: %s %s and %d other errors", e[0].name, e[0].reason,
-			len(e))
+		return fmt.Sprintf("validation failed: %s %s and %d other errors", e.Errors[0].name, e.Errors[0].reason,
+			len(e.Errors))
 	}
 }
 
 func (e InvalidArgumentError) Invalid() []map[string]string {
 	var invalid []map[string]string
-	for _, i := range e {
+	for _, i := range e.Errors {
 		invalid = append(invalid, map[string]string{"name": i.name, "reason": i.reason})
 	}
 	return invalid
@@ -124,7 +157,10 @@ func (e InvalidArgumentError) Invalid() []map[string]string {
 
 // BadRequestError is an error type that generates a 400 status code.
 type BadRequestError struct {
-	Message string
+	Message     string
+	InternalErr error
+
+	ErrorWithUUID
 }
 
 // Error returns the error message.
@@ -138,9 +174,18 @@ func (e *BadRequestError) BadRequestError() []map[string]string {
 	return nil
 }
 
+func (e BadRequestError) Internal() string {
+	if e.InternalErr == nil {
+		return ""
+	}
+	return e.InternalErr.Error()
+}
+
 type AuthFailedError struct {
 	// internal is the reason that should only be logged internally
 	internal string
+
+	ErrorWithUUID
 }
 
 func NewAuthFailedError(internal string) *AuthFailedError {
@@ -162,6 +207,8 @@ func (e AuthFailedError) StatusCode() int {
 type AuthRequiredError struct {
 	// internal is the reason that should only be logged internally
 	internal string
+
+	ErrorWithUUID
 }
 
 func NewAuthRequiredError(internal string) *AuthRequiredError {
@@ -183,10 +230,14 @@ func (e AuthRequiredError) StatusCode() int {
 type AuthHeaderRequiredError struct {
 	// internal is the reason that should only be logged internally
 	internal string
+
+	ErrorWithUUID
 }
 
 func NewAuthHeaderRequiredError(internal string) *AuthHeaderRequiredError {
-	return &AuthHeaderRequiredError{internal: internal}
+	return &AuthHeaderRequiredError{
+		internal: internal,
+	}
 }
 
 func (e AuthHeaderRequiredError) Error() string {
@@ -204,6 +255,8 @@ func (e AuthHeaderRequiredError) StatusCode() int {
 // PermissionError, set when user is authenticated, but not allowed to perform action
 type PermissionError struct {
 	message string
+
+	ErrorWithUUID
 }
 
 func NewPermissionError(message string) *PermissionError {
@@ -220,7 +273,9 @@ func (e PermissionError) PermissionError() []map[string]string {
 }
 
 // licenseError is returned when the application is not properly licensed.
-type licenseError struct{}
+type licenseError struct {
+	ErrorWithUUID
+}
 
 func (e licenseError) Error() string {
 	return "Requires Fleet Premium license"
@@ -230,7 +285,9 @@ func (e licenseError) StatusCode() int {
 	return http.StatusPaymentRequired
 }
 
-type passwordResetRequiredError struct{}
+type passwordResetRequiredError struct {
+	ErrorWithUUID
+}
 
 func (e passwordResetRequiredError) Error() string {
 	return "password reset required"
@@ -240,12 +297,60 @@ func (e passwordResetRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
 }
 
+// MDMNotConfiguredError is used when an MDM endpoint or resource is accessed
+// without having MDM correctly configured.
+type MDMNotConfiguredError struct{}
+
+// Status implements the kithttp.StatusCoder interface so we can customize the
+// HTTP status code of the response returning this error.
+func (e *MDMNotConfiguredError) StatusCode() int {
+	return http.StatusBadRequest
+}
+
+func (e *MDMNotConfiguredError) Error() string {
+	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet/mobile-device-management"
+}
+
+// BadGatewayError is an error type that generates a 502 status code.
+type BadGatewayError struct {
+	Message string
+	err     error
+
+	ErrorWithUUID
+}
+
+// NewBadGatewayError returns a MDMBadGatewayError with the message and
+// error specified.
+func NewBadGatewayError(message string, err error) *BadGatewayError {
+	return &BadGatewayError{
+		Message: message,
+		err:     err,
+	}
+}
+
+// StatusCode implements the kithttp.StatusCoder interface so we can customize the
+// HTTP status code of the response returning this error.
+func (e *BadGatewayError) StatusCode() int {
+	return http.StatusBadGateway
+}
+
+// Error returns the error message.
+func (e *BadGatewayError) Error() string {
+	msg := e.Message
+	if e.err != nil {
+		msg += ": " + e.err.Error()
+	}
+	return msg
+}
+
 // Error is a user facing error (API user). It's meant to be used for errors that are
 // related to fleet logic specifically. Other errors, such as mysql errors, shouldn't
 // be translated to this.
 type Error struct {
 	Code    int    `json:"code,omitempty"`
 	Message string `json:"message,omitempty"`
+
+	ErrorWithUUID
 }
 
 const (
@@ -255,17 +360,25 @@ const (
 	ErrNoOneAdminNeeded = 2
 	// ErrNoUnknownTranslate is returned when an item type in the translate payload is unknown
 	ErrNoUnknownTranslate = 3
+	// ErrAPIOnlyRole is returned when a selected role for a user is for API only users.
+	ErrAPIOnlyRole = 4
 )
 
 // NewError returns a fleet error with the code and message specified
 func NewError(code int, message string) error {
-	return &Error{code, message}
+	return &Error{
+		Code:    code,
+		Message: message,
+	}
 }
 
 // NewErrorf returns a fleet error with the code, and message formatted
 // based on the format string and args specified
 func NewErrorf(code int, format string, args ...interface{}) error {
-	return &Error{code, fmt.Sprintf(format, args...)}
+	return &Error{
+		Code:    code,
+		Message: fmt.Sprintf(format, args...),
+	}
 }
 
 func (ge *Error) Error() string {
@@ -277,6 +390,8 @@ func (ge *Error) Error() string {
 type UserMessageError struct {
 	error
 	statusCode int
+
+	ErrorWithUUID
 }
 
 // NewUserMessageError creates a UserMessageError that will translate the
@@ -287,7 +402,10 @@ func NewUserMessageError(err error, statusCode int) *UserMessageError {
 	if err == nil {
 		return nil
 	}
-	return &UserMessageError{err, statusCode}
+	return &UserMessageError{
+		error:      err,
+		statusCode: statusCode,
+	}
 }
 
 var rxJSONUnknownField = regexp.MustCompile(`^json: unknown field "(.+)"$`)

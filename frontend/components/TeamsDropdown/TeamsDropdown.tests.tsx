@@ -3,11 +3,13 @@ import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 // TODOL Replace renderWithAppContext with createCustomRenderer
 import { renderWithAppContext } from "test/test-utils";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import TeamsDropdown from "./TeamsDropdown";
 
 describe("TeamsDropdown - component", () => {
   const USER_TEAMS = [
+    { id: -1, name: "All teams" },
     { id: 1, name: "Team 1" },
     { id: 2, name: "Team 2" },
   ];
@@ -70,10 +72,13 @@ describe("TeamsDropdown - component", () => {
 
   describe("user is not on the global team", () => {
     const contextValue = { isOnGlobalTeam: false };
+    const filteredUserTeams = USER_TEAMS.filter(
+      (t) => t.id > APP_CONTEXT_NO_TEAM_ID
+    );
 
     it("renders the first team when no selectedTeamId is given", () => {
       renderWithAppContext(
-        <TeamsDropdown currentUserTeams={USER_TEAMS} onChange={noop} />,
+        <TeamsDropdown currentUserTeams={filteredUserTeams} onChange={noop} />,
         { contextValue }
       );
 

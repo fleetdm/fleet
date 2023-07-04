@@ -22,8 +22,8 @@ func (NopLocker) Unlock(context.Context, string, string) error {
 
 type NopStatsStore struct{}
 
-func (NopStatsStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
-	return fleet.CronStats{}, nil
+func (NopStatsStore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
+	return []fleet.CronStats{}, nil
 }
 
 func (NopStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
@@ -88,6 +88,7 @@ func (ml *MockLock) Unlock(ctx context.Context, name string, owner string) error
 	if ml.Unlocked != nil {
 		ml.Unlocked <- struct{}{}
 	}
+	ml.expiresAt = time.Now()
 	return nil
 }
 
@@ -96,6 +97,13 @@ func (ml *MockLock) GetLockCount() int {
 	defer ml.mu.Unlock()
 
 	return ml.LockCount
+}
+
+func (ml *MockLock) GetExpiration() time.Time {
+	ml.mu.Lock()
+	defer ml.mu.Unlock()
+
+	return ml.expiresAt
 }
 
 func (ml *MockLock) AddChannels(t *testing.T, chanNames ...string) error {
@@ -126,7 +134,7 @@ type MockStatsStore struct {
 	UpdateStatsCalled chan struct{}
 }
 
-func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
+func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -134,17 +142,24 @@ func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) (f
 		m.GetStatsCalled <- struct{}{}
 	}
 
-	var res fleet.CronStats
-	for _, row := range m.stats {
-		r := row
-		switch {
-		case r.Name != name:
+	latest := make(map[fleet.CronStatsType]fleet.CronStats)
+	for _, s := range m.stats {
+		if s.Name != name {
 			continue
-		case res.CreatedAt.After(r.CreatedAt) && res.ID > r.ID:
-			continue
-		default:
-			res = r
 		}
+		curr := latest[s.StatsType]
+		if s.CreatedAt.Before(curr.CreatedAt) {
+			continue
+		}
+		latest[s.StatsType] = s
+	}
+
+	res := []fleet.CronStats{}
+	if s, ok := latest[fleet.CronStatsTypeScheduled]; ok {
+		res = append(res, s)
+	}
+	if s, ok := latest[fleet.CronStatsTypeTriggered]; ok {
+		res = append(res, s)
 	}
 
 	return res, nil
@@ -159,7 +174,7 @@ func (m *MockStatsStore) InsertCronStats(ctx context.Context, statsType fleet.Cr
 	}
 
 	id := len(m.stats) + 1
-	m.stats[id] = fleet.CronStats{ID: id, StatsType: statsType, Name: name, Instance: instance, Status: status, CreatedAt: time.Now().Truncate(time.Second), UpdatedAt: time.Now().Truncate(time.Second)}
+	m.stats[id] = fleet.CronStats{ID: id, StatsType: statsType, Name: name, Instance: instance, Status: status, CreatedAt: time.Now().Truncate(1 * time.Second), UpdatedAt: time.Now().Truncate(time.Second)}
 
 	return id, nil
 }
@@ -177,7 +192,7 @@ func (m *MockStatsStore) UpdateCronStats(ctx context.Context, id int, status fle
 		return errors.New("update failed, id not found")
 	}
 	s.Status = status
-	s.UpdatedAt = time.Now().Truncate(time.Second)
+	s.UpdatedAt = time.Now().Truncate(1 * time.Second)
 	m.stats[id] = s
 
 	return nil

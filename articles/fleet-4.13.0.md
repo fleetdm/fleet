@@ -1,6 +1,6 @@
 # Fleet 4.13.0 | Security fixes, policy automations for teams, and aggregated macOS versions for MacAdmins.
 
-![Fleet 4.13.0](../website/assets/images/articles/fleet-4.13.0-cover-800x450@2x.png)
+![Fleet 4.13.0](../website/assets/images/articles/fleet-4.13.0-cover-1600x900@2x.jpg)
 
 Fleet 4.13.0 is here. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.13.0) or continue reading to summarize what’s new.
 

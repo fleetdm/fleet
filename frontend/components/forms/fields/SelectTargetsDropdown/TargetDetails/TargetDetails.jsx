@@ -192,6 +192,31 @@ class TargetDetails extends Component {
     );
   };
 
+  renderTeam = () => {
+    const { className, target } = this.props;
+    const { count, display_text: displayText } = target;
+    const labelBaseClass = "label-target";
+
+    return (
+      <div className={`${labelBaseClass} ${className}`}>
+        <p className={`${labelBaseClass}__display-text`}>
+          <FleetIcon
+            name="all-hosts"
+            fw
+            className={`${labelBaseClass}__icon`}
+          />
+          <span>{displayText}</span>
+        </p>
+
+        <p className={`${labelBaseClass}__hosts`}>
+          <span className={`${labelBaseClass}__hosts-count`}>
+            <strong>{count}</strong>HOSTS
+          </span>
+        </p>
+      </div>
+    );
+  };
+
   render() {
     const { target } = this.props;
 
@@ -200,10 +225,14 @@ class TargetDetails extends Component {
     }
 
     const { target_type: targetType } = target;
-    const { renderHost, renderLabel } = this;
+    const { renderHost, renderLabel, renderTeam } = this;
 
     if (targetType === "labels") {
       return renderLabel();
+    }
+
+    if (targetType === "teams") {
+      return renderTeam();
     }
 
     return renderHost();

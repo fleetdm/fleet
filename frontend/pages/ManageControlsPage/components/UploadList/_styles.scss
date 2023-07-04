@@ -1,0 +1,19 @@
+.upload-list {
+  &__header {
+    padding: $pad-medium $pad-large;
+    font-size: $x-small;
+    font-weight: $bold;
+    border-bottom: 1px solid $ui-fleet-black-10;
+  }
+
+  &__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  &__list-item {
+    padding: $pad-medium $pad-large;
+    border-bottom: 1px solid $ui-fleet-black-10;
+  }
+}

@@ -12,6 +12,11 @@
     @include size(16px);
   }
 
+  &.has-white-background {
+    background: $core-white;
+    border-radius: 100%;
+  }
+
   img {
     &.default {
       display: none;

@@ -18,6 +18,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
+import validUrl from "components/forms/validators/valid_url";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
@@ -172,12 +173,6 @@ const ManageAutomationsModal = ({
     policyItems?.forEach((p) => p.isChecked && newPolicyIds.push(p.id));
 
     const newErrors = { ...errors };
-    // if (isPolicyAutomationsEnabled && !newPolicyIds.length) {
-    //   newErrors.policyItems =
-    //     "Please choose at least one policy you want to listen to:";
-    // } else {
-    //   delete newErrors.policyItems;
-    // }
 
     if (
       isPolicyAutomationsEnabled &&
@@ -190,10 +185,14 @@ const ManageAutomationsModal = ({
       delete newErrors.integration;
     }
 
-    if (isWebhookEnabled && !destinationUrl) {
-      newErrors.url = "Please add a destination URL";
-    } else {
-      delete newErrors.url;
+    if (isWebhookEnabled) {
+      if (!destinationUrl) {
+        newErrors.url = "Please add a destination URL";
+      } else if (!validUrl({ url: destinationUrl })) {
+        newErrors.url = `${destinationUrl} is not a valid URL`;
+      } else {
+        delete newErrors.url;
+      }
     }
 
     if (!isEmpty(newErrors)) {
@@ -335,8 +334,13 @@ const ManageAutomationsModal = ({
   return showPreviewPayloadModal ? (
     renderPreview()
   ) : (
-    <Modal onExit={onExit} title={"Manage automations"} className={baseClass}>
-      <div className={baseClass}>
+    <Modal
+      onExit={onExit}
+      title={"Manage automations"}
+      className={baseClass}
+      width="large"
+    >
+      <>
         <div className={`${baseClass}__software-select-items`}>
           <Slider
             value={isPolicyAutomationsEnabled}
@@ -435,7 +439,7 @@ const ManageAutomationsModal = ({
             Cancel
           </Button>
         </div>
-      </div>
+      </>
     </Modal>
   );
 };

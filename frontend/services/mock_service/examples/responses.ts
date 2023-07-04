@@ -25,7 +25,7 @@ const HOST_ID = {
     build: "",
     platform_like: "deb",
     code_name: "",
-    uptime: 13371337133713371337,
+    uptime: 1337133713371337,
     memory: 143593800000,
     cpu_type: "1337",
     cpu_subtype: "1337",

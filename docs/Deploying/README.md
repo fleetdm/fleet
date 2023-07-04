@@ -4,7 +4,7 @@
 Provides an introduction to Fleet and its requirements and dependencies.
 
 ### [Server installation](./Server-Installation.md) 
-Includes deployment walkthroughs for Fleet on CentOS, Ubuntu, Docker, Kubernetes, and building from source.
+Includes deployment walkthroughs for Fleet on CentOS, Kubernetes, and AWS ECS.
 
 ### [Configuration](./Configuration.md) 
 Includes resources for configuring the Fleet binary, managing osquery configurations, and running with systemd

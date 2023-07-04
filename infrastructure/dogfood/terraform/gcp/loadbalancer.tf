@@ -1,5 +1,5 @@
 resource "google_dns_managed_zone" "default" {
-  dns_name = var.dns_name
+  dns_name = var.dns_zone
   name     = "${var.prefix}-zone"
   dnssec_config {
     state = "on"
@@ -56,3 +56,4 @@ module "lb-http" {
     }
   }
 }
+

@@ -10,6 +10,9 @@ parasails.registerPage('register', {
 
     // Form rules
     formRules: {
+      firstName: {required: true},
+      lastName: {required: true},
+      organization: {required: true},
       emailAddress: {required: true, isEmail: true},
       password: {required: true, minLength: 8},
     },
@@ -42,8 +45,6 @@ parasails.registerPage('register', {
 
     // Using handle-submitting to add firstName, and lastName values to our formData before sending it to signup.js
     handleSubmittingRegisterForm: async function(argins) {
-      argins.firstName = argins.emailAddress.split('@')[0];
-      argins.lastName = argins.emailAddress.split('@')[1];
       argins.signupReason = 'Try Fleet Sandbox';
       return await Cloud.signup.with(argins);
     },

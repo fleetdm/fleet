@@ -1,19 +1,48 @@
 # Testing and local development
 
-- [License key](#license-key)
-- [Simulated hosts](#hosts)
-- [Test suite](#test-suite)
-- [End-to-end tests](#end-to-end-tests)
-- [Test hosts](#test-hosts)
-- [Email](#email)
-- [Database backup/restore](#database-backuprestore)
-- [Seeding Data](https://fleetdm.com/docs/contributing/seeding-data)
-- [MySQL shell](#mysql-shell)
-- [Redis REPL](#redis-repl)
-- [Testing SSO](#testing-sso)
-- [Testing Kinesis Logging](#testing-kinesis-logging)
-- [Testing pre-built installers](#testing-pre-built-installers)
-- [Telemetry](#telemetry)
+- [Testing and local development](#testing-and-local-development)
+  - [License key](#license-key)
+  - [Simulated hosts](#simulated-hosts)
+  - [Test suite](#test-suite)
+    - [Go unit tests](#go-unit-tests)
+    - [Go linters](#go-linters)
+    - [Javascript unit and integration tests](#javascript-unit-and-integration-tests)
+    - [Javascript linters](#javascript-linters)
+    - [MySQL tests](#mysql-tests)
+    - [Email tests](#email-tests)
+    - [Network tests](#network-tests)
+    - [Viewing test coverage](#viewing-test-coverage)
+  - [End-to-end tests](#end-to-end-tests)
+    - [Preparation](#preparation)
+    - [Run tests](#run-tests)
+    - [Interactive](#interactive)
+    - [Command line](#command-line)
+  - [Test hosts](#test-hosts)
+  - [Email](#email)
+    - [Manually testing email with MailHog and Mailpit](#manually-testing-email-with-mailhog-and-mailpit)
+      - [MailHog SMTP server without authentication](#mailhog-smtp-server-without-authentication)
+      - [Mailpit SMTP server with plain authentication](#mailpit-smtp-server-with-plain-authentication)
+  - [Development database management](#development-database-management)
+  - [MySQL shell](#mysql-shell)
+  - [Redis REPL](#redis-repl)
+  - [Testing SSO](#testing-sso)
+    - [Configuration](#configuration)
+  - [Testing Kinesis Logging](#testing-kinesis-logging)
+  - [Testing pre-built installers](#testing-pre-built-installers)
+  - [Telemetry](#telemetry)
+  - [Fleetd Chrome extension](#fleetd-chrome-extension)
+  - [MDM setup and testing](#mdm-setup-and-testing)
+    - [ABM setup](#abm-setup)
+      - [Private key, certificate, and encrypted token](#private-key-certificate-and-encrypted-token)
+    - [APNs and SCEP setup](#apns-and-scep-setup)
+    - [Running the server](#running-the-server)
+    - [Testing MDM](#testing-mdm)
+      - [Testing manual enrollment](#testing-manual-enrollment)
+      - [Testing DEP enrollment](#testing-dep-enrollment)
+        - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
+    - [Nudge](#nudge)
+      - [Debugging tips](#debugging-tips)
+    - [Bootstrap package](#bootstrap-package)
 
 ## License key
 
@@ -38,13 +67,21 @@ Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/f
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.47.3
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
 ```
 
 Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```
 REDIS_TEST=1 MYSQL_TEST=1 make test
+```
+
+Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
+
+```
+# start both the default docker-compose.yml and the redis cluster-specific
+# docker-compose-redis-cluster.yml
+$ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
 ```
 
 ### Go unit tests
@@ -133,26 +170,15 @@ go tool cover -func=coverage.txt
 
 ## End-to-end tests
 
-E2E tests are run using Docker and Cypress.
+We have partnered with [QA Wolf](https://www.qawolf.com/) to help manage and maintain our E2E testing suite.
+The code is deployed and tested once daily on the testing instance.
 
-E2E tests are constantly evolving, and running them or examining CI results is the best way to understand what they cover, but at a high level, they cover:
-1. Setup
-2. Log in/out flows
-3. Host page
-    Add hosts
-    Label flows
-4. Query flows
-5. Policy flows
-6. Schedule flows
-    scheduling
-    packs
-6. Permissions
-    Admin
-    Observer (global and team)
-    Maintainer
-7. Organizational Settings
-    Settings adjustments
-    Users
+QA Wolf manages any issues found from these tests and will raise github issues. Engineers should not
+have to worry about working with E2E testing code or raising issues themselves.
+
+However, development may necessitate running E2E tests on demand. To run E2E tests live on a branch such as the `main` branch, developers can navigate to [Deploy Cloud Environments](https://github.com/fleetdm/confidential/actions/workflows/cloud-deploy.yml) in our [/confidential](https://github.com/fleetdm/confidential) repo's Actions and select "Run workflow".
+
+For Fleet employees, if you would like access to the QA Wolf platform you can reach out in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) slack channel.
 
 ### Preparation
 
@@ -222,13 +248,26 @@ The Fleet repo includes tools to start testing osquery hosts. Please see the doc
 
 ## Email
 
-### Manually testing email with MailHog
+### Manually testing email with MailHog and Mailpit
+
+#### MailHog SMTP server without authentication
 
 To intercept sent emails while running a Fleet development environment, first, as an Admin in the Fleet UI, navigate to the Organization settings.
 
 Then, in the "SMTP options" section, enter any email address in the "Sender address" field, set the "SMTP server" to `localhost` on port `1025`, and set "Authentication type" to `None`. Note that you may use any active or inactive sender address.
 
 Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
+
+#### Mailpit SMTP server with plain authentication
+
+Alternatively, if you need to test a SMTP server with plain basic authentication enabled, set:
+- "SMTP server" to `localhost` on port `1026`
+- "Authentication type" to `Plain`.
+- "SMTP username" to `mailpit-username`.
+- "SMTP password" to `mailpit-password`.
+- Note that you may use any active or inactive sender address.
+
+Visit [localhost:8026](http://localhost:8026) to view Mailpit's admin interface displaying all emails sent using the simulated mail server.
 
 ## Development database management
 
@@ -287,11 +326,10 @@ Configure SSO on the Organization Settings page with the following:
 ```
 Identity Provider Name: SimpleSAML
 Entity ID: https://localhost:8080
-Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
 Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
 ```
 
-The identity provider is configured with two users:
+The identity provider is configured with four users:
 
 ```
 Username: sso_user
@@ -300,6 +338,17 @@ Password: user123#
 
 Username: sso_user2
 Email: sso_user2@example.com
+Password: user123#
+
+# sso_user_3_global_admin is automatically added as Global admin.
+Username: sso_user_3_global_admin
+Email: sso_user_3_global_admin@example.com
+Password: user123#
+
+# sso_user_4_team_maintainer is automatically added as maintainer of Team with ID = 1.
+# If a team with ID 1 doesn't exist then the login with this user will fail.
+Username: sso_user_4_team_maintainer
+Email: sso_user_4_team_maintainer@example.com
 Password: user123#
 ```
 
@@ -348,7 +397,7 @@ FLEET_KINESIS_ENDPOINT_URL=http://localhost:4566
 FLEET_KINESIS_ACCESS_KEY_ID=default
 FLEET_KINESIS_SECRET_ACCESS_KEY=default
 FLEET_KINESIS_STATUS_STREAM=sample_status
-FLEET_KINESIS_RESULT_STREAM=sample_result 
+FLEET_KINESIS_RESULT_STREAM=sample_result
 ```
 
 Here's a sample command for running `fleet serve`:
@@ -404,6 +453,12 @@ awslocal kinesis get-records --shard-iterator AAAAAAAAAAERtiUrWGI0sq99TtpKnmDu6h
 [...]
 ```
 
+The `Data` field is base64 encoded. You can use the following command to decode:
+```
+echo eyJob3N0SWRlbnRpZmllciI6Ijg3OGE2ZWRmLTcxMzEtNGUyOC05NWEyLWQzNDQ5MDVjYWNhYiIsImNhbGVuZGFyVGltZSI6IldlZCBNYXIgIDIgMjI6MDI6NTQgMjAyMiBVVEMiLCJ1bml4VGltZSI6IjE2NDYyNTg1NzQiLCJzZXZlcml0eSI6IjAiLCJmaWxlbmFtZSI6Imdsb2dfbG9nZ2VyLmNwcCIsImxpbmUiOiI0OSIsIm1lc3NhZ2UiOiJDb3VsZCBub3QgZ2V0IFJQTSBoZWFkZXIgZmxhZy4iLCJ2ZXJzaW9uIjoiNC45LjAiLCJkZWNvcmF0aW9ucyI6eyJob3N0X3V1aWQiOiJlYjM5NDZiMi0wMDAwLTAwMDAtYjg4OC0yNTkxYTFiNjY2ZTkiLCJob3N0bmFtZSI6ImUwMDg4ZDI4YTYzZiJ9fQo= | base64 -d
+{"hostIdentifier":"878a6edf-7131-4e28-95a2-d344905cacab","calendarTime":"Wed Mar  2 22:02:54 2022 UTC","unixTime":"1646258574","severity":"0","filename":"glog_logger.cpp","line":"49","message":"Could not get RPM header flag.","version":"4.9.0","decorations":{"host_uuid":"eb3946b2-0000-0000-b888-2591a1b666e9","hostname":"e0088d28a63f"}}
+```
+
 ## Testing pre-built installers
 
 Pre-built installers are kept in a blob storage like AWS S3. As part of your your local development there's a [MinIO](https://min.io/) instance running on http://localhost:9000. To test the pre-built installers functionality locally:
@@ -415,11 +470,11 @@ Pre-built installers are kept in a blob storage like AWS S3. As part of your you
 4. Set `FLEET_SERVER_SANDBOX_ENABLED=1`, as the endpoint to retrieve the installer is only available in the sandbox.
 
 ```
-FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev 
+FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev
 ```
 
 Be sure to replace the `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` value above with the global enroll
-secret from the `fleetctl package` command used to build the installers. 
+secret from the `fleetctl package` command used to build the installers.
 
 MinIO also offers a web interface at http://localhost:9001. Credentials are `minio` / `minio123!`.
 
@@ -427,4 +482,194 @@ MinIO also offers a web interface at http://localhost:9001. Credentials are `min
 
 You can configure the server to record and report trace data using OpenTelemetry or Elastic APM and use a tracing system like [Jaeger](https://www.jaegertracing.io/) to consume this data and inspect the traces locally.
 
-Please refer to [tools/telemetry](../../tools/telemetry/README.md) for instructions.
+Please refer to [tools/telemetry](https://github.com/fleetdm/fleet/tree/main/tools/telemetry/README.md) for instructions.
+
+## Fleetd Chrome extension
+
+### Debugging the service Worker
+
+View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
+
+## MDM setup and testing
+
+To run your local server with the MDM features enabled, you need to get certificates and keys.
+
+- [ABM setup](#abm-setup)
+- [APNs and SCEP setup](#apns-and-scep-setup)
+- [Running the server](#running-the-server)
+- [Testing MDM](#testing-mdm)
+
+### ABM setup
+
+To enable the [DEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#dep-device-enrollment-program) enrollment flow, the Fleet server needs three things:
+
+1. A private key.
+1. A certificate.
+1. An encrypted token generated by Apple.
+
+#### Private key, certificate, and encrypted token
+
+First ask @zwass to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
+
+Once you have access to ABM, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
+
+### APNs and SCEP setup
+
+The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
+
+To generate both, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-push-notification-service-apns).
+
+Note that:
+
+1. Fleet must be running to generate the certificates and keys.
+2. You must be logged in to Fleet as a global admin. See [Building Fleet](./Building-Fleet.md) for details on getting Fleet setup locally.
+3. To login into https://identity.apple.com/pushcert you can use your ABM account generated in the previous step.
+4. Save all the certificates and keys in a safe place.
+
+Another option, if for some reason, generating the certificates and keys fails or you don't have a supported email address handy is to use `openssl` to generate your SCEP key pair:
+
+```
+$ openssl genrsa -out fleet-mdm-apple-scep.key 4096
+
+$ openssl req -x509 -new -nodes -key fleet-mdm-apple-scep.key -sha256 -days 1826 -out fleet-mdm-apple-scep.crt -subj '/CN=Fleet Root CA/C=US/O=Fleet DM.'
+```
+
+### Running the server
+
+Try to store all the certificates and tokens you generated in the earlier steps together in a safe place outside of the repo, then start the server with:
+
+```
+FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
+FLEET_MDM_APPLE_SCEP_CERT=/path/to/fleet-mdm-apple-scep.crt \
+FLEET_MDM_APPLE_SCEP_KEY=/path/to/fleet-mdm-apple-scep.key \
+FLEET_MDM_APPLE_BM_SERVER_TOKEN=/path/to/dep_encrypted_token.p7m \
+FLEET_MDM_APPLE_BM_CERT=/path/to/fleet-apple-mdm-bm-public-key.crt \
+FLEET_MDM_APPLE_BM_KEY=/path/to/fleet-apple-mdm-bm-private.key \
+FLEET_MDM_APPLE_APNS_CERT=/path/to/mdmcert.download.push.pem \
+FLEET_MDM_APPLE_APNS_KEY=/path/to/mdmcert.download.push.key \
+ ./build/fleet serve --dev --dev_license --logging_debug
+```
+
+Note: if you need to enroll VMs using MDM, the server needs to run behind TLS with a valid certificate. In a separate terminal window/tab, create a local tunnel to your server using `ngrok` (`brew install ngrok/ngrok/ngrok` if you don't have it.)
+
+```
+ngrok http https://localhost:8080
+```
+
+> NOTE: If this is your first time using ngrok this command will fail and you will see a message
+> about signing up. Open the sign up link and complete the sign up flow. You can rerun the same command
+> and ngrok should work this time. After this open the forwarding link, you will be asked to confirm that you'd like
+> to be forwarded to your local server and should accept.
+
+Don't forget to edit your Fleet server settings (through the UI or `fleetctl`) to use the URL `ngrok` provides to you. You need to do this whenever you restart `ngrok`.
+
+### Testing MDM
+
+To test MDM, you'll need one or more virtual machines (VMs) that you can use to enroll to your server.
+
+Choose and download a VM software, some options:
+
+- VMware Fusion: https://www.vmware.com/products/fusion.html
+- UTM: https://mac.getutm.app/
+- QEMU, for Linux, using instructions and scripts from the following repo: https://github.com/notAperson535/OneClick-macOS-Simple-KVM
+
+If you need a license please use your Brex card (and submit the receipt on Brex.)
+
+With the software in place, you need to create a VM and install macOS, the steps to do this vary depending on your software of choice.
+
+
+If you are using VMWare, we've used [this guide](https://travellingtechguy.blog/vmware-dep/) in the
+past, please reach out in [#g-mdm](https://fleetdm.slack.com/archives/C03C41L5YEL) before starting
+so you can get the right serial numbers.
+
+If you are using UTM, you can simply click "Create a New Virtual Machine" button with the default
+settings. This creates a VM running the latest macOS.
+
+If you are using QEMU for Linux, follow the instruction guide to install a recent macOS version: https://oneclick-macos-simple-kvm.notaperson535.is-a.dev/docs/start-here. Note that only the manual enrollment was successfully tested with this setup. Once the macOS VM is installed and up and running, the rest of the steps are the same.
+
+#### Testing manual enrollment
+
+1. Create a fleetd package that you will install on your host machine. You can get this command from the fleet
+   UI on the manage hosts page when you click the `add hosts` button. Alternatively, you can run the command:
+
+  ```
+  ./build/fleetctl package --type=pkg --fleet-desktop --fleet-url=<url-of-fleet-instance> --enroll-secret=<your-fleet-enroll-secret>
+  ```
+
+2. Install this package on the host. This will add fleet desktop to this machine and from there you
+   can go to the My Device page and see a banner at the top of the UI to enroll in Fleet MDM.
+
+#### Testing DEP enrollment
+
+> NOTE: Currently this is not possible for M1 Mac machines.
+
+1. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
+
+2. Boot the machine, it should automatically enroll into MDM.
+
+##### Gating the DEP profile behind SSO
+
+For rapid iteration during local development, you can use the same configuration values as those described in [Testing SSO](#testing-sso), and test the flow in the browser by navigating to `https://localhost:8080/mdm/sso`.
+
+To fully test e2e during DEP enrollment however, you need:
+
+- A local tunnel to your Fleet server (instructions to set your tunnel are in the [running the server](#running-the-server) section)
+- A local tunnel to your local IdP server (or, optionally create an account in a cloud IdP like Okta)
+
+With an accessible Fleet server and IdP server, you can configure your env:
+
+- If you're going to use the SimpleSAML server that is automatically started in local development, edit [./tools/saml/config.php](https://github.com/fleetdm/fleet/blob/6cfef3d3478f02227677071fe3a62bada77c1139/tools/saml/config.php) and replace `https://localhost:8080` everywhere with the URL of your local tunnel.
+- After saving the file, restart the SimpleSAML service (eg: `docker-compose restart saml_idp`)
+- Finally, edit your app configuration:
+
+```yaml
+mdm:
+  end_user_authentication:
+    entity_id: <your_fleet_tunnel_url>
+    idp_name: SimpleSAML
+    metadata_url: <your_idp_tunnel_url>/simplesaml/saml2/idp/metadata.php
+```
+
+> Note: if you're using a cloud provider, fill in the details provided by them for the app config settings above.
+
+The next time you go through the DEP flow, you should be prompted to authenticate before enrolling.
+
+### Nudge
+
+We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Orbit:
+
+1. When Orbit pings the server for a config (every 30 seconds,) we send the corresponding Nudge configuration for the host. Orbit then saves this config at `<ORBIT_ROOT_DIR>/nudge-config.json`
+2. If Orbit gets a Nudge config, it downloads Nudge from TUF.
+3. Periodically, Orbit runs `open` to start Nudge, this is a direct replacement of Nudge's [LaunchAgent](https://github.com/macadmins/nudge/wiki#scheduling-nudge-to-run).
+
+#### Debugging tips
+
+- Orbit launches Nudge using the following command, you can try and run the command yourself to see if you spot anything suspicious:
+
+```
+open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json
+```
+
+- Make sure that the `fleet-osquery.pkg` package you build to install `fleetd` has the `--debug` flag, there are many Nudge logs at the debug level.
+
+- Nudge has a great [guide](https://github.com/macadmins/nudge/wiki/Logging) to stream/parse their logs, the TL;DR version is that you probably want a terminal running:
+
+```
+log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --style json --debug
+```
+
+- Nudge has a couple of flags that you can provide to see what config values are actually being used. You can try launching Nudge with `-print-json-config` or `-print-profile-config` like this:
+
+```
+open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
+```
+
+### Bootstrap package
+
+A bootstrap package is a `pkg` file that gets automatically installed on hosts when they enroll via DEP.
+
+The `pkg` file needs to be a signed "distribution package", you can find a dummy file that meets all the requirements [in Drive](https://drive.google.com/file/d/1adwAOTD5G6D4WzWvJeMId6mDhyeFy-lm/view). We have instructions in [the docs](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#bootstrap-package) to upload a new bootstrap package to your Fleet instance.
+
+The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo.png`. To verify if the package was installed, you can open that folder and verify that the logo is there.
+
+<meta name="pageOrderInSection" value="1500">

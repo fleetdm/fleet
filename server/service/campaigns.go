@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -31,7 +32,7 @@ type createDistributedQueryCampaignResponse struct {
 
 func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
 
-func createDistributedQueryCampaignEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createDistributedQueryCampaignEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createDistributedQueryCampaignRequest)
 	campaign, err := svc.NewDistributedQueryCampaign(ctx, req.QuerySQL, req.QueryID, req.Selected)
 	if err != nil {
@@ -50,7 +51,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, fleet.ErrNoContext
 	}
 
-	if queryID == nil && queryString == "" {
+	if queryID == nil && strings.TrimSpace(queryString) == "" {
 		return nil, fleet.NewInvalidArgumentError("query", "one of query or query_id must be specified")
 	}
 
@@ -73,7 +74,9 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 			AuthorID: ptr.Uint(vc.UserID()),
 		}
 		if err := query.Verify(); err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("query payload verification: %s", err),
+			})
 		}
 		query, err = svc.ds.NewQuery(ctx, query)
 		if err != nil {
@@ -162,20 +165,19 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, ctxerr.Wrap(ctx, err, "counting hosts")
 	}
 
-	activityData := map[string]interface{}{
-		"targets_count": campaign.Metrics.TotalHosts,
-		"query_sql":     query.Query,
+	activityData := fleet.ActivityTypeLiveQuery{
+		TargetsCount: campaign.Metrics.TotalHosts,
+		QuerySQL:     query.Query,
 	}
 	if queryID != nil {
-		activityData["query_name"] = query.Name
+		activityData.QueryName = &query.Name
 	}
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeLiveQuery,
-		&activityData,
+		activityData,
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for campaign creation")
 	}
 	return campaign, nil
 }
@@ -195,7 +197,7 @@ type distributedQueryCampaignTargetsByNames struct {
 	Hosts  []string `json:"hosts"`
 }
 
-func createDistributedQueryCampaignByNamesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createDistributedQueryCampaignByNamesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createDistributedQueryCampaignByNamesRequest)
 	campaign, err := svc.NewDistributedQueryCampaignByNames(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 	if err != nil {

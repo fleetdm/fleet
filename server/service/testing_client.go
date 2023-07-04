@@ -12,12 +12,15 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -57,13 +60,24 @@ type withServer struct {
 	users            map[string]fleet.User
 	token            string
 	cachedAdminToken string
+
+	cachedTokensMu sync.Mutex
+	cachedTokens   map[string]string // email -> auth token
+
+	lq *live_query_mock.MockLiveQuery
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
 	rs := pubsub.NewInmemQueryResults()
-	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, &TestServerOpts{Rs: rs})
+	cfg := config.TestConfig()
+	cfg.Osquery.EnrollCooldown = 0
+	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, &TestServerOpts{
+		Rs:          rs,
+		Lq:          ts.lq,
+		FleetConfig: &cfg,
+	})
 	ts.server = server
 	ts.users = users
 	ts.token = ts.getTestAdminToken()
@@ -82,7 +96,8 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	hosts, err := ts.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
 	for _, host := range hosts {
-		require.NoError(t, ts.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
+		_, err := ts.ds.UpdateHostSoftware(context.Background(), host.ID, nil)
+		require.NoError(t, err)
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
 
@@ -206,6 +221,24 @@ func (ts *withServer) getTestAdminToken() string {
 	return ts.cachedAdminToken
 }
 
+// getCachedUserToken returns the cached auth token for the given test user email.
+// If it's not found, then a login request is performed and the token cached.
+func (ts *withServer) getCachedUserToken(email, password string) string {
+	ts.cachedTokensMu.Lock()
+	defer ts.cachedTokensMu.Unlock()
+
+	if ts.cachedTokens == nil {
+		ts.cachedTokens = make(map[string]string)
+	}
+
+	token, ok := ts.cachedTokens[email]
+	if !ok {
+		token = ts.getTestToken(email, password)
+		ts.cachedTokens[email] = token
+	}
+	return token
+}
+
 func (ts *withServer) getTestToken(email string, password string) string {
 	params := loginRequest{
 		Email:    email,
@@ -248,13 +281,27 @@ func (ts *withServer) getConfig() *appConfigResponse {
 
 func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, string) {
 	t := ts.s.T()
+	auth, res := ts.loginSSOUser(username, password, "/api/v1/fleet/sso", http.StatusOK)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	return auth, string(body)
+}
+
+func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
+	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusTemporaryRedirect)
+	return res
+}
+
+func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) (fleet.Auth, *http.Response) {
+	t := ts.s.T()
 
 	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
 		t.Skip("SSO tests are disabled")
 	}
 
 	var resIni initiateSSOResponse
-	ts.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
+	ts.DoJSON("POST", basePath, map[string]string{}, http.StatusOK, &resIni)
 
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
@@ -292,10 +339,63 @@ func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, strin
 	auth, err := sso.DecodeAuthResponse(rawSSOResp)
 	require.NoError(t, err)
 	q := url.QueryEscape(rawSSOResp)
-	res := ts.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+q, nil, http.StatusOK)
+	res := ts.DoRawNoAuth("POST", basePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
 
-	defer res.Body.Close()
-	body, err = io.ReadAll(res.Body)
-	require.NoError(t, err)
-	return auth, string(body)
+	return auth, res
+}
+
+// gets the latest activity and checks that it matches any provided properties.
+// empty string or 0 id means do not check that property. It returns the ID of that
+// latest activity.
+func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
+	t := ts.s.T()
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
+	require.True(t, len(listActivities.Activities) > 0)
+
+	act := listActivities.Activities[0]
+	if name != "" {
+		assert.Equal(t, name, act.Type)
+	}
+	if details != "" {
+		require.NotNil(t, act.Details)
+		assert.JSONEq(t, details, string(*act.Details))
+	}
+	if id > 0 {
+		assert.Equal(t, id, act.ID)
+	}
+	return act.ID
+}
+
+// gets the latest activity with the specified type name and checks that it
+// matches any provided properties. empty string or 0 id means do not check
+// that property. It returns the ID of that latest activity.
+//
+// The difference with lastActivityMatches is that the asserted activity does
+// not need to be the very last one, it will look for the last one of this
+// specified type, which must be in one of the last 10 activities otherwise the
+// test is failed.
+func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) uint {
+	t := ts.s.T()
+
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			if details != "" {
+				require.NotNil(t, act.Details)
+				assert.JSONEq(t, details, string(*act.Details))
+			}
+			if id > 0 {
+				assert.Equal(t, id, act.ID)
+			}
+			return act.ID
+		}
+	}
+
+	t.Fatalf("no activity of type %s found in the last %d activities", name, len(listActivities.Activities))
+	return 0
 }

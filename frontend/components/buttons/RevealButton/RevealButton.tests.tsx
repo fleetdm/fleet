@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/testingUtils";
+import { renderWithSetup } from "test/test-utils";
 
 import RevealButton from "./RevealButton";
 

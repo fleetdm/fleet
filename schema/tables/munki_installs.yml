@@ -1,7 +1,8 @@
 name: munki_installs
-notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).
 description: Software packages and other items [Munki](https://github.com/munki/munki) is managing.
-platforms: darwin
+platforms: 
+  - darwin
 evented: false
 examples: >-
   See the version of software that has been deployed by Munki.

@@ -62,8 +62,8 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
-			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 		})
@@ -110,7 +110,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 	cid := getCIDForQ(s, q1)
 
 	distributedReq := submitDistributedQueryResultsRequestShim{
-		NodeKey: host.NodeKey,
+		NodeKey: *host.NodeKey,
 		Results: map[string]json.RawMessage{
 			hostDistributedQueryPrefix + cid:          json.RawMessage(`[{"col1": "a", "col2": "b"}]`),
 			hostDistributedQueryPrefix + "invalidcid": json.RawMessage(`""`), // empty string is sometimes sent for no results
@@ -177,7 +177,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 	cid2 := getCIDForQ(s, q2)
 
 	distributedReq := SubmitDistributedQueryResultsRequest{
-		NodeKey: host.NodeKey,
+		NodeKey: *host.NodeKey,
 		Results: map[string][]map[string]string{
 			hostDistributedQueryPrefix + cid1: {{"col1": "a", "col2": "b"}},
 			hostDistributedQueryPrefix + cid2: {{"col3": "c", "col4": "d"}, {"col3": "e", "col4": "f"}},
@@ -275,7 +275,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 	cid2 := getCIDForQ(s, q2)
 	for i, h := range []*fleet.Host{h1, h2} {
 		distributedReq := SubmitDistributedQueryResultsRequest{
-			NodeKey: h.NodeKey,
+			NodeKey: *h.NodeKey,
 			Results: map[string][]map[string]string{
 				hostDistributedQueryPrefix + cid1: {{"col1": fmt.Sprintf("a%d", i), "col2": fmt.Sprintf("b%d", i)}},
 				hostDistributedQueryPrefix + cid2: {{"col3": fmt.Sprintf("c%d", i), "col4": fmt.Sprintf("d%d", i)}, {"col3": fmt.Sprintf("e%d", i), "col4": fmt.Sprintf("f%d", i)}},
@@ -370,7 +370,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	time.Sleep(2 * time.Second)
 	cid1 := getCIDForQ(s, q1)
 	distributedReq := submitDistributedQueryResultsRequestShim{
-		NodeKey: h1.NodeKey,
+		NodeKey: *h1.NodeKey,
 		Results: map[string]json.RawMessage{
 			hostDistributedQueryPrefix + cid1: json.RawMessage(`[{"col1": "a", "col2": "b"}]`),
 		},
@@ -385,7 +385,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
 	distributedReq = submitDistributedQueryResultsRequestShim{
-		NodeKey: h2.NodeKey,
+		NodeKey: *h2.NodeKey,
 		Results: map[string]json.RawMessage{
 			hostDistributedQueryPrefix + cid1: json.RawMessage(`""`),
 		},
@@ -491,7 +491,7 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {
 	hostID := s.hosts[1].ID
 	s.lq.On("QueriesForHost", hostID).Return(map[string]string{fmt.Sprintf("%d", hostID): "select 1 from osquery;"}, nil)
 
-	req := getDistributedQueriesRequest{NodeKey: s.hosts[1].NodeKey}
+	req := getDistributedQueriesRequest{NodeKey: *s.hosts[1].NodeKey}
 	var resp getDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &resp)
 	assert.Contains(t, resp.Queries, hostDistributedQueryPrefix+fmt.Sprintf("%d", hostID))
@@ -535,8 +535,8 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedReadWithFeatures() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -547,7 +547,7 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedReadWithFeatures() {
 
 	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
 	require.NoError(t, err)
-	req := getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	req := getDistributedQueriesRequest{NodeKey: *host.NodeKey}
 	var dqResp getDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
@@ -557,9 +557,55 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedReadWithFeatures() {
 	require.NoError(t, err)
 	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
 	require.NoError(t, err)
-	req = getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	req = getDistributedQueriesRequest{NodeKey: *host.NodeKey}
 	dqResp = getDistributedQueriesResponse{}
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+}
+
+func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaignBadRequest() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Query provided but no targets provided
+	req := createDistributedQueryCampaignRequest{
+		QuerySQL: "SELECT * FROM osquery_info;",
+	}
+	var createResp createDistributedQueryCampaignResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusBadRequest, &createResp)
+
+	// Target provided but no query provided.
+	req = createDistributedQueryCampaignRequest{
+		Selected: fleet.HostTargets{HostIDs: []uint{host.ID}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusUnprocessableEntity, &createResp)
+
+	// Query "provided" but empty.
+	req = createDistributedQueryCampaignRequest{
+		QuerySQL: " ",
+		Selected: fleet.HostTargets{HostIDs: []uint{host.ID}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusUnprocessableEntity, &createResp)
+
+	s.lq.On("RunQuery", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Query and targets provided.
+	req = createDistributedQueryCampaignRequest{
+		QuerySQL: "select \"With automounting enabled anyone with physical access could attach a USB drive or disc and have its contents available in system even if they lacked permissions to mount it themselves.\" as Rationale;",
+		Selected: fleet.HostTargets{HostIDs: []uint{host.ID}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusOK, &createResp)
 }

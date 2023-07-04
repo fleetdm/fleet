@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -31,7 +31,6 @@ func TestCleanupURL(t *testing.T) {
 			assert.Equal(tt, test.expected, actual)
 		})
 	}
-
 }
 
 func TestCreateAppConfig(t *testing.T) {
@@ -42,7 +41,7 @@ func TestCreateAppConfig(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	var appConfigTests = []struct {
+	appConfigTests := []struct {
 		configPayload fleet.AppConfig
 	}{
 		{
@@ -156,26 +155,31 @@ func TestService_LoggingConfig(t *testing.T) {
 	fileSystemConfig := fleet.FilesystemConfig{FilesystemConfig: config.FilesystemConfig{
 		StatusLogFile:        logFile,
 		ResultLogFile:        logFile,
+		AuditLogFile:         logFile,
 		EnableLogRotation:    false,
 		EnableLogCompression: false,
+		MaxSize:              500,
 	}}
 
 	firehoseConfig := fleet.FirehoseConfig{
 		Region:       testFirehosePluginConfig().Firehose.Region,
 		StatusStream: testFirehosePluginConfig().Firehose.StatusStream,
 		ResultStream: testFirehosePluginConfig().Firehose.ResultStream,
+		AuditStream:  testFirehosePluginConfig().Firehose.AuditStream,
 	}
 
 	kinesisConfig := fleet.KinesisConfig{
 		Region:       testKinesisPluginConfig().Kinesis.Region,
 		StatusStream: testKinesisPluginConfig().Kinesis.StatusStream,
 		ResultStream: testKinesisPluginConfig().Kinesis.ResultStream,
+		AuditStream:  testKinesisPluginConfig().Kinesis.AuditStream,
 	}
 
 	lambdaConfig := fleet.LambdaConfig{
 		Region:         testLambdaPluginConfig().Lambda.Region,
 		StatusFunction: testLambdaPluginConfig().Lambda.StatusFunction,
 		ResultFunction: testLambdaPluginConfig().Lambda.ResultFunction,
+		AuditFunction:  testLambdaPluginConfig().Lambda.AuditFunction,
 	}
 
 	pubsubConfig := fleet.PubSubConfig{
@@ -183,6 +187,7 @@ func TestService_LoggingConfig(t *testing.T) {
 			Project:       testPubSubPluginConfig().PubSub.Project,
 			StatusTopic:   testPubSubPluginConfig().PubSub.StatusTopic,
 			ResultTopic:   testPubSubPluginConfig().PubSub.ResultTopic,
+			AuditTopic:    testPubSubPluginConfig().PubSub.AuditTopic,
 			AddAttributes: false,
 		},
 	}
@@ -215,6 +220,10 @@ func TestService_LoggingConfig(t *testing.T) {
 					Plugin: "filesystem",
 					Config: fileSystemConfig,
 				},
+				Audit: fleet.LoggingPlugin{
+					Plugin: "filesystem",
+					Config: fileSystemConfig,
+				},
 			},
 		},
 		{
@@ -229,6 +238,10 @@ func TestService_LoggingConfig(t *testing.T) {
 					Config: firehoseConfig,
 				},
 				Status: fleet.LoggingPlugin{
+					Plugin: "firehose",
+					Config: firehoseConfig,
+				},
+				Audit: fleet.LoggingPlugin{
 					Plugin: "firehose",
 					Config: firehoseConfig,
 				},
@@ -249,6 +262,10 @@ func TestService_LoggingConfig(t *testing.T) {
 					Plugin: "kinesis",
 					Config: kinesisConfig,
 				},
+				Audit: fleet.LoggingPlugin{
+					Plugin: "kinesis",
+					Config: kinesisConfig,
+				},
 			},
 		},
 		{
@@ -263,6 +280,10 @@ func TestService_LoggingConfig(t *testing.T) {
 					Config: lambdaConfig,
 				},
 				Status: fleet.LoggingPlugin{
+					Plugin: "lambda",
+					Config: lambdaConfig,
+				},
+				Audit: fleet.LoggingPlugin{
 					Plugin: "lambda",
 					Config: lambdaConfig,
 				},
@@ -283,6 +304,10 @@ func TestService_LoggingConfig(t *testing.T) {
 					Plugin: "pubsub",
 					Config: pubsubConfig,
 				},
+				Audit: fleet.LoggingPlugin{
+					Plugin: "pubsub",
+					Config: pubsubConfig,
+				},
 			},
 		},
 		{
@@ -300,6 +325,10 @@ func TestService_LoggingConfig(t *testing.T) {
 					Plugin: "stdout",
 					Config: nil,
 				},
+				Audit: fleet.LoggingPlugin{
+					Plugin: "stdout",
+					Config: nil,
+				},
 			},
 		},
 		{
@@ -310,7 +339,6 @@ func TestService_LoggingConfig(t *testing.T) {
 			want:    nil,
 		},
 	}
-	t.Parallel()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := new(mock.Store)
@@ -357,4 +385,73 @@ func TestModifyAppConfigPatches(t *testing.T) {
 
 	assert.Equal(t, "Acme", storedConfig.OrgInfo.OrgName)
 	assert.Equal(t, "http://someurl", storedConfig.ServerSettings.ServerURL)
+}
+
+func TestService_EmailConfig(t *testing.T) {
+	type fields struct {
+		config config.FleetConfig
+	}
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *fleet.EmailConfig
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "configuring the ses email backend should return ses configurations",
+			fields: fields{
+				config: testSESPluginConfig(),
+			},
+			args: args{
+				ctx: test.UserContext(context.Background(), test.UserAdmin),
+			},
+			want: &fleet.EmailConfig{
+				Backend: "ses",
+				Config: fleet.SESConfig{
+					Region:    "us-east-1",
+					SourceARN: "qux",
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "no configured email backend should return nil",
+			fields: fields{
+				config: config.TestConfig(),
+			},
+			args: args{
+				ctx: test.UserContext(context.Background(), test.UserAdmin),
+			},
+			want:    nil,
+			wantErr: assert.NoError,
+		},
+		{
+			name: "accessing without roles should return forbidden",
+			fields: fields{
+				config: testSESPluginConfig(),
+			},
+			args: args{
+				ctx: test.UserContext(context.Background(), test.UserNoRoles),
+			},
+			want: nil,
+			wantErr: func(tt assert.TestingT, err error, i ...interface{}) bool {
+				return assert.EqualError(tt, err, "forbidden")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, _ := newTestServiceWithConfig(t, ds, tt.fields.config, nil, nil)
+			got, err := svc.EmailConfig(tt.args.ctx)
+			if !tt.wantErr(t, err, fmt.Sprintf("EmailConfig(%v)", tt.args.ctx)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "EmailConfig(%v)", tt.args.ctx)
+		})
+	}
 }

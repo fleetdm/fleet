@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -85,14 +86,15 @@ func TestLiveQueryAuth(t *testing.T) {
 		return fleet.TargetMetrics{}, nil
 	}
 	var queryName, querySQL string
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-		name := (*details)["query_name"]
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		act := activity.(fleet.ActivityTypeLiveQuery)
+		name := act.QueryName
 		if name == nil {
 			queryName = ""
 		} else {
-			queryName = name.(string)
+			queryName = *name
 		}
-		querySQL = (*details)["query_sql"].(string)
+		querySQL = act.QuerySQL
 		return nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {

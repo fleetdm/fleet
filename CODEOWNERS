@@ -6,35 +6,45 @@ go.mod @fleetdm/go
 /server/ @fleetdm/go
 /cmd/ @fleetdm/go
 
+# Compliance
+/ee/cis/ @sharon-fdm @lucasmrod @marcosd4h @rachelElysia
+
+# MDM
+/ee/tools/puppet @roperzh @gillespi314 @mna @georgekarrv
+
+# React engineers are automatically added as reviewers when changes are made to react files
+/frontend/ @fleetdm/frontend
+
 # Infra/terraform
 *.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
 /charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
+/terraform @zwinnerman-fleetdm @edwardsb @rfairburn
 
-# GitHub settings + actions
-/.github/ @fleetdm/g-platform
+# GitHub issue templates
+/.github/ISSUE_TEMPLATE @mikermcneil
 
 # Codeowners file
-/CODEOWNERS @zwass @mikermcneil
+/CODEOWNERS @mikermcneil
 
 # Changelog
-/CHANGELOG.md @noahtalerman
+/CHANGELOG.md @spokanemac
 
-# Fleet documentation
-/docs/ @chris-mcgillicuddy @ksatter @jarodreyes
+# Fleet documentation (who is auto-requested as reviewer for changes to docs?)
+/docs/ @rachaelshaw
 
 # REST API reference documentation
-/docs/Using-Fleet/REST-API.md @ksatter @lukeheath
-/docs/Contributing/API-for-contributors.md @ksatter @lukeheath
+/docs/Using-Fleet/REST-API.md @rachaelshaw
+/docs/Contributing/API-for-contributors.md @rachaelshaw
 
 # Standard query library YAML
-/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @guillaumeross
+/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @zwass
 
-# Exapnded table documentation
-/schema @guillaumeross
+# Expanded table documentation
+/schema @eashaw
 
 # Articles
-/articles @chris-mcgillicuddy
+/articles @jarodreyes
 
 # Website
 /website/ @eashaw
@@ -45,10 +55,11 @@ go.mod @fleetdm/go
 # - CEO is DRI for pricing
 # - Mo is DRI for features table
 # - Eric is DRI for website frontend code
-/website/views/pages/pricing.ejs @zhumo @jarodreyes @alexmitchelliii @eashaw @mikermcneil
+/website/views/pages/pricing.ejs @mikermcneil
+/handbook/product/pricing-features-table.yml @mikermcneil
 
 # Website redirects and URLs
-/website/config/routes.js @eashaw @jarodreyes
+/website/config/routes.js @mikermcneil @eashaw
 
 # Website backend, scripts, deps
 /website/api/ @mikermcneil @eashaw
@@ -57,21 +68,25 @@ go.mod @fleetdm/go
 /website/package.json @mikermcneil @eashaw
 
 # GitHub brandfront
-/README.md @jarodreyes @mikermcneil
+/README.md @mikermcneil
 
 # NPM brandfront (npmjs.com/package/fleetctl)
-/tools/fleetctl-npm/README.md @jarodreyes
+/tools/fleetctl-npm/README.md @mikermcneil
 
 # Handbook
 /handbook/company @mikermcneil
-/handbook/business-operations @hollidayn
-/handbook/business-operations/ceo-handbook.md @charlottechance
-/handbook/security @guillaumeross
-/handbook/engineering @zwass
+/handbook/company/* @mikermcneil
+/handbook/business-operations @mikermcneil
+/handbook/business-operations/* @mikermcneil
+/handbook/engineering @lukeheath
+/handbook/engineering/* @lukeheath
 /handbook/product @zhumo
+/handbook/product/* @zhumo
 /handbook/customers @alexmitchelliii
+/handbook/customers/* @alexmitchelliii
 /handbook/marketing @jarodreyes
-/handbook/README.md @eashaw
+/handbook/marketing/* @jarodreyes
+/handbook/README.md @mikermcneil # « This is the "Table of contents"
 
 #
 # For configuration that determines auto-approval + auto-unfreezing, so that contributors

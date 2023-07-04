@@ -2,7 +2,7 @@
 
   <div style="max-width: 1000px;" class="container-fluid justify-content-center p-0 px-4 pb-5 mb-lg-5 mx-auto">
     <div class="d-flex flex-column p-0">
-      <a href="/queries" style="font-family: 'Nunito Sans'; font-size: 14px; font-weight: 700; text-decoration: none;" class="pt-4 pt-lg-5">
+      <a href="/queries" style="font-size: 14px; font-weight: 700; text-decoration: none;" class="pt-4 pt-lg-5">
         <img style="display: inline-block; width: 6px; height: 9px; transform: rotate(180deg); margin-bottom: 2px;" alt="back arrow" src="/images/chevron-right-6x9@2x.png"/>
         <span class="ml-1"> Back to queries</span>
       </a>
@@ -34,9 +34,10 @@
             <h5 class="pb-md-2 m-0">Platforms</h5>
             <p class="pb-1" v-if="!query.platform || !query.platform.length">--</p>
             <div purpose="platforms" class="d-flex align-items-center align-items-md-start pb-1" v-else>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-macos-black-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-windows-black-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-linux-black-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="query.platform.includes('chrome')"/>
             </div>
           </div>
         </div>

@@ -1,14 +1,14 @@
 .query-results-heading {
-
-  &__targeted-wrapper,
-  &__percent-responded {
+  &__query-information {
+    margin-top: 20px;
+    gap: $pad-small;
     display: flex;
+    flex-direction: column;
     font-size: $x-small;
   }
 
-  &__targeted-wrapper {
-    margin-top: 20px;
-    margin-bottom: $pad-small;
+  &__percent-responded {
+    display: flex;
   }
 
   &__targeted-count {

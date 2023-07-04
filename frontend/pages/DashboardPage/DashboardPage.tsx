@@ -1,8 +1,8 @@
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+
 import { AppContext } from "context/app";
-import { find } from "lodash";
 import paths from "router/paths";
 
 import {
@@ -12,26 +12,34 @@ import {
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ILabelSummary } from "interfaces/label";
 import {
-  IDataTableMdmFormat,
-  IMdmSolution,
   IMacadminAggregate,
   IMunkiIssuesAggregate,
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
+import {
+  IMdmStatusCardData,
+  IMdmSolution,
+  IMdmSummaryResponse,
+} from "interfaces/mdm";
 import { ISelectedPlatform } from "interfaces/platform";
-import { ISoftwareResponse } from "interfaces/software";
+import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { ITeam } from "interfaces/team";
+import { useTeamIdParam } from "hooks/useTeamIdParam";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
-import softwareAPI from "services/entities/software";
+import softwareAPI, {
+  ISoftwareQueryKey,
+  ISoftwareCountQueryKey,
+} from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import hosts from "services/entities/hosts";
 import sortUtils from "utilities/sort";
 import {
   PLATFORM_DROPDOWN_OPTIONS,
   PLATFORM_NAME_TO_LABEL_NAME,
 } from "utilities/constants";
-import { ITableQueryData } from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
@@ -40,6 +48,7 @@ import CustomLink from "components/CustomLink";
 import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import SandboxGate from "components/Sandbox/SandboxGate";
 import useInfoCard from "./components/InfoCard";
 import MissingHosts from "./cards/MissingHosts";
 import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
@@ -62,27 +71,41 @@ interface IDashboardProps {
   router: InjectedRouter; // v3
   location: {
     pathname: string;
+    search: string;
+    hash?: string;
+    query: {
+      team_id?: string;
+    };
   };
 }
 
-const DashboardPage = ({
-  router,
-  location: { pathname },
-}: IDashboardProps): JSX.Element => {
+const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
+  const { pathname } = location;
   const {
     config,
-    currentTeam,
-    availableTeams,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
     isPremiumTier,
-    isFreeTier,
     isSandboxMode,
     isOnGlobalTeam,
-    setCurrentTeam,
   } = useContext(AppContext);
+
+  const {
+    currentTeamId,
+    currentTeamName,
+    isAnyTeamSelected,
+    isRouteOk,
+    isTeamAdmin,
+    isTeamMaintainer,
+    teamIdForApi,
+    userTeams,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   const [selectedPlatform, setSelectedPlatform] = useState<ISelectedPlatform>(
     "all"
@@ -95,6 +118,7 @@ const DashboardPage = ({
   const [macCount, setMacCount] = useState(0);
   const [windowsCount, setWindowsCount] = useState(0);
   const [linuxCount, setLinuxCount] = useState(0);
+  const [chromeCount, setChromeCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -105,12 +129,12 @@ const DashboardPage = ({
   const [softwarePageIndex, setSoftwarePageIndex] = useState(0);
   const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
   const [showMunkiCard, setShowMunkiCard] = useState(true);
+  const [showMdmCard, setShowMdmCard] = useState(true);
+  const [showSoftwareCard, setShowSoftwareCard] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
-  const [formattedMdmData, setFormattedMdmData] = useState<
-    IDataTableMdmFormat[]
-  >([]);
+  const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
   const [mdmSolutions, setMdmSolutions] = useState<IMdmSolution[] | null>([]);
 
   const [munkiIssuesData, setMunkiIssuesData] = useState<
@@ -146,11 +170,6 @@ const DashboardPage = ({
     enabled: !!isPremiumTier,
     select: (data: ILoadTeamsResponse) =>
       data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
-    onSuccess: (responseTeams) => {
-      if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
-        setCurrentTeam(responseTeams[0]);
-      }
-    },
   });
 
   const {
@@ -158,14 +177,15 @@ const DashboardPage = ({
     isFetching: isHostSummaryFetching,
     error: errorHosts,
   } = useQuery<IHostSummary, Error, IHostSummary>(
-    ["host summary", currentTeam, isPremiumTier, selectedPlatform],
+    ["host summary", teamIdForApi, isPremiumTier, selectedPlatform],
     () =>
       hostSummaryAPI.getSummary({
-        teamId: currentTeam?.id,
+        teamId: teamIdForApi,
         platform: selectedPlatform !== "all" ? selectedPlatform : undefined,
         lowDiskSpace: isPremiumTier ? LOW_DISK_SPACE_GB : undefined,
       }),
     {
+      enabled: isRouteOk,
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
@@ -181,9 +201,14 @@ const DashboardPage = ({
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
 
+        const chromebooks = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
+        ) || { platform: "chrome", hosts_count: 0 };
+
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
+        setChromeCount(chromebooks.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -194,7 +219,7 @@ const DashboardPage = ({
     Error,
     IEnrollSecret[]
   >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
-    enabled: !!canEnrollGlobalHosts,
+    enabled: isRouteOk && canEnrollGlobalHosts,
     select: (data: IEnrollSecretsResponse) => data.secrets,
   });
 
@@ -203,21 +228,21 @@ const DashboardPage = ({
     Error,
     IEnrollSecret[]
   >(
-    ["team secrets", currentTeam],
+    ["team secrets", teamIdForApi],
     () => {
-      if (currentTeam) {
-        return enrollSecretsAPI.getTeamEnrollSecrets(currentTeam.id);
+      if (isAnyTeamSelected) {
+        return enrollSecretsAPI.getTeamEnrollSecrets(teamIdForApi);
       }
       return { secrets: [] };
     },
     {
-      enabled: !!currentTeam?.id && !!canEnrollHosts,
+      enabled: isRouteOk && isAnyTeamSelected && canEnrollHosts,
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
 
-  const featuresConfig = currentTeam?.id
-    ? teams?.find((t) => t.id === currentTeam.id)?.features
+  const featuresConfig = isAnyTeamSelected
+    ? teams?.find((t) => t.id === currentTeamId)?.features
     : config?.features;
   const isSoftwareEnabled = !!featuresConfig?.enable_software_inventory;
 
@@ -229,35 +254,30 @@ const DashboardPage = ({
     data: software,
     isFetching: isSoftwareFetching,
     error: errorSoftware,
-  } = useQuery<ISoftwareResponse, Error>(
+  } = useQuery<
+    ISoftwareResponse,
+    Error,
+    ISoftwareResponse,
+    ISoftwareQueryKey[]
+  >(
     [
-      "software",
       {
-        pageIndex: softwarePageIndex,
-        pageSize: SOFTWARE_DEFAULT_PAGE_SIZE,
-        sortDirection: SOFTWARE_DEFAULT_SORT_DIRECTION,
-        sortHeader: SOFTWARE_DEFAULT_SORT_HEADER,
-        teamId: currentTeam?.id,
+        scope: "software",
+        page: softwarePageIndex,
+        perPage: SOFTWARE_DEFAULT_PAGE_SIZE,
+        orderDirection: SOFTWARE_DEFAULT_SORT_DIRECTION,
+        orderKey: SOFTWARE_DEFAULT_SORT_HEADER,
+        teamId: teamIdForApi,
         vulnerable: !!softwareNavTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
       },
     ],
-    () =>
-      softwareAPI.load({
-        page: softwarePageIndex,
-        perPage: SOFTWARE_DEFAULT_PAGE_SIZE,
-        orderKey: SOFTWARE_DEFAULT_SORT_HEADER,
-        orderDir: SOFTWARE_DEFAULT_SORT_DIRECTION,
-        vulnerable: !!softwareNavTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
-        teamId: currentTeam?.id,
-      }),
+    ({ queryKey }) => softwareAPI.load(queryKey[0]),
     {
-      enabled:
-        (isSoftwareEnabled && isOnGlobalTeam) ||
-        !!availableTeams?.find((t) => t.id === currentTeam?.id),
+      enabled: isRouteOk && isSoftwareEnabled,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
-        if (data.software?.length !== 0) {
+        if (data.software?.length > 0) {
           setSoftwareTitleDetail &&
             setSoftwareTitleDetail(
               <LastUpdatedText
@@ -265,7 +285,87 @@ const DashboardPage = ({
                 whatToRetrieve={"software"}
               />
             );
+          setShowSoftwareCard(true);
+        } else {
+          setShowSoftwareCard(false);
         }
+      },
+    }
+  );
+
+  // If no vulnerable software, !software?.software can return undefined
+  // Must check non-vuln software count > 0 to show software card iff API returning undefined
+  const { data: softwareCount } = useQuery<
+    ISoftwareCountResponse,
+    Error,
+    number,
+    ISoftwareCountQueryKey[]
+  >(
+    [
+      {
+        scope: "softwareCount",
+        teamId: teamIdForApi,
+      },
+    ],
+    ({ queryKey }) => softwareAPI.count(queryKey[0]),
+    {
+      enabled: isRouteOk && !software?.software,
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      select: (data) => data.count,
+    }
+  );
+
+  const { isFetching: isMdmFetching, error: errorMdm } = useQuery<
+    IMdmSummaryResponse,
+    Error
+  >(
+    [`mdm-${selectedPlatform}`, teamIdForApi],
+    () => hosts.getMdmSummary(selectedPlatform, teamIdForApi),
+    {
+      enabled: isRouteOk && !["linux", "chrome"].includes(selectedPlatform),
+      onSuccess: ({
+        counts_updated_at,
+        mobile_device_management_solution,
+        mobile_device_management_enrollment_status: {
+          enrolled_automated_hosts_count,
+          enrolled_manual_hosts_count,
+          unenrolled_hosts_count,
+          pending_hosts_count,
+          hosts_count,
+        },
+      }) => {
+        if (hosts_count === 0 && mobile_device_management_solution === null) {
+          setShowMdmCard(false);
+          return;
+        }
+
+        setMdmTitleDetail(
+          <LastUpdatedText
+            lastUpdatedAt={counts_updated_at}
+            whatToRetrieve={"MDM information"}
+          />
+        );
+        const statusData: IMdmStatusCardData[] = [
+          {
+            status: "On (manual)",
+            hosts: enrolled_manual_hosts_count,
+          },
+          {
+            status: "On (automatic)",
+            hosts: enrolled_automated_hosts_count,
+          },
+          { status: "Off", hosts: unenrolled_hosts_count },
+        ];
+        isPremiumTier &&
+          statusData.push({
+            status: "Pending",
+            hosts: pending_hosts_count || 0,
+          });
+        setMdmStatusData(statusData);
+        setMdmSolutions(mobile_device_management_solution);
+        setShowMdmCard(true);
       },
     }
   );
@@ -273,60 +373,29 @@ const DashboardPage = ({
   const { isFetching: isMacAdminsFetching, error: errorMacAdmins } = useQuery<
     IMacadminAggregate,
     Error
-  >(
-    ["macAdmins", currentTeam?.id],
-    () => macadminsAPI.loadAll(currentTeam?.id),
-    {
-      keepPreviousData: true,
-      enabled: selectedPlatform === "darwin",
-      onSuccess: (data) => {
-        const {
-          counts_updated_at: macadmins_counts_updated_at,
-          mobile_device_management_enrollment_status,
-          mobile_device_management_solution,
-        } = data.macadmins;
-        const {
-          enrolled_manual_hosts_count,
-          enrolled_automated_hosts_count,
-          unenrolled_hosts_count,
-        } = mobile_device_management_enrollment_status;
+  >(["macAdmins", teamIdForApi], () => macadminsAPI.loadAll(teamIdForApi), {
+    keepPreviousData: true,
+    enabled: isRouteOk && selectedPlatform === "darwin",
+    onSuccess: ({
+      macadmins: { munki_issues, munki_versions, counts_updated_at },
+    }) => {
+      setMunkiVersionsData(munki_versions);
+      setMunkiIssuesData(munki_issues);
+      setShowMunkiCard(!!munki_versions);
+      setMunkiTitleDetail(
+        <LastUpdatedText
+          lastUpdatedAt={counts_updated_at}
+          whatToRetrieve={"Munki"}
+        />
+      );
+    },
+  });
 
-        const {
-          counts_updated_at: munki_counts_updated_at,
-          munki_versions,
-          munki_issues,
-        } = data.macadmins;
-
-        setMdmTitleDetail(
-          <LastUpdatedText
-            lastUpdatedAt={macadmins_counts_updated_at}
-            whatToRetrieve={"MDM enrollment"}
-          />
-        );
-        setFormattedMdmData([
-          {
-            status: "Enrolled (manual)",
-            hosts: enrolled_manual_hosts_count,
-          },
-          {
-            status: "Enrolled (automatic)",
-            hosts: enrolled_automated_hosts_count,
-          },
-          { status: "Unenrolled", hosts: unenrolled_hosts_count },
-        ]);
-        setMdmSolutions(mobile_device_management_solution);
-        setMunkiVersionsData(munki_versions);
-        setMunkiIssuesData(munki_issues);
-        setShowMunkiCard(!!munki_versions);
-        setMunkiTitleDetail(
-          <LastUpdatedText
-            lastUpdatedAt={munki_counts_updated_at}
-            whatToRetrieve={"Munki"}
-          />
-        );
-      },
-    }
-  );
+  useEffect(() => {
+    softwareCount && softwareCount > 0
+      ? setShowSoftwareCard(true)
+      : setShowSoftwareCard(false);
+  }, [softwareCount]);
 
   // Sets selected platform label id for links to filtered manage host page
   useEffect(() => {
@@ -343,25 +412,28 @@ const DashboardPage = ({
       if (selectedPlatform !== "all") {
         const labelValue = PLATFORM_NAME_TO_LABEL_NAME[selectedPlatform];
         setSelectedPlatformLabelId(getLabel(labelValue, labels)?.id);
+      } else {
+        setSelectedPlatformLabelId(undefined);
       }
     }
   }, [labels, selectedPlatform]);
-
-  const handleTeamSelect = (teamId: number) => {
-    const selectedTeam = find(teams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
-  };
 
   const toggleAddHostsModal = () => {
     setShowAddHostsModal(!showAddHostsModal);
   };
 
+  const { MANAGE_HOSTS } = paths;
+
   const HostsSummaryCard = useInfoCard({
     title: "Hosts",
-    action: {
-      type: "link",
-      text: "View all hosts",
-    },
+    action:
+      selectedPlatform === "all"
+        ? {
+            type: "link",
+            text: "View all hosts",
+          }
+        : undefined,
+    actionUrl: selectedPlatform === "all" ? MANAGE_HOSTS : undefined,
     total_host_count: (() => {
       if (!isHostSummaryFetching && !errorHosts) {
         return `${hostSummaryData?.totals_hosts_count}` || undefined;
@@ -372,15 +444,14 @@ const DashboardPage = ({
     showTitle: true,
     children: (
       <HostsSummary
-        currentTeamId={currentTeam?.id}
+        currentTeamId={teamIdForApi}
         macCount={macCount}
         windowsCount={windowsCount}
         linuxCount={linuxCount}
+        chromeCount={chromeCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        labels={labels}
         errorHosts={!!errorHosts}
       />
     ),
@@ -408,7 +479,7 @@ const DashboardPage = ({
   // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
   // collecting inventory
   const isCollectingInventory =
-    !currentTeam?.id &&
+    !isAnyTeamSelected &&
     !softwarePageIndex &&
     !software?.software &&
     software?.counts_updated_at === null;
@@ -421,7 +492,8 @@ const DashboardPage = ({
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={currentTeam?.id}
+        currentTeamId={teamIdForApi}
+        isSandboxMode={isSandboxMode}
       />
     ),
   });
@@ -435,7 +507,9 @@ const DashboardPage = ({
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={currentTeam?.id}
+        currentTeamId={teamIdForApi}
+        isSandboxMode={isSandboxMode}
+        notSupported={selectedPlatform === "chrome"}
       />
     ),
   });
@@ -463,7 +537,11 @@ const DashboardPage = ({
     title: "Activity",
     showTitle: showActivityFeedTitle,
     children: (
-      <ActivityFeed setShowActivityFeedTitle={setShowActivityFeedTitle} />
+      <ActivityFeed
+        setShowActivityFeedTitle={setShowActivityFeedTitle}
+        isPremiumTier={isPremiumTier || false}
+        isSandboxMode={isSandboxMode}
+      />
     ),
   });
 
@@ -484,6 +562,7 @@ const DashboardPage = ({
         isSoftwareFetching={isSoftwareFetching}
         isSoftwareEnabled={isSoftwareEnabled}
         software={software}
+        teamId={currentTeamId}
         pageIndex={softwarePageIndex}
         navTabIndex={softwareNavTabIndex}
         onTabChange={onSoftwareTabChange}
@@ -513,40 +592,42 @@ const DashboardPage = ({
         isMacAdminsFetching={isMacAdminsFetching}
         munkiIssuesData={munkiIssuesData}
         munkiVersionsData={munkiVersionsData}
+        selectedTeamId={currentTeamId}
       />
     ),
   });
 
-  const MDMCard = useInfoCard({
-    title: "Mobile device management (MDM)",
-    titleDetail: mdmTitleDetail,
-    showTitle: !isMacAdminsFetching,
-    description: (
-      <p>
-        MDM is used to manage configuration on macOS devices.{" "}
-        <CustomLink
-          url="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
-          text="Learn about MDM"
-          newTab
-        />
-      </p>
-    ),
-    children: (
-      <Mdm
-        isMacAdminsFetching={isMacAdminsFetching}
-        errorMacAdmins={errorMacAdmins}
-        formattedMdmData={formattedMdmData}
-        mdmSolutions={mdmSolutions}
-      />
-    ),
-  });
+  const MDMCard = (
+    <SandboxGate>
+      {useInfoCard({
+        title: "Mobile device management (MDM)",
+        titleDetail: mdmTitleDetail,
+        showTitle: !isMdmFetching,
+        description: (
+          <p>
+            MDM is used to change settings and install software on your hosts.
+          </p>
+        ),
+        children: (
+          <Mdm
+            isFetching={isMdmFetching}
+            error={errorMdm}
+            mdmStatusData={mdmStatusData}
+            mdmSolutions={mdmSolutions}
+            selectedPlatformLabelId={selectedPlatformLabelId}
+            selectedTeamId={currentTeamId}
+          />
+        ),
+      })}
+    </SandboxGate>
+  );
 
   const OperatingSystemsCard = useInfoCard({
     title: "Operating systems",
     showTitle: showOperatingSystemsUI,
     children: (
       <OperatingSystems
-        currentTeamId={currentTeam?.id}
+        currentTeamId={teamIdForApi}
         selectedPlatform={selectedPlatform}
         showTitle={showOperatingSystemsUI}
         setShowTitle={setShowOperatingSystemsUI}
@@ -557,7 +638,7 @@ const DashboardPage = ({
   const allLayout = () => {
     return (
       <div className={`${baseClass}__section`}>
-        {!currentTeam &&
+        {!isAnyTeamSelected &&
           canEnrollGlobalHosts &&
           hostSummaryData &&
           hostSummaryData?.totals_hosts_count < 2 && (
@@ -566,8 +647,9 @@ const DashboardPage = ({
               {LearnFleetCard}
             </>
           )}
-        {SoftwareCard}
-        {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
+        {showSoftwareCard && SoftwareCard}
+        {!isAnyTeamSelected && isOnGlobalTeam && <>{ActivityFeedCard}</>}
+        {showMdmCard && <>{MDMCard}</>}
       </div>
     );
   };
@@ -575,7 +657,7 @@ const DashboardPage = ({
   const macOSLayout = () => (
     <>
       <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
-      <div className={`${baseClass}__section`}>{MDMCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
       {showMunkiCard && (
         <div className={`${baseClass}__section`}>{MunkiCard}</div>
       )}
@@ -583,9 +665,18 @@ const DashboardPage = ({
   );
 
   const windowsLayout = () => (
-    <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
   );
   const linuxLayout = () => null;
+
+  const chromeLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    </>
+  );
 
   const renderCards = () => {
     switch (selectedPlatform) {
@@ -595,6 +686,8 @@ const DashboardPage = ({
         return windowsLayout();
       case "linux":
         return linuxLayout();
+      case "chrome":
+        return chromeLayout();
       default:
         return allLayout();
     }
@@ -606,14 +699,15 @@ const DashboardPage = ({
       // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
       // additional precaution/reminder to revisit this in connection with future changes.
       // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-      currentTeam && !isSandboxMode
+      isAnyTeamSelected && !isSandboxMode
         ? teamSecrets?.[0].secret
         : globalSecrets?.[0].secret;
 
     return (
       <AddHostsModal
-        currentTeam={currentTeam}
+        currentTeamName={currentTeamName}
         enrollSecret={enrollSecret}
+        isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
         isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
@@ -621,28 +715,38 @@ const DashboardPage = ({
     );
   };
 
-  return (
+  const renderDashboardHeader = () => {
+    if (isPremiumTier) {
+      if (userTeams) {
+        if (userTeams.length > 1 || isOnGlobalTeam) {
+          return (
+            <TeamsDropdown
+              selectedTeamId={currentTeamId}
+              currentUserTeams={userTeams}
+              onChange={handleTeamChange}
+              isSandboxMode={isSandboxMode}
+            />
+          );
+        }
+        if (userTeams.length === 1) {
+          return <h1>{userTeams[0].name}</h1>;
+        }
+      }
+      // userTeams.length should have at least 1 element
+      return null;
+    }
+    // Free tier
+    return <h1>{config?.org_info.org_name}</h1>;
+  };
+  return !isRouteOk ? (
+    <Spinner />
+  ) : (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
-              {isFreeTier && <h1>{config?.org_info.org_name}</h1>}
-              {isPremiumTier &&
-                teams &&
-                (teams.length > 1 || isOnGlobalTeam) && (
-                  <TeamsDropdown
-                    selectedTeamId={currentTeam?.id || 0}
-                    currentUserTeams={teams || []}
-                    onChange={(newSelectedValue: number) =>
-                      handleTeamSelect(newSelectedValue)
-                    }
-                  />
-                )}
-              {isPremiumTier &&
-                !isOnGlobalTeam &&
-                teams &&
-                teams.length === 1 && <h1>{teams[0].name}</h1>}
+              {renderDashboardHeader()}
             </div>
           </div>
         </div>
@@ -657,7 +761,11 @@ const DashboardPage = ({
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
                 (platform) => platform.value === value
               );
-              router.push(selectedPlatformOption?.path || paths.DASHBOARD);
+              router.push(
+                (selectedPlatformOption?.path || paths.DASHBOARD)
+                  .concat(location.search)
+                  .concat(location.hash || "")
+              );
             }}
           />
         </div>

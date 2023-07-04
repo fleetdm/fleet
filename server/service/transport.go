@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -129,10 +130,10 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	if pageString != "" {
 		page, err = strconv.Atoi(pageString)
 		if err != nil {
-			return fleet.ListOptions{}, ctxerr.New(r.Context(), "non-int page value")
+			return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("non-int page value"))
 		}
 		if page < 0 {
-			return fleet.ListOptions{}, ctxerr.New(r.Context(), "negative page value")
+			return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("negative page value"))
 		}
 	}
 
@@ -142,10 +143,10 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	if perPageString != "" {
 		perPage, err = strconv.Atoi(perPageString)
 		if err != nil {
-			return fleet.ListOptions{}, ctxerr.New(r.Context(), "non-int per_page value")
+			return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("non-int per_page value"))
 		}
 		if perPage <= 0 {
-			return fleet.ListOptions{}, ctxerr.New(r.Context(), "invalid per_page value")
+			return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("invalid per_page value"))
 		}
 	}
 
@@ -157,8 +158,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	}
 
 	if orderKey == "" && orderDirectionString != "" {
-		return fleet.ListOptions{},
-			ctxerr.New(r.Context(), "order_key must be specified with order_direction")
+		return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("order_key must be specified with order_direction"))
 	}
 
 	var orderDirection fleet.OrderDirection
@@ -171,7 +171,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		orderDirection = fleet.OrderAscending
 	default:
 		return fleet.ListOptions{},
-			ctxerr.New(r.Context(), "unknown order_direction: "+orderDirectionString)
+			ctxerr.Wrap(r.Context(), badRequest("unknown order_direction: "+orderDirectionString))
 
 	}
 
@@ -301,14 +301,56 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.MDMIDFilter = &mid
 	}
 
+	if mdmName := r.URL.Query().Get("mdm_name"); mdmName != "" {
+		hopt.MDMNameFilter = &mdmName
+	}
+
 	enrollmentStatus := r.URL.Query().Get("mdm_enrollment_status")
 	switch fleet.MDMEnrollStatus(enrollmentStatus) {
-	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic, fleet.MDMEnrollStatusUnenrolled:
+	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic,
+		fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusUnenrolled, fleet.MDMEnrollStatusEnrolled:
 		hopt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(enrollmentStatus)
 	case "":
 		// No error when unset
 	default:
-		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm enrollment status %s", enrollmentStatus)
+		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("invalid mdm enrollment status %s", enrollmentStatus)))
+	}
+
+	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
+	switch fleet.MacOSSettingsStatus(macOSSettingsStatus) {
+	case fleet.MacOSSettingsFailed, fleet.MacOSSettingsPending, fleet.MacOSSettingsVerifying, fleet.MacOSSettingsVerified:
+		hopt.MacOSSettingsFilter = fleet.MacOSSettingsStatus(macOSSettingsStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings status %s", macOSSettingsStatus)
+	}
+
+	macOSSettingsDiskEncryptionStatus := r.URL.Query().Get("macos_settings_disk_encryption")
+	switch fleet.DiskEncryptionStatus(macOSSettingsDiskEncryptionStatus) {
+	case
+		fleet.DiskEncryptionVerifying,
+		fleet.DiskEncryptionVerified,
+		fleet.DiskEncryptionActionRequired,
+		fleet.DiskEncryptionEnforcing,
+		fleet.DiskEncryptionFailed,
+		fleet.DiskEncryptionRemovingEnforcement:
+		hopt.MacOSSettingsDiskEncryptionFilter = fleet.DiskEncryptionStatus(macOSSettingsDiskEncryptionStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings_disk_encryption status %s", macOSSettingsDiskEncryptionStatus)
+	}
+
+	mdmBootstrapPackageStatus := r.URL.Query().Get("bootstrap_package")
+	switch fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus) {
+	case fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, fleet.MDMBootstrapPackageInstalled:
+		bpf := fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)
+		hopt.MDMBootstrapPackageFilter = &bpf
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid bootstrap_package status %s", mdmBootstrapPackageStatus)
 	}
 
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")

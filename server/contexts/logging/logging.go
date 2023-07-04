@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -149,8 +150,11 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	if len(l.Errs) > 0 {
 		// Going for string concatenation here instead of json.Marshal mostly to not have to deal with error handling
 		// within this method. kitlog doesn't support slices of strings
-		var errs string
-		var internalErrs string
+		var (
+			errs         string
+			internalErrs string
+			uuids        []string
+		)
 		separator := " || "
 		for _, err := range l.Errs {
 			var ewi fleet.ErrWithInternal
@@ -167,12 +171,21 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 					errs += separator + err.Error()
 				}
 			}
+			var ewuuid fleet.ErrorUUIDer
+			if errors.As(err, &ewuuid) {
+				if uuid := ewuuid.UUID(); uuid != "" {
+					uuids = append(uuids, uuid)
+				}
+			}
 		}
 		if len(errs) > 0 {
 			keyvals = append(keyvals, "err", errs)
 		}
 		if len(internalErrs) > 0 {
 			keyvals = append(keyvals, "internal", internalErrs)
+		}
+		if len(uuids) > 0 {
+			keyvals = append(keyvals, "uuid", strings.Join(uuids, ","))
 		}
 	}
 

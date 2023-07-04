@@ -4,6 +4,7 @@ package mock
 
 import (
 	"context"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -25,19 +26,27 @@ type QueryResultStore struct {
 
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
+
+	mu sync.Mutex
 }
 
 func (s *QueryResultStore) WriteResult(result fleet.DistributedQueryResult) error {
+	s.mu.Lock()
 	s.WriteResultFuncInvoked = true
+	s.mu.Unlock()
 	return s.WriteResultFunc(result)
 }
 
 func (s *QueryResultStore) ReadChannel(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan interface{}, error) {
+	s.mu.Lock()
 	s.ReadChannelFuncInvoked = true
+	s.mu.Unlock()
 	return s.ReadChannelFunc(ctx, query)
 }
 
 func (s *QueryResultStore) HealthCheck() error {
+	s.mu.Lock()
 	s.HealthCheckFuncInvoked = true
+	s.mu.Unlock()
 	return s.HealthCheckFunc()
 }

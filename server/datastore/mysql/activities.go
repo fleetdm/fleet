@@ -11,16 +11,24 @@ import (
 )
 
 // NewActivity stores an activity item that the user performed
-func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-	detailsBytes, err := json.Marshal(details)
+func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	detailsBytes, err := json.Marshal(activity)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling activity details")
 	}
-	_, err = ds.writer.ExecContext(ctx,
+
+	var userID *uint
+	var userName *string
+	if user != nil {
+		userID = &user.ID
+		userName = &user.Name
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
-		user.ID,
-		user.Name,
-		activityType,
+		userID,
+		userName,
+		activity.ActivityName(),
 		detailsBytes,
 	)
 	if err != nil {
@@ -30,19 +38,113 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 }
 
 // ListActivities returns a slice of activities performed across the organization
-func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error) {
-	activities := []*fleet.Activity{}
-	query := `SELECT a.id, a.user_id, a.created_at, a.activity_type, a.details, coalesce(u.name, a.user_name) as name, u.gravatar_url, u.email
-	          FROM activities a LEFT JOIN users u ON (a.user_id=u.id)
-			  WHERE true`
-	query = appendListOptionsToSQL(query, opt)
+func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	// Fetch activities
 
-	err := sqlx.SelectContext(ctx, ds.reader, &activities, query)
+	activities := []*fleet.Activity{}
+	activitiesQ := `
+		SELECT
+			a.id,
+			a.user_id,
+			a.created_at,
+			a.activity_type,
+			a.details,
+			a.user_name as name,
+			a.streamed
+		FROM activities a
+		WHERE true`
+
+	var args []interface{}
+	if opt.Streamed != nil {
+		activitiesQ += " AND a.streamed = ?"
+		args = append(args, *opt.Streamed)
+	}
+	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
+
+	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
+
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
 	if err == sql.ErrNoRows {
-		return nil, ctxerr.Wrap(ctx, notFound("Activity"))
+		return nil, nil, ctxerr.Wrap(ctx, notFound("Activity"))
 	} else if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select activities")
+		return nil, nil, ctxerr.Wrap(ctx, err, "select activities")
 	}
 
-	return activities, nil
+	// Fetch users as a stand-alone query (because of performance reasons)
+
+	lookup := make(map[uint][]int)
+	for idx, a := range activities {
+		if a.ActorID != nil {
+			lookup[*a.ActorID] = append(lookup[*a.ActorID], idx)
+		}
+	}
+
+	if len(lookup) != 0 {
+		usersQ := `
+			SELECT u.id, u.name, u.gravatar_url, u.email
+			FROM users u
+			WHERE id IN (?)
+		`
+		userIDs := make([]uint, 0, len(lookup))
+		for k := range lookup {
+			userIDs = append(userIDs, k)
+		}
+
+		usersQ, usersArgs, err := sqlx.In(usersQ, userIDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "Error binding usersIDs")
+		}
+
+		var usersR []struct {
+			ID          uint   `db:"id"`
+			Name        string `db:"name"`
+			GravatarUrl string `db:"gravatar_url"`
+			Email       string `db:"email"`
+		}
+
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &usersR, usersQ, usersArgs...)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, nil, ctxerr.Wrap(ctx, err, "selecting users")
+		}
+
+		for _, r := range usersR {
+			entries, ok := lookup[r.ID]
+			if !ok {
+				continue
+			}
+
+			email := r.Email
+			gravatar := r.GravatarUrl
+			name := r.Name
+
+			for _, idx := range entries {
+				activities[idx].ActorEmail = &email
+				activities[idx].ActorGravatar = &gravatar
+				activities[idx].ActorFullName = &name
+			}
+		}
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.ListOptions.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(activities) > int(opt.ListOptions.PerPage) {
+			metaData.HasNextResults = true
+			activities = activities[:len(activities)-1]
+		}
+	}
+
+	return activities, metaData, nil
+}
+
+func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
+	stmt := `UPDATE activities SET streamed = true WHERE id IN (?);`
+	query, args, err := sqlx.In(stmt, activityIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In mark activities as streamed")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec mark activities as streamed")
+	}
+	return nil
 }

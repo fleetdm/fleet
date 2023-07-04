@@ -29,7 +29,7 @@ type listCarvesResponse struct {
 
 func (r listCarvesResponse) error() error { return r.Err }
 
-func listCarvesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listCarvesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listCarvesRequest)
 	carves, err := svc.ListCarves(ctx, req.ListOptions)
 	if err != nil {
@@ -66,7 +66,7 @@ type getCarveResponse struct {
 
 func (r getCarveResponse) error() error { return r.Err }
 
-func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getCarveRequest)
 	carve, err := svc.GetCarve(ctx, req.ID)
 	if err != nil {
@@ -74,7 +74,6 @@ func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	}
 
 	return getCarveResponse{Carve: *carve}, nil
-
 }
 
 func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadata, error) {
@@ -101,7 +100,7 @@ type getCarveBlockResponse struct {
 
 func (r getCarveBlockResponse) error() error { return r.Err }
 
-func getCarveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getCarveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getCarveBlockRequest)
 	data, err := svc.GetBlock(ctx, req.ID, req.BlockId)
 	if err != nil {
@@ -162,7 +161,7 @@ type carveBeginResponse struct {
 
 func (r carveBeginResponse) error() error { return r.Err }
 
-func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*carveBeginRequest)
 
 	payload := fleet.CarveBeginPayload{
@@ -192,30 +191,30 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return nil, osqueryError{message: "internal error: missing host from request context"}
+		return nil, newOsqueryError("internal error: missing host from request context")
 	}
 
 	if payload.CarveSize == 0 {
-		return nil, osqueryError{message: "carve_size must be greater than 0"}
+		return nil, newOsqueryError("carve_size must be greater than 0")
 	}
 
 	if payload.BlockSize > maxBlockSize {
-		return nil, osqueryError{message: "block_size exceeds max"}
+		return nil, newOsqueryError("block_size exceeds max")
 	}
 	if payload.CarveSize > maxCarveSize {
-		return nil, osqueryError{message: "carve_size exceeds max"}
+		return nil, newOsqueryError("carve_size exceeds max")
 	}
 
 	// The carve should have a total size that fits appropriately into the
 	// number of blocks of the specified size.
 	if payload.CarveSize <= (payload.BlockCount-1)*payload.BlockSize ||
 		payload.CarveSize > payload.BlockCount*payload.BlockSize {
-		return nil, osqueryError{message: "carve_size does not match block_size and block_count"}
+		return nil, newOsqueryError("carve_size does not match block_size and block_count")
 	}
 
 	sessionId, err := uuid.NewRandom()
 	if err != nil {
-		return nil, osqueryError{message: "internal error: generate session ID for carve: " + err.Error()}
+		return nil, newOsqueryError("internal error: generate session ID for carve: " + err.Error())
 	}
 
 	now := time.Now().UTC()
@@ -233,7 +232,7 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 
 	carve, err = svc.carveStore.NewCarve(ctx, carve)
 	if err != nil {
-		return nil, osqueryError{message: "internal error: new carve: " + err.Error()}
+		return nil, newOsqueryError("internal error: new carve: " + err.Error())
 	}
 
 	return carve, nil
@@ -257,7 +256,7 @@ type carveBlockResponse struct {
 
 func (r carveBlockResponse) error() error { return r.Err }
 
-func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*carveBlockRequest)
 
 	payload := fleet.CarveBlockPayload{

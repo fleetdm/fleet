@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -25,7 +27,7 @@ func TestTeamAuth(t *testing.T) {
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
@@ -49,6 +51,16 @@ func TestTeamAuth(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
 	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+		return nil
+	}
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{}, nil
+	}
+	ds.CleanupDiskEncryptionKeysOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+		return nil
+	}
+
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		switch name {
 		case "team1":
@@ -67,76 +79,76 @@ func TestTeamAuth(t *testing.T) {
 		shouldFailTeamSecretsWrite bool
 	}{
 		{
-			"global admin",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
-			false,
-			false,
-			false,
+			name:                       "global admin",
+			user:                       &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			shouldFailTeamWrite:        false,
+			shouldFailGlobalWrite:      false,
+			shouldFailRead:             false,
+			shouldFailTeamSecretsWrite: false,
 		},
 		{
-			"global maintainer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
-			true,
-			true,
-			false,
-			false,
+			name:                       "global maintainer",
+			user:                       &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			shouldFailTeamWrite:        true,
+			shouldFailGlobalWrite:      true,
+			shouldFailRead:             false,
+			shouldFailTeamSecretsWrite: false,
 		},
 		{
-			"global observer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
-			true,
-			true,
-			true,
-			true,
+			name:                       "global observer",
+			user:                       &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			shouldFailTeamWrite:        true,
+			shouldFailGlobalWrite:      true,
+			shouldFailRead:             false,
+			shouldFailTeamSecretsWrite: true,
 		},
 		{
-			"team admin, belongs to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
-			false,
-			true,
-			false,
-			false,
+			name:                       "team admin, belongs to team",
+			user:                       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			shouldFailTeamWrite:        false,
+			shouldFailGlobalWrite:      true,
+			shouldFailRead:             false,
+			shouldFailTeamSecretsWrite: false,
 		},
 		{
-			"team maintainer, belongs to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
-			true,
-			true,
-			false,
-			false,
+			name:                       "team maintainer, belongs to team",
+			user:                       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			shouldFailTeamWrite:        true,
+			shouldFailGlobalWrite:      true,
+			shouldFailRead:             false,
+			shouldFailTeamSecretsWrite: false,
 		},
 		{
-			"team observer, belongs to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
-			true,
-			true,
-			true,
-			true,
+			name:                       "team observer, belongs to team",
+			user:                       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			shouldFailTeamWrite:        true,
+			shouldFailGlobalWrite:      true,
+			shouldFailRead:             false,
+			shouldFailTeamSecretsWrite: true,
 		},
 		{
-			"team admin, DOES NOT belong to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
-			true,
-			true,
-			true,
-			true,
+			name:                       "team admin, DOES NOT belong to team",
+			user:                       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			shouldFailTeamWrite:        true,
+			shouldFailGlobalWrite:      true,
+			shouldFailRead:             true,
+			shouldFailTeamSecretsWrite: true,
 		},
 		{
-			"team maintainer, DOES NOT belong to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
-			true,
-			true,
-			true,
-			true,
+			name:                       "team maintainer, DOES NOT belong to team",
+			user:                       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			shouldFailTeamWrite:        true,
+			shouldFailGlobalWrite:      true,
+			shouldFailRead:             true,
+			shouldFailTeamSecretsWrite: true,
 		},
 		{
-			"team observer, DOES NOT belong to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
-			true,
-			true,
-			true,
-			true,
+			name:                       "team observer, DOES NOT belong to team",
+			user:                       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			shouldFailTeamWrite:        true,
+			shouldFailGlobalWrite:      true,
+			shouldFailRead:             true,
+			shouldFailTeamSecretsWrite: true,
 		},
 	}
 	for _, tt := range testCases {
@@ -176,7 +188,7 @@ func TestTeamAuth(t *testing.T) {
 			_, err = svc.ModifyTeamEnrollSecrets(ctx, 1, []fleet.EnrollSecret{{Secret: "newteamsecret", CreatedAt: time.Now()}})
 			checkAuthErr(t, tt.shouldFailTeamSecretsWrite, err)
 
-			err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1"}}, fleet.ApplySpecOptions{})
+			_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1"}}, fleet.ApplySpecOptions{})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 		})
 	}
@@ -264,12 +276,13 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return team, nil
 				}
 
-				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-					require.Len(t, (*details)["teams"], 1)
+				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
+					require.Len(t, act.Teams, 1)
 					return nil
 				}
 
-				err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
+				_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
 				require.NoError(t, err)
 			})
 		}
@@ -337,21 +350,44 @@ func TestApplyTeamSpecs(t *testing.T) {
 		for _, tt := range cases {
 			t.Run(tt.name, func(t *testing.T) {
 				ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-					return &fleet.Team{Config: fleet.TeamConfig{Features: tt.old}}, nil
+					return &fleet.Team{ID: 123, Config: fleet.TeamConfig{Features: tt.old}}, nil
 				}
 
 				ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-					return &fleet.Team{}, nil
+					return &fleet.Team{ID: 123}, nil
 				}
 
-				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-					require.Len(t, (*details)["teams"], 1)
+				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
+					require.Len(t, act.Teams, 1)
 					return nil
 				}
 
-				err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
+				idsByTeam, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
 				require.NoError(t, err)
+				require.Len(t, idsByTeam, 1)
+				require.Equal(t, uint(123), idsByTeam["team1"])
 			})
 		}
 	})
+}
+
+// TestApplyTeamSpecsErrorInTeamByName tests that an error in ds.TeamByName will
+// result in a proper error returned (instead of the authorization check missing error).
+func TestApplyTeamSpecsErrorInTeamByName(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, errors.New("unknown error")
+	}
+	authzctx := &authz_ctx.AuthorizationContext{}
+	ctx = authz_ctx.NewContext(ctx, authzctx)
+	_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "Foo"}}, fleet.ApplySpecOptions{})
+	require.Error(t, err)
+	az, ok := authz_ctx.FromContext(ctx)
+	require.True(t, ok)
+	require.True(t, az.Checked())
 }

@@ -111,7 +111,7 @@ type countAllHostsResponse struct {
 
 func (r countAllHostsResponse) error() error { return r.Err }
 
-func countAllHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func countAllHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
     req := request.(*countAllHostsRequest)
     count, err := svc.CountAllHosts(ctx)
     if err != nil {
@@ -169,7 +169,7 @@ Now that the endpoint is all connected in the right places, a few things happen 
 [host](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L318) or 
 [device](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L295) token authentication. 
 4. API versioning. You probably noticed the `_version_` portion of the URL above. More on this approach 
-[here](API-Versioning.md).
+[here](./API-Versioning.md).
 
 One thing to note is that while we used an empty struct `countAllHostsRequest`, we could've easily skipped defining it
 and used `nil`, but it was added for the sake of this documentation.

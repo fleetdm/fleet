@@ -172,6 +172,9 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		sessions[sessionKey] = session
 		return session, nil
 	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
 	return ds, usersMap, server
 }
 
@@ -210,34 +213,29 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 	require.Nil(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	require.Nil(t, err)
-	assert.Equal(t, `{
-  "message": "Authorization header required",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "Authorization header required"
-    }
-  ]
-}
-`, string(bodyBytes))
+	jsn := struct {
+		Message string              `json:"message"`
+		Errs    []map[string]string `json:"errors,omitempty"`
+		UUID    string              `json:"uuid"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&jsn)
+	require.NoError(t, err)
+	assert.Equal(t, "Authorization header required", jsn.Message)
+	require.Len(t, jsn.Errs, 1)
+	assert.Equal(t, "base", jsn.Errs[0]["name"])
+	assert.Equal(t, "Authorization header required", jsn.Errs[0]["reason"])
+	assert.NotEmpty(t, jsn.UUID)
 
 	req, _ = http.NewRequest("GET", server.URL+"/api/latest/fleet/users", nil)
 	req.Header.Add("Authorization", "Bearer AAAA")
 	resp, err = client.Do(req)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	bodyBytes, err = ioutil.ReadAll(resp.Body)
-	require.Nil(t, err)
-	assert.Equal(t, `{
-  "message": "Authentication required",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "Authentication required"
-    }
-  ]
-}
-`, string(bodyBytes))
+	err = json.NewDecoder(resp.Body).Decode(&jsn)
+	require.NoError(t, err)
+	assert.Equal(t, "Authentication required", jsn.Message)
+	require.Len(t, jsn.Errs, 1)
+	assert.Equal(t, "base", jsn.Errs[0]["name"])
+	assert.Equal(t, "Authentication required", jsn.Errs[0]["reason"])
+	assert.NotEmpty(t, jsn.UUID)
 }

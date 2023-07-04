@@ -22,7 +22,7 @@
   }
 
   &__input {
-    border: 1px solid $ui-fleet-blue-15;
+    border: 1px solid $ui-fleet-black-10;
     background-color: $ui-light-grey;
     border-radius: $border-radius;
     padding: 9px 30px 9px $pad-medium;
@@ -73,8 +73,6 @@
   }
 
   &__errors {
-    font-size: $x-small;
-    font-weight: $bold;
     color: $core-vibrant-red;
   }
 

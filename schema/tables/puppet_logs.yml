@@ -1,7 +1,10 @@
 name: puppet_logs
-notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 description: Outputs [Puppet](https://puppet.com/) logs from the last run. 
-platforms: darwin, windows, linux
+platforms: 
+  - darwin
+  - windows
+  - linux
 evented: false
 examples: >-
   List Puppet logs that are of a level of anything but informational.

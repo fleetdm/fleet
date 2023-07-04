@@ -3,8 +3,9 @@ provider "aws" {
   default_tags {
     tags = {
       environment = "loadtest"
-      terraform   = "https://github.com/fleetdm/fleet/tree/main/tools/terraform"
-      state       = "local"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/loadtesting"
+      state       = "s3://fleet-terraform-state20220408141538466600000002/loadtesting/${terraform.workspace}/loadtesting/loadtesting/terraform.tfstate"
+      workspace   = "${terraform.workspace}"
     }
   }
 }

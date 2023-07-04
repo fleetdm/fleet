@@ -5,6 +5,7 @@ import classnames from "classnames";
 
 import ClickOutside from "components/ClickOutside";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 const baseClass = "dropdown-button";
 
@@ -94,7 +95,7 @@ export class DropdownButton extends Component {
     return (
       <div className={`${baseClass}__wrapper`} ref={setDOMNode}>
         <Button
-          className={`${buttonClass} ${showCaret ? "downcaret" : ""}`}
+          className={`${buttonClass}`}
           disabled={disabled}
           onClick={toggleDropdown}
           size={size}
@@ -103,6 +104,9 @@ export class DropdownButton extends Component {
           variant={variant}
         >
           {children}{" "}
+          {showCaret && (
+            <Icon name="down-caret" size="large" color="core-fleet-white" />
+          )}
         </Button>
 
         <ul className={optionsClass}>

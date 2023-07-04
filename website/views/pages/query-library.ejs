@@ -33,6 +33,7 @@
                 <option value="darwin">macOS</option>
                 <option value="windows">Windows</option>
                 <option value="linux">Linux</option>
+                <option value="chrome">ChromeOS</option>
               </select>
             </div>
           </div>
@@ -62,7 +63,7 @@
                 <p class="d-inline-flex flex-wrap px-2 mb-0">compatible with</p>
                 <button class="btn btn-secondary btn-sm dropdown-toggle p-0" type="button"
                   id="dropdownMenuSelectPlatform" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {{selectedPlatform === 'windows' ? 'Windows' : selectedPlatform === 'darwin' ? 'macOS' : selectedPlatform === 'linux' ? 'Linux' : selectedPlatform}}
+                  {{selectedPlatform === 'windows' ? 'Windows' : selectedPlatform === 'darwin' ? 'macOS' : selectedPlatform === 'linux' ? 'Linux' : selectedPlatform === 'chrome' ? 'ChromeOS' : selectedPlatform}}
                 </button>
                 <div class="dropdown-menu p-2" aria-labelledby="dropdownMenuSelectPlatform">
                   <button class="dropdown-item" type="button" @click="clickSelectPlatform('all platforms')">all platforms</button>
@@ -70,6 +71,7 @@
                   <button class="dropdown-item" type="button"
                     @click="clickSelectPlatform('windows')">Windows</button>
                   <button class="dropdown-item" type="button" @click="clickSelectPlatform('linux')">Linux</button>
+                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('chrome')">ChromeOS</button>
                 </div>
               </div>
             </div>
@@ -98,11 +100,10 @@
               <div class="card-body">
                 <div class="row justify-content-between align-items-center query-card">
                   <div class="col-12">
-                    <div class="d-block d-sm-flex flex-wrap">
-                      <h5 class="card-title m-0 mb-1 mr-sm-2">{{query.name}}</h5>
-                      <div class="my-2 my-sm-0 flex-wrap">
-                        <span class="mr-2 mb-1 text-nowrap d-inline-block" purpose="query-tag" v-for="tag in query.tags" @click.stop="clickSelectTag(tag)">{{tag}}</span>
-                      </div>
+                    <div class="d-flex flex-row align-items-center flex-wrap">
+                      <h5 class="card-title m-0 mb-1 mr-2">{{query.name}}</h5>
+                      <a purpose="requires-mdm-badge" class="mr-2" v-if="query.requiresMdm">Requires MDM</a>
+                      <span class="mr-2 my-sm-0 my-1 text-nowrap d-inline-flex" purpose="query-tag" v-for="tag in query.tags" @click.stop="clickSelectTag(tag)">{{tag}}</span>
                     </div>
                   </div>
                   <div class="col-sm-9 col-md-9">
@@ -121,14 +122,17 @@
                   <div class="col-sm-3 col-md-auto align-self-start">
                     <div class="text-sm-right m-0">
                       <img class="d-inline-flex mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo"
-                        src="/images/os-macos-black-16x16@2x.png" alt="macOS"
+                        src="/images/os-macos-dark-24x24@2x.png" alt="macOS"
                         v-if="query.platform.includes('darwin')" />
                       <img class="d-inline-flex mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo"
-                        src="/images/os-windows-black-16x16@2x.png" alt="Windows"
+                        src="/images/os-windows-dark-24x24@2x.png" alt="Windows"
                         v-if="query.platform.includes('windows')" />
                       <img class="d-inline-flex mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo"
-                        src="/images/os-linux-black-16x16@2x.png" alt="Linux"
+                        src="/images/os-linux-dark-24x24@2x.png" alt="Linux"
                         v-if="query.platform.includes('linux')" />
+                      <img class="d-inline-flex mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo"
+                        src="/images/os-chromeos-dark-24x24@2x.png" alt="Linux"
+                        v-if="query.platform.includes('chrome')" />
                     </div>
                   </div>
                 </div>

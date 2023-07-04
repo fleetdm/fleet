@@ -23,7 +23,7 @@ type listSoftwareResponse struct {
 
 func (r listSoftwareResponse) error() error { return r.Err }
 
-func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareRequest)
 	resp, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
@@ -45,7 +45,7 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return listResp, nil
 }
 
-func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
 		TeamID: opt.TeamID,
 	}, fleet.ActionRead); err != nil {
@@ -82,7 +82,7 @@ type getSoftwareResponse struct {
 
 func (r getSoftwareResponse) error() error { return r.Err }
 
-func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareRequest)
 
 	software, err := svc.SoftwareByID(ctx, req.ID, false)
@@ -121,7 +121,7 @@ type countSoftwareResponse struct {
 
 func (r countSoftwareResponse) error() error { return r.Err }
 
-func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countSoftwareRequest)
 	count, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {

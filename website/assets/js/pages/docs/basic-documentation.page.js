@@ -10,7 +10,7 @@ parasails.registerPage('basic-documentation', {
     inputTimers: {},
     searchString: '',
     showDocsNav: false,
-
+    currentDocsSection: '',
     breadcrumbs: [],
     pages: [],
     pagesBySectionSlug: {},
@@ -76,11 +76,19 @@ parasails.registerPage('basic-documentation', {
 
       return pagesBySectionSlug;
     })();
-    // Adding scroll event listener for scrolling sidebars with the header.
-    window.addEventListener('scroll', this.scrollSideNavigationWithHeader);
+    // Adding a scroll event listener for scrolling sidebars and showing the back to top button.
+    if(!this.isDocsLandingPage){
+      window.addEventListener('scroll', this.handleScrollingInDocumentation);
+    }
   },
 
   mounted: async function() {
+
+    // Set a currentDocsSection value to display different Fleet premium CTAs based on what section is being viewed.
+    if(!this.isDocsLandingPage){
+      this.currentDocsSection = this.thisPage.url.split(/\//).slice(-2)[0];
+    }
+
     // Algolia DocSearch
     if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
       docsearch({
@@ -114,10 +122,10 @@ parasails.registerPage('basic-documentation', {
       let subtopics = $('#body-content').find('h2.markdown-heading').map((_, el) => el.innerText);
       subtopics = $.makeArray(subtopics).map((title) => {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
-        let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');
+        let kebabCaseFriendlyTitle = title.replace(/[\’\']/g, '');
         return {
           title,
-          url: '#' + _.kebabCase(kebabCaseFriendlyTitle),
+          url: '#' + _.kebabCase(kebabCaseFriendlyTitle.toLowerCase()),
         };
       });
       return subtopics;
@@ -126,7 +134,7 @@ parasails.registerPage('basic-documentation', {
     // https://github.com/sailshq/sailsjs.com/blob/7a74d4901dcc1e63080b502492b03fc971d3d3b2/assets/js/functions/sails-website-actions.js#L177-L239
     (function highlightThatSyntax(){
       $('pre code').each((i, block) => {
-        window.hljs.highlightBlock(block);
+        window.hljs.highlightElement(block);
       });
 
       // Make sure the <pre> tags whose code isn't being highlighted
@@ -171,20 +179,22 @@ parasails.registerPage('basic-documentation', {
     for(let key in Object.values(headingsOnThisPage)){
       let heading = headingsOnThisPage[key];
       $(heading).click(()=> {
-        // Find the child <a> element
-        let linkToCopy = _.first($(heading).find('a.markdown-link'));
-        // If this heading has already been clicked and still has the copied class we'll just ignore this click
-        if(!$(heading).hasClass('copied')){
-          // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
-          if(linkToCopy) {
-            navigator.clipboard.writeText(linkToCopy.href);
-          } else {
-            navigator.clipboard.writeText(heading.baseURI.split('#')[0]);
+        if(typeof navigator.clipboard !== 'undefined') {
+          // Find the child <a> element
+          let linkToCopy = _.first($(heading).find('a.markdown-link'));
+          // If this heading has already been clicked and still has the copied class we'll just ignore this click
+          if(!$(heading).hasClass('copied')){
+            // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
+            if(linkToCopy) {
+              navigator.clipboard.writeText(linkToCopy.href);
+            } else {
+              navigator.clipboard.writeText(heading.baseURI.split('#')[0]);
+            }
+            // Add the copied class to the header to notify the user that the link has been copied.
+            $(heading).addClass('copied');
+            // Remove the copied class 5 seconds later, so we can notify the user again if they re-cick on this heading
+            setTimeout(()=>{$(heading).removeClass('copied');}, 5000);
           }
-          // Add the copied class to the header to notify the user that the link has been copied.
-          $(heading).addClass('copied');
-          // Remove the copied class 5 seconds later, so we can notify the user again if they re-cick on this heading
-          setTimeout(()=>{$(heading).removeClass('copied');}, 5000);
         }
       });
     }
@@ -196,6 +206,11 @@ parasails.registerPage('basic-documentation', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
+    clickOpenChatWidget: function() {
+      if(window.HubSpotConversations && window.HubSpotConversations.widget){
+        window.HubSpotConversations.widget.open();
+      }
+    },
     clickCTA: function (slug) {
       window.location = slug;
     },
@@ -251,23 +266,38 @@ parasails.registerPage('basic-documentation', {
       this.searchString = this.inputTextValue;
     },
 
-    scrollSideNavigationWithHeader: function () {
-      var rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
-      var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      if(rightNavBar) {
-        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
+    handleScrollingInDocumentation: function () {
+      let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+      let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
+      let scrollTop = window.pageYOffset;
+      let windowHeight = window.innerHeight;
+      // If the right nav bar exists, add and remove a class based on the current scroll position.
+      if (rightNavBar) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
           rightNavBar.classList.add('header-hidden', 'scrolled');
+        } else if (scrollTop === 0) {
+          rightNavBar.classList.remove('header-hidden', 'scrolled');
         } else {
-          if(scrollTop === 0) {
-            rightNavBar.classList.remove('header-hidden', 'scrolled');
-          } else {
-            rightNavBar.classList.remove('header-hidden');
-          }
+          rightNavBar.classList.remove('header-hidden');
+        }
+      }
+      // If back to top button exists, add and remove a class based on the current scroll position.
+      if (backToTopButton){
+        if (scrollTop > 2500) {
+          backToTopButton.classList.add('show');
+        } else if (scrollTop === 0) {
+          backToTopButton.classList.remove('show');
         }
       }
       this.scrollDistance = scrollTop;
+    },
+    clickScrollToTop: function() {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth',
+      });
     }
-
   }
 
 });

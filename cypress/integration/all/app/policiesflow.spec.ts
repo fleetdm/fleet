@@ -55,12 +55,12 @@ const enableJiraPoliciesIntegration = {
     },
     failing_policies_webhook: {
       enable_failing_policies_webhook: false,
-      destination_url: "ok.com",
+      destination_url: "https://www.foo.com/bar",
       policy_ids: [5, 10],
       host_batch_size: 0,
     },
     vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
+      destination_url: "https://www.foo.com/bar",
       enable_vulnerabilities_webhook: false,
     },
   },
@@ -115,12 +115,12 @@ const enableZendeskPoliciesIntegration = {
     },
     failing_policies_webhook: {
       enable_failing_policies_webhook: false,
-      destination_url: "ok.com",
+      destination_url: "https://www.foo.com/bar",
       policy_ids: [5, 10],
       host_batch_size: 0,
     },
     vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
+      destination_url: "https://www.foo.com/bar",
       enable_vulnerabilities_webhook: false,
     },
   },
@@ -143,7 +143,7 @@ describe("Policies flow (empty)", () => {
       managePoliciesPage.visitManagePoliciesPage();
     });
     it("creates a custom policy", () => {
-      cy.getAttached(".policies-table__action-button-container").within(() => {
+      cy.getAttached(".empty-table__cta-buttons").within(() => {
         cy.findByText(/add a policy/i).click();
       });
       cy.findByText(/create your own policy/i).click();
@@ -313,10 +313,11 @@ describe("Policies flow (empty)", () => {
         });
       });
       cy.findByRole("button", { name: /save/i }).click();
-
-      cy.getAttached(".platform-selector").within(() => {
-        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
-          testSelections(el, i, [true, false, false]);
+      cy.getAttached(".modal__content").within(() => {
+        cy.getAttached(".platform-selector").within(() => {
+          cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+            testSelections(el, i, [true, false, false]);
+          });
         });
       });
     });
@@ -330,17 +331,22 @@ describe("Policies flow (empty)", () => {
       });
       cy.findByRole("button", { name: /save/i }).click();
 
-      cy.getAttached(".platform-selector").within(() => {
-        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
-          testSelections(el, i, [true, false, false]);
+      cy.getAttached(".modal__content").within(() => {
+        cy.getAttached(".platform-selector").within(() => {
+          cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+            testSelections(el, i, [true, false, false]);
+          });
+          cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
+          cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+            testSelections(el, i, [false, false, false]);
+          });
         });
-        cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
-        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
-          testSelections(el, i, [false, false, false]);
+
+        cy.getAttached(".modal-cta-wrap").within(() => {
+          cy.findByRole("button", { name: /save policy/i }).should(
+            "be.disabled"
+          );
         });
-      });
-      cy.getAttached(".modal-cta-wrap").within(() => {
-        cy.findByRole("button", { name: /save policy/i }).should("be.disabled");
       });
     });
 
@@ -358,15 +364,16 @@ describe("Policies flow (empty)", () => {
         });
       });
       cy.findByRole("button", { name: /save/i }).click();
-
-      cy.getAttached(".platform-selector").within(() => {
-        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
-          testSelections(el, i, [true, false, false]);
-        });
-        cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
-        cy.getAttached(".fleet-checkbox__label").last().click(); // select Linux
-        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
-          testSelections(el, i, [false, false, true]);
+      cy.getAttached(".modal__content").within(() => {
+        cy.getAttached(".platform-selector").within(() => {
+          cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+            testSelections(el, i, [true, false, false]);
+          });
+          cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
+          cy.getAttached(".fleet-checkbox__label").last().click(); // select Linux
+          cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+            testSelections(el, i, [false, false, true]);
+          });
         });
       });
       cy.findByRole("button", { name: /save policy/i }).click();
@@ -501,11 +508,15 @@ describe("Policies flow (seeded)", () => {
         cy.findByRole("button", { name: /manage automations/i }).click();
       });
       cy.getAttached(".manage-automations-modal").within(() => {
+        // Ensure clicking on slider after modal animation
+        cy.wait(300); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.getAttached(".fleet-slider").click();
         cy.getAttached(".fleet-checkbox__input").check({ force: true });
       });
-      cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
+      cy.getAttached("#webhook-url").click().type("http://www.foo.com/bar");
       cy.findByRole("button", { name: /^Save$/ }).click();
+      // Ensure update
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       // Confirm failing policies webhook was added successfully
       cy.findByText(/updated policy automations/i).should("exist");
       cy.getAttached(".button-wrap").within(() => {
@@ -516,6 +527,8 @@ describe("Policies flow (seeded)", () => {
       });
       // reset slider for subsequent tests
       cy.getAttached(".manage-automations-modal").within(() => {
+        // Ensure clicking on slider after modal animation
+        cy.wait(300); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.getAttached(".fleet-slider").click();
       });
       cy.findByRole("button", { name: /^Save$/ }).click();

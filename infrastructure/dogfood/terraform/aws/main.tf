@@ -2,12 +2,6 @@ provider "aws" {
   region = var.region
 }
 
-
-provider "tls" {
-  # Configuration options
-}
-
-
 terraform {
   // these values should match what is bootstrapped in ./remote-state
   backend "s3" {
@@ -20,11 +14,6 @@ terraform {
     aws = {
       source  = "hashicorp/aws"
       version = "4.32.0"
-    }
-
-    tls = {
-      source  = "hashicorp/tls"
-      version = "3.3.0"
     }
   }
 }

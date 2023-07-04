@@ -1,0 +1,28 @@
+Expected scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to 'No':
+'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Settings Customize\Display a notification'
+
+2) After running the policy check, it should return 1 indicating that setting was properly set
+
+
+
+Failure scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to values different than 'No':
+'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Settings Customize\Display a notification'
+
+2) After running the policy check, it should return nothing, indicating that setting was set to a non-compliant value
+
+TODO
+==================
+Figure out why changing the setting for this does not update the data from 1 to 0
+
+Notes
+==================
+The path does not exist in the registry until configured
+However, once configured, the database is not showing changes to data (from 1 to 0 when set from Yes or No)
+CIS Benchmark Page 412: https://drive.google.com/file/d/16M2AuKHu_x-WJZWObhl_7MpZkPkKSQaq/view
+Tenable item: https://www.tenable.com/audits/items/CIS_MS_Windows_8.1_v2.4.0_Level_1_Bitlocker.audit:5254ed28e01cee0f08a5c328f1252b84
+
+

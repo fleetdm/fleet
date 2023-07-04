@@ -94,7 +94,7 @@ export default {
 
 const Template: Story<IDropdownButtonProps> = (props) => (
   <DropdownButton {...props}>
-    <Avatar user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }} size="small" />
+    <Avatar user={{ gravatar_url: DEFAULT_GRAVATAR_LINK }} size="small" />
   </DropdownButton>
 );
 

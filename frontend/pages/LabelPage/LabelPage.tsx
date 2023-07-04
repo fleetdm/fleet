@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 

@@ -42,27 +42,6 @@ jobs:
         [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
       shell: bash
 
-    - name: Slack Notification
-      if: failure()
-      uses: slackapi/slack-github-action@16b6c78ee73689a627b65332b34e5d409c7299da # v1.18.0
-      with:
-        payload: |
-          {
-            "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
-            "blocks": [
-              {
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "Fleetctl preview test result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
-                }
-              }
-            ]
-          }
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_PLATFORM_WEBHOOK_URL }}
-        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-
     - name: Get fleet logs
       if: always()
       run: |
@@ -74,7 +53,7 @@ jobs:
 
     - name: Upload logs
       if: always()
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: ${{ matrix.os }}-log
         path: |

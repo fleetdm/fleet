@@ -1,7 +1,4 @@
-export interface IDataTableMdmFormat {
-  status: "Enrolled (manual)" | "Enrolled (automatic)" | "Unenrolled";
-  hosts: number;
-}
+import { IMdmAggregateStatus, IMdmSolution } from "./mdm";
 
 export interface IMunkiVersionsAggregate {
   version: string;
@@ -12,18 +9,6 @@ export interface IMunkiIssuesAggregate {
   id: number;
   name: string;
   type: "error" | "warning";
-  hosts_count: number;
-}
-export interface IMdmAggregateStatus {
-  enrolled_manual_hosts_count: number;
-  enrolled_automated_hosts_count: number;
-  unenrolled_hosts_count: number;
-}
-
-export interface IMdmSolution {
-  id: number;
-  name: string | null;
-  server_url: string;
   hosts_count: number;
 }
 

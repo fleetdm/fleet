@@ -1,60 +1,5 @@
 # Using Fleet FAQ
 
-- [Using Fleet FAQ](#using-fleet-faq)
-  - [How can I switch to Fleet from Kolide Fleet?](#how-can-i-switch-to-fleet-from-kolide-fleet)
-  - [Has anyone stress tested Fleet? How many hosts can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-hosts-can-the-fleet-server-handle)
-  - [Can I target my hosts using their enroll secrets?](#can-i-target-my-hosts-using-their-enroll-secrets)
-  - [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
-  - [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
-  - [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
-  - [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
-  - [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
-  - [Where are my query results?](#where-are-my-query-results)
-    - [Live queries](#live-queries)
-    - [Scheduled queries](#scheduled-queries)
-    - [What are my options for storing the osquery logs?](#what-are-my-options-for-storing-the-osquery-logs)
-    - [Troubleshooting](#troubleshooting)
-  - [Why does the same query come back faster sometimes?](#why-does-the-same-query-come-back-faster-sometimes)
-  - [What happens if I have a query on a team policy and I also have it scheduled to run separately?](#what-happens-if-i-have-a-query-on-a-team-policy-and-i-also-have-it-scheduled-to-run-separately)
-  - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
-  - [Why does my query work locally with osquery but not in Fleet?](#why-does-my-query-work-locally-with-osquery-but-not-in-fleet)
-  - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
-  - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-fleet)
-  - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
-  - [Why is my host not updating a policy's response?](#why-is-my-host-not-updating-a-policys-response)
-  - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
-  - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
-  - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
-  - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
-  - [When will the newest version of osquery be available to Orbit?](#when-will-the-newest-version-of-osquery-be-available-to-orbit)
-  - [Where does Orbit get update information?](#where-does-orbit-get-update-information)
-  - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
-  - [What happens to osquery logs if my Fleet server or my logging destination is offline?](#what-happens-to-osquery-logs-if-my-fleet-server-or-my-logging-destination-is-offline)
-  - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
-  - [Why do I see "Unknown Certificate Error" when adding hosts to my dev server?](#why-do-i-see-unknown-certificate-error-when-adding-hosts-to-my-dev-server)
-  - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
-  - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
-  - [When do I need fleetctl vs. the REST API vs. the Fleet UI?](#when-do-i-need-fleetctl-vs-the-rest-api-vs-the-fleet-ui)
-  - [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
-  - [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
-  - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
-  - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
-  - [How do I downgrade from Fleet Premium to Fleet Free?](#how-do-i-downgrade-from-fleet-premium-to-fleet-free)
-  - [If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?](#if-i-use-a-software-orchestration-tool-ansible-chef-puppet-etc-to-manage-agent-options-do-i-have-to-apply-the-same-options-in-the-fleet-ui)
-  - [How can I uninstall Orbit/Fleet Desktop?](#how-can-i-uninstall-orbitfleet-desktop)
-    - [MacOS](#macos)
-    - [Windows](#windows)
-    - [Ubuntu](#ubuntu)
-    - [CentOS](#centos)
-  - [How does Fleet determines online and offline status?](#how-does-fleet-determines-online-and-offline-status)
-    - [Online hosts](#online-hosts)
-    - [Offline hosts](#offline-hosts)
-  - [Why aren't "additional queries" being applied to hosts enrolled in a team?](why-arent-additional-queries-being-applied-to-hosts-enrolled-in-a-team)
-  - [Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?](#why-am-i-seeing-an-error-when-using-the-after-key-in-apiv1fleethosts)
-  - [What can I do if Fleet is slow or unresponsive after enabling a feature?](#what-can-i-do-if-fleet-is-slow-or-unresponseive-after-enabling-a-feature)
-  - [Why am I seeing an "unsupported key" error when updating agent options?](#why-am-i-seeing-an-unsupported-key-error-when-updating-agent-options)
-  - [How can I renew my Apple Business Manager server token?](#how-can-i-renew-my-apple-business-manager-server-token)
-
 ## How can I switch to Fleet from Kolide Fleet?
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](https://fleetdm.com/docs/deploying/upgrading-fleet) of the documentation.
@@ -67,9 +12,9 @@ It’s standard deployment practice to have multiple Fleet servers behind a load
 
 ## Can I target my hosts using their enroll secrets?
 
-No, currently, there’s no way to retrieve the name of the enroll secret with a query. This means that there's no way to create a label using your hosts' enroll secrets and then use this label as a target for queries or query packs.
+No, currently, there’s no way to retrieve the name of the enroll secret with a query. This means that there's no way to create a label using your hosts' enroll secrets and then use this label as a target for live queries or scheduled queries.
 
-Typically folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](https://fleetdm.com/docs/using-fleet/fleetctl-cli#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for queries or query packs.
+Typically folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](https://fleetdm.com/docs/using-fleet/fleetctl-cli#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for queries.
 
 There is, however, a way to accomplish this even though the answer to the question remains "no": Teams. As of Fleet v4.0.0, you can group hosts in Teams either by enrolling them with a team specific secret, or by transferring hosts to a team. One the hosts you want to target are part of a team, you can create a query and target the team in question.
 
@@ -89,6 +34,12 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 
 Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](https://fleetdm.com/docs/using-fleet/monitoring-fleet) documentation for details.
 
+## Why is the “Add User” button disabled?
+
+The “Add User” button is disabled if SMTP (email) has not been configured for the Fleet server. Currently, there is no way to add new users without email capabilities.
+
+One way to hack around this is to use a simulated mailserver like [Mailhog](https://github.com/mailhog/MailHog). You can retrieve the email that was “sent” in the Mailhog UI, and provide users with the invite URL manually.
+
 ## Can I disable password-based authentication in the Fleet UI?
 
 Some folks like to enforce users with SAML SSO enabled to login only via the SSO and not via password.
@@ -106,15 +57,18 @@ Live query results (executed in the web UI or `fleetctl query`) are pushed direc
 
 ### Scheduled queries
 
-Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](https://fleetdm.com/docs/deploying/configuration#osquery-result-log-file). This defaults to `/tmp/osquery_result`.
-
-It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
+Scheduled query results from enrolled hosts can be logged by Fleet.
+For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `tls`.
 
 ### What are my options for storing the osquery logs?
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-The [logger configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
+`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+See:
+  - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
+  - https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin.
 
 ### Troubleshooting
 
@@ -133,6 +87,10 @@ Don't worry, this behavior is expected; it's part of how osquery works.
 Fleet and osquery work together by communicating with heartbeats. Depending on how close the next heartbeat is, Fleet might return results a few seconds faster or slower.
 >By the way, to get around a phenomena called the "thundering herd problem", these heartbeats aren't exactly the same number of seconds apart each time. osquery implements a "splay", a few ± milliseconds that are added to or subtracted from the heartbeat interval to prevent these thundering herds. This helps prevent situations where many thousands of devices might unnecessarily attempt to communicate with the Fleet server at exactly the same time. (If you've ever used Socket.io, a similar phenomena can occur with that tool's automatic WebSocket reconnects.)
 
+## Why don't my query results appear sorted based upon the ORDER BY clause I specified in my SQL query? 
+
+When a query executes in Fleet, the query is sent to all hosts at the same time, but results are returned from hosts at different times. In Fleet, results are shown as soon as Fleet receives a response from a host. Fleet does not sort the overall results across all hosts (the sort UI toggle is used for this). Instead, Fleet prioritizes speed when displaying the results.  This means that if you use an `ORDER BY` clause selection criteria in a query, the results may not initially appear with your desired order, however, the sort UI toggle allows you to sort by ascending or descending order for any of the displayed columns.
+
 ## What happens if I have a query on a team policy and I also have it scheduled to run separately?
 
 Both queries will run as scheduled on applicable hosts. If there are any hosts that both the scheduled run and the policy apply to, they will be queried twice.
@@ -145,7 +103,7 @@ Live query results are never logged to the filesystem of the Fleet server. See [
 
 If you're seeing query results using `osqueryi` but not through Fleet, the most likely culprit is a permissions issue. Check out the [osquery docs](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/#full-disk-access) for more details and instructions for setting up Full Disk Access.
 
-## Can I use the Fleet API to fetch results from a scheduled query pack?
+## Can I use the Fleet API to fetch results from a scheduled query?
 
 You cannot. Scheduled query results are logged to whatever logging plugin you have configured and are not stored in the Fleet DB.
 
@@ -160,18 +118,6 @@ The ability to view each host’s installed software was released behind a featu
 Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](https://fleetdm.com/docs/using-fleet/rest-api#get-host).
 
 It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleet-configuration-options).
-
-## How do I automatically add hosts to packs when the hosts enroll to Fleet?
-
-You can accomplish this by adding specific labels as targets of your pack. First, identify an already existing label or create a new label that will include the hosts you intend to enroll to Fleet. Next, add this label as a target of the pack in the Fleet UI.
-
-When your hosts enroll to Fleet, they will become a member of the label and, because the label is a target of your pack, these hosts will automatically become targets of the pack.
-
-You can also do this by setting the `targets` field in the [YAML configuration file](https://fleetdm.com/docs/using-fleet/fleetctl-cli#query-packs) that manages the packs that are added to your Fleet instance.
-
-## How do I automatically assign a host to a team when it enrolls with Fleet?
-
-[Team enroll secrets](https://fleetdm.com/docs/using-fleet/teams#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
 ## Why is my host not updating a policy's response?
 
@@ -195,7 +141,7 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 
 Yes, fleetd can be run alongside an existing, separately-installed osqueryd. If you have an existing osqueryd installed on a given host, you don't have to remove it prior to installing fleetd.  The osquery instance provided by fleetd uses its own database directory that doesn't interfere with other osquery isntances installed on the host.
 
-## Can I control how Orbit handles updates?
+## Can I control how fleetd handles updates?
 
 Yes, auto-updates can be disabled entirely by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
@@ -261,7 +207,7 @@ In versions prior to Fleet 4.13, a password reset is needed before a new API-onl
 
 ## Can I audit actions taken in Fleet?
 
-The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.
+The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.
 
 ## How often is the software inventory updated?
 
@@ -286,52 +232,43 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 ## How do I downgrade from Fleet Premium to Fleet Free?
 
-If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
+> If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
 
-How to downgrade from Fleet Premium to Fleet Free:
+**Back up your users and update all team-level users to global users**
 
-First, back up your users and update all team-level users to global users:
-
-1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so
-   that, if you choose to upgrade later, you can restore user roles.
+1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that, if you choose to upgrade later, you can restore user roles.
 2. Head to the **Settings > Users** page in the Fleet UI.
-3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**,
-   then select
-   **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
+3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**, then select **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
 
-Next, move all team-level scheduled queries to the global level:
+**Move all team-level scheduled queries to the global level**
+
 1. Head to the **Schedule** page in the Fleet UI.
-2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select
-   **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select
-   query** field, choose the frequency, and select **Schedule**.
-3. Delete each scheduled query that belongs to a team because they will no longer run on any hosts
-   following the downgrade process.
+2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select query** field, choose the frequency, and select **Schedule**.
+3. Delete each scheduled query that belongs to a team because they will no longer run on any hosts following the downgrade process.
 
-Next, move all team level policies to the global level:
+**Move all team level policies to the global level**
+
 1. Head to the **Policies** page in the Fleet UI.
-2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**,
-  and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select
-  **create your own policy**, paste each item in the appropriate field, and select **Save**.
-3. Delete each policy that belongs to a team because they will no longer run on any hosts
-following the downgrade process.
+2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**, and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select **create your own policy**, paste each item in the appropriate field, and select **Save**.
+3. Delete each policy that belongs to a team because they will no longer run on any hosts following the downgrade process.
 
-Next, back up your teams:
-1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so
-that, if you choose to upgrade later, you can restore teams.
+**Back up your teams**
+
+1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so that, if you choose to upgrade later, you can restore teams.
 2. Head to the **Settings > Teams** page in the Fleet UI.
 3. Delete all teams. This will move all hosts to the global level.
 
-Lastly, remove your Fleet Premium license key:
-1. Remove your license key from your Fleet configuration. Documentation on where the license key is
-   located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
+**Remove your Fleet Premium license key**
+
+1. Remove your license key from your Fleet configuration. Documentation on where the license key is located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
 2. Restart your Fleet server.
 
 ## If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
 
 No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
 
-## How can I uninstall Orbit/Fleet Desktop?
-To uninstall Orbit/Fleet Desktop, follow the below instructions for your Operating System.
+## How can I uninstall the osquery agent?
+To uninstall the osquery agent, follow the below instructions for your operating system.
 
 ### MacOS
 Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
@@ -378,7 +315,7 @@ Changes were introduced in Fleet v4.20.0 that caused the `features.additional_qu
 There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validation in some versions of Fleet when using the `created_at` and `updated_at` columns as `order_key` along with an `after` filter. Adding `h.` to the column in `order_key` will return your results.
 
 ```
-{{host}}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
+{host}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
 
 ```
 ## What can I do if Fleet is slow or unresponsive after enabling a feature?
@@ -387,25 +324,22 @@ Depending on your infrastructure capabilities, and the number of hosts enrolled 
 
 In those cases, we recommend a slow rollout by partially enabling the feature by teams using the `features` key of the [teams configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
 
-## Why am I seeing an "unsupported key" error when updating agent options?
+## Why am I getting errors when generating a .msi package on my M1 Mac?
 
-When updating agent options, you may see an error similar to this:
+There are many challenges to generating .msi packages on any OS but Windows. Errors will frequently resolve after multiple attempts and we've added retries by default in recent versions of `fleetctl package`.  Package creation is much more reliable on Intel Macs, Linux and Windows.
 
-```
-[...] unsupported key provided: "logger_plugin"
-If you’re not using the latest osquery, use the fleetctl apply --force command to override validation.
-```
+## Where did Packs go?
 
-This error indicates that you're providing a config option that isn't valid in the current version of osquery, typically because you're setting a command line flag through the configuration key. This has always been unsupported through the config plugin, but osquery has recently become more opinionated and Fleet now validates the configuration to make sure there aren't errors in the osquery agent.
+Packs are a function of osquery that provide a portable format to import /export queries in and out of platforms like Fleet. These osquery packs still exist, but have been removed from the Fleet UI. Access via API is still available for backwards compatibility.
+Within Fleet we've introduced the concept of teams in Fleet premium to target specific groups of hosts, but you can also still use scheduled queries in Fleet free (works like packs) to target all your hosts.
 
-If you are not using the latest version of osquery, you can create a config YAML file and apply it with `fleetctl` using the `--force` flag to override the validation:
+## What happens when I turn off MDM?
 
-```fleetctl apply --force -f config.yaml```
+In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn off MDM** on the **Host details** page.
 
-## How can I renew my Apple Business Manager server token?
+When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-the-osquery-agent) with the end user.
 
-> This feature is currently in development and is not ready for production use.
+To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. To turn MDM on, share [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#instructions-for-end-users) with the end user. Turning MDM back on for a host requires end user action.
 
-If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password changed.
-
-When that happens, the token is rejected by Apple and must be renewed. The detailed steps are documented in the Apple documentation link above - in short, the Apple Business Manager Administrator or Content Manager must sign in to their account and download a new server token for the Fleet MDM server, and all Fleet instances must be restarted with that new token provided instead of the old one (see the [MDM configuration documentation](https://fleetdm.com/docs/deploying/configuration#mdm-mobile-device-management-in-progress) for details on how to do that).
+## What does "package root files: heat failed" mean?
+We've found this error when you try to build an MSI on Docker 4.17. The underlying issue has been fixed in Docker 4.18, so we recommend upgrading. More information [here](https://github.com/fleetdm/fleet/issues/10700)

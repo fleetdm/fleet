@@ -21,8 +21,6 @@ import Modal from "components/Modal";
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
 import SecretField from "components/EnrollSecrets/SecretField";
-import SandboxGate from "components/Sandbox/SandboxGate";
-import SandboxDemoMessage from "components/Sandbox/SandboxDemoMessage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
@@ -225,15 +223,7 @@ const UserSettingsPage = ({
   return (
     <>
       <MainContent className={baseClass}>
-        <SandboxGate
-          fallbackComponent={() => (
-            <SandboxDemoMessage
-              className={`${baseClass}__sandboxMode`}
-              message="Account management is only available in self-managed Fleet"
-              utmSource="fleet-ui-my-account-page"
-            />
-          )}
-        >
+        <>
           <div className={`${baseClass}__manage`}>
             <h1>My account</h1>
             <UserSettingsForm
@@ -242,23 +232,21 @@ const UserSettingsPage = ({
               onCancel={onCancel}
               pendingEmail={pendingEmail}
               serverErrors={errors}
-              smtpConfigured={config?.smtp_settings.configured}
+              smtpConfigured={config?.smtp_settings?.configured || false}
             />
           </div>
           {renderEmailModal()}
           {renderPasswordModal()}
           {renderApiTokenModal()}
-        </SandboxGate>
+        </>
       </MainContent>
-      <SandboxGate>
-        <SidePanelContent>
-          <UserSidePanel
-            currentUser={currentUser}
-            onChangePassword={onShowPasswordModal}
-            onGetApiToken={onShowApiTokenModal}
-          />
-        </SidePanelContent>
-      </SandboxGate>
+      <SidePanelContent>
+        <UserSidePanel
+          currentUser={currentUser}
+          onChangePassword={onShowPasswordModal}
+          onGetApiToken={onShowApiTokenModal}
+        />
+      </SidePanelContent>
     </>
   );
 };

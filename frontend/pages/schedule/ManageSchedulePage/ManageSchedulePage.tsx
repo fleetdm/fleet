@@ -1,13 +1,12 @@
 /* Conditionally renders global schedule and team schedules */
 
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
-import { find } from "lodash";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import deepDifference from "utilities/deep_difference";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import { ITeam } from "interfaces/team";
 import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import {
@@ -16,12 +15,12 @@ import {
   ILoadAllGlobalScheduledQueriesResponse,
   IStoredScheduledQueriesResponse,
 } from "interfaces/scheduled_query";
+import paths from "router/paths";
 import fleetQueriesAPI from "services/entities/queries";
 import globalScheduledQueriesAPI from "services/entities/global_scheduled_queries";
 import teamScheduledQueriesAPI from "services/entities/team_scheduled_queries";
-import teamsAPI from "services/entities/teams";
-import sortUtils from "utilities/sort";
-import paths from "router/paths";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import deepDifference from "utilities/deep_difference";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
@@ -112,57 +111,55 @@ interface ITeamSchedulesPageProps {
     team_id: string;
   };
   router: InjectedRouter; // v3
+  route: any;
+  location: any;
 }
 
 const ManageSchedulePage = ({
-  params: { team_id },
   router,
+  location,
 }: ITeamSchedulesPageProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
+  const { MANAGE_PACKS } = paths;
   const handleAdvanced = () => router.push(MANAGE_PACKS);
 
   const {
-    availableTeams,
-    currentUser,
     isOnGlobalTeam,
     isPremiumTier,
     isFreeTier,
-    currentTeam,
-    setCurrentTeam,
+    isSandboxMode,
   } = useContext(AppContext);
 
-  const teamId = parseInt(team_id, 10) || 0;
+  const {
+    currentTeamId,
+    isAnyTeamSelected,
+    isRouteOk,
+    teamIdForApi,
+    userTeams,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+    permittedAccessByTeamRole: {
+      admin: true,
+      maintainer: true,
+      observer: false,
+      observer_plus: false,
+    },
+  });
 
-  const filterAndSortTeamOptions = (allTeams: ITeam[], userTeams: ITeam[]) => {
-    const filteredSortedTeams = allTeams
-      .sort((teamA: ITeam, teamB: ITeam) =>
-        sortUtils.caseInsensitiveAsc(teamA.name, teamB.name)
-      )
-      .filter((team: ITeam) => {
-        const userTeam = userTeams.find(
-          (thisUserTeam) => thisUserTeam.id === team.id
-        );
-        return userTeam?.role !== "observer" ? team : null;
-      });
-
-    return filteredSortedTeams;
-  };
-
-  const { data: teams, isLoading: isLoadingTeams } = useQuery(
-    ["teams"],
-    () => teamsAPI.loadAll({}),
-    {
-      enabled: !!isPremiumTier,
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-      select: (data) => {
-        return currentUser?.teams
-          ? filterAndSortTeamOptions(data.teams, currentUser.teams)
-          : data.teams;
-      },
-    }
-  );
+  const { data: teams, isLoading: isLoadingTeams } = useQuery<
+    ILoadTeamsResponse,
+    Error,
+    ITeam[]
+  >(["teams"], () => teamsAPI.loadAll(), {
+    enabled: isRouteOk && !!isPremiumTier,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    select: (data) => data.teams,
+  });
 
   const {
     data: fleetQueries,
@@ -172,6 +169,7 @@ const ManageSchedulePage = ({
     ["fleetQueries"],
     () => fleetQueriesAPI.loadAll(),
     {
+      enabled: isRouteOk,
       refetchOnMount: false,
       refetchOnWindowFocus: false,
       select: (data) => data.queries,
@@ -188,26 +186,9 @@ const ManageSchedulePage = ({
     Error,
     IScheduledQuery[]
   >(["globalScheduledQueries"], () => globalScheduledQueriesAPI.loadAll(), {
-    enabled: !!availableTeams,
+    enabled: isRouteOk,
     select: (data) => data.global_schedule,
   });
-
-  let selectedTeamId = currentTeam?.id ? currentTeam.id : teamId || 0;
-
-  // No access for observers of currentTeam, shown first team with RBAC
-  if (selectedTeamId) {
-    const selectedTeam = currentUser?.teams.find(
-      (team) => team.id === selectedTeamId
-    );
-    if (selectedTeam?.role === "observer") {
-      const teamWithAccess = currentUser?.teams.find(
-        (team) => team.role !== "observer"
-      );
-      if (teamWithAccess) {
-        selectedTeamId = teamWithAccess?.id;
-      }
-    }
-  }
 
   const {
     data: teamScheduledQueries,
@@ -215,69 +196,28 @@ const ManageSchedulePage = ({
     isLoading: isLoadingTeamScheduledQueries,
     refetch: refetchTeamScheduledQueries,
   } = useQuery<IStoredScheduledQueriesResponse, Error, IScheduledQuery[]>(
-    ["teamScheduledQueries", selectedTeamId],
-    () => teamScheduledQueriesAPI.loadAll(selectedTeamId),
+    ["teamScheduledQueries", teamIdForApi],
+    () => teamScheduledQueriesAPI.loadAll(teamIdForApi),
     {
-      enabled: !!availableTeams && isPremiumTier && !!selectedTeamId,
+      enabled: isRouteOk && isPremiumTier && !!teamIdForApi,
       select: (data) => data.scheduled,
     }
   );
 
-  const refetchScheduledQueries = () => {
+  const refetchScheduledQueries = useCallback(() => {
     refetchGlobalScheduledQueries();
-    if (selectedTeamId !== 0) {
+    if (isAnyTeamSelected) {
       refetchTeamScheduledQueries();
     }
-  };
-
-  const findAvailableTeam = (id: number) => {
-    return availableTeams?.find((t) => t.id === id);
-  };
-
-  const handleTeamSelect = (id: number) => {
-    if (id) {
-      router.push(MANAGE_TEAM_SCHEDULE(id));
-    } else {
-      router.push(MANAGE_SCHEDULE);
-    }
-    const selectedTeam = find(teams, ["id", id]);
-    setCurrentTeam(selectedTeam);
-  };
-
-  if (!isOnGlobalTeam && !selectedTeamId && teams) {
-    handleTeamSelect(teams[0].id);
-  }
-
-  // If team_id from URL query params is not valid, we instead use a default team
-  // either the current team (if any) or all teams (for global users) or
-  // the first available team (for non-global users)
-  const getValidatedTeamId = () => {
-    if (findAvailableTeam(selectedTeamId)) {
-      return selectedTeamId;
-    }
-    if (!selectedTeamId && currentTeam) {
-      return currentTeam.id;
-    }
-    if (!selectedTeamId && !currentTeam && !isOnGlobalTeam && availableTeams) {
-      return availableTeams[0]?.id;
-    }
-    return 0;
-  };
-
-  // If team_id or currentTeam doesn't match validated id, switch to validated id
-  useEffect(() => {
-    if (availableTeams) {
-      const validatedId = getValidatedTeamId();
-
-      if (validatedId !== currentTeam?.id || validatedId !== selectedTeamId) {
-        handleTeamSelect(validatedId);
-      }
-    }
-  }, [availableTeams]);
+  }, [
+    isAnyTeamSelected,
+    refetchGlobalScheduledQueries,
+    refetchTeamScheduledQueries,
+  ]);
 
   const allScheduledQueriesList =
-    (selectedTeamId ? teamScheduledQueries : globalScheduledQueries) || [];
-  const allScheduledQueriesError = selectedTeamId
+    (isAnyTeamSelected ? teamScheduledQueries : globalScheduledQueries) || [];
+  const allScheduledQueriesError = isAnyTeamSelected
     ? teamScheduledQueriesError
     : globalScheduledQueriesError;
 
@@ -287,10 +227,9 @@ const ManageSchedulePage = ({
   const inheritedQueryOrQueries =
     inheritedScheduledQueriesList?.length === 1 ? "query" : "queries";
 
-  const selectedTeam = !selectedTeamId ? "global" : selectedTeamId;
-
-  const selectedTeamData =
-    teams?.find((team: ITeam) => selectedTeam === team.id) || undefined;
+  const selectedTeamData = isAnyTeamSelected
+    ? teams?.find((team: ITeam) => teamIdForApi === team.id)
+    : undefined;
 
   const [isUpdatingScheduledQuery, setIsUpdatingScheduledQuery] = useState(
     false
@@ -355,8 +294,8 @@ const ManageSchedulePage = ({
   const onRemoveScheduledQuerySubmit = useCallback(() => {
     setIsUpdatingScheduledQuery(true);
     const promises = selectedQueryIds.map((id: number) => {
-      return selectedTeamId
-        ? teamScheduledQueriesAPI.destroy(selectedTeamId, id)
+      return isAnyTeamSelected
+        ? teamScheduledQueriesAPI.destroy(teamIdForApi, id)
         : globalScheduledQueriesAPI.destroy({ id });
     });
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
@@ -381,10 +320,13 @@ const ManageSchedulePage = ({
         setIsUpdatingScheduledQuery(false);
       });
   }, [
-    selectedTeamId,
     selectedQueryIds,
+    isAnyTeamSelected,
+    teamIdForApi,
+    renderFlash,
     toggleRemoveScheduledQueryModal,
     refetchScheduledQueries,
+    refetchGlobalScheduledQueries,
   ]);
 
   const onAddScheduledQuerySubmit = useCallback(
@@ -418,7 +360,7 @@ const ManageSchedulePage = ({
             refetchGlobalScheduledQueries();
           });
       } else {
-        const createResponse = selectedTeamId
+        const createResponse = isAnyTeamSelected
           ? teamScheduledQueriesAPI.create({ ...formData })
           : globalScheduledQueriesAPI.create({ ...formData });
 
@@ -440,8 +382,22 @@ const ManageSchedulePage = ({
           });
       }
     },
-    [selectedTeamId, toggleScheduleEditorModal]
+    [
+      isAnyTeamSelected,
+      refetchGlobalScheduledQueries,
+      refetchScheduledQueries,
+      renderFlash,
+      toggleScheduleEditorModal,
+    ]
   );
+
+  if (!isRouteOk || (isPremiumTier && !userTeams?.length)) {
+    return (
+      <div className={`${baseClass}__loading-spinner`}>
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <MainContent className={baseClass}>
@@ -452,25 +408,25 @@ const ManageSchedulePage = ({
               <div className={`${baseClass}__title`}>
                 {isFreeTier && <h1>Schedule</h1>}
                 {isPremiumTier &&
-                  teams &&
-                  (teams.length > 1 || isOnGlobalTeam) && (
+                  userTeams &&
+                  (userTeams.length > 1 || isOnGlobalTeam) && (
                     <TeamsDropdown
-                      selectedTeamId={selectedTeamId}
-                      currentUserTeams={teams || []}
-                      onChange={(newSelectedValue: number) =>
-                        handleTeamSelect(newSelectedValue)
-                      }
+                      selectedTeamId={currentTeamId}
+                      currentUserTeams={userTeams || []}
+                      onChange={handleTeamChange}
+                      isSandboxMode={isSandboxMode}
                     />
                   )}
                 {isPremiumTier &&
                   !isOnGlobalTeam &&
-                  teams &&
-                  teams.length === 1 && <h1>{teams[0].name}</h1>}
+                  userTeams &&
+                  userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
               </div>
             </div>
           </div>
           {allScheduledQueriesList?.length !== 0 && !allScheduledQueriesError && (
             <div className={`${baseClass}__action-button-container`}>
+              {/* NOTE:  Product decision to remove packs from UI
               {isOnGlobalTeam && (
                 <Button
                   variant="inverse"
@@ -479,7 +435,7 @@ const ManageSchedulePage = ({
                 >
                   Advanced
                 </Button>
-              )}
+              )} */}
               <Button
                 variant="brand"
                 className={`${baseClass}__schedule-button`}
@@ -493,15 +449,15 @@ const ManageSchedulePage = ({
         <div className={`${baseClass}__description`}>
           {!isLoadingTeams && (
             <div>
-              {selectedTeamId ? (
+              {isAnyTeamSelected ? (
                 <p>
                   Schedule queries for{" "}
-                  <strong>all hosts assigned to this team.</strong>
+                  <strong>all hosts assigned to this team</strong>
                 </p>
               ) : (
                 <p>
                   Schedule queries to run at regular intervals across{" "}
-                  <strong>all of your hosts.</strong>
+                  <strong>all of your hosts</strong>
                 </p>
               )}
             </div>
@@ -531,7 +487,7 @@ const ManageSchedulePage = ({
           )}
         </div>
         {/* must use ternary for NaN */}
-        {selectedTeamId &&
+        {isAnyTeamSelected &&
         inheritedScheduledQueriesList &&
         inheritedScheduledQueriesList.length > 0 ? (
           <RevealButton
@@ -563,7 +519,7 @@ const ManageSchedulePage = ({
             onScheduleSubmit={onAddScheduledQuerySubmit}
             allQueries={fleetQueries}
             editQuery={selectedScheduledQuery}
-            teamId={selectedTeamId}
+            teamId={teamIdForApi}
             togglePreviewDataModal={togglePreviewDataModal}
             showPreviewDataModal={showPreviewDataModal}
             isUpdatingScheduledQuery={isUpdatingScheduledQuery}

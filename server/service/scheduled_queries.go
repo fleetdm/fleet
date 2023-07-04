@@ -27,7 +27,7 @@ type getScheduledQueriesInPackResponse struct {
 
 func (r getScheduledQueriesInPackResponse) error() error { return r.Err }
 
-func getScheduledQueriesInPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getScheduledQueriesInPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getScheduledQueriesInPackRequest)
 	resp := getScheduledQueriesInPackResponse{Scheduled: []scheduledQueryResponse{}}
 
@@ -76,7 +76,7 @@ type scheduleQueryResponse struct {
 
 func (r scheduleQueryResponse) error() error { return r.Err }
 
-func scheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func scheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*scheduleQueryRequest)
 
 	scheduled, err := svc.ScheduleQuery(ctx, &fleet.ScheduledQuery{
@@ -164,7 +164,7 @@ type getScheduledQueryResponse struct {
 
 func (r getScheduledQueryResponse) error() error { return r.Err }
 
-func getScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getScheduledQueryRequest)
 
 	sq, err := svc.GetScheduledQuery(ctx, req.ID)
@@ -204,7 +204,7 @@ type modifyScheduledQueryResponse struct {
 
 func (r modifyScheduledQueryResponse) error() error { return r.Err }
 
-func modifyScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyScheduledQueryRequest)
 
 	sq, err := svc.ModifyScheduledQuery(ctx, req.ID, req.ScheduledQueryPayload)
@@ -294,7 +294,7 @@ type deleteScheduledQueryResponse struct {
 
 func (r deleteScheduledQueryResponse) error() error { return r.Err }
 
-func deleteScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteScheduledQueryRequest)
 
 	err := svc.DeleteScheduledQuery(ctx, req.ID)

@@ -4,8 +4,8 @@ name: fleet
 keywords:
   - fleet
   - osquery
-version: v5.0.0
+version: v5.0.1
 home: https://github.com/fleetdm/fleet
 sources:
   - https://github.com/fleetdm/fleet.git
-appVersion: v4.24.1
+appVersion: v4.33.1

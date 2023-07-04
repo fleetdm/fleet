@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "jsx": "react",
+        "lib": [
+            "es2020",
+            "dom"
+        ],
+        "module": "es2020",
+        "moduleResolution": "node",
+        "outDir": "dist/js",
+        "rootDir": "src",
+        "sourceMap": true,
+        "target": "es2015"
+    },
+    "exclude": [
+        "node_modules",
+        "jest.config.ts",
+        "jest.setup.ts",
+        "jsdomwithfetch.ts"
+    ],
+}

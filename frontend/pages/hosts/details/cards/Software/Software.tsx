@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useDebouncedCallback } from "use-debounce";
+import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import PATHS from "router/paths";
+import { isEmpty } from "lodash";
 
+import { AppContext } from "context/app";
 import { ISoftware } from "interfaces/software";
 import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -11,8 +12,10 @@ import { buildQueryStringFromParams } from "utilities/url";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
+import { getNextLocationPath } from "utilities/helpers";
 
-import EmptyState from "../EmptyState";
 import SoftwareVulnCount from "./SoftwareVulnCount";
 
 import {
@@ -31,52 +34,146 @@ interface ISoftwareTableProps {
   software: ISoftware[];
   deviceUser?: boolean;
   deviceType?: string;
-  softwareInventoryEnabled?: boolean;
+  isSoftwareEnabled?: boolean;
   router?: InjectedRouter;
+  queryParams?: {
+    vulnerable?: string;
+    page?: string;
+    query?: string;
+    order_key?: string;
+    order_direction?: "asc" | "desc";
+  };
+  routeTemplate?: string;
+  pathname: string;
+  pathPrefix: string;
 }
 
 interface IRowProps extends Row {
   original: {
     id?: number;
   };
+  isSoftwareEnabled?: boolean;
 }
+
+const DEFAULT_SORT_DIRECTION = "desc";
+const DEFAULT_SORT_HEADER = "name";
+const DEFAULT_PAGE_SIZE = 20;
 
 const SoftwareTable = ({
   isLoading,
   software,
   deviceUser,
   deviceType,
-  softwareInventoryEnabled,
   router,
+  queryParams,
+  routeTemplate,
+  pathPrefix,
+  pathname,
 }: ISoftwareTableProps): JSX.Element => {
-  const [searchString, setSearchString] = useState("");
-  const [filterVuln, setFilterVuln] = useState(false);
-  const [filters, setFilters] = useState({
-    global: searchString,
-    vulnerabilities: filterVuln,
-  });
+  const { isSandboxMode, setFilteredSoftwarePath } = useContext(AppContext);
 
-  useEffect(() => {
-    setFilters({ global: searchString, vulnerabilities: filterVuln });
-  }, [searchString, filterVuln]);
+  // Functions to avoid race conditions
+  const initialSearchQuery = (() => queryParams?.query ?? "")();
+  const initialSortHeader = (() => queryParams?.order_key ?? "name")();
+  const initialSortDirection = (() =>
+    (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
+  const initialVulnFilter = (() => queryParams?.vulnerable === "true")();
+  const initialPage = (() =>
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
-  const onQueryChange = useDebouncedCallback(
-    ({ searchQuery }: { searchQuery: string }) => {
-      setSearchString(searchQuery);
+  // Never set as state as URL is source of truth
+  const searchQuery = initialSearchQuery;
+  const filterVuln = initialVulnFilter;
+  const page = initialPage;
+  const sortDirection = initialSortDirection;
+  const sortHeader = initialSortHeader;
+
+  // TODO: Look into useDebounceCallback with dependencies
+  const onQueryChange = useCallback(
+    async (newTableQuery: ITableQueryData) => {
+      const {
+        pageIndex: newPageIndex,
+        searchQuery: newSearchQuery,
+        sortDirection: newSortDirection,
+        sortHeader: newSortHeader,
+      } = newTableQuery;
+
+      // Rebuild queryParams to dispatch new browser location to react-router
+      const newQueryParams: { [key: string]: string | number | undefined } = {};
+
+      if (!isEmpty(newSearchQuery)) {
+        newQueryParams.query = newSearchQuery;
+      }
+
+      newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
+      newQueryParams.order_direction =
+        newSortDirection || DEFAULT_SORT_DIRECTION;
+      newQueryParams.vulnerable = filterVuln ? "true" : "false"; // must set from URL
+      newQueryParams.page = newPageIndex;
+      // Reset page number to 0 for new filters
+      if (
+        newSortDirection !== sortDirection ||
+        newSortHeader !== sortHeader ||
+        newSearchQuery !== searchQuery
+      ) {
+        newQueryParams.page = 0;
+      }
+
+      const locationPath = getNextLocationPath({
+        pathPrefix,
+        routeTemplate,
+        queryParams: newQueryParams,
+      });
+
+      router?.replace(locationPath);
     },
-    300
+    [sortHeader, sortDirection, searchQuery, filterVuln, router, routeTemplate]
+  );
+
+  const onClientSidePaginationChange = useCallback(
+    (pageIndex: number) => {
+      const locationPath = getNextLocationPath({
+        pathPrefix,
+        routeTemplate,
+        queryParams: {
+          ...queryParams,
+          page: pageIndex,
+          vulnerable: filterVuln ? "true" : "false",
+          query: searchQuery,
+          order_direction: sortDirection,
+          order_key: sortHeader,
+        },
+      });
+      router?.replace(locationPath);
+    },
+    [filterVuln, searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
   );
 
   const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
     software,
   ]);
   const tableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(deviceUser, router),
-    [deviceUser, router]
+    () =>
+      generateSoftwareTableHeaders({
+        deviceUser,
+        router,
+        setFilteredSoftwarePath,
+        pathname,
+      }),
+    [deviceUser, router, pathname]
   );
 
-  const onVulnFilterChange = (value: boolean) => {
-    setFilterVuln(value);
+  const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+    const nextPath = getNextLocationPath({
+      pathPrefix,
+      routeTemplate,
+      queryParams: {
+        ...queryParams,
+        page: 0,
+        vulnerable: isFilterVulnerable,
+      },
+    });
+    router?.replace(nextPath);
   };
 
   const handleRowSelect = (row: IRowProps) => {
@@ -84,10 +181,12 @@ const SoftwareTable = ({
       return;
     }
 
-    const queryParams = { software_id: row.original.id };
+    const hostsBySoftwareParams = { software_id: row.original.id };
 
-    const path = queryParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
+    const path = hostsBySoftwareParams
+      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
+          hostsBySoftwareParams
+        )}`
       : PATHS.MANAGE_HOSTS;
 
     router.push(path);
@@ -96,27 +195,14 @@ const SoftwareTable = ({
   const renderVulnFilterDropdown = () => {
     return (
       <Dropdown
-        value={filters.vulnerabilities}
+        value={filterVuln}
         className={`${baseClass}__vuln_dropdown`}
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
-        onChange={onVulnFilterChange}
+        onChange={handleVulnFilterDropdownChange}
       />
     );
   };
-
-  const EmptySoftwareSearch = () => (
-    <EmptyState title="software" reason="empty-search" />
-  );
-
-  if (softwareInventoryEnabled === false) {
-    return (
-      <div className="section section--software">
-        <p className="section__header">Software</p>
-        <EmptyState title="software" reason="disabled" />
-      </div>
-    );
-  }
 
   return (
     <div className="section section--software">
@@ -133,24 +219,34 @@ const SoftwareTable = ({
           {software && (
             <div className={deviceType || ""}>
               <TableContainer
+                resultsTitle="software items"
                 columns={tableHeaders}
                 data={tableSoftware || []}
-                filters={filters}
+                filters={{
+                  global: searchQuery,
+                  vulnerabilities: filterVuln,
+                }}
                 isLoading={isLoading}
-                defaultSortHeader={"name"}
-                defaultSortDirection={"asc"}
-                inputPlaceHolder={
-                  "Search software by name or vulnerabilities ( CVEs)"
-                }
+                defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+                defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+                defaultSearchQuery={searchQuery}
+                defaultPageIndex={page}
+                pageSize={DEFAULT_PAGE_SIZE}
+                inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
                 onQueryChange={onQueryChange}
-                resultsTitle={"software items"}
-                emptyComponent={EmptySoftwareSearch}
+                emptyComponent={() => (
+                  <EmptySoftwareTable
+                    isFilterVulnerable={filterVuln}
+                    isSearching={searchQuery !== ""}
+                    isSandboxMode={isSandboxMode}
+                  />
+                )}
                 showMarkAllPages={false}
                 isAllPagesSelected={false}
                 searchable
                 customControl={renderVulnFilterDropdown}
                 isClientSidePagination
-                pageSize={20}
+                onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter
                 disableMultiRowSelect={!deviceUser && !!router} // device user cannot view hosts by software
                 onSelectSingleRow={handleRowSelect}
@@ -159,7 +255,10 @@ const SoftwareTable = ({
           )}
         </>
       ) : (
-        <EmptyState title="software" />
+        <EmptySoftwareTable
+          isSandboxMode={isSandboxMode}
+          isFilterVulnerable={filterVuln}
+        />
       )}
     </div>
   );

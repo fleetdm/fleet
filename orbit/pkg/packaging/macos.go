@@ -2,12 +2,14 @@ package packaging
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 
 	"github.com/Masterminds/semver"
@@ -17,6 +19,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/rs/zerolog/log"
 )
+
+var bomRegexp = regexp.MustCompile(`(.+)\t([0-9]+/[0-9]+)`)
 
 // See helful docs in http://bomutils.dyndns.org/tutorial.html
 
@@ -51,6 +55,15 @@ func BuildPkg(opt Options) (string, error) {
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.ServerURL = opt.UpdateURL
 	updateOpt.Targets = update.DarwinTargets
+	updateOpt.ServerCertificatePath = opt.UpdateTLSServerCertificate
+
+	if opt.UpdateTLSClientCertificate != "" {
+		updateClientCrt, err := tls.LoadX509KeyPair(opt.UpdateTLSClientCertificate, opt.UpdateTLSClientKey)
+		if err != nil {
+			return "", fmt.Errorf("error loading update client certificate and key: %w", err)
+		}
+		updateOpt.ClientCertificate = &updateClientCrt
+	}
 
 	if opt.Desktop {
 		updateOpt.Targets["desktop"] = update.DesktopMacOSTarget
@@ -109,9 +122,28 @@ func BuildPkg(opt Options) (string, error) {
 			return "", fmt.Errorf("write launchd: %w", err)
 		}
 	}
+
 	if opt.FleetCertificate != "" {
-		if err := writeCertificate(opt, orbitRoot); err != nil {
-			return "", fmt.Errorf("write fleet certificate: %w", err)
+		if err := writeFleetServerCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write fleet server certificate: %w", err)
+		}
+	}
+
+	if opt.FleetTLSClientCertificate != "" {
+		if err := writeFleetClientCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write fleet client certificate: %w", err)
+		}
+	}
+
+	if opt.UpdateTLSServerCertificate != "" {
+		if err := writeUpdateServerCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write update server certificate: %w", err)
+		}
+	}
+
+	if opt.UpdateTLSClientCertificate != "" {
+		if err := writeUpdateClientCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write update client certificate: %w", err)
 		}
 	}
 
@@ -253,14 +285,47 @@ func writeDistribution(opt Options, rootPath string) error {
 	return nil
 }
 
-func writeCertificate(opt Options, orbitRoot string) error {
-	// Fleet TLS certificate
+func writeFleetServerCertificate(opt Options, orbitRoot string) error {
 	dstPath := filepath.Join(orbitRoot, "fleet.pem")
 
 	if err := file.Copy(opt.FleetCertificate, dstPath, 0o644); err != nil {
-		return fmt.Errorf("write orbit: %w", err)
+		return fmt.Errorf("write fleet server certificate: %w", err)
 	}
 
+	return nil
+}
+
+func writeUpdateServerCertificate(opt Options, orbitRoot string) error {
+	dstPath := filepath.Join(orbitRoot, "update.pem")
+
+	if err := file.Copy(opt.UpdateTLSServerCertificate, dstPath, 0o644); err != nil {
+		return fmt.Errorf("write update server certificate: %w", err)
+	}
+
+	return nil
+}
+
+func writeFleetClientCertificate(opt Options, orbitRoot string) error {
+	dstPath := filepath.Join(orbitRoot, constant.FleetTLSClientCertificateFileName)
+	if err := file.Copy(opt.FleetTLSClientCertificate, dstPath, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write fleet certificate file: %w", err)
+	}
+	dstPath = filepath.Join(orbitRoot, constant.FleetTLSClientKeyFileName)
+	if err := file.Copy(opt.FleetTLSClientKey, dstPath, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write fleet key file: %w", err)
+	}
+	return nil
+}
+
+func writeUpdateClientCertificate(opt Options, orbitRoot string) error {
+	dstPath := filepath.Join(orbitRoot, constant.UpdateTLSClientCertificateFileName)
+	if err := file.Copy(opt.UpdateTLSClientCertificate, dstPath, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write update certificate file: %w", err)
+	}
+	dstPath = filepath.Join(orbitRoot, constant.UpdateTLSClientKeyFileName)
+	if err := file.Copy(opt.UpdateTLSClientKey, dstPath, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write update key file: %w", err)
+	}
 	return nil
 }
 
@@ -284,21 +349,50 @@ func xarBom(opt Options, rootPath string) error {
 		return fmt.Errorf("cpio Scripts: %w", err)
 	}
 
-	// Make bom
+	// Make Bill of materials (bom)
 	var cmdMkbom *exec.Cmd
-	var isDarwin = runtime.GOOS == "darwin"
-	var isLinuxNative = runtime.GOOS == "linux" && opt.NativeTooling
+	isDarwin := runtime.GOOS == "darwin"
+	isLinuxNative := runtime.GOOS == "linux" && opt.NativeTooling
 
 	switch {
-	case isDarwin, isLinuxNative:
-		cmdMkbom = exec.Command("mkbom", filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"))
+	case isDarwin:
+		// Using mkbom directly results in permissions listed for the current user and group. We
+		// transform the output in order to explicitly set root (0) and admin (80).
+		inBomPath := filepath.Join(rootPath, "inBom")
+		cmd := exec.Command("mkbom", filepath.Join(rootPath, "root"), inBomPath)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("initial mkbom: %w", err)
+		}
+		bomContents, err := exec.Command("lsbom", inBomPath).Output()
+		if err != nil {
+			return fmt.Errorf("lsbom inBom: %w", err)
+		}
+		bomContents = bomReplace(bomContents)
+		if err := ioutil.WriteFile(inBomPath, bomContents, 0); err != nil {
+			return fmt.Errorf("write inBom: %w", err)
+		}
+
+		// Use the file list (with transformed permissions) via -i flag
+		cmdMkbom = exec.Command("mkbom", "-i", "inBom", filepath.Join("flat", "base.pkg", "Bom"))
+		cmdMkbom.Dir = rootPath
+
+	// No need for transformation when using the Linux mkbom because of the -u and -g flags
+	// available in that command.
+	case isLinuxNative:
+		cmdMkbom = exec.Command(
+			"mkbom", "-u", "0", "-g", "80",
+			filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"),
+		)
 		cmdMkbom.Dir = rootPath
 	default:
+		// Same as linux native, but modified for running in Docker. This should
+		// be either Windows, or Linux without the --native-tooling flag.
 		cmdMkbom = exec.Command(
 			"docker", "run", "--rm", "-v", rootPath+":/root", "fleetdm/bomutils",
 			"mkbom", "-u", "0", "-g", "80",
 			// Use / instead of filepath.Join because these will always be paths within the Docker
-			// container (so Linux file paths)
+			// container (so Linux file paths) -- if we use filepath.Join we'll get invalid paths on
+			// Windows due to use of backslashes.
 			"/root/root", "/root/flat/base.pkg/Bom",
 		)
 	}
@@ -345,6 +439,11 @@ func xarBom(opt Options, rootPath string) error {
 	}
 
 	return nil
+}
+
+// bomReplace replaces the permission strings (typically "501/20") with the appropriate string ("0/80")
+func bomReplace(inBom []byte) []byte {
+	return bomRegexp.ReplaceAll(inBom, []byte("$1\t0/80"))
 }
 
 func cpio(srcPath, dstPath string) error {

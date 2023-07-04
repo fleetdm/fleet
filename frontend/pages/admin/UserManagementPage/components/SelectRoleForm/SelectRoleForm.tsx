@@ -1,38 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 
 import { ITeam } from "interfaces/team";
 import { IRole } from "interfaces/role";
+import { UserRole } from "interfaces/user";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import { AppContext } from "context/app";
+import { roleOptions } from "../../helpers/userManagementHelpers";
 
 interface ISelectRoleFormProps {
-  defaultTeamRole: string;
+  defaultTeamRole: UserRole;
   currentTeam?: ITeam;
   teams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
   label: string | string[];
+  isApiOnly?: boolean;
 }
 
 const baseClass = "select-role-form";
-
-const roles: IRole[] = [
-  {
-    disabled: false,
-    label: "Observer",
-    value: "observer",
-  },
-  {
-    disabled: false,
-    label: "Maintainer",
-    value: "maintainer",
-  },
-  {
-    disabled: false,
-    label: "Admin",
-    value: "admin",
-  },
-];
 
 const generateSelectedTeamData = (
   allTeams: ITeam[],
@@ -61,12 +47,15 @@ const SelectRoleForm = ({
   teams,
   onFormChange,
   label,
+  isApiOnly,
 }: ISelectRoleFormProps): JSX.Element => {
+  const { isPremiumTier } = useContext(AppContext);
+
   const [selectedRole, setSelectedRole] = useState(
     defaultTeamRole.toLowerCase()
   );
 
-  const updateSelectedRole = (newRoleValue: string) => {
+  const updateSelectedRole = (newRoleValue: UserRole) => {
     const updatedTeam = { ...currentTeam };
 
     updatedTeam.role = newRoleValue;
@@ -83,9 +72,11 @@ const SelectRoleForm = ({
           label={label}
           value={selectedRole}
           className={`${baseClass}__role-dropdown`}
-          options={roles}
+          options={roleOptions({ isPremiumTier, isApiOnly })}
           searchable={false}
-          onChange={(newRoleValue: string) => updateSelectedRole(newRoleValue)}
+          onChange={(newRoleValue: UserRole) =>
+            updateSelectedRole(newRoleValue)
+          }
           testId={`${name}-checkbox`}
         />
       </div>

@@ -17,7 +17,7 @@ func NewMapper() fleetwebhooks.VulnMapper {
 
 func (m *Mapper) GetPayload(
 	hostBaseURL *url.URL,
-	hosts []*fleet.HostShort,
+	hosts []fleet.HostVulnerabilitySummary,
 	cve string,
 	meta fleet.CVEMeta,
 ) fleetwebhooks.WebhookPayload {
@@ -29,5 +29,6 @@ func (m *Mapper) GetPayload(
 	r.EPSSProbability = meta.EPSSProbability
 	r.CVSSScore = meta.CVSSScore
 	r.CISAKnownExploit = meta.CISAKnownExploit
+	r.CVEPublished = meta.Published
 	return r
 }

@@ -25,7 +25,7 @@ const ShowQueryModal = ({
       <div className={baseClass}>
         <FleetAce
           value={query}
-          name="Scheduled query"
+          name="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           wrapEnabled
           readOnly

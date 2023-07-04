@@ -8,9 +8,11 @@ import (
 )
 
 const (
-	RoleAdmin      = "admin"
-	RoleMaintainer = "maintainer"
-	RoleObserver   = "observer"
+	RoleAdmin        = "admin"
+	RoleMaintainer   = "maintainer"
+	RoleObserver     = "observer"
+	RoleObserverPlus = "observer_plus"
+	RoleGitOps       = "gitops"
 )
 
 type TeamPayload struct {
@@ -19,7 +21,17 @@ type TeamPayload struct {
 	Secrets         []*EnrollSecret      `json:"secrets"`
 	WebhookSettings *TeamWebhookSettings `json:"webhook_settings"`
 	Integrations    *TeamIntegrations    `json:"integrations"`
+	MDM             *TeamPayloadMDM      `json:"mdm"`
 	// Note AgentOptions must be set by a separate endpoint.
+}
+
+// TeamPayloadMDM is a distinct struct than TeamMDM because in ModifyTeam we
+// need to be able which part of the MDM config was provided in the request,
+// so the fields are pointers to structs.
+type TeamPayloadMDM struct {
+	MacOSUpdates  *MacOSUpdates  `json:"macos_updates"`
+	MacOSSettings *MacOSSettings `json:"macos_settings"`
+	MacOSSetup    *MacOSSetup    `json:"macos_setup"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -123,10 +135,32 @@ type TeamConfig struct {
 	WebhookSettings TeamWebhookSettings `json:"webhook_settings"`
 	Integrations    TeamIntegrations    `json:"integrations"`
 	Features        Features            `json:"features"`
+	MDM             TeamMDM             `json:"mdm"`
 }
 
 type TeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+}
+
+type TeamMDM struct {
+	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
+	MacOSSettings MacOSSettings `json:"macos_settings"`
+	MacOSSetup    MacOSSetup    `json:"macos_setup"`
+	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
+}
+
+type TeamSpecMDM struct {
+	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+
+	// A map is used for the macos settings so that we can easily detect if its
+	// sub-keys were provided or not in an "apply" call. E.g. if the
+	// custom_settings key is specified but empty, then we need to clear the
+	// value, but if it isn't provided, we need to leave the existing value
+	// unmodified.
+	MacOSSettings map[string]interface{} `json:"macos_settings"`
+	MacOSSetup    MacOSSetup             `json:"macos_setup"`
+
+	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
 
 // Scan implements the sql.Scanner interface
@@ -166,44 +200,42 @@ type TeamUser struct {
 	Role string `json:"role" db:"role"`
 }
 
-var teamRoles = map[string]bool{
-	RoleAdmin:      true,
-	RoleObserver:   true,
-	RoleMaintainer: true,
+var teamRoles = map[string]struct{}{
+	RoleAdmin:        {},
+	RoleObserver:     {},
+	RoleMaintainer:   {},
+	RoleObserverPlus: {},
+	RoleGitOps:       {},
+}
+
+var premiumTeamRoles = map[string]struct{}{
+	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
 // ValidTeamRole returns whether the role provided is valid for a team user.
 func ValidTeamRole(role string) bool {
-	return teamRoles[role]
+	_, ok := teamRoles[role]
+	return ok
 }
 
-// ValidTeamRoles returns the list of valid roles for a team user.
-func ValidTeamRoles() []string {
-	var roles []string
-	for role := range teamRoles {
-		roles = append(roles, role)
-	}
-	return roles
+var globalRoles = map[string]struct{}{
+	RoleObserver:     {},
+	RoleMaintainer:   {},
+	RoleAdmin:        {},
+	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
-var globalRoles = map[string]bool{
-	RoleObserver:   true,
-	RoleMaintainer: true,
-	RoleAdmin:      true,
+var premiumGlobalRoles = map[string]struct{}{
+	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.
 func ValidGlobalRole(role string) bool {
-	return globalRoles[role]
-}
-
-// ValidGlobalRoles returns the list of valid roles for a global user.
-func ValidGlobalRoles() []string {
-	var roles []string
-	for role := range globalRoles {
-		roles = append(roles, role)
-	}
-	return roles
+	_, ok := globalRoles[role]
+	return ok
 }
 
 // ValidateRole returns nil if the global and team roles combination is a valid
@@ -215,7 +247,7 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 		}
 		for _, t := range teamUsers {
 			if !ValidTeamRole(t.Role) {
-				return NewError(ErrNoRoleNeeded, "Team roles can be observer or maintainer")
+				return NewErrorf(ErrNoRoleNeeded, "invalid team role: %s", t.Role)
 			}
 		}
 		return nil
@@ -226,7 +258,50 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	}
 
 	if !ValidGlobalRole(*globalRole) {
-		return NewError(ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
+		return NewErrorf(ErrNoRoleNeeded, "invalid global role: %s", *globalRole)
+	}
+
+	return nil
+}
+
+// ValidateUserRoles verifies the roles to be applied to a new or existing user.
+//
+// Argument createNew sets whether the user is being created (true) or is being modified (false).
+func ValidateUserRoles(createNew bool, payload UserPayload, license LicenseInfo) error {
+	var teamUsers_ []UserTeam
+	if payload.Teams != nil {
+		teamUsers_ = *payload.Teams
+	}
+	if err := ValidateRole(payload.GlobalRole, teamUsers_); err != nil {
+		return err
+	}
+	premiumRolesPresent := false
+	gitOpsRolePresent := false
+	if payload.GlobalRole != nil {
+		if *payload.GlobalRole == RoleGitOps {
+			gitOpsRolePresent = true
+		}
+		if _, ok := premiumGlobalRoles[*payload.GlobalRole]; ok {
+			premiumRolesPresent = true
+		}
+	}
+	for _, teamUser := range teamUsers_ {
+		if teamUser.Role == RoleGitOps {
+			gitOpsRolePresent = true
+		}
+		if _, ok := premiumTeamRoles[teamUser.Role]; ok {
+			premiumRolesPresent = true
+		}
+	}
+	if !license.IsPremium() && premiumRolesPresent {
+		return ErrMissingLicense
+	}
+	if gitOpsRolePresent &&
+		// New user is not API only.
+		((createNew && (payload.APIOnly == nil || !*payload.APIOnly)) ||
+			// Removing API only status from existing user.
+			(!createNew && payload.APIOnly != nil && !*payload.APIOnly)) {
+		return NewErrorf(ErrAPIOnlyRole, "role GitOps can only be set for API only users")
 	}
 
 	return nil
@@ -262,6 +337,39 @@ type TeamSpec struct {
 	// set to the agent options JSON object.
 	AgentOptions json.RawMessage `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
 
-	Secrets  []EnrollSecret   `json:"secrets"`
+	Secrets  []EnrollSecret   `json:"secrets,omitempty"`
 	Features *json.RawMessage `json:"features"`
+	MDM      TeamSpecMDM      `json:"mdm"`
+}
+
+// TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
+func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
+	features, err := json.Marshal(t.Config.Features)
+	if err != nil {
+		return nil, err
+	}
+	featuresJSON := json.RawMessage(features)
+	var secrets []EnrollSecret
+	if len(t.Secrets) > 0 {
+		secrets = make([]EnrollSecret, 0, len(t.Secrets))
+		for _, secret := range t.Secrets {
+			secrets = append(secrets, *secret)
+		}
+	}
+	var agentOptions json.RawMessage
+	if t.Config.AgentOptions != nil {
+		agentOptions = *t.Config.AgentOptions
+	}
+
+	var mdmSpec TeamSpecMDM
+	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
+	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
+	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
+	return &TeamSpec{
+		Name:         t.Name,
+		AgentOptions: agentOptions,
+		Features:     &featuresJSON,
+		Secrets:      secrets,
+		MDM:          mdmSpec,
+	}, nil
 }

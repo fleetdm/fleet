@@ -1,7 +1,8 @@
 name: filevault_users
-notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 description: Information on the users able to unlock the current boot volume if protected with FileVault.
-platforms: darwin
+platforms: 
+  - darwin
 evented: false
 examples: >-
   List the usernames able to unlock and boot a computer protected by FileVault, joined to

@@ -29,6 +29,11 @@ class InputField extends Component {
     ]).isRequired,
     parseTarget: PropTypes.bool,
     tooltip: PropTypes.string,
+    hint: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.arrayOf(PropTypes.string),
+      PropTypes.object,
+    ]),
   };
 
   static defaultProps = {
@@ -44,6 +49,7 @@ class InputField extends Component {
     value: "",
     parseTarget: false,
     tooltip: "",
+    hint: "",
   };
 
   componentDidMount() {
@@ -86,6 +92,7 @@ class InputField extends Component {
       blockAutoComplete,
       value,
     } = this.props;
+
     const { onInputChange } = this;
     const shouldShowPasswordClass = type === "password";
     const inputClasses = classnames(baseClass, inputClassName, {

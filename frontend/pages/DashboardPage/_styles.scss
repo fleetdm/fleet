@@ -1,6 +1,12 @@
 .dashboard-page {
   background-color: $ui-off-white;
 
+  .data-error {
+    &__inner {
+      margin: $pad-xxxlarge 0;
+    }
+  }
+
   &__wrapper {
     background-color: $ui-off-white;
   }
@@ -57,6 +63,14 @@
 
   &__platform_dropdown {
     width: 138px;
+
+    .Select-menu-outer {
+      max-height: none;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
   }
 
   &__section {

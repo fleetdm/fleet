@@ -1,64 +1,71 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { IDataTableMdmFormat, IMdmSolution } from "interfaces/macadmins";
+import { IMdmStatusCardData, IMdmSolution } from "interfaces/mdm";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
+
 import {
   generateSolutionsTableHeaders,
   generateSolutionsDataSet,
 } from "./MDMSolutionsTableConfig";
-import generateEnrollmentTableHeaders from "./MDMEnrollmentTableConfig";
+import {
+  generateStatusTableHeaders,
+  generateStatusDataSet,
+} from "./MDMStatusTableConfig";
 
 interface IMdmCardProps {
-  errorMacAdmins: Error | null;
-  isMacAdminsFetching: boolean;
-  formattedMdmData: IDataTableMdmFormat[];
+  error: Error | null;
+  isFetching: boolean;
+  mdmStatusData: IMdmStatusCardData[];
   mdmSolutions: IMdmSolution[] | null;
+  selectedPlatformLabelId?: number;
+  selectedTeamId?: number;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
 const SOLUTIONS_DEFAULT_SORT_HEADER = "hosts_count";
-const ENROLLMENT_DEFAULT_SORT_DIRECTION = "asc";
-const ENROLLMENT_DEFAULT_SORT_HEADER = "status";
+const STATUS_DEFAULT_SORT_DIRECTION = "asc";
+const STATUS_DEFAULT_SORT_HEADER = "status";
 const PAGE_SIZE = 8;
 const baseClass = "home-mdm";
 
-const EmptyMdmEnrollment = (): JSX.Element => (
-  <div className={`${baseClass}__empty-mdm`}>
-    <h1>Unable to detect MDM enrollment</h1>
-    <p>
-      To see MDM versions, deploy&nbsp;
-      <a
-        href="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Fleet&apos;s osquery installer
-      </a>
-      .
-    </p>
-  </div>
+const EmptyMdmStatus = (): JSX.Element => (
+  <EmptyTable
+    header="Unable to detect MDM enrollment"
+    info={
+      <>
+        To see MDM versions, deploy&nbsp;
+        <CustomLink
+          url="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
+          newTab
+          text="Fleet's osquery installer"
+        />
+      </>
+    }
+  />
 );
 
 const EmptyMdmSolutions = (): JSX.Element => (
-  <div className={`${baseClass}__empty-mdm`}>
-    <h1>No MDM solutions detected</h1>
-    <p>
-      This report is updated every hour to protect the performance of your
-      devices.
-    </p>
-  </div>
+  <EmptyTable
+    header="No MDM solutions detected"
+    info="This report is updated every hour to protect the performance of your
+      devices."
+  />
 );
 
 const Mdm = ({
-  isMacAdminsFetching,
-  errorMacAdmins,
-  formattedMdmData,
+  isFetching,
+  error,
+  mdmStatusData,
   mdmSolutions,
+  selectedPlatformLabelId,
+  selectedTeamId,
 }: IMdmCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState(0);
 
@@ -66,16 +73,29 @@ const Mdm = ({
     setNavTabIndex(index);
   };
 
-  const solutionsTableHeaders = generateSolutionsTableHeaders();
-  const enrollmentTableHeaders = generateEnrollmentTableHeaders();
-  const solutionsDataSet = generateSolutionsDataSet(mdmSolutions);
+  const solutionsTableHeaders = useMemo(
+    () => generateSolutionsTableHeaders(selectedTeamId),
+    [selectedTeamId]
+  );
+  const statusTableHeaders = useMemo(
+    () => generateStatusTableHeaders(selectedTeamId),
+    [selectedTeamId]
+  );
+  const solutionsDataSet = generateSolutionsDataSet(
+    mdmSolutions,
+    selectedPlatformLabelId
+  );
+  const statusDataSet = generateStatusDataSet(
+    mdmStatusData,
+    selectedPlatformLabelId
+  );
 
   // Renders opaque information as host information is loading
-  const opacity = isMacAdminsFetching ? { opacity: 0 } : { opacity: 1 };
+  const opacity = isFetching ? { opacity: 0 } : { opacity: 1 };
 
   return (
     <div className={baseClass}>
-      {isMacAdminsFetching && (
+      {isFetching && (
         <div className="spinner">
           <Spinner />
         </div>
@@ -85,47 +105,43 @@ const Mdm = ({
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
               <Tab>Solutions</Tab>
-              <Tab>Enrollment</Tab>
+              <Tab>Status</Tab>
             </TabList>
             <TabPanel>
-              {errorMacAdmins ? (
+              {error ? (
                 <TableDataError card />
               ) : (
                 <TableContainer
                   columns={solutionsTableHeaders}
                   data={solutionsDataSet}
-                  isLoading={isMacAdminsFetching}
+                  isLoading={isFetching}
                   defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"MDM"}
                   emptyComponent={EmptyMdmSolutions}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   isClientSidePagination
                   disableCount
-                  disableActionButton
                   pageSize={PAGE_SIZE}
                 />
               )}
             </TabPanel>
             <TabPanel>
-              {errorMacAdmins ? (
+              {error ? (
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={enrollmentTableHeaders}
-                  data={formattedMdmData}
-                  isLoading={isMacAdminsFetching}
-                  defaultSortHeader={ENROLLMENT_DEFAULT_SORT_HEADER}
-                  defaultSortDirection={ENROLLMENT_DEFAULT_SORT_DIRECTION}
-                  hideActionButton
+                  columns={statusTableHeaders}
+                  data={statusDataSet}
+                  isLoading={isFetching}
+                  defaultSortHeader={STATUS_DEFAULT_SORT_HEADER}
+                  defaultSortDirection={STATUS_DEFAULT_SORT_DIRECTION}
                   resultsTitle={"MDM"}
-                  emptyComponent={EmptyMdmEnrollment}
+                  emptyComponent={EmptyMdmStatus}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
-                  disableActionButton
                   disablePagination
                   pageSize={PAGE_SIZE}
                 />

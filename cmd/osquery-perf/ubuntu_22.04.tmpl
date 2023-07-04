@@ -38,7 +38,7 @@
             "cpu_subtype": "Intel x86-64h Haswell",
             "cpu_type": "x86_64h",
             "hardware_model": "",
-            "hardware_serial": "",
+            "hardware_serial": "{{ .SerialNumber }}",
             "hardware_vendor": "",
             "hardware_version": "",
             "hostname": "{{ .CachedString "hostname" }}",
@@ -129,7 +129,7 @@
 [
   {
     "hostname":"{{ .CachedString "hostname" }}",
-    "uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB",
+    "uuid":"{{ .UUID }}",
     "cpu_type":"x86_64h",
     "cpu_subtype":"Intel x86-64h Haswell",
     "cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
@@ -140,7 +140,7 @@
     "hardware_vendor":"",
     "hardware_model":"",
     "hardware_version":"",
-    "hardware_serial":"",
+    "hardware_serial":"{{ .SerialNumber }}",
     "computer_name":"{{ .CachedString "hostname" }}",
     "local_hostname":"{{ .CachedString "hostname" }}"
   }

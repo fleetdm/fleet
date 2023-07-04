@@ -5,7 +5,6 @@
 - [Why aren't my osquery agents connecting to Fleet?](#why-arent-my-osquery-agents-connecting-to-fleet)
 - [How do I fix "certificate verify failed" errors from osqueryd?](#how-do-i-fix-certificate-verify-failed-errors-from-osqueryd)
 - [What do I need to do to change the Fleet server TLS certificate?](#what-do-i-need-to-do-to-change-the-fleet-server-tls-certificate)
-- [When do I need to deploy a new enroll secret to my hosts?](#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts)
 - [How do I migrate hosts from one Fleet server to another (eg. testing to production)?](#how-do-i-migrate-hosts-from-one-fleet-server-to-another-eg-testing-to-production)
 - [What do I do about "too many open files" errors?](#what-do-i-do-about-too-many-open-files-errors)
 - [Can I skip versions when updating Fleet to the latest version?](#can-i-skip-versions-when-updating-to-the-latest-version)
@@ -16,9 +15,6 @@
 - [What are the MySQL user access requirements?](#what-are-the-mysql-user-requirements)
 - [Does Fleet support MySQL replication?](#does-fleet-support-mysql-replication)
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
-- [How long are osquery enroll secrets valid?](#how-long-are-osquery-enroll-secrets-valid)
-- [Should I use multiple enroll secrets?](#should-i-use-multiple-enroll-secrets)
-- [How can enroll secrets be rotated?](#how-can-enroll-secrets-be-rotated)
 - [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
 - [What Redis versions are supported?](#what-redis-versions-are-supported)
 - [Will my older version of Fleet work with Redis 6?](#will-my-older-version-of-fleet-work-with-redis-6)
@@ -86,14 +82,6 @@ We recommend a config like the following:
 client-output-buffer-limit pubsub 0 0 60
 ```
 
-## When do I need to deploy a new enroll secret to my hosts?
-
-Osquery provides the enroll secret only during the enrollment process. Once a host is enrolled, the node key it receives remains valid for authentication independent from the enroll secret.
-
-Currently enrolled hosts do not necessarily need enroll secrets updated, as the existing enrollment will continue to be valid as long as the host is not deleted from Fleet and the osquery store on the host remains valid. Any newly enrolling hosts must have the new secret.
-
-Deploying a new enroll secret cannot be done centrally from Fleet.
-
 ## How do I migrate hosts from one Fleet server to another (eg. testing to production)?
 
 Primarily, this would be done by changing the `--tls_hostname` and enroll secret to the values for the new server. In some circumstances (see [What do I need to do to change the Fleet server TLS certificate?](#what-do-i-need-to-do-to-change-the-fleet-server-tls-certificate)) it may be necessary to deploy a new certificate chain configured with `--tls_server_certs`.
@@ -150,7 +138,7 @@ fleet prepare db \
 
 ## Is Fleet available as a SaaS product?
 
-No. Currently, Fleet is only available for self-hosting on premises or in the cloud.
+Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/to/yoo5smT9).
 
 ## What MySQL versions are supported?
 
@@ -162,7 +150,7 @@ The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or 
 
 ## Does Fleet support MySQL replication?
 
-You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](https://fleetdm.com/docs/deploying/configuration#my-sql).
+You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](https://fleetdm.com/docs/deploying/configuration#mysql).
 
 ## What is duplicate enrollment and how do I fix it?
 
@@ -181,77 +169,6 @@ osquery generated UUID), and then delete the associated host in the Fleet UI.
 
 Find more information about [host identifiers here](https://fleetdm.com/docs/deploying/configuration#osquery-host-identifier).
 
-## How long are osquery enroll secrets valid?
-
-Enroll secrets are valid until you delete them.
-
-## Should I use multiple enroll secrets?
-
-That is up to you! Some organizations have internal goals around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
-Another reason you might want to use multiple enroll secrets is to use a certain enroll secret to
-auto-enroll hosts into a specific team (Fleet Premium).
-
-## How can enroll secrets be rotated?
-
-Rotating enroll secrets follows this process:
-
-1. Add a new secret.
-2. Transition existing clients to the new secret. Note that existing clients may not need to be
-   updated, as the enroll secret is not used by already enrolled clients.
-3. Remove the old secret.
-
-To do this with `fleetctl` (assuming the existing secret is `oldsecret` and the new secret is `newsecret`):
-
-Begin by retrieving the existing secret configuration:
-
-```
-$ fleetctl get enroll_secret
----
-apiVersion: v1
-kind: enroll_secret
-spec:
-  secrets:
-  - created_at: "2021-11-17T00:39:50Z"
-    secret: oldsecret
-```
-
-Apply the new configuration with both secrets:
-
-```
-$ echo '
----
-apiVersion: v1
-kind: enroll_secret
-spec:
-  secrets:
-  - created_at: "2021-11-17T00:39:50Z"
-    secret: oldsecret
-  - secret: newsecret
-' > secrets.yml
-$ fleetctl apply -f secrets.yml
-```
-
-Now transition clients to using only the new secret. When the transition is completed, remove the
-old secret:
-
-```
-$ echo '
----
-apiVersion: v1
-kind: enroll_secret
-spec:
-  secrets:
-  - secret: newsecret
-' > secrets.yml
-$ fleetctl apply -f secrets.yml
-```
-
-At this point, the old secret will no longer be accepted for new enrollments and the rotation is
-complete.
-
-A similar process may be followed for rotating team-specific enroll secrets. For teams, the secrets
-are managed in the team yaml.
-
 ## How do I resolve an "unknown column" error when upgrading Fleet?
 
 The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
@@ -260,7 +177,10 @@ Check out the [documentation on running database migrations](https://fleetdm.com
 
 ## What API endpoints should I expose to the public internet?
 
-If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the `/api/v1/osquery` endpoint to the public internet.
+If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the osquery endpoints to the public internet:
+
+- `/api/osquery`
+- `/api/v1/osquery`
 
 If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies. 
 
@@ -268,11 +188,22 @@ For full Fleet Desktop functionality, `/api/fleet/orbit/*` and`/api/fleet/device
 
 If you would like to use the fleetctl CLI from outside of your network, the following endpoints will also need to be exposed for `fleetctl`:
 
-- /api/setup
-- /api/v1/setup
-- /api/osquery/*
-- /api/latest/fleet/*
-- /api/v1/fleet/*
+- `/api/setup`
+- `/api/v1/setup`
+- `/api/latest/fleet/*`
+- `/api/v1/fleet/*`
+
+If you would like to use Fleet's MDM features, the following endpoints need to be exposed:
+
+- `/mdm/apple/scep` to allow hosts to obtain a SCEP certificate.
+- `/mdm/apple/mdm` to allow hosts to reach the server using the MDM protocol.
+- `/api/mdm/apple/enroll` to allow DEP enrolled devices to get an enrollment profile.
+- `/api/*/fleet/device/*/mdm/apple/manual_enrollment_profile` to allow manually enrolled devices to
+  download an enrollment profile.
+
+> The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
+> are not RESTful, and are not intended for use by API clients or browsers. 
+
 ## What is the minimum version of MySQL required by Fleet?
 
 Fleet requires at least MySQL version 5.7.

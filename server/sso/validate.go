@@ -120,13 +120,10 @@ func (v *validator) ValidateSignature(auth fleet.Auth) (fleet.Auth, error) {
 	if status != Success {
 		return nil, fmt.Errorf("response status %s", info.statusDescription())
 	}
-	decoded, err := base64.StdEncoding.DecodeString(info.rawResponse())
-	if err != nil {
-		return nil, fmt.Errorf("base64 decode response: %w", err)
-	}
 
 	// Examine the response for attempts to exploit weaknesses in Go's
 	// encoding/xml
+	decoded := info.rawResponse()
 	err = rtvalidator.Validate(bytes.NewReader(decoded))
 	if err != nil {
 		return nil, fmt.Errorf("response XML failed validation: %w", err)
@@ -220,4 +217,24 @@ func generateSAMLValidID() (string, error) {
 		randomBytes[i] = idAlphabet[randomBytes[i]%byte(len(idAlphabet))]
 	}
 	return idPrefix + string(randomBytes), nil
+}
+
+func ValidateAudiences(metadata Metadata, auth fleet.Auth, audiences ...string) error {
+	validator, err := NewValidator(metadata, WithExpectedAudience(audiences...))
+
+	if err != nil {
+		return fmt.Errorf("create validator from metadata: %w", err)
+	}
+	// make sure the response hasn't been tampered with
+	auth, err = validator.ValidateSignature(auth)
+	if err != nil {
+		return fmt.Errorf("signature validation failed: %w", err)
+	}
+	// make sure the response isn't stale
+	err = validator.ValidateResponse(auth)
+	if err != nil {
+		return fmt.Errorf("response validation failed: %w", err)
+	}
+
+	return nil
 }

@@ -1,6 +1,10 @@
 package service
 
-type notFoundError struct{}
+import "github.com/fleetdm/fleet/v4/server/fleet"
+
+type notFoundError struct {
+	fleet.ErrorWithUUID
+}
 
 func (e notFoundError) Error() string {
 	return "not found"

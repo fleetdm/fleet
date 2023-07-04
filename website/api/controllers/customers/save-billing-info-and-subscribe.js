@@ -117,7 +117,7 @@ module.exports = {
     let licenseKey = await sails.helpers.createLicenseKey.with({
       numberOfHosts: quoteRecord.numberOfHosts,
       organization: inputs.organization ? inputs.organization : this.req.me.organization,
-      expiresAt: subscription.current_period_end
+      expiresAt: subscription.current_period_end * 1000 // Converting the timestamp from Stripe (in seconds) to a JS timestamp before sending it to the createLicenseKey helper.
     });
 
     // Create the subscription record for this order.

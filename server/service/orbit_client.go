@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,10 +11,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
@@ -24,7 +27,7 @@ type OrbitClient struct {
 	*baseClient
 	nodeKeyFilePath string
 	enrollSecret    string
-	uuid            string
+	hostInfo        fleet.OrbitHostInfo
 
 	enrolledMu sync.Mutex
 	enrolled   bool
@@ -71,12 +74,20 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 
 // NewOrbitClient creates a new OrbitClient.
 //
-// rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
-// addr is the address of the Fleet server.
-// uuid is the UUID of the OrbitClient instance.
-func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string) (*OrbitClient, error) {
+//   - rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
+//   - addr is the address of the Fleet server.
+//   - orbitHostInfo is the host system information used for enrolling to Fleet.
+func NewOrbitClient(
+	rootDir string,
+	addr string,
+	rootCA string,
+	insecureSkipVerify bool,
+	enrollSecret string,
+	fleetClientCert *tls.Certificate,
+	orbitHostInfo fleet.OrbitHostInfo,
+) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
-	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", orbitCapabilities)
+	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
 	if err != nil {
 		return nil, err
 	}
@@ -86,26 +97,23 @@ func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVeri
 		nodeKeyFilePath: nodeKeyFilePath,
 		baseClient:      bc,
 		enrollSecret:    enrollSecret,
-		uuid:            uuid,
+		hostInfo:        orbitHostInfo,
 		enrolled:        false,
 	}, nil
 }
 
-// OrbitConfig holds the config returned by the Fleet server for a Orbit instance.
-type OrbitConfig struct {
-	// Flags holds the osquery startup flags to use when running osquery.
-	Flags json.RawMessage
-}
-
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
-func (oc *OrbitClient) GetConfig() (*OrbitConfig, error) {
+func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	verb, path := "POST", "/api/fleet/orbit/config"
 	var resp orbitGetConfigResponse
 	if err := oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp); err != nil {
 		return nil, err
 	}
-	return &OrbitConfig{
-		Flags: resp.Flags,
+	return &fleet.OrbitConfig{
+		Flags:         resp.Flags,
+		Extensions:    resp.Extensions,
+		Notifications: resp.Notifications,
+		NudgeConfig:   resp.NudgeConfig,
 	}, nil
 }
 
@@ -136,7 +144,13 @@ func (oc *OrbitClient) Ping() error {
 
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
-	params := EnrollOrbitRequest{EnrollSecret: oc.enrollSecret, HardwareUUID: oc.uuid}
+	params := EnrollOrbitRequest{
+		EnrollSecret:   oc.enrollSecret,
+		HardwareUUID:   oc.hostInfo.HardwareUUID,
+		HardwareSerial: oc.hostInfo.HardwareSerial,
+		Hostname:       oc.hostInfo.Hostname,
+		Platform:       oc.hostInfo.Platform,
+	}
 	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
 	if err != nil {
@@ -204,9 +218,25 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("enroll request: %w", err)
 	}
+
+	if runtime.GOOS == "windows" {
+
+		// creating the secret file with empty content
+		if err := os.WriteFile(oc.nodeKeyFilePath, nil, constant.DefaultFileMode); err != nil {
+			return "", fmt.Errorf("create orbit node key file: %w", err)
+		}
+
+		// restricting file access
+		if err := platform.ChmodRestrictFile(oc.nodeKeyFilePath); err != nil {
+			return "", fmt.Errorf("apply ACLs: %w", err)
+		}
+	}
+
+	// writing raw key material to the acl-ready secret file
 	if err := os.WriteFile(oc.nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("write orbit node key file: %w", err)
 	}
+
 	return orbitNodeKey, nil
 }
 

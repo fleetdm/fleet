@@ -117,3 +117,13 @@ resource "aws_rds_cluster_parameter_group" "example_mysql" {
   family      = "aurora-mysql8.0"
   description = "${local.name}-aurora-mysql-cluster-parameter-group"
 }
+
+resource "null_resource" "rds_guardian" {
+  triggers = {
+    rds_cluster = module.aurora_mysql.rds_cluster_endpoint
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}

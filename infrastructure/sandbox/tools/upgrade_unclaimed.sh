@@ -53,16 +53,26 @@ export TF_VAR_mysql_secret="arn:aws:secretsmanager:us-east-2:411315989055:secret
 
 terraform init -backend-config=backend.conf
 
-PREPROVISIONER_TASK_DEFINITION_ARN="$(aws ecs list-task-definitions | jq -r '.taskDefinitionArns[] | select(contains("sandbox-prod-preprovisioner"))')"
+# This should probably be calculated rather than static at some point.
+EXPECTED_UNCLAIMED_INSTANCES=10
+PREPROVISIONER_TASK_DEFINITION_ARN="$(aws ecs list-task-definitions | jq -r '.taskDefinitionArns[] | select(contains("sandbox-prod-preprovisioner"))' | tail -n1)"
 UNCLAIMED_INSTANCES="$(get_unclaimed_instances)"
+UNCLAIMED_ARRAY=( ${UNCLAIMED_INSTANCES} )
 
-# From the 11th and on.
-ALL_BUT_TEN="$(tail -n +11 <<<"${UNCLAIMED_INSTANCES}")"
+HALF_ROUND_DOWN="${UNCLAIMED_ARRAY[@]::$((${#UNCLAIMED_ARRAY[@]} / 2))}"
 
-purge_instances "${ALL_BUT_TEN:?}"
+purge_instances "${HALF_ROUND_DOWN:?}"
 
 provision_new_instances
 
+# If something went wrong, don't let us continue with way too few unclaimed instances
+NEW_UNCLAIMED="$(get_unclaimed_instances | wc -w)"
+if [ ${NEW_UNCLAIMED:?} -lt ${EXPECTED_UNCLAIMED_INSTANCES:?} ]; then
+	echo "Only ${NEW_UNCLAIMED:?} instances found, ${EXPECTED_UNCLAIMED_INSTANCES:?} expected.  Press ENTER to continue or CTRL-C to abort."
+	read
+fi
+
+# Get a fresh unclaimed as close to runtime as possible to reduce risk of deleting a claimed instance.
 REMAINING_UNCLAIMED="$(comm -12 <(get_unclaimed_instances) <(echo "${UNCLAIMED_INSTANCES:?}"))"
 
 purge_instances "${REMAINING_UNCLAIMED:?}"

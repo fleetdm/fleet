@@ -11,7 +11,7 @@ import (
 )
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query) (err error) {
-	tx, err := ds.writer.BeginTxx(ctx, nil)
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "begin ApplyQueries transaction")
 	}
@@ -73,7 +73,7 @@ func (ds *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet
 			WHERE name = ?
 	`
 	var query fleet.Query
-	err := sqlx.GetContext(ctx, ds.reader, &query, sqlStatement, name)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &query, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithName(name))
@@ -100,7 +100,7 @@ func (ds *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...f
 			observer_can_run
 		) VALUES ( ?, ?, ?, ?, ?, ? )
 	`
-	result, err := ds.writer.ExecContext(ctx, sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
+	result, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
 
 	if err != nil && isDuplicate(err) {
 		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", query.Name))
@@ -121,7 +121,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 			SET name = ?, description = ?, query = ?, author_id = ?, saved = ?, observer_can_run = ?
 			WHERE id = ?
 	`
-	result, err := ds.writer.ExecContext(ctx, sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ObserverCanRun, q.ID)
+	result, err := ds.writer(ctx).ExecContext(ctx, sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ObserverCanRun, q.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating query")
 	}
@@ -157,7 +157,7 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 		WHERE q.id = ?
 	`
 	query := &fleet.Query{}
-	if err := sqlx.GetContext(ctx, ds.reader, query, sqlQuery, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
 		}
@@ -186,17 +186,17 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 					 JSON_EXTRACT(json_value, '$.total_executions') as total_executions
 		FROM queries q
 		LEFT JOIN users u ON (q.author_id = u.id)
-		LEFT JOIN aggregated_stats ag ON (ag.id=q.id AND ag.type='query')
+		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
 		WHERE saved = true
 	`
 	if opt.OnlyObserverCanRun {
 		sql += " AND q.observer_can_run=true"
 	}
-	sql = appendListOptionsToSQL(sql, opt.ListOptions)
+	sql = appendListOptionsToSQL(sql, &opt.ListOptions)
 
 	results := []*fleet.Query{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &results, sql); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, false, aggregatedStatsTypeQuery); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
@@ -241,7 +241,7 @@ func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Q
 		fleet.Pack
 	}{}
 
-	err = sqlx.SelectContext(ctx, ds.reader, &rows, query, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "selecting load packs for queries")
 	}
@@ -261,7 +261,7 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 		WHERE id = ?
 	`
 	var observerCanRun bool
-	err := sqlx.GetContext(ctx, ds.reader, &observerCanRun, sql, queryID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &observerCanRun, sql, queryID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "selecting observer_can_run")
 	}

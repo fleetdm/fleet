@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 
-import { INewMembersBody, ITeam } from "interfaces/team";
+import { INewMember, INewMembersBody, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -34,9 +34,11 @@ const AddMemberModal = ({
   );
 
   const onFormSubmit = useCallback(() => {
-    const newMembers = selectedMembers.map((member: IDropdownOption) => {
-      return { id: member.value as number, role: "observer" };
-    });
+    const newMembers: INewMember[] = selectedMembers.map(
+      (member: IDropdownOption) => {
+        return { id: member.value as number, role: "observer" };
+      }
+    );
     onSubmit({ users: newMembers });
   }, [selectedMembers, onSubmit]);
 
@@ -52,6 +54,7 @@ const AddMemberModal = ({
           placeholder={"Search users by name"}
           disabledOptions={disabledMembers}
           value={selectedMembers}
+          autoFocus
         />
         <p>
           User not here?&nbsp;

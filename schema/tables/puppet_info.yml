@@ -1,7 +1,10 @@
 name: puppet_info
-notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 description: Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.
-platforms: darwin, windows, linux
+platforms: 
+  - darwin
+  - windows
+  - linux
 evented: false
 examples: >-
   List all the information available about the last Puppet run.

@@ -9,14 +9,14 @@ $shadow-transition-width: 10px;
   .data-table {
     &__wrapper {
       position: relative;
-      border: 1px solid $ui-fleet-blue-15;
+      border: 1px solid $ui-fleet-black-10;
       border-radius: 6px;
       margin-top: $pad-small;
       flex-grow: 1;
       width: 100%;
 
       // Shadow
-      background-image: 
+      background-image:
       /* Shadows */ linear-gradient(
           to right,
           white,
@@ -55,18 +55,26 @@ $shadow-transition-width: 10px;
         white-space: initial; // wraps long text with tooltip
       }
 
-      tr:hover {
-        background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
+      tr,
+      .single-row {
+        transition: background-color 150ms ease-out;
+        &:hover {
+          background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
+        }
       }
 
-      .single-row:hover {
-        cursor: pointer;
-        background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
+      .single-row {
+        &:hover {
+          cursor: pointer;
+        }
+        &:active {
+          background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
+        }
       }
     }
 
     tr {
-      border-bottom: 1px solid $ui-fleet-blue-15;
+      border-bottom: 1px solid $ui-fleet-black-10;
 
       &:last-child {
         border-bottom: 0;
@@ -88,7 +96,7 @@ $shadow-transition-width: 10px;
       background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
       color: $core-fleet-black;
       text-align: left;
-      border-bottom: 1px solid $ui-fleet-blue-15;
+      border-bottom: 1px solid $ui-fleet-black-10;
 
       // resize header icons
       img {
@@ -109,7 +117,8 @@ $shadow-transition-width: 10px;
       th {
         padding: $pad-medium $pad-large;
         white-space: nowrap;
-        border-right: 1px solid $ui-fleet-blue-15;
+        border-right: 1px solid $ui-fleet-black-10;
+        font-weight: $bold;
 
         &:first-child {
           border-top-left-radius: 6px;
@@ -123,6 +132,14 @@ $shadow-transition-width: 10px;
         &:last-child {
           border-right: none;
           border-top-right-radius: 6px;
+        }
+
+        .column-header {
+          span {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+          }
         }
       }
 
@@ -299,16 +316,5 @@ $shadow-transition-width: 10px;
 
     display: flex;
     align-items: center;
-  }
-  @media screen and (max-width: 1025px) {
-    .data-table {
-      tbody {
-        td {
-          .w250-sm {
-            max-width: calc(250px - 48px);
-          }
-        }
-      }
-    }
   }
 }

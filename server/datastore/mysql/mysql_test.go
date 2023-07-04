@@ -20,6 +20,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
@@ -34,25 +35,26 @@ func TestDatastoreReplica(t *testing.T) {
 	// with other tests when/if we move to subtests to minimize the number of
 	// databases created for tests (see #1805).
 
+	ctx := context.Background()
 	t.Run("noreplica", func(t *testing.T) {
 		ds := CreateMySQLDSWithOptions(t, nil)
 		defer ds.Close()
-		require.Equal(t, ds.reader, ds.writer)
+		require.Equal(t, ds.reader(ctx), ds.writer(ctx))
 	})
 
 	t.Run("replica", func(t *testing.T) {
 		opts := &DatastoreTestOptions{Replica: true}
 		ds := CreateMySQLDSWithOptions(t, opts)
 		defer ds.Close()
-		require.NotEqual(t, ds.reader, ds.writer)
+		require.NotEqual(t, ds.reader(ctx), ds.writer(ctx))
 
 		// create a new host
-		host, err := ds.NewHost(context.Background(), &fleet.Host{
+		host, err := ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         "1",
+			NodeKey:         ptr.String("1"),
 			UUID:            "1",
 			Hostname:        "foo.local",
 			PrimaryIP:       "192.168.1.1",
@@ -62,16 +64,28 @@ func TestDatastoreReplica(t *testing.T) {
 		require.NotNil(t, host)
 
 		// trying to read it fails, not replicated yet
-		_, err = ds.Host(context.Background(), host.ID)
+		_, err = ds.Host(ctx, host.ID)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+
+		// force read from primary works
+		ctx = ctxdb.RequirePrimary(ctx, true)
+		got, err := ds.Host(ctx, host.ID)
+		require.NoError(t, err)
+		require.Equal(t, host.ID, got.ID)
+
+		// but from replica still fails
+		ctx = ctxdb.RequirePrimary(ctx, false)
+		_, err = ds.Host(ctx, host.ID)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
 
 		opts.RunReplication()
 
-		// now it can read it
-		host2, err := ds.Host(context.Background(), host.ID)
+		// now it can read it from replica
+		got, err = ds.Host(ctx, host.ID)
 		require.NoError(t, err)
-		require.Equal(t, host.ID, host2.ID)
+		require.Equal(t, host.ID, got.ID)
 	})
 }
 
@@ -90,6 +104,8 @@ func TestSanitizeColumn(t *testing.T) {
 		{"foobar*baz", "`foobarbaz`"},
 		{"....", ""},
 		{"h.id", "`h`.`id`"},
+		{"id;delete from hosts", "`iddeletefromhosts`"},
+		{"select * from foo", "`selectfromfoo`"},
 	}
 
 	for _, tt := range testCases {
@@ -216,7 +232,7 @@ func TestHostSearchLike(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
-			sql, params := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
+			sql, params, _ := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
 			assert.Equal(t, tt.outSQL, sql)
 			assert.Equal(t, tt.outParams, params)
 		})
@@ -228,9 +244,9 @@ func mockDatastore(t *testing.T) (sqlmock.Sqlmock, *Datastore) {
 	require.NoError(t, err)
 	dbmock := sqlx.NewDb(db, "sqlmock")
 	ds := &Datastore{
-		writer: dbmock,
-		reader: dbmock,
-		logger: log.NewNopLogger(),
+		primary: dbmock,
+		replica: dbmock,
+		logger:  log.NewNopLogger(),
 	}
 
 	return mock, ds
@@ -347,7 +363,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 		OrderKey: "***name***",
 	}
 
-	actual := appendListOptionsToSQL(sql, opts)
+	actual := appendListOptionsToSQL(sql, &opts)
 	expected := "SELECT * FROM my_table ORDER BY `name` ASC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -355,7 +371,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 
 	sql = "SELECT * FROM my_table"
 	opts.OrderDirection = fleet.OrderDescending
-	actual = appendListOptionsToSQL(sql, opts)
+	actual = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table ORDER BY `name` DESC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -366,7 +382,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 	}
 
 	sql = "SELECT * FROM my_table"
-	actual = appendListOptionsToSQL(sql, opts)
+	actual = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table LIMIT 10"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -374,7 +390,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 
 	sql = "SELECT * FROM my_table"
 	opts.Page = 2
-	actual = appendListOptionsToSQL(sql, opts)
+	actual = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -382,7 +398,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 
 	opts = fleet.ListOptions{}
 	sql = "SELECT * FROM my_table"
-	actual = appendListOptionsToSQL(sql, opts)
+	actual = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table LIMIT 1000000"
 
 	if actual != expected {
@@ -981,7 +997,59 @@ func TestANSIQuotesEnabled(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	var sqlMode string
-	err := ds.writer.GetContext(context.Background(), &sqlMode, `SELECT @@SQL_MODE`)
+	err := ds.writer(context.Background()).GetContext(context.Background(), &sqlMode, `SELECT @@SQL_MODE`)
 	require.NoError(t, err)
 	require.Contains(t, sqlMode, "ANSI_QUOTES")
+}
+
+func Test_buildWildcardMatchPhrase(t *testing.T) {
+	type args struct {
+		matchQuery string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "",
+			args: args{matchQuery: "test"},
+			want: "%test%",
+		},
+		{
+			name: "underscores are escaped",
+			args: args{matchQuery: "Host_1"},
+			want: "%Host\\_1%",
+		},
+		{
+			name: "percent are escaped",
+			args: args{matchQuery: "Host%1"},
+			want: "%Host\\%1%",
+		},
+		{
+			name: "percent & underscore are escaped",
+			args: args{matchQuery: "Host_%1"},
+			want: "%Host\\_\\%1%",
+		},
+		{
+			name: "underscores added for wildcard search are not escaped",
+			args: args{matchQuery: "Alice‘s MacbookPro"},
+			want: "%Alice_s MacbookPro%",
+		},
+		{
+			name: "underscores added for wildcard search are not escaped, but underscores in matchQuery are",
+			args: args{matchQuery: "Alice‘s Macbook_Pro"},
+			want: "%Alice_s Macbook\\_Pro%",
+		},
+		{
+			name: "multiple occurances of wildcard are not escaped",
+			args: args{matchQuery: "Alice‘‘s Macbook_Pro"},
+			want: "%Alice__s Macbook\\_Pro%",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, buildWildcardMatchPhrase(tt.args.matchQuery), "buildWildcardMatchPhrase(%v)", tt.args.matchQuery)
+		})
+	}
 }

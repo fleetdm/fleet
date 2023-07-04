@@ -11,6 +11,7 @@ dist
 assets/bundle*.*
 assets/*@*.svg
 assets/*@*.png
+assets/*@*.gif
 assets/*@*.eot
 assets/*@*.woff
 assets/*@*.woff2
@@ -56,13 +57,14 @@ package-lock.json
 .terraform
 .terraform.tfstate*
 terraform.tfstate*
-*.lock.hcl
 
 # generated orbit installers and artifacts
 fleet-osquery*
 desktop.app.tar.gz
 osqueryd.app.tar.gz
 desktop.tar.gz
+nudge.app.tar.gz
+swiftDialog.app.tar.gz
 
 # residual files when running the cpe command
 cmd/cpe/etagenv
@@ -75,3 +77,26 @@ test_tuf
 # Residual files when running the msrc generate command
 msrc_in/
 msrc_out/
+
+# Residual files when running cmd/macoffice/generate.go
+macoffice_rel_notes/
+
+# Keys and certificates that may be generated in the root of the repo
+# (e.g. with ./build/fleetctl generate ...).
+/*.key
+/*.crt
+
+# IDE
+.vscode
+
+# residual files when running the build-windows tool
+orbit/cmd/desktop/manifest.xml
+orbit/cmd/desktop/resource.syso
+orbit/cmd/orbit/manifest.xml
+orbit/cmd/orbit/resource.syso
+
+# Residual files from osqueryd loadtests.
+osquery_worker_*.jpg
+
+# Residual files when building fleetd_tables extension.
+fleetd_tables_*

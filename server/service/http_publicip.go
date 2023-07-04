@@ -12,7 +12,10 @@ var xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
 var xRealIP = http.CanonicalHeaderKey("X-Real-IP")
 
 func extractIP(r *http.Request) string {
-	var ip string
+	ip := r.RemoteAddr
+	if i := strings.LastIndexByte(ip, ':'); i != -1 {
+		ip = ip[:i]
+	}
 
 	if tcip := r.Header.Get(trueClientIP); tcip != "" {
 		ip = tcip

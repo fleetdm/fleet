@@ -8,6 +8,12 @@ export default {
     return `/${API_VERSION}/fleet/email/change/${token}`;
   },
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
+  DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
+  },
+  DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
+  },
   DOWNLOAD_INSTALLER: `/${API_VERSION}/fleet/download_installer`,
   ENABLE_USER: (id: number): string => {
     return `/${API_VERSION}/fleet/users/${id}/enable`;
@@ -28,9 +34,47 @@ export default {
   LABEL_HOSTS: (id: number): string => {
     return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
+  LABEL_SPEC_BY_NAME: (labelName: string) => {
+    return `/${API_VERSION}/fleet/spec/labels/${labelName}`;
+  },
   LOGIN: `/${API_VERSION}/fleet/login`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
+
+  // MDM endpoints
+  MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
+  MDM_APPLE_BM: `/${API_VERSION}/fleet/mdm/apple_bm`,
+  MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
+  MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+  MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
+  MDM_PROFILES: `/${API_VERSION}/fleet/mdm/apple/profiles`,
+  MDM_PROFILE: (id: number) => `/${API_VERSION}/fleet/mdm/apple/profiles/${id}`,
+  MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
+  MDM_PROFILES_AGGREGATE_STATUSES: `/${API_VERSION}/fleet/mdm/apple/profiles/summary`,
+  MDM_APPLE_DISK_ENCRYPTION_AGGREGATE: `/${API_VERSION}/fleet/mdm/apple/filevault/summary`,
+  MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
+  MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
+    const query = new URLSearchParams({ token });
+    if (ref) {
+      query.append("enrollment_reference", ref);
+    }
+    return `/api/mdm/apple/enroll?${query}`;
+  },
+  MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
+    `/${API_VERSION}/fleet/mdm/apple/bootstrap/${teamId}/metadata`,
+  MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/apple/bootstrap`,
+  MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/apple/bootstrap/summary`,
+  MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
+  MDM_EULA: (token: string) =>
+    `/${API_VERSION}/fleet/mdm/apple/setup/eula/${token}`,
+  MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/apple/setup/eula`,
+  MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/apple/setup/eula/metadata`,
+  HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
+  HOST_MDM_UNENROLL: (id: number) =>
+    `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,
+  HOST_ENCRYPTION_KEY: (id: number) =>
+    `/${API_VERSION}/fleet/mdm/hosts/${id}/encryption_key`,
+
   ME: `/${API_VERSION}/fleet/me`,
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,

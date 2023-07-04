@@ -5,15 +5,24 @@
 		"body": [
 			"import React from \"react\";",
 			"",
+			"const baseClass = \"${TM_FILENAME_BASE/(.*)/${1:/pascalcase}/}\";",
+			"",
 			"interface I${TM_FILENAME_BASE}Props {}",
 			"",
 			"const $TM_FILENAME_BASE = ({}: I${TM_FILENAME_BASE}Props) => {",
-			"	return <></>;",
+			"\treturn <div className={baseClass}></div>;",
 			"};",
 			"",
 			"export default $TM_FILENAME_BASE;",
 			"",
 		],
 		"description": "Creates a React stateless component with the typescrip interface setup"
+	},
+	"Fleet - baseClass classname": {
+		"scope": "typescriptreact,javascriptreact",
+		"prefix": "bc",
+		"body": [
+			"className={`\\${baseClass}__$0`}"
+		]
 	}
 }

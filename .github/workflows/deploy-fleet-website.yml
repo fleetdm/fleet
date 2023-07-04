@@ -51,8 +51,12 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
-    # Download top-level dependencies and build Storybook in the website's assets/ folder
-    - run: npm install && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
+
+    # Install the right version of Go for the Golang child process that we are currently using for CSR signing
+    - name: Set up Go
+      uses: actions/setup-go@v4.0.1
+      with:
+        go-version: 1.19
 
     # Now start building!
     # > …but first, get a little crazy for a sec and delete the top-level package.json file
@@ -77,12 +81,16 @@ jobs:
     - run: cd website/ && npm test
 
     # Compile browser assets & markdown content into generated collateral
-    - run: cd website/ && npm run build-for-prod
+    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_RELEASE_GITHUB_PAT }}" npm run build-for-prod
+
+    # Build the go binary we use to sign APNS certificates in the website/.tools/ folder.
+    - run: cd ee/tools/mdm/ && GOOS=linux GOARCH=amd64 go build -o ../../../website/.tools/mdm-gen-cert .
 
     # Commit newly-generated collateral locally so we can push them to Heroku below.
     # (This commit will never be pushed to GitHub- only to Heroku.)
     # > The local config flags make this work in GitHub's environment.
     - run: git add website/.www
+    - run: git add website/.tools
     - run: git add -f website/views/partials/built-from-markdown  > /dev/null 2>&1 || echo '* * * WARNING - Silently ignoring the fact that there are no HTML partials generated from markdown to include in automated commit...'
     - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.'
 

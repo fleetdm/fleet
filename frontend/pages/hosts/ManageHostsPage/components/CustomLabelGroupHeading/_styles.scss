@@ -1,5 +1,4 @@
 .custom-label-group-heading {
-
   &__label-title {
     color: $core-fleet-black;
     font-size: $x-small;
@@ -37,12 +36,12 @@
     width: 100%;
     line-height: 1.5;
     background-color: $ui-light-grey;
-    border: solid 1px $ui-fleet-blue-15;
+    border: solid 1px $ui-fleet-black-10;
     border-radius: 4px;
     font-size: $small;
     padding: $pad-xsmall 12px $pad-xsmall 42px;
     color: $core-fleet-blue;
-    font-family: "Nunito Sans", sans-serif;
+    font-family: "Inter", sans-serif;
     box-sizing: border-box;
     height: 40px;
 

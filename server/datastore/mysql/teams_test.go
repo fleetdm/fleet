@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -32,6 +34,7 @@ func TestTeams(t *testing.T) {
 		{"TeamsDeleteRename", testTeamsDeleteRename},
 		{"DeleteIntegrationsFromTeams", testTeamsDeleteIntegrationsFromTeams},
 		{"TeamsFeatures", testTeamsFeatures},
+		{"TeamsMDMConfig", testTeamsMDMConfig},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -74,6 +77,16 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
+			dummyMC := mobileconfig.Mobileconfig([]byte("DummyTestMobileconfigBytes"))
+			dummyCP := fleet.MDMAppleConfigProfile{
+				Name:         "DummyTestName",
+				Identifier:   "DummyTestIdentifier",
+				Mobileconfig: dummyMC,
+				TeamID:       &team.ID,
+			}
+			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP)
+			require.NoError(t, err)
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
 
@@ -83,6 +96,10 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 
 			_, err = ds.TeamByName(context.Background(), tt.name)
 			require.Error(t, err)
+
+			_, err = ds.GetMDMAppleConfigProfile(context.Background(), cp.ProfileID)
+			var nfe fleet.NotFoundError
+			require.ErrorAs(t, err, &nfe)
 
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 		})
@@ -235,7 +252,6 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 		t2.Users = nil
 		require.Equal(t, t1, t2)
 	}
-
 }
 
 func testTeamsSummary(t *testing.T, ds *Datastore) {
@@ -335,8 +351,7 @@ func testTeamsAgentOptions(t *testing.T, ds *Datastore) {
 func testTeamsDeleteIntegrationsFromTeams(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	urla, urlb, urlc, urld, urle, urlf, urlg :=
-		"http://a.com", "http://b.com", "http://c.com", "http://d.com", "http://e.com", "http://f.com", "http://g.com"
+	urla, urlb, urlc, urld, urle, urlf, urlg := "http://a.com", "http://b.com", "http://c.com", "http://d.com", "http://e.com", "http://f.com", "http://g.com"
 
 	// create some teams
 	team1, err := ds.NewTeam(ctx, &fleet.Team{
@@ -516,5 +531,96 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 			EnableSoftwareInventory: false,
 			AdditionalQueries:       nil,
 		}, features)
+	})
+}
+
+func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
+	defaultMDM := fleet.TeamMDM{}
+	ctx := context.Background()
+
+	t.Run("NULL config in the database", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_null_config"})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			_, err = tx.ExecContext(
+				ctx,
+				"UPDATE teams SET config = NULL WHERE id = ?",
+				team.ID,
+			)
+			return err
+		})
+
+		mdm, err := ds.TeamMDMConfig(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Nil(t, mdm)
+
+		// retrieving a team also returns a team with the default
+		// settings
+		team, err = ds.Team(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, defaultMDM, team.Config.MDM)
+
+		team, err = ds.TeamByName(ctx, team.Name)
+		require.NoError(t, err)
+		assert.Equal(t, defaultMDM, team.Config.MDM)
+	})
+
+	t.Run("NULL config.mdm in the database", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_null_config_mdm"})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			_, err = tx.ExecContext(
+				ctx,
+				"UPDATE teams SET config = '{}' WHERE id = ?",
+				team.ID,
+			)
+			return err
+		})
+
+		mdm, err := ds.TeamMDMConfig(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Nil(t, mdm)
+
+		// retrieving a team also returns a team with the default
+		// settings
+		team, err = ds.Team(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, defaultMDM, team.Config.MDM)
+
+		team, err = ds.TeamByName(ctx, team.Name)
+		require.NoError(t, err)
+		assert.Equal(t, defaultMDM, team.Config.MDM)
+	})
+
+	t.Run("saves and retrieves configs", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{
+			Name: "team1",
+			Config: fleet.TeamConfig{
+				MDM: fleet.TeamMDM{
+					MacOSUpdates: fleet.MacOSUpdates{
+						MinimumVersion: optjson.SetString("10.15.0"),
+						Deadline:       optjson.SetString("2025-10-01"),
+					},
+					MacOSSetup: fleet.MacOSSetup{
+						BootstrapPackage:    optjson.SetString("bootstrap"),
+						MacOSSetupAssistant: optjson.SetString("assistant"),
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+		mdm, err := ds.TeamMDMConfig(ctx, team.ID)
+		require.NoError(t, err)
+
+		assert.Equal(t, &fleet.TeamMDM{
+			MacOSUpdates: fleet.MacOSUpdates{
+				MinimumVersion: optjson.SetString("10.15.0"),
+				Deadline:       optjson.SetString("2025-10-01"),
+			},
+			MacOSSetup: fleet.MacOSSetup{
+				BootstrapPackage:    optjson.SetString("bootstrap"),
+				MacOSSetupAssistant: optjson.SetString("assistant"),
+			},
+		}, mdm)
 	})
 }

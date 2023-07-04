@@ -42,7 +42,7 @@
   }
   &__tip-text {
     width: max-content;
-    max-width: 341px;
+    max-width: 360px;
     padding: 6px;
     color: $core-white;
     background-color: $core-fleet-blue;
@@ -58,6 +58,7 @@
     opacity: 0;
     transition: opacity 0.3s ease;
     line-height: 1.375;
+    white-space: initial;
 
     // invisible block to cover space so
     // hover state can continue from text to bubble

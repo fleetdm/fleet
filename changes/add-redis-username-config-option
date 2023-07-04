@@ -1,1 +1,0 @@
-* Added the `redis.username` configuration option for setups that use Redis ACLs.

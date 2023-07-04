@@ -6,6 +6,7 @@ import { osqueryTableNames } from "utilities/osquery_tables";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import FleetMarkdown from "components/FleetMarkdown";
+import CustomLink from "components/CustomLink";
 
 import QueryTableColumns from "./QueryTableColumns";
 import QueryTablePlatforms from "./QueryTablePlatforms";
@@ -39,12 +40,14 @@ const QuerySidePanel = ({
     evented,
   } = selectedOsqueryTable;
 
+  const mdmRequired = name === "managed_policies";
+
   const onSelectTable = (value: string) => {
     onOsqueryTableSelect(value);
   };
 
   const renderTableSelect = () => {
-    const tableNames = osqueryTableNames?.map((tableName: string) => {
+    const tableNames = osqueryTableNames.map((tableName: string) => {
       return { label: tableName, value: tableName };
     });
 
@@ -79,6 +82,9 @@ const QuerySidePanel = ({
         {renderTableSelect()}
       </div>
       {evented && <EventedTableTag selectedTableName={name} />}
+      {mdmRequired && (
+        <span className={`${baseClass}__mdm-required`}>Requires MDM</span>
+      )}
       <div className={`${baseClass}__description`}>
         <FleetMarkdown markdown={description} />
       </div>
@@ -86,6 +92,11 @@ const QuerySidePanel = ({
       <QueryTableColumns columns={columns} />
       {examples && <QueryTableExample example={examples} />}
       {notes && <QueryTableNotes notes={notes} />}
+      <CustomLink
+        url={`https://www.fleetdm.com/tables/${name}`}
+        text="Source"
+        newTab
+      />
     </>
   );
 };

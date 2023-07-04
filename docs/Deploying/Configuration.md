@@ -1,17 +1,5 @@
 # Configuration
 
-- [Configuring the Fleet binary](#configuring-the-fleet-binary)
-  - [High-level configuration overview](#high-level-configuration-overview)
-  - [Commands](#commands)
-  - [Options](#options)
-- [Managing osquery configurations](#managing-osquery-configurations)
-- [Running with systemd](#running-with-systemd)
-- [Configuring single sign on](#configuring-single-sign-on)
-  - [Identity provider (IDP) configuration](#identity-provider-IDP-configuration)
-  - [Fleet SSO configuration](#fleet-sso-configuration)
-  - [Creating SSO users in Fleet](#creating-sso-users-in-fleet)
-- [Feature flags](#feature-flags)
-
 ## Configuring the Fleet binary
 
 For information on how to run the `fleet` binary, find detailed usage information by running `fleet --help`. This document is a more detailed version of the data presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope  you like the binary interface of the Fleet application!
@@ -55,41 +43,13 @@ The `fleet` binary contains several "commands." Similarly to how `git` has many 
 
 You can specify options in the order of precedence via
 
-- a configuration file (in YAML format).
-- environment variables.
-- command-line flags.
+1. a configuration file (in YAML format)
+2. environment variables
+3. command-line flags
 
 For example, all of the following ways of launching Fleet are equivalent:
 
-##### Using only CLI flags
-
-```
-/usr/bin/fleet serve \
---mysql_address=127.0.0.1:3306 \
---mysql_database=fleet \
---mysql_username=root \
---mysql_password=toor \
---redis_address=127.0.0.1:6379 \
---server_cert=/tmp/server.cert \
---server_key=/tmp/server.key \
---logging_json
-```
-
-##### Using only environment variables
-
-```
-FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
-FLEET_MYSQL_DATABASE=fleet \
-FLEET_MYSQL_USERNAME=root \
-FLEET_MYSQL_PASSWORD=toor \
-FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
-FLEET_SERVER_CERT=/tmp/server.cert \
-FLEET_SERVER_KEY=/tmp/server.key \
-FLEET_LOGGING_JSON=true \
-/usr/bin/fleet serve
-```
-
-##### Using a YAML config file
+##### 1. Using a YAML config file
 
 ```
 echo '
@@ -111,6 +71,35 @@ fleet serve --config /tmp/fleet.yml
 ```
 
 For more information on using YAML configuration files with fleet, please see the [configuration files](https://fleetdm.com/docs/using-fleet/configuration-files) documentation.
+
+##### 2. Using only environment variables
+
+```
+FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
+FLEET_MYSQL_DATABASE=fleet \
+FLEET_MYSQL_USERNAME=root \
+FLEET_MYSQL_PASSWORD=toor \
+FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
+FLEET_SERVER_CERT=/tmp/server.cert \
+FLEET_SERVER_KEY=/tmp/server.key \
+FLEET_LOGGING_JSON=true \
+/usr/bin/fleet serve
+```
+
+##### 3. Using only CLI flags
+
+```
+/usr/bin/fleet serve \
+--mysql_address=127.0.0.1:3306 \
+--mysql_database=fleet \
+--mysql_username=root \
+--mysql_password=toor \
+--redis_address=127.0.0.1:6379 \
+--server_cert=/tmp/server.cert \
+--server_key=/tmp/server.key \
+--logging_json
+```
+
 
 ### What are the options?
 
@@ -224,7 +213,7 @@ The path to a PEM encoded certificate is used for TLS authentication.
 
 ##### mysql_tls_key
 
-The path to a PEM encoded private key uses for TLS authentication.
+The path to a PEM encoded private key used for TLS authentication.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_KEY`
@@ -394,7 +383,7 @@ Use a TLS connection to the Redis server.
 
 ##### redis_duplicate_results
 
-Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near-realtime.
+Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near real-time.
 
 - Default value: `false`
 - Environment variable: `FLEET_REDIS_DUPLICATE_RESULTS`
@@ -722,6 +711,23 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   	keepalive: true
   ```
 
+##### server_websockets_allow_unsafe_origin
+
+Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
+the Origin header may not reflect the client's true origin. In this case, you might need to 
+disable the origin header (by setting this configuration to `true`) 
+check or configure your reverse proxy to forward the correct Origin header.
+
+Setting to true will disable the origin check.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_WEBSOCKETS_ALLOW_UNSAFE_ORIGIN`
+- Config file format:
+  ```
+  server:
+  	websockets_allow_unsafe_origin: true
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -903,9 +909,11 @@ The identifier to use when determining uniqueness of hosts.
 
 Options are `provided` (default), `uuid`, `hostname`, or `instance`.
 
-This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag.
+This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as osquery's `--host_identifier` flag.
 
 Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
+
+> If you are enrolling your hosts using Fleet generated packages, it is reccommended to use `uuid` as your indentifier. This prevents potential issues with duplicate host enrollments.
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
@@ -935,6 +943,8 @@ The interval at which Fleet will ask osquery agents to update their results for 
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
+> Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
+
 Valid time units are `s`, `m`, `h`.
 
 - Default value: `1h`
@@ -942,7 +952,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```
   osquery:
-  	label_update_interval: 30m
+  	label_update_interval: 90m
   ```
 
 ##### osquery_policy_update_interval
@@ -951,6 +961,8 @@ The interval at which Fleet will ask osquery agents to update their results for 
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
+> Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
+
 Valid time units are `s`, `m`, `h`.
 
 - Default value: `1h`
@@ -958,7 +970,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```
   osquery:
-  	policy_update_interval: 30m
+  	policy_update_interval: 90m
   ```
 
 ##### osquery_detail_update_interval
@@ -967,6 +979,8 @@ The interval at which Fleet will ask osquery agents to update host details (such
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
+> Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
+
 Valid time units are `s`, `m`, `h`.
 
 - Default value: `1h`
@@ -974,7 +988,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```
   osquery:
-  	detail_update_interval: 30m
+  	detail_update_interval: 90m
   ```
 
 ##### osquery_status_log_plugin
@@ -1025,7 +1039,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ##### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, only supported for label query execution, policy membership results, hosts' last seen timestamp and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asyncronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1178,6 +1192,41 @@ osquery:
   status_log_plugin: firehose
   result_log_plugin: firehose
 ```
+#### External Activity Audit Logging
+
+> Applies only to Fleet Premium. Acitivity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+
+Stream Fleet user activities to logs using Fleet's logging plugins. The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
+
+##### activity_enable_audit_log
+
+This enables/disables the log output for audit events.
+See the `activity_audit_log_plugin` option below that specifies the logging destination.
+
+- Default value: `false`
+- Environment variable: `FLEET_ACTIVITY_ENABLE_AUDIT_LOG`
+- Config file format:
+  ```yaml
+  activity:
+    enable_audit_log: true
+  ```
+
+##### activity_audit_log_plugin
+
+This is the log output plugin that should be used for audit logs.
+This flag only has effect if `activity_enable_audit_log` is set to `true`.
+
+Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
+
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), and `stdout` (no additional configuration needed).
+
+- Default value: `filesystem`
+- Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
+- Config file format:
+  ```yaml
+  activity:
+    audit_log_plugin: firehose
+  ```
 
 #### Logging (Fleet server logging)
 
@@ -1269,9 +1318,25 @@ The path which osquery result logs will be logged to.
   	result_log_file: /var/log/osquery/result.log
   ```
 
+##### filesystem_audit_log_file
+
+This flag only has effect if `activity_audit_log_plugin` is set to `filesystem` (the default value) and if `activity_enable_audit_log` is set to `true`.
+
+The path which audit logs will be logged to.
+
+- Default value: `/tmp/audit`
+- Environment variable: `FLEET_FILESYSTEM_AUDIT_LOG_FILE`
+- Config file format:
+  ```yaml
+  filesystem:
+    audit_log_file: /var/log/fleet/audit.log
+  ```
+
 ##### filesystem_enable_log_rotation
 
-This flag only has effect if `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `filesystem` (the default value).
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `filesystem` (the default value).
+- `activity_audit_log_plugin` is set to `filesystem` and `activity_enable_audit_log` is set to `true`.
 
 This flag will cause the osquery result and status log files to be automatically
 rotated when files reach a size of 500 Mb or an age of 28 days.
@@ -1298,6 +1363,50 @@ This flag will cause the rotated logs to be compressed with gzip.
      enable_log_compression: true
   ```
 
+##### filesystem_max_size
+
+This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
+
+Sets the maximum size in megabytes of log files before it gets rotated.
+
+- Default value: `500`
+- Environment variable: `FLEET_FILESYSTEM_MAX_SIZE`
+- Config file format:
+  ```
+  filesystem:
+     max_size: 100
+  ```
+
+##### filesystem_max_age
+
+This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
+
+Sets the maximum age in days to retain old log files before deletion. Setting this
+to zero will retain all logs.
+
+- Default value: `28`
+- Environment variable: `FLEET_FILESYSTEM_MAX_AGE`
+- Config file format:
+  ```
+  filesystem:
+     max_age: 0
+  ```
+
+##### filesystem_max_backups
+
+This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
+
+Sets the maximum number of old files to retain before deletion. Setting this
+to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
+
+- Default value: `3`
+- Environment variable: `FLEET_FILESYSTEM_MAX_BACKUPS`
+- Config file format:
+  ```
+  filesystem:
+     max_backups: 0
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -1314,9 +1423,11 @@ filesystem:
 
 ##### firehose_region
 
-This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
-AWS region to use for Firehose connection
+AWS region to use for Firehose connection.
 
 - Default value: none
 - Environment variable: `FLEET_FIREHOSE_REGION`
@@ -1328,7 +1439,9 @@ AWS region to use for Firehose connection
 
 ##### firehose_access_key_id
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
 If `firehose_access_key_id` and `firehose_secret_access_key` are omitted, Fleet will try to use [AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html) credentials.
 
@@ -1344,7 +1457,9 @@ AWS access key ID to use for Firehose authentication.
 
 ##### firehose_secret_access_key
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
 AWS secret access key to use for Firehose authentication.
 
@@ -1358,8 +1473,9 @@ AWS secret access key to use for Firehose authentication.
 
 ##### firehose_sts_assume_role_arn
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
 AWS STS role ARN to use for Firehose authentication.
 
@@ -1411,6 +1527,27 @@ the stream listed:
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
 
+##### firehose_audit_stream
+
+This flag only has effect if `activity_audit_log_plugin` is set to `firehose`.
+
+Name of the Firehose stream to audit logs.
+
+- Default value: none
+- Environment variable: `FLEET_FIREHOSE_AUDIT_STREAM`
+- Config file format:
+  ```yaml
+  firehose:
+    audit_stream: fleet_audit
+  ```
+
+The IAM role used to send to Firehose must allow the following permissions on
+the stream listed:
+
+- `firehose:DescribeDeliveryStream`
+- `firehose:PutRecordBatch`
+
+
 ##### Example YAML
 
 ```yaml
@@ -1430,7 +1567,9 @@ firehose:
 
 ##### kinesis_region
 
-This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 AWS region to use for Kinesis connection
 
@@ -1444,8 +1583,9 @@ AWS region to use for Kinesis connection
 
 ##### kinesis_access_key_id
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 If `kinesis_access_key_id` and `kinesis_secret_access_key` are omitted, Fleet
 will try to use
@@ -1464,8 +1604,9 @@ AWS access key ID to use for Kinesis authentication.
 
 ##### kinesis_secret_access_key
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 AWS secret access key to use for Kinesis authentication.
 
@@ -1479,8 +1620,9 @@ AWS secret access key to use for Kinesis authentication.
 
 ##### kinesis_sts_assume_role_arn
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 AWS STS role ARN to use for Kinesis authentication.
 
@@ -1532,6 +1674,26 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
+##### kinesis_audit_stream
+
+This flag only has effect if `activity_audit_log_plugin` is set to `kinesis`.
+
+Name of the Kinesis stream to write audit logs.
+
+- Default value: none
+- Environment variable: `FLEET_KINESIS_AUDIT_STREAM`
+- Config file format:
+  ```yaml
+  kinesis:
+    audit_stream: fleet_audit
+  ```
+
+The IAM role used to send to Kinesis must allow the following permissions on
+the stream listed:
+
+- `kinesis:DescribeStream`
+- `kinesis:PutRecords`
+
 ##### Example YAML
 
 ```yaml
@@ -1540,7 +1702,6 @@ osquery:
   osquery_result_log_plugin: kinesis
 kinesis:
   region: ca-central-1
-  result_log_file: /var/log/osquery/result.log
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
@@ -1548,14 +1709,15 @@ kinesis:
   result_stream: osquery_result
 ```
 
-
 #### Lambda
 
 ##### lambda_region
 
-This flag only has effect if `osquery_status_log_plugin` is set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
-AWS region to use for Lambda connection
+AWS region to use for Lambda connection.
 
 - Default value: none
 - Environment variable: `FLEET_LAMBDA_REGION`
@@ -1567,8 +1729,9 @@ AWS region to use for Lambda connection
 
 ##### lambda_access_key_id
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
 If `lambda_access_key_id` and `lambda_secret_access_key` are omitted, Fleet
 will try to use
@@ -1587,8 +1750,9 @@ AWS access key ID to use for Lambda authentication.
 
 ##### lambda_secret_access_key
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
 AWS secret access key to use for Lambda authentication.
 
@@ -1602,8 +1766,9 @@ AWS secret access key to use for Lambda authentication.
 
 ##### lambda_sts_assume_role_arn
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
 AWS STS role ARN to use for Lambda authentication.
 
@@ -1653,6 +1818,25 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
+##### lambda_audit_function
+
+This flag only has effect if `activity_audit_log_plugin` is set to `lambda`.
+
+Name of the Lambda function to write audit logs.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_AUDIT_FUNCTION`
+- Config file format:
+  ```yaml
+  lambda:
+    audit_function: auditFunction
+  ```
+
+The IAM role used to send to Lambda must allow the following permissions on
+the function listed:
+
+- `lambda:InvokeFunction`
+
 ##### Example YAML
 
 ```yaml
@@ -1672,7 +1856,9 @@ lambda:
 
 ##### pubsub_project
 
-This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `pubsub`.
+- `activity_audit_log_plugin` is set to `pubsub` and `activity_enable_audit_log` is set to `true`.
 
 The identifier of the Google Cloud project containing the pubsub topics to
 publish logs to.
@@ -1690,7 +1876,7 @@ for authentication with the service.
 
 ##### pubsub_result_topic
 
-This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
+This flag only has effect if `osquery_result_log_plugin` is set to `pubsub`.
 
 The identifier of the pubsub topic that client results will be published to.
 
@@ -1714,6 +1900,20 @@ The identifier of the pubsub topic that osquery status logs will be published to
   ```
   pubsub:
     status_topic: osquery_status
+  ```
+
+##### pubsub_audit_topic
+
+This flag only has effect if `osquery_audit_log_plugin` is set to `pubsub`.
+
+The identifier of the pubsub topic that client results will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_PUBSUB_AUDIT_TOPIC`
+- Config file format:
+  ```yaml
+  pubsub:
+    audit_topic: fleet_audit
   ```
 
 ##### pubsub_add_attributes
@@ -1756,7 +1956,9 @@ pubsub:
 
 ##### kafkarest_proxyhost
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
+- `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
 The URL of the host which to check for the topic existence and post messages to the specified topic.
 
@@ -1793,12 +1995,28 @@ The identifier of the kafka topic that osquery result logs will be published to.
 - Config file format:
   ```yaml
   kafkarest:
-    status_topic: osquery_result
+    result_topic: osquery_result
+  ```
+
+##### kafkarest_audit_topic
+
+This flag only has effect if `osquery_audit_log_plugin` is set to `kafkarest`.
+
+The identifier of the kafka topic that audit logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_KAFKAREST_AUDIT_TOPIC`
+- Config file format:
+  ```yaml
+  kafkarest:
+    audit_topic: fleet_audit
   ```
 
 ##### kafkarest_timeout
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
+- `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
 The timeout value for the http post attempt. Value is in units of seconds.
 
@@ -1812,7 +2030,9 @@ The timeout value for the http post attempt. Value is in units of seconds.
 
 ##### kafkarest_content_type_value
 
-This flag only has effect if `osquery_status_log_plugin` is set to `kafkarest`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
+- `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
 The value of the Content-Type header to use in Kafka REST Proxy API calls. More information about available versions
 can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.html#content-types). _Note: only JSON format is supported_
@@ -1836,6 +2056,107 @@ kafkarest:
   result_topic: osquery_result
   status_topic: osquery_status
 ```
+
+#### Email backend
+
+By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
+SMTP through the [Fleet console UI](https://fleetdm.com/docs/using-fleet/configuration-files#smtp-settings). However, you can also
+configure Fleet to use AWS SES natively rather than through SMTP.
+
+##### backend
+
+Enable SES support for Fleet. You must also configure the ses configurations such as `ses.source_arn`
+
+````yaml
+email:
+  backend: ses
+````
+
+#### SES
+
+The following configurations only have an effect if SES email backend is enabled `FLEET_EMAIL_BACKEND=ses`.
+
+##### ses_region
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS region to use for SES connection.
+
+- Default value: none
+- Environment variable: `FLEET_SES_REGION`
+- Config file format:
+  ```yaml
+  ses:
+  	region: us-east-2
+  ```
+
+##### ses_access_key_id
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+If `ses_access_key_id` and `ses_secret_access_key` are omitted, Fleet
+will try to use
+[AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+credentials.
+
+AWS access key ID to use for Lambda authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_ACCESS_KEY_ID`
+- Config file format:
+  ```
+  ses:
+  	access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### ses_secret_access_key
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+If `ses_access_key_id` and `ses_secret_access_key` are omitted, Fleet
+will try to use
+[AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+credentials.
+
+AWS secret access key to use for SES authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SECRET_ACCESS_KEY`
+- Config file format:
+  ```yaml
+  ses:
+  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### ses_sts_assume_role_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS STS role ARN to use for SES authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+  ```
+
+##### ses_source_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
+required** when using the SES email backend.
+
+The ARN of the identity that is associated with the sending authorization policy that permits you to send
+for the email address specified in the Source parameter of SendRawEmail.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SOURCE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+  ```
 
 #### S3 file carving backend
 
@@ -1996,7 +2317,7 @@ The path specified needs to exist and Fleet needs to be able to read and write t
 
 When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
-- Default value: none
+- Default value: `/tmp/vulndbs`
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
 - Config file format:
   ```
@@ -2074,6 +2395,19 @@ When running multiple instances of the Fleet server, by default, one of them dyn
   	current_instance_checks: yes
   ```
 
+##### disable_schedule
+
+To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
+tools like crontab.
+
+- Default value: `false`
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_SCHEDULE`
+- Config file format:
+  ```
+  vulnerabilities:
+  	disable_schedule: false
+  ```
+
 ##### disable_data_sync
 
 Fleet by default automatically downloads and keeps the different data streams needed to properly do vulnerability processing. In some setups, this behavior is not wanted, as access to outside resources might be blocked, or the data stream files might need review/audit before use.
@@ -2129,17 +2463,44 @@ vulnerabilities:
 
 ##### database_path
 
-The path to a valid Maxmind GeoIP database(mmdb). Support exists for the country & city versions of the database. If city database is supplied
+The path to a valid Maxmind GeoIP database (mmdb). Support exists for the country & city versions of the database. If city database is supplied
 then Fleet will attempt to resolve the location via the city lookup, otherwise it defaults to the country lookup. The IP address used
 to determine location is extracted via HTTP headers in the following order: `True-Client-IP`, `X-Real-IP`, and finally `X-FORWARDED-FOR` [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
 on the Fleet web server.
+
+You can get a copy of the
+[Geolite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data?lang=en) database for free by
+[creating an account](https://www.maxmind.com/en/geolite2/signup?lang=en) on the MaxMind website,
+navigating to the [download page](https://www.maxmind.com/en/accounts/current/geoip/downloads),
+and downloading the GZIP archive. Decompress it and place the mmdb file somewhere fleet can access.
+
+It is also possible to automatically keep the database up to date, see the
+[documentation](https://dev.maxmind.com/geoip/updating-databases?lang=en) from MaxMind.
+
+GeoIP databases can find what general area a device is from, but not the exact location.
+They work by collecting which IP addresses ISPs use for different cities and countries and
+packaging them up into a list mapping IP address to city.
+
+You've likely seen services use GeoIP databases if they redirect you to a site specific
+to your country. e.g. Google will redirect you to [google.ca](https://google.ca) if you visit from Canada
+or Mouser will change to your local currency if you view an electronic component.
+
+This can be useful for your fleet install if you want to tell if a device is somewhere it shouldn't
+be. If a desktop machine located at a site in New York suddenly appears in London, then you can tell
+that something is wrong. It can also help you differentiate machines if they have similar names,
+e.g. if you have two computers "John's MacBook Pro".
+
+While it can be a useful tool, an unexpected result could be an error in the database, a user
+connecting via a mobile network which uses the same IP address for a wide area, or a user visiting
+family. Checking on the location of devices too often could be invasive to employees who are keeping
+work devices on them for e.g. oncall responsibilities.
 
 - Default value: none
 - Environment variable: `FLEET_GEOIP_DATABASE_PATH`
 - Config file format:
   ```yaml
   geoip:
-    database_path: /some/path
+    database_path: /some/path/to/geolite2.mmdb
   ```
 
 #### Sentry
@@ -2163,7 +2524,10 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
 ##### basic_auth.username
 
 This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.username` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2177,7 +2541,10 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
 ##### basic_auth.password
 
 This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.password` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2186,6 +2553,21 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
   prometheus:
     basic_auth:
       password: "bar"
+  ```
+
+##### basic_auth.disable
+
+This allows running the Prometheus endpoint `/metrics` without HTTP Basic Auth.
+
+If both `basic_auth.username` and `basic_auth.password` are set, then this setting is ignored.
+
+- Default value: false
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_DISABLE`
+- Config file format:
+  ```yaml
+  prometheus:
+    basic_auth:
+      disable: true
   ```
 
 #### Packaging
@@ -2362,25 +2744,17 @@ packaging:
     region: us-east-1
 ```
 
-#### MDM (mobile device management) - IN PROGRESS
+## Mobile device management (MDM)
 
-> This feature is currently in development and is not ready for use.
+> MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
 
-##### apple_apns_cert
+This section is a reference for the configuration required to turn on MDM features in production.
 
-This is the path to the Apple Push Notification service (APNs) certificate. The APNs certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
+If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](../Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
 
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_apns_cert: /path/to/apns_cert.pem
-  ```
+##### mdm.apple_apns_cert_bytes
 
-##### apple_apns_cert_bytes
-
-The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
+The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_CERT_BYTES`
@@ -2393,21 +2767,9 @@ The content of the Apple Push Notification service (APNs) certificate. An X.509 
       -----END CERTIFICATE-----
   ```
 
-##### apple_apns_key
+##### mdm.apple_apns_key_bytes
 
-This is the path to a PEM-encoded private key for the Apple Push Notification service (APNs). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_apns_key: /path/to/apns_key.pem
-  ```
-
-##### apple_apns_key_bytes
-
-The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
+The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_KEY_BYTES`
@@ -2420,21 +2782,9 @@ The content of the PEM-encoded private key for the Apple Push Notification servi
       -----END RSA PRIVATE KEY-----
   ```
 
-##### apple_scep_cert
+##### mdm.apple_scep_cert_bytes
 
-This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificate.  The SCEP certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_scep_cert: /path/to/scep_cert.pem
-  ```
-
-##### apple_scep_cert_bytes
-
-The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
+The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_CERT_BYTES`
@@ -2447,21 +2797,9 @@ The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An
       -----END CERTIFICATE-----
   ```
 
-##### apple_scep_key
+##### mdm.apple_scep_key_bytes
 
-This is the path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_scep_key: /path/to/scep_key.pem
-  ```
-
-##### apple_scep_key_bytes
-
-The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
+The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_KEY_BYTES`
@@ -2474,21 +2812,45 @@ The content of the PEM-encoded private key for the Simple Certificate Enrollment
       -----END RSA PRIVATE KEY-----
   ```
 
-##### apple_bm_server_token
+##### mdm.apple_scep_challenge
 
-This is the path to the Apple Business Manager encrypted server token (a `.p7m` file) downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Should be 32 characters in length and only include alphanumeric characters.
 
 - Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN`
+- Environment variable: `FLEET_MDM_APPLE_SCEP_CHALLENGE`
 - Config file format:
   ```
   mdm:
-    apple_bm_server_token: /path/to/server_token.p7m
+    apple_scep_challenge: scepchallenge
   ```
 
-##### apple_bm_server_token_bytes
+##### mdm.apple_scep_signer_validity_days
 
-This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+The number of days the signed SCEP client certificates will be valid.
+
+- Default value: 365
+- Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_VALIDITY_DAYS`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_signer_validity_days: 100
+  ```
+
+##### mdm.apple_scep_signer_allow_renewal_days
+
+The number of days allowed to renew SCEP certificates.
+
+- Default value: 14
+- Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_ALLOW_RENEWAL_DAYS`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_signer_allow_renewal_days: 30
+  ```
+
+##### mdm.apple_bm_server_token_bytes
+
+This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
@@ -2501,21 +2863,9 @@ This is the content of the Apple Business Manager encrypted server token downloa
       ... rest of content ...
   ```
 
-##### apple_bm_cert
+##### mdm.apple_bm_cert_bytes
 
-This is the path to the Apple Business Manager certificate.  The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_cert: /path/to/bm_cert.pem
-  ```
-
-##### apple_bm_cert_bytes
-
-This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
@@ -2528,21 +2878,9 @@ This is the content of the Apple Business Manager certificate. The certificate i
       -----END CERTIFICATE-----
   ```
 
-##### apple_bm_key
+##### mdm.apple_bm_key_bytes
 
-This is the path to a PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_key: /path/to/private_key.pem
-  ```
-
-##### apple_bm_key_bytes
-
-This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
+This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
@@ -2555,18 +2893,17 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
       -----END RSA PRIVATE KEY-----
   ```
 
-##### Example YAML
+##### mdm.apple_dep_sync_periodicity
 
-```yaml
-mdm:
-  apple_apns_cert: /path/to/apns_cert
-  apple_apns_key: /path/to/apns_key
-  apple_scep_cert: /path/to/scep_cert
-  apple_scep_key: /path/to/scep_key
-  apple_bm_server_token: /path/to/server_token.p7m
-  apple_bm_cert: /path/to/bm_cert
-  apple_bm_key: /path/to/private_key
-```
+The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
+
+- Default value: 1m
+- Environment variable: `FLEET_MDM_APPLE_DEP_SYNC_PERIODICITY`
+- Config file format:
+  ```
+  mdm:
+    apple_dep_sync_periodicity: 10m
+  ```
 
 ## Managing osquery configurations
 
@@ -2645,7 +2982,7 @@ After modifying the configuration you will need to reload and restart the Fleet 
 
 Fleet supports SAML single sign-on capability.
 
-Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP-initiated login must be enabled in the web interface's SAML single sign-on options.
+Fleet supports both SP-initiated SAML login and IDP-initiated login. However, IDP-initiated login must be enabled in the web interface's SAML single sign-on options.
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
@@ -2680,9 +3017,7 @@ Otherwise, the following values are required:
 - _Identity provider name_ - A human-readable name of the IDP. This is rendered on the login page.
 
 - _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
-  requests (e.g., `fleet.example.com`). This much match the _Entity ID_ configured with the IDP.
-
-- _Issuer URI_ - Obtain this value from the IDP.
+  requests (e.g., `fleet.example.com`). This must match the _Entity ID_ configured with the IDP.
 
 - _Metadata URL_ - Obtain this value from the IDP and is used by Fleet to
   issue authorization requests to the IDP.
@@ -2706,7 +3041,11 @@ configuration problems.
 > Individual users must also be set up on the IDP before signing in to Fleet.
 
 ### Enabling SSO for existing users in Fleet
-As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
+As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page,
+then click on the Users tab. Locate the user you want to enable SSO for, and in the Actions dropdown
+menu for that user, click on "Edit." In the dialogue that opens, check the box labeled "Enable
+single sign-on," then click "Save." If you are unable to check that box, you must first [configure
+and enable SSO for the organization](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 ### Just-in-time (JIT) user provisioning
 
@@ -2714,9 +3053,11 @@ As an admin, you can enable SSO for existing users in Fleet. To do this, go to t
 
 When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
 
-Accounts created via JIT provisioning are assigned the [Observer role](https://fleetdm.com/docs/using-fleet/permissions). The new account's email and full name are copied from the user data in the SSO response.
+The new account's email and full name are copied from the user data in the SSO response.
+By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
+To assign different roles for accounts created via JIT provisioning see [Customization of user roles](#customization-of-user-roles) below.
 
-To enable this option, go to **Settings > Organization settings > single sign-on options** and check "_Automatically create Observer user on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+To enable this option, go to **Settings > Organization settings > single sign-on options** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
 
 For this to work correctly make sure that:
 
@@ -2728,6 +3069,77 @@ For this to work correctly make sure that:
   - `urn:oid:2.5.4.3`
   - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`
 
+#### Customization of user roles
+
+> This feature requires setting `sso_settings.enable_jit_provisioning` to `true`.
+
+Users created via JIT provisioning can be assigned Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
+Fleet will attempt to parse SAML custom attributes with the following format:
+- `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
+- `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
+
+Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus` and `null`.
+A role attribute with value `null` will be ignored by Fleet. (This is to support limitations on some IdPs which do not allow you to choose what keys are sent to Fleet when creating a new user.)
+SAML supports multi-valued attributes, Fleet will always use the last value.
+
+NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to teams.
+
+Following is the behavior that will take place on every SSO login:
+A. If the account does not exist then:
+    - If the `SAMLResponse` has any role attributes then those will be used to set the account roles.
+    - If the `SAMLResponse` does not have any role attributes set, then Fleet will default to use the `Global Observer` role.
+B. If the account already exists:
+    - If the `SAMLResponse` has any role attributes then those will be used to update the account roles.
+    - If the `SAMLResponse` does not have any role attributes set, no role change is attempted.
+
+Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
+```xml
+[...]
+<saml2:Assertion ID="id16311976805446352575023709" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">http://www.okta.com/exk8glknbnr9Lpdkl5d7</saml2:Issuer>
+  [...]
+  <saml2:Subject xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">bar@foo.example.com</saml2:NameID>
+    <saml2:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+      <saml2:SubjectConfirmationData InResponseTo="id1Juy6Mx2IHYxLwsi" NotOnOrAfter="2023-02-27T17:46:53.506Z" Recipient="https://foo.example.com/api/v1/fleet/sso/callback"/>
+    </saml2:SubjectConfirmation>
+  </saml2:Subject>
+  [...]
+  <saml2:AttributeStatement xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_GLOBAL" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">admin</saml2:AttributeValue>
+    </saml2:Attribute>
+  </saml2:AttributeStatement>
+</saml2:Assertion>
+[...]
+```
+
+Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in team with ID `1` and `maintainer` in team with ID `2`:
+```xml
+[...]
+<saml2:Assertion ID="id16311976805446352575023709" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">http://www.okta.com/exk8glknbnr9Lpdkl5d7</saml2:Issuer>
+  [...]
+  <saml2:Subject xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">bar@foo.example.com</saml2:NameID>
+    <saml2:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+      <saml2:SubjectConfirmationData InResponseTo="id1Juy6Mx2IHYxLwsi" NotOnOrAfter="2023-02-27T17:46:53.506Z" Recipient="https://foo.example.com/api/v1/fleet/sso/callback"/>
+    </saml2:SubjectConfirmation>
+  </saml2:Subject>
+  [...]
+  <saml2:AttributeStatement xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_1" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">observer</saml2:AttributeValue>
+    </saml2:Attribute>
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_2" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">maintainer</saml2:AttributeValue>
+    </saml2:Attribute>
+  </saml2:AttributeStatement>
+</saml2:Assertion>
+[...]
+```
+
+Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
 
 #### Okta IDP configuration
 
@@ -2753,16 +3165,15 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
   ![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
 
-3. Click _Download Metadata_, saving the metadata to your computer. Copy the _SSO URL_. Click _Continue_.
+3. Click _Download Metadata_, saving the metadata to your computer. Click _Continue_.
 
-  ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
+  ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign-on options_ section.
 
   - Check the _Enable single sign-on_ checkbox.
   - For _Identity provider name_, use `Google`.
   - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-  - For _Issuer URI_, paste the _SSO URL_ copied from step three.
   - For _Metadata_, paste the contents of the downloaded metadata XML from step three.
   - All other fields can be left blank.
 
@@ -2796,8 +3207,17 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 9. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
-## Feature flags
+## Public IPs of devices
 
-Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs or not-fully-tested performance characteristics.
+> IMPORTANT: In order for this feature to work properly, devices must connect to Fleet via the public internet.
+> If the agent connects to Fleet via a private network then the "Public IP address" for such device will not be set.
 
-Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
+Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by the osquery agent.
+
+The HTTP request headers are checked in the following order:
+1. If `True-Client-IP` header is set, then Fleet will extract its value.
+2. If `X-Real-IP` header is set, then Fleet will extract its value.
+3. If `X-Forwarded-For` header is set, then Fleet will extract the first comma-separated value.
+4. If none of the above headers are present in the HTTP request then Fleet will attempt to use the remote address of the TCP connection (note that on deployments with ingress proxies the remote address seen by Fleet is the IP of the ingress proxy).
+
+If the IP retrieved using the above heuristic belongs to a private range, then Fleet will ignore it and will not set the "Public IP address" field for the device.

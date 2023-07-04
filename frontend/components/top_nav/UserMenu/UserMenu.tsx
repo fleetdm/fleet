@@ -7,7 +7,7 @@ import PATHS from "router/paths";
 
 // @ts-ignore
 import DropdownButton from "components/buttons/DropdownButton";
-import Avatar from "../../Avatar";
+import AvatarTopNav from "../../AvatarTopNav";
 
 const baseClass = "user-menu";
 
@@ -17,6 +17,7 @@ interface IUserMenuProps {
   isAnyTeamAdmin: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
   currentUser: IUser;
+  isSandboxMode?: boolean;
 }
 
 const UserMenu = ({
@@ -25,6 +26,7 @@ const UserMenu = ({
   isAnyTeamAdmin,
   isGlobalAdmin,
   currentUser,
+  isSandboxMode = false,
 }: IUserMenuProps): JSX.Element => {
   const accountNavigate = onNavItemClick(PATHS.USER_SETTINGS);
   const dropdownItems = [
@@ -42,7 +44,7 @@ const UserMenu = ({
     },
   ];
 
-  if (isGlobalAdmin) {
+  if (isGlobalAdmin && !isSandboxMode) {
     const manageUsersNavigate = onNavItemClick(PATHS.ADMIN_USERS);
 
     const manageUserNavItem = {
@@ -60,7 +62,7 @@ const UserMenu = ({
     const settingsPath =
       currentUser.global_role === "admin"
         ? PATHS.ADMIN_SETTINGS
-        : `${PATHS.ADMIN_TEAMS}/${sortedTeams[0].value}/members`;
+        : `${PATHS.TEAM_DETAILS_MEMBERS(sortedTeams[0].value)}`;
     const settingsNavigate = onNavItemClick(settingsPath);
     const adminNavItem = {
       label: "Settings",
@@ -72,9 +74,9 @@ const UserMenu = ({
   return (
     <div className={baseClass}>
       <DropdownButton options={dropdownItems}>
-        <Avatar
+        <AvatarTopNav
           className={`${baseClass}__avatar-image`}
-          user={{ gravatarURL: currentUser.gravatarURL }}
+          user={{ gravatar_url_dark: currentUser.gravatar_url_dark }}
           size="small"
         />
       </DropdownButton>

@@ -1,35 +1,40 @@
 # Orbit
 
-- [Introduction](#introduction)
-- [Try Orbit](#try-orbit)
-    - [With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet):](#with---fleetctl-preview--already-running--https---githubcom-fleetdm-fleet-try-fleet--)
-- [Capabilities](#capabilities)
-- [Usage](#usage)
-  - [Permissions](#permissions)
-    - [macOS/Linux](#macos-linux)
-    - [Windows](#windows)
-  - [Osquery shell](#osquery-shell)
-  - [Connect to a Fleet server](#connect-to-a-fleet-server)
-  - [Osquery flags](#osquery-flags)
-- [Packaging](#packaging)
-  - [Dependencies](#dependencies)
-  - [Packaging support](#packaging-support)
-  - [Building packages](#building-packages)
-    - [Configuration options](#configuration-options)
-    - [Update channels](#update-channels)
-    - [macOS signing & notarization](#macos-signing---notarization)
-    - [Orbit osquery result and status logs](#orbit-osquery-result-and-status-logs)
-    - [Orbit development](#orbit-development)
-      - [Run Orbit from source](#run-orbit-from-source)
-      - [Generate installer packages from Orbit source](#generate-installer-packages-from-orbit-source)
-  - [Troubleshooting](#troubleshooting)
-    - [Logs](#logs)
-    - [Debug](#debug)
-  - [Uninstall](#uninstall)
-    - [Windows](#windows-1)
-    - [Linux](#linux)
-    - [macOS](#macos)
-- [Bugs](#bugs)
+- [Orbit](#orbit)
+  - [Introduction](#introduction)
+    - [Components](#components)
+  - [Try Orbit](#try-orbit)
+      - [With `fleetctl preview` already running:](#with-fleetctl-preview-already-running)
+  - [Capabilities](#capabilities)
+  - [Usage](#usage)
+    - [Permissions](#permissions)
+      - [macOS/Linux](#macoslinux)
+      - [Windows](#windows)
+    - [Osquery shell](#osquery-shell)
+    - [Connect to a Fleet server](#connect-to-a-fleet-server)
+    - [Osquery flags](#osquery-flags)
+    - [Osquery extensions](#osquery-extensions)
+  - [Packaging](#packaging)
+    - [Dependencies](#dependencies)
+    - [Packaging support](#packaging-support)
+    - [Building packages](#building-packages)
+      - [Configuration options](#configuration-options)
+      - [Fleet Desktop](#fleet-desktop)
+      - [Update channels](#update-channels)
+      - [macOS signing \& notarization](#macos-signing--notarization)
+      - [Orbit osquery result and status logs](#orbit-osquery-result-and-status-logs)
+      - [Orbit mTLS support](#orbit-mtls-support)
+      - [Orbit development](#orbit-development)
+        - [Run Orbit from source](#run-orbit-from-source)
+        - [Generate installer packages from Orbit source](#generate-installer-packages-from-orbit-source)
+    - [Troubleshooting](#troubleshooting)
+      - [Logs](#logs)
+      - [Debug](#debug)
+    - [Uninstall](#uninstall)
+      - [Windows](#windows-1)
+      - [Linux](#linux)
+      - [macOS](#macos)
+  - [Bugs](#bugs)
 
 
 ## Introduction
@@ -38,6 +43,29 @@ Orbit is an [osquery](https://github.com/osquery/osquery) runtime and autoupdate
 
 Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can
 be used with or without Orbit.
+
+### Components
+
+```mermaid
+graph LR;
+    tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
+    fleet_server[Fleet<br>Server];
+
+    subgraph Orbit Agent
+        orbit[orbit];
+        desktop[Fleet Desktop<br>Tray App];
+        osqueryd[osqueryd];
+
+        desktop_browser[Fleet Desktop<br> from Browser];
+    end
+
+    orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
+    desktop -- "Fleet Desktop API (TLS)" --> fleet_server;
+    osqueryd -- "osquery<br>remote API (TLS)" --> fleet_server;
+    desktop_browser -- "My Device API (TLS)" --> fleet_server;
+
+    orbit -- "Auto Update (TLS)" --> tuf;
+```
 
 ## Try Orbit
 
@@ -59,16 +87,16 @@ Now run that installer (double click, on a Mac) to enroll your own computer as a
 
 | Capability                           | Status |
 | ------------------------------------ | ------ |
-| Secure autoupdate for osquery        | ✅     |
-| Secure autoupdate for Orbit          | ✅     |
-| Configurable update channels         | ✅     |
-| Full osquery flag customization      | ✅     |
-| Package tooling for macOS `.pkg`     | ✅     |
-| Package tooling for Linux `.deb`     | ✅     |
-| Package tooling for Linux `.rpm`     | ✅     |
-| Package tooling for Windows `.msi`   | ✅     |
-| Manage/update osquery extensions     | 🔜     |
-| Manage cgroups for Linux performance | 🔜     |
+| Secure autoupdate for osquery        | ✅      |
+| Secure autoupdate for Orbit          | ✅      |
+| Configurable update channels         | ✅      |
+| Full osquery flag customization      | ✅      |
+| Package tooling for macOS `.pkg`     | ✅      |
+| Package tooling for Linux `.deb`     | ✅      |
+| Package tooling for Linux `.rpm`     | ✅      |
+| Package tooling for Windows `.msi`   | ✅      |
+| Manage/update osquery extensions     | ✅      |
+| Manage cgroups for Linux performance | 🔜      |
 
 ## Usage
 
@@ -124,6 +152,12 @@ For example, the following would be a typical drop-in usage of Orbit:
 orbit -- --flagfile=flags.txt
 ```
 
+### Osquery extensions
+
+Orbit can be used to remotely deploy and manage osquery extensions. This saves the time and energy required to maintain extensions using a separate tool like Munki or an MDM solution.
+
+[Learn how](https://fleetdm.com/docs/using-fleet/configuration-files#code-extensions-code-option)
+
 ## Packaging
 
 Orbit, like standalone osquery, is typically deployed via OS-specific packages. Tooling is provided with this repository to generate installation packages.
@@ -161,32 +195,34 @@ fleetctl package --type deb --fleet-url=fleet.example.com --enroll-secret=notsos
 This will build a `.deb` package configured to communicate with a Fleet server at `fleet.example.com` using the enroll secret `notsosecret`.
 
 When the Fleet server uses a self-signed (or otherwise invalid) TLS certificate, package with the `--insecure` or `--fleet-certificate` options.
+
 #### Configuration options
 
 The following command-line flags allow you to configure an osquery installer further to communicate with a specific Fleet instance.
 
-|Flag | Options|
-|------|--------|
-|  --type |  **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.)|
-|--fleet-desktop |      Include Fleet Desktop. |
-|--enroll-secret |      Enroll secret for authenticating to Fleet server |
-|--fleet-url |          URL (`host:port`) of Fleet server |
-|--fleet-certificate |  Path to server certificate bundle |
-|--identifier |         Identifier for package product (default: `com.fleetdm.orbit`) |
-|--version |            Version for package product (default: `0.0.3`) |
-| --insecure  |             Disable TLS certificate verification (default: `false`) |
-| --service   |             Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`) |
-|--sign-identity |      Identity to use for macOS codesigning |
-| --notarize |             Whether to notarize macOS packages (default: `false`) |
-| --disable-updates |   Disable auto updates on the generated package (default: false) |
-|--osqueryd-channel |   Update channel of osqueryd to use (default: `stable`) |
-|--orbit-channel |      Update channel of Orbit to use (default: `stable`) |
-|--desktop-channel |    Update channel of desktop to use (default: `stable`) |
-|--update-url |         URL for update server (default: `https://tuf.fleetctl.com`) |
-|--update-roots |       Root key JSON metadata for update server (from fleetctl updates roots) |
-| --debug     |             Enable debug logging (default: `false`) |
-| --verbose   |             Log detailed information when building the package (default: false) |
-| --help, -h    |             show help (default: `false`) |
+| Flag                       | Options                                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| --type                     | **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.) |
+| --fleet-desktop            | Include Fleet Desktop.                                                                                                                  |
+| --enroll-secret            | Enroll secret for authenticating to Fleet server                                                                                        |
+| --fleet-url                | URL (`host:port`) of Fleet server                                                                                                       |
+| --fleet-certificate        | Path to server certificate bundle                                                                                                       |
+| --identifier               | Identifier for package product (default: `com.fleetdm.orbit`)                                                                           |
+| --version                  | Version for package product (default: `0.0.3`)                                                                                          |
+| --insecure                 | Disable TLS certificate verification (default: `false`)                                                                                 |
+| --service                  | Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`)                                                   |
+| --sign-identity            | Identity to use for macOS codesigning                                                                                                   |
+| --notarize                 | Whether to notarize macOS packages (default: `false`)                                                                                   |
+| --disable-updates          | Disable auto updates on the generated package (default: false)                                                                          |
+| --osqueryd-channel         | Update channel of osqueryd to use (default: `stable`)                                                                                   |
+| --orbit-channel            | Update channel of Orbit to use (default: `stable`)                                                                                      |
+| --desktop-channel          | Update channel of desktop to use (default: `stable`)                                                                                    |
+| --update-url               | URL for update server (default: `https://tuf.fleetctl.com`)                                                                             |
+| --update-roots             | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
+| --use-system-configuration | Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)               |
+| --debug                    | Enable debug logging (default: `false`)                                                                                                 |
+| --verbose                  | Log detailed information when building the package (default: false)                                                                     |
+| --help, -h                 | show help (default: `false`)                                                                                                            |
 
 #### Fleet Desktop
 
@@ -234,6 +270,48 @@ If the `logger_path` configuration is set to `filesystem`, Orbit will store osqu
   - macOS: /opt/orbit/osquery_log
   - Linux: /opt/orbit/osquery_log
 
+#### Orbit mTLS support
+
+Orbit supports using TLS client certificates for authentication to the Fleet server and [TUF](https://theupdateframework.io/) server.
+This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.
+
+> The mTLS feature requires Orbit to be version v1.10.0 or greater and `fleetctl` v4.31.0 or greater.
+
+When generating the packages, use the following flags:
+```sh
+fleetctl package \
+  [...]
+  --fleet-tls-client-certificate=fleet-client.crt \
+  --fleet-tls-client-key=fleet-client.key \
+  --update-tls-client-certificate=update-client.crt \
+  --update-tls-client-key=update-client.key \
+  [...]
+```
+The certificates must be in PEM format.
+
+The client certificates can also be pushed to existing installations by placing them in the following locations:
+- For macOS and Linux:
+  - `/opt/orbit/fleet_client.crt`
+  - `/opt/orbit/fleet_client.key`
+  - `/opt/orbit/update_client.crt`
+  - `/opt/orbit/update_client.key`
+- For Windows:
+  - `C:\Program Files\Orbit\fleet_client.crt`
+  - `C:\Program Files\Orbit\fleet_client.key`
+  - `C:\Program Files\Orbit\update_client.crt`
+  - `C:\Program Files\Orbit\update_client.key`
+
+If using Fleet Desktop, you may need to specify an alternative host for the "My device" URL (in the Fleet tray icon).
+Such alternative host should not require client certificates on the TLS connection.
+```sh
+fleetctl package
+  [...]
+  --fleet-desktop \
+  --fleet-desktop-alternative-browser-host=fleet-desktop.example.com \
+  [...]
+```
+If this setting is not used, you will need to configure client TLS certificates on devices' browsers.
+
 #### Orbit development
 
 ##### Run Orbit from source
@@ -264,7 +342,7 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
 
 The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
 To generate an installer that contains an Orbit built from source, you need to setup a local TUF repository.
-The following document explains how you can generate a TUF repository and installers that use it: [tools/tuf/test](../tools/tuf/test/README.md).
+The following document explains how you can generate a TUF repository and installers that use it: [tools/tuf/test](https://github.com/fleetdm/fleet/tree/main/tools/tuf/test/README.md).
 
 ### Troubleshooting
 
@@ -281,6 +359,7 @@ These are the log destinations for each platform:
 You can use the `--debug` option in `fleetctl package` to generate installers in "debug mode." This mode increases the verbosity of logging for orbit and osqueryd (log DEBUG level).
 
 ### Uninstall
+
 #### Windows
 
 Use the "Add or remove programs" dialog to remove Orbit.
@@ -300,7 +379,7 @@ sudo rpm -e fleet-osquery-X.Y.Z.x86_64
 
 #### macOS
 
-Run the [cleanup script](./tools/cleanup/cleanup_macos.sh).
+Run the [cleanup script](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/cleanup_macos.sh).
 
 ## Bugs
 

@@ -36,7 +36,7 @@ func TestPackage(t *testing.T) {
 	fleetCertificate := filepath.Join(certDir, "fleet.pem")
 	err = os.WriteFile(fleetCertificate, []byte("undefined"), os.FileMode(0o644))
 	require.NoError(t, err)
-	runAppCheckErr(t, []string{"package", "--type=deb", fmt.Sprintf("--fleet-certificate=%s", fleetCertificate)}, fmt.Sprintf("failed to read certificate %q: invalid PEM file", fleetCertificate))
+	runAppCheckErr(t, []string{"package", "--type=deb", fmt.Sprintf("--fleet-certificate=%s", fleetCertificate)}, fmt.Sprintf("failed to read fleet server certificate %q: invalid PEM file", fleetCertificate))
 
 	if runtime.GOOS != "linux" {
 		runAppCheckErr(t, []string{"package", "--type=msi", "--native-tooling"}, "native tooling is only available in Linux")
@@ -49,11 +49,14 @@ func TestPackage(t *testing.T) {
 		require.Greater(t, info.Size(), int64(0)) // TODO verify contents
 	})
 
-	t.Run("rpm", func(t *testing.T) {
-		runAppForTest(t, []string{"package", "--type=rpm", "--insecure", "--disable-open-folder"})
-		info, err := os.Stat(fmt.Sprintf("fleet-osquery-%s.x86_64.rpm", updatesData.OrbitVersion))
-		require.NoError(t, err)
-		require.Greater(t, info.Size(), int64(0)) // TODO verify contents
+	t.Run("--use-sytem-configuration can't be used on installers that aren't pkg", func(t *testing.T) {
+		for _, p := range []string{"deb", "msi", "rpm", ""} {
+			runAppCheckErr(
+				t,
+				[]string{"package", fmt.Sprintf("--type=%s", p), "--use-system-configuration"},
+				"--use-system-configuration is only available for pkg installers",
+			)
+		}
 	})
 
 	// fleet-osquery.msi

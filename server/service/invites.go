@@ -31,7 +31,7 @@ type createInviteResponse struct {
 
 func (r createInviteResponse) error() error { return r.Err }
 
-func createInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createInviteRequest)
 	invite, err := svc.InviteNewUser(ctx, req.InvitePayload)
 	if err != nil {
@@ -95,7 +95,7 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		return nil, err
 	}
 
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -104,10 +104,15 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 	if invitedBy == "" {
 		invitedBy = inviter.Email
 	}
+	var smtpSettings fleet.SMTPSettings
+	if config.SMTPSettings != nil {
+		smtpSettings = *config.SMTPSettings
+	}
 	inviteEmail := fleet.Email{
-		Subject: "You are Invited to Fleet",
-		To:      []string{invite.Email},
-		Config:  config,
+		Subject:      "You are Invited to Fleet",
+		To:           []string{invite.Email},
+		ServerURL:    config.ServerSettings.ServerURL,
+		SMTPSettings: smtpSettings,
 		Mailer: &mail.InviteMailer{
 			Invite:    invite,
 			BaseURL:   template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
@@ -139,7 +144,7 @@ type listInvitesResponse struct {
 
 func (r listInvitesResponse) error() error { return r.Err }
 
-func listInvitesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listInvitesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listInvitesRequest)
 	invites, err := svc.ListInvites(ctx, req.ListOptions)
 	if err != nil {
@@ -176,7 +181,7 @@ type updateInviteResponse struct {
 
 func (r updateInviteResponse) error() error { return r.Err }
 
-func updateInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func updateInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*updateInviteRequest)
 	invite, err := svc.UpdateInvite(ctx, req.ID, req.InvitePayload)
 	if err != nil {
@@ -199,7 +204,7 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	if payload.Email != nil && *payload.Email != invite.Email {
 		switch _, err := svc.ds.UserByEmail(ctx, *payload.Email); {
 		case err == nil:
-			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
+			return nil, ctxerr.Wrap(ctx, newAlreadyExistsError())
 		case errors.Is(err, sql.ErrNoRows):
 			// OK
 		default:
@@ -208,7 +213,7 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 
 		switch _, err = svc.ds.InviteByEmail(ctx, *payload.Email); {
 		case err == nil:
-			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
+			return nil, ctxerr.Wrap(ctx, newAlreadyExistsError())
 		case errors.Is(err, sql.ErrNoRows):
 			// OK
 		default:
@@ -252,7 +257,7 @@ type deleteInviteResponse struct {
 
 func (r deleteInviteResponse) error() error { return r.Err }
 
-func deleteInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteInviteRequest)
 	err := svc.DeleteInvite(ctx, req.ID)
 	if err != nil {
@@ -283,7 +288,7 @@ type verifyInviteResponse struct {
 
 func (r verifyInviteResponse) error() error { return r.Err }
 
-func verifyInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func verifyInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*verifyInviteRequest)
 	invite, err := svc.VerifyInvite(ctx, req.Token)
 	if err != nil {

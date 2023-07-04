@@ -4,22 +4,22 @@ const { GOOD_PASSWORD } = CONSTANTS;
 
 const fillOutForm = () => {
   // Page 1
-  cy.findByPlaceholderText(/full name/i).type("Test name");
+  cy.findByLabelText(/full name/i).type("Test name");
 
-  cy.findByPlaceholderText(/email/i).type("test@example.com");
+  cy.findByLabelText(/email/i).type("test@example.com");
 
-  cy.findByPlaceholderText(/^password/i)
+  cy.findByLabelText(/^password/i)
     .first()
     .type(GOOD_PASSWORD);
 
-  cy.findByPlaceholderText(/confirm password/i)
+  cy.findByLabelText(/confirm password/i)
     .last()
     .type(GOOD_PASSWORD);
 
   cy.contains("button:enabled", /next/i).click();
 
   // Page 2
-  cy.findByPlaceholderText(/organization name/i).type("Fleet Test");
+  cy.findByLabelText(/organization name/i).type("Fleet Test");
 
   cy.contains("button:enabled", /next/i).click();
 

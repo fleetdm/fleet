@@ -24,10 +24,10 @@ import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
+import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import NewQueryModal from "../NewQueryModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "query-form";
 
@@ -76,14 +76,6 @@ const QueryForm = ({
   renderLiveQueryWarning,
   backendValidators,
 }: IQueryFormProps): JSX.Element => {
-  const isEditMode = !!queryIdForEdit;
-  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [showQueryEditor, setShowQueryEditor] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
-
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
   const {
@@ -105,8 +97,20 @@ const QueryForm = ({
     isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isObserverPlus,
+    isAnyTeamObserverPlus,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
+  const savedQueryMode = !!queryIdForEdit;
+  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [showQueryEditor, setShowQueryEditor] = useState(
+    isObserverPlus || isAnyTeamObserverPlus || false
+  );
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
@@ -131,7 +135,7 @@ const QueryForm = ({
     debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
-  const hasTeamMaintainerPermissions = isEditMode
+  const hasTeamMaintainerPermissions = savedQueryMode
     ? isAnyTeamMaintainerOrTeamAdmin &&
       storedQuery &&
       currentUser &&
@@ -176,7 +180,7 @@ const QueryForm = ({
   ) => {
     evt.preventDefault();
 
-    if (isEditMode && !lastEditedQueryName) {
+    if (savedQueryMode && !lastEditedQueryName) {
       return setErrors({
         ...errors,
         name: "Query name must be present",
@@ -244,7 +248,7 @@ const QueryForm = ({
   const promptSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (isEditMode && !lastEditedQueryName) {
+    if (savedQueryMode && !lastEditedQueryName) {
       return setErrors({
         ...errors,
         name: "Query name must be present",
@@ -257,7 +261,7 @@ const QueryForm = ({
     valid = isValidated;
 
     if (valid) {
-      if (!isEditMode) {
+      if (!savedQueryMode) {
         setIsSaveModalOpen(true);
       } else {
         onUpdate({
@@ -323,7 +327,7 @@ const QueryForm = ({
   });
 
   const renderName = () => {
-    if (isEditMode) {
+    if (savedQueryMode) {
       return (
         <>
           <div className={queryNameClasses}>
@@ -340,13 +344,16 @@ const QueryForm = ({
               onKeyPress={onInputKeypress}
               isFocused={isEditingName}
             />
-            <a className="edit-link" onClick={() => setIsEditingName(true)}>
-              <img
-                className={`edit-icon ${isEditingName && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
+            <Button
+              variant="text-icon"
+              className="edit-link"
+              onClick={() => setIsEditingName(true)}
+            >
+              <Icon
+                name="pencil"
+                className={`edit-icon ${isEditingName ? "hide" : ""}`}
               />
-            </a>
+            </Button>
           </div>
         </>
       );
@@ -356,7 +363,7 @@ const QueryForm = ({
   };
 
   const renderDescription = () => {
-    if (isEditMode) {
+    if (savedQueryMode) {
       return (
         <>
           <div className={queryDescriptionClasses}>
@@ -372,16 +379,16 @@ const QueryForm = ({
               onKeyPress={onInputKeypress}
               isFocused={isEditingDescription}
             />
-            <a
+            <Button
+              variant="text-icon"
               className="edit-link"
               onClick={() => setIsEditingDescription(true)}
             >
-              <img
-                className={`edit-icon ${isEditingDescription && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
+              <Icon
+                name="pencil"
+                className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
               />
-            </a>
+            </Button>
           </div>
         </>
       );
@@ -402,19 +409,25 @@ const QueryForm = ({
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
-      <RevealButton
-        isShowing={showQueryEditor}
-        className={baseClass}
-        hideText="Hide SQL"
-        showText="Show SQL"
-        onClick={() => setShowQueryEditor(!showQueryEditor)}
-      />
+      {((!isObserverPlus && isGlobalObserver) || !isAnyTeamObserverPlus) && (
+        <RevealButton
+          isShowing={showQueryEditor}
+          className={baseClass}
+          hideText="Hide SQL"
+          showText="Show SQL"
+          onClick={() => setShowQueryEditor(!showQueryEditor)}
+        />
+      )}
       {showQueryEditor && (
         <FleetAce
           value={lastEditedQueryBody}
           name="query editor"
+          label="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          readOnly
+          readOnly={
+            (!isObserverPlus && !isAnyTeamObserverPlus) || savedQueryMode
+          }
+          labelActionComponent={isObserverPlus && renderLabelComponent()}
           wrapEnabled
         />
       )}
@@ -422,7 +435,9 @@ const QueryForm = ({
         {renderPlatformCompatibility()}
       </span>
       {renderLiveQueryWarning()}
-      {lastEditedQueryObserverCanRun && (
+      {(lastEditedQueryObserverCanRun ||
+        isObserverPlus ||
+        isAnyTeamObserverPlus) && (
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >
@@ -446,12 +461,12 @@ const QueryForm = ({
             {renderName()}
             {renderDescription()}
           </div>
-          <div className="author">{isEditMode && renderAuthor()}</div>
+          <div className="author">{savedQueryMode && renderAuthor()}</div>
         </div>
         <FleetAce
           value={lastEditedQueryBody}
           error={errors.query}
-          label="Query:"
+          label="Query"
           labelActionComponent={renderLabelComponent()}
           name="query editor"
           onLoad={onLoad}
@@ -459,11 +474,12 @@ const QueryForm = ({
           onChange={onChangeQuery}
           handleSubmit={promptSaveQuery}
           wrapEnabled
+          focus={!savedQueryMode}
         />
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}
         </span>
-        {isEditMode && (
+        {savedQueryMode && (
           <>
             <Checkbox
               value={lastEditedQueryObserverCanRun}
@@ -486,7 +502,7 @@ const QueryForm = ({
         >
           {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
             <>
-              {isEditMode && (
+              {savedQueryMode && (
                 <Button
                   variant="text-link"
                   onClick={promptSaveAsNewQuery()}
@@ -564,7 +580,13 @@ const QueryForm = ({
     return <Spinner />;
   }
 
-  if (isOnlyObserver || isGlobalObserver) {
+  if (
+    (isOnlyObserver ||
+      isGlobalObserver ||
+      isObserverPlus ||
+      isAnyTeamObserverPlus) &&
+    !isAnyTeamMaintainerOrTeamAdmin
+  ) {
     return renderRunForObserver;
   }
 

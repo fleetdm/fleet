@@ -34,19 +34,38 @@ func gitRootPath(t *testing.T) string {
 	return strings.TrimSpace(string(path))
 }
 
-func loadStdQueryLibrary(t *testing.T) []byte {
+func loadSpec(t *testing.T, relativePaths ...string) []byte {
 	b, err := os.ReadFile(filepath.Join(
-		gitRootPath(t),
-		"docs", "01-Using-Fleet", "standard-query-library", "standard-query-library.yml",
+		append([]string{gitRootPath(t)}, relativePaths...)...,
 	))
 	require.NoError(t, err)
 	return b
 }
 
-func TestGroupFromBytes(t *testing.T) {
-	stdQueryLib := loadStdQueryLibrary(t)
+func TestGroupFromBytesWithStdLib(t *testing.T) {
+	stdQueryLib := loadSpec(t,
+		"docs", "01-Using-Fleet", "standard-query-library", "standard-query-library.yml",
+	)
 	g, err := GroupFromBytes(stdQueryLib)
 	require.NoError(t, err)
 	require.NotEmpty(t, g.Queries)
+	require.NotEmpty(t, g.Policies)
+}
+
+func TestGroupFromBytesWithMacOS13CISQueries(t *testing.T) {
+	cisQueries := loadSpec(t,
+		"ee", "cis", "macos-13", "cis-policy-queries.yml",
+	)
+	g, err := GroupFromBytes(cisQueries)
+	require.NoError(t, err)
+	require.NotEmpty(t, g.Policies)
+}
+
+func TestGroupFromBytesWithWin10CISQueries(t *testing.T) {
+	cisQueries := loadSpec(t,
+		"ee", "cis", "win-10", "cis-policy-queries.yml",
+	)
+	g, err := GroupFromBytes(cisQueries)
+	require.NoError(t, err)
 	require.NotEmpty(t, g.Policies)
 }

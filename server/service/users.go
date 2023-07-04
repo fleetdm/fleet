@@ -9,10 +9,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-kit/kit/log/level"
+
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -34,7 +37,7 @@ type createUserResponse struct {
 
 func (r createUserResponse) error() error { return r.Err }
 
-func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createUserRequest)
 	user, err := svc.CreateUser(ctx, req.UserPayload)
 	if err != nil {
@@ -72,7 +75,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 // Create User From Invite
 ////////////////////////////////////////////////////////////////////////////////
 
-func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createUserRequest)
 	user, err := svc.CreateUserFromInvite(ctx, req.UserPayload)
 	if err != nil {
@@ -126,7 +129,7 @@ type listUsersResponse struct {
 
 func (r listUsersResponse) error() error { return r.Err }
 
-func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listUsersRequest)
 	users, err := svc.ListUsers(ctx, req.ListOptions)
 	if err != nil {
@@ -156,7 +159,7 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 // Me (get own current user)
 ////////////////////////////////////////////////////////////////////////////////
 
-func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	user, err := svc.AuthenticatedUser(ctx)
 	if err != nil {
 		return getUserResponse{Err: err}, nil
@@ -204,7 +207,7 @@ type getUserResponse struct {
 
 func (r getUserResponse) error() error { return r.Err }
 
-func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getUserRequest)
 	user, err := svc.User(ctx, req.ID)
 	if err != nil {
@@ -260,7 +263,7 @@ type modifyUserResponse struct {
 
 func (r modifyUserResponse) error() error { return r.Err }
 
-func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyUserRequest)
 	user, err := svc.ModifyUser(ctx, req.ID, req.UserPayload)
 	if err != nil {
@@ -276,6 +279,9 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
 	}
+
+	oldGlobalRole := user.GlobalRole
+	oldTeams := user.Teams
 
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -293,6 +299,13 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	if p.GlobalRole != nil || p.Teams != nil {
 		if err := svc.authz.Authorize(ctx, user, fleet.ActionWriteRole); err != nil {
 			return nil, err
+		}
+		license, _ := license.FromContext(ctx)
+		if license == nil {
+			return nil, ctxerr.New(ctx, "license not found")
+		}
+		if err := fleet.ValidateUserRoles(false, p, *license); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate role")
 		}
 	}
 
@@ -375,6 +388,16 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 
+	// load user again to get team-details like names.
+	user, err = svc.User(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	adminUser := authz.UserFromContext(ctx)
+	if err := fleet.LogRoleChangeActivities(ctx, svc.ds, adminUser, oldGlobalRole, oldTeams, user); err != nil {
+		return nil, err
+	}
+
 	return user, nil
 }
 
@@ -392,7 +415,7 @@ type deleteUserResponse struct {
 
 func (r deleteUserResponse) error() error { return r.Err }
 
-func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteUserRequest)
 	err := svc.DeleteUser(ctx, req.ID)
 	if err != nil {
@@ -410,7 +433,24 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return err
 	}
-	return svc.ds.DeleteUser(ctx, id)
+	if err := svc.ds.DeleteUser(ctx, id); err != nil {
+		return err
+	}
+
+	adminUser := authz.UserFromContext(ctx)
+	if err := svc.ds.NewActivity(
+		ctx,
+		adminUser,
+		fleet.ActivityTypeDeletedUser{
+			UserID:    user.ID,
+			UserName:  user.Name,
+			UserEmail: user.Email,
+		},
+	); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -429,7 +469,7 @@ type requirePasswordResetResponse struct {
 
 func (r requirePasswordResetResponse) error() error { return r.Err }
 
-func requirePasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func requirePasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*requirePasswordResetRequest)
 	user, err := svc.RequirePasswordReset(ctx, req.ID, req.Require)
 	if err != nil {
@@ -481,7 +521,7 @@ type changePasswordResponse struct {
 
 func (r changePasswordResponse) error() error { return r.Err }
 
-func changePasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func changePasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*changePasswordRequest)
 	err := svc.ChangePassword(ctx, req.OldPassword, req.NewPassword)
 	return changePasswordResponse{Err: err}, nil
@@ -537,7 +577,7 @@ type getInfoAboutSessionsForUserResponse struct {
 
 func (r getInfoAboutSessionsForUserResponse) error() error { return r.Err }
 
-func getInfoAboutSessionsForUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getInfoAboutSessionsForUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getInfoAboutSessionsForUserRequest)
 	sessions, err := svc.GetInfoAboutSessionsForUser(ctx, req.ID)
 	if err != nil {
@@ -589,7 +629,7 @@ type deleteSessionsForUserResponse struct {
 
 func (r deleteSessionsForUserResponse) error() error { return r.Err }
 
-func deleteSessionsForUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteSessionsForUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteSessionsForUserRequest)
 	err := svc.DeleteSessionsForUser(ctx, req.ID)
 	if err != nil {
@@ -621,7 +661,7 @@ type changeEmailResponse struct {
 
 func (r changeEmailResponse) error() error { return r.Err }
 
-func changeEmailEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func changeEmailEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*changeEmailRequest)
 	newEmailAddress, err := svc.ChangeUserEmail(ctx, req.Token)
 	if err != nil {
@@ -713,7 +753,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 
 	switch _, err = svc.ds.UserByEmail(ctx, email); {
 	case err == nil:
-		return ctxerr.Wrap(ctx, alreadyExistsError{})
+		return ctxerr.Wrap(ctx, newAlreadyExistsError())
 	case errors.Is(err, sql.ErrNoRows):
 		// OK
 	default:
@@ -722,7 +762,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 
 	switch _, err = svc.ds.InviteByEmail(ctx, email); {
 	case err == nil:
-		return ctxerr.Wrap(ctx, alreadyExistsError{})
+		return ctxerr.Wrap(ctx, newAlreadyExistsError())
 	case errors.Is(err, sql.ErrNoRows):
 		// OK
 	default:
@@ -733,15 +773,21 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 	if err != nil {
 		return err
 	}
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
 
+	var smtpSettings fleet.SMTPSettings
+	if config.SMTPSettings != nil {
+		smtpSettings = *config.SMTPSettings
+	}
+
 	changeEmail := fleet.Email{
-		Subject: "Confirm Fleet Email Change",
-		To:      []string{email},
-		Config:  config,
+		Subject:      "Confirm Fleet Email Change",
+		To:           []string{email},
+		SMTPSettings: smtpSettings,
+		ServerURL:    config.ServerSettings.ServerURL,
 		Mailer: &mail.ChangeEmailMailer{
 			Token:    token,
 			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
@@ -774,7 +820,7 @@ type performRequiredPasswordResetResponse struct {
 
 func (r performRequiredPasswordResetResponse) error() error { return r.Err }
 
-func performRequiredPasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func performRequiredPasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*performRequiredPasswordResetRequest)
 	user, err := svc.PerformRequiredPasswordReset(ctx, req.Password)
 	if err != nil {
@@ -859,7 +905,7 @@ type resetPasswordResponse struct {
 
 func (r resetPasswordResponse) error() error { return r.Err }
 
-func resetPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func resetPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*resetPasswordRequest)
 	err := svc.ResetPassword(ctx, req.PasswordResetToken, req.NewPassword)
 	return resetPasswordResponse{Err: err}, nil
@@ -934,7 +980,7 @@ type forgotPasswordResponse struct {
 func (r forgotPasswordResponse) error() error { return r.Err }
 func (r forgotPasswordResponse) Status() int  { return http.StatusAccepted }
 
-func forgotPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func forgotPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*forgotPasswordRequest)
 	// Any error returned by the service should not be returned to the
 	// client to prevent information disclosure (it will be logged in the
@@ -982,10 +1028,16 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		return err
 	}
 
+	var smtpSettings fleet.SMTPSettings
+	if config.SMTPSettings != nil {
+		smtpSettings = *config.SMTPSettings
+	}
+
 	resetEmail := fleet.Email{
-		Subject: "Reset Your Fleet Password",
-		To:      []string{user.Email},
-		Config:  config,
+		Subject:      "Reset Your Fleet Password",
+		To:           []string{user.Email},
+		SMTPSettings: smtpSettings,
+		ServerURL:    config.ServerSettings.ServerURL,
 		Mailer: &mail.PasswordResetMailer{
 			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
@@ -993,7 +1045,11 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		},
 	}
 
-	return svc.mailService.SendEmail(resetEmail)
+	err = svc.mailService.SendEmail(resetEmail)
+	if err != nil {
+		level.Error(svc.logger).Log("err", err, "msg", "failed to send password reset request email")
+	}
+	return err
 }
 
 func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {

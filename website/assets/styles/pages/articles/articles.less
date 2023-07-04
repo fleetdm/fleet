@@ -33,6 +33,21 @@
     padding-top: 80px;
     padding-bottom: 40px;
   }
+  [purpose='rss-button'] {
+    padding: 4px 8px;
+    display: inline;
+    max-width: min-content;
+    color: #192147;
+    font-size: 14px;
+    text-decoration: none;
+    span::before {
+      font-family: 'FontAwesome';
+      content: '\f09e';
+      color: #192147;
+      padding-right: 8px;
+      font-size: 16px;
+    }
+  }
 
   [purpose='articles'] {
     padding-bottom: 80px;
@@ -76,7 +91,7 @@
             color: @core-fleet-black-50;
           }
           p {
-            margin-block-end: 0px;
+            margin-bottom: 0px;
           }
         }
       }

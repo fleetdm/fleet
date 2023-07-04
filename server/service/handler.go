@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
 	"errors"
+	"fmt"
 	"net/http"
 	"regexp"
 
@@ -12,16 +15,30 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/micromdm/nanomdm/certverify"
+	httpmdm "github.com/micromdm/nanomdm/http/mdm"
+	nanomdm_log "github.com/micromdm/nanomdm/log"
+	nanomdm_service "github.com/micromdm/nanomdm/service"
+	"github.com/micromdm/nanomdm/service/certauth"
+	"github.com/micromdm/nanomdm/service/multi"
+	"github.com/micromdm/nanomdm/service/nanomdm"
+	nanomdm_storage "github.com/micromdm/nanomdm/storage"
+	scep_depot "github.com/micromdm/scep/v2/depot"
+	scepserver "github.com/micromdm/scep/v2/server"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
+	"go.elastic.co/apm/module/apmgorilla/v2"
 	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
+
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
 type errorHandler struct {
@@ -41,6 +58,11 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	var ewlf fleet.ErrWithLogFields
 	if errors.As(err, &ewlf) {
 		logger = kitlog.With(logger, ewlf.LogFields()...)
+	}
+
+	var uuider fleet.ErrorUUIDer
+	if errors.As(err, &uuider) {
+		logger = kitlog.With(logger, "uuid", uuider.UUID())
 	}
 
 	var rle ratelimit.Error
@@ -118,8 +140,12 @@ func MakeHandler(
 	}
 
 	r := mux.NewRouter()
-	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
-		r.Use(otmiddleware.Middleware("fleet"))
+	if config.Logging.TracingEnabled {
+		if config.Logging.TracingType == "opentelemetry" {
+			r.Use(otmiddleware.Middleware("fleet"))
+		} else {
+			apmgorilla.Instrument(r)
+		}
 	}
 
 	r.Use(publicIP)
@@ -220,10 +246,11 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn) //nolint:errcheck
 }
 
-// desktopRateLimitMaxBurst is the max burst used for device request rate limiting.
-//
-// Defined as const to be used in tests.
-const desktopRateLimitMaxBurst = 100
+// These are defined as const so that they can be used in tests.
+const (
+	desktopRateLimitMaxBurst        = 100 // Max burst used for device request rate limiting.
+	forgotPasswordRateLimitMaxBurst = 9   // Max burst used for rate limiting on the the forgot_password endpoint.
+)
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
 	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
@@ -292,6 +319,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
 	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
 	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
+	ue.POST("/api/_version_/fleet/automations/reset", resetAutomationEndpoint, resetAutomationRequest{})
 
 	// Alias /api/_version_/fleet/team/ -> /api/_version_/fleet/teams/
 	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").
@@ -360,7 +388,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/spec/labels", getLabelSpecsEndpoint, nil)
 	ue.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
 
+	// This GET endpoint runs live queries synchronously (with a configured timeout).
 	ue.GET("/api/_version_/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
+	// The following two POST APIs are the asynchronous way to run live queries.
+	// The live queries are created with these two endpoints and their results can be queried via
+	// websockets via the `GET /api/_version_/fleet/results/` endpoint.
 	ue.POST("/api/_version_/fleet/queries/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
 	ue.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesEndpoint, createDistributedQueryCampaignByNamesRequest{})
 
@@ -407,20 +439,69 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
-	if config.MDMApple.Enable {
-		ue.POST("/api/_version_/fleet/mdm/apple/enrollmentprofiles", createMDMAppleEnrollmentProfilesEndpoint, createMDMAppleEnrollmentProfileRequest{})
-		ue.GET("/api/_version_/fleet/mdm/apple/enrollmentprofiles", listMDMAppleEnrollmentsEndpoint, listMDMAppleEnrollmentProfilesRequest{})
-		ue.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
-		ue.GET("/api/_version_/fleet/mdm/apple/commandresults", getMDMAppleCommandResultsEndpoint, getMDMAppleCommandResultsRequest{})
-		ue.POST("/api/_version_/fleet/mdm/apple/installers", uploadAppleInstallerEndpoint, uploadAppleInstallerRequest{})
-		ue.GET("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", getAppleInstallerEndpoint, getAppleInstallerDetailsRequest{})
-		ue.DELETE("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", deleteAppleInstallerEndpoint, deleteAppleInstallerDetailsRequest{})
-		ue.GET("/api/_version_/fleet/mdm/apple/installers", listMDMAppleInstallersEndpoint, listMDMAppleInstallersRequest{})
-		ue.GET("/api/_version_/fleet/mdm/apple/devices", listMDMAppleDevicesEndpoint, listMDMAppleDevicesRequest{})
-		ue.GET("/api/_version_/fleet/mdm/apple/dep/devices", listMDMAppleDEPDevicesEndpoint, listMDMAppleDEPDevicesRequest{})
-	}
-	ue.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
+	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
+	// NOTE: remember to update
+	// `service.mdmAppleConfigurationRequiredEndpoints` when you add an
+	// endpoint that's behind the mdmConfiguredMiddleware, this applies
+	// both to this set of endpoints and to any public/token-authenticated
+	// endpoints using `neMDM` below in this file.
+	mdmConfiguredMiddleware := mdmconfigured.NewMDMConfigMiddleware(svc)
+	mdmAppleMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/commandresults", getMDMAppleCommandResultsEndpoint, getMDMAppleCommandResultsRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/commands", listMDMAppleCommandsEndpoint, listMDMAppleCommandsRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/filevault/summary", getMdmAppleFileVaultSummaryEndpoint, getMDMAppleFileVaultSummaryRequest{})
+	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles", newMDMAppleConfigProfileEndpoint, newMDMAppleConfigProfileRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesEndpoint, listMDMAppleConfigProfilesRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/profiles/{profile_id:[0-9]+}", getMDMAppleConfigProfileEndpoint, getMDMAppleConfigProfileRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/profiles/{profile_id:[0-9]+}", deleteMDMAppleConfigProfileEndpoint, deleteMDMAppleConfigProfileRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryEndpoint, getMDMAppleProfilesSummaryRequest{})
+	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantEndpoint, createMDMAppleSetupAssistantRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/enrollment_profile", getMDMAppleSetupAssistantEndpoint, getMDMAppleSetupAssistantRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/enrollment_profile", deleteMDMAppleSetupAssistantEndpoint, deleteMDMAppleSetupAssistantRequest{})
+
+	// TODO: are those undocumented endpoints still needed? I think they were only used
+	// by 'fleetctl apple-mdm' sub-commands.
+	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/installers", uploadAppleInstallerEndpoint, uploadAppleInstallerRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", getAppleInstallerEndpoint, getAppleInstallerDetailsRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", deleteAppleInstallerEndpoint, deleteAppleInstallerDetailsRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/installers", listMDMAppleInstallersEndpoint, listMDMAppleInstallersRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/devices", listMDMAppleDevicesEndpoint, listMDMAppleDevicesRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/dep/devices", listMDMAppleDEPDevicesEndpoint, listMDMAppleDEPDevicesRequest{})
+
+	// bootstrap-package routes
+	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/bootstrap", uploadBootstrapPackageEndpoint, uploadBootstrapPackageRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/bootstrap/{team_id:[0-9]+}/metadata", bootstrapPackageMetadataEndpoint, bootstrapPackageMetadataRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/bootstrap/{team_id:[0-9]+}", deleteBootstrapPackageEndpoint, deleteBootstrapPackageRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/bootstrap/summary", getMDMAppleBootstrapPackageSummaryEndpoint, getMDMAppleBootstrapPackageSummaryRequest{})
+
+	// host-specific mdm routes
+	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/unenroll", mdmAppleCommandRemoveEnrollmentProfileEndpoint, mdmAppleCommandRemoveEnrollmentProfileRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
+	mdmAppleMW.POST("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/lock", deviceLockEndpoint, deviceLockRequest{})
+	mdmAppleMW.POST("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/wipe", deviceWipeEndpoint, deviceWipeRequest{})
+
+	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/apple/settings", updateMDMAppleSettingsEndpoint, updateMDMAppleSettingsRequest{})
+	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/apple/setup", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
+
+	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/setup/eula", createMDMAppleEULAEndpoint, createMDMAppleEULARequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/setup/eula/metadata", getMDMAppleEULAMetadataEndpoint, getMDMAppleEULAMetadataRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/setup/eula/{token}", deleteMDMAppleEULAEndpoint, deleteMDMAppleEULARequest{})
+
+	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
+	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
+
+	// the following set of mdm endpoints must always be accessible (even
+	// if MDM is not configured) as it bootstraps the setup of MDM
+	// (generates CSR request for APNs, plus the SCEP and ABM keypairs).
+	ue.POST("/api/_version_/fleet/mdm/apple/request_csr", requestMDMAppleCSREndpoint, requestMDMAppleCSRRequest{})
+	ue.POST("/api/_version_/fleet/mdm/apple/dep/key_pair", newMDMAppleDEPKeyPairEndpoint, nil)
 	ue.GET("/api/_version_/fleet/mdm/apple_bm", getAppleBMEndpoint, nil)
+	// batch-apply is accessible even though MDM is not enabled, it needs
+	// to support the case where `fleetctl get config`'s output is used as
+	// input to `fleetctl apply`
+	ue.POST("/api/_version_/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesEndpoint, batchSetMDMAppleProfilesRequest{})
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 
@@ -450,6 +531,20 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_transparency", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
+
+	// mdm-related endpoints available via device authentication
+	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	demdm.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_mdm", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
+
+	demdm.WithCustomMiddleware(
+		errorLimiter.Limit("post_device_rotate_encryption_key", desktopQuota),
+	).POST("/api/_version_/fleet/device/{token}/rotate_encryption_key", rotateEncryptionKeyEndpoint, rotateEncryptionKeyRequest{})
+
+	demdm.WithCustomMiddleware(
+		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota),
+	).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
 
 	// host-authenticated endpoints
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
@@ -485,12 +580,28 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 
-	if config.MDMApple.Enable {
-		// These endpoint are token authenticated.
-		ne.GET(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
-		ne.GET(apple_mdm.InstallerPath, mdmAppleGetInstallerEndpoint, mdmAppleGetInstallerRequest{})
-		ne.HEAD(apple_mdm.InstallerPath, mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
-	}
+	// These endpoint are token authenticated.
+	// NOTE: remember to update
+	// `service.mdmAppleConfigurationRequiredEndpoints` when you add an
+	// endpoint that's behind the mdmConfiguredMiddleware, this applies
+	// both to this set of endpoints and to any user authenticated
+	// endpoints using `mdmAppleMW.*` above in this file.
+	neAppleMDM := ne.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	neAppleMDM.GET(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
+	neAppleMDM.GET(apple_mdm.InstallerPath, mdmAppleGetInstallerEndpoint, mdmAppleGetInstallerRequest{})
+	neAppleMDM.HEAD(apple_mdm.InstallerPath, mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
+	neAppleMDM.GET("/api/_version_/fleet/mdm/apple/bootstrap", downloadBootstrapPackageEndpoint, downloadBootstrapPackageRequest{})
+	neAppleMDM.GET("/api/_version_/fleet/mdm/apple/setup/eula/{token}", getMDMAppleEULAEndpoint, getMDMAppleEULARequest{})
+
+	// These endpoint are used by Microsoft devices during MDM device enrollment phase
+	neWindowsMDM := ne.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
+
+	// Microsoft MS-MDE Endpoints
+	// This endpoint is unauthenticated and is used by Microsoft devices to discover the MDM server
+	neWindowsMDM.POST(microsoft_mdm.MDE2DiscoveryPath, mdmMicrosoftDiscoveryEndpoint, SoapRequestContainer{})
+
+	// This endpoint is authenticated using the BinarySecurityToken header field
+	neWindowsMDM.POST(microsoft_mdm.MDE2PolicyPath, mdmMicrosoftPolicyEndpoint, SoapRequestContainer{})
 
 	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, EnrollOrbitRequest{})
 
@@ -513,9 +624,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// endpoint but a raw http.Handler. It uses the NoAuthEndpointer because
 	// authentication is done when the websocket session is established, inside
 	// the handler.
-	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/", makeStreamDistributedQueryCampaignResultsHandler(svc, logger))
+	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/", makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
 
-	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 90}
+	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
 		WithCustomMiddleware(limiter.Limit("forgot_password", quota)).
@@ -540,6 +651,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.WithCustomMiddleware(
 		errorLimiter.Limit("ping_orbit", desktopQuota),
 	).HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, orbitPingRequest{})
+
+	neAppleMDM.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
+		POST("/api/_version_/fleet/mdm/sso", initiateMDMAppleSSOEndpoint, initiateMDMAppleSSORequest{})
+
+	neAppleMDM.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
+		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMAppleSSOEndpoint, callbackMDMAppleSSORequest{})
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
@@ -627,4 +744,129 @@ func RedirectSetupToLogin(svc fleet.Service, logger kitlog.Logger, next http.Han
 		}
 		next.ServeHTTP(w, r)
 	}
+}
+
+// RegisterAppleMDMProtocolServices registers the HTTP handlers that serve
+// the MDM services to Apple devices.
+func RegisterAppleMDMProtocolServices(
+	mux *http.ServeMux,
+	scepConfig config.MDMConfig,
+	mdmStorage nanomdm_storage.AllStorage,
+	scepStorage scep_depot.Depot,
+	logger kitlog.Logger,
+	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
+) error {
+	scepCACerts, scepCAKey, err := scepStorage.CA([]byte{})
+	if err != nil {
+		return fmt.Errorf("load SCEP CA certificates and key: %w", err)
+	}
+	if err := registerSCEP(mux, scepConfig, scepCACerts[0], scepCAKey, scepStorage, logger); err != nil {
+		return fmt.Errorf("scep: %w", err)
+	}
+	if err := registerMDM(mux, scepCACerts[0], mdmStorage, checkinAndCommandService, logger); err != nil {
+		return fmt.Errorf("mdm: %w", err)
+	}
+	return nil
+}
+
+// registerSCEP registers the HTTP handler for SCEP service needed for enrollment to MDM.
+// Returns the SCEP CA certificate that can be used by verifiers.
+func registerSCEP(
+	mux *http.ServeMux,
+	scepConfig config.MDMConfig,
+	scepCert *x509.Certificate,
+	scepKey *rsa.PrivateKey,
+	scepStorage scep_depot.Depot,
+	logger kitlog.Logger,
+) error {
+	var signer scepserver.CSRSigner = scep_depot.NewSigner(
+		scepStorage,
+		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
+		scep_depot.WithAllowRenewalDays(scepConfig.AppleSCEPSignerAllowRenewalDays),
+	)
+	scepChallenge := scepConfig.AppleSCEPChallenge
+	if scepChallenge == "" {
+		return errors.New("missing SCEP challenge")
+	}
+
+	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
+	scepService, err := scepserver.NewService(scepCert, scepKey, signer,
+		scepserver.WithLogger(kitlog.With(logger, "component", "mdm-apple-scep")),
+	)
+	if err != nil {
+		return fmt.Errorf("initialize SCEP service: %w", err)
+	}
+	scepLogger := kitlog.With(logger, "component", "http-mdm-apple-scep")
+	e := scepserver.MakeServerEndpoints(scepService)
+	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
+	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
+	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
+	mux.Handle(apple_mdm.SCEPPath, scepHandler)
+	return nil
+}
+
+// NanoMDMLogger is a logger adapter for nanomdm.
+type NanoMDMLogger struct {
+	logger kitlog.Logger
+}
+
+func NewNanoMDMLogger(logger kitlog.Logger) *NanoMDMLogger {
+	return &NanoMDMLogger{
+		logger: logger,
+	}
+}
+
+func (l *NanoMDMLogger) Info(keyvals ...interface{}) {
+	level.Info(l.logger).Log(keyvals...)
+}
+
+func (l *NanoMDMLogger) Debug(keyvals ...interface{}) {
+	level.Debug(l.logger).Log(keyvals...)
+}
+
+func (l *NanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
+	newLogger := kitlog.With(l.logger, keyvals...)
+	return &NanoMDMLogger{
+		logger: newLogger,
+	}
+}
+
+// registerMDM registers the HTTP handlers that serve core MDM services (like checking in for MDM commands).
+func registerMDM(
+	mux *http.ServeMux,
+	scepCACert *x509.Certificate,
+	mdmStorage nanomdm_storage.AllStorage,
+	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
+	logger kitlog.Logger,
+) error {
+	certVerifier, err := certverify.NewPoolVerifier(
+		apple_mdm.EncodeCertPEM(scepCACert),
+		x509.ExtKeyUsageClientAuth,
+	)
+	if err != nil {
+		return fmt.Errorf("certificate pool verifier: %w", err)
+	}
+	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
+
+	// As usual, handlers are applied from bottom to top:
+	// 1. Extract and verify MDM signature.
+	// 2. Verify signer certificate with CA.
+	// 3. Verify new or enrolled certificate (certauth.CertAuth which wraps the MDM service).
+	// 4. Pass a copy of the request to Fleet middleware that ingests new hosts from pending MDM
+	// enrollments and updates the Fleet hosts table accordingly with the UDID and serial number of
+	// the device.
+	// 5. Run actual MDM service operation (checkin handler or command and results handler).
+	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
+	// NOTE: it is critical that the coreMDMService runs first, as the first
+	// service in the multi-service feature is run to completion _before_ running
+	// the other ones in parallel. This way, subsequent services have access to
+	// the result of the core service, e.g. the device is enrolled, etc.
+	var mdmService nanomdm_service.CheckinAndCommandService = multi.New(mdmLogger, coreMDMService, checkinAndCommandService)
+
+	mdmService = certauth.New(mdmService, mdmStorage)
+	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
+	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
+	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
+	mux.Handle(apple_mdm.MDMPath, mdmHandler)
+	return nil
 }

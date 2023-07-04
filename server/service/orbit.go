@@ -7,10 +7,14 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
+
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
 type setOrbitNodeKeyer interface {
@@ -21,9 +25,18 @@ type orbitError struct {
 	message string
 }
 
+// EnrollOrbitRequest is the request Orbit instances use to enroll to Fleet.
 type EnrollOrbitRequest struct {
+	// EnrollSecret is the secret to authenticate the enroll request.
 	EnrollSecret string `json:"enroll_secret"`
+	// HardwareUUID is the device's hardware UUID.
 	HardwareUUID string `json:"hardware_uuid"`
+	// HardwareSerial is the device's serial number.
+	HardwareSerial string `json:"hardware_serial"`
+	// Hostname is the device's hostname.
+	Hostname string `json:"hostname"`
+	// Platform is the device's platform as defined by osquery.
+	Platform string `json:"platform"`
 }
 
 type EnrollOrbitResponse struct {
@@ -44,9 +57,11 @@ func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
 }
 
 type orbitGetConfigResponse struct {
-	Flags json.RawMessage `json:"command_line_startup_flags,omitempty"`
-	Err   error           `json:"error,omitempty"`
+	fleet.OrbitConfig
+	Err error `json:"error,omitempty"`
 }
+
+func (r orbitGetConfigResponse) error() error { return r.Err }
 
 func (e orbitError) Error() string {
 	return e.message
@@ -63,13 +78,18 @@ func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	enc.SetIndent("", "  ")
 
 	if err := enc.Encode(r); err != nil {
-		encodeError(ctx, osqueryError{message: fmt.Sprintf("orbit enroll failed: %s", err)}, w)
+		encodeError(ctx, newOsqueryError(fmt.Sprintf("orbit enroll failed: %s", err)), w)
 	}
 }
 
-func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*EnrollOrbitRequest)
-	nodeKey, err := svc.EnrollOrbit(ctx, req.HardwareUUID, req.EnrollSecret)
+	nodeKey, err := svc.EnrollOrbit(ctx, fleet.OrbitHostInfo{
+		HardwareUUID:   req.HardwareUUID,
+		HardwareSerial: req.HardwareSerial,
+		Hostname:       req.Hostname,
+		Platform:       req.Platform,
+	}, req.EnrollSecret)
 	if err != nil {
 		return EnrollOrbitResponse{Err: err}, nil
 	}
@@ -96,14 +116,30 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
-// EnrollOrbit returns an orbit nodeKey on successful enroll
-func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (string, error) {
+// EnrollOrbit enrolls an Orbit instance to Fleet and returns the orbit node key.
+func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string) (string, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
-	logging.WithExtras(ctx, "hardware_uuid", hardwareUUID)
+
+	logging.WithLevel(
+		logging.WithExtras(ctx,
+			"hardware_uuid", hostInfo.HardwareUUID,
+			"hardware_serial", hostInfo.HardwareSerial,
+			"hostname", hostInfo.Hostname,
+			"platform", hostInfo.Platform,
+		),
+		level.Info,
+	)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			// OK - This can happen if the following sequence of events take place:
+			// 	1. User deletes global/team enroll secret.
+			// 	2. User deletes the host in Fleet.
+			// 	3. Orbit tries to re-enroll using old secret.
+			return "", fleet.NewAuthFailedError("invalid secret")
+		}
 		return "", orbitError{message: err.Error()}
 	}
 
@@ -112,7 +148,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 		return "", orbitError{message: "failed to generate orbit node key: " + err.Error()}
 	}
 
-	_, err = svc.ds.EnrollOrbit(ctx, hardwareUUID, orbitNodeKey, secret.TeamID)
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", orbitError{message: "app config load failed: " + err.Error()}
+	}
+
+	_, err = svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
 	if err != nil {
 		return "", orbitError{message: "failed to enroll " + err.Error()}
 	}
@@ -120,51 +161,133 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 	return orbitNodeKey, nil
 }
 
-func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	opts, err := svc.GetOrbitFlags(ctx)
+func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	cfg, err := svc.GetOrbitConfig(ctx)
 	if err != nil {
 		return orbitGetConfigResponse{Err: err}, nil
 	}
-	return orbitGetConfigResponse{Flags: opts}, nil
+	return orbitGetConfigResponse{OrbitConfig: cfg}, nil
 }
 
-func (svc *Service) GetOrbitFlags(ctx context.Context) (json.RawMessage, error) {
+func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
+	var notifs fleet.OrbitConfigNotifications
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return nil, orbitError{message: "internal error: missing host from request context"}
+		return fleet.OrbitConfig{Notifications: notifs}, orbitError{message: "internal error: missing host from request context"}
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return fleet.OrbitConfig{Notifications: notifs}, err
+	}
+
+	// set the host's orbit notifications for macOS MDM
+	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
+		// TODO(mna): all those notifications implied a macos hosts, but none of
+		// the checks enforce that (only indirectly in some cases, like
+		// IsDEPAssignedToFleet), should we add such a platform check?
+
+		if host.NeedsDEPEnrollment() {
+			notifs.RenewEnrollmentProfile = true
+		}
+
+		if appConfig.MDM.MacOSMigration.Enable &&
+			host.IsEligibleForDEPMigration() {
+			notifs.NeedsMDMMigration = true
+		}
+
+		if host.DiskEncryptionResetRequested != nil && *host.DiskEncryptionResetRequested {
+			notifs.RotateDiskEncryptionKey = true
+
+			// Since this is an user initiated action, we disable
+			// the flag when we deliver the notification to Orbit
+			if err := svc.ds.SetDiskEncryptionResetStatus(ctx, host.ID, false); err != nil {
+				return fleet.OrbitConfig{Notifications: notifs}, err
+			}
+		}
+	}
+
+	// set the host's orbit notifications for Windows MDM
+	if appConfig.MDM.WindowsEnabledAndConfigured {
+		if host.IsEligibleForWindowsMDMEnrollment() {
+			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
+			if err != nil {
+				return fleet.OrbitConfig{Notifications: notifs}, err
+			}
+			notifs.WindowsMDMDiscoveryEndpoint = discoURL
+			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
+		}
+	}
+	if config.IsMDMFeatureFlagEnabled() && !appConfig.MDM.WindowsEnabledAndConfigured {
+		if host.IsEligibleForWindowsMDMUnenrollment() {
+			notifs.NeedsProgrammaticWindowsMDMUnenrollment = true
+		}
 	}
 
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
 		if err != nil {
-			return nil, err
+			return fleet.OrbitConfig{Notifications: notifs}, err
 		}
 
+		var opts fleet.AgentOptions
 		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
-			var opts fleet.AgentOptions
 			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
-				return nil, err
+				return fleet.OrbitConfig{Notifications: notifs}, err
 			}
-			return opts.CommandLineStartUpFlags, nil
 		}
+
+		mdmConfig, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return fleet.OrbitConfig{Notifications: notifs}, err
+		}
+
+		var nudgeConfig *fleet.NudgeConfig
+		if appConfig.MDM.EnabledAndConfigured &&
+			mdmConfig != nil &&
+			mdmConfig.MacOSUpdates.EnabledForHost(host) {
+			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
+			if err != nil {
+				return fleet.OrbitConfig{Notifications: notifs}, err
+			}
+		}
+
+		return fleet.OrbitConfig{
+			Flags:         opts.CommandLineStartUpFlags,
+			Extensions:    opts.Extensions,
+			Notifications: notifs,
+			NudgeConfig:   nudgeConfig,
+		}, nil
 	}
 
 	// team ID is nil, get global flags and options
-	config, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
 	var opts fleet.AgentOptions
-	if config.AgentOptions != nil {
-		if err := json.Unmarshal(*config.AgentOptions, &opts); err != nil {
-			return nil, err
+	if appConfig.AgentOptions != nil {
+		if err := json.Unmarshal(*appConfig.AgentOptions, &opts); err != nil {
+			return fleet.OrbitConfig{Notifications: notifs}, err
 		}
 	}
-	return opts.CommandLineStartUpFlags, nil
+
+	var nudgeConfig *fleet.NudgeConfig
+	if appConfig.MDM.EnabledAndConfigured &&
+		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
+		nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
+		if err != nil {
+			return fleet.OrbitConfig{Notifications: notifs}, err
+		}
+	}
+
+	return fleet.OrbitConfig{
+		Flags:         opts.CommandLineStartUpFlags,
+		Extensions:    opts.Extensions,
+		Notifications: notifs,
+		NudgeConfig:   nudgeConfig,
+	}, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -179,10 +302,12 @@ func (r orbitPingResponse) hijackRender(ctx context.Context, w http.ResponseWrit
 	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
 }
 
+func (r orbitPingResponse) error() error { return nil }
+
 // NOTE: we're intentionally not reading the capabilities header in this
 // endpoint as is unauthenticated and we don't want to trust whatever comes in
 // there.
-func orbitPingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func orbitPingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	svc.DisableAuthForPing(ctx)
 	return orbitPingResponse{}, nil
 }
@@ -210,7 +335,7 @@ type setOrUpdateDeviceTokenResponse struct {
 
 func (r setOrUpdateDeviceTokenResponse) error() error { return r.Err }
 
-func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*setOrUpdateDeviceTokenRequest)
 	if err := svc.SetOrUpdateDeviceAuthToken(ctx, req.DeviceAuthToken); err != nil {
 		return setOrUpdateDeviceTokenResponse{Err: err}, nil
@@ -224,13 +349,11 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return osqueryError{message: "internal error: missing host from request context"}
+		return newOsqueryError("internal error: missing host from request context")
 	}
 
 	if err := svc.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
-		return osqueryError{
-			message: fmt.Sprintf("internal error: failed to set or update device auth token: %e", err),
-		}
+		return newOsqueryError(fmt.Sprintf("internal error: failed to set or update device auth token: %e", err))
 	}
 
 	return nil

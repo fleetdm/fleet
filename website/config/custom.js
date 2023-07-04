@@ -94,61 +94,82 @@ module.exports.custom = {
   * See api/controllers/webhooks/receive-from-github.js for context.         *
   *                                                                          *
   ***************************************************************************/
-  githubRepoDRIByPath: {
-    'README.md': ['chris-mcgillicuddy', 'jarodreyes'],// (github brandfront)
-    'tools/fleetctl-npm/README.md': ['chris-mcgillicuddy', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
+  githubRepoDRIByPath: {// fleetdm/fleet
+    'README.md': ['mikermcneil', 'jarodreyes', 'mike-j-thomas', 'zwass'],// (github brandfront)
+    'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
 
-    'CODEOWNERS': ['zwass', 'mikermcneil'],
+    // Directly responsible individual (DRI) automation
+    'CODEOWNERS': ['zwass', 'mikermcneil'],// (« for changing who reviews is automatically requested from for given paths)
+    'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
-    'articles': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+    '.github/workflows': ['zwass', 'mikermcneil'],// (misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
+    'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
 
-    'handbook': ['chris-mcgillicuddy', 'mike-j-Thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
+    // GitHub issue templates
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','zhumo','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala', 'zhumo','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala', 'zhumo','lukeheath','noahtalerman', 'lukeheath'],
+
+    'articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+
+    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
-    'handbook/business-operations': ['hollidayn', 'charlottechance'],
-    'handbook/engineering': 'zwass',
+    'handbook/business-operations': ['jostableford','hollidayn', 'mikermcneil'],
+    'handbook/engineering': ['zwass', 'lukeheath'],
     'handbook/product': ['noahtalerman', 'zhumo'],
-    'handbook/security': 'guillaumeross',
-    'handbook/customers': ['alexmitchelliii','zayhanlon'],
-    'handbook/marketing': ['jarodreyes', 'mike-j-thomas','chris-mcgillicuddy'],
+    'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
+    'handbook/marketing': ['jarodreyes', 'mike-j-thomas', 'spokanemac'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
+    'website/generators': 'eashaw',
     'website/assets': 'eashaw',
-    'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
     'website/package.json': 'eashaw',
+    '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
+    '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],// (website CI test script)
+    'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
+    'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
+    'website/api/controllers/imagine': ['eashaw', 'jarodreyes'],// landing pages
 
-    'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil', 'jarodreyes', 'ksatter'],// (default for docs)
-    'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
-    'docs/Using-Fleet/REST-API.md': ['ksatter','lukeheath'],
-    'docs/Contributing/API-for-contributors.md': ['ksatter','lukeheath'],
-    'docs/Deploying/FAQ.md': ['ksatter'],
-    'docs/Contributing/FAQ.md': ['ksatter'],
-    'docs/Using-Fleet/FAQ.md': ['ksatter'],
+    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
-    'schema': ['guillaumeross','zhumo','eashaw','zwass'],// (Osquery table schema)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
+    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h'],// (Osquery table schema)
   },
-  confidentialGithubRepoDRIByPath: {
-    'readme.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
-    // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass'],
-    '.github/ISSUE_TEMPLATE/2-website-changes.md': 'mike-j-thomas',
-    '.github/ISSUE_TEMPLATE/3-opportunity Fleet Premium PoV.md': 'alexmitchelliii',
-    '.github/ISSUE_TEMPLATE/3-sale.md': 'alexmitchelliii',
-    '.github/ISSUE_TEMPLATE/4-release.md': ['noahtalerman', 'zwass', 'zhumo'],
-    '.github/ISSUE_TEMPLATE/5-monthly-accounting.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/6-speaking-event.md': 'mike-j-thomas',
-    '.github/ISSUE_TEMPLATE/9-renewal-process.md': ['zayhanlon', 'hollidayn', 'alexmitchelliii'],
-    '.github/ISSUE_TEMPLATE/hiring.md': 'charlottechance',
-    '.github/ISSUE_TEMPLATE/onboarding.md': 'charlottechance',
-    '.github/ISSUE_TEMPLATE/y-offboarding.md': 'charlottechance',
-    '.github/ISSUE_TEMPLATE/equity-grants.md': ['charlottechance','hollidayn'],
+
+  confidentialGithubRepoDRIByPath: {// fleetdm/confidential
 
     // Folders of configuration files
-    'mdm_profiles': 'guillaumeross',
-    'vpn': 'rfairburn',
+    'mdm_profiles': ['lukeheath', 'zwass'],
+    'vpn': ['rfairburn', 'zwass'],
+
+    // Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
+    'free-for-all': '*',
+
+    // Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
+    'cold-outbound-strategy.md': ['mikermcneil','bradmacd'],
+
+    // Boilerplate
+    'README.md': ['mikermcneil'],
+    'CODEOWNERS': ['mikermcneil'],
+    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'zwinnerman-fleetdm', 'rfairburn'],
+
+    // CI/CD workflows
+    '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn', 'lukeheath'],
+
+    // GitHub issue templates
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'jostableford'],
+
   },
 
+  fleetMdmGitopsGithubRepoDRIByPath: {
+    '/': ['lukeheath']
+  },
+
+  // The version of osquery to use when generating schema docs
+  // (both in Fleet's query console and on fleetdm.com)
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.8.1',
 
   /***************************************************************************
   *                                                                          *
@@ -164,6 +185,13 @@ module.exports.custom = {
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
+  // datadogApiKey: '…',
+
+  // For receive-from-customer-fleet-instance webhook.
+  // customerWorkspaceOneBaseUrl: '…',
+  // customerWorkspaceOneOauthId: '…',
+  // customerWorkspaceOneOauthSecret: '…',
+  // customerMigrationWebhookSecret: '…',
 
   //…
 

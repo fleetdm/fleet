@@ -102,16 +102,17 @@ func Analyze(
 		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
 	}
 
-	err = utils.BatchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
-		n, err := ds.InsertSoftwareVulnerabilities(ctx, v, source)
-		if err != nil {
-			return err
-		}
+	err = utils.BatchProcess(toInsertSet, func(vulns []fleet.SoftwareVulnerability) error {
+		for _, v := range vulns {
+			ok, err := ds.InsertSoftwareVulnerability(ctx, v, source)
+			if err != nil {
+				return err
+			}
 
-		if collectVulns && n > 0 {
-			inserted = append(inserted, v...)
+			if collectVulns && ok {
+				inserted = append(inserted, v)
+			}
 		}
-
 		return nil
 	}, vulnBatchSize)
 	if err != nil {

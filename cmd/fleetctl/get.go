@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -237,11 +240,19 @@ func printUserRoles(c *cli.Context, users []fleet.User) error {
 
 func printTeams(c *cli.Context, teams []fleet.Team) error {
 	for _, team := range teams {
+		var teamItem interface{} = team
+		if c.Bool(yamlFlagName) {
+			teamSpec, err := fleet.TeamSpecFromTeam(&team)
+			if err != nil {
+				return err
+			}
+			teamItem = teamSpec
+		}
 		spec := specGeneric{
 			Kind:    fleet.TeamKind,
 			Version: fleet.ApiVersion,
 			Spec: map[string]interface{}{
-				"team": team,
+				"team": teamItem,
 			},
 		}
 
@@ -281,6 +292,8 @@ func getCommand() *cli.Command {
 			getSoftwareCommand(),
 			getMDMAppleCommand(),
 			getMDMAppleBMCommand(),
+			getMDMCommandResultsCommand(),
+			getMDMCommandsCommand(),
 		},
 	}
 }
@@ -312,6 +325,30 @@ func getQueriesCommand() *cli.Command {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
 
+				me, err := client.Me()
+				if err != nil {
+					return err
+				}
+				if me == nil {
+					return errors.New("/api/latest/fleet/me returned an empty user")
+				}
+				ok, err := userIsObserver(*me)
+				if err != nil {
+					return err
+				}
+				if ok {
+					// Filter out queries (in-place) that a observer user
+					// cannot execute (this behavior matches the UI).
+					n := 0
+					for _, query := range queries {
+						if query.ObserverCanRun {
+							queries[n] = query
+							n++
+						}
+					}
+					queries = queries[:n]
+				}
+
 				if len(queries) == 0 {
 					fmt.Println("No queries found")
 					return nil
@@ -319,7 +356,11 @@ func getQueriesCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
-						if err := printQuery(c, query); err != nil {
+						if err := printQuery(c, &fleet.QuerySpec{
+							Name:        query.Name,
+							Description: query.Description,
+							Query:       query.Query,
+						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
 					}
@@ -353,6 +394,28 @@ func getQueriesCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+var errUserNoRoles = errors.New("user does not have roles")
+
+// userIsObserver returns whether the user is a global/team observer/observer+.
+// In the case of user belonging to multiple teams, a user is considered observer
+// if it is observer of all teams.
+//
+// Returns errUserNoRoles if the user does not have any roles.
+func userIsObserver(user fleet.User) (bool, error) {
+	if user.GlobalRole != nil {
+		return *user.GlobalRole == fleet.RoleObserver || *user.GlobalRole == fleet.RoleObserverPlus, nil
+	} // Team user
+	if len(user.Teams) == 0 {
+		return false, errUserNoRoles
+	}
+	for _, team := range user.Teams {
+		if team.Role != fleet.RoleObserver && team.Role != fleet.RoleObserverPlus {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func getPacksCommand() *cli.Command {
@@ -406,7 +469,11 @@ func getPacksCommand() *cli.Command {
 						continue
 					}
 
-					if err := printQuery(c, query); err != nil {
+					if err := printQuery(c, &fleet.QuerySpec{
+						Name:        query.Name,
+						Description: query.Description,
+						Query:       query.Query,
+					}); err != nil {
 						return fmt.Errorf("unable to print query: %w", err)
 					}
 				}
@@ -630,6 +697,14 @@ func getHostsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.BoolFlag{
+				Name:  "mdm",
+				Usage: "Filters hosts by hosts that have MDM turned on in Fleet and are connected to Fleet's MDM server.",
+			},
+			&cli.BoolFlag{
+				Name:  "mdm-pending",
+				Usage: "Filters hosts by hosts ordered via Apple Business Manager (ABM). These will automatically enroll to Fleet and turn on MDM when they're unboxed.",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -644,6 +719,31 @@ func getHostsCommand() *cli.Command {
 				query.Set("additional_info_filters", "*")
 				if teamID := c.Uint("team"); teamID > 0 {
 					query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
+				}
+
+				if c.Bool("mdm") || c.Bool("mdm-pending") {
+					// print an error if MDM is not configured
+					if err := client.CheckMDMEnabled(); err != nil {
+						return err
+					}
+
+					// --mdm and --mdm-pending are mutually exclusive, return an error if
+					// both are set (one returns the enrolled hosts, the other the pending
+					// to be enrolled, so it would always return an empty list).
+					if c.Bool("mdm") && c.Bool("mdm-pending") {
+						return errors.New("cannot use --mdm and --mdm-pending together")
+					}
+
+					if c.Bool("mdm") {
+						// hosts enrolled (automatic or manual) in Fleet's MDM server
+						query.Set("mdm_name", fleet.WellKnownMDMFleet)
+						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusEnrolled))
+					}
+					if c.Bool("mdm-pending") {
+						// hosts pending enrollment in Fleet's MDM server
+						query.Set("mdm_name", fleet.WellKnownMDMFleet)
+						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusPending))
+					}
 				}
 				queryStr := query.Encode()
 
@@ -907,14 +1007,28 @@ func printKeyValueTable(c *cli.Context, rows [][]string) {
 	table.Render()
 }
 
+func getTeamsJSONFlag() cli.Flag {
+	return &cli.BoolFlag{
+		Name:  jsonFlagName,
+		Usage: "Output all team information in JSON format",
+	}
+}
+
+func getTeamsYAMLFlag() cli.Flag {
+	return &cli.BoolFlag{
+		Name:  yamlFlagName,
+		Usage: "Output team configuration in yaml format. Intended for use with \"fleetctl apply -f\"",
+	}
+}
+
 func getTeamsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "teams",
 		Aliases: []string{"t"},
 		Usage:   "List teams",
 		Flags: []cli.Flag{
-			jsonFlag(),
-			yamlFlag(),
+			getTeamsJSONFlag(),
+			getTeamsYAMLFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -959,11 +1073,11 @@ func getTeamsCommand() *cli.Command {
 			for _, team := range teams {
 				data = append(data, []string{
 					team.Name,
-					team.Description,
+					fmt.Sprintf("%d", team.HostCount),
 					fmt.Sprintf("%d", team.UserCount),
 				})
 			}
-			columns := []string{"Team Name", "Description", "User count"}
+			columns := []string{"Team name", "Host count", "User count"}
 			printTable(c, columns, data)
 
 			return nil
@@ -1049,9 +1163,8 @@ func getSoftwareCommand() *cli.Command {
 
 func getMDMAppleCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "mdm_apple",
-		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
-		Aliases: []string{"mdm-apple"},
+		Name:    "mdm-apple",
+		Aliases: []string{"mdm_apple"},
 		Usage:   "Show Apple Push Notification Service (APNs) information",
 		Flags: []cli.Flag{
 			configFlag(),
@@ -1086,10 +1199,10 @@ func getMDMAppleCommand() *cli.Command {
 			warnDate := time.Now().Add(expirationWarning)
 			if mdm.RenewDate.Before(time.Now()) {
 				// certificate is expired, print an error
-				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
+				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-setup#apple-push-notification-service-apns")
 			} else if mdm.RenewDate.Before(warnDate) {
 				// certificate will soon expire, print a warning
-				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
+				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-setup#renewing-apns")
 			}
 
 			return nil
@@ -1099,9 +1212,8 @@ func getMDMAppleCommand() *cli.Command {
 
 func getMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "mdm_apple_bm",
-		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
-		Aliases: []string{"mdm-apple-bm"},
+		Name:    "mdm-apple-bm",
+		Aliases: []string{"mdm_apple_bm"},
 		Usage:   "Show information about Apple Business Manager for automatic enrollment",
 		Flags: []cli.Flag{
 			configFlag(),
@@ -1146,6 +1258,121 @@ func getMDMAppleBMCommand() *cli.Command {
 				// certificate will soon expire, print a warning
 				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business Manager (ABM) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
 			}
+
+			return nil
+		},
+	}
+}
+
+func getMDMCommandResultsCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-command-results",
+		Aliases: []string{"mdm_command_results"},
+		Usage:   "Retrieve results for a specific MDM command.",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+			&cli.StringFlag{
+				Name:     "id",
+				Usage:    "Filter MDM commands by ID.",
+				Required: true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			// print an error if MDM is not configured
+			if err := client.CheckMDMEnabled(); err != nil {
+				return err
+			}
+
+			res, err := client.MDMAppleGetCommandResults(c.String("id"))
+			if err != nil {
+				var nfe service.NotFoundErr
+				if errors.As(err, &nfe) {
+					return errors.New("The command doesn't exist. Please provide a valid command ID. To see a list of commands that were run, run `fleetctl get mdm-commands`.")
+				}
+
+				var sce kithttp.StatusCoder
+				if errors.As(err, &sce) {
+					if sce.StatusCode() == http.StatusForbidden {
+						return fmt.Errorf("Permission denied. You don't have permission to view the results of this MDM command for at least one of the hosts: %w", err)
+					}
+				}
+				return err
+			}
+
+			// print the results as a table
+			data := [][]string{}
+			for _, r := range res {
+				if bytes.Contains(r.Result, []byte("\t")) {
+					// tabs in the XML result tends to break the table formatting
+					r.Result = bytes.ReplaceAll(r.Result, []byte("\t"), []byte(" "))
+				}
+				data = append(data, []string{
+					r.CommandUUID,
+					r.UpdatedAt.Format(time.RFC3339),
+					r.RequestType,
+					r.Status,
+					r.Hostname,
+					string(r.Result),
+				})
+			}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			printTable(c, columns, data)
+
+			return nil
+		},
+	}
+}
+
+func getMDMCommandsCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-commands",
+		Aliases: []string{"mdm_commands"},
+		Usage:   "List information about MDM commands that were run.",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			// print an error if MDM is not configured
+			if err := client.CheckMDMEnabled(); err != nil {
+				return err
+			}
+
+			results, err := client.MDMAppleListCommands()
+			if err != nil {
+				return err
+			}
+			if len(results) == 0 {
+				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
+				return nil
+			}
+
+			// print the results as a table
+			data := [][]string{}
+			for _, r := range results {
+				data = append(data, []string{
+					r.CommandUUID,
+					r.UpdatedAt.Format(time.RFC3339),
+					r.RequestType,
+					r.Status,
+					r.Hostname,
+				})
+			}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
+			printTable(c, columns, data)
 
 			return nil
 		},
