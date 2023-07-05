@@ -63,4 +63,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	var nfe fleet.NotFoundError
 	_, err = ds.MDMWindowsGetEnrolledDevice(ctx, enrolledDevice.MDMDeviceID)
 	require.ErrorAs(t, err, &nfe)
+
+	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMDeviceID)
+	require.ErrorAs(t, err, &nfe)
 }
