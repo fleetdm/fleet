@@ -467,8 +467,8 @@ func (msg *RequestSecurityToken) GetContextItem(item string) (string, error) {
 		msg.MapContextItems = contextMap
 	}
 
-	itemVal, valueFound := (msg.MapContextItems)[item]
-	if !valueFound {
+	itemVal, ok := (msg.MapContextItems)[item]
+	if !ok {
 		return "", fmt.Errorf("ContextItem item %s is not present", item)
 	}
 
