@@ -1009,12 +1009,9 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, secTokenM
 		return err
 	}
 
-	// note: computer name is coming provisorily in place of `host_serial`
-	// until we get other bits of the MDM protocol in place. This will be
-	// updated to actually use the serial number in the future.
 	err = svc.ds.NewActivity(ctx, nil, &fleet.ActivityTypeMDMEnrolled{
-		HostSerial:  reqDeviceName,
-		MDMPlatform: fleet.MDMPlatformMicrosoft,
+		HostDisplayName: reqDeviceName,
+		MDMPlatform:     fleet.MDMPlatformMicrosoft,
 	})
 	if err != nil {
 		// only logging, the device is enrolled at this point, and we

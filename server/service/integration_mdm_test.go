@@ -5420,9 +5420,9 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequest() {
 		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
 		`{
 			"mdm_platform": "microsoft",
-			"host_serial": "DESKTOP-0C89RC0",
+			"host_serial": "",
 			"installed_from_dep": false,
-			"host_display_name": ""
+			"host_display_name": "DESKTOP-0C89RC0"
 		 }`,
 		0)
 }

@@ -219,7 +219,7 @@ const TAGGED_TEMPLATES = {
       return (
         <>
           Mobile device management (MDM) was turned on for{" "}
-          <b>{activity.details?.host_serial} (manual)</b>.
+          <b>{activity.details?.host_display_name} (manual)</b>.
         </>
       );
     }

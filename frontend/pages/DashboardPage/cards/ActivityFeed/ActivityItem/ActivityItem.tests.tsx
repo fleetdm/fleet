@@ -754,7 +754,7 @@ describe("Activity Feed", () => {
       type: ActivityType.MdmEnrolled,
       details: {
         mdm_platform: "microsoft",
-        host_serial: "ABCD",
+        host_display_name: "ABCD",
       },
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
