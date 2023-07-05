@@ -61,7 +61,6 @@ func ParseCertificateRequestFromWindowsDevice(asn1Data []byte) (*x509.Certificat
 	if err != nil {
 		return nil, err
 	}
-	
 	if len(rest) != 0 {
 		return nil, asn1.SyntaxError{Msg: "trailing data"}
 	}
