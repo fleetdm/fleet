@@ -819,7 +819,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		return nil, ctxerr.Wrap(ctx, err, "creation of RequestSecurityTokenResponseCollection message")
 	}
 
-	// RequestSecurityTokenResponseCollection message is ready The identity
+	// RequestSecurityTokenResponseCollection message is ready. The identity
 	// and provisioning information will be sent to the Windows MDM
 	// Enrollment Client
 
