@@ -798,16 +798,16 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
 
-	// Checking if this device is already MDM enrolled
-	err = svc.isWindowsDeviceAlreadyMDMEnrolled(ctx, secTokenMsg)
+	// Removing the device if already MDM enrolled
+	err = svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, secTokenMsg)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "device is already enrolled")
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
 	// Getting the the device provisioning information in the form of a WapProvisioningDoc
 	deviceProvisioning, err := svc.getDeviceProvisioningInformation(ctx, secTokenMsg)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "device is already enrolled")
+		return nil, ctxerr.Wrap(ctx, err, "device provisioning information")
 	}
 
 	// Token is authorized
@@ -831,20 +831,29 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	return &secTokenResponseCollectionMsg, nil
 }
 
-// isWindowsDeviceAlreadyMDMEnrolled checks if the device is already enrolled by checking the device
-// UUID against the list of enrolled devices
-func (svc *Service) isWindowsDeviceAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) error {
-	// Getting the DeviceID from the RequestSecurityToken msg
-	reqDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceID)
+// removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
+// HW DeviceID is used to check the list of enrolled devices
+func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) error {
+	// Getting the HW DeviceID from the RequestSecurityToken msg
+	reqHWDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemHWDevID)
 	if err != nil {
 		return err
 	}
 
 	// Checking the storage to see if the device is already enrolled
-	if _, err := svc.ds.MDMWindowsGetEnrolledDevice(ctx, reqDeviceID); err != nil {
+	device, err := svc.ds.MDMWindowsGetEnrolledDevice(ctx, reqHWDeviceID)
+	if err != nil {
+		// Device is not present
 		if fleet.IsNotFound(err) {
 			return nil
 		}
+
+		return err
+	}
+
+	// Device is already enrolled, let's remove it
+	err = svc.ds.MDMWindowsDeleteEnrolledDevice(ctx, device.MDMHardwareID)
+	if err != nil {
 		return err
 	}
 
@@ -857,8 +866,8 @@ func (svc *Service) isWindowsDeviceAlreadyMDMEnrolled(ctx context.Context, secTo
 // See section 2.2.9.1 for more details on the XML provision schema used here
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/35e1aca6-1b8a-48ba-bbc0-23af5d46907a
 func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) (string, error) {
-	// Getting the DeviceID from the RequestSecurityToken msg
-	reqDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceID)
+	// Getting the HW DeviceID from the RequestSecurityToken msg
+	reqHWDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemHWDevID)
 	if err != nil {
 		return "", err
 	}
@@ -888,7 +897,7 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	}
 
 	// Getting the signed, DER-encoded certificate bytes and its uppercased, hex-endcoded SHA1 fingerprint
-	rawSignedCertDER, rawSignedCertFingerprint, err := svc.SignMDMMicrosoftClientCSR(ctx, reqDeviceID, clientCSR)
+	rawSignedCertDER, rawSignedCertFingerprint, err := svc.SignMDMMicrosoftClientCSR(ctx, reqHWDeviceID, clientCSR)
 	if err != nil {
 		return "", err
 	}
@@ -1000,12 +1009,12 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, secTokenM
 
 // getWindowsDeviceID returns the Windows Device ID from the RequestSecurityToken message
 func GetContextItem(secTokenMsg *fleet.RequestSecurityToken, contextItem string) (string, error) {
-	reqDeviceID, err := secTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemDeviceID)
+	reqHWDeviceID, err := secTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemHWDevID)
 	if err != nil {
-		return "", fmt.Errorf("%s token context information is not present: %v", mdm.ReqSecTokenContextItemDeviceID, err)
+		return "", fmt.Errorf("%s token context information is not present: %v", mdm.ReqSecTokenContextItemHWDevID, err)
 	}
 
-	return reqDeviceID, nil
+	return reqHWDeviceID, nil
 }
 
 // GetAuthorizedSoapFault authorize the request so SoapFault message can be returned

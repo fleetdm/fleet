@@ -729,8 +729,11 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 	// Appending the XML header beforing encoding it
 	xmlContent := append([]byte(xml.Header), rawXML...)
 
-	// Removing all the new lines and tabs
-	xmlStripContent := []byte(strings.ReplaceAll(strings.ReplaceAll(string(xmlContent), "\n", ""), "\t", ""))
+	// Create a replacer to replace both "\n" and "\t"
+	replacer := strings.NewReplacer("\n", "", "\t", "")
+
+	// Use the replacer on the string representation of xmlContent
+	xmlStripContent := []byte(replacer.Replace(string(xmlContent)))
 
 	return base64.StdEncoding.EncodeToString(xmlStripContent), nil
 }
