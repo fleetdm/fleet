@@ -5369,80 +5369,12 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequest() {
 	// Delete the host from the list of MDM enrolled devices if present
 	_ = s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
 
-	// Preparing the GetPolicies Request message
+	// Preparing the RequestSecurityToken Request message
 	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
 	require.NoError(t, err)
 
-	// Preparing the RequestSecurityToken Request message
-	requestBytes := []byte(
-		`<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
-			<s:Header>
-				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</a:Action>
-				<a:MessageID>urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749</a:MessageID>
-				<a:ReplyTo>
-				<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
-				</a:ReplyTo>
-				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Enrollment.svc</a:To>
-				<wsse:Security s:mustUnderstand="1">
-				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
-				</wsse:Security>
-			</s:Header>
-			<s:Body>
-				<wst:RequestSecurityToken>
-				<wst:TokenType>http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken</wst:TokenType>
-				<wst:RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</wst:RequestType>
-				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">MIICzjCCAboCAQAwSzFJMEcGA1UEAxNAMkI5QjUyQUMtREYzOC00MTYxLTgxNDItRjRCMUUwIURCMjU3QzNBMDg3NzhGNEZCNjFFMjc0OTA2NkMxRjI3ADCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKogsEpbKL8fuXpTNAE5RTZim8JO5CCpxj3z+SuWabs/s9Zse6RziKr12R4BXPiYE1zb8god4kXxet8x3ilGqAOoXKkdFTdNkdVa23PEMrIZSX5MuQ7mwGtctayARxmDvsWRF/icxJbqSO+bYIKvuifesOCHW2cJ1K+JSKijTMik1N8NFbLi5fg1J+xImT9dW1z2fLhQ7SNEMLosUPHsbU9WKoDBfnPsLHzmhM2IMw+5dICZRoxHZalh70FefBk0XoT8b6w4TIvc8572TyPvvdwhc5o/dvyR3nAwTmJpjBs1YhJfSdP+EBN1IC2T/i/mLNUuzUSC2OwiHPbZ6MMr/hUCAwEAAaBCMEAGCSqGSIb3DQEJDjEzMDEwLwYKKwYBBAGCN0IBAAQhREIyNTdDM0EwODc3OEY0RkI2MUUyNzQ5MDY2QzFGMjcAMAkGBSsOAwIdBQADggEBACQtxyy74sCQjZglwdh/Ggs6ofMvnWLMq9A9rGZyxAni66XqDUoOg5PzRtSt+Gv5vdLQyjsBYVzo42W2HCXLD2sErXWwh/w0k4H7vcRKgEqv6VYzpZ/YRVaewLYPcqo4g9NoXnbW345OPLwT3wFvVR5v7HnD8LB2wHcnMu0fAQORgafCRWJL1lgw8VZRaGw9BwQXCF/OrBNJP1ivgqtRdbSoH9TD4zivlFFa+8VDz76y2mpfo0NbbD+P0mh4r0FOJan3X9bLswOLFD6oTiyXHgcVSzLN0bQ6aQo0qKp3yFZYc8W4SgGdEl07IqNquKqJ/1fvmWxnXEbl3jXwb1efhbM=</wsse:BinarySecurityToken>
-				<ac:AdditionalContext xmlns="http://schemas.xmlsoap.org/ws/2006/12/authorization">
-					<ac:ContextItem Name="UXInitiated">
-					<ac:Value>false</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="HWDevID">
-					<ac:Value>CF1D12AA5AE42E47D52465E9A71316CAF3AFCC1D3088F230F4D50B371FB2256F</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="Locale">
-					<ac:Value>en-US</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="TargetedUserLoggedIn">
-					<ac:Value>true</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="OSEdition">
-					<ac:Value>48</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="DeviceName">
-					<ac:Value>DESKTOP-0C89RC0</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="MAC">
-					<ac:Value>01-1C-29-7B-3E-1C</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="MAC">
-					<ac:Value>01-0C-21-7B-3E-52</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="DeviceID">
-					<ac:Value>AB157C3A18778F4FB21E2739066C1F27</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="EnrollmentType">
-					<ac:Value>Full</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="DeviceType">
-					<ac:Value>CIMClient_Windows</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="OSVersion">
-					<ac:Value>10.0.19045.2965</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="ApplicationVersion">
-					<ac:Value>10.0.19045.1965</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="NotInOobe">
-					<ac:Value>false</ac:Value>
-					</ac:ContextItem>
-					<ac:ContextItem Name="RequestVersion">
-					<ac:Value>5.0</ac:Value>
-					</ac:ContextItem>
-				</ac:AdditionalContext>
-				</wst:RequestSecurityToken>
-			</s:Body>
-			</s:Envelope>
-		`)
+	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true)
+	require.NoError(t, err)
 
 	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
 
@@ -5479,33 +5411,12 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	})
 	require.NoError(t, err)
 
-	// Preparing the GetPolicies Request message
+	// Preparing the RequestSecurityToken Request message
 	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
 	require.NoError(t, err)
 
-	// Preparing the RequestSecurityToken Request message
-	requestBytes := []byte(
-		`<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
-			<s:Header>
-				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</a:Action>
-				<a:MessageID>urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749</a:MessageID>
-				<a:ReplyTo>
-				<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
-				</a:ReplyTo>
-				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Enrollment.svc</a:To>
-				<wsse:Security s:mustUnderstand="1">
-				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
-				</wsse:Security>
-			</s:Header>
-			<s:Body>
-				<wst:RequestSecurityToken>
-				<wst:TokenType>http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken</wst:TokenType>
-				<wst:RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</wst:RequestType>
-				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">MIICzjCCAboCAQAwSzFJMEcGA1UEAxNAMkI5QjUyQUMtREYzOC00MTYxLTgxNDItRjRCMUUwIURCMjU3QzNBMDg3NzhGNEZCNjFFMjc0OTA2NkMxRjI3ADCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKogsEpbKL8fuXpTNAE5RTZim8JO5CCpxj3z+SuWabs/s9Zse6RziKr12R4BXPiYE1zb8god4kXxet8x3ilGqAOoXKkdFTdNkdVa23PEMrIZSX5MuQ7mwGtctayARxmDvsWRF/icxJbqSO+bYIKvuifesOCHW2cJ1K+JSKijTMik1N8NFbLi5fg1J+xImT9dW1z2fLhQ7SNEMLosUPHsbU9WKoDBfnPsLHzmhM2IMw+5dICZRoxHZalh70FefBk0XoT8b6w4TIvc8572TyPvvdwhc5o/dvyR3nAwTmJpjBs1YhJfSdP+EBN1IC2T/i/mLNUuzUSC2OwiHPbZ6MMr/hUCAwEAAaBCMEAGCSqGSIb3DQEJDjEzMDEwLwYKKwYBBAGCN0IBAAQhREIyNTdDM0EwODc3OEY0RkI2MUUyNzQ5MDY2QzFGMjcAMAkGBSsOAwIdBQADggEBACQtxyy74sCQjZglwdh/Ggs6ofMvnWLMq9A9rGZyxAni66XqDUoOg5PzRtSt+Gv5vdLQyjsBYVzo42W2HCXLD2sErXWwh/w0k4H7vcRKgEqv6VYzpZ/YRVaewLYPcqo4g9NoXnbW345OPLwT3wFvVR5v7HnD8LB2wHcnMu0fAQORgafCRWJL1lgw8VZRaGw9BwQXCF/OrBNJP1ivgqtRdbSoH9TD4zivlFFa+8VDz76y2mpfo0NbbD+P0mh4r0FOJan3X9bLswOLFD6oTiyXHgcVSzLN0bQ6aQo0qKp3yFZYc8W4SgGdEl07IqNquKqJ/1fvmWxnXEbl3jXwb1efhbM=</wsse:BinarySecurityToken>
-				</wst:RequestSecurityToken>
-			</s:Body>
-			</s:Envelope>
-		`)
+	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, false)
+	require.NoError(t, err)
 
 	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
 
@@ -5524,7 +5435,7 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
-	require.True(t, s.checkIfXMLTagContains("s:text", "AdditionalContext.ContextItems missing", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "ContextItem item DeviceType is not present", resSoapMsg))
 }
 
 // ///////////////////////////////////////////////////////////////////////////
@@ -5597,4 +5508,89 @@ func (s *integrationMDMTestSuite) newGetPoliciesMsg(encodedBinToken string) ([]b
 				</GetPolicies>
 			</s:Body>
 			</s:Envelope>`), nil
+}
+
+func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, missingContextItem bool) ([]byte, error) {
+	if len(encodedBinToken) == 0 {
+		return nil, errors.New("encodedBinToken is empty")
+	}
+
+	var reqSecTokenContextItemDeviceType []byte
+	if missingContextItem {
+		reqSecTokenContextItemDeviceType = []byte(
+			`<ac:ContextItem Name="DeviceType">
+			 <ac:Value>CIMClient_Windows</ac:Value>
+			 </ac:ContextItem>`)
+	}
+
+	// Preparing the RequestSecurityToken Request message
+	requestBytes := []byte(
+		`<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
+			<s:Header>
+				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</a:Action>
+				<a:MessageID>urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749</a:MessageID>
+				<a:ReplyTo>
+				<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+				</a:ReplyTo>
+				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Enrollment.svc</a:To>
+				<wsse:Security s:mustUnderstand="1">
+				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
+				</wsse:Security>
+			</s:Header>
+			<s:Body>
+				<wst:RequestSecurityToken>
+				<wst:TokenType>http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken</wst:TokenType>
+				<wst:RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</wst:RequestType>
+				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">MIICzjCCAboCAQAwSzFJMEcGA1UEAxNAMkI5QjUyQUMtREYzOC00MTYxLTgxNDItRjRCMUUwIURCMjU3QzNBMDg3NzhGNEZCNjFFMjc0OTA2NkMxRjI3ADCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKogsEpbKL8fuXpTNAE5RTZim8JO5CCpxj3z+SuWabs/s9Zse6RziKr12R4BXPiYE1zb8god4kXxet8x3ilGqAOoXKkdFTdNkdVa23PEMrIZSX5MuQ7mwGtctayARxmDvsWRF/icxJbqSO+bYIKvuifesOCHW2cJ1K+JSKijTMik1N8NFbLi5fg1J+xImT9dW1z2fLhQ7SNEMLosUPHsbU9WKoDBfnPsLHzmhM2IMw+5dICZRoxHZalh70FefBk0XoT8b6w4TIvc8572TyPvvdwhc5o/dvyR3nAwTmJpjBs1YhJfSdP+EBN1IC2T/i/mLNUuzUSC2OwiHPbZ6MMr/hUCAwEAAaBCMEAGCSqGSIb3DQEJDjEzMDEwLwYKKwYBBAGCN0IBAAQhREIyNTdDM0EwODc3OEY0RkI2MUUyNzQ5MDY2QzFGMjcAMAkGBSsOAwIdBQADggEBACQtxyy74sCQjZglwdh/Ggs6ofMvnWLMq9A9rGZyxAni66XqDUoOg5PzRtSt+Gv5vdLQyjsBYVzo42W2HCXLD2sErXWwh/w0k4H7vcRKgEqv6VYzpZ/YRVaewLYPcqo4g9NoXnbW345OPLwT3wFvVR5v7HnD8LB2wHcnMu0fAQORgafCRWJL1lgw8VZRaGw9BwQXCF/OrBNJP1ivgqtRdbSoH9TD4zivlFFa+8VDz76y2mpfo0NbbD+P0mh4r0FOJan3X9bLswOLFD6oTiyXHgcVSzLN0bQ6aQo0qKp3yFZYc8W4SgGdEl07IqNquKqJ/1fvmWxnXEbl3jXwb1efhbM=</wsse:BinarySecurityToken>
+				<ac:AdditionalContext xmlns="http://schemas.xmlsoap.org/ws/2006/12/authorization">
+					<ac:ContextItem Name="UXInitiated">
+					<ac:Value>false</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="HWDevID">
+					<ac:Value>CF1D12AA5AE42E47D52465E9A71316CAF3AFCC1D3088F230F4D50B371FB2256F</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="Locale">
+					<ac:Value>en-US</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="TargetedUserLoggedIn">
+					<ac:Value>true</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="OSEdition">
+					<ac:Value>48</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="DeviceName">
+					<ac:Value>DESKTOP-0C89RC0</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="MAC">
+					<ac:Value>01-1C-29-7B-3E-1C</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="MAC">
+					<ac:Value>01-0C-21-7B-3E-52</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="DeviceID">
+					<ac:Value>AB157C3A18778F4FB21E2739066C1F27</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="EnrollmentType">
+					<ac:Value>Full</ac:Value>
+					</ac:ContextItem>
+					` + string(reqSecTokenContextItemDeviceType) + `
+					<ac:ContextItem Name="OSVersion">
+					<ac:Value>10.0.19045.2965</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="ApplicationVersion">
+					<ac:Value>10.0.19045.1965</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="NotInOobe">
+					<ac:Value>false</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="RequestVersion">
+					<ac:Value>5.0</ac:Value>
+					</ac:ContextItem>
+				</ac:AdditionalContext>
+				</wst:RequestSecurityToken>
+			</s:Body>
+			</s:Envelope>
+		`)
+
+	return requestBytes, nil
 }

@@ -1007,11 +1007,11 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, secTokenM
 	return nil
 }
 
-// getWindowsDeviceID returns the Windows Device ID from the RequestSecurityToken message
+// GetContextItem returns the context item from the RequestSecurityToken message
 func GetContextItem(secTokenMsg *fleet.RequestSecurityToken, contextItem string) (string, error) {
-	reqHWDeviceID, err := secTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemHWDevID)
+	reqHWDeviceID, err := secTokenMsg.GetContextItem(contextItem)
 	if err != nil {
-		return "", fmt.Errorf("%s token context information is not present: %v", mdm.ReqSecTokenContextItemHWDevID, err)
+		return "", fmt.Errorf("%s token context information is not present: %v", contextItem, err)
 	}
 
 	return reqHWDeviceID, nil

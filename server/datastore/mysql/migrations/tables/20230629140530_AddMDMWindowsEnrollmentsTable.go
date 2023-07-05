@@ -26,7 +26,7 @@ func Up_20230629140530(tx *sql.Tx) error {
 			created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
-			UNIQUE KEY idx_type (mdm_device_id)
+			UNIQUE KEY idx_type (mdm_hardware_id)
         )`)
 	if err != nil {
 		return fmt.Errorf("failed to create mdm_windows_enrollments table: %w", err)
