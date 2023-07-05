@@ -39,6 +39,15 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 - Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Designed" column
 - After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
 
+#### Questions and missing information
+
+1. Take a screenshot of the area in Figma
+2. Start a thread in the #g-product Slack channel and paste in the screenshot
+
+Note: Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred.  
+
+For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
+
 ### Scheduling design reviews
 
 - Prepare your draft in the user story issue.
