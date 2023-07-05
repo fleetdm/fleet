@@ -94,7 +94,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
   const toggleRemoveMemberModal = useCallback(
     (user?: IUser) => {
       setShowRemoveMemberModal(!showRemoveMemberModal);
-      user ? setUserToEdit(user) : setUserToEdit(undefined);
+      setUserToEdit(user);
     },
     [showRemoveMemberModal, setShowRemoveMemberModal, setUserToEdit]
   );
