@@ -218,8 +218,8 @@ const TAGGED_TEMPLATES = {
     if (activity.details?.mdm_platform === "microsoft") {
       return (
         <>
-          Mobile device management (MDM) was turned on for a host with serial
-          number <b>{activity.details?.host_serial} (manual)</b>.
+          Mobile device management (MDM) was turned on for{" "}
+          <b>{activity.details?.host_serial} (manual)</b>.
         </>
       );
     }

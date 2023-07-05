@@ -764,7 +764,7 @@ describe("Activity Feed", () => {
         console.log(node?.innerHTML);
         return (
           node?.innerHTML ===
-          "<b>Test User </b>Mobile device management (MDM) was turned on for a host with serial number <b>ABCD (manual)</b>."
+          "<b>Test User </b>Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
         );
       })
     ).toBeInTheDocument();
