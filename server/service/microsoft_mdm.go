@@ -819,10 +819,15 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		return nil, ctxerr.Wrap(ctx, err, "creation of RequestSecurityTokenResponseCollection message")
 	}
 
-	// RequestSecurityTokenResponseCollection message is ready
-	// The identity and provisioning information will be sent to the Windows MDM Enrollment Client
+	// RequestSecurityTokenResponseCollection message is ready The identity
+	// and provisioning information will be sent to the Windows MDM
+	// Enrollment Client
 
-	// But before doing that, let's save the device information to the list of MDM enrolled MDM devices
+	// But before doing that, let's save the device information to the list
+	// of MDM enrolled MDM devices
+	//
+	// This method also creates the relevant enrollment activity as it has
+	// access to the device information.
 	err = svc.storeWindowsMDMEnrolledDevice(ctx, secTokenMsg)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "enrolled device information cannot be stored")
@@ -1002,6 +1007,19 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, secTokenM
 
 	if err := svc.ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice); err != nil {
 		return err
+	}
+
+	err = svc.ds.NewActivity(ctx, nil, &fleet.ActivityTypeMDMEnrolled{
+		HostSerial:  reqDeviceID,
+		MDMPlatform: fleet.MDMPlatformMicrosoft,
+	})
+	if err != nil {
+		// only logging, the device is enrolled at this point, and we
+		// wouldn't want to fail the request because there was a problem
+		// creating an activity feed item.
+		logging.WithExtras(logging.WithNoUser(ctx),
+			"msg", "failed to generate windows MDM enrolled activity",
+		)
 	}
 
 	return nil

@@ -972,6 +972,7 @@ func TestMDMAuthenticate(t *testing.T) {
 		require.Equal(t, serial, a.HostSerial)
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.False(t, a.InstalledFromDEP)
+		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
 		return nil
 	}
 

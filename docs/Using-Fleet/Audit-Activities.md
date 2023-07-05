@@ -553,6 +553,7 @@ This activity contains the following fields:
 - "host_serial": Serial number of the host.
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.
+- "mdm_platform": Used to distinguish between Apple and Microsoft enrollments, can be "apple", "microsoft" or empty. An empty value should be considered as "apple" for backwards compatibility.
 
 #### Example
 
@@ -560,7 +561,8 @@ This activity contains the following fields:
 {
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
-  "installed_from_dep": true
+  "installed_from_dep": true,
+  "mdm_platform": "apple"
 }
 ```
 

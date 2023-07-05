@@ -5414,6 +5414,17 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequest() {
 	require.True(t, s.isXMLTagContentPresent("TokenType", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("RequestID", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("BinarySecurityToken", resSoapMsg))
+
+	// Checking if an activity was created for the enrollment
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
+		`{
+			"mdm_platform": "microsoft",
+			"host_serial": "AB157C3A18778F4FB21E2739066C1F27",
+			"installed_from_dep": false,
+			"host_display_name": ""
+		 }`,
+		0)
 }
 
 func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMissingAdditionalContext() {
