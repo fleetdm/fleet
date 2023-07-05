@@ -248,7 +248,6 @@ const SoftwareTable = ({
                 isClientSidePagination
                 onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter
-                searchQueryColumn="name"
                 disableMultiRowSelect={!deviceUser && !!router} // device user cannot view hosts by software
                 onSelectSingleRow={handleRowSelect}
               />

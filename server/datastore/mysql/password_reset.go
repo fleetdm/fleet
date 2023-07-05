@@ -19,7 +19,7 @@ func (ds *Datastore) NewPasswordResetRequest(ctx context.Context, req *fleet.Pas
 		( user_id, token, expires_at)
 		VALUES (?,?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? MINUTE))
 	`
-	response, err := ds.writer.ExecContext(ctx, sqlStatement, req.UserID, req.Token, PasswordResetRequestDuration.Minutes())
+	response, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, req.UserID, req.Token, PasswordResetRequestDuration.Minutes())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting password reset requests")
 	}
@@ -33,7 +33,7 @@ func (ds *Datastore) DeletePasswordResetRequestsForUser(ctx context.Context, use
 	sqlStatement := `
 		DELETE FROM password_reset_requests WHERE user_id = ?
 	`
-	_, err := ds.writer.ExecContext(ctx, sqlStatement, userID)
+	_, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, userID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting password reset request by user")
 	}
@@ -47,7 +47,7 @@ func (ds *Datastore) FindPasswordResetByToken(ctx context.Context, token string)
 		WHERE token = ? AND CURRENT_TIMESTAMP < expires_at LIMIT 1
     `
 	passwordResetRequest := &fleet.PasswordResetRequest{}
-	err := sqlx.GetContext(ctx, ds.reader, passwordResetRequest, sqlStatement, token)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), passwordResetRequest, sqlStatement, token)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ctxerr.Wrap(ctx, err, "invalid password reset token")
 	} else if err != nil {
@@ -58,7 +58,7 @@ func (ds *Datastore) FindPasswordResetByToken(ctx context.Context, token string)
 }
 
 func (ds *Datastore) CleanupExpiredPasswordResetRequests(ctx context.Context) error {
-	_, err := ds.writer.ExecContext(ctx, `DELETE FROM password_reset_requests
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM password_reset_requests
 		WHERE CURRENT_TIMESTAMP >= expires_at`)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up expired password reset requests")

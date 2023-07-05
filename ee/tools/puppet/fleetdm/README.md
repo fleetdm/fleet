@@ -54,10 +54,40 @@ define profiles using the custom resource type `fleetdm::profile`:
 ```pp
 node default {
   fleetdm::profile { 'com.apple.universalaccess':
-    template => 'xml template',
+    template => template('fleetdm/profile-template.mobileconfig.erb'),
     group    => 'workstations',
   }
 }
+```
+
+### Sending a custom MDM Command
+
+You can use the `fleetdm::command_xml` function to send any custom MDM command to the device:
+
+```
+  $host_uuid = $facts['system_profiler']['hardware_uuid']
+  $command_uuid = generate('/usr/bin/uuidgen').strip
+
+  $xml_data = "<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE plist PUBLIC '-//Apple//DTD PLIST 1.0//EN' 'http://www.apple.com/DTDs/PropertyList-1.0.dtd'>
+<plist version='1.0'>
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>EnableRemoteDesktop</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>${command_uuid}</string>
+</dict>
+</plist>"
+
+  $response = fleetdm::command_xml($host_uuid, $xml_data)
+  $err = $response['error']
+
+  if $err != '' {
+    notify { "Error sending MDM command: ${err}": }
+  }
 ```
 
 ### Releasing a device from await configuration
@@ -66,7 +96,12 @@ If your DEP profile had `await_device_configured` set to `true`, you can use the
 
 ```
 $host_uuid = $facts['system_profiler']['hardware_uuid']
-fleetdm::release_device($host_uuid)
+$response = fleetdm::release_device($host_uuid)
+$err = $response['error']
+
+if $err != '' {
+  notify { "error releasing device: ${err}": }
+}
 ```
 
 ## Limitations

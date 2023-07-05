@@ -24,7 +24,7 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 		userName = &user.Name
 	}
 
-	_, err = ds.writer.ExecContext(ctx,
+	_, err = ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
 		userID,
 		userName,
@@ -63,7 +63,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 
 	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
 
-	err := sqlx.SelectContext(ctx, ds.reader, &activities, activitiesQ, args...)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
 	if err == sql.ErrNoRows {
 		return nil, nil, ctxerr.Wrap(ctx, notFound("Activity"))
 	} else if err != nil {
@@ -102,7 +102,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			Email       string `db:"email"`
 		}
 
-		err = sqlx.SelectContext(ctx, ds.reader, &usersR, usersQ, usersArgs...)
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &usersR, usersQ, usersArgs...)
 		if err != nil && err != sql.ErrNoRows {
 			return nil, nil, ctxerr.Wrap(ctx, err, "selecting users")
 		}
@@ -143,7 +143,7 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "sqlx.In mark activities as streamed")
 	}
-	if _, err := ds.writer.ExecContext(ctx, query, args...); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec mark activities as streamed")
 	}
 	return nil
