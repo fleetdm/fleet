@@ -849,64 +849,6 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 	}
 
 	return nil
-
-	//	// find a team with exactly that set of profiles
-	//	teamIDs, err := svc.ds.MatchMDMAppleConfigProfiles(ctx, hashes)
-	//	if err != nil {
-	//		return err
-	//	}
-
-	// var targetTeamID uint
-	//	if len(teamIDs) > 0 {
-	//		// if the host is already in one of those valid teams, nothing to do.
-	//		if host.TeamID != nil {
-	//			for _, tmID := range teamIDs {
-	//				if *host.TeamID == tmID {
-	//					return nil
-	//				}
-	//			}
-	//		}
-	//		// else assign the host to the first valid team
-	//		targetTeamID = teamIDs[0]
-	//
-	//	} else {
-	//		// Create a new team with this set of profiles. Creating via the service
-	//		// call so that it properly assigns the agent options and creates audit
-	//		// activities, etc.
-	//		payload := fleet.TeamPayload{Name: &teamName}
-	//		tm, err := svc.NewTeam(ctx, payload)
-	//		if err != nil {
-	//			return err
-	//		}
-	//
-	//		// teams created by the match endpoint have disk encryption
-	//		// enabled by default.
-	//		// TODO: maybe make this configurable?
-	//		payload.MDM = &fleet.TeamPayloadMDM{
-	//			MacOSSettings: &fleet.MacOSSettings{
-	//				EnableDiskEncryption: true,
-	//			},
-	//		}
-	//
-	//		// TODO: seems like we don't support enabling disk encryption
-	//		// on team creation?
-	//		// see https://github.com/fleetdm/fleet/issues/12220
-	//		tm, err = svc.ModifyTeam(ctx, tm.ID, payload)
-	//		if err != nil {
-	//			return err
-	//		}
-	//
-	//		// create profiles for that team via the service call, so that uniqueness
-	//		// of profile identifier/name is verified, activity created, etc.
-	//		// NOTE: this will use the read replica to load the team, which was just
-	//		// created above, could lead to not found issues with slow replication.
-	//		if err := svc.BatchSetMDMAppleProfiles(ctx, &tm.ID, nil, rawProfiles, false); err != nil {
-	//			return err
-	//		}
-	//
-	//		targetTeamID = tm.ID
-	//	}
-
 }
 
 // teamNameFromPreassignGroups returns the team name to use for a new team
