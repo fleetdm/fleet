@@ -999,11 +999,11 @@ type Datastore interface {
 	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
 
 	// MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
-	MDMWindowsGetEnrolledDevice(ctx context.Context, MDMDeviceID string) (*MDMWindowsEnrolledDevice, error)
+	MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
-	MDMWindowsDeleteEnrolledDevice(ctx context.Context, MDMDeviceID string) error
+	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
 }
 
 const (

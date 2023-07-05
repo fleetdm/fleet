@@ -10,7 +10,7 @@ import (
 )
 
 // MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
-func (ds *Datastore) MDMWindowsGetEnrolledDevice(ctx context.Context, MDMDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+func (ds *Datastore) MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	stmt := `SELECT 
 		mdm_device_id, 
 		mdm_hardware_id, 
@@ -27,7 +27,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDevice(ctx context.Context, MDMDeviceI
 		FROM mdm_windows_enrollments WHERE mdm_device_id = ?`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, MDMDeviceID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, mdmDeviceID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, &notFoundError{}
 		}
@@ -75,10 +75,10 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 }
 
 // MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
-func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, MDMDeviceID string) error {
+func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error {
 	stmt := "DELETE FROM mdm_windows_enrollments WHERE mdm_device_id = ?"
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, MDMDeviceID)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, mdmDeviceID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete MDMWindowsEnrolledDevice")
 	}

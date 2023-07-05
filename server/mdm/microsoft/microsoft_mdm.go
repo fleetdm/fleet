@@ -139,8 +139,8 @@ const (
 	// Supported Enroll Type
 	ReqSecTokenEnrollType = "Full"
 
-	// Provisioning Doc Certificate Renewal Period (180 days)
-	WstepCertRenewalPeriodInDays = "60"
+	// Provisioning Doc Certificate Renewal Period (365 days)
+	WstepCertRenewalPeriodInDays = "365"
 
 	// Provisioning Doc Server supports ROBO auto certificate renewal
 	// TODO: Add renewal support

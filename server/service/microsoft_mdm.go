@@ -857,44 +857,40 @@ func (svc *Service) isWindowsDeviceAlreadyMDMEnrolled(ctx context.Context, secTo
 // See section 2.2.9.1 for more details on the XML provision schema used here
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/35e1aca6-1b8a-48ba-bbc0-23af5d46907a
 func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) (string, error) {
-	const (
-		error_tag = "wap provisioning: "
-	)
-
 	// Getting the DeviceID from the RequestSecurityToken msg
 	reqDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceID)
 	if err != nil {
-		return "", fmt.Errorf("%s %v", error_tag, err)
+		return "", err
 	}
 
 	// Getting the EnrollmentType information from the RequestSecurityToken msg
 	reqEnrollType, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemEnrollmentType)
 	if err != nil {
-		return "", fmt.Errorf("%s %v", error_tag, err)
+		return "", err
 	}
 
 	// Getting the BinarySecurityToken from the RequestSecurityToken msg
 	binSecurityTokenData, err := secTokenMsg.GetBinarySecurityTokenData()
 	if err != nil {
-		return "", fmt.Errorf("%s %v", error_tag, err)
+		return "", err
 	}
 
 	// Getting the BinarySecurityToken type from the RequestSecurityToken msg
 	binSecurityTokenType, err := secTokenMsg.GetBinarySecurityTokenType()
 	if err != nil {
-		return "", fmt.Errorf("%s %v", error_tag, err)
+		return "", err
 	}
 
 	// Getting the client CSR request from the device
 	clientCSR, err := mdm.GetClientCSR(binSecurityTokenData, binSecurityTokenType)
 	if err != nil {
-		return "", fmt.Errorf("%s %v", error_tag, err)
+		return "", err
 	}
 
 	// Getting the signed, DER-encoded certificate bytes and its uppercased, hex-endcoded SHA1 fingerprint
 	rawSignedCertDER, rawSignedCertFingerprint, err := svc.SignMDMMicrosoftClientCSR(ctx, reqDeviceID, clientCSR)
 	if err != nil {
-		return "", fmt.Errorf("%s %v", error_tag, err)
+		return "", err
 	}
 
 	// Preparing client certificate and identity certificate information to be sent to the Windows MDM Enrollment Client
@@ -908,13 +904,13 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	// Preparing the provisioning information that includes the location of the Device Management Service (DMS)
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", fmt.Errorf("%s %v", error_tag, err)
+		return "", err
 	}
 
 	// Getting the MS-MDM management URL to provision the device
 	urlManagementEndpoint, err := mdm.ResolveWindowsMDMManagement(appCfg.ServerSettings.ServerURL)
 	if err != nil {
-		return "", fmt.Errorf("%s %v", error_tag, err)
+		return "", err
 	}
 
 	// Preparing the Application Provisioning information
@@ -927,7 +923,7 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	provDoc := NewProvisioningDoc(certStoreProvisioningData, appConfigProvisioningData, appDMClientProvisioningData)
 	encodedProvDoc, err := provDoc.GetEncodedB64Representation()
 	if err != nil {
-		return "", fmt.Errorf("%s %v", error_tag, err)
+		return "", err
 	}
 
 	return encodedProvDoc, nil
