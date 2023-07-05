@@ -19,11 +19,13 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 - Take the top issue that is assigned to you in the "Prioritized" column of the drafting board.
   
 - Create a file inside the [Fleet product Figma project](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870).
-  -  Duplicate "(TEMPLATE) Starter file". It's inside Fleet product project. To make it easier to find the starter file later, pin it to the sidebar menu.
+  -  Duplicate "(TEMPLATE) Starter file". It's pinned on the top of the "Fleet product" project.
   -  Each Figma file corresponds to an issue on GitHub. Rename the file to follow the naming convention: **{issue number} {issue name}** (e.g. #11766 Instructions for Autopilot enrollment).
-  -  Cover page: The template file will have a Cover page with a component to reflect the status of the wireframe: Work in progress and Approved (the main source of truth is still the "Designed" column in the drafting board for Approved wireframes)
-  -  Explorations page: to explore and review wireframes
-  -  Ready for development: Once ready for development move all relevant screens to this page. This way you can still keep your explorations and revisit them at some point in the future if necessary.
+  -  Starter file will have 4 predefined pages: Cover, Explorations, Archive, and Ready for development
+    -  Cover page: This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board)
+    -  Explorations page: use to explore and review wireframes.
+    -  Archive page: use to move all screens that are not relevant for design reviews and might be useful in the future.
+    -  Ready for development: Once ready for development move all relevant screens to this page. This way you can still keep your explorations and revisit them at some point in the future if necessary.
 -  Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
 
 - Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
@@ -34,8 +36,8 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 #### Keep projects/files clean and up-to-date
 
-- Once your designs are reviewed and approved, change the status on the Cover page and move the issue to "Designed" column
-- After each release move released features(wireframes) to  "Fleet product - released" project (every 3 weeks)
+- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Designed" column
+- After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
 
 ### Scheduling design reviews
 
