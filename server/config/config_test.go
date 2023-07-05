@@ -529,19 +529,19 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 		in         MDMConfig
 		errMatches string
 	}{
-		{"missing cert", MDMConfig{MicrosoftWSTEPIdentityKey: keyFile}, `Microsoft MDM WSTEP configuration: no certificate provided`},
-		{"missing key", MDMConfig{MicrosoftWSTEPIdentityCert: certFile}, "Microsoft MDM WSTEP configuration: no key provided"},
-		{"cert file does not exist", MDMConfig{MicrosoftWSTEPIdentityCert: "no-such-file", MicrosoftWSTEPIdentityKey: keyFile}, `open no-such-file: no such file or directory`},
-		{"key file does not exist", MDMConfig{MicrosoftWSTEPIdentityKey: "no-such-file", MicrosoftWSTEPIdentityCert: certFile}, `open no-such-file: no such file or directory`},
-		{"valid file pairs", MDMConfig{MicrosoftWSTEPIdentityCert: certFile, MicrosoftWSTEPIdentityKey: keyFile}, ""},
-		{"invalid file pairs", MDMConfig{MicrosoftWSTEPIdentityCert: certFile, MicrosoftWSTEPIdentityKey: invalidKeyFile}, "tls: private key does not match public key"},
-		{"invalid file key", MDMConfig{MicrosoftWSTEPIdentityCert: certFile, MicrosoftWSTEPIdentityKey: garbageFile}, "tls: failed to find any PEM data"},
-		{"invalid file cert", MDMConfig{MicrosoftWSTEPIdentityCert: garbageFile, MicrosoftWSTEPIdentityKey: keyFile}, "tls: failed to find any PEM data"},
+		{"missing cert", MDMConfig{WindowsWSTEPIdentityKey: keyFile}, `Microsoft MDM WSTEP configuration: no certificate provided`},
+		{"missing key", MDMConfig{WindowsWSTEPIdentityCert: certFile}, "Microsoft MDM WSTEP configuration: no key provided"},
+		{"cert file does not exist", MDMConfig{WindowsWSTEPIdentityCert: "no-such-file", WindowsWSTEPIdentityKey: keyFile}, `open no-such-file: no such file or directory`},
+		{"key file does not exist", MDMConfig{WindowsWSTEPIdentityKey: "no-such-file", WindowsWSTEPIdentityCert: certFile}, `open no-such-file: no such file or directory`},
+		{"valid file pairs", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKey: keyFile}, ""},
+		{"invalid file pairs", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKey: invalidKeyFile}, "tls: private key does not match public key"},
+		{"invalid file key", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKey: garbageFile}, "tls: failed to find any PEM data"},
+		{"invalid file cert", MDMConfig{WindowsWSTEPIdentityCert: garbageFile, WindowsWSTEPIdentityKey: keyFile}, "tls: failed to find any PEM data"},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if c.in.MicrosoftWSTEPIdentityCert != "" || c.in.MicrosoftWSTEPIdentityKey != "" {
+			if c.in.WindowsWSTEPIdentityCert != "" || c.in.WindowsWSTEPIdentityKey != "" {
 				got, pemCert, pemKey, err := c.in.MicrosoftWSTEP()
 				if c.errMatches != "" {
 					require.Error(t, err)

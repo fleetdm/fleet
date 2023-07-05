@@ -135,10 +135,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	}
 
 	var wstepManager microsoft_mdm.CertManager
-	if fleetConfig.MDM.MicrosoftWSTEPIdentityCert != "" && fleetConfig.MDM.MicrosoftWSTEPIdentityKey != "" {
-		rawCert, err := os.ReadFile(fleetConfig.MDM.MicrosoftWSTEPIdentityCert)
+	if fleetConfig.MDM.WindowsWSTEPIdentityCert != "" && fleetConfig.MDM.WindowsWSTEPIdentityKey != "" {
+		rawCert, err := os.ReadFile(fleetConfig.MDM.WindowsWSTEPIdentityCert)
 		require.NoError(t, err)
-		rawKey, err := os.ReadFile(fleetConfig.MDM.MicrosoftWSTEPIdentityKey)
+		rawKey, err := os.ReadFile(fleetConfig.MDM.WindowsWSTEPIdentityKey)
 		require.NoError(t, err)
 
 		wstepManager, err = microsoft_mdm.NewCertManager(ds, rawCert, rawKey)
