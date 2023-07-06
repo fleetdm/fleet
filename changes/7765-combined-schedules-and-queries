@@ -1,0 +1,2 @@
+- Updated 'queries' table schema to allow storing schedulling information and configuration in the
+  'queries' table.
