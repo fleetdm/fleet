@@ -1,3 +1,4 @@
+import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
 import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
 import { MacSettingsStatusQueryParam } from "services/entities/hosts";
 
@@ -23,6 +24,8 @@ interface IMutuallyExclusiveHostParams {
   osId?: number;
   osName?: string;
   osVersion?: string;
+  diskEncryptionStatus?: FileVaultProfileStatus;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
 const reduceQueryParams = (
@@ -84,6 +87,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
   osId,
   osName,
   osVersion,
+  diskEncryptionStatus,
+  bootstrapPackageStatus,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -117,6 +122,10 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { os_name: osName, os_version: osVersion };
     case !!lowDiskSpaceHosts:
       return { low_disk_space: lowDiskSpaceHosts };
+    case !!diskEncryptionStatus:
+      return { macos_settings_disk_encryption: diskEncryptionStatus };
+    case !!bootstrapPackageStatus:
+      return { bootstrap_package: bootstrapPackageStatus };
     default:
       return {};
   }

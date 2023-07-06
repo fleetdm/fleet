@@ -94,7 +94,7 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 
 	// wrong enroll secret
 	wrongURL, wrongFormBody := installerPOSTReq("wrong-enroll", "pkg", s.token, false)
-	s.Do("POST", wrongURL, wrongFormBody, http.StatusInternalServerError)
+	s.Do("POST", wrongURL, wrongFormBody, http.StatusNotFound)
 
 	// non-existent package
 	wrongURL, wrongFormBody = installerPOSTReq(enrollSecret, "exe", s.token, false)
@@ -113,7 +113,7 @@ func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
 
 	// wrong enroll secret
 	invalidURL := installerURL("wrong-enroll", "pkg", false)
-	s.DoRaw("HEAD", invalidURL, nil, http.StatusInternalServerError)
+	s.DoRaw("HEAD", invalidURL, nil, http.StatusNotFound)
 
 	// non-existent package
 	invalidURL = installerURL(enrollSecret, "exe", false)

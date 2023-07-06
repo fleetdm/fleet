@@ -1,0 +1,27 @@
+.sandbox-message {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 350px;
+  margin: $pad-xxlarge auto;
+
+  &__message {
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  &__link-message {
+    font-size: $x-small;
+    margin: 0;
+
+    a {
+      padding-left: $pad-xsmall;
+    }
+
+    img {
+      width: 12px;
+      padding-left: $pad-xsmall;
+    }
+  }
+}

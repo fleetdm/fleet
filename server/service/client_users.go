@@ -67,3 +67,11 @@ func (c *Client) DeleteUser(email string) error {
 	var responseBody deleteUserResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }
+
+// Me returns the user associated with the current session.
+func (c *Client) Me() (*fleet.User, error) {
+	verb, path := "GET", "/api/latest/fleet/me"
+	var responseBody getUserResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	return responseBody.User, err
+}

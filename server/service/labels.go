@@ -272,11 +272,7 @@ func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc flee
 
 	hostResponses := make([]fleet.HostResponse, len(hosts))
 	for i, host := range hosts {
-		h, err := fleet.HostResponseForHost(ctx, svc, host)
-		if err != nil {
-			return listHostsResponse{Err: err}, nil
-		}
-
+		h := fleet.HostResponseForHost(ctx, svc, host)
 		hostResponses[i] = *h
 	}
 	return listHostsResponse{Hosts: hostResponses, MDMSolution: mdmSolution}, nil

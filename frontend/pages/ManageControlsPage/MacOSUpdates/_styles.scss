@@ -1,11 +1,6 @@
 .mac-os-updates {
   font-size: $x-small;
 
-  h2 {
-    font-size: $small;
-    margin: 0;
-  }
-
   &__description {
     margin: $pad-xxlarge 0;
   }
@@ -16,10 +11,19 @@
     display: flex;
     justify-content: space-between;
     gap: $pad-xxlarge;
+
+    h2 {
+      font-size: $small;
+      margin: 0;
+    }
   }
 
   &__os-versions-card {
     margin-bottom: $pad-xxlarge;
+  }
+
+  &__premium-feature-message {
+    margin-top: 80px;
   }
 
   @media (max-width: $break-990) {

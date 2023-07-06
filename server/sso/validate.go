@@ -218,3 +218,23 @@ func generateSAMLValidID() (string, error) {
 	}
 	return idPrefix + string(randomBytes), nil
 }
+
+func ValidateAudiences(metadata Metadata, auth fleet.Auth, audiences ...string) error {
+	validator, err := NewValidator(metadata, WithExpectedAudience(audiences...))
+
+	if err != nil {
+		return fmt.Errorf("create validator from metadata: %w", err)
+	}
+	// make sure the response hasn't been tampered with
+	auth, err = validator.ValidateSignature(auth)
+	if err != nil {
+		return fmt.Errorf("signature validation failed: %w", err)
+	}
+	// make sure the response isn't stale
+	err = validator.ValidateResponse(auth)
+	if err != nil {
+		return fmt.Errorf("response validation failed: %w", err)
+	}
+
+	return nil
+}

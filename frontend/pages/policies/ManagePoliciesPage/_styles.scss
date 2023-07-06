@@ -103,7 +103,7 @@
     padding-right: $pad-medium;
     border-radius: 4px;
     font-size: $x-small;
-    font-family: "Nunito Sans", sans-serif;
+    font-family: "Inter", sans-serif;
     font-weight: $bold;
     display: inline-flex;
     height: 38px;
@@ -148,10 +148,11 @@
   }
 
   .critical-tooltip {
+    text-align: left;
     font-weight: $regular;
   }
 
-  .policy-icon {
+  .critical-policy-icon {
     margin-left: 1px;
     position: relative;
   }

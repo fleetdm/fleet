@@ -2,9 +2,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fade-and-scale 150ms ease-out;
-  animation-delay: 250ms;
-  opacity: 0;
   &.centered {
     margin: 120px auto;
   }

@@ -95,6 +95,8 @@ data "aws_iam_policy_document" "gha-permissions" {
       "firehose:*",
       "athena:*",
       "glue:*",
+      "ses:*",
+      "wafv2:*",
     ]
     resources = ["*"]
   }

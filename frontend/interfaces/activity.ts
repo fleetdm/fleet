@@ -1,6 +1,7 @@
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 import { ITeamSummary } from "./team";
+import { UserRole } from "./user";
 
 export enum ActivityType {
   CreatedPack = "created_pack",
@@ -38,6 +39,15 @@ export enum ActivityType {
   EditedMacOSProfile = "edited_macos_profile",
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
+  AddedBootstrapPackage = "added_bootstrap_package",
+  DeletedBootstrapPackage = "deleted_bootstrap_package",
+  ChangedMacOSSetupAssistant = "changed_macos_setup_assistant",
+  DeletedMacOSSetupAssistant = "deleted_macos_setup_assistant",
+  EnabledMacOSSetupEndUserAuth = "enabled_macos_setup_end_user_auth",
+  DisabledMacOSSetupEndUserAuth = "disabled_macos_setup_end_user_auth",
+  TransferredHosts = "transferred_hosts",
+  EnabledWindowsMdm = "enabled_windows_mdm",
+  DisabledWindowsMdm = "disabled_windows_mdm",
 }
 export interface IActivity {
   created_at: string;
@@ -66,12 +76,17 @@ export interface IActivityDetails {
   public_ip?: string;
   user_email?: string;
   email?: string;
-  role?: string;
+  role?: UserRole;
   host_serial?: string;
   host_display_name?: string;
+  host_display_names?: string[];
+  host_ids?: number[];
   installed_from_dep?: boolean;
+  mdm_platform?: "microsoft" | "apple";
   minimum_version?: string;
   deadline?: string;
   profile_name?: string;
   profile_identifier?: string;
+  bootstrap_package_name?: string;
+  name?: string;
 }

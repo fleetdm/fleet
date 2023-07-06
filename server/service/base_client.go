@@ -114,7 +114,13 @@ func (bc *baseClient) setClientCapabilitiesHeader(req *http.Request) {
 	req.Header.Set(fleet.CapabilitiesHeader, bc.clientCapabilities.String())
 }
 
-func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, capabilities fleet.CapabilityMap) (*baseClient, error) {
+func newBaseClient(
+	addr string,
+	insecureSkipVerify bool,
+	rootCA, urlPrefix string,
+	fleetClientCert *tls.Certificate,
+	capabilities fleet.CapabilityMap,
+) (*baseClient, error) {
 	baseURL, err := url.Parse(addr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing URL: %w", err)
@@ -131,6 +137,10 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 		// Osquery itself requires >= TLS 1.2.
 		// https://github.com/osquery/osquery/blob/9713ad9e28f1cfe6c16a823fb88bd531e39e192d/osquery/remote/transports/tls.cpp#L97-L98
 		MinVersion: tls.VersionTLS12,
+	}
+
+	if fleetClientCert != nil {
+		tlsConfig.Certificates = []tls.Certificate{*fleetClientCert}
 	}
 
 	switch {

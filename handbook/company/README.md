@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-this-way) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source security agent.  Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
+Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source security agent.  Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
 
 We are dedicated to:
 
@@ -27,7 +27,9 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 
 Fleet is currently hiring for the following positions:
 
-- 🔦 Head of Business Operations
+- 🚀 Senior Software Engineer (Golang)
+- [🐋 Head of Public Sector](https://fleetdm.com/handbook/company/head-of-public-sector)
+- [🐋 Solutions Consultant](https://fleetdm.com/handbook/company/solutions-consultant)
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
@@ -55,18 +57,18 @@ This way, everybody knows what to expect from the people they work with.
 ### 🔴 Empathy
 Empathy leads to smarter decisions.  Take an interest in what people are going through, so you can help make it better.
 
-- **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and assume others are doing the same.
-- **Get curious.** Genuinely care. Ask questions. Listen closely to the answers.
-- **Roleplay.** Use your imagination to see situations from different perspectives.  Read what you write.  [Again.](http://www.paulgraham.com/useful.html)
+- **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and [assume](https://about.gitlab.com/handbook/values/#assume-positive-intent) others are doing the same.
 - **Be a helper.** Take care of customers first. But give hospitality and [service with a smile](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy) to everyone you can.
+- **Roleplay.** Read what you write.  [Again.](http://www.paulgraham.com/useful.html)  Use your imagination to see situations from different perspectives.
+- **Get curious.**  Genuinely wonder. Ask questions. Listen closely to the answers.
 
 ### 🟠 Ownership
-It takes reliable execution and a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
+It takes a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
 
-- **Take responsibility.** Follow through on commitments. Own up to mistakes. Loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
-- **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Listen. Be present.
-- **Think bigger.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals. Think long-term.
-- **Take initiative.** No one is coming. Understand Fleet's goals yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
+- **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Especially GitHub, Slack, and emails.
+- **Assume responsibility.** Own up to mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).  Follow through on commitments quickly.
+- **No one is coming.** Take initiative. Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. Understand [Fleet's goals](https://fleetdm.com/handbook/company#strategy) yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
+- **Think long term.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals.
 
 ### 🟢 Results
 We work to get results. How we work determines what we get.  Aim to deliver results daily.
@@ -74,24 +76,23 @@ We work to get results. How we work determines what we get.  Aim to deliver resu
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always be cutting scope.  But finish what you bite off.
 - **Move quickly.** Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) and [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 - **Keep things simple.** Focus on fewer tasks. Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Use [fewer words](http://www.paulgraham.com/writing44.html). Avoid preemptive structure.
-- **Practice self-care.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), speak up.  Set boundaries.  Schedule time off to recharge.
+- **Be realistic.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge.  Practice self-care.
 
 ### 🔵 Objectivity
-To reach our goals, we need to see reality clearly.
+To reach our goals, we need to [see reality clearly](https://en.wikipedia.org/wiki/Intellectual_honesty).
 
+- **Be humble.** You might be wrong.  When something isn't working, stop assuming.  Experiment with one variable at a time. <!-- Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research) and [first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering). -->
+- **Seek the truth.** [Change your mind](https://about.gitlab.com/handbook/values/#articulate-when-you-change-your-mind) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
+- **Interrogate luck.** A lucky fix can do more harm than good.  Understand why it's broken first. <!--  Don't say "just do XYZ". The road to failure is paved with ["happy paths"](https://en.wikipedia.org/wiki/Happy_path). -->
 - **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.
-- **Seek the truth.** What's true matters. [Change your mind](https://fleetdm.com/handbook/company#why-this-way) in the face of new evidence. Avoid the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
-- **Be humble.** When something isn't working, stop assuming.  Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research) and [first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering).
-- **Stop and think.** A lucky fix without understanding does more harm than good.  Beware [the "happy path"](https://en.wikipedia.org/wiki/Happy_path).
-
 
 ### 🟣 Openness
 Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
 
-- **Write it down.** Let people learn about your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy. 
-- **Welcome contributions.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain. [Write simply](http://www.paulgraham.com/simply.html).
-- **Embrace candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way).  Interrupt and be interrupted.
-- **Be transparent.** Build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify non-public info with care. 
+- **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
+- **Everyone can contribute.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain.
+- **Be transparent.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
+- **[Commit](https://www.audible.com/pd/The-15-Commitments-of-Conscious-Leadership-Audiobook/B00SKV11H2) to candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).  Interrupt and be interrupted.
 
 
 ## History
@@ -123,9 +124,9 @@ Above and beyond the organizational chart, Fleet organizes cross-functional grou
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
 [Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Jack Naglieri](https://councils.forbes.com/profile/Jack-Naglieri-Founder-CEO-Panther/a5f3a285-e983-4f4c-9f9d-2f0d4335f00d) _(Panther Labs)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  (Just ask.)
 
+## Strategy
 
-## Positioning
-Read about the company's positioning in ["👑 Crown jewels"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
+You can read about the [company's positioning ("👑 Crown jewels")](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#) and [vulnerability management positioning ("👑 Crown jewels pt. 2"](https://docs.google.com/document/d/1VXnZo5EQeircKvUPYai69GPW8QnECamCE5CU1vjLMPU/edit), or review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide ["All hands" meetings](https://fleetdm.com/handbook/business-operations#all-hands).
 
 ## Slack channels
 
@@ -143,17 +144,20 @@ The following stubs are included only to make links backward compatible.
 
 ##### Levels of confidentiality
 
-Please see [handbook/business-operations#levels-of-confidentiality](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality).
+Please see [📖Business Operations#levels-of-confidentiality](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality).
 
 ##### Email relays
 
-Please see [handbook/business-operations#email-relays](https://fleetdm.com/handbook/business-operations#email-relays).
+Please see [📖Business Operations#email-relays](https://fleetdm.com/handbook/business-operations#email-relays).
 
 
 ##### Tools we use
 
-Please see [handbook/business-operations#tools-we-use](https://fleetdm.com/handbook/business-operations#tools-we-use).
+Please see [📖Business Operations#tools-we-use](https://fleetdm.com/handbook/business-operations#tools-we-use).
 
+##### Positioning
+
+Please see [📖Company#strategy](#strategy).
 
 
 <meta name="maintainedBy" value="mikermcneil">

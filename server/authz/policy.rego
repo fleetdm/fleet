@@ -18,17 +18,17 @@ write := "write"
 write_role := "write_role"
 change_password := "change_password"
 
-# Query specific actions
+# Action used on object "targeted_query" used for running live queries.
 run := "run"
+# Action used on object "query" used for running "new" live queries.
 run_new := "run_new"
-
-# MDM specific actions
-mdm_command := "mdm_command"
 
 # Roles
 admin := "admin"
 maintainer := "maintainer"
 observer := "observer"
+observer_plus := "observer_plus"
+gitops := "gitops"
 
 # Default deny
 default allow = false
@@ -45,17 +45,25 @@ team_role(subject, team_id) = role {
 # Global config
 ##
 
-# Any logged in user can read global config
+# Global admin, maintainer, observer_plus and observer can read global config.
 allow {
   object.type == "app_config"
-  not is_null(subject)
+  subject.global_role == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
-# Admin can write global config
+# Team admin, maintainer, observer_plus and observer can read global config.
 allow {
   object.type == "app_config"
-  subject.global_role == admin
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+  action == read
+}
+
+# Global admins and gitops can write global config.
+allow {
+  object.type == "app_config"
+  subject.global_role == [admin, gitops][_]
   action == write
 }
 
@@ -71,32 +79,34 @@ allow {
   not is_null(subject)
   action == read
 }
-# For specific teams, only members can read.
+
+# Global admins, maintainers, observer_plus and observers can read teams.
 allow {
   object.type == "team"
   object.id != 0
-  team_role(subject, object.id) == [admin,maintainer,observer][_]
-  action == read
-}
-# Global users can read all teams.
-allow {
-  object.type == "team"
-  object.id != 0
-  subject.global_role == [admin, maintainer, observer][_]
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
-# Admin can write teams
+# Team admins, maintainers, observer_plus and observers can read their team.
 allow {
   object.type == "team"
-  subject.global_role == admin
+  object.id != 0
+  team_role(subject, object.id) == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Global admins and gitops can write teams.
+allow {
+  object.type == "team"
+  subject.global_role == [admin, gitops][_]
   action == write
 }
 
-# Team admin can write teams
+# Team admins and gitops can write their teams.
 allow {
   object.type == "team"
-  team_role(subject, object.id) == admin
+  team_role(subject, object.id) == [admin, gitops][_]
   action == write
 }
 
@@ -144,10 +154,10 @@ allow {
 # Activities
 ##
 
-# Only global users can read activities
+# Global admins, maintainers, observer_plus and observers can read activities.
 allow {
-  not is_null(subject.global_role)
   object.type == "activity"
+  subject.global_role == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
@@ -173,14 +183,22 @@ allow {
 # Enroll Secrets
 ##
 
-# Global admins and maintainers can read/write all
+# Global admins and maintainers can read/write enroll secrets.
 allow {
 	object.type == "enroll_secret"
 	subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Team admins and maintainers can read/write for appropriate teams
+# Global gitops can write global enroll secrets.
+allow {
+  object.type == "enroll_secret"
+  object.is_global_secret
+  subject.global_role == gitops
+  action == write
+}
+
+# Team admins and maintainers can read/write for appropriate teams.
 allow {
 	object.type == "enroll_secret"
 	team_role(subject, object.team_id) == [admin, maintainer][_]
@@ -193,43 +211,53 @@ allow {
 # Hosts
 ##
 
-# Allow anyone to list (must be filtered appropriately by the service).
+# Global admins, maintainers, observer_plus and observers can list hosts.
 allow {
   object.type == "host"
-  not is_null(subject)
+  subject.global_role == [admin, maintainer, observer_plus, observer][_]
   action == list
 }
 
-# Allow read/write for global admin/maintainer
+# Team admins, maintainers, observer_plus and observers can list hosts.
 allow {
 	object.type == "host"
-	subject.global_role = admin
-	action == [read, write][_]
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+	action == list
 }
+
+# Allow read/write for global admin/maintainer.
 allow {
 	object.type == "host"
-	subject.global_role = maintainer
+  subject.global_role == [admin, maintainer][_]
 	action == [read, write][_]
 }
 
-# Allow read for global observer
+# Global gitops can write hosts.
 allow {
 	object.type == "host"
-	subject.global_role = observer
+  subject.global_role == gitops
+	action == write
+}
+
+# Allow read for global observer and observer_plus.
+allow {
+	object.type == "host"
+	subject.global_role == [observer, observer_plus][_]
 	action == read
 }
 
-# Allow read for matching team admin/maintainer/observer
+# Allow read for matching team admin/maintainer/observer/observer_plus.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, observer][_]
+	team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
 	action == read
 }
 
 # Team admins and maintainers can write to hosts of their own team
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin,maintainer][_]
+	team_role(subject, object.team_id) == [admin, maintainer][_]
 	action == write
 }
 
@@ -237,22 +265,25 @@ allow {
 # Labels
 ##
 
-# All users can read labels
+# Global admins, maintainers, observer_plus and observers can read labels.
 allow {
   object.type == "label"
-  not is_null(subject)
+	subject.global_role == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
-# Only global admins and maintainers can write labels
+# Team admins, maintainers, observer_plus and observers can read labels.
 allow {
-  object.type == "label"
-  subject.global_role == admin
-  action == write
+	object.type == "label"
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+	action == read
 }
+
+# Only global admins, maintainers and gitops can write labels
 allow {
   object.type == "label"
-  subject.global_role == maintainer
+  subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
 
@@ -260,64 +291,57 @@ allow {
 # Queries
 ##
 
-# All users can read queries
+# Global admins, maintainers, observer_plus and observers can read queries.
 allow {
-  not is_null(subject)
   object.type == "query"
+  subject.global_role == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
-# Global admins and maintainers can write queries
+# Team admins, maintainers, observer_plus and observers can read queries.
 allow {
-  object.type == "query"
-  subject.global_role == admin
-  action == write
+	object.type == "query"
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+	action == read
 }
+
+# Global admins, maintainers and gitops can write queries.
 allow {
   object.type == "query"
-  subject.global_role == maintainer
+  subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
 
-# Team admins and maintainers can create new queries
+# Team admins, maintainers and gitops can create new queries
 allow {
   object.id == 0 # new queries have ID zero
   object.type == "query"
-  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
   action == write
 }
 
-# Team admins and maintainers can edit and delete only their own queries
+# Team admins, maintainers and gitops can edit and delete only their own queries
 allow {
   object.author_id == subject.id
   object.type == "query"
-  team_role(subject, subject.teams[_].id) == [admin,maintainer][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
   action == write
 }
 
-# Global admins and maintainers can run any
+# Global admins, maintainers and observer_plus can run any query (saved and new).
 allow {
   object.type == "targeted_query"
-  subject.global_role == admin
-  action = run
-}
-allow {
-  object.type == "targeted_query"
-  subject.global_role == maintainer
+  subject.global_role == [admin, maintainer, observer_plus][_]
   action = run
 }
 allow {
   object.type == "query"
-  subject.global_role == admin
-  action = run_new
-}
-allow {
-  object.type == "query"
-  subject.global_role == maintainer
+  subject.global_role == [admin, maintainer, observer_plus][_]
   action = run_new
 }
 
-# Team admin and maintainer running a non-observers_can_run query must have the targets
+# Team admin, maintainer and observer_plus running a non-observers_can_run query must have the targets
 # filtered to only teams that they maintain.
 allow {
   object.type == "targeted_query"
@@ -326,34 +350,33 @@ allow {
   action == run
 
   not is_null(object.host_targets.teams)
-  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin,maintainer][_] }
+  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, observer_plus][_] }
   count(ok_teams) == count(object.host_targets.teams)
 }
 
-# Team admin and maintainer running a non-observers_can_run query when no target teams
-# are specified.
+# Team admin, maintainer and observer_plus running a non-observers_can_run query when no target teams are specified.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == false
   is_null(subject.global_role)
   action == run
 
-  # If role is admin or maintainer on any team
-  team_role(subject, subject.teams[_].id) == [admin,maintainer][_]
+  # If role is admin, maintainer or observer_plus on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus][_]
 
   # and there are no team targets
   is_null(object.host_targets.teams)
 }
 
-# Team admin and maintainer can run a new query
+# Team admin, maintainer and observer_plus can run a new query.
 allow {
   object.type == "query"
-  # If role is admin or maintainer on any team
-  team_role(subject, subject.teams[_].id) == [admin,maintainer][_]
+  # If role is admin, maintainer or observer_plus on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus][_]
   action == run_new
 }
 
-# Observers can run only if observers_can_run
+# Global observers can run only if observers_can_run.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
@@ -361,7 +384,7 @@ allow {
   action = run
 }
 
-# Team observer running a observers_can_run query must have the targets
+# Team admin, maintainer, observer_plus and observer running a observers_can_run query must have the targets
 # filtered to only teams that they observe.
 allow {
   object.type == "targeted_query"
@@ -370,20 +393,19 @@ allow {
   action == run
 
   not is_null(object.host_targets.teams)
-  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin,maintainer,observer][_] }
+  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, observer_plus, observer][_] }
   count(ok_teams) == count(object.host_targets.teams)
 }
 
-# Team observer running a observers_can_run query and there are no
-# target teams.
+# Team admin, maintainer, observer_plus and observer running a observers_can_run query and there are no target teams.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
   is_null(subject.global_role)
   action == run
 
-  # If role is admin, maintainer or observer on any team
-  team_role(subject, subject.teams[_].id) == [admin,maintainer,observer][_]
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
 
   # and there are no team targets
   is_null(object.host_targets.teams)
@@ -393,11 +415,18 @@ allow {
 # Targets
 ##
 
-# All users can read targets (filtered appropriately based on their
-# teams/roles).
+# Global admin, maintainer, observer_plus and observer can read targets.
 allow {
-  not is_null(subject)
   object.type == "target"
+  subject.global_role == [admin, maintainer, observer_plus, observer][_]
+  action == read
+}
+
+# Team admin, maintainer, observer_plus and observer can read global config.
+allow {
+  object.type == "target"
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
@@ -405,32 +434,41 @@ allow {
 # Packs
 ##
 
-# Global admins and maintainers can read/write all packs.
+# Global admins, maintainers and gitops can read/write all types of packs.
 allow {
   object.type == "pack"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == [read, write][_]
 }
 
-# All users can read the global pack.
+# Global admins, maintainers, observers and observer_plus can read the global pack.
 allow {
   object.type == "pack"
-  not is_null(subject)
   object.is_global_pack == true
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
-# Team admins, maintainers and observers can read their team's pack.
+# Team admins, maintainers, observer_plus and observers can read the global pack.
+allow {
+	object.type == "pack"
+  object.is_global_pack == true
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+	action == read
+}
+
+# Team admins, maintainers, observers, observer_plus can read their team's pack.
 #
 # NOTE: Action "read" on a team's pack includes listing its scheduled queries.
 allow {
   object.type == "pack"
   not is_null(object.pack_team_id)
-  team_role(subject, object.pack_team_id) == [admin, maintainer, observer][_]
+  team_role(subject, object.pack_team_id) == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
-# Team admins and maintainers can add/remove scheduled queries from/to their team's pack.
+# Team admins, maintainers and gitops can add/remove scheduled queries from/to their team's pack.
 #
 # NOTE: The team's pack is not editable per-se, it's a special pack to group
 # all the team's scheduled queries. So the "write" operation only covers
@@ -438,7 +476,7 @@ allow {
 allow {
   object.type == "pack"
   not is_null(object.pack_team_id)
-  team_role(subject, object.pack_team_id) == [admin, maintainer][_]
+  team_role(subject, object.pack_team_id) == [admin, maintainer, gitops][_]
   action == write
 }
 
@@ -457,41 +495,56 @@ allow {
 # Policies
 ##
 
-# Global Admin and Maintainer can read and write policies
+# Global admins and maintainers can read and write policies.
 allow {
   object.type == "policy"
-  subject.global_role == [admin,maintainer][_]
+  subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Global Observer can read any policies
+# Global gitops can write policies.
 allow {
   object.type == "policy"
-  subject.global_role == observer
+  subject.global_role == gitops
+  action == write
+}
+
+# Global observer and observer_plus can read any policies.
+allow {
+  object.type == "policy"
+  subject.global_role == [observer, observer_plus][_]
   action == read
 }
 
-# Team admin and maintainers can read and write policies for their teams
+# Team admin and maintainers can read and write policies for their teams.
 allow {
   not is_null(object.team_id)
   object.type == "policy"
-  team_role(subject, object.team_id) == [admin,maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Team admin, maintainers and observers can read global policies
+# Team gitops can write policies for their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "policy"
+  team_role(subject, object.team_id) == gitops
+  action == write
+}
+
+# Team admin, maintainers, observers and observers_plus can read global policies
 allow {
   is_null(object.team_id)
   object.type == "policy"
-  team_role(subject, subject.teams[_].id) == [admin,maintainer,observer][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
-# Team Observer can read policies for their teams
+# Team observer and observer_plus can read policies for their teams.
 allow {
   not is_null(object.team_id)
   object.type == "policy"
-  team_role(subject, object.team_id) == observer
+  team_role(subject, object.team_id) == [observer, observer_plus][_]
   action == read
 }
 
@@ -499,18 +552,18 @@ allow {
 # Software
 ##
 
-# Global users can read all software.
+# Global admins, maintainers, observers and observer_plus can read all software.
 allow {
   object.type == "software_inventory"
-  subject.global_role == [admin, maintainer, observer][_]
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
-# Team users can read all software in their teams.
+# Team admins, maintainers, observers and observer_plus can read all software in their teams.
 allow {
   not is_null(object.team_id)
   object.type == "software_inventory"
-  team_role(subject, object.team_id) == [admin, maintainer, observer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
@@ -525,6 +578,13 @@ allow {
   action == [read, write][_]
 }
 
+# Global gitops can write Apple MDM config profiles.
+allow {
+  object.type == "mdm_apple_config_profile"
+  subject.global_role == gitops
+  action == write
+}
+
 # Team admins and maintainers can read and write Apple MDM config profiles on their teams.
 allow {
   not is_null(object.team_id)
@@ -534,19 +594,13 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins and maintainers can issue MDM commands to all hosts.
-allow {
-  object.type == "host"
-  subject.global_role == [admin, maintainer][_]
-  action == mdm_command
-}
-
-# Team admins and maintainers can issue MDM commands to hosts on their teams.
+# Team gitops can write Apple MDM config profiles on their teams.
 allow {
   not is_null(object.team_id)
-  object.type == "host"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
-  action == mdm_command
+  object.team_id != 0
+  object.type == "mdm_apple_config_profile"
+  team_role(subject, object.team_id) == gitops
+  action == write
 }
 
 # Global admins can read and write MDM apple information.
@@ -563,26 +617,34 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins and maintainers can read and write (execute) MDM Apple commands.
+# Global admins and maintainers can write (execute) MDM Apple commands.
 allow {
   object.type == "mdm_apple_command"
   subject.global_role == [admin, maintainer][_]
-  action == [read, write][_]
+  action == write
 }
 
-# Team admins and maintainers can read and write (execute) MDM Apple commands on hosts of their teams.
+# Team admins and maintainers can write (execute) MDM Apple commands on hosts of their teams.
 allow {
   not is_null(object.team_id)
   object.type == "mdm_apple_command"
   team_role(subject, object.team_id) == [admin, maintainer][_]
-  action == [read, write][_]
+  action == write
 }
 
-# Global admins can read and write Apple MDM command results.
+# Global admins, maintainers, observers and observer_plus can read MDM Apple commands.
 allow {
-  object.type == "mdm_apple_command_result"
-  subject.global_role == admin
-  action == [read, write][_]
+  object.type == "mdm_apple_command"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admins, maintainers, observers and observer_plus can read MDM Apple commands on hosts of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_apple_command"
+  team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
+  action == read
 }
 
 # Global admins can read and write Apple MDM installers.
@@ -606,18 +668,18 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins can read and write (i.e. trigger) cron schedules.
-allow {
-  object.type == "cron_schedules"
-  subject.global_role == admin
-  action == [read, write][_]
-}
-
 # Global admins and maintainers can read and write MDM Apple settings.
 allow {
   object.type == "mdm_apple_settings"
   subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
+}
+
+# Global gitops can write MDM Apple settings.
+allow {
+  object.type == "mdm_apple_settings"
+  subject.global_role == gitops
+  action == write
 }
 
 # Team admins and maintainers can read and write MDM Apple Settings of their teams.
@@ -626,4 +688,102 @@ allow {
   object.type == "mdm_apple_settings"
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == [read, write][_]
+}
+
+# Team gitops can write MDM Apple Settings of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_apple_settings"
+  team_role(subject, object.team_id) == gitops
+  action == write
+}
+
+# Global admins and maintainers can read and write bootstrap packages.
+allow {
+  object.type == "mdm_apple_bootstrap_package"
+  subject.global_role == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Global gitops can write bootstrap packages.
+allow {
+  object.type == "mdm_apple_bootstrap_package"
+  subject.global_role == gitops
+  action == write
+}
+
+# Team admins and maintainers can read and write bootstrap packages on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_bootstrap_package"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Team gitops can write bootstrap packages on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_bootstrap_package"
+  team_role(subject, object.team_id) == gitops
+  action == write
+}
+
+##
+# MDM Apple Setup Assistant
+##
+
+# Global admins and maintainers can read and write macos setup assistants.
+allow {
+  object.type == "mdm_apple_setup_assistant"
+  subject.global_role == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Global gitops can write macos setup assistants.
+allow {
+  object.type == "mdm_apple_setup_assistant"
+  subject.global_role == gitops
+  action == write
+}
+
+# Team admins and maintainers can read and write macos setup assistants on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_setup_assistant"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Team gitops can write macos setup assistants on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_setup_assistant"
+  team_role(subject, object.team_id) == gitops
+  action == write
+}
+
+##
+# Cron schedules
+##
+
+# Global admins can read and write (i.e. trigger) cron schedules.
+allow {
+  object.type == "cron_schedules"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
+##
+# Version
+##
+
+# Any logged in user can read Fleet's version
+allow {
+  object.type == "version"
+  not is_null(subject)
+  action == read
 }

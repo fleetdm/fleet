@@ -1,14 +1,9 @@
 package service
 
 import (
-	"bytes"
-	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"mime/multipart"
 	"net/http"
 	"net/url"
 
@@ -17,31 +12,14 @@ import (
 	"howett.net/plist"
 )
 
-func (c *Client) CreateEnrollmentProfile(enrollmentProfileType fleet.MDMAppleEnrollmentType, depProfile *json.RawMessage) (*fleet.MDMAppleEnrollmentProfile, error) {
-	request := createMDMAppleEnrollmentProfileRequest{
-		Type:       enrollmentProfileType,
-		DEPProfile: depProfile,
-	}
-	var response createMDMAppleEnrollmentProfileResponse
-	if err := c.authenticatedRequest(request, "POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles", &response); err != nil {
-		return nil, fmt.Errorf("request: %w", err)
-	}
-	return response.EnrollmentProfile, nil
-}
-
-func (c *Client) ListEnrollments() ([]*fleet.MDMAppleEnrollmentProfile, error) {
-	request := listMDMAppleEnrollmentProfilesRequest{}
-	var response listMDMAppleEnrollmentProfilesResponse
-	if err := c.authenticatedRequest(request, "GET", "/api/latest/fleet/mdm/apple/enrollmentprofiles", &response); err != nil {
-		return nil, fmt.Errorf("request: %w", err)
-	}
-	return response.EnrollmentProfiles, nil
-}
-
 func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.CommandEnqueueResult, error) {
 	var commandPayload map[string]interface{}
 	if _, err := plist.Unmarshal(rawPlist, &commandPayload); err != nil {
 		return nil, fmt.Errorf("The payload isn't valid XML. Please provide a file with valid XML: %w", err)
+	}
+
+	if commandPayload == nil {
+		return nil, errors.New("The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file.")
 	}
 
 	// generate a random command UUID
@@ -63,7 +41,7 @@ func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.Com
 	return response.CommandEnqueueResult, nil
 }
 
-func (c *Client) MDMAppleGetCommandResults(commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+func (c *Client) MDMAppleGetCommandResults(commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
 	verb, path := http.MethodGet, "/api/latest/fleet/mdm/apple/commandresults"
 
 	query := url.Values{}
@@ -78,98 +56,21 @@ func (c *Client) MDMAppleGetCommandResults(commandUUID string) (map[string]*flee
 	return responseBody.Results, nil
 }
 
-func (c *Client) UploadMDMAppleInstaller(ctx context.Context, name string, installer io.Reader) (uint, error) {
-	if c.token == "" {
-		return 0, errors.New("authentication token is empty")
-	}
+func (c *Client) MDMAppleListCommands() ([]*fleet.MDMAppleCommand, error) {
+	const defaultCommandsPerPage = 1000
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	fw, err := writer.CreateFormFile("installer", name)
-	if err != nil {
-		return 0, fmt.Errorf("create form file: %w", err)
-	}
-	_, err = io.Copy(fw, installer)
-	if err != nil {
-		return 0, fmt.Errorf("write form file: %w", err)
-	}
-	writer.Close()
+	verb, path := http.MethodGet, "/api/latest/fleet/mdm/apple/commands"
 
-	var (
-		verb = "POST"
-		path = "/api/latest/fleet/mdm/apple/installers"
-	)
-	response, err := c.doContextWithBodyAndHeaders(ctx, verb, path, "",
-		body.Bytes(),
-		map[string]string{
-			"Content-Type":  writer.FormDataContentType(),
-			"Accept":        "application/json",
-			"Authorization": fmt.Sprintf("Bearer %s", c.token),
-		},
-	)
-	if err != nil {
-		return 0, fmt.Errorf("do multipart request: %w", err)
-	}
+	query := url.Values{}
+	query.Set("per_page", fmt.Sprint(defaultCommandsPerPage))
+	query.Set("order_key", "updated_at")
+	query.Set("order_direction", "desc")
 
-	var installerResponse uploadAppleInstallerResponse
-	if err := c.parseResponse(verb, path, response, &installerResponse); err != nil {
-		return 0, fmt.Errorf("parse response: %w", err)
-	}
-	return installerResponse.ID, nil
-}
-
-func (c *Client) MDMAppleGetInstallerDetails(id uint) (*fleet.MDMAppleInstaller, error) {
-	verb, path := http.MethodGet, fmt.Sprintf("/api/latest/fleet/mdm/apple/installers/%d", id)
-
-	var responseBody getAppleInstallerDetailsResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	var responseBody listMDMAppleCommandsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)
 	}
 
-	return responseBody.Installer, nil
-}
-
-func (c *Client) MDMAppleListDevices() ([]fleet.MDMAppleDevice, error) {
-	verb, path := http.MethodGet, "/api/latest/fleet/mdm/apple/devices"
-
-	var responseBody listMDMAppleDevicesResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
-	}
-
-	return responseBody.Devices, nil
-}
-
-func (c *Client) DEPListDevices() ([]fleet.MDMAppleDEPDevice, error) {
-	verb, path := http.MethodGet, "/api/latest/fleet/mdm/apple/dep/devices"
-
-	var responseBody listMDMAppleDEPDevicesResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
-	}
-
-	return responseBody.Devices, nil
-}
-
-func (c *Client) ListMDMAppleInstallers() ([]fleet.MDMAppleInstaller, error) {
-	request := listMDMAppleInstallersRequest{}
-	var response listMDMAppleInstallersResponse
-	if err := c.authenticatedRequest(request, "GET", "/api/latest/fleet/mdm/apple/installers", &response); err != nil {
-		return nil, fmt.Errorf("request: %w", err)
-	}
-	return response.Installers, nil
-}
-
-func (c *Client) MDMDeleteAppleInstaller(id uint) error {
-	verb, path := http.MethodDelete, fmt.Sprintf("/api/latest/fleet/mdm/apple/installers/%d", id)
-
-	var responseBody deleteAppleInstallerDetailsResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	if err != nil {
-		return fmt.Errorf("send request: %w", err)
-	}
-	return nil
+	return responseBody.Results, nil
 }

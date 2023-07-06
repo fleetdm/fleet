@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useQuery, useMutation } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -46,6 +46,8 @@ const QueryPage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    isObserverPlus,
+    isAnyTeamObserverPlus,
   } = useContext(AppContext);
   const {
     selectedOsqueryTable,
@@ -174,6 +176,8 @@ const QueryPage = ({
     );
   };
 
+  const goToQueryEditor = useCallback(() => setStep(QUERIES_PAGE_STEPS[1]), []);
+
   const renderScreen = () => {
     const step1Opts = {
       router,
@@ -212,7 +216,7 @@ const QueryPage = ({
       selectedTargets,
       storedQuery,
       setSelectedTargets,
-      goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
+      goToQueryEditor,
       targetsTotalCount,
     };
 
@@ -230,7 +234,11 @@ const QueryPage = ({
   const showSidebar =
     isFirstStep &&
     isSidebarOpen &&
-    (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isAnyTeamMaintainerOrTeamAdmin ||
+      isObserverPlus ||
+      isAnyTeamObserverPlus);
 
   return (
     <>

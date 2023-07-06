@@ -25,7 +25,7 @@ func (ds *Datastore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*
 }
 
 func (ds *Datastore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	return appConfigDB(ctx, ds.reader)
+	return appConfigDB(ctx, ds.reader(ctx))
 }
 
 func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, error) {
@@ -63,7 +63,7 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 			return ctxerr.Wrap(ctx, err, "insert app_config_json")
 		}
 
-		if !info.SSOSettings.EnableSSO {
+		if info.SSOSettings != nil && !info.SSOSettings.EnableSSO {
 			_, err = tx.ExecContext(ctx, `UPDATE users SET sso_enabled=false`)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "update users sso")
@@ -76,10 +76,10 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 
 func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 	var s fleet.EnrollSecret
-	err := sqlx.GetContext(ctx, ds.reader, &s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.New(ctx, "no matching secret found")
+			return nil, ctxerr.Wrap(ctx, notFound("EnrollSecret"), "no matching secret found")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "verify enroll secret")
 	}
@@ -160,7 +160,7 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 }
 
 func (ds *Datastore) GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-	return getEnrollSecretsDB(ctx, ds.reader, teamID)
+	return getEnrollSecretsDB(ctx, ds.reader(ctx), teamID)
 }
 
 func getEnrollSecretsDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([]*fleet.EnrollSecret, error) {
@@ -207,7 +207,7 @@ func (ds *Datastore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet
                 created_at DESC LIMIT 1)
 	`
 	var secrets []*fleet.EnrollSecret
-	if err := sqlx.SelectContext(ctx, ds.reader, &secrets, query); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &secrets, query); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get secrets")
 	}
 	return secrets, nil

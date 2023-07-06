@@ -637,7 +637,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Application is up to date or not present (macOS)
+  name: Docker application is up to date or not present (macOS)
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM apps a1 WHERE a1.bundle_identifier = 'com.electron.dockerdesktop' AND a1.bundle_short_version>='4.6.1') OR NOT EXISTS (SELECT 1 FROM apps a2 WHERE a2.bundle_identifier = 'com.electron.dockerdesktop');
   description: "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this query and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications."
   resolution: "Update Docker or remove it if not used."
@@ -881,7 +881,7 @@ kind: policy
 spec:
   name: No 1Password emergency kit stored on desktop or in downloads (macOS)
   query: SELECT EXISTS(SELECT 1 FROM file WHERE filename like '%Emergency Kit%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%')) as does_1p_ek_exist;
-  description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits." 
+  description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits."
   resolution: "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location."
   platform: darwin
   tags: compliance, built-in
@@ -985,7 +985,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: Link-Local Multicast Name Resolution (LLMNR) disabled (Windows)
-  query:  SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
   description: "Checks if a Group Policy configures the computer to disable LLMNR. Disabling LLMNR can prevent malicious actors from gaining access to the computer's credentials. Some auditors require that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system."
   platforms: Windows
@@ -997,7 +997,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: Automatic updates enabled (Windows)
-  query:   SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;
   description: "Checks if a Group Policy configures the computer to enable Automatic Updates. When enabled, the computer downloads and installs security and other important updates automatically. Some auditors require that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates."
   platforms: Windows
@@ -1022,7 +1022,7 @@ spec:
   name: Geolocate via ipapi.co
   platform: darwin, linux, windows
   description: Geolocate a host using the (ipapi.co)[https://ipapi.co] in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
-  query: >- 
+  query: >-
     SELECT JSON_EXTRACT(result, '$.ip') AS ip,
     JSON_EXTRACT(result, '$.city') AS city,
     JSON_EXTRACT(result, '$.region') AS region,

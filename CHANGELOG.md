@@ -1,3 +1,370 @@
+## Fleet 4.33.1 (Jun 20, 2023)
+
+* Fixed ChromeOS add host instructions to use variable Fleet URL.
+
+## Fleet 4.33.0 (Jun 12, 2023)
+
+* Upgraded Go version to 1.19.10.
+
+* Added support for ChromeOS devices.
+
+* Added instructions to inform users how to add ChromeOS hosts.
+
+* Added ChromeOS details to the dashboard, manage hosts, and host details pages.
+
+* Added ability for users to create policies that target ChromeOS.
+
+* Added built-in label for ChromeOS.
+
+* Added query to fill in `device_mapping` from ChromeOS hosts.
+
+* Improved the performance of live query results rendering to address usability issues when querying tens of thousands of hosts.
+
+* Reduced size of live query websocket message by removing unused host data.
+
+* Added the `POST /fleet/mdm/apple/profiles/preassign` endpoint to store profiles to be assigned to a host for subsequent matching with an existing (or new) team.
+
+* Added the `POST /fleet/mdm/apple/profiles/match` endpoint to match pre-assigned profiles to an existing team or create one if needed, and assign the host to that team.
+
+* Updated `GET /mdm/apple/profiles` endpoint to return empty array instead of null if no profiles are found.
+
+* Improved ingestion of MDM devices from ABM:
+  - If a device's operation_type is `modified`, but the device doesn't exist in Fleet yet, a DEP profile will be assigned to the device and a new record will be created in Fleet.
+  - If a device's operation_type is `deleted`, the device won't be prompted to migrate to Fleet if the feature has been configured.
+
+* Added "Verified" profile status for profiles verified with osquery.
+
+* Added "Action required" status for disk encryption profile in UI for host details and device user pages.
+
+* Added UI for the end user authentication page for MDM macos setup.
+
+* Added new host detail query to verify MDM profiles and updated API to include verified status.
+
+* Added documentation in the guide for `fleetctl get mdm-commands`.
+
+* Moved post-DEP (automatic) MDM enrollment to a worker job for increased resiliency with retries.
+
+* Added better UI error for manual enroll MDM modal.
+
+* Updated `GET /api/_version_/fleet/config` to now omits fields `smtp_settings` and `sso_settings` if not set.
+
+* Added a response payload to the `POST /api/latest/fleet/spec/teams` contributor API endpoint so that it returns an object with a `team_ids_by_name` key which maps team names with their corresponding id.
+
+* Ensure we send post-enrollment commands to MDM devices that are re-enrolling after being wiped.
+
+* Added error message to UI when Redis disconnects during a live query session.
+
+* Optimized query used for listing activities on the dashboard.
+
+* Added ability for users to delete multiple pages of hosts.
+
+* Added ability to deselect label filter on host table.
+
+* Added support for value `null` on `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_*` SAML attributes. Fleet will accept and ignore such `null` attributes.
+
+* Deprecate `enable_jit_role_sync` setting and only change role for existing users if role attributes are set in the `SAMLResponse`.
+
+* Improved styling in sandbox mode.
+
+* Patched a potential security issue.
+
+* Improved icon clarity.
+
+* Fixed issues with the MDM migration flow.
+
+* Fixed a bug with applying team specs via `fleetctl apply` and updating a team via the `PATCH /api/latest/fleet/mdm/teams/{id}` endpoint so that the MDM updates settings (`minimum_version` and `deadline`) are not cleared if not provided in the payload.
+
+* Fixed table formatting for the output of `fleetctl get mdm-command-results`.
+
+* Fixed the `/api/latest/fleet/mdm/apple_bm` endpoint so that it returns 400 instead of 500 when it fails to authenticate with Apple's Business Manager API, as this indicates a Fleet configuration issue with the Apple BM certificate or token.
+
+* Fixed a bug that would show MDM URLs for the same server as different servers if they contain query parameters.
+
+* Fixed an issue preventing a user with the `gitops` role from applying some MDM settings via `fleetctl apply` (the `macos_setup_assistant` and `bootstrap_package` settings).
+
+* Fixed `GET /api/v1/fleet/spec/labels/{name}` endpoint so that it now includes the label id.
+
+* Fixed Observer/Observer+ role being able to see team secrets.
+
+* Fixed UI bug where `inherited_page=0` was incorrectly added to some URLs.
+
+* Fixed misaligned icons in UI.
+
+* Fixed tab misalignment caused by new font.
+
+* Fixed dashed line styling on multiline activities.
+
+* Fixed a bug in the users table where users that are observer+ for all of more than one team were listed as "Various roles".
+
+* Fixed 500 error being returned if SSO session is not found.
+
+* Fixed issue with `chrome_extensions` virtual table not returning a path value on `fleetd-chrome`, which was breaking software ingestion.
+
+* Fixed bug with page navigation inside 'My Device' page.
+
+* Fixed a styling bug in the add hosts modal in sandbox mode.
+
+## Fleet 4.32.0 (May 24, 2023)
+
+* Added support to add a EULA as part of the AEP/DEP unboxing flow.
+
+* DEP enrollments configured with SSO now pre-populate the username/fullname fields during account
+  creation.
+
+* Integrated the macOS setup assistant feature with Apple DEP so that the setup assistants are assigned to the enrolled devices.
+
+* Re-assign and update the macOS setup assistants (and the default one) whenever required, such as
+  when it is modified, when a host is transferred, a team is deleted, etc.
+
+* Added device-authenticated endpoint to signal the Fleet server to send a webhook request with the
+  device UUID and serial number to the webhook URL configured for MDM migration.
+
+* Added UI for new automatic enrollment under the integration settings.
+
+* Added UI for end-user migration setup.
+
+* Changed macOS settings UI to always show the profile status aggregate data.
+
+* Revised validation errors returned for `fleetctl mdm run-command`.
+
+* Added `mdm.macos_migration` to app config.
+
+* Added `PATCH /mdm/apple/setup` endpoint.
+
+* Added `enable_end_user_authentication` to `mdm.macos_setup` in global app config and team config
+  objects.
+
+* Now tries to infer the bootstrap package name from the URL on upload if a content-disposition header is not provided.
+
+* Added wildcards to host search so when searching for different accented characters you get more results.
+
+* Can now reorder (and bookmark) policy tables by failing count.
+
+* On the login and password reset pages, added email validation and fixed some minor styling bugs.
+
+* Ensure sentence casing on labels on host details page.
+
+* Fix 3 Windows CIS benchmark policies that had false positive results initally merged March 24.
+
+* Fix of Fleet Server returning a duplicate OS version for Windows.
+
+* Improved loading UI for disk encryption controls page.
+
+* The 'GET /api/v1/fleet/hosts/{id}' and 'GET /api/v1/fleet/hosts/identifier/{identifier}' now
+  include the software installed path on their payload.
+
+* Third party vulnerability integrations now include the installed path of the vulnerable software
+  on each host.
+
+* Greyed out unusable select all queries checkbox.
+
+* Added page header for macOS updates UI.
+
+* Back to queries button returns to previous table state.
+
+* Bookmarkable URLs are now source of truth for Manage Queries page table state.
+
+* Added mechanism to refetch MDM enrollment status of a host pending unenrollment (due to a migration to Fleet) at a high interval.
+
+* Made sure every modal in the UI conforms to a consistent system of widths.
+
+* Team admins and team maintainers cannot save/update a global policy so hide the save button when viewing or running a global policy.
+
+* Policy description has text area instead of one-line area.
+
+* Users can now see the filepath of software on a host.
+
+* Added version info metadata file to Windows installer.
+
+* Fixed a bug where policy automations couldn't be updated without a webhook URL.
+
+* Fixed tooltip misalignment on software page.
+
+## Fleet 4.31.1 (May 10, 2023)
+
+* Fixed a bug that prevented bootstrap packages and the `fleetd` agent from being installed when the server had a database replica configured.
+
+## Fleet 4.31.0 (May 1, 2023)
+
+* Added `gitops` user role to Fleet. GitOps users are users that can manage configuration.
+
+* Added the `fleetctl get mdm-commands` command to get a list of MDM commands that were executed. Added the `GET /api/latest/fleet/mdm/apple/commands` API endpoint.
+
+* Added Fleet UI flows for uploading, downloading, deleting, and viewing information about a Fleet MDM
+  bootstrap package.
+
+* Added `apple_bm_enabled_and_configured` to app config responses.
+
+* Added support for the `mdm.macos_setup.macos_setup_assistant` key in the 'config' and 'team' YAML
+  payloads supported by `fleetctl apply`.
+
+* Added the endpoints to set, get and delete the macOS setup assistant associated with a team or no team (`GET`, `POST` and `DELETE` methods on the `/api/latest/fleet/mdm/apple/enrollment_profile` path).
+
+* Added functionality to gate Apple MDM login behind SAML authentication.
+
+* Added new "verifying" status for MDM profiles.
+
+* Migrated MDM status values from "applied" to "verifying" and updated associated endpoints.
+
+* Updated macOS settings status filters and aggregate counts to more accurately reflect the status of
+FileVault settings.
+
+* Filter out non-`observer_can_run` queries for observers in `fleetctl get queries` to match the UI behavior.
+
+* Fall back to a previous NVD release if the asset we want is not in the latest release.
+
+* Users can now click back to software to return to the filtered host details software tab or filtered manage software page.
+
+* Users can now bookmark software table filters.
+
+* Added a maximum height to the teams dropdown, allowing the user to scroll through a large number of
+  teams.
+
+* Present the 403 error page when a user with no access logs in.
+
+* Back to hosts and back to software in host details and software details return to previous table
+  state.
+
+* Bookmarkable URLs are now the source of truth for Manage Host and Manage Software table states.
+
+* Removed old Okta configuration that was only documented for internal usage. These configs are being replaced for a general approach to gate profiles behind SSO.
+
+* Removed any host's packs information for observers and observer plus in UI.
+
+* Added `changed_macos_setup_assistant` and `deleted_macos_setup_assistant` activities for the macOS setup assistant setting.
+
+* Hide reset sessions in user dropdown for current user.
+
+* Added a suite of UI logic for premium features in the Sandbox environment.
+
+* In Sandbox, added "Premium Feature" icons for premium-only option to designate a policy as "Critical," as well
+  as copy to the tooltip above the icon next to policies designated "Critical" in the Manage policies table.
+
+* Added a star to let a sandbox user know that the "Probability of exploit" column of the Manage
+  Software page is a premium feature.
+
+* Added "Premium Feature" icons for premium-only columns of the Vulnerabilities table when in
+Sandbox mode.
+
+* Inform prospective customers that Teams is a Premium feature.
+
+* Fixed animation for opening edit user modal.
+
+* Fixed nav bar buttons not responsively resizing when small screen widths cannot fit default size nav bar.
+
+* Fixed a bug with and improved the overall experience of tabbed navigation through the setup flow.
+
+* Fixed `/api/_version/fleet/logout` to return HTTP 401 if unauthorized.
+
+* Fixed endpoint to return proper status code (401) on `/api/fleet/orbit/enroll` if secret is invalid.
+
+* Fixed a bug where a white bar appears at the top of the login page before the app renders.
+
+* Fixed bug in manage hosts table where UI elements related to row selection were displayed to a team
+  observer user when that user was also a team and maintainer or admin on another team.
+
+* Fixed bug in add policy UI where a user that is team maintainer or team admin cannot access the UI
+  to save a new policy if that user is also an observer on another team.
+
+* Fixed UI bug where dashboard links to hosts filtered by platform did not carry over the selected
+  team filter.
+
+* Fixed not showing software card on dashboard when clicking on vulnerabilities.
+
+* Fixed a UI bug where fields on the "My account" page were cut off at smaller viewport widths.
+
+* Fixed software table to match UI spec (responsively hidden vulnerabilities/probability of export column under 990px width).
+
+* Fixed a bug where bundle information displayed in tooltips over a software's name was mistakenly
+  hidden.
+
+* Fixed an HTTP 500 on `GET /api/_version_/fleet/hosts` returned when `mdm_enrollment_status` is invalid.
+
+## Fleet 4.30.1 (Apr 12, 2023)
+
+* Fixed a UI bug introduced in version 4.30 where the "Show inherited policies" button was not being
+  displayed.
+
+* Fixed inherited schedules not appearing on page reload. 
+
+## Fleet 4.30.0 (Apr 10, 2023)
+
+* Removed both `FLEET_MDM_APPLE_ENABLE` and `FLEET_DEV_MDM_ENABLED` feature flags.
+
+* Automatically send a configuration profile for the `fleetd` agent to teams that use DEP enrollment.
+
+* DEP JSON profiles are now automatically created with default values when the server is run.
+
+* Added the `--mdm` and `--mdm-pending` flags to the `fleetctl get hosts` command to list hosts enrolled in Fleet MDM and pending enrollment in Fleet MDM, respectively.
+
+* Added support for the "enrolled" value for the `mdm_enrollment_status` filter and the new `mdm_name` filter for the "List hosts", "Count hosts" and "List hosts in label" endpoints.
+
+* Added the `fleetctl mdm run-command` command, to run any of the [Apple-supported MDM commands](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) on a host.
+
+* Added the `fleetctl get mdm-command-results` sub-command to get the results for a previously-executed MDM command.
+
+* Added API support to filter the host by the disk encryption status on "GET /hosts", "GET /hosts/count",  and "GET /labels/:id/hosts" endpoints.
+
+* Added API endpoint for disk encryption aggregate status data.
+
+* Automatically install `fleetd` for DEP enrolled hosts.
+
+* Updated hosts' profiles status sync to set to "pending" immediately after an action that affects their list of profiles.
+
+* Updated FileVault configuration profile to disallow device user from disabling full-disk encryption. 
+
+* Updated MDM settings so that they are consistent, and updated documentation for clarity, completeness and correctness.
+
+* Added `observer_plus` user role to Fleet. Observers+ are observers that can run any live query.
+
+* Added a premium-only "Published" column to the vulnerabilities table to display when a vulnerability was first published.
+
+* Improved version detection for macOS apps. This fixes some false positives in macOS vulnerability detection.
+
+* If a new CPE translation rule is pushed, the data in the database should reflect that.
+
+* If a false positive is patched, the data in the database should reflect that.
+
+* Include the published date from NVD in the vulnerability object in the API and the vulnerability webhooks (premium feature only).
+
+* User management table informs which users only have API access.
+
+* Added configuration option `websockets_allow_unsafe_origin` to optionally disable the websocket origin check.
+
+* Added new config `prometheus.basic_auth.disable` to allow running the Prometheus endpoint without HTTP Basic Auth.
+
+* Added missing tables to be cleared on host deletion (those that reference the host by UUID instead of ID).
+
+* Introduced new email backend capable of sending email directly using SES APIs.
+
+* Upgraded Go version to 1.19.8 (includes minor security fixes for HTTP DoS issues).
+
+* Uninstalling applications from hosts will remove the corresponding entry in `software` if no more hosts have the application installed.
+
+* Removed the unused "Issuer URI" field from the single sign-on configuration page of the UI.
+
+* Fixed an issue where some icons would appear clipped at certain zoom levels.
+
+* Fixed a bug where some empty table cells were slightly different colors.
+
+* Fixed e-mail sending on user invites and user e-mail change when SMTP server has credentials.
+
+* Fixed logo misalignment.
+
+* Fixed a bug where for certain org logos, the user could still click on it even outside the navbar.
+
+* Fixed styling bugs on the SelectQueryModal.
+
+* Fixed an issue where custom org logos might be displayed off-center.
+
+* Fixed a UI bug where in certain states, there would be extra space at the right edge of the Manage Hosts table.
+
+## Fleet 4.29.1 (Mar 31, 2023)
+
+* Fixed a migration that was causing `fleet prepare db` to fail due to changes in the collation of the tables. IMPORTANT: please make sure to have a database backup before running migrations.
+
+* Fixed an issue where users would see the incorrect disk encryption banners on the My Device page.
+
 ## Fleet 4.29.0 (Mar 22, 2023)
 
 * Added implementation of Fleetd for Chrome.

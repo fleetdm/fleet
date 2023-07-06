@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -14,11 +15,16 @@ INSERT INTO jobs (
     args,
     state,
     retries,
-    error
+    error,
+    not_before
 )
-VALUES (?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, COALESCE(?, NOW()))
 `
-	result, err := ds.writer.ExecContext(ctx, query, job.Name, job.Args, job.State, job.Retries, job.Error)
+	var notBefore *time.Time
+	if !job.NotBefore.IsZero() {
+		notBefore = &job.NotBefore
+	}
+	result, err := ds.writer(ctx).ExecContext(ctx, query, job.Name, job.Args, job.State, job.Retries, job.Error, notBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -32,18 +38,19 @@ VALUES (?, ?, ?, ?, ?)
 func (ds *Datastore) GetQueuedJobs(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error) {
 	query := `
 SELECT
-    id, created_at, updated_at, name, args, state, retries, error
+    id, created_at, updated_at, name, args, state, retries, error, not_before
 FROM
     jobs
 WHERE
-    state = ?
+    state = ? AND
+    not_before <= NOW()
 ORDER BY
     updated_at ASC
 LIMIT ?
 `
 
 	var jobs []*fleet.Job
-	err := sqlx.SelectContext(ctx, ds.reader, &jobs, query, fleet.JobStateQueued, maxNumJobs)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &jobs, query, fleet.JobStateQueued, maxNumJobs)
 	if err != nil {
 		return nil, err
 	}
@@ -57,11 +64,16 @@ UPDATE jobs
 SET
     state = ?,
     retries = ?,
-    error = ?
+    error = ?,
+    not_before = COALESCE(?, NOW())
 WHERE
     id = ?
 `
-	_, err := ds.writer.ExecContext(ctx, query, job.State, job.Retries, job.Error, job.ID)
+	var notBefore *time.Time
+	if !job.NotBefore.IsZero() {
+		notBefore = &job.NotBefore
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, query, job.State, job.Retries, job.Error, notBefore, id)
 	if err != nil {
 		return nil, err
 	}

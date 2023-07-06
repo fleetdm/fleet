@@ -13,6 +13,7 @@ interface IHostSummaryProps {
   showHostsUI: boolean;
   selectedPlatformLabelId?: number;
   currentTeamId?: number;
+  isSandboxMode?: boolean;
 }
 
 const MissingHosts = ({
@@ -21,6 +22,7 @@ const MissingHosts = ({
   showHostsUI,
   selectedPlatformLabelId,
   currentTeamId,
+  isSandboxMode = false,
 }: IHostSummaryProps): JSX.Element => {
   // build the manage hosts URL filtered by missing and platform
   const queryParams = {
@@ -43,6 +45,8 @@ const MissingHosts = ({
         title="Missing hosts"
         tooltip="Hosts that have not been online in 30 days or more."
         path={path}
+        isSandboxMode={isSandboxMode}
+        sandboxPremiumOnlyIcon
       />
     </div>
   );

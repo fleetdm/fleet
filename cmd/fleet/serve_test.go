@@ -477,8 +477,8 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.HostsBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
-		return []*fleet.HostShort{
+	ds.HostVulnSummariesBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
+		return []fleet.HostVulnerabilitySummary{
 			{
 				ID:          1,
 				Hostname:    "1",
@@ -487,12 +487,13 @@ func TestScanVulnerabilities(t *testing.T) {
 		}, nil
 	}
 
-	vulnPath := t.TempDir()
+	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")
 
 	config := config.VulnerabilitiesConfig{
 		DatabasesPath:         vulnPath,
 		Periodicity:           10 * time.Second,
 		CurrentInstanceChecks: "auto",
+		DisableDataSync:       true,
 	}
 
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})

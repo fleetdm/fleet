@@ -9,7 +9,9 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
-import { useDebouncedCallback } from "use-debounce";
+import { RouteProps } from "react-router/lib/Route";
+import { isEmpty, isEqual } from "lodash";
+// import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -47,8 +49,10 @@ import Dropdown from "components/forms/fields/Dropdown";
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
+import { getNextLocationPath } from "utilities/helpers";
 
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
@@ -56,10 +60,18 @@ import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 
 interface IManageSoftwarePageProps {
+  route: RouteProps;
   router: InjectedRouter;
   location: {
     pathname: string;
-    query: { team_id?: string; vulnerable?: string };
+    query: {
+      team_id?: string;
+      vulnerable?: string;
+      page?: string;
+      query?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
+    };
     search: string;
   };
 }
@@ -91,9 +103,12 @@ const DEFAULT_PAGE_SIZE = 20;
 const baseClass = "manage-software-page";
 
 const ManageSoftwarePage = ({
+  route,
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
+  const routeTemplate = route?.path ?? "";
+  const queryParams = location.query;
   const {
     config: globalConfig,
     isFreeTier,
@@ -103,6 +118,8 @@ const ManageSoftwarePage = ({
     isPremiumTier,
     isSandboxMode,
     noSandboxHosts,
+    filteredSoftwarePath,
+    setFilteredSoftwarePath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -125,17 +142,65 @@ const ManageSoftwarePage = ({
 
   const DEFAULT_SORT_HEADER = isPremiumTier ? "vulnerabilities" : "hosts_count";
 
-  // TODO: refactor usage of vulnerable query param in accordance with new patterns for query params
-  // and management of URL state
-  const [filterVuln, setFilterVuln] = useState(
-    location?.query?.vulnerable === "true" || false
-  );
-  const [searchQuery, setSearchQuery] = useState("");
+  const initialQuery = (() => {
+    let query = "";
+
+    if (queryParams && queryParams.query) {
+      query = queryParams.query;
+    }
+
+    return query;
+  })();
+
+  const initialSortHeader = (() => {
+    let sortHeader = isPremiumTier ? "vulnerabilities" : "hosts_count";
+
+    if (queryParams && queryParams.order_key) {
+      sortHeader = queryParams.order_key;
+    }
+
+    return sortHeader;
+  })();
+
+  const initialSortDirection = ((): "asc" | "desc" | undefined => {
+    let sortDirection = "desc";
+
+    if (queryParams && queryParams.order_direction) {
+      sortDirection = queryParams.order_direction;
+    }
+
+    return sortDirection as "asc" | "desc" | undefined;
+  })();
+
+  const initialPage = (() => {
+    let page = 0;
+
+    if (queryParams && queryParams.page) {
+      page = parseInt(queryParams.page, 10);
+    }
+
+    return page;
+  })();
+
+  const initialVulnFilter = (() => {
+    let isFilteredByVulnerabilities = false;
+
+    if (queryParams && queryParams.vulnerable === "true") {
+      isFilteredByVulnerabilities = true;
+    }
+
+    return isFilteredByVulnerabilities;
+  })();
+
+  const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
-  >(DEFAULT_SORT_DIRECTION);
-  const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
-  const [pageIndex, setPageIndex] = useState(0);
+  >(initialSortDirection);
+  const [sortHeader, setSortHeader] = useState(initialSortHeader);
+  const [page, setPage] = useState(initialPage);
+  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
@@ -143,9 +208,18 @@ const ManageSoftwarePage = ({
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
 
   useEffect(() => {
-    setFilterVuln(location?.query?.vulnerable === "true" || false);
-    // TODO: handle invalid values for vulnerable param
+    setFilterVuln(initialVulnFilter);
+    setPage(initialPage);
+    setSearchQuery(initialQuery);
+    // TODO: handle invalid values for params
   }, [location]);
+
+  useEffect(() => {
+    const path = location.pathname + location.search;
+    if (filteredSoftwarePath !== path) {
+      setFilteredSoftwarePath(path);
+    }
+  }, [filteredSoftwarePath, location, setFilteredSoftwarePath]);
 
   // softwareConfig is either the global config or the team config of the currently selected team
   const {
@@ -219,10 +293,10 @@ const ManageSoftwarePage = ({
     [
       {
         scope: "software",
-        page: pageIndex,
+        page: tableQueryData?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
-        orderDirection: sortDirection || DEFAULT_SORT_DIRECTION,
+        orderDirection: sortDirection,
         // API expects "epss_probability" rather than "vulnerabilities"
         orderKey:
           isPremiumTier && sortHeader === "vulnerabilities"
@@ -264,14 +338,23 @@ const ManageSoftwarePage = ({
     }
   );
 
-  const onQueryChange = useDebouncedCallback(
-    async ({
-      pageIndex: newPageIndex,
-      searchQuery: newSearchQuery,
-      sortDirection: newSortDirection,
-      sortHeader: newSortHeader,
-    }: ITableQueryData) => {
-      pageIndex !== newPageIndex && setPageIndex(newPageIndex);
+  // NOTE: this is called once on initial render and every time the query changes
+  const onQueryChange = useCallback(
+    async (newTableQuery: ITableQueryData) => {
+      if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
+        return;
+      }
+
+      setTableQueryData({ ...newTableQuery });
+
+      const {
+        pageIndex,
+        searchQuery: newSearchQuery,
+        sortDirection: newSortDirection,
+      } = newTableQuery;
+      let { sortHeader: newSortHeader } = newTableQuery;
+
+      pageIndex !== page && setPage(pageIndex);
       searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
       sortDirection !== newSortDirection &&
         setSortDirection(
@@ -284,8 +367,44 @@ const ManageSoftwarePage = ({
         newSortHeader = "epss_probability";
       }
       sortHeader !== newSortHeader && setSortHeader(newSortHeader);
+
+      // Rebuild queryParams to dispatch new browser location to react-router
+      const newQueryParams: { [key: string]: string | number | undefined } = {};
+      if (!isEmpty(newSearchQuery)) {
+        newQueryParams.query = newSearchQuery;
+      }
+      newQueryParams.page = pageIndex;
+      newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
+      newQueryParams.order_direction =
+        newSortDirection || DEFAULT_SORT_DIRECTION;
+
+      newQueryParams.vulnerable = filterVuln ? "true" : undefined;
+
+      if (teamIdForApi !== undefined) {
+        newQueryParams.team_id = teamIdForApi;
+      }
+
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_SOFTWARE,
+        routeTemplate,
+        queryParams: newQueryParams,
+      });
+      router.replace(locationPath);
     },
-    300
+    [
+      isRouteOk,
+      teamIdForApi,
+      tableQueryData,
+      page,
+      searchQuery,
+      sortDirection,
+      isPremiumTier,
+      sortHeader,
+      DEFAULT_SORT_HEADER,
+      filterVuln,
+      routeTemplate,
+      router,
+    ]
   );
 
   const toggleManageAutomationsModal = useCallback(() => {
@@ -325,10 +444,28 @@ const ManageSoftwarePage = ({
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
-      setPageIndex(0);
+      setPage(0);
     },
     [handleTeamChange]
   );
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData(
+      (prevState) =>
+        ({
+          ...prevState,
+          pageIndex: 0,
+        } as ITableQueryData)
+    );
+    setResetPageIndex(true);
+  };
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    // TODO: cleanup this effect
+    setResetPageIndex(false);
+  }, [queryParams]);
 
   const renderHeaderDescription = () => {
     return (
@@ -389,45 +526,21 @@ const ManageSoftwarePage = ({
     isSoftwareEnabled,
   ]);
 
-  // TODO: refactor in accordance with new patterns for query params and management of URL state
-  const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
-    queryString = queryString.startsWith("?")
-      ? queryString.slice(1)
-      : queryString;
-    const queryParams = queryString.split("&").filter((el) => el.includes("="));
-    const index = queryParams.findIndex((el) => el.includes("vulnerable"));
+  const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+    handleResetPageIndex();
 
-    if (vulnerable) {
-      const vulnParam = `vulnerable=${vulnerable}`;
-      if (index >= 0) {
-        // replace old vuln param
-        queryParams.splice(index, 1, vulnParam);
-      } else {
-        // add new vuln param
-        queryParams.push(vulnParam);
-      }
-    } else {
-      // remove old vuln param
-      index >= 0 && queryParams.splice(index, 1);
-    }
-    queryString = queryParams.length ? "?".concat(queryParams.join("&")) : "";
-
-    return queryString;
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_SOFTWARE,
+        routeTemplate,
+        queryParams: {
+          ...queryParams,
+          vulnerable: isFilterVulnerable,
+          page: 0, // resets page index
+        },
+      })
+    );
   };
-
-  // TODO: refactor in accordance with new patterns for query params and management of URL state
-  const onVulnFilterChange = useCallback(
-    (vulnerable: boolean) => {
-      setFilterVuln(vulnerable);
-      setPageIndex(0);
-      const queryString = buildUrlQueryString(location?.search, vulnerable);
-      if (location?.search !== queryString) {
-        const path = location?.pathname?.concat(queryString);
-        !!path && router.replace(path);
-      }
-    },
-    [location, router]
-  );
 
   const renderVulnFilterDropdown = () => {
     return (
@@ -436,7 +549,7 @@ const ManageSoftwarePage = ({
         className={`${baseClass}__vuln_dropdown`}
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
-        onChange={onVulnFilterChange}
+        onChange={handleVulnFilterDropdownChange}
       />
     );
   };
@@ -459,42 +572,105 @@ const ManageSoftwarePage = ({
   const isCollectingInventory =
     !searchQuery &&
     !filterVuln &&
-    !isAnyTeamSelected &&
-    !pageIndex &&
+    page === 0 &&
     !software?.software &&
     software?.counts_updated_at === null;
 
   const isLastPage =
+    tableQueryData &&
     !!softwareCount &&
-    DEFAULT_PAGE_SIZE * pageIndex + (software?.software?.length || 0) >=
+    DEFAULT_PAGE_SIZE * page + (software?.software?.length || 0) >=
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(router, isPremiumTier, currentTeamId),
-    [isPremiumTier, router, currentTeamId]
+    () =>
+      generateSoftwareTableHeaders(
+        router,
+        isPremiumTier,
+        isSandboxMode,
+        currentTeamId
+      ),
+    [isPremiumTier, isSandboxMode, router, currentTeamId]
   );
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = {
+    const hostsBySoftwareParams = {
       software_id: row.original.id,
       team_id: currentTeamId,
     };
 
-    const path = queryParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
+    const path = hostsBySoftwareParams
+      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
+          hostsBySoftwareParams
+        )}`
       : PATHS.MANAGE_HOSTS;
 
     router.push(path);
   };
 
   const searchable =
-    isSoftwareEnabled && (!!software?.software || searchQuery !== "");
+    isSoftwareEnabled &&
+    (!!software?.software ||
+      searchQuery !== "" ||
+      queryParams.vulnerable === "true");
 
-  return !isRouteOk ||
-    (isPremiumTier && !userTeams) ||
-    !globalConfig ||
-    (!softwareConfig && !softwareConfigError) ? (
-    <Spinner />
-  ) : (
+  const renderSoftwareTable = () => {
+    if (
+      isFetchingCount ||
+      isFetchingSoftware ||
+      !globalConfig ||
+      (!softwareConfig && !softwareConfigError)
+    ) {
+      return <Spinner />;
+    }
+    if (
+      (softwareError && !isFetchingSoftware) ||
+      (softwareConfigError && !isFetchingSoftwareConfig)
+    ) {
+      return <TableDataError />;
+    }
+    return (
+      <TableContainer
+        columns={softwareTableHeaders}
+        data={(isSoftwareEnabled && software?.software) || []}
+        isLoading={false}
+        resultsTitle={"software items"}
+        emptyComponent={() => (
+          <EmptySoftwareTable
+            isSoftwareDisabled={!isSoftwareEnabled}
+            isFilterVulnerable={filterVuln}
+            isSandboxMode={isSandboxMode}
+            isCollectingSoftware={isCollectingInventory}
+            isSearching={searchQuery !== ""}
+            noSandboxHosts={noSandboxHosts}
+          />
+        )}
+        defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+        defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+        defaultPageIndex={page || 0}
+        defaultSearchQuery={searchQuery}
+        manualSortBy
+        pageSize={DEFAULT_PAGE_SIZE}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        resetPageIndex={resetPageIndex}
+        disableNextPage={isLastPage}
+        searchable={searchable}
+        inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
+        onQueryChange={onQueryChange}
+        additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
+        // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
+        // the TableContainer
+        customControl={searchable ? renderVulnFilterDropdown : undefined}
+        stackControls
+        renderCount={renderSoftwareCount}
+        renderFooter={renderTableFooter}
+        disableMultiRowSelect
+        onSelectSingleRow={handleRowSelect}
+      />
+    );
+  };
+
+  return (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
@@ -508,6 +684,7 @@ const ManageSoftwarePage = ({
                       currentUserTeams={userTeams || []}
                       selectedTeamId={currentTeamId}
                       onChange={onTeamChange}
+                      isSandboxMode={isSandboxMode}
                     />
                   )}
                 {isPremiumTier &&
@@ -530,50 +707,7 @@ const ManageSoftwarePage = ({
         <div className={`${baseClass}__description`}>
           {renderHeaderDescription()}
         </div>
-        <div className={`${baseClass}__table`}>
-          {(softwareError && !isFetchingSoftware) ||
-          (softwareConfigError && !isFetchingSoftwareConfig) ? (
-            <TableDataError />
-          ) : (
-            <TableContainer
-              columns={softwareTableHeaders}
-              data={(isSoftwareEnabled && software?.software) || []}
-              isLoading={isFetchingSoftware || isFetchingCount}
-              resultsTitle={"software items"}
-              emptyComponent={() => (
-                <EmptySoftwareTable
-                  isSoftwareDisabled={!isSoftwareEnabled}
-                  isFilterVulnerable={filterVuln}
-                  isSandboxMode={isSandboxMode}
-                  isCollectingSoftware={isCollectingInventory}
-                  isSearching={searchQuery !== ""}
-                  noSandboxHosts={noSandboxHosts}
-                />
-              )}
-              defaultSortHeader={DEFAULT_SORT_HEADER}
-              defaultSortDirection={DEFAULT_SORT_DIRECTION}
-              manualSortBy
-              pageSize={DEFAULT_PAGE_SIZE}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              disableNextPage={isLastPage}
-              searchable={searchable}
-              inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
-              onQueryChange={onQueryChange}
-              additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
-              // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
-              // the TableContainer
-              customControl={searchable ? renderVulnFilterDropdown : undefined}
-              stackControls
-              renderCount={renderSoftwareCount}
-              renderFooter={renderTableFooter}
-              disableActionButton
-              hideActionButton
-              disableMultiRowSelect
-              onSelectSingleRow={handleRowSelect}
-            />
-          )}
-        </div>
+        <div className={`${baseClass}__table`}>{renderSoftwareTable()}</div>
         {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}

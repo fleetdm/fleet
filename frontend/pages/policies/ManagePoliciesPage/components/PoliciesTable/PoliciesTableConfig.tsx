@@ -6,6 +6,7 @@ import { millisecondsToHours, millisecondsToMinutes, isAfter } from "date-fns";
 import ReactTooltip from "react-tooltip";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
 import Icon from "components/Icon";
@@ -91,18 +92,27 @@ const getTooltip = (osqueryPolicyMs: number): JSX.Element => {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (options: {
-  selectedTeamId?: number | null;
-  canAddOrDeletePolicy?: boolean;
-  tableType?: string;
-}): IDataColumn[] => {
+const generateTableHeaders = (
+  options: {
+    selectedTeamId?: number | null;
+    canAddOrDeletePolicy?: boolean;
+    tableType?: string;
+  },
+
+  isPremiumTier?: boolean,
+  isSandboxMode?: boolean
+): IDataColumn[] => {
   const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
 
   const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
-      Header: "Name",
-      disableSortBy: true,
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
@@ -110,14 +120,17 @@ const generateTableHeaders = (options: {
           value={
             <>
               <div className="policy-name-text">{cellProps.cell.value}</div>
-              {cellProps.row.original.critical && (
+              {isPremiumTier && cellProps.row.original.critical && (
                 <>
                   <span
                     className="tooltip-base"
                     data-tip
                     data-for={`critical-tooltip-${cellProps.row.original.id}`}
                   >
-                    <Icon className="policy-icon" name="policy" />
+                    <Icon
+                      className="critical-policy-icon"
+                      name="critical-policy"
+                    />
                   </span>
                   <ReactTooltip
                     className="critical-tooltip"
@@ -128,6 +141,12 @@ const generateTableHeaders = (options: {
                     backgroundColor="#3e4771"
                   >
                     This policy has been marked as critical.
+                    {isSandboxMode && (
+                      <>
+                        <br />
+                        This is a premium feature.
+                      </>
+                    )}
                   </ReactTooltip>
                 </>
               )}
@@ -136,6 +155,7 @@ const generateTableHeaders = (options: {
           path={PATHS.EDIT_POLICY(cellProps.row.original)}
         />
       ),
+      sortType: "caseInsensitive",
     },
     {
       title: "Yes",
@@ -181,8 +201,12 @@ const generateTableHeaders = (options: {
     },
     {
       title: "No",
-      Header: () => <PassingColumnHeader isPassing={false} />,
-      disableSortBy: true,
+      Header: (cellProps) => (
+        <HeaderCell
+          value={<PassingColumnHeader isPassing={false} />}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "failing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => {
         if (cellProps.row.original.has_run) {
@@ -220,6 +244,7 @@ const generateTableHeaders = (options: {
           </>
         );
       },
+      sortType: "caseInsensitive",
     },
   ];
 

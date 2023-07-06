@@ -69,6 +69,11 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 		return fleet.ErrNoContext
 	}
 
+	var smtpSettings fleet.SMTPSettings
+	if config.SMTPSettings != nil {
+		smtpSettings = *config.SMTPSettings
+	}
+
 	testMail := fleet.Email{
 		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
@@ -76,7 +81,8 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
-		Config: config,
+		SMTPSettings: smtpSettings,
+		ServerURL:    config.ServerSettings.ServerURL,
 	}
 
 	if err := mail.Test(svc.mailService, testMail); err != nil {
@@ -133,10 +139,6 @@ func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.Vulnerabi
 }
 
 func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
 	conf := svc.config
 	logging := &fleet.Logging{
 		Debug: conf.Logging.Debug,
@@ -230,4 +232,28 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 		}
 	}
 	return logging, nil
+}
+
+func (svc *Service) EmailConfig(ctx context.Context) (*fleet.EmailConfig, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	conf := svc.config
+	var email *fleet.EmailConfig
+	switch conf.Email.EmailBackend {
+	case "ses":
+		email = &fleet.EmailConfig{
+			Backend: conf.Email.EmailBackend,
+			Config: fleet.SESConfig{
+				Region:    conf.SES.Region,
+				SourceARN: conf.SES.SourceArn,
+			},
+		}
+	default:
+		// SES is the only email provider configured as server envs/yaml file, the default implementation, SMTP, is configured via API/UI
+		// SMTP config gets its own dedicated section in the AppConfig response
+	}
+
+	return email, nil
 }

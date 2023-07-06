@@ -15,17 +15,34 @@ spec:
     zendesk: null
   mdm:
     apple_bm_terms_expired: false
+    apple_bm_enabled_and_configured: false
     enabled_and_configured: false
     apple_bm_default_team: ""
+    windows_enabled_and_configured: false
+    macos_migration:
+      enable: false
+      mode: ""
+      webhook_url: ""
     macos_updates:
-      minimum_version: ""
-      deadline: ""
+      minimum_version: null
+      deadline: null
     macos_settings:
       custom_settings:
       enable_disk_encryption: false
+    macos_setup:
+      bootstrap_package:
+      enable_end_user_authentication: false
+      macos_setup_assistant:
+    end_user_authentication:
+      idp_name: ""
+      issuer_uri: ""
+      metadata: ""
+      metadata_url: ""
+      entity_id: ""
   org_info:
     org_logo_url: ""
     org_name: ""
+    contact_url: https://fleetdm.com/company/contact
   server_settings:
     deferred_save_host: false
     enable_analytics: false

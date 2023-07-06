@@ -1,6 +1,6 @@
 # Fleet 4.9.0 brings performance updates, paginated live query results, and policy YAML doc support.
 
-![Fleet 4.9.0](../website/assets/images/articles/fleet-4.9.0-cover-700x393@2x.png)
+![Fleet 4.9.0](../website/assets/images/articles/fleet-4.9.0-cover-1600x900@2x.jpg)
 
 Happy new year. We’re pleased to announce our first release of 2022 and to start the year off on the right foot, we went big with under-the-hood performance improvements in Fleet 4.9.0. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.9.0) or read on for a summary of what’s new.
 

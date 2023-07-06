@@ -117,14 +117,12 @@ const Mdm = ({
                   isLoading={isFetching}
                   defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"MDM"}
                   emptyComponent={EmptyMdmSolutions}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   isClientSidePagination
                   disableCount
-                  disableActionButton
                   pageSize={PAGE_SIZE}
                 />
               )}
@@ -139,13 +137,11 @@ const Mdm = ({
                   isLoading={isFetching}
                   defaultSortHeader={STATUS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={STATUS_DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"MDM"}
                   emptyComponent={EmptyMdmStatus}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
-                  disableActionButton
                   disablePagination
                   pageSize={PAGE_SIZE}
                 />

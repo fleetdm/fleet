@@ -4,7 +4,7 @@ const baseClass = "upload-list";
 
 interface IUploadListProps {
   listItems: any[]; // TODO: typings
-  HeadingComponent: (props: any) => JSX.Element; // TODO: Typings
+  HeadingComponent?: (props: any) => JSX.Element; // TODO: Typings
   ListItemComponent: (props: { listItem: any }) => JSX.Element; // TODO: types
 }
 
@@ -23,9 +23,11 @@ const UploadList = ({
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__header`}>
-        <HeadingComponent />
-      </div>
+      {HeadingComponent && (
+        <div className={`${baseClass}__header`}>
+          <HeadingComponent />
+        </div>
+      )}
       <ul className={`${baseClass}__list`}>{items}</ul>
     </div>
   );

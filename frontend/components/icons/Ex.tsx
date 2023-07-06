@@ -7,7 +7,7 @@ interface IExProps {
   size?: IconSizes;
 }
 
-const Ex = ({ size = "small", color = "status-error" }: IExProps) => {
+const Ex = ({ size = "small", color = "core-fleet-blue" }: IExProps) => {
   return (
     <svg
       width={ICON_SIZES[size]}

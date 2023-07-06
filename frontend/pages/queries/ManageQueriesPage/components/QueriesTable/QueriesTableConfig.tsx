@@ -11,6 +11,7 @@ import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import { addGravatarUrlToResource } from "utilities/helpers";
 
+import Icon from "components/Icon";
 import Avatar from "components/Avatar";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
@@ -77,9 +78,15 @@ interface IDataColumn {
   sortType?: string;
 }
 
+interface IGenerateTableHeaders {
+  currentUser: IUser;
+}
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
+const generateTableHeaders = ({
+  currentUser,
+}: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
   const isAnyTeamMaintainerOrTeamAdmin = permissionsUtils.isAnyTeamMaintainerOrTeamAdmin(
     currentUser
@@ -95,13 +102,40 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
         />
       ),
       accessor: "name",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <LinkCell
-          classes="w400"
-          value={cellProps.cell.value}
-          path={PATHS.EDIT_QUERY(cellProps.row.original)}
-        />
-      ),
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        return (
+          <LinkCell
+            classes="w400"
+            value={
+              <>
+                <div className="query-name-text">{cellProps.cell.value}</div>
+                {!isOnlyObserver && cellProps.row.original.observer_can_run && (
+                  <>
+                    <span
+                      className="tooltip-base"
+                      data-tip
+                      data-for={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                    >
+                      <Icon className="query-icon" name="query" size="small" />
+                    </span>
+                    <ReactTooltip
+                      className="observer-can-run-tooltip"
+                      place="top"
+                      type="dark"
+                      effect="solid"
+                      id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                      backgroundColor="#3e4771"
+                    >
+                      Observers can run this query.
+                    </ReactTooltip>
+                  </>
+                )}
+              </>
+            }
+            path={PATHS.EDIT_QUERY(cellProps.row.original)}
+          />
+        );
+      },
       sortType: "caseInsensitive",
     },
     {
@@ -195,9 +229,24 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
           toggleRowSelected,
         } = cellProps;
         const { checked, indeterminate } = getToggleAllRowsSelectedProps();
+
+        const disableToggleAllRowsSelected = () => {
+          /* Team admin or team maintainer can only delete queries they authored
+          If team admin or team maintainer authored 0 queries, disable select all queries for deletion */
+          if (isAnyTeamMaintainerOrTeamAdmin) {
+            return (
+              rows.filter(
+                (r: IQueryRow) => r.original.author_id === currentUser.id
+              ).length === 0
+            );
+          }
+          return false;
+        };
+
         const checkboxProps = {
           value: checked,
           indeterminate,
+          disabled: disableToggleAllRowsSelected(), // Disable select all if all rows are disabled
           onChange: () => {
             if (!isAnyTeamMaintainerOrTeamAdmin) {
               toggleAllRowsSelected();

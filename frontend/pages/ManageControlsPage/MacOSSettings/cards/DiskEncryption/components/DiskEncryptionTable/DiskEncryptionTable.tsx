@@ -1,8 +1,7 @@
 import React from "react";
 import { useQuery } from "react-query";
 
-import { IDiskEncryptionStatusAggregate } from "interfaces/mdm";
-import mdmAPI from "services/entities/mdm";
+import mdmAPI, { IFileVaultSummaryResponse } from "services/entities/mdm";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
@@ -23,11 +22,10 @@ const DEFAULT_SORT_HEADER = "hosts";
 const DEFAULT_SORT_DIRECTION = "asc";
 
 const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
-  const { data, error } = useQuery<
-    IDiskEncryptionStatusAggregate,
-    Error,
-    IDiskEncryptionStatusAggregate
-  >(
+  const {
+    data: diskEncryptionStatusData,
+    error: diskEncryptionStatusError,
+  } = useQuery<IFileVaultSummaryResponse, Error, IFileVaultSummaryResponse>(
     ["disk-encryption-summary", currentTeamId],
     () => mdmAPI.getDiskEncryptionAggregate(currentTeamId),
     {
@@ -37,13 +35,14 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
   );
 
   const tableHeaders = generateTableHeaders();
-  const tableData = generateTableData(data);
 
-  if (error) {
+  const tableData = generateTableData(diskEncryptionStatusData, currentTeamId);
+
+  if (diskEncryptionStatusError) {
     return <DataError />;
   }
 
-  if (!data) return null;
+  if (!diskEncryptionStatusData) return null;
 
   return (
     <div className={baseClass}>

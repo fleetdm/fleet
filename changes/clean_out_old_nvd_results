@@ -1,2 +1,0 @@
-- If a new CPE translation rule is pushed, the data in the database should reflect that.
-- If a false positive is patched, the data in the database should reflect that.

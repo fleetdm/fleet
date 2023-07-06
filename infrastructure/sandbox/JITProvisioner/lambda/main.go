@@ -5,11 +5,18 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	flags "github.com/jessevdk/go-flags"
+
 	//"github.com/juju/errors"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"math/rand"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -27,11 +34,6 @@ import (
 	"github.com/wI2L/fizz/openapi"
 	"go.elastic.co/apm/module/apmgin/v2"
 	_ "go.elastic.co/apm/v2"
-	"log"
-	"math/rand"
-	"os"
-	"strings"
-	"time"
 )
 
 type OptionsStruct struct {
@@ -65,7 +67,7 @@ func applyConfig(c *gin.Context, url, token string) (err error) {
 	logf := func(format string, a ...interface{}) {
 		log.Printf(format, a...)
 	}
-	err = client.ApplyGroup(c, specs, logf)
+	err = client.ApplyGroup(c, specs, "", logf, fleet.ApplySpecOptions{})
 	if err != nil {
 		return
 	}

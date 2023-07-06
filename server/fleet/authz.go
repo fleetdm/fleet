@@ -31,11 +31,4 @@ const (
 	ActionRun = "run"
 	// ActionRunNew is the action for running a new live query.
 	ActionRunNew = "run_new"
-
-	//
-	// MDM-specific actions
-	//
-
-	// ActionMDMCommand is the action for executing an MDM command
-	ActionMDMCommand = "mdm_command"
 )

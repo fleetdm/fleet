@@ -3,6 +3,7 @@ import { InjectedRouter } from "react-router";
 import { findLastIndex, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
+import { TableContext } from "context/table";
 import {
   API_NO_TEAM_ID,
   API_ALL_TEAMS_ID,
@@ -29,13 +30,25 @@ const rebuildQueryStringWithTeamId = (
   newTeamId: number
 ) => {
   const parts = splitQueryStringParts(queryString);
-  const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
 
+  // Reset page to 0
+  const pageIndex = parts.findIndex((p) => p.startsWith("page="));
+  const inheritedPageIndex = parts.findIndex((p) =>
+    p.startsWith("inherited_page=")
+  );
+  if (pageIndex !== -1) {
+    parts.splice(pageIndex, 1, "page=0");
+  }
+  if (inheritedPageIndex !== -1) {
+    parts.splice(inheritedPageIndex, 1, "inherited_page=0");
+  }
+
+  const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
   // URLs for the app represent "All teams" by the absence of the team id param
   const newTeamPart =
     newTeamId > APP_CONTEXT_ALL_TEAMS_ID ? `team_id=${newTeamId}` : "";
 
-  if (teamIndex < 0) {
+  if (teamIndex === -1) {
     // nothing to remove/replace so add the new part (if any) and rejoin
     return joinQueryStringParts(
       newTeamPart ? parts.concat(newTeamPart) : parts
@@ -53,6 +66,7 @@ const rebuildQueryStringWithTeamId = (
   } else {
     parts.splice(teamIndex, 1); // just remove the old team part
   }
+
   return joinQueryStringParts(parts);
 };
 
@@ -103,16 +117,23 @@ const getDefaultTeam = ({
   if (!currentUser || !userTeams?.length) {
     return undefined;
   }
-  let defaultTeam: ITeamSummary | undefined;
   if (permissions.isOnGlobalTeam(currentUser)) {
+    let defaultTeam: ITeamSummary | undefined;
     if (includeAllTeams) {
       defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
     }
     if (!defaultTeam && includeNoTeam) {
       defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
     }
+
+    return defaultTeam || userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
   }
-  return defaultTeam || userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
+
+  return (
+    userTeams.find((t) => permissions.isTeamAdmin(currentUser, t.id)) ||
+    userTeams.find((t) => permissions.isTeamMaintainer(currentUser, t.id)) ||
+    userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID)
+  );
 };
 
 const getTeamIdForApi = ({
@@ -201,6 +222,7 @@ export const useTeamIdParam = ({
   includeAllTeams,
   includeNoTeam,
   permittedAccessByTeamRole,
+  resetSelectedRowsOnTeamChange = true,
 }: {
   location?: {
     pathname: string;
@@ -212,6 +234,7 @@ export const useTeamIdParam = ({
   includeAllTeams: boolean;
   includeNoTeam: boolean;
   permittedAccessByTeamRole?: Record<IUserRole, boolean>;
+  resetSelectedRowsOnTeamChange?: boolean;
 }) => {
   const { hash, pathname, query, search } = location;
   const {
@@ -222,6 +245,8 @@ export const useTeamIdParam = ({
     isPremiumTier,
     setCurrentTeam: setContextTeam,
   } = useContext(AppContext);
+
+  const { setResetSelectedRows } = useContext(TableContext);
 
   const userTeams = useMemo(
     () =>
@@ -248,13 +273,27 @@ export const useTeamIdParam = ({
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
+      // TODO: This results in a warning that TableProvider is being updated while rendering while
+      // rendering a different component (the component that invokes the useTeamIdParam hook).
+      // This requires further investigation but is not currently causing any known issues.
+      if (resetSelectedRowsOnTeamChange) {
+        setResetSelectedRows(true);
+      }
+
       router.replace(
         pathname
           .concat(rebuildQueryStringWithTeamId(search, teamId))
           .concat(hash || "")
       );
     },
-    [pathname, search, hash, router]
+    [
+      resetSelectedRowsOnTeamChange,
+      router,
+      pathname,
+      search,
+      hash,
+      setResetSelectedRows,
+    ]
   );
 
   // reconcile router location and redirect to default team as applicable

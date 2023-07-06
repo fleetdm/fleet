@@ -2,10 +2,11 @@ package nvd
 
 import (
 	"context"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -65,7 +66,7 @@ func TestLoadCVEMeta(t *testing.T) {
 	require.Equal(t, false, *meta.CISAKnownExploit)
 
 	meta = metaMap["CVE-2022-22587"]
-	require.Equal(t, (*float64)(nil), meta.CVSSScore)
+	require.Equal(t, float64(9.8), *meta.CVSSScore)
 	require.Equal(t, float64(0.01843), *meta.EPSSProbability)
 	require.Equal(t, true, *meta.CISAKnownExploit)
 }

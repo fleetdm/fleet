@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"go.elastic.co/apm/v2"
 )
 
 type key int
@@ -127,6 +128,10 @@ func wrapError(ctx context.Context, msg string, cause error, data map[string]int
 	}
 
 	edata := encodeData(ctx, data, !isFleetError)
+
+	// As a final step, report error to APM.
+	// This is safe to to even if APM is not enabled.
+	apm.CaptureError(ctx, cause).Send()
 	return &FleetError{msg, stack, cause, edata}
 }
 

@@ -17,6 +17,7 @@ import (
 )
 
 const nudgeConfigFile = "nudge-config.json"
+const nudgeConfigFileMode = os.FileMode(constant.DefaultWorldReadableFileMode)
 
 // NudgeConfigFetcher is a kind of middleware that wraps an OrbitConfigFetcher and a Runner.
 // It checks the config supplied by the wrapped OrbitConfigFetcher to detects whether the Fleet
@@ -68,6 +69,11 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	if cfg == nil {
 		log.Debug().Msg("NudgeConfigFetcher received nil config")
 		return nil, nil
+	}
+
+	if n.opt.UpdateRunner == nil {
+		log.Debug().Msg("NudgeConfigFetcher received nil UpdateRunner, this probably indicates that updates are turned off. Skipping any actions related to Nudge")
+		return cfg, nil
 	}
 
 	if cfg.NudgeConfig == nil {
@@ -133,6 +139,17 @@ func (n *NudgeConfigFetcher) configure(nudgeCfg fleet.NudgeConfig) error {
 			return writeConfig()
 		}
 		return err
+	}
+
+	// ensure the config file has the right permissions, a call to
+	// WriteFile preserves existing permissions if the file already exists,
+	// and previous versions of orbit set the permissions of this file to
+	// constant.DefaultFileMode.
+	if fileInfo.Mode() != nudgeConfigFileMode {
+		log.Info().Msgf("%s config file had wrong permissions (%v) setting permissions to %v", cfgFile, fileInfo.Mode(), nudgeConfigFileMode)
+		if err := os.Chmod(cfgFile, nudgeConfigFileMode); err != nil {
+			return fmt.Errorf("ensuring permissions of config file, chmod %q: %w", cfgFile, err)
+		}
 	}
 
 	// this not only an optimization, but mostly a safeguard: if the file

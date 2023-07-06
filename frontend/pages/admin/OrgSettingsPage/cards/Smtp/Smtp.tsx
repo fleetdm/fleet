@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 
+import { AppContext } from "context/app";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -8,6 +9,8 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import validEmail from "components/forms/validators/valid_email";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
 
 import {
   IAppConfigFormProps,
@@ -24,6 +27,8 @@ const Smtp = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
+  const { isPremiumTier } = useContext(AppContext);
+
   const [formData, setFormData] = useState<any>({
     enableSMTP: appConfig.smtp_settings.enable_smtp || false,
     smtpSenderAddress: appConfig.smtp_settings.sender_address || "",
@@ -50,6 +55,8 @@ const Smtp = ({
   } = formData;
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+
+  const sesConfigured = appConfig.email?.backend === "ses" || false;
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
@@ -158,26 +165,28 @@ const Smtp = ({
     );
   };
 
-  return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
-      <div className={`${baseClass}__section`}>
-        <h2>
-          SMTP options{" "}
-          <small
-            className={`smtp-options smtp-options--${
-              appConfig.smtp_settings.configured
-                ? "configured"
-                : "notconfigured"
-            }`}
-          >
-            STATUS:{" "}
-            <em>
-              {appConfig.smtp_settings.configured
-                ? "CONFIGURED"
-                : "NOT CONFIGURED"}
-            </em>
-          </small>
-        </h2>
+  const renderSesEnabled = () => {
+    const header = "Email already configured";
+    const info = (
+      <>
+        To configure SMTP,{" "}
+        <CustomLink
+          url={
+            isPremiumTier
+              ? "https://fleetdm.com/contact"
+              : "https://fleetdm.com/slack"
+          }
+          text="get help"
+          newTab
+        />
+      </>
+    );
+    return <EmptyTable header={header} info={info} />;
+  };
+
+  const renderSmtpForm = () => {
+    return (
+      <>
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
@@ -248,16 +257,43 @@ const Smtp = ({
           />
           {renderSmtpSection()}
         </div>
+      </>
+    );
+  };
+  return (
+    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+      <div className={`${baseClass}__section`}>
+        <h2 className={"smtp-status"}>
+          SMTP options{" "}
+          {!sesConfigured && (
+            <small
+              className={`smtp-options smtp-options--${
+                appConfig.smtp_settings.configured
+                  ? "configured"
+                  : "notconfigured"
+              }`}
+            >
+              <em>
+                {appConfig.smtp_settings.configured
+                  ? "CONFIGURED"
+                  : "NOT CONFIGURED"}
+              </em>
+            </small>
+          )}
+        </h2>
+        {sesConfigured ? renderSesEnabled() : renderSmtpForm()}
       </div>
-      <Button
-        type="submit"
-        variant="brand"
-        disabled={Object.keys(formErrors).length > 0}
-        className="save-loading"
-        isLoading={isUpdatingSettings}
-      >
-        Save
-      </Button>
+      {!sesConfigured && (
+        <Button
+          type="submit"
+          variant="brand"
+          disabled={Object.keys(formErrors).length > 0}
+          className="save-loading"
+          isLoading={isUpdatingSettings}
+        >
+          Save
+        </Button>
+      )}
     </form>
   );
 };

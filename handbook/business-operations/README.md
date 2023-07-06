@@ -1,13 +1,19 @@
 # Business Operations
 
-
 ## Meetings
-* At Fleet, meetings start whether you're there or not. Nevertheless, being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early.
+* Plan to join meetings on time. At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
 * It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
 * Turning on your camera allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting.
 * In an all-remote company, “face time” matters. Remember: even if someone’s calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.
 
-### Internal meeting scheduling
+### Scheduling a meeting
+We use Zoom for all meetings.  The only exceptions are meetings with customers who are non-negotiably required to use a different tool.
+
+We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
+
+We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
+
+#### Internal meeting scheduling
 Use the Google Calendar "[Find a meeting time](https://support.google.com/calendar/answer/37161?hl=en&co=GENIE.Platform%3DDesktop#zippy=%2Cfind-a-meeting-time)" feature to coordinate meetings with Fleet team members. Enter the `@fleetdm.com` emails for each
 participant into the "Meet with..." box in Google Calendar, and the calendar availability for each
 participant will appear in your view. Then, when you select a meeting time, those participants will
@@ -21,18 +27,21 @@ schedule a time when you are not available. Many team members use the free tier 
 [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into
 their work calendars. It is also common practice to block out time for focused work.
 
-### Modifying an event organized by someone else
+##### Modifying an event organized by someone else
 To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
 > This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
 
-### External meeting scheduling
+#### External meeting scheduling
 When scheduling external meetings, provide external participants with a
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
 need a Calendly account, reach out to `mikermcneil` via Slack.
 
-### Scheduling a Zoom meeting
-We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
-We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
+### All hands
+Every month, Fleet holds a company-wide meeting called the "All hands".
+
+All team members should attend the "All hands" every month.  Team members who cannot attend are expected to watch the [recording](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) within a few days.
+
+"All hands" meetings are [recorded](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) and have [slides](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) available.
 
 ### Key reviews
 Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics (numbers measuring everyday excellence) and progress of timebound goals for a particular quarter (OKRs). The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
@@ -47,20 +56,21 @@ In brief, this means that as a Fleet team member, you may:
 * Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
+
 ### Attending conferences or company travel
-When attending a conference or traveling for Fleet, please make a post in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP) on Slack with the following information:
-- The start and end dates for your trip.
-- The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
-- The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
-- The price of the admission fees if attending a conference.
-- $100 allowance per day for food and beverage **(please use your personal credit card for movies, mini bars, and entertainment, except when entertaining guests who contribute actively in code/community on a quarterly basis, or who are Salesforce contacts on an open, qualified opportunity with a budget of at least $160k+ ΔARR)**.
-- Customer/Partner Facing Events:
-  - Gala/Black Tie Events: Tuxedo or Gown Rental, $150-$225 USD per event is reimbursable. **(The event must be customer specific and the invitation must state black tie only)**.
-The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
-We highly recommend you order a physical Brex card if you do not have one before attending the conference.
+When attending a conference or traveling for Fleet, keep the following in mind:
+- $100 allowance per day for your own personal food and beverage. **(There are many good reasons to make exceptions to this guideline, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#intake).**
+- We highly recommend you order a physical Brex card if you do not have one before attending the conference.
+- The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as travel.  You can [request that here](https://fleetdm.com/handbook/business-operations#intake) by providing the following information:
+  - The start and end dates for your trip.
+  - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
+  - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
+  - The price of the admission fees if attending a conference.
+- Please use your personal credit card for movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
+
 
 ### Non-travel purchases that exceed a Brex cardholder's limit
-For non-travel purchases that would require an increase in the Brex cardholder's limit, please make a post in [#g-business-opeartions](https://fleetdm.slack.com/archives/C047N5L6EGH)) on Slack with the following information:
+For non-travel purchases that would require an increase in the Brex cardholder's limit, please [make a request](https://fleetdm.com/handbook/business-operations#intake) with following information:
 - The nature of the purchase (i.e. SaaS subscription and what it's used for)
 - The cost of the purchase and whether it is a fixed or variable (i.e. use-based) cost.
 - Whether it is a one time purchase or a recurring purchase and at what frequency the purchase will re-occur (annually, monthly, etc.)
@@ -69,10 +79,15 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 - For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
 
 ### Reimbursements
-We provide all of our team members with Brex cards for making purchases for the company. Fleet will reimburse team members who pay for work-related expenses with their personal funds.
+Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help](https://fleetdm.com/handbook/business-operations#intake).
+
+<!-- 
+No longer supported.  -mike, CEO, 2023-04-26.
+
+Fleet will reimburse team members who pay for work-related expenses with their personal funds.
 Team members can request reimbursement through [Gusto]([https://app.gusto.com/expenses](https://support.gusto.com/article/209831449100000/Get-reimbursed-for-expenses-as-an-employee)) if they're in the US or [Pilot]([https://pilot.co/](https://help.pilot.co/en/articles/4658204-how-to-request-a-reimbursement#:~:text=If%20you%20made%20a%20purchase,and%20click%20'Add%20new%20expense.)) if they are an international team member. When submitting an expense report, team members need to provide the receipt and a description of the expense.
 Operations will review the expense and reach out to the team member if they have any questions. The reimbursement will be added to the team member's next payroll when an expense is approved.
->Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll. 
+>Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll.  -->
 
 
 ## Benefits
@@ -118,6 +133,7 @@ At Fleet, performance feedback is a continuous process. We give feedback (partic
 ## Compensation changes
 Fleet's founders [evaluate and update compensation decisions yearly](#workiversaries), shortly after the anniversary of a team member's start date.
 
+Compensation at Fleet is determined by benchmarking (we use [Pave](https://pave.com)) with role, experience, location, and performance. Annual raises are not guaranteed, particularly when compensation is already strong relative to benchmarks.
 
 ## CEO handbook
 The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
@@ -141,19 +157,19 @@ Welcome to Fleet!
 > Please see Fleet's ["🥽 Recommendations for new teammates"](https://docs.google.com/document/d/1xcnqKB9HHPd94POnZ_7LATiy_VjO2kJdbYx0SAgKVao/edit#).
 
 #### Role-specific licenses
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company.  The table below can be used to determine which paid licenses they will need, based on their role:
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#intake) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
 
 | Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_ |
 |:-----------------|:--|:---|:---|:---|:--|
 | 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
 | 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SA            | ✅ | ✅ | ❌ | ❌ | ❌
+| 🐋 SA            | ✅ | ✅ | ❌ | ❌ | ✅
 | 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
-| 🐋 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
-| 🫧 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
-| Other department | ❌ | ❌ | ❌ | ❌ | ❌
+| ⚗️ PM             | ❌ | ❌ | ❌ | ✅ | ✅
+| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
+|   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
 
-> _**Warning:** Do NOT buy LinkedIn Recruiter.  Use the cheapest possible LinkedIn tier. Fleet has a Sales Navigator account. AEs and SDRs should [ask the operations team for a license.](https://fleetdm.com/handbook/business-operations#intake) The goal is access to profile views and data, not InMail.  Fleet does not send InMail._
+> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
 
 ### Training
 It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -168,7 +184,10 @@ Expectations during onboarding:
 
 
 ### Sightseeing tour
-During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call, the new team member will participate in an interactive tour that includes:
+During their first day at Fleet, new team members join a sightseeing tour call with the acting Head of People (CEO). During this call, the new team member will participate in an interactive tour of the seven main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
+
+In this meeting, we'll take a look at:
+- Handbook: values, purpose, key pages to pay special attention to
 - GitHub issues: the living bloodstream of the company.
 - Kanban boards: the bulletin board of quests you can get and how you update status and let folks know things are done.
 - Google Calendar: the future.
@@ -181,7 +200,7 @@ During their onboarding at Fleet, new team members are asked to schedule a sight
   - The watering hole (#oooh-, #random, #news, #help-).
 
 ### Contributor experience training
-During their first week at Fleet, new team members are asked to schedule a contributor experience training call with Mike McNeil. During this call, the new team member will share their screen, and People operations will:
+During their first week at Fleet, every new team member schedules a contributor experience training call with the acting Head of People (CEO). During this call, the new team member will share their screen, and the acting Head of People will:
 - make sure emails will get seen and responded to quickly.
 - make sure Slack messages will get seen and responded to quickly.
 - make sure you know where your issues are tracked, which kanban board you use, and what the columns mean.
@@ -189,6 +208,26 @@ During their first week at Fleet, new team members are asked to schedule a contr
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google drive folder.
 
+<!-- 
+TODO: Merge this commented-out stuff with the above
+
+Agenda:
+A 60-minute call with Mike where you will share your screen, and she will work with you to...
+Make sure Slack messages are going to get seen and responded to quickly and disable email notifications in Slack
+Make sure you know where your issues are tracked, which kanban board you use, what the columns mean
+Make sure you can succeed with submitting a PR in github.com, modifying docs or handbook, working with Markdown
+Make sure emails are going to get seen and responded to quickly (make sure inbox management is going to be productive, talk about filters, unsubscribe)
+Make sure you know how to see and subscribe to other team members' calendars and that you can add yourself to an event on someone else's calendar.
+A quick tour of the Google drive folder (access look correct? Ok. Give access to executed documents on the shared drive as needed) show how to use “Add to drive” or “favorite,” or just a browser bookmark, so the folder is easily accessible. This is where things go. It's the archive.)
+Make sure you know how to share a google doc into the folder for all fleeties to see and access.
+A high level overview of the Company values
+-->
+
+### Onboarding retrospective
+At the end of their first two weeks of onboarding at Fleet, every new team member schedules a onboarding retro call with the acting Head of People (CEO).  Agenda: 
+> Welcome once again to the team! Please tell me about your first few weeks at Fleet. How did your onboarding/training go? What didn't you manage to get to? Anything you weren't sure how to do? Any feedback on how we can make the experience better for Fleet's next hire?
+
+Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
 
 ### Directly responsible individuals
 Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
@@ -273,7 +312,7 @@ Capturing video from meetings with customers, prospects, and community members o
   - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
   - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
   - If the call has external participants and is recorded, this call is stored in Gong for future use. 
-To access a recording saved in Gong, visit [app.gong.io](app.gong.io) and sign in with SSO. 
+To access a recording saved in Gong, visit [app.gong.io](https://app.gong.io) and sign in with SSO. 
   - Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). 
 If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to Nathan Holliday or Mike McNeil for help. They will delete it immediately without watching the video. 
   - Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. 
@@ -281,18 +320,17 @@ If you ever make a mistake and need to delete something, you can delete the vide
 Most folks at Fleet should see no difference in their meetings if they aren't interfacing with external parties. 
 Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, Nathan Holliday, or Mike McNeil if you have questions or concerns.  
 
-Troubleshooting Gong:
+#### Troubleshooting Gong
   - In order to use Gong, the Zoom call must be hosted by someone with a Fleet email address.  
-    - You cannot use Gong to record calls hosted by external parties.
+  - You cannot use Gong to record calls hosted by external parties.
   - Cloud recording in Zoom has to be turned on and unlocked company wide for Gong to function properly, because of this, there is a chance that some Gong recordings may still save in Zoom's cloud storage even if they aren't uploaded into Gong.
-    - To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
-  - For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record:
-    - A complete list can be found [here](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
-      - 1 on 1, 1:1, confidential, interview, internal and no shadows are some commonly used words that will disable Gong.   
-    - If you need words added to the list of exlusionary words, please reach out to Nathan Holliday.
-  - We have excluded anyone with an email domain from @cooley.com or @pilot.com from Gong's recording feature. These are professional services firms working with Fleet on internal matters, and calls with them are considered internal. 
+  - To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
 
 >If you need help using Gong, please check out Gong Academy at [https://academy.gong.io/](https://academy.gong.io/).
+
+#### Excluding calls from being recorded
+For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, make sure your calendar event title contains `[no shadows]`.  You can also read the [complete list of exclusion rules](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
+
 
 ### Zapier and DocuSign
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
@@ -334,6 +372,7 @@ Consultants:
 - do NOT receive company-issued laptops
 - do NOT receive Yubikeys
 - do NOT get a "Hiring" issue created for them
+- do NOT get a company email address, nor everyone's calendars, nor the shared drive _(with occasional exceptions)_
 - do NOT go through training using the contributor onboarding issue.
 - do NOT fill any existing [open position](#creating-a-new-position)
 
@@ -392,7 +431,7 @@ Want to hire?  Here's how to open up a new position on the core team:
 > If you think this job posting may need to stay temporarily classified (¶¶) and not shared company-wide or publicly yet, for any reason, then stop here and send a Slack DM with your proposal to the CEO instead of modifying ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit) (which is visible company-wide) or submitting a draft pull request to "Open positions" (which is public).
 -->
 
-1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department.  For now, leave the start date blank.
+1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department. Set the start date to the first Monday of the next month (This position is still only proposed (not approved), but would make it easier for the approver to have the date set).
 2. **Propose job description:** Copy, personalize, and publish the job description:
    - _Duplicate file:_ Locate [one of the existing job description files inside `handbook/company/`](https://github.com/fleetdm/fleet/tree/main/handbook/company) and duplicate it into a new handbook subpage.  If no other open job descriptions currently exist, you can [copy and paste the raw text](https://raw.githubusercontent.com/fleetdm/fleet/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md) from an [old job description](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md).
      - _Filename:_ Use the [same style of filename](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md), but based on the new job title.  (This filename will determine the living URL on fleetdm.com where candidates can apply.)
@@ -409,7 +448,7 @@ Want to hire?  Here's how to open up a new position on the core team:
 #### Approving a new position
 When review is requested on a proposal to open a new position, the CEO will complete the following steps when reviewing the pull request:
 
-1. **Consider role and reporting structure:** Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is still blank (so that it is clear to everyone that this position has been proposed, but that it is not confirmed and planned, yet).
+1. **Consider role and reporting structure:** Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is set to the first Monday of the next month.
 2. **Read job description:** Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. **Budget compensation:** Ballpark and document compensation research for the role based on 
    - _Add screenshot:_ Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings. Then create written documentation of your research for future reference.  The easiest way to do this is to take screenshots of the [relevant benchmarks in Pave](https://pave.com) and paste those screenshots under the new heading.
@@ -447,7 +486,7 @@ Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZ
 #### Hiring restrictions
 
 ##### Incompatible former employers
-Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [BizOps spreadhseet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
+Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [BizOps spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
 
 ##### Incompatible locations
 Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
@@ -465,7 +504,7 @@ If you've been invited to "book with us," you'll have a Zoom meeting with the hi
 
 This section is about hiring a new core team member, or fleetie.
 
-> **_Note:_** _Employment classification isn't what makes someone a fleetie.  Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate employment classification and agreement for any given team member and the place where they work is determined by CEO during the process of making an offer._
+> **_Note:_** _Employment classification isn't what makes someone a fleetie.  Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate employment classification and agreement for any given team member and the place where they work is determined by Head of Business Operations during the process of making an offer._
 
 Here are the steps hiring managers follow to get an offer out to a candidate:
 1. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
@@ -480,25 +519,24 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
 3. **Schedule CEO interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
    - At Fleet, the CEO interviews every new team member at least once before Fleet extends an offer.  (We plan to continue this practice until headcount reaches 100.)
-     - No need to check with the CEO first.  You can just book the meeting on his calendar.
-     - Schedule the meeting directly on the CEO's calendar during a time he and the candidate are both explicitly available according to that calendar.  Available means whitespace.
+     - No need to check with the CEO first.  You can just book the meeting on their calendar.
+     - Schedule the meeting directly on the CEO's calendar during a time they and the candidate are both explicitly available according to that calendar.  Available means whitespace.
      - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
-   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, feel free to include Zach in this final interview.)
+   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, include Zach in this final interview.)
    - The personal email the candidate uses for this calendar event is where they will receive their offer or rejection email.
    - Make sure that the agenda doc for the 30m final interview with CEO is in an outline format, located in the "Meeting notes" folder, and contains a discussion point about asking the candidate to verify that 2FA is enabled in their GitHub account.
-4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document with the CEO via Google Drive.  _This will be interpreted by the CEO as a signal that you are ready for him to make an offer to this candidate._
+4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
-   - _Share_ this single document with the CEO via email.
+   - _Share_ this single document with the Head of Business Operations via email.
      - Share only _one, single Google Doc, please_; with a short, formulaic name that's easy to understand in an instant from just an email subject line.  For example, you could title it:
        >Why hire Jane Doe ("Train Conductor") - 2023-03-21
-     - When the CEO receives this doc shared doc in his email with the compiled feedback about the candidate, he will understand that to mean that it is time for Fleet to make an offer to the candidate.
+     - When the Head of Business Operations receives this doc shared doc in their email with the compiled feedback about the candidate, they will understand that to mean that it is time for Fleet to make an offer to the candidate.
 
 
 
 #### Making an offer
-After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
-1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he continues with the offer.
-2. **Adjust compensation:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
+After receiving the interview packet, the Head of Business Operations uses the following steps to make an offer:
+1. **Adjust compensation:** Head of Business Operations [re-benchmarks salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
    - _Paste a screenshot_ from Pave showing the amount of cash and equity in the offer (or write 1-2 sentences about what is being offered to this candidate and why) under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
    - _Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ to reflect the offer offer that is about to be sent:
      -  Salary _(OTE actually offered)_
@@ -506,35 +544,39 @@ After meeting with the candidate for their final interview, the CEO uses the fol
      -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
      -  "Offer sent?" _(set this to `TRUE`)_
      - …and make sure the other status columns are set to `todo`.
-3. **Prepare the "exit scenarios" spreadsheet:** [Copy the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and rename the copy to e.g. "Exit scenarios for Jane Doe".
+2. **Prepare the "exit scenarios" spreadsheet:** Head of Business Operations [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to include the number of shares they will be offered, and the spreadsheet will update automatically to reflect their approximate ownership percentage.
    - _Share the candidate's copy_ of the spreadsheet with their personal email, granting **"Edit"** access.
      > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
-4. **Prepare offer email:** [Copy "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and rename to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
+3. **Prepare offer email:** Head of Business Operations [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Specify the number of shares, then highlight the number of shares with a link to the candidate's personalized copy of the "Exit scenarios" spreadsheet.
    - _Other information_: Read the offer email very carefully and double-check correctness versus the equity plan, especially in regards to salary, equity, and start date.
-5. **Send offer:** Once both documents are complete, send the offer email:
+4. **Send offer:** Once both documents are complete, Head of Business Operations notifies Apprentice to the CEO who then drafts the offer email, bringing it to the CEO to send during their daily meeting:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
-   - Cc: Zach Wasserman is included as a recipient, but will not participate in the email thread until after the offer is accepted.
+   - Cc: Zach Wasserman and Head of Business Operations (both included as a recipient but will not participate in the email thread until after the offer is accepted)
    - Subject: "Full time?"
    - Body: _(The offer email is copied verbatim from Google Drive into Gmail as the body of the message, formatting and all.)_
 
 
 #### Steps after an offer is accepted
 
-Once the new team member replies and accepts their offer in writing, either the CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
+Once the new team member replies and accepts their offer in writing, Head of Business Operations replies to the candidate.  The Head of Business Operations is then responsible for these steps:
 1. **Verify, track, and reply:** Reply to the candidate:
-   - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, or it's not a usable address, then we are not done.  Fleet will reply and ask for it, and no offer should is "accepted" until we've received a physical address.
-   - _Review and update the team database_ so that the new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
-     - **Physical address** _(The full street address of the location where work will typically be performed.)_
-     - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
-     - **"Offer accepted?"** _(Set this to `TRUE`)_
-     - **OTE** _(salary, expressed as anticipated "on-target" earnings)_
-     - **Equity** _(stock options)_
-     - **"Notes"** _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
-     - Be sure everything is accurate, one last time!
-   - _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This is what will inform the Business Operations team to get involved.  The company will use this issue to keep track of the hiring tasks for the new team member.)
+   - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, then we are not done.  No offer is "accepted" until we've received a physical address.
+   - _Review and update the team database_ to be sure everything is accurate, **one last time**.  Remember to read the column headers and precisely follow the instructions about how to format the data:
+     - The new team member's role in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) now includes:
+       - **Start date** _(the new fleetie's first day, YYYY-MM-DD)_
+       - **Location** _(derive this from the physical address)_
+       - **GitHub username**  _(username of 2FA-enabled GitHub account)_
+     - The new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
+       - **OTE** _("on-target earnings", i.e. anticipated total annual cash compensation)_
+       - **Equity** _(stock options)_
+       - **"Notes"** _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
+       - **Physical address** _(The full street address of the location where work will typically be performed.)_
+       - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
+       - **"Offer accepted?"** _(Set this to `TRUE`)_
+   - _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This issue will keep track of the hiring tasks for the new team member.)
    - _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.  For example:
      ```
      \o/  It's official!
@@ -543,7 +585,7 @@ Once the new team member replies and accepts their offer in writing, either the 
      
      Thanks, and welcome to the team!
      
-     -Mike
+     -Joanne
      ```
 2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
    >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
@@ -557,28 +599,47 @@ Now what happens?  Business Operations will then follow the steps in the "Hiring
 
 
 ### Purchasing a company-issued device
-Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process, and will work with the new team member to get their laptop purchased and shipped to them on time.
+Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their laptop purchased and shipped to them on time.
+
+Apple computers shipping to the United States, Canada, and countries Apple does business with are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
+
+When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
+
+> The Apple Store business team will need Fleet's customer number (located in 1Password) to place an order. This will ensure the computer is automatically added to Fleet's Apple Business Manager, and will automatically configure using Automated Device Enrollment (ADE) (aka DEP).
+
+Apple computers for Fleeties in countries Apple does not operate cannot be enrolled in ADE and should be purchased through a participating authorized reseller. The Brex card limit will be temporarily increased to accommodate the purchase. 
 
 #### Selecting a laptop
-Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
+Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
 
 When selecting a new laptop for a team member, optimize their configuration to:
-1. have a reasonably large hard drive (at least 512GB hard drive, and if there's any concern go biger)
-2. BUT make sure it's still available for delivery or pickup as quickly as possible, and prior to the start date
+1. Have a reasonably large storage (at least 512GB of storage, and if there's any concern go bigger)
+2. Look for pre-configured models with the desired memory and storage requirements. These tend to be available for delivery or pickup as quickly as possible and before the start date.
 
 > Play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
 
-For example, someone in sales, marketing, or business operations might like to use a 14" Macbook Air, whereas someone in engineering, product, or a primarily design role might use a 16" MacBook Pro.  **Default to a 16" MacBook Pro.**
+For example, someone in sales, marketing, or business operations might like to use a 14-inch Macbook Air, whereas someone in an engineering, product, or design role might use a 16-inch MacBook Pro.  **Default to a 16-inch MacBook Pro.**
+
+> A 3-year AppleCare+ Protection Plan (APP) should be considered for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 
 #### Buying other new equipment
-At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), reason for request, and timeline for when the device is needed. 
+At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), the reason for the request, and a timeline for when the device is needed. 
 
 #### Tracking equipment
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
 
-When you receive your new their computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
+When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
+
+#### Returning equipment
+Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with Luke Heath. 
+
+#### Reprovisioning equipment
+Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers.
+
+#### Equipment retention and replacement
+Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare Protection Plan (or another warranty plan) and are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs). The old equipment should be evaluated for return or retention as a test environment.
 
 
 
@@ -618,19 +679,26 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 
 ### Weekly updates
 We like to open about milestones and announcements.
-  - Every Thursday night, department heads [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
-  - Friday nights, Mike McNeil will post a short update in #general.
-Weekly update principles
-   - Each department's update is 20-40 words or less.
-   - Erring on the side of referring to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
+  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
+  - Friday nights, Mike McNeil will post a short update in #general including:
+    - a link to view KPIs
+    - who was on-call that week
+    - fleeties who are currently onboarding
+    - planned hires who haven't started yet
+    - fleeties who had their lady day that week
+  - The weekly update uses the format of the previous week's update, which is in the KPIs spreadsheet.  The best way to start is by copying and pasting the previous week's upfate and modifying it.
+  - After posting to #general, the weekly update is also saved in thr KPI spreadsheet.
  
 ### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
-- Each Friday, if there are any upcoming workiversaries in the next seven days, Mike McNeil posts about them in #help-classified and tags `@mikermcneil` to let them know.
-- Founders discuss during their 1:1, reviewing performance and the latest compensation benchmarks for this person's role and geography.
-- If a compensation change is decided, Mike or Zach posts to Slack in `#help-classified` with the change to compensation and effective date, if any.
-- CEO updates the respective payroll platform (Gusto or Pilot) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
+- On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of teammates celebrating anniversaries over the next month.
+- On the day of the fleetiversary, the Head of BizOps or executive team member will post in `#random` celebrating the tenure of the teammate.
+- The Head of BizOps prepares compensation benchmarking data and schedules time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to compensation.
+- During the 1:1 call, founders review benchmarking for role and geography, and decide if there will be an adjustment.
+- Head of BizOps posts to slack in `#help-classified` with the decision on compensation changes and effective date, if any.
+- If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
+- Head of BizOps updates the respective payroll platform (Gusto or Plane) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
 - If an additional equity grant is part of this compensation change, the previous equity and new situation is noted in detail in the "Notes" column of the equity plan, and the "Grant started?" column is set back to "todo" to add it to the queue for the next time grants are processed (quarterly).
 
 
@@ -670,11 +738,11 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 ## Departures
 
 ### Communicating departures
-Although it's sad to see you go, Fleet understands that not everything is meant to be forever like open-source is. There are a few steps that we'll need to take to communicate to the team of your departure. 
-1. Direct team: The CEO will reach out to the departing teammember's direct reports in 1:1 calls.
-2. Key stakeholders: The CEO will reach out to his direct reports about the departing teammember's departure.
-3. Announcement: Mike McNeil will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
-
+Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
+1. **Departing team member's manager:** Before speaking further with the team member, inform business operations about the departure via direct message in Slack to the acting Head of People (`@mikermcneil`), who will coordinate the team member's last day, offboarding, and exit meeting.
+2. **Business Operations**: Create and begin completing [offboarding issue](https://github.com/fleetdm/confidential/issues/new/choose).
+   > After finding out at the next standup (or sooner), Business Operations will post in `#g-e` to inform the E-group of the team member's departure and ask E-group members will inform any other managers on their teams.
+3. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 
 ## Adding an advisor
@@ -689,9 +757,10 @@ template.
 - Update "Equity plan" to reflect updated status and equity grant for this advisor, and to ensure the advisor's equity is queued up for the next quarterly equity grant ritual.
 
 
+## Trust
+Fleet is successful because of our customers and community, and those relationships are built on trust.
 
-## Security
-
+### Security
 Security policies are best when they're alive, in context in how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
 
 Here are a few different entry points for a tour of Fleet's security policies and best practices:
@@ -702,6 +771,8 @@ Here are a few different entry points for a tour of Fleet's security policies an
 5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
 6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
 
+### Vendor questionnaires 
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [Application security](https://fleetdm.com/docs/using-fleet/application-security) documentation. In addition to this documentation, please refer to [the Vendor questionnaires page](./vendor-questionnaires.md) 
 
 ## Finance
 
@@ -765,6 +836,28 @@ The steps for doing this are highlighted in this loom, TODO.
 - Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
 - Check balance sheet and profit and loss statements (P&Ls) in QBO against the [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
 
+### Quarterly investor reporting
+- Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
+- Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+  - Headcount at end of the previous quarter.
+  - Starting ARR for the previous quarter.
+  - Total new ARR for the previous quarter.
+  - "Upsell ARR" (new ARR from expansions only- Chronograph defines "upsell" as price increases for any reason.
+    **- Fleet does not "upsell" anything; we deliver more value and customers enroll more hosts), downgrade ARR and churn ARR (if any) for the previous quarter.**
+  - Ending ARR for the previous quarter.
+  - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
+  - Total amount of Fleet customers at the end of the previous quarter.
+  - Gross margin % 
+    - How to calculate: total revenue for the quarter - cost of goods sold for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
+  - Net dollar retention rate
+    - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
+  - Cash burn
+    - How to calculate: (start of quarter runway - end of quarter runway)/3. 
+
+
+## Legal
+
+Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook>/business-operations#intake).
 
 ## Taxes and compliance
 
@@ -806,6 +899,11 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | Monthly accounting | Monthly | Create [the monthly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
 | Quarterly grants | Quarterly | Create [the quarterly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
 | AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
+| Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
+| Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
+| Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
+| Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
+
 
 
 
@@ -837,6 +935,7 @@ Note: These are out of date, but retained for future reference:
 | Recruiting progress checkup | Weekly | Mike McNeil looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Mike McNeil |
 | Investor and advisor updates | PRN | Mike McNeil tracks the last contact with investors and coordinates outreach with CEO. | Mike McNeil |
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
+
 -->
 
 
@@ -854,13 +953,13 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel                           | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)    |
 |:----------------------------------------|:--------------------------------------------------------------------|
-| `#g-business-operations`                | Business operations on-call
-| `#help-login`                           | Business operations on-call
-| `#help-brex`                            | Business operations on-call
-| `#help-classified` _(¶¶)_               | Business operations on-call
+| `#g-business-operations`                | Joanne Stableford
+| `#help-brex`                            | Nathan Holliday
+| `#help-classified` _(¶¶)_               | Joanne Stableford
 | `#help-onboarding`                      | Mike McNeil
 | `#help-manage`                          | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
+| `#_security`                            | Zach Wasserman
 
 #### Stubs
 The following stubs are included only to make links backward compatible.

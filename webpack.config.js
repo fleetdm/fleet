@@ -33,13 +33,12 @@ if (process.env.NODE_ENV === "production") {
     }),
     new MiniCssExtractPlugin({
       filename: "bundle-[contenthash].css",
-      allChunks: false,
     }),
   ]);
 } else {
   // development
   plugins = plugins.concat([
-    new MiniCssExtractPlugin({ filename: "bundle.css", allChunks: false }),
+    new MiniCssExtractPlugin({ filename: "bundle.css" }),
   ]);
 }
 
@@ -66,19 +65,13 @@ const config = {
     noParse: /node_modules\/sqlite-parser\/dist\/sqlite-parser-min.js/,
     rules: [
       {
-        test: /\.(png|gif)$/,
-        use: { loader: "url-loader?name=[name]@[hash].[ext]&limit=6000" },
-      },
-      {
-        test: /\.(pdf|ico|jpg|svg|eot|otf|woff|woff2|ttf|mp4|webm)$/,
-        use: {
-          loader: "file-loader",
-          options: {
-            name: "[name]@[hash].[ext]",
-            useRelativePath: true,
-          },
+        test: /\.(pdf|png|gif|ico|jpg|svg|eot|otf|woff|woff2|ttf|mp4|webm)$/,
+        type: "asset",
+        generator: {
+          filename: "[name]@[hash][ext]",
         },
       },
+
       {
         test: /(\.tsx?|\.jsx?)$/,
         exclude: /node_modules/,
@@ -98,7 +91,6 @@ const config = {
             loader: MiniCssExtractPlugin.loader,
             options: {
               publicPath: "./",
-              hmr: process.env.NODE_ENV === "development",
             },
           },
           { loader: "css-loader" },
@@ -107,8 +99,10 @@ const config = {
             loader: "sass-loader",
             options: {
               sourceMap: true,
-              includePaths: [bourbon],
-              importer: globImporter(),
+              sassOptions: {
+                includePaths: bourbon,
+                importer: globImporter(),
+              },
             },
           },
         ],
@@ -118,9 +112,7 @@ const config = {
         use: [
           {
             loader: MiniCssExtractPlugin.loader,
-            options: {
-              hmr: process.env.NODE_ENV === "development",
-            },
+            options: {},
           },
           "css-loader",
           "postcss-loader",
@@ -140,7 +132,7 @@ const config = {
 };
 
 if (process.env.NODE_ENV === "production") {
-  config.output.filename = "[name]-[hash].js";
+  config.output.filename = "[name]-[contenthash].js";
 }
 
 module.exports = config;

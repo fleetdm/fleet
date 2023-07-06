@@ -1,41 +1,93 @@
-<h1><img width="200" alt="Fleet logo, landscape, dark text, transparent background" src="https://user-images.githubusercontent.com/618009/103300491-9197e280-49c4-11eb-8677-6b41027be800.png"></h1>
+<h1><a href="https://fleetdm.com"><img width="200" alt="Fleet logo, landscape, dark text, transparent background" src="https://user-images.githubusercontent.com/618009/103300491-9197e280-49c4-11eb-8677-6b41027be800.png"></a></h1>
 
-#### [Website](https://fleetdm.com/)  &nbsp;  [News](https://fleetdm.com/announcements) &nbsp; [Report a bug](https://github.com/fleetdm/fleet/issues/new)
+#### [News](https://fleetdm.com/announcements) &nbsp; · &nbsp; [Report a bug](https://github.com/fleetdm/fleet/issues/new) &nbsp; · &nbsp; [Handbook](https://fleetdm.com/handbook/company) &nbsp; · &nbsp; [Why open source?](https://fleetdm.com/handbook/company/why-this-way#why-open-source) &nbsp; · &nbsp; [Art](https://fleetdm.com/logos)
 
-[![Run Tests](https://github.com/fleetdm/fleet/actions/workflows/test.yml/badge.svg)](https://github.com/fleetdm/fleet/actions/workflows/test.yml) &nbsp; [![Go Report Card](https://goreportcard.com/badge/github.com/fleetdm/fleet)](https://goreportcard.com/report/github.com/fleetdm/fleet) &nbsp; [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5537/badge)](https://bestpractices.coreinfrastructure.org/projects/5537) &nbsp; [![Twitter Follow](https://img.shields.io/twitter/follow/fleetctl.svg?style=social&maxAge=3600)](https://twitter.com/fleetctl) &nbsp; 
+Open-source platform for IT and security teams with thousands of computers.  Designed for APIs, GitOps, webhooks, YAML, and humans.
 
-Fleet is the lightweight, open source telemetry platform for servers and workstations. Deploy osquery with Fleet to get comprehensive, customizable data from all your devices and operating systems – without the downtime risk.
+<a href="https://fleetdm.com/logos"><img alt="Wallpaper featuring a futuristic cloud city with the Fleet logo" src="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101"/></a>
 
-## Try Fleet
 
-Head to [fleetdm.com/try-fleet](https://fleetdm.com/try-fleet/register) to fire up a one-off cloud instance for quickly trying out Fleet.
+## What's it for?
+Organizations like Fastly and Gusto use Fleet for vulnerability reporting, detection engineering, device management (MDM), device health monitoring, posture-based access control, managing unused software licenses, and more.
 
-#### Now what?
+#### Explore data
+To see what kind of data you can use Fleet to gather, check out the [table reference documentation](https://fleetdm.com/tables).
 
-Check out the [Learn how to use Fleet doc](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet)
-to learn how to add your device to Fleet and how to ask questions about your devices by running queries.
+#### Out-of-the-box policies
+Fleet includes out-of-the box support for all [CIS benchmarks for macOS and Windows](https://fleetdm.com/pricing), as well as many [simpler queries](https://fleetdm.com/queries).
 
-## Team
-Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
+Take as much or as little as you need for your organization.
 
-> 📖 In keeping with our value of openness, Fleet Device Management's company handbook is public and open source.  You can read about the [history of Fleet and osquery](https://fleetdm.com/handbook/company#history) and our commitment to improving the product.
-> To upgrade from Fleet ≤3.2.0, just follow the upgrading steps for the earliest subsequent major release from this repository (it'll work out of the box until the release of Fleet 5.0).
+#### Supported platforms
+Here are the platforms Fleet currently supports:
 
-## Documentation
+- Linux (all distros)
+- macOS
+- Windows
+- Chromebooks
+- Amazon Web Services (AWS)
+- Google Cloud (GCP)
+- Azure (Microsoft cloud)
+- Data centers
+- Containers (kube, etc)
+- Linux-based IoT devices
 
-Documentation for Fleet can be found [here](https://fleetdm.com/docs).
+## Lighter than air
+Fleet is lightweight and modular.  You can use it for security without using it for MDM, and vice versa.  You can turn off features you are not using.
 
-<!-- TODO: "#### Contributing" as one-liner with link to best jumping off point in docs -->
-<!-- TODO: "#### Production deployment" as one-liner with link to best jumping off point in docs -->
+#### Openness
+Fleet is dedicated to flexibility, accessibility, and clarity.  We think [everyone can contribute](https://fleetdm.com/handbook/company#openness) and that tools should be as easy as possible for everyone to understand.
 
-## Community
+#### Good neighbors
+Fleet has no ambition to replace all of your other tools.  (Though it might replace some, if you want it to.)  Ready-to-use, enterprise-friendly integrations exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more.
 
-#### Chat
+Fleet plays well with Munki, Chef, Puppet, and Ansible, as well as with security tools like Crowdstrike and SentinelOne.  For example, you can use the free version of Fleet to quickly report on what hosts are _actually_ running your EDR agent.
 
-Please join us in the #fleet channel on [osquery Slack](https://fleetdm.com/slack).
+While most folks prefer to use one or the other, Fleet can also coexist peacefully with Rapid7 and other agent-based vulnerability scanners.  This can be useful during migrations.
 
-#### Contributing
+#### Free as in free
+The free version of Fleet will [always be free](https://fleetdm.com/pricing).  Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
 
-Contributions are welcome, whether you answer questions on Slack/GitHub/StackOverflow/Twitter, improve the documentation or website, write a tutorial, give a talk, start a local osquery meetup, troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
+#### Longevity
+The [company behind Fleet](https://fleetdm.com/handbook/company) is founded (and majority-owned) by [true believers in open source](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The company's business model is influenced by GitLab (NYSE: GTLB), with great investors, happy customers, and the capacity to become profitable at any time.
 
-<a href="https://fleetdm.com"><img alt="Banner featuring a futuristic cloud city with the Fleet logo" src="https://user-images.githubusercontent.com/618009/98254443-eaf21100-1f41-11eb-9e2c-63a0545601f3.jpg"/></a>
+In keeping with Fleet's value of openness, [Fleet Device Management's company handbook](https://fleetdm.com/handbook/company) is public and open source.  You can read about the [history of Fleet and osquery](https://fleetdm.com/handbook/company#history) and our commitment to improving the product.
+
+<!-- > To upgrade from Fleet ≤3.2.0, just follow the upgrading steps for the earliest subsequent major release from this repository (it'll work out of the box until the release of Fleet 5.0). -->
+
+
+## Is it any good?
+Fleet is used in production by IT and security teams with thousands of laptops and servers.  Many deployments support tens of thousands of hosts, and a few large organizations manage deployments as large as 400,000+ hosts.
+
+
+
+## Chat
+Please join us in [MacAdmins Slack](https://www.macadmins.org/) or in [osquery Slack](https://fleetdm.com/slack).
+
+The Fleet community is full of [kind and helpful people](https://fleetdm.com/handbook/company#empathy).  Whether or not you are a paying customer, if you need help, just ask.
+
+
+## Contributing &nbsp; [![Run Tests](https://github.com/fleetdm/fleet/actions/workflows/test.yml/badge.svg)](https://github.com/fleetdm/fleet/actions/workflows/test.yml) &nbsp; [![Go Report Card](https://goreportcard.com/badge/github.com/fleetdm/fleet)](https://goreportcard.com/report/github.com/fleetdm/fleet) &nbsp; [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5537/badge)](https://bestpractices.coreinfrastructure.org/projects/5537) &nbsp; [![Twitter Follow](https://img.shields.io/twitter/follow/fleetctl.svg?style=social&maxAge=3600)](https://twitter.com/fleetctl) &nbsp; 
+
+The landscape of cybersecurity and IT is too complex.  Let's open it up.
+
+Contributions are welcome, whether you answer questions on [Slack](#chat) / [GitHub](https://github.com/fleetdm/fleet/issues) / [StackOverflow](https://stackoverflow.com/search?q=osquery) / [LinkedIn](https://linkedin.com/company/fleetdm) / [Twitter](https://twitter.com/fleetctl), improve the documentation or [website](./website), write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
+
+<!-- - Great contributions are motivated by real-world use cases or learning.
+- Some of the most valuable contributions might not touch any code at all.
+- Small, iterative, simple (boring) changes are the easiest to merge. -->
+
+## What's next?
+To see what Fleet can do, head over to [fleetdm.com](https://fleetdm.com) and try it out for yourself, grab time with one of the maintainers to discuss, or visit the docs and roll it out to your organization.
+
+#### Production deployment
+Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet).  Or you can have us [host it for you](https://fleetdm.com/pricing).  Premium features are [available](https://fleetdm.com/pricing) either way.
+
+#### Documentation
+Complete documentation for Fleet can be found at [https://fleetdm.com/docs](https://fleetdm.com/docs).
+
+
+## License
+The free version of Fleet is available under the MIT license.  The commercial license is also designed to allow contributions to paid features for users whose employment agreements allow them to contribute to open source projects.  (See LICENSE.md for details.)
+
+> Fleet is built on osquery, nanoMDM, and Nudge.

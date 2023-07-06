@@ -12,9 +12,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 // Client is used to consume Fleet APIs from Go code
@@ -24,7 +26,8 @@ type Client struct {
 	token         string
 	customHeaders map[string]string
 
-	writer io.Writer
+	outputWriter io.Writer
+	errWriter    io.Writer
 }
 
 type ClientOption func(*Client) error
@@ -32,7 +35,7 @@ type ClientOption func(*Client) error
 func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
 	// TODO #265 refactor all optional parameters to functional options
 	// API breaking change, needs a major version release
-	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, fleet.CapabilityMap{})
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, nil, fleet.CapabilityMap{})
 	if err != nil {
 		return nil, err
 	}
@@ -64,9 +67,16 @@ func EnableClientDebug() ClientOption {
 	}
 }
 
-func SetClientWriter(w io.Writer) ClientOption {
+func SetClientOutputWriter(w io.Writer) ClientOption {
 	return func(c *Client) error {
-		c.writer = w
+		c.outputWriter = w
+		return nil
+	}
+}
+
+func SetClientErrorWriter(w io.Writer) ClientOption {
+	return func(c *Client) error {
+		c.errWriter = w
 		return nil
 	}
 }
@@ -111,7 +121,7 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 	}
 
 	if resp.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
-		fleet.WriteExpiredLicenseBanner(c.writer)
+		fleet.WriteExpiredLicenseBanner(c.errWriter)
 	}
 
 	return resp, nil
@@ -221,6 +231,43 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 	return c.authenticatedRequestWithQuery(params, verb, path, responseDest, "")
 }
 
+func (c *Client) CheckMDMEnabled() error {
+	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
+		if !ac.MDM.EnabledAndConfigured {
+			return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+		}
+		return nil
+	})
+}
+
+func (c *Client) CheckPremiumMDMEnabled() error {
+	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
+		if ac.License == nil || !ac.License.IsPremium() {
+			return errors.New("missing or invalid license")
+		}
+		if !ac.MDM.EnabledAndConfigured {
+			return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+		}
+		return nil
+	})
+}
+
+func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) error {
+	appCfg, err := c.GetAppConfig()
+	if err != nil {
+		var sce kithttp.StatusCoder
+		if errors.As(err, &sce) && sce.StatusCode() == http.StatusForbidden {
+			// do not return an error, user may not have permission to read app
+			// config (e.g. gitops) and those appconfig checks are just convenience
+			// to avoid the round-trip with potentially large payload to the server.
+			// Those will still be validated with the actual API call.
+			return nil
+		}
+		return err
+	}
+	return fn(appCfg)
+}
+
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
 	ctx context.Context,
@@ -286,7 +333,7 @@ func (c *Client) ApplyGroup(
 
 	if specs.AppConfig != nil {
 		if macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig); macosCustomSettings != nil {
-			files := resolveMacOSCustomSettingsPaths(baseDir, macosCustomSettings)
+			files := resolveApplyRelativePaths(baseDir, macosCustomSettings)
 
 			fileContents := make([][]byte, len(files))
 			for i, f := range files {
@@ -298,6 +345,31 @@ func (c *Client) ApplyGroup(
 			}
 			if err := c.ApplyNoTeamProfiles(fileContents, opts); err != nil {
 				return fmt.Errorf("applying custom settings: %w", err)
+			}
+		}
+		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
+			if macosSetup.BootstrapPackage.Value != "" {
+				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage.Value)
+				if err != nil {
+					return fmt.Errorf("applying fleet config: %w", err)
+				}
+
+				if !opts.DryRun {
+					if err := c.EnsureBootstrapPackage(pkg, uint(0)); err != nil {
+						return fmt.Errorf("applying fleet config: %w", err)
+					}
+				}
+			}
+			if macosSetup.MacOSSetupAssistant.Value != "" {
+				content, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, macosSetup.MacOSSetupAssistant.Value))
+				if err != nil {
+					return fmt.Errorf("applying fleet config: %w", err)
+				}
+				if !opts.DryRun {
+					if err := c.uploadMacOSSetupAssistant(content, nil, macosSetup.MacOSSetupAssistant.Value); err != nil {
+						return fmt.Errorf("applying fleet config: %w", err)
+					}
+				}
 			}
 		}
 		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
@@ -328,7 +400,7 @@ func (c *Client) ApplyGroup(
 
 		tmFileContents := make(map[string][][]byte, len(tmMacSettings))
 		for k, paths := range tmMacSettings {
-			files := resolveMacOSCustomSettingsPaths(baseDir, paths)
+			files := resolveApplyRelativePaths(baseDir, paths)
 			fileContents := make([][]byte, len(files))
 			for i, f := range files {
 				b, err := os.ReadFile(f)
@@ -340,9 +412,30 @@ func (c *Client) ApplyGroup(
 			tmFileContents[k] = fileContents
 		}
 
+		tmMacSetup := extractTmSpecsMacOSSetup(specs.Teams)
+		tmBootstrapPackages := make(map[string]*fleet.MDMAppleBootstrapPackage, len(tmMacSetup))
+		tmMacSetupAssistants := make(map[string][]byte, len(tmMacSetup))
+		for k, setup := range tmMacSetup {
+			if setup.BootstrapPackage.Value != "" {
+				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage.Value)
+				if err != nil {
+					return fmt.Errorf("applying teams: %w", err)
+				}
+				tmBootstrapPackages[k] = bp
+			}
+			if setup.MacOSSetupAssistant.Value != "" {
+				b, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, setup.MacOSSetupAssistant.Value))
+				if err != nil {
+					return fmt.Errorf("applying teams: %w", err)
+				}
+				tmMacSetupAssistants[k] = b
+			}
+		}
+
 		// Next, apply the teams specs before saving the profiles, so that any
 		// non-existing team gets created.
-		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
+		teamIDsByName, err := c.ApplyTeams(specs.Teams, opts)
+		if err != nil {
 			return fmt.Errorf("applying teams: %w", err)
 		}
 
@@ -350,6 +443,20 @@ func (c *Client) ApplyGroup(
 			for tmName, profs := range tmFileContents {
 				if err := c.ApplyTeamProfiles(tmName, profs, opts); err != nil {
 					return fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
+				}
+			}
+		}
+		if len(tmBootstrapPackages)+len(tmMacSetupAssistants) > 0 && !opts.DryRun {
+			for tmName, tmID := range teamIDsByName {
+				if bp, ok := tmBootstrapPackages[tmName]; ok {
+					if err := c.EnsureBootstrapPackage(bp, tmID); err != nil {
+						return fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
+					}
+				}
+				if b, ok := tmMacSetupAssistants[tmName]; ok {
+					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
+						return fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
+					}
 				}
 			}
 		}
@@ -373,7 +480,35 @@ func (c *Client) ApplyGroup(
 	return nil
 }
 
-func resolveMacOSCustomSettingsPaths(baseDir string, paths []string) []string {
+func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
+	asMap, ok := appCfg.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	mmdm, ok := asMap["mdm"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	mos, ok := mmdm["macos_setup"].(map[string]interface{})
+	if !ok || mos == nil {
+		return nil
+	}
+	bp, _ := mos["bootstrap_package"].(string) // if not a string, bp == ""
+	msa, _ := mos["macos_setup_assistant"].(string)
+	return &fleet.MacOSSetup{
+		BootstrapPackage:    optjson.SetString(bp),
+		MacOSSetupAssistant: optjson.SetString(msa),
+	}
+}
+
+func resolveApplyRelativePath(baseDir, path string) string {
+	return resolveApplyRelativePaths(baseDir, []string{path})[0]
+}
+
+// resolves the paths to an absolute path relative to the baseDir, which should
+// be the path of the YAML file where the relative paths were specified. If the
+// path is already absolute, it is left untouched.
+func resolveApplyRelativePaths(baseDir string, paths []string) []string {
 	if baseDir == "" {
 		return paths
 	}
@@ -456,6 +591,30 @@ func extractTmSpecsMacOSCustomSettings(tmSpecs []json.RawMessage) map[string][]s
 				cs = []string{}
 			}
 			m[spec.Name] = cs
+		}
+	}
+	return m
+}
+
+// returns the macos_setup keyed by team name.
+func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOSSetup {
+	var m map[string]*fleet.MacOSSetup
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name string `json:"name"`
+			MDM  struct {
+				MacOSSetup fleet.MacOSSetup `json:"macos_setup"`
+			} `json:"mdm"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		if spec.Name != "" {
+			if m == nil {
+				m = make(map[string]*fleet.MacOSSetup)
+			}
+			m[spec.Name] = &spec.MDM.MacOSSetup
 		}
 	}
 	return m

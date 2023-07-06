@@ -131,7 +131,7 @@
       <div class="modal-header">
         <h3 class="modal-title text-left">Edit your details?</h3>
       </div>
-      <ajax-form action="updateProfile" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedUpdateProfileForm()">
+      <ajax-form action="updateProfile" class="customers-update-profile" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedUpdateProfileForm()">
         <div class="modal-body">
           <div class="form-group">
             <label for="organization">Organization</label>

@@ -31,6 +31,7 @@ const HostActionsDropdown = ({
     isMdmEnabledAndConfigured = false,
     isTeamAdmin = false,
     isTeamMaintainer = false,
+    isSandboxMode = false,
   } = useContext(AppContext);
 
   const options = generateHostActionOptions({
@@ -46,6 +47,7 @@ const HostActionsDropdown = ({
     isFleetMdm: mdmName === "Fleet",
     isMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
+    isSandboxMode,
   });
 
   // No options to render. Exit early

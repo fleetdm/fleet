@@ -64,7 +64,7 @@
             margin: 0;
           }
           .manage-software-page__vuln_dropdown {
-            width: 219px;
+            width: 225px;
             .Select-menu-outer {
               width: 364px;
               max-height: 310px;
@@ -109,12 +109,13 @@
           .data-table__table {
             tr {
               .software-link {
-                visibility: hidden;
+                opacity: 0;
+                transition: opacity 250ms;
               }
 
               &:hover {
                 .software-link {
-                  visibility: visible;
+                  opacity: 1;
                 }
               }
             }
@@ -126,6 +127,10 @@
               .version__header {
                 width: 0;
               }
+              .vulnerabilities__header {
+                display: none;
+                width: 0;
+              }
               .source__header {
                 display: none;
                 width: 0;
@@ -133,6 +138,11 @@
               .hosts_count__header {
                 width: auto;
                 border-right: 0;
+              }
+              @media (min-width: $break-990) {
+                .vulnerabilities__header {
+                  display: table-cell;
+                }
               }
               @media (min-width: $break-990) {
                 .version__header {
@@ -163,6 +173,8 @@
                 width: 0;
               }
               .vulnerabilities__cell {
+                display: none;
+                width: 0;
                 span {
                   display: inline;
                 }
@@ -185,6 +197,11 @@
               @media (min-width: $break-990) {
                 .version_cell {
                   width: $col-md;
+                }
+              }
+              @media (min-width: $break-990) {
+                .vulnerabilities__cell {
+                  display: table-cell;
                 }
               }
               @media (min-width: $break-1400) {

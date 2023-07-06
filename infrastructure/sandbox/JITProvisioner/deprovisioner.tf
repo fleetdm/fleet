@@ -20,8 +20,11 @@ resource "aws_iam_policy" "sfn" {
 
 data "aws_iam_policy_document" "sfn" {
   statement {
-    actions   = ["ecs:RunTask"]
-    resources = [replace(aws_ecs_task_definition.deprovisioner.arn, "/:\\d+$/", ":*"), replace(aws_ecs_task_definition.deprovisioner.arn, "/:\\d+$/", "")]
+    actions = ["ecs:RunTask"]
+    resources = [
+      replace(aws_ecs_task_definition.deprovisioner.arn, "/:\\d+$/", ":*"), replace(aws_ecs_task_definition.deprovisioner.arn, "/:\\d+$/", ""),
+      replace(aws_ecs_task_definition.ingress_destroyer.arn, "/:\\d+$/", ":*"), replace(aws_ecs_task_definition.ingress_destroyer.arn, "/:\\d+$/", ""),
+    ]
     condition {
       test     = "ArnLike"
       variable = "ecs:cluster"
@@ -102,6 +105,16 @@ data "aws_iam_policy_document" "deprovisioner" {
     actions   = ["*"]
     resources = ["*"]
   }
+
+  statement {
+    actions   = ["eks:DescribeCluster"]
+    resources = [var.eks_cluster.eks_cluster_arn]
+  }
+
+  statement {
+    actions   = ["sts:GetCallerIdentity"]
+    resources = ["*"]
+  }
 }
 
 data "aws_iam_policy_document" "deprovisioner-assume-role" {
@@ -162,6 +175,44 @@ resource "aws_ecs_task_definition" "deprovisioner" {
   }
 }
 
+resource "aws_ecs_task_definition" "ingress_destroyer" {
+  family                   = "${local.full_name}-ingress-destroyer"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = aws_iam_role.deprovisioner.arn
+  task_role_arn            = aws_iam_role.deprovisioner.arn
+  cpu                      = 512
+  memory                   = 1024
+  container_definitions = jsonencode(
+    [
+      {
+        name        = "${var.prefix}-ingress-destroyer"
+        image       = docker_registry_image.ingress_destroyer.name
+        mountPoints = []
+        volumesFrom = []
+        essential   = true
+        networkMode = "awsvpc"
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            awslogs-group         = aws_cloudwatch_log_group.main.name
+            awslogs-region        = data.aws_region.current.name
+            awslogs-stream-prefix = "${local.full_name}-ingress-destroyer"
+          }
+        },
+        environment = [
+          {
+            name  = "CLUSTER_NAME"
+            value = var.eks_cluster.eks_cluster_id
+          },
+        ]
+      }
+  ])
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 resource "aws_security_group" "deprovisioner" {
   name        = "${local.full_name}-deprovisioner"
   description = "security group for ${local.full_name}-deprovisioner"
@@ -190,6 +241,46 @@ resource "aws_sfn_state_machine" "main" {
     "Wait": {
       "Type": "Wait",
       "SecondsPath": "$.waitTime",
+      "Next": "IngressDestroyer"
+    },
+    "IngressDestroyer": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
+      "Parameters": {
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": ${jsonencode(var.vpc.private_subnets)},
+            "SecurityGroups": ["${aws_security_group.deprovisioner.id}"],
+            "AssignPublicIp": "DISABLED"
+          }
+        },
+        "Cluster": "${var.ecs_cluster.arn}",
+        "TaskDefinition": "${replace(aws_ecs_task_definition.ingress_destroyer.arn, "/:\\d+$/", "")}",
+        "Overrides": {
+          "ContainerOverrides": [
+            {
+              "Name": "${var.prefix}-ingress-destroyer",
+              "Environment": [
+                {
+                  "Name": "INSTANCE_ID",
+                  "Value.$": "$.instanceID"
+                },
+                {
+                  "Name": "DYNAMODB_LIFECYCLE_TABLE",
+                  "Value": "${var.dynamodb_table.id}"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "Next": "Idle",
+      "ResultPath": null
+    },
+    "Idle": {
+      "Type": "Wait",
+      "Seconds": 2592000,
       "Next": "Deprovisioner"
     },
     "Deprovisioner": {
@@ -237,6 +328,12 @@ resource "random_uuid" "deprovisioner" {
   }
 }
 
+resource "random_uuid" "ingress-destroyer" {
+  keepers = {
+    lambda = data.archive_file.ingress_destroyer.output_sha
+  }
+}
+
 resource "local_file" "backend-config" {
   content = templatefile("${path.module}/deprovisioner/backend-template.conf",
     {
@@ -249,6 +346,13 @@ data "archive_file" "deprovisioner" {
   type        = "zip"
   output_path = "${path.module}/.deprovisioner.zip"
   source_dir  = "${path.module}/deprovisioner"
+}
+
+// used to obtain a unique checksum
+data "archive_file" "ingress_destroyer" {
+  type        = "zip"
+  output_path = "${path.module}/.ingress_destroyer.zip"
+  source_dir  = "${path.module}/ingress_destroyer"
 }
 
 resource "docker_registry_image" "deprovisioner" {
@@ -265,6 +369,22 @@ resource "docker_registry_image" "deprovisioner" {
     local_file.backend-config
   ]
 }
+
+resource "docker_registry_image" "ingress_destroyer" {
+  name          = "${aws_ecr_repository.main.repository_url}:${data.git_repository.main.branch}-${random_uuid.ingress-destroyer.result}"
+  keep_remotely = true
+
+  build {
+    context     = "${path.module}/ingress_destroyer/"
+    pull_parent = true
+    platform    = "linux/amd64"
+  }
+
+  depends_on = [
+    local_file.backend-config
+  ]
+}
+
 
 output "deprovisioner_role" {
   value = aws_iam_role.deprovisioner

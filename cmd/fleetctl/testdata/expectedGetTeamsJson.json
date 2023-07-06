@@ -25,12 +25,17 @@
 			},
 			"mdm": {
 				"macos_updates": {
-					"minimum_version": "",
-					"deadline": ""
+					"minimum_version": null,
+					"deadline": null
 				},
 				"macos_settings": {
 					"custom_settings": null,
 					"enable_disk_encryption": false
+				},
+				"macos_setup": {
+					"bootstrap_package": null,
+					"enable_end_user_authentication": false,
+					"macos_setup_assistant": null
 				}
 			},
 			"user_count": 99,
@@ -86,6 +91,11 @@
 				"macos_settings": {
 					"custom_settings": null,
 					"enable_disk_encryption": false
+				},
+				"macos_setup": {
+					"bootstrap_package": null,
+					"enable_end_user_authentication": false,
+					"macos_setup_assistant": null
 				}
 			},
 			"user_count": 87,

@@ -16,11 +16,11 @@ variable "db_name" {
 }
 
 variable "db_tier" {
-  default = "db-n1-standard-1"
+  default = "db-custom-1-3840"
 }
 
 variable "db_version" {
-  default = "MYSQL_5_7"
+  default = "MYSQL_8_0"
 }
 
 variable "fleet_cpu" {
@@ -59,7 +59,7 @@ variable "project_id" {
 }
 
 variable "prefix" {
-  default     = "fleet-"
+  default     = "fleet"
   description = "prefix resources with this string"
 }
 
@@ -68,5 +68,5 @@ variable "redis_mem" {
 }
 
 variable "image" {
-  default = "fleet:v4.29.0"
+  default = "fleet:v4.33.1"
 }

@@ -34,8 +34,8 @@ jobs:
     - id: gen
       run: |
         UUID=$(uuidgen)
-        echo "::set-output name=subdomain::fleet-test-$UUID"
-        echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
+        echo "subdomain=fleet-test-$UUID" >> $GITHUB_OUTPUT
+        echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
 
   run-server:
     runs-on: ubuntu-latest
@@ -91,7 +91,7 @@ jobs:
 
     - name: Slack Notification
       if: failure()
-      uses: slackapi/slack-github-action@16b6c78ee73689a627b65332b34e5d409c7299da # v1.18.0
+      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
       with:
         payload: |
           {
@@ -143,7 +143,7 @@ jobs:
           sleep 5
         done
         TOKEN=$(cat ~/.fleet/config| grep token | awk '{ print $2 }')
-        echo "::set-output name=token::$TOKEN"
+        echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
   orbit-macos:
     timeout-minutes: 15
@@ -186,7 +186,7 @@ jobs:
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: orbit-macos-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
         path: |
@@ -211,9 +211,9 @@ jobs:
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
-        go-version: '^1.19.1'
+        go-version: '^1.19.10'
 
     - name: Checkout Code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
@@ -246,7 +246,7 @@ jobs:
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: orbit-ubuntu-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
         path: |
@@ -282,7 +282,7 @@ jobs:
         mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
     - name: Upload MSI
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
         path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
@@ -320,7 +320,7 @@ jobs:
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
         name: orbit-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
         path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log

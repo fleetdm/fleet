@@ -37,6 +37,7 @@ const DeleteProfileModal = ({
       title={"Delete configuration profile"}
       onExit={onCancel}
       onEnter={() => onDelete(profileId)}
+      width="large"
     >
       <>
         <p>

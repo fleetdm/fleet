@@ -1,6 +1,6 @@
 # Fleet 4.10.0 brings new features and improvements for vulnerability analysts.
 
-![Fleet 4.10.0](../website/assets/images/articles/fleet-4.10.0-cover-700x393@2x.png)
+![Fleet 4.10.0](../website/assets/images/articles/fleet-4.10.0-cover-1600x900@2x.jpg)
 
 We’re pleased to announce Fleet 4.10.0. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.10.0) or continue reading to summarize what’s new.
 

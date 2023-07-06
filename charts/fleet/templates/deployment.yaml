@@ -262,6 +262,11 @@ spec:
             value: "{{ .Values.osquery.logging.pubsub.resultTopic }}"
           {{- end }}
           ## END OSQUERY SECTION
+          ## APPEND ENVIRONMENT VARIABLES FROM VALUES
+          {{- range $key, $value := .Values.environments }}
+          - name: {{ $key }}
+            value: {{ $value | quote }}
+          {{- end }}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

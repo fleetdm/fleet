@@ -40,6 +40,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -49,8 +51,10 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/go-kit/log"
 	"github.com/kolide/kit/version"
 	"github.com/micromdm/nanomdm/cryptoutil"
+	"github.com/micromdm/nanomdm/push"
 	"github.com/micromdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	scep_depot "github.com/micromdm/scep/v2/depot"
@@ -58,7 +62,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"go.elastic.co/apm/module/apmhttp"
 	_ "go.elastic.co/apm/module/apmsql"
 	_ "go.elastic.co/apm/module/apmsql/mysql"
 	"go.opentelemetry.io/otel"
@@ -161,13 +164,12 @@ the way that the Fleet server works.
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
 			var installerStore fleet.InstallerStore
-			mailService := mail.NewService()
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
 				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
-			if dev && os.Getenv("FLEET_ENABLE_DEV_SQL_INTERCEPTOR") != "" {
+			if dev && os.Getenv("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
 				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
 					logger: kitlog.With(logger, "component", "sql-interceptor"),
 				}))
@@ -327,7 +329,9 @@ the way that the Fleet server works.
 			redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
 			ds = redisWrapperDS
 
-			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
+			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
+				log.With(logger, "component", "query-results"),
+			)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
@@ -456,7 +460,7 @@ the way that the Fleet server works.
 				appleAPNsKeyPEM             []byte
 				depStorage                  *mysql.NanoDEPStorage
 				mdmStorage                  *mysql.NanoMDMStorage
-				mdmPushService              *nanomdm_pushsvc.PushService
+				mdmPushService              push.Pusher
 				mdmCheckinAndCommandService *service.MDMAppleCheckinAndCommandService
 				mdmPushCertTopic            string
 			)
@@ -505,6 +509,7 @@ the way that the Fleet server works.
 			// assume MDM is disabled until we verify that
 			// everything is properly configured below
 			appCfg.MDM.EnabledAndConfigured = false
+			appCfg.MDM.AppleBMEnabledAndConfigured = false
 
 			// validate Apple BM config
 			if config.MDM.IsAppleBMSet() {
@@ -520,6 +525,7 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initialize Apple BM DEP storage")
 				}
+				appCfg.MDM.AppleBMEnabledAndConfigured = true
 			}
 
 			if config.MDM.IsAppleAPNsSet() && config.MDM.IsAppleSCEPSet() {
@@ -533,14 +539,49 @@ the way that the Fleet server works.
 				}
 				nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
 				pushProviderFactory := buford.NewPushProviderFactory()
-				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
-				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds)
+				if os.Getenv("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
+					mdmPushService = nopPusher{}
+				} else {
+					mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+				}
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 				appCfg.MDM.EnabledAndConfigured = true
+			}
+
+			// register the Microsoft MDM services
+			var (
+				wstepCertManager microsoft_mdm.CertManager
+			)
+
+			// Configuring WSTEP certs if Windows MDM feature flag is enabled
+			if configpkg.IsMDMFeatureFlagEnabled() && config.MDM.IsMicrosoftWSTEPSet() {
+				_, crtPEM, keyPEM, err := config.MDM.MicrosoftWSTEP()
+				if err != nil {
+					initFatal(err, "validate Microsoft WSTEP certificate and key")
+				}
+				wstepCertManager, err = microsoft_mdm.NewCertManager(ds, crtPEM, keyPEM)
+				if err != nil {
+					initFatal(err, "initialize mdm microsoft wstep depot")
+				}
 			}
 
 			// save the app config with the updated MDM.Enabled value
 			if err := ds.SaveAppConfig(context.Background(), appCfg); err != nil {
 				initFatal(err, "saving app config")
+			}
+
+			// setup mail service
+			if appCfg.SMTPSettings != nil && appCfg.SMTPSettings.SMTPEnabled {
+				// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
+				if config.Email.EmailBackend != "" {
+					config.Email.EmailBackend = ""
+					level.Warn(logger).Log("msg", "SMTP is already enabled, first disable SMTP to utilize a different email backend")
+				}
+			}
+			mailService, err := mail.NewService(config)
+			if err != nil {
+				level.Error(logger).Log("err", err, "msg", "failed to configure mailing service")
 			}
 
 			cronSchedules := fleet.NewCronSchedules()
@@ -576,12 +617,18 @@ the way that the Fleet server works.
 				mdmPushService,
 				mdmPushCertTopic,
 				cronSchedules,
+				wstepCertManager,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
 
 			if license.IsPremium() {
+				var profileMatcher fleet.ProfileMatcher
+				if appCfg.MDM.EnabledAndConfigured {
+					profileMatcher = apple_mdm.NewProfileMatcher(redisPool)
+				}
+
 				svc, err = eeservice.NewService(
 					svc,
 					ds,
@@ -590,8 +637,10 @@ the way that the Fleet server works.
 					mailService,
 					clock.C,
 					depStorage,
-					service.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 					mdmPushCertTopic,
+					ssoSessionStore,
+					profileMatcher,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -661,14 +710,18 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newIntegrationsSchedule(ctx, instanceID, ds, logger)
+				var commander *apple_mdm.MDMAppleCommander
+				if appCfg.MDM.EnabledAndConfigured {
+					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				}
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
 			}); err != nil {
-				initFatal(err, "failed to register integrations schedule")
+				initFatal(err, "failed to register worker integrations schedule")
 			}
 
 			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured && config.MDM.IsAppleBMSet() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 				}
@@ -680,7 +733,7 @@ the way that the Fleet server works.
 						ctx,
 						instanceID,
 						ds,
-						service.NewMDMAppleCommander(mdmStorage, mdmPushService),
+						apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 						logger,
 						config.Logging.Debug,
 					)
@@ -881,11 +934,7 @@ the way that the Fleet server works.
 
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
-			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
-				handler = launcher.Handler(apmhttp.Wrap(rootMux))
-			} else {
-				handler = launcher.Handler(rootMux)
-			}
+			handler = launcher.Handler(rootMux)
 
 			srv := config.Server.DefaultHTTPServer(ctx, handler)
 			if liveQueryRestPeriod > srv.WriteTimeout {
@@ -1097,4 +1146,14 @@ func (m *debugMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	m.fleetAuthenticatedHandler.ServeHTTP(w, r)
+}
+
+// nopPusher is a no-op push.Pusher.
+type nopPusher struct{}
+
+var _ push.Pusher = nopPusher{}
+
+// Push implements push.Pusher.
+func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, error) {
+	return nil, nil
 }

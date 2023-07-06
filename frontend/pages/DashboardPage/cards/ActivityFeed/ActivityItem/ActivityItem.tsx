@@ -9,8 +9,23 @@ import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 const baseClass = "activity-item";
+
+const PREMIUM_ACTIVITIES = new Set([
+  "created_team",
+  "deleted_team",
+  "applied_spec_team",
+  "changed_user_team_role",
+  "deleted_user_team_role",
+  "read_host_disk_encryption_key",
+  "enabled_macos_disk_encryption",
+  "disabled_macos_disk_encryption",
+  "enabled_macos_setup_end_user_auth",
+  "disabled_macos_setup_end_user_auth",
+  "tranferred_hosts",
+]);
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
@@ -37,6 +52,29 @@ const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
     </>
   ) : (
     <>with no team</>
+  );
+};
+
+const getMacOSSetupAssistantMessage = (
+  action: "added" | "deleted",
+  name?: string,
+  teamName?: string | null
+) => {
+  const suffix = teamName ? (
+    <>
+      {" "}
+      that automatically enroll to the <b>{teamName}</b> team
+    </>
+  ) : (
+    <>that automatically enroll to no team</>
+  );
+
+  return (
+    <>
+      {" "}
+      changed the macOS Setup Assistant ({action} <b>{name}</b>) for hosts{" "}
+      {suffix}.
+    </>
   );
 };
 
@@ -177,6 +215,17 @@ const TAGGED_TEMPLATES = {
     );
   },
   mdmEnrolled: (activity: IActivity) => {
+    if (activity.details?.mdm_platform === "microsoft") {
+      return (
+        <>
+          Mobile device management (MDM) was turned on for{" "}
+          <b>{activity.details?.host_display_name} (manual)</b>.
+        </>
+      );
+    }
+
+    // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
+    // compatibility
     return (
       <>
         An end user turned on MDM features for a host with serial number{" "}
@@ -293,6 +342,20 @@ const TAGGED_TEMPLATES = {
     const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
     return <>removed disk encryption enforcement for macOS hosts {suffix}.</>;
   },
+  changedMacOSSetupAssistant: (activity: IActivity) => {
+    return getMacOSSetupAssistantMessage(
+      "added",
+      activity.details?.name,
+      activity.details?.team_name
+    );
+  },
+  deletedMacOSSetupAssistant: (activity: IActivity) => {
+    return getMacOSSetupAssistantMessage(
+      "deleted",
+      activity.details?.name,
+      activity.details?.team_name
+    );
+  },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
@@ -307,6 +370,123 @@ const TAGGED_TEMPLATES = {
         {activityType} <b>{entityName}</b>.
       </>
     );
+  },
+  addedMDMBootstrapPackage: (activity: IActivity) => {
+    const packageName = activity.details?.bootstrap_package_name;
+    return (
+      <>
+        {" "}
+        added a bootstrap package{" "}
+        {packageName ? (
+          <>
+            &#40;<b>{packageName}</b>&#41;{" "}
+          </>
+        ) : (
+          ""
+        )}
+        for macOS hosts that automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  deletedMDMBootstrapPackage: (activity: IActivity) => {
+    const packageName = activity.details?.bootstrap_package_name;
+    return (
+      <>
+        {" "}
+        deleted a bootstrap package{" "}
+        {packageName ? (
+          <>
+            &#40;<b>{packageName}</b>&#41;{" "}
+          </>
+        ) : (
+          ""
+        )}
+        for macOS hosts that automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  enabledMacOSSetupEndUserAuth: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        required end user authentication for macOS hosts that automatically
+        enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  disabledMacOSSetupEndUserAuth: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        removed end user authentication requirement for macOS hosts that
+        automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  transferredHosts: (activity: IActivity) => {
+    const hostNames = activity.details?.host_display_names || [];
+    const teamName = activity.details?.team_name;
+    if (hostNames.length === 1) {
+      return (
+        <>
+          {" "}
+          transferred host <b>{hostNames[0]}</b> to {teamName ? "team " : ""}
+          <b>{teamName || "no team"}</b>.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        transferred {hostNames.length} hosts to {teamName ? "team " : ""}
+        <b>{teamName || "no team"}</b>.
+      </>
+    );
+  },
+
+  enabledWindowsMdm: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        told Fleet to turn on MDM features for all Windows hosts (servers
+        excluded).
+      </>
+    );
+  },
+  disabledWindowsMdm: (activity: IActivity) => {
+    return <> told Fleet to turn off Windows MDM features.</>;
   },
 };
 
@@ -391,6 +571,33 @@ const getDetail = (
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
     }
+    case ActivityType.AddedBootstrapPackage: {
+      return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.DeletedBootstrapPackage: {
+      return TAGGED_TEMPLATES.deletedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.ChangedMacOSSetupAssistant: {
+      return TAGGED_TEMPLATES.changedMacOSSetupAssistant(activity);
+    }
+    case ActivityType.DeletedMacOSSetupAssistant: {
+      return TAGGED_TEMPLATES.deletedMacOSSetupAssistant(activity);
+    }
+    case ActivityType.EnabledMacOSSetupEndUserAuth: {
+      return TAGGED_TEMPLATES.enabledMacOSSetupEndUserAuth(activity);
+    }
+    case ActivityType.DisabledMacOSSetupEndUserAuth: {
+      return TAGGED_TEMPLATES.disabledMacOSSetupEndUserAuth(activity);
+    }
+    case ActivityType.TransferredHosts: {
+      return TAGGED_TEMPLATES.transferredHosts(activity);
+    }
+    case ActivityType.EnabledWindowsMdm: {
+      return TAGGED_TEMPLATES.enabledWindowsMdm(activity);
+    }
+    case ActivityType.DisabledWindowsMdm: {
+      return TAGGED_TEMPLATES.disabledWindowsMdm(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -400,6 +607,7 @@ const getDetail = (
 interface IActivityItemProps {
   activity: IActivity;
   isPremiumTier: boolean;
+  isSandboxMode?: boolean;
 
   /** A handler for handling clicking on the details of an activity. Not all
    * activites have more details so this is optional. An example of additonal
@@ -411,6 +619,7 @@ interface IActivityItemProps {
 const ActivityItem = ({
   activity,
   isPremiumTier,
+  isSandboxMode = false,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
   const { actor_email } = activity;
@@ -419,6 +628,8 @@ const ActivityItem = ({
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
 
   const activityCreatedAt = new Date(activity.created_at);
+  const indicatePremiumFeature =
+    isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
   return (
     <div className={baseClass}>
@@ -430,6 +641,7 @@ const ActivityItem = ({
       />
       <div className={`${baseClass}__details`}>
         <p>
+          {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
             {activity.type === ActivityType.UserLoggedIn ? (
               <b>{activity.actor_email} </b>
@@ -471,6 +683,7 @@ const ActivityItem = ({
           </ReactTooltip>
         </p>
       </div>
+      <div className={`${baseClass}__dash`} />
     </div>
   );
 };

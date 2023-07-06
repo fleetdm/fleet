@@ -1,3 +1,7 @@
+terraform {
+  required_version = ">= 1.3.8"
+}
+
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "3.18.1"

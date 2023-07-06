@@ -2,7 +2,14 @@ package fleet
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"time"
+)
+
+const (
+	MDMPlatformApple     = "apple"
+	MDMPlatformMicrosoft = "microsoft"
 )
 
 type AppleMDM struct {
@@ -48,17 +55,46 @@ type AppConfigUpdater interface {
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 }
 
-// SaltedSha512PBKDF2Dictionary is a SHA512 PBKDF2 dictionary.
-type SaltedSHA512PBKDF2Dictionary struct {
-	Iterations int    `plist:"iterations"`
-	Salt       []byte `plist:"salt"`
-	Entropy    []byte `plist:"entropy"`
-}
-
 // MDMIdPAccount contains account information of a third-party IdP that can be
 // later used for MDM operations like creating local accounts.
 type MDMIdPAccount struct {
-	SaltedSHA512PBKDF2Dictionary
 	UUID     string
 	Username string
+	Fullname string
+}
+
+type MDMAppleBootstrapPackage struct {
+	Name      string    `json:"name"`
+	TeamID    uint      `json:"team_id" db:"team_id"`
+	Bytes     []byte    `json:"bytes,omitempty" db:"bytes"`
+	Sha256    []byte    `json:"sha256" db:"sha256"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"-" db:"updated_at"`
+}
+
+func (bp MDMAppleBootstrapPackage) AuthzType() string {
+	return "mdm_apple_bootstrap_package"
+}
+
+func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
+	pkgURL, err := url.Parse(host)
+	if err != nil {
+		return "", err
+	}
+	pkgURL.Path = "/api/latest/fleet/mdm/apple/bootstrap"
+	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
+	return pkgURL.String(), nil
+}
+
+// MDMAppleEULA represents an EULA (End User License Agreement) file.
+type MDMAppleEULA struct {
+	Name      string    `json:"name"`
+	Bytes     []byte    `json:"bytes"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+func (e MDMAppleEULA) AuthzType() string {
+	return "mdm_apple"
 }

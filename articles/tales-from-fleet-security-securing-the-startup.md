@@ -65,7 +65,7 @@ We will keep trying the same approach in every country where we need Macs, thoug
 
 We adapted our onboarding procedures. We ordered laptops as soon as possible in the hiring process, but that was not enough since delays often take 4 to 8 weeks. Nothing would be more depressing for a new Fleetie than starting their new job and not being able to work for a few weeks. As someone who has suffered that pain many times before, I never would inflict it on someone else!
 
-We configured our SaaS tools and developed [a strategy](https://fleetdm.com/use-cases/apply-byod-to-soothe-supply-chain-pain) that would allow people to work from personal devices while limiting the risk. As we grow and our exposure changes, we will keep rebalancing this strategy so new hires can be productive before receiving a company-owned laptop.
+We configured our SaaS tools and developed [a strategy](https://fleetdm.com/securing/apply-byod-to-soothe-supply-chain-pain) that would allow people to work from personal devices while limiting the risk. As we grow and our exposure changes, we will keep rebalancing this strategy so new hires can be productive before receiving a company-owned laptop.
 
 ### Secure Configuration
 

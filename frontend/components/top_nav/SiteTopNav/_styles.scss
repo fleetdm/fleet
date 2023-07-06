@@ -3,6 +3,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-left: 2px;
 }
 
 .site-nav-list {
@@ -62,7 +63,7 @@
       overflow: hidden;
       user-select: none;
       pointer-events: none;
-      font-weight: $bold;
+      font-weight: $xbold;
     }
   }
 
@@ -70,6 +71,15 @@
     color: $core-white;
     padding: 15px 24px;
     text-decoration: none;
+
+    // Prevents user menu from overlapping with nav bar buttons
+    @media (max-width: 825px) {
+      padding: 15px 18px;
+    }
+  }
+
+  &__logo-wrapper {
+    overflow: hidden;
   }
 
   &__logo {
@@ -77,16 +87,13 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    min-width: 64px;
-    max-width: 140px;
-    transform: scale(0.5);
   }
 
   &--active {
     background-color: $site-nav-on-hover;
 
     &::after {
-      content: '';
+      content: "";
       position: absolute;
       bottom: 0;
       left: 0;
@@ -100,7 +107,7 @@
     }
 
     .site-nav-item__name {
-      font-weight: $bold;
+      font-weight: $xbold;
     }
   }
 }

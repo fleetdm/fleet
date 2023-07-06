@@ -13,6 +13,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
@@ -56,9 +58,11 @@ type Service struct {
 	mdmStorage        nanomdm_storage.AllStorage
 	mdmPushService    nanomdm_push.Pusher
 	mdmPushCertTopic  string
-	mdmAppleCommander *MDMAppleCommander
+	mdmAppleCommander *apple_mdm.MDMAppleCommander
 
 	cronSchedulesService fleet.CronSchedulesService
+
+	wstepCertManager microsoft_mdm.CertManager
 }
 
 func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -104,6 +108,7 @@ func NewService(
 	mdmPushService nanomdm_push.Pusher,
 	mdmPushCertTopic string,
 	cronSchedulesService fleet.CronSchedulesService,
+	wstepCertManager microsoft_mdm.CertManager,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -136,8 +141,9 @@ func NewService(
 		mdmStorage:           mdmStorage,
 		mdmPushService:       mdmPushService,
 		mdmPushCertTopic:     mdmPushCertTopic,
-		mdmAppleCommander:    NewMDMAppleCommander(mdmStorage, mdmPushService),
+		mdmAppleCommander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 		cronSchedulesService: cronSchedulesService,
+		wstepCertManager:     wstepCertManager,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

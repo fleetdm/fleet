@@ -1,0 +1,43 @@
+#!/usr/bin/python3
+
+'''
+Create n new teams, where n is the integer first argument passed to the script.
+
+Each team's name takes the form "Team {teamname_suffix}", where `teamname_suffix` is either 5 pseudo-randomly chosen ascii
+lowercase characters (default), or if any truthy string (including '0' and 'False') is passed as an optional second argument to
+the script, 5 pseudo-randomly chosen emoji.
+
+Assumes the script can see the `TOKEN` (API token) and `SERVER_URL` environment variables.
+'''
+
+import subprocess, os, sys, string, random
+
+EMOJI_UNICODE_RANGE = range(128512, 128592)
+
+def main(n: int, use_emoji: bool):
+  token, server_url = os.environ.get("TOKEN"), os.environ.get("SERVER_URL")
+  if not token or not server_url:
+    raise Exception("Make sure you have set TOKEN and SERVER_URL as environment variables.")
+  for i in range(n):
+    if use_emoji:
+      teamname_suffix = ''.join(map(lambda code: chr(code), random.choices(EMOJI_UNICODE_RANGE, k=5)))
+    else:
+      teamname_suffix = ''.join(random.choices(string.ascii_lowercase, k=5)).capitalize()
+    data = f'{{"name": "Team {teamname_suffix}"}}'
+    print(data)
+    subprocess.run(
+      ["curl", "-X", "POST", "-k", "-s", "-H", f"Authorization: Bearer {token}", f"{server_url}/api/latest/fleet/teams", "-d", f"{data}", "--insecure"]
+    )
+
+
+
+if __name__ == "__main__":
+    try:
+      n = int(sys.argv[1])
+    except:
+      raise Exception("Enter the number of teams to create as a single integer argument to this script.")
+    try:
+      use_emoji = bool(sys.argv[2])
+    except IndexError:
+      use_emoji = False
+    main(n, use_emoji)

@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -385,4 +385,73 @@ func TestModifyAppConfigPatches(t *testing.T) {
 
 	assert.Equal(t, "Acme", storedConfig.OrgInfo.OrgName)
 	assert.Equal(t, "http://someurl", storedConfig.ServerSettings.ServerURL)
+}
+
+func TestService_EmailConfig(t *testing.T) {
+	type fields struct {
+		config config.FleetConfig
+	}
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *fleet.EmailConfig
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "configuring the ses email backend should return ses configurations",
+			fields: fields{
+				config: testSESPluginConfig(),
+			},
+			args: args{
+				ctx: test.UserContext(context.Background(), test.UserAdmin),
+			},
+			want: &fleet.EmailConfig{
+				Backend: "ses",
+				Config: fleet.SESConfig{
+					Region:    "us-east-1",
+					SourceARN: "qux",
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "no configured email backend should return nil",
+			fields: fields{
+				config: config.TestConfig(),
+			},
+			args: args{
+				ctx: test.UserContext(context.Background(), test.UserAdmin),
+			},
+			want:    nil,
+			wantErr: assert.NoError,
+		},
+		{
+			name: "accessing without roles should return forbidden",
+			fields: fields{
+				config: testSESPluginConfig(),
+			},
+			args: args{
+				ctx: test.UserContext(context.Background(), test.UserNoRoles),
+			},
+			want: nil,
+			wantErr: func(tt assert.TestingT, err error, i ...interface{}) bool {
+				return assert.EqualError(tt, err, "forbidden")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, _ := newTestServiceWithConfig(t, ds, tt.fields.config, nil, nil)
+			got, err := svc.EmailConfig(tt.args.ctx)
+			if !tt.wantErr(t, err, fmt.Sprintf("EmailConfig(%v)", tt.args.ctx)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "EmailConfig(%v)", tt.args.ctx)
+		})
+	}
 }

@@ -180,6 +180,11 @@ module.exports = {
           if(host.mdm.enrollment_status === 'On (automatic)' || host.mdm.enrollment_status === 'On (manual)'){
             macOsHostToSyncWithVanta.isManaged = true;
           }
+          // If this host's MDM status is pending (MDM is not yet fully turned on for this host), then it doesn't have comprehensive vitals nor a complete host details page thus we'll exclude it from the hosts we sync with Vanta.
+          // More info about pending hosts: https://github.com/fleetdm/fleet/blob/3cc7c971c2c24e28d06323c329475ae32e9a8198/docs/Using-Fleet/MDM-setup.md#pending-hosts
+          if(host.mdm.enrollment_status === 'Pending') {
+            return;
+          }
         }
 
         // Send a request to this host's API endpoint to get the required information about this host.
@@ -334,7 +339,9 @@ module.exports = {
           'authorization': 'Bearer '+updatedRecord.vantaAuthToken,
           'content-type': 'application/json',
         },
-      }).tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
+      })
+      .retry()
+      .tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/user_account/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
       });
 
@@ -358,7 +365,9 @@ module.exports = {
           'authorization': 'Bearer '+updatedRecord.vantaAuthToken,
           'content-type': 'application/json',
         },
-      }).tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
+      })
+      .retry()
+      .tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
       });
 
@@ -382,7 +391,9 @@ module.exports = {
           'authorization': 'Bearer '+updatedRecord.vantaAuthToken,
           'content-type': 'application/json',
         },
-      }).tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
+      })
+      .retry()
+      .tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
       });
 

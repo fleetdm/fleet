@@ -1,10 +1,12 @@
 .custom-link {
+  display: inline-flex;
+  align-items: center;
+  gap: $pad-xsmall;
+
   &__no-wrap {
     white-space: nowrap;
-  }
-
-  &__external-icon {
-    display: inline;
-    margin-left: $pad-xsmall;
+    .icon {
+      padding-left: 6px;
+    }
   }
 }

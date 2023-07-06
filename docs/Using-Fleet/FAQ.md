@@ -232,44 +232,35 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 ## How do I downgrade from Fleet Premium to Fleet Free?
 
-If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
+> If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
 
-How to downgrade from Fleet Premium to Fleet Free:
+**Back up your users and update all team-level users to global users**
 
-First, back up your users and update all team-level users to global users:
-
-1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so
-   that, if you choose to upgrade later, you can restore user roles.
+1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that, if you choose to upgrade later, you can restore user roles.
 2. Head to the **Settings > Users** page in the Fleet UI.
-3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**,
-   then select
-   **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
+3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**, then select **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
 
-Next, move all team-level scheduled queries to the global level:
+**Move all team-level scheduled queries to the global level**
+
 1. Head to the **Schedule** page in the Fleet UI.
-2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select
-   **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select
-   query** field, choose the frequency, and select **Schedule**.
-3. Delete each scheduled query that belongs to a team because they will no longer run on any hosts
-   following the downgrade process.
+2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select query** field, choose the frequency, and select **Schedule**.
+3. Delete each scheduled query that belongs to a team because they will no longer run on any hosts following the downgrade process.
 
-Next, move all team level policies to the global level:
+**Move all team level policies to the global level**
+
 1. Head to the **Policies** page in the Fleet UI.
-2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**,
-  and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select
-  **create your own policy**, paste each item in the appropriate field, and select **Save**.
-3. Delete each policy that belongs to a team because they will no longer run on any hosts
-following the downgrade process.
+2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**, and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select **create your own policy**, paste each item in the appropriate field, and select **Save**.
+3. Delete each policy that belongs to a team because they will no longer run on any hosts following the downgrade process.
 
-Next, back up your teams:
-1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so
-that, if you choose to upgrade later, you can restore teams.
+**Back up your teams**
+
+1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so that, if you choose to upgrade later, you can restore teams.
 2. Head to the **Settings > Teams** page in the Fleet UI.
 3. Delete all teams. This will move all hosts to the global level.
 
-Lastly, remove your Fleet Premium license key:
-1. Remove your license key from your Fleet configuration. Documentation on where the license key is
-   located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
+**Remove your Fleet Premium license key**
+
+1. Remove your license key from your Fleet configuration. Documentation on where the license key is located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
 2. Restart your Fleet server.
 
 ## If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
@@ -324,7 +315,7 @@ Changes were introduced in Fleet v4.20.0 that caused the `features.additional_qu
 There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validation in some versions of Fleet when using the `created_at` and `updated_at` columns as `order_key` along with an `after` filter. Adding `h.` to the column in `order_key` will return your results.
 
 ```
-{{host}}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
+{host}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
 
 ```
 ## What can I do if Fleet is slow or unresponsive after enabling a feature?
@@ -332,14 +323,6 @@ There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validati
 Depending on your infrastructure capabilities, and the number of hosts enrolled into your Fleet instance, Fleet might be slow or unresponsive after globally enabling a feature like [software inventory](https://fleetdm.com/docs/deploying/configuration#software-inventory).
 
 In those cases, we recommend a slow rollout by partially enabling the feature by teams using the `features` key of the [teams configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
-   
-## How can I renew my Apple Business Manager server token?
-
-> This feature is currently in development and is not ready for production use.
-
-If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password changed.
-
-When that happens, the token is rejected by Apple and must be renewed. The detailed steps are documented in the Apple documentation link above - in short, the Apple Business Manager Administrator or Content Manager must sign in to their account and download a new server token for the Fleet MDM server, and all Fleet instances must be restarted with that new token provided instead of the old one (see the [MDM configuration documentation](https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm) for details on how to do that).
 
 ## Why am I getting errors when generating a .msi package on my M1 Mac?
 
@@ -357,3 +340,6 @@ In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn o
 When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-the-osquery-agent) with the end user.
 
 To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. To turn MDM on, share [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#instructions-for-end-users) with the end user. Turning MDM back on for a host requires end user action.
+
+## What does "package root files: heat failed" mean?
+We've found this error when you try to build an MSI on Docker 4.17. The underlying issue has been fixed in Docker 4.18, so we recommend upgrading. More information [here](https://github.com/fleetdm/fleet/issues/10700)

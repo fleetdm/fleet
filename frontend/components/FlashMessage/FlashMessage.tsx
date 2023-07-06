@@ -3,12 +3,11 @@ import classnames from "classnames";
 
 import { INotification } from "interfaces/notification";
 // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
+import Icon from "components/Icon/Icon";
 import Button from "components/buttons/Button";
 
 import CloseIcon from "../../../assets/images/icon-close-white-16x16@2x.png";
 import CloseIconBlack from "../../../assets/images/icon-close-fleet-black-16x16@2x.png";
-import ErrorIcon from "../../../assets/images/icon-error-white-16x16@2x.png";
 
 const baseClass = "flash-message";
 
@@ -71,11 +70,10 @@ const FlashMessage = ({
   return (
     <div className={baseClasses} id={baseClasses}>
       <div className={`${baseClass}__content`}>
-        {alertType === "success" ? (
-          <FleetIcon name="success-check" />
-        ) : (
-          <img alt="error icon" src={ErrorIcon} />
-        )}
+        <Icon
+          name={alertType === "success" ? "success" : "error"}
+          color="core-fleet-white"
+        />
         <span>{message}</span>
         {onUndoActionClick && undoAction && (
           <Button

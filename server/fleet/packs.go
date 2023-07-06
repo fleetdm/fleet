@@ -169,13 +169,6 @@ type PackSpecQuery struct {
 	Denylist    *bool   `json:"denylist,omitempty"`
 }
 
-// PackTarget targets a pack to a host, label, or team.
-type PackTarget struct {
-	ID     uint `db:"id" json:"-"`
-	PackID uint `db:"pack_id" json:"-"`
-	Target
-}
-
 type PackStats struct {
 	PackID   uint   `json:"pack_id"`
 	PackName string `json:"pack_name"`

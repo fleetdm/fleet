@@ -1,6 +1,6 @@
 # Fleet 3.8.0
 
-![Fleet 3.8.0](../website/assets/images/articles/fleet-3.8.0-cover-960x600@2x.jpg)
+![Fleet 3.8.0](../website/assets/images/articles/fleet-3.8.0-cover-1600x900@2x.jpg)
 
 We’re excited to announce the release of Fleet 3.8.0 which includes big improvements to the navigation experience on the Hosts page, a new logging plugin for AWS Lambda, and more!
 

@@ -5,9 +5,7 @@
 
       <div class="text-center">
         <h1 class="pt-5">Fleet documentation</h1>
-        <p class="mb-2">Welcome to the documentation for Fleet, the lightweight telemetry platform for servers and workstations.</p>
-        <!-- <p class="mb-0"><strong>v4.0.1 </strong><a href="https://github.com/fleetdm/fleet/releases">changelog</a></p> -->
-        <!-- TODO automatically display latest release version or come up with some other way to present this that doesn't rely on knowing the version number -->
+        <p class="mb-2">Welcome to the documentation for Fleet, the lightweight management platform for laptops and servers.</p>
       </div>
 
       <div purpose="search" class="d-flex p-0 mt-5">
@@ -24,31 +22,8 @@
           </div>
         </div>
       </div>
+      <p purpose="support-link">Can't find what you're looking for? <a href="/support">Support</a></p>
 
-      <div purpose="cta-cards">
-        <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 pt-4 mt-3">
-          <div class="container-fluid d-flex flex-column flex-md-row justify-content-center align-items-center py-3 m-0 mr-sm-1 cta-card" @click="clickCTA('/install')">
-            <img class="cta-image" alt="Install Fleet" src="/images/install-fleet-140x72@2x.png"/>
-            <div class="text-center text-md-left cta-text">
-              <p class="font-weight-bold p-0 pl-md-4 pt-2 pt-md-0 m-0">Install osquery and Fleet</p>
-              <a class="p-0 pl-md-4 pt-2 pt-md-0 arrow" href="/install">
-                Get started
-                <img class="d-inline mb-1" style="height: 16px; width: auto;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
-              </a>
-            </div>
-          </div>
-          <div class="container-fluid d-flex flex-column flex-md-row justify-content-center align-items-center py-3 m-0 ml-sm-1 mt-3 mt-sm-0 cta-card" @click="clickCTA('slack')">
-            <img class="cta-image" alt="Fleet support" src="/images/fleet-support-140x72@2x.png"/>
-            <div class="text-center text-md-left cta-text">
-              <p class="font-weight-bold p-0 pl-md-4 pt-2 pt-md-0 m-0">Can't find what you need?</p>
-              <a class="p-0 pl-md-4 pt-2 pt-md-0 arrow">
-                Support
-                <img class="d-inline mb-1" style="height: 16px; width: auto;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div purpose="docs-tree">
         <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 px-4">
@@ -109,10 +84,10 @@
           <div class="d-flex flex-column d-lg-none p-0 m-0 justify-content-start align-items-center">
             <button purpose="docs-nav-button" class="btn btn-block d-flex align-items-center docs-nav-button" type="button" @click="toggleDocsNav">
               <span class="pr-2 m-0">Docs</span>
-              <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+              <img class="my-auto" style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
               <span class="font-weight-bold px-2 m-0">{{thisPage.title}}</span>
-              <img style="width: 6px; height: 9px;" class="ml-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showDocsNav"/>
-              <img style="width: 9px; height: 6px;" class="ml-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
+              <img style="width: 6px; height: 9px;" class="ml-auto my-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showDocsNav"/>
+              <img style="width: 9px; height: 6px;" class="ml-auto my-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
             </button>
           </div>
           <div class="border-bottom" v-if="!showDocsNav"></div>
@@ -167,7 +142,7 @@
           <a href="/support" class="btn btn-block btn-sm btn-primary">Support</a>
           <div purpose="right-sidebar-buttons">
             <div class="d-none d-lg-block" purpose="demo-cta">
-              <a class="d-flex align-items-center justify-content-center" href="https://calendly.com/fleetdm/demo?utm_source=docs+demo" target="_blank">
+              <a class="d-flex align-items-center justify-content-center" @click="clickOpenChatWidget()">
                 <div class="d-flex flex-column align-items-center">
                 <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="Target and configure specific devices" src="/images/docs-cta-icon-47x38@2x.png">
                   <p class="mb-2 text-center">Target and configure specific devices</p>
@@ -246,14 +221,14 @@
           <div class="d-block" purpose="slack-cta">
             <h3 class="pt-0" style="font-size: 24px; line-height: 28px;">Need more help?</h3>
             <div class="d-sm-flex">
-              <a href="/slack" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
+              <a href="/support" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
                 <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
                 Ask the community on Slack
               </a>
             </div>
           </div>
-          <div class="d-block">
-            <h3 class="pt-0 pb-4 m-0">Did we miss anything?</h3>
+          <div class="d-block" purpose="improve-docs">
+            <h3 class="pt-0 pb-4 m-0" style="font-size: 24px; line-height: 28px;">Did we miss anything?</h3>
             <p>
               If you notice something we've missed or could be improved on, please follow <a :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank">this link</a> and submit a pull request to the Fleet repo.
             </p>
@@ -265,6 +240,11 @@
 
     </div>
 
+    <div purpose="back-to-top-button-container">
+      <div purpose="back-to-top-button" nohightlight @click="clickScrollToTop">
+        <p class="mb-0"><img alt="An arrow pointing up" class="d-inline" src="/images/icon-arrow-up-12x13@2x.png">Back to top</p>
+      </div>
+    </div>
   </div>
 
 </div>

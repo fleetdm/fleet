@@ -16,8 +16,27 @@ export default PropTypes.shape({
   teams: PropTypes.arrayOf(teamInterface),
 });
 
-export const USERS_ROLES = ["admin", "maintainer", "observer"] as const;
+export const USERS_ROLES = [
+  "admin",
+  "maintainer",
+  "observer",
+  "observer_plus",
+] as const;
 export type IUserRole = typeof USERS_ROLES[number];
+export type UserRole =
+  | "admin"
+  | "maintainer"
+  | "observer"
+  | "observer_plus"
+  | "gitops"
+  | "Admin"
+  | "Maintainer"
+  | "Observer"
+  | "Observer+"
+  | "GitOps"
+  | "Unassigned"
+  | ""
+  | "Various";
 
 export interface IUser {
   created_at?: string;
@@ -25,12 +44,12 @@ export interface IUser {
   id: number;
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
   force_password_reset: boolean;
   gravatar_url?: string;
   gravatar_url_dark?: string;
   sso_enabled: boolean;
-  global_role: string | null;
+  global_role: UserRole | null;
   api_only: boolean;
   teams: ITeam[];
 }
@@ -39,11 +58,13 @@ export interface IUser {
  * The shape of the request body when updating a user.
  */
 export interface IUserUpdateBody {
-  global_role?: string | null;
+  global_role?: UserRole | null;
   teams?: ITeam[];
-  name?: string;
+  name: string;
   email?: string;
   sso_enabled?: boolean;
+  role?: UserRole;
+  id: number;
 }
 
 export interface IUserFormErrors {
@@ -55,7 +76,7 @@ export interface IUserFormErrors {
 
 export interface ICreateUserFormData {
   email: string;
-  global_role: string | null;
+  global_role: UserRole | null;
   name: string;
   password?: string | null;
   sso_enabled?: boolean | undefined;
@@ -65,7 +86,7 @@ export interface ICreateUserFormData {
 export interface IUpdateUserFormData {
   currentUserId?: number;
   email?: string;
-  global_role?: string | null;
+  global_role?: UserRole | null;
   name?: string;
   password?: string | null;
   sso_enabled?: boolean;

@@ -9,7 +9,7 @@
         <p>Automate security workflows in a single application by creating or installing policies to identify which devices comply with your security guidelines.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
           <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try Fleet today</a>
-          <a href="https://calendly.com/fleetdm/demo?utm_source=compliance+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
+          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>  
     </div>
@@ -20,7 +20,7 @@
 
     <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
       <div class="d-flex flex-column">
-        <h3>Out-the-box CIS benchmark policies</h3>
+        <h3>Out-of-the-box CIS benchmark policies</h3>
         <p>All organizations deal with compliance requirements. With Center for Internet Security (CIS) compliance policies in Fleet,  cybersecurity best practices are at your fingertips.</p>
         <div purpose="checklist" class="flex-column d-flex">
           <p>Out of the box policies for Mac, Windows, and Linux.</p>
@@ -28,14 +28,14 @@
           <p>Identify which devices are failing the most so you can prioritize your work.</p>
         </div>
       </div>
-      <div purpose="feature-image" class="mx-md-5">
-        <img alt="Compliance feature image" src="/images/compliance-feature-image-1.svg">
+      <div purpose="feature-image" class="ml-md-5">
+        <img alt="Compliance feature image" src="/images/compliance-feature-image-1-360x323@2x.png">
       </div>
     </div>
 
     <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-      <div purpose="feature-image" class="mx-md-5">
-        <img alt="Compliance feature image" src="/images/compliance-feature-image-2.svg">
+      <div purpose="feature-image" class="mr-md-5">
+        <img alt="Compliance feature image" src="/images/compliance-feature-image-2-320x237@2x.png">
       </div>
       <div class="d-flex flex-column">
         <h3>Verify SOC2, NIST compliance</h3>
@@ -58,41 +58,46 @@
           <p>Encourage end-user self-remediation with Fleet Desktop.</p>
         </div>
       </div>
-      <div purpose="feature-image" class="mx-md-5">
-        <img alt="Comliance feature image" src="/images/compliance-feature-image-3.svg">
+      <div purpose="large-feature-image" class="ml-md-5">
+        <img alt="Comliance feature image" src="/images/compliance-feature-image-3-398x250@2x.png">
       </div>
     </div>
 
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
       <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try Fleet today</a>
-      <a href="https://calendly.com/fleetdm/demo?utm_source=compliance+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
+      <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
     </div>
 
   </div>
-
-  <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
-    <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-center">
-      <h4>Don’t know osquery?</h4>
-      <h2>Dedicated support from osquery experts</h2>
-
-      <p>Osquery is the open-source agent that powers Fleet. And we have the most osquery experts around. We’ll help you realize the potential of this tool for your organization.</p>
+  <%/* End of page gradient */%>
+  <div purpose="bottom-gradient">
+    <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
+      <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-center">
+        <h4>Don’t know osquery?</h4>
+        <h2>Dedicated support from osquery experts</h2>
+        <p>Osquery is the open-source agent that powers Fleet. And we have the most osquery experts around. We’ll help you realize the potential of this tool for your organization.</p>
+      </div>
     </div>
-  </div>
 
-  <div style="background-color: #F9FAFC;">
     <scrollable-tweets></scrollable-tweets>
-  </div>
+    <div purpose="page-container" class="pb-0 container">
 
-  <div purpose="tweets-container" class="container-fluid px-md-0 d-flex pt-0 flex-column justify-content-center">
-    <div purpose="logos" class="d-flex flex-wrap justify-content-center align-items-center">
-      <img alt="The Snowflake logo" purpose="snowflake-logo" src="/images/logo-snowflake-muted-151x30@2x.png">
-      <img alt="The Wayfair logo" purpose="wayfair-logo" src="/images/logo-wayfair-muted-150x33@2x.png">
-      <img alt="The Uber logo" purpose="uber-logo" src="/images/logo-uber-muted-84x29@2x.png">
-      <img alt="The Atlassian logo" purpose="atlassian-logo" src="/images/logo-atlassian-muted-172x22@2x.png">
-      <img alt="The Twilio Segment logo" purpose="segment-logo" src="/images/logo-segment-muted-150x34@2x.png">
+      <div purpose="bottom-cta" class="text-center">
+        <h4>Open-source device management</h4>
+        <h1>Lighter than air</h1>
+        <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
+          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+        </div>
+      </div>
     </div>
+    <%/* Cloud city banner */%>
   </div>
-
+  <div class="d-flex flex-column" purpose="bottom-cloud-city-banner">
+    <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-lg-flex" src="/images/homepage-cloud-city-banner-lg-1600x375@2x.png">
+    <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md-990x375@2x.png">
+    <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
+  </div>
 </div>
 
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

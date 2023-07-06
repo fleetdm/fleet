@@ -5,8 +5,9 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import CustomLink from "components/CustomLink";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IInvite } from "interfaces/invite";
-import { IUser } from "interfaces/user";
+import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -53,7 +54,7 @@ export interface IUserTableData {
   status: string;
   email: string;
   teams: string;
-  role: string;
+  role: UserRole;
   actions: IDropdownOption[];
   id: number;
   type: string;
@@ -126,12 +127,42 @@ const generateTableHeaders = (
       Header: "Role",
       accessor: "role",
       disableSortBy: true,
-      Cell: (cellProps: ICellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          greyed={greyCell(cellProps.cell.value)}
-        />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        if (cellProps.cell.value === "GitOps") {
+          return (
+            <TooltipWrapper
+              position="top"
+              tipContent={`
+            The GitOps role is only available on the command-line<br/>
+            when creating an API-only user. This user has no<br/>
+            access to the UI.
+          `}
+            >
+              GitOps
+            </TooltipWrapper>
+          );
+        }
+        if (cellProps.cell.value === "Observer+") {
+          return (
+            <TooltipWrapper
+              position="top"
+              tipContent={`
+            Users with the Observer+ role have access to all of<br/>
+            the same functions as an Observer, with the added<br/>
+            ability to run any live query against all hosts. 
+          `}
+            >
+              {cellProps.cell.value}
+            </TooltipWrapper>
+          );
+        }
+        return (
+          <TextCell
+            value={cellProps.cell.value}
+            greyed={greyCell(cellProps.cell.value)}
+          />
+        );
+      },
     },
     {
       title: "Status",
@@ -227,6 +258,14 @@ const generateActionDropdownOptions = (
       value: "delete",
     },
   ];
+
+  if (isCurrentUser) {
+    // remove "Reset sessions" from dropdownOptions
+    dropdownOptions = dropdownOptions.filter(
+      (option) => option.label !== "Reset sessions"
+    );
+  }
+
   if (isSsoEnabled) {
     // remove "Require password reset" from dropdownOptions
     dropdownOptions = dropdownOptions.filter(

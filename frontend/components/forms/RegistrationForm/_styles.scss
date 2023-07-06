@@ -40,19 +40,19 @@
     &--org {
       left: calc(100% + 220px);
       top: unquote("max(56%, 480px)");
-      opacity: 0;
+      display: none;
     }
 
     &--fleet {
       left: calc(150% + 220px);
       top: unquote("max(56%, 480px)");
-      opacity: 0;
+      display: none;
     }
 
     &--confirmation {
       left: calc(200% + 220px);
       top: unquote("max(56%, 480px)");
-      opacity: 0;
+      display: none;
     }
 
     &--complete {
@@ -79,69 +79,69 @@
     &--step1-complete {
       .user-registration__container--admin {
         left: -600px;
-        opacity: 0;
+        display: none;
       }
 
       .user-registration__container--org {
         left: 0;
         margin: auto;
-        opacity: 1;
+        display: block;
       }
 
       .user-registration__container--fleet {
         left: calc(100% + 220px);
-        opacity: 0;
+        display: none;
       }
 
       .user-registration__container--confirmation {
         left: calc(150% + 220px);
-        opacity: 0;
+        display: none;
       }
     }
 
     &--step2-complete {
       .user-registration__container--admin {
         left: calc(-50% - 600px);
-        opacity: 0;
+        display: none;
       }
 
       .user-registration__container--org {
         left: -600px;
-        opacity: 0;
+        display: none;
       }
 
       .user-registration__container--fleet {
         left: 0;
         margin: auto;
-        opacity: 1;
+        display: block;
       }
 
       .user-registration__container--confirmation {
         left: calc(100% + 220px);
-        opacity: 0;
+        display: none;
       }
     }
 
     &--step3-complete {
       .user-registration__container--admin {
         left: calc(-100% - 600px);
-        opacity: 0;
+        display: none;
       }
 
       .user-registration__container--org {
         left: calc(-50% - 600px);
-        opacity: 0;
+        display: none;
       }
 
       .user-registration__container--fleet {
         left: -600px;
-        opacity: 0;
+        display: none;
       }
 
       .user-registration__container--confirmation {
         left: 0;
         margin: auto;
-        opacity: 1;
+        display: block;
       }
     }
 

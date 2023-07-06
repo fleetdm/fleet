@@ -7,7 +7,10 @@ go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 
 # Compliance
-/ee/cis/ @sharon-fdm @artemist-work @lucasmrod @marcosd4h @rachelElysia
+/ee/cis/ @sharon-fdm @lucasmrod @marcosd4h @rachelElysia
+
+# MDM
+/ee/tools/puppet @roperzh @gillespi314 @mna @georgekarrv
 
 # React engineers are automatically added as reviewers when changes are made to react files
 /frontend/ @fleetdm/frontend
@@ -25,19 +28,19 @@ go.mod @fleetdm/go
 /CODEOWNERS @mikermcneil
 
 # Changelog
-/CHANGELOG.md @noahtalerman
+/CHANGELOG.md @spokanemac
 
 # Fleet documentation (who is auto-requested as reviewer for changes to docs?)
-/docs/ @ksatter
+/docs/ @rachaelshaw
 
 # REST API reference documentation
-/docs/Using-Fleet/REST-API.md @ksatter @lukeheath
-/docs/Contributing/API-for-contributors.md @ksatter @lukeheath
+/docs/Using-Fleet/REST-API.md @rachaelshaw
+/docs/Contributing/API-for-contributors.md @rachaelshaw
 
 # Standard query library YAML
 /docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @zwass
 
-# Exapnded table documentation
+# Expanded table documentation
 /schema @eashaw
 
 # Articles
@@ -53,6 +56,7 @@ go.mod @fleetdm/go
 # - Mo is DRI for features table
 # - Eric is DRI for website frontend code
 /website/views/pages/pricing.ejs @mikermcneil
+/handbook/product/pricing-features-table.yml @mikermcneil
 
 # Website redirects and URLs
 /website/config/routes.js @mikermcneil @eashaw

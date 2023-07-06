@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, getDefaultNormalizer } from "@testing-library/react";
 
 import createMockActivity from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
@@ -419,5 +419,354 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
+  it("renders a 'changed_macos_setup_assistant' type activity for no team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.ChangedMacOSSetupAssistant,
+      details: { name: "dep-profile.json" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts that automatically enroll to no team."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'changed_macos_setup_assistant' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.ChangedMacOSSetupAssistant,
+      details: { name: "dep-profile.json", team_name: "Workstations" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> team."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_macos_setup_assistant' type activity for no team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedMacOSSetupAssistant,
+      details: { name: "dep-profile.json" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts that automatically enroll to no team."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_macos_setup_assistant' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedMacOSSetupAssistant,
+      details: { name: "dep-profile.json", team_name: "Workstations" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> team."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'added_bootstrap_package' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedBootstrapPackage,
+      details: { bootstrap_package_name: "foo.pkg", team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("added a bootstrap package (", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(") for macOS hosts that automatically enroll to the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("automatically enroll to no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'deleted_bootstrap_package' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedBootstrapPackage,
+      details: { bootstrap_package_name: "foo.pkg", team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted a bootstrap package (", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(") for macOS hosts that automatically enroll to the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("automatically enroll to no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'added_bootstrap_package' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedBootstrapPackage,
+      details: { bootstrap_package_name: "foo.pkg" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("added a bootstrap package (", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        ") for macOS hosts that automatically enroll to no team.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_bootstrap_package' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedBootstrapPackage,
+      details: { bootstrap_package_name: "foo.pkg" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted a bootstrap package (", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        ") for macOS hosts that automatically enroll to no team.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'enabled_macos_setup_end_user_auth' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledMacOSSetupEndUserAuth,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "required end user authentication for macOS hosts that automatically enroll to",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'enabled_macos_setup_end_user_auth' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledMacOSSetupEndUserAuth,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "required end user authentication for macOS hosts that automatically enroll to no team.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'disabled_macos_setup_end_user_auth' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacOSSetupEndUserAuth,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed end user authentication requirement for macOS hosts that automatically enroll to",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'disabled_macos_setup_end_user_auth' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacOSSetupEndUserAuth,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed end user authentication requirement for macOS hosts that automatically enroll to no team.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for one host transferred to no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1],
+        host_display_names: ["foo"],
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred host", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("no team", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for one host transferred to a team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1],
+        host_display_names: ["foo"],
+        team_name: "Alphas",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred host", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1, 2, 3],
+        host_display_names: ["foo", "bar", "baz"],
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred 3 hosts", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("foo")).toBeNull();
+    expect(screen.queryByText("bar")).toBeNull();
+    expect(screen.queryByText("baz")).toBeNull();
+    expect(screen.getByText("no team", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to a team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1, 2, 3],
+        host_display_names: ["foo", "bar", "baz"],
+        team_name: "Alphas",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred 3 hosts", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("foo")).toBeNull();
+    expect(screen.queryByText("bar")).toBeNull();
+    expect(screen.queryByText("baz")).toBeNull();
+    expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for apple if mdm_platform is not provided", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        host_serial: "ABCD",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (manual)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for apple with all details provided", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        host_serial: "ABCD",
+        installed_from_dep: true,
+        mdm_platform: "apple",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (automatic)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type activity for windows hosts.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        mdm_platform: "microsoft",
+        host_display_name: "ABCD",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        console.log(node?.innerHTML);
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b>Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
+        );
+      })
+    ).toBeInTheDocument();
   });
 });

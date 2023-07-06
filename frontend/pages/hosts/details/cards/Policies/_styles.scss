@@ -30,12 +30,13 @@
           }
 
           .policy-link {
-            visibility: hidden;
+            opacity: 0;
+            transition: 250ms;
             text-overflow: none;
           }
           &:hover {
             .policy-link {
-              visibility: visible;
+              opacity: 1;
             }
           }
           .policy-info {

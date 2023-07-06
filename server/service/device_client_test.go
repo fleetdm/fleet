@@ -29,7 +29,7 @@ func (m *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 func TestDeviceClientGetDesktopPayload(t *testing.T) {
-	client, err := NewDeviceClient("https://test.com", true, "")
+	client, err := NewDeviceClient("https://test.com", true, "", nil, "")
 	token := "test_token"
 	require.NoError(t, err)
 
@@ -38,23 +38,34 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 
 	t.Run("with wrong license", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusPaymentRequired
-		_, err = client.NumberOfFailingPolicies(token)
+		_, err = client.DesktopSummary(token)
 		require.ErrorIs(t, err, ErrMissingLicense)
 	})
 
 	t.Run("with no failing policies", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusOK
 		mockRequestDoer.resBody = `{}`
-		result, err := client.NumberOfFailingPolicies(token)
+		result, err := client.DesktopSummary(token)
 		require.NoError(t, err)
-		require.Equal(t, uint(0), result)
+		require.EqualValues(t, 0, *result.FailingPolicies)
+		require.False(t, result.Notifications.NeedsMDMMigration)
 	})
 
 	t.Run("with failing policies", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusOK
 		mockRequestDoer.resBody = `{"failing_policies_count": 1}`
-		result, err := client.NumberOfFailingPolicies(token)
+		result, err := client.DesktopSummary(token)
 		require.NoError(t, err)
-		require.Equal(t, uint(1), result)
+		require.EqualValues(t, 1, *result.FailingPolicies)
+		require.False(t, result.Notifications.NeedsMDMMigration)
+	})
+
+	t.Run("with flag to enable MDM migration", func(t *testing.T) {
+		mockRequestDoer.statusCode = http.StatusOK
+		mockRequestDoer.resBody = `{"failing_policies_count": 15, "notifications": {"needs_mdm_migration": true}}`
+		result, err := client.DesktopSummary(token)
+		require.NoError(t, err)
+		require.EqualValues(t, 15, *result.FailingPolicies)
+		require.True(t, result.Notifications.NeedsMDMMigration)
 	})
 }

@@ -16,6 +16,7 @@
       display: inline-flex;
       flex-direction: column;
       align-items: center;
+      line-height: 19px; // Fix shifty bold text
 
       &:focus {
         box-shadow: none;

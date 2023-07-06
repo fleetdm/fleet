@@ -21,6 +21,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.
 | [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.
 | [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure.
+| [Website](#website-group)                               | Make the website wonderful.
 
 
 ### MDM group
@@ -31,16 +32,18 @@ The goal of the MDM group is to reach [product maturity](https://drive.google.co
 |:----------------------------------|:--------------------------|
 | Designer                          | Marko Lisica
 | Engineering manager               | George Karr
-| Quality assurance                 | Reed Haynes
+| Quality assurance                 | Reed Haynes, Sabrina Coy
 | Product manager                   | Noah Talerman
-| Software engineers (developers)   | Gabe Hernandez, Martin Angers*, Roberto Dip, Sarah Gillespie
+| Software engineers (developers)   | Gabe Hernandez, Martin Angers*, Roberto Dip, Sarah Gillespie, Marcos Oviedo
 
 > The Slack channel, kanban release board, and label for this product group is `#g-mdm`.
 
 
 ### Customer experience group
 
-The goal of the customer experience (CX) group is to make customers happier and more successful.  This includes simpler deployments, more successful customer onboarding, features that drive more win-win meetings with Fleet's sales team (such as initiatives like out-of-the-box CIS compliance for customers), and "whole product solutions", including professional services, design partnerships, and training.
+The goal of the customer experience (CX) group is to make users and customers happier and more successful.  This includes simpler usage, more successful customer onboarding, features that drive more win-win meetings with contributors and Fleet's sales team (such as initiatives like out-of-the-box CIS compliance for customers), and "whole product solutions", including professional services, design partnerships, and training.
+
+> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [website group](https://fleetdm.com/handbook/company/development-groups#website-group)._
 
 
 | Responsibility                    | Human(s)                  |
@@ -49,7 +52,7 @@ The goal of the customer experience (CX) group is to make customers happier and 
 | Engineering manager               | Sharon Katz
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Zay Hanlon
-| Software engineers (developers)   | Artemis Tosini, Jacob Shandling, Juan Fernandez*, Lucas Rodriguez, Rachel Perkins, Marcos Oviedo, Eric Shaw _(fleetdm.com specialty)_
+| Software engineers (developers)   | Jacob Shandling, Juan Fernandez*, Lucas Rodriguez, Rachel Perkins, Eric Shaw
 
 > The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
@@ -64,6 +67,24 @@ The goal of the infrastructure group is to provide and support reliable and secu
 | Infrastructure engineers          | Robert Fairburn, Zach Winnerman
 
 > The Slack channel, kanban release board, and label for this product group is `#g-infra`.
+
+
+### Website group
+
+The goal of the website group is to make visitors on Fleet's website get what they want and what they need.  This includes making the website more navigable, more beautiful, simpler, and easier to understand.
+
+> _**Note:** If a user story involves **both** changes to the core product **and** to fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by the [CX group](https://fleetdm.com/handbook/company/development-groups#customer-experience-group)._
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Designer                          | Michael Thomas
+| Engineering manager               | Mike McNeil
+| Quality assurance                 | Michael Thomas
+| Product manager                   | Michael Thomas
+| Software engineers (developers)   | Eric Shaw
+
+> The Slack channel, kanban release board, and label for this product group is `#g-website`.
+
 
 ## Making changes
 
@@ -98,7 +119,7 @@ A user story is considered ready for implementation once:
 - [ ] User story [issue created](https://github.com/fleetdm/fleet/issues/new/choose)
 - [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-cx`, `#g-mdm`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
-- [ ] [Designs revised and approved](https://fleetdm.com/handbook/business-operations/ceo-handbook#calendar-audit)
+- [ ] [Designs revised and approved](#design-reviews)
 - [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
 - [ ] [Scheduled](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) for development
 
@@ -112,7 +133,7 @@ Good user stories are short, with clear, unambiguous language.
 #### Is it actually a story?
 User stories are small and independently valuable.
 - Is it small enough? Will this task be likely to fit in 1 sprint when estimated?
-- Is it valuable enough? Will this task drive business value when released, indepenent of other tasks?
+- Is it valuable enough? Will this task drive business value when released, independent of other tasks?
 
 
 #### Defining "done"
@@ -155,6 +176,18 @@ Here are some examples of questions that might be helpful to answer:
 These questions are helpful for the product team when considering what to prioritize.  (The act of writing the answers is a lot of the value!)  But these answers can also be helpful when users or contributors (including our future selves) have questions about how best to estimate, iterate, or refine.
 
 
+#### Design reviews
+
+Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/business-operations/ceo-handbook#calendar-audit).
+
+The product designer prepares proposed changes in the form of wireframes for this meeting, and presents them quickly.  Here are some tips for making this meeting effective:
+- Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
+- Say the user story out loud to remind participants of what it is.
+- Avoid explaining or showing multiple ways it could work.  Show the one way you think it should work and let your work speak for itself.
+- For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
+- Zoom in.
+
+
 ### Implementing
 
 #### Developing from wireframes
@@ -179,6 +212,13 @@ Sub-tasks:
 - are NOT the best place to post GitHub comments (instead, concentrate conversation in the top-level "user story" issue)
 - will NOT be looked at or QA'd by quality assurance
 
+#### API changes
+
+> DRI: Rachael Shaw
+
+To maintain consistency, ensure perspective, and provide a single pair of eyes in the design of Fleet's REST API and API documentation, there is a single Directly Responsible Individual (DRI). The API design DRI will review and approve any alterations at the pull request stage, instead of making it a prerequisite during drafting of the story. You may tag the DRI in a GitHub issue with draft API specs in place to receive a review and feedback prior to implementation. Receiving a pre-review from the DRI is encouraged if the API changes introduce new endpoints, or substantially change existing endpoints. 
+
+No API changes are merged without accompanying API documentation and approval from the DRI. The DRI is responsible for ensuring that the API design remains consistent and adequately addresses both standard and edge-case scenarios. The DRI is also the code owner of the API documentation Markdown file. The DRI is committed to reviewing PRs within one business day. In instances where the DRI is unavailable, the Head of Product will act as the substitute code owner and reviewer.
 
 #### Development best practices
 - Remember the user.  What would you do if you saw that error message? [🔴](https://fleetdm.com/handbook/company#empathy)

@@ -49,21 +49,21 @@ jobs:
           rm certificate.p12
 
       - name: Set up Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+        uses: actions/setup-go@v4.0.1
         with:
           go-version: ${{ vars.GO_VERSION }}
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@v1.9.2 release --debug --rm-dist --skip-publish -f orbit/goreleaser-macos.yml
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
 
       - name: Upload
-        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
         with:
           name: orbit-macos
           path: dist
@@ -83,7 +83,7 @@ jobs:
         run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Set up Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+        uses: actions/setup-go@v4.0.1
         with:
           go-version: ${{ vars.GO_VERSION }}
 
@@ -91,7 +91,7 @@ jobs:
         run: go run github.com/goreleaser/goreleaser@v1.9.2 release --debug --rm-dist --skip-publish -f orbit/goreleaser-linux.yml
 
       - name: Upload
-        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
         with:
           name: orbit-linux
           path: dist
@@ -111,7 +111,7 @@ jobs:
         run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Set up Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+        uses: actions/setup-go@v4.0.1
         with:
           go-version: ${{ vars.GO_VERSION }}
 
@@ -119,7 +119,7 @@ jobs:
         run: go run github.com/goreleaser/goreleaser@v1.9.2 release --debug --rm-dist --skip-publish -f orbit/goreleaser-windows.yml
 
       - name: Upload
-        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
         with:
           name: orbit-windows
           path: dist

@@ -91,7 +91,7 @@ func testPasswordResetTokenExpiration(t *testing.T, ds *Datastore) {
 
 		stmt := `INSERT INTO password_reset_requests ( user_id, token, expires_at)
 			VALUES (?,?, ?)`
-		res, err := ds.writer.ExecContext(ctx, stmt, req.UserID, req.Token, req.ExpiresAt)
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, req.UserID, req.Token, req.ExpiresAt)
 		require.NoError(t, err)
 
 		id, _ := res.LastInsertId()
@@ -107,7 +107,7 @@ func testPasswordResetTokenExpiration(t *testing.T, ds *Datastore) {
 			assert.Equal(t, req.ID, found.ID)
 			assert.Equal(t, req.UserID, found.UserID)
 			assert.Equal(t, req.Token, found.Token)
-			assert.Equal(t, req.ExpiresAt.Round(time.Minute), found.ExpiresAt.Round(time.Minute))
+			assert.WithinDuration(t, req.ExpiresAt.Truncate(time.Minute), found.ExpiresAt.Truncate(time.Minute), time.Minute)
 		}
 	}
 }
@@ -118,15 +118,15 @@ func testCleanupExpiredPasswordResetRequests(t *testing.T, ds *Datastore) {
 	stmt := `INSERT INTO password_reset_requests ( user_id, token, expires_at)
 			VALUES (?,?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? HOUR))`
 
-	_, err := ds.writer.ExecContext(ctx, stmt, uint(1), "now", 0)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, uint(1), "now", 0)
 	require.NoError(t, err)
-	_, err = ds.writer.ExecContext(ctx, stmt, uint(1), "tomorrow", 24)
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, uint(1), "tomorrow", 24)
 	require.NoError(t, err)
-	_, err = ds.writer.ExecContext(ctx, stmt, uint(1), "yesterday", -24)
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, uint(1), "yesterday", -24)
 	require.NoError(t, err)
 
 	var res1 []fleet.PasswordResetRequest
-	err = ds.writer.SelectContext(ctx, &res1, `SELECT * FROM password_reset_requests`)
+	err = ds.writer(ctx).SelectContext(ctx, &res1, `SELECT * FROM password_reset_requests`)
 	require.NoError(t, err)
 	require.Len(t, res1, 3)
 
@@ -134,7 +134,7 @@ func testCleanupExpiredPasswordResetRequests(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	var res2 []fleet.PasswordResetRequest
-	err = ds.writer.SelectContext(ctx, &res2, `SELECT * FROM password_reset_requests`)
+	err = ds.writer(ctx).SelectContext(ctx, &res2, `SELECT * FROM password_reset_requests`)
 	require.NoError(t, err)
 	require.Len(t, res2, 1)
 	require.Equal(t, "tomorrow", res2[0].Token)

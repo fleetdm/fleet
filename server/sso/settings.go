@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	dsigtypes "github.com/russellhaering/goxmldsig/types"
 )
 
@@ -56,8 +57,28 @@ type Settings struct {
 	OriginalURL                 string
 }
 
-// ParseMetadata writes metadata xml to a struct
-func ParseMetadata(metadata string) (*Metadata, error) {
+func GetMetadata(config *fleet.SSOProviderSettings) (*Metadata, error) {
+	if config.MetadataURL != "" {
+		metadata, err := getMetadata(config.MetadataURL)
+		if err != nil {
+			return nil, err
+		}
+		return metadata, nil
+	}
+
+	if config.Metadata != "" {
+		metadata, err := parseMetadata(config.Metadata)
+		if err != nil {
+			return nil, err
+		}
+		return metadata, nil
+	}
+
+	return nil, fmt.Errorf("missing metadata for idp %s", config.IDPName)
+}
+
+// parseMetadata writes metadata xml to a struct
+func parseMetadata(metadata string) (*Metadata, error) {
 	var md Metadata
 	err := xml.Unmarshal([]byte(metadata), &md)
 	if err != nil {
@@ -66,11 +87,11 @@ func ParseMetadata(metadata string) (*Metadata, error) {
 	return &md, nil
 }
 
-// GetMetadata retrieves information describing how to interact with a particular
+// getMetadata retrieves information describing how to interact with a particular
 // IDP via a remote URL. metadataURL is the location where the metadata is located
 // and timeout defines how long to wait to get a response form the metadata
 // server.
-func GetMetadata(metadataURL string) (*Metadata, error) {
+func getMetadata(metadataURL string) (*Metadata, error) {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
 	request, err := http.NewRequest(http.MethodGet, metadataURL, nil)
 	if err != nil {

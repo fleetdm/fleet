@@ -55,13 +55,14 @@
           }
 
           .munki-issue-link {
-            visibility: hidden;
+            opacity: 0;
+            transition: 250ms;
             text-overflow: none;
           }
 
           &:hover {
             .munki-issue-link {
-              visibility: visible;
+              opacity: 1;
             }
           }
         }

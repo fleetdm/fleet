@@ -21,6 +21,9 @@ enum ACTIONS {
   SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
   SET_NO_SANDBOX_HOSTS = "SET_NO_SANDBOX_HOSTS",
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
+  SET_FILTERED_SOFTWARE_PATH = "SET_FILTERED_SOFTWARE_PATH",
+  SET_FILTERED_QUERIES_PATH = "SET_FILTERED_QUERIES_PATH",
+  SET_FILTERED_POLICIES_PATH = "SET_FILTERED_POLICIES_PATH",
 }
 
 interface ISetAvailableTeamsAction {
@@ -62,6 +65,20 @@ interface ISetFilteredHostsPathAction {
   filteredHostsPath: string;
 }
 
+interface ISetFilteredSoftwarePathAction {
+  type: ACTIONS.SET_FILTERED_SOFTWARE_PATH;
+  filteredSoftwarePath: string;
+}
+
+interface ISetFilteredQueriesPathAction {
+  type: ACTIONS.SET_FILTERED_QUERIES_PATH;
+  filteredQueriesPath: string;
+}
+
+interface ISetFilteredPoliciesPathAction {
+  type: ACTIONS.SET_FILTERED_POLICIES_PATH;
+  filteredPoliciesPath: string;
+}
 type IAction =
   | ISetAvailableTeamsAction
   | ISetConfigAction
@@ -70,7 +87,10 @@ type IAction =
   | ISetEnrollSecretAction
   | ISetSandboxExpiryAction
   | ISetNoSandboxHostsAction
-  | ISetFilteredHostsPathAction;
+  | ISetFilteredHostsPathAction
+  | ISetFilteredSoftwarePathAction
+  | ISetFilteredQueriesPathAction
+  | ISetFilteredPoliciesPathAction;
 
 type Props = {
   children: ReactNode;
@@ -91,6 +111,7 @@ type InitialStateType = {
   isGlobalMaintainer?: boolean;
   isGlobalObserver?: boolean;
   isOnGlobalTeam?: boolean;
+  isAnyTeamObserverPlus?: boolean;
   isAnyTeamMaintainer?: boolean;
   isAnyTeamMaintainerOrTeamAdmin?: boolean;
   isTeamObserver?: boolean;
@@ -99,10 +120,14 @@ type InitialStateType = {
   isAnyTeamAdmin?: boolean;
   isTeamAdmin?: boolean;
   isOnlyObserver?: boolean;
+  isObserverPlus?: boolean;
   isNoAccess?: boolean;
   sandboxExpiry?: string;
   noSandboxHosts?: boolean;
   filteredHostsPath?: string;
+  filteredSoftwarePath?: string;
+  filteredQueriesPath?: string;
+  filteredPoliciesPath?: string;
   setAvailableTeams: (
     user: IUser | null,
     availableTeams: ITeamSummary[]
@@ -114,6 +139,9 @@ type InitialStateType = {
   setSandboxExpiry: (sandboxExpiry: string) => void;
   setNoSandboxHosts: (noSandboxHosts: boolean) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
+  setFilteredSoftwarePath: (filteredSoftwarePath: string) => void;
+  setFilteredQueriesPath: (filteredQueriesPath: string) => void;
+  setFilteredPoliciesPath: (filteredPoliciesPath: string) => void;
 };
 
 export type IAppContext = InitialStateType;
@@ -133,6 +161,7 @@ export const initialState = {
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
   isOnGlobalTeam: undefined,
+  isAnyTeamObserverPlus: undefined,
   isAnyTeamMaintainer: undefined,
   isAnyTeamMaintainerOrTeamAdmin: undefined,
   isTeamObserver: undefined,
@@ -141,8 +170,12 @@ export const initialState = {
   isAnyTeamAdmin: undefined,
   isTeamAdmin: undefined,
   isOnlyObserver: undefined,
+  isObserverPlus: undefined,
   isNoAccess: undefined,
   filteredHostsPath: undefined,
+  filteredSoftwarePath: undefined,
+  filteredQueriesPath: undefined,
+  filteredPoliciesPath: undefined,
   setAvailableTeams: () => null,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
@@ -151,6 +184,9 @@ export const initialState = {
   setSandboxExpiry: () => null,
   setNoSandboxHosts: () => null,
   setFilteredHostsPath: () => null,
+  setFilteredSoftwarePath: () => null,
+  setFilteredQueriesPath: () => null,
+  setFilteredPoliciesPath: () => null,
 };
 
 const detectPreview = () => {
@@ -181,6 +217,7 @@ const setPermissions = (
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
     isOnGlobalTeam: permissions.isOnGlobalTeam(user),
+    isAnyTeamObserverPlus: permissions.isAnyTeamObserverPlus(user),
     isAnyTeamMaintainer: permissions.isAnyTeamMaintainer(user),
     isAnyTeamMaintainerOrTeamAdmin: permissions.isAnyTeamMaintainerOrTeamAdmin(
       user
@@ -194,6 +231,7 @@ const setPermissions = (
       teamId
     ),
     isOnlyObserver: permissions.isOnlyObserver(user),
+    isObserverPlus: permissions.isObserverPlus(user, teamId),
     isNoAccess: permissions.isNoAccess(user),
   };
 };
@@ -279,6 +317,28 @@ const reducer = (state: InitialStateType, action: IAction) => {
         filteredHostsPath,
       };
     }
+    case ACTIONS.SET_FILTERED_SOFTWARE_PATH: {
+      const { filteredSoftwarePath } = action;
+      return {
+        ...state,
+        filteredSoftwarePath,
+      };
+    }
+    case ACTIONS.SET_FILTERED_QUERIES_PATH: {
+      const { filteredQueriesPath } = action;
+      return {
+        ...state,
+        filteredQueriesPath,
+      };
+    }
+    case ACTIONS.SET_FILTERED_POLICIES_PATH: {
+      const { filteredPoliciesPath } = action;
+      // TODO: if policies page is updated to support team_id=0, remove the replace below
+      return {
+        ...state,
+        filteredPoliciesPath: filteredPoliciesPath.replace("team_id=0", ""),
+      };
+    }
     default:
       return state;
   }
@@ -298,6 +358,9 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     sandboxExpiry: state.sandboxExpiry,
     noSandboxHosts: state.noSandboxHosts,
     filteredHostsPath: state.filteredHostsPath,
+    filteredSoftwarePath: state.filteredSoftwarePath,
+    filteredQueriesPath: state.filteredQueriesPath,
+    filteredPoliciesPath: state.filteredPoliciesPath,
     isPreviewMode: detectPreview(),
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
@@ -307,6 +370,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isGlobalMaintainer: state.isGlobalMaintainer,
     isGlobalObserver: state.isGlobalObserver,
     isOnGlobalTeam: state.isOnGlobalTeam,
+    isAnyTeamObserverPlus: state.isAnyTeamObserverPlus,
     isAnyTeamMaintainer: state.isAnyTeamMaintainer,
     isAnyTeamMaintainerOrTeamAdmin: state.isAnyTeamMaintainerOrTeamAdmin,
     isTeamObserver: state.isTeamObserver,
@@ -315,6 +379,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isTeamMaintainerOrTeamAdmin: state.isTeamMaintainer,
     isAnyTeamAdmin: state.isAnyTeamAdmin,
     isOnlyObserver: state.isOnlyObserver,
+    isObserverPlus: state.isObserverPlus,
     isNoAccess: state.isNoAccess,
     setAvailableTeams: (user: IUser | null, availableTeams: ITeamSummary[]) => {
       dispatch({
@@ -346,6 +411,24 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     },
     setFilteredHostsPath: (filteredHostsPath: string) => {
       dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
+    },
+    setFilteredSoftwarePath: (filteredSoftwarePath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_SOFTWARE_PATH,
+        filteredSoftwarePath,
+      });
+    },
+    setFilteredQueriesPath: (filteredQueriesPath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_QUERIES_PATH,
+        filteredQueriesPath,
+      });
+    },
+    setFilteredPoliciesPath: (filteredPoliciesPath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_POLICIES_PATH,
+        filteredPoliciesPath,
+      });
     },
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

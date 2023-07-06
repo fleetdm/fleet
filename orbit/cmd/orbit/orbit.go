@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -69,14 +70,24 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:    "fleet-certificate",
-			Usage:   "Path to server certificate chain",
+			Usage:   "Path to the Fleet server certificate chain",
 			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
+		},
+		&cli.StringFlag{
+			Name:    "fleet-desktop-alternative-browser-host",
+			Usage:   "Alternative host:port to use for Fleet Desktop in the browser (this may be required when using TLS client authentication in the Fleet server)",
+			EnvVars: []string{"ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST"},
 		},
 		&cli.StringFlag{
 			Name:    "update-url",
 			Usage:   "URL for update server",
 			Value:   "https://tuf.fleetctl.com",
 			EnvVars: []string{"ORBIT_UPDATE_URL"},
+		},
+		&cli.StringFlag{
+			Name:    "update-tls-certificate",
+			Usage:   "Path to the update server TLS certificate chain",
+			EnvVars: []string{"ORBIT_UPDATE_TLS_CERTIFICATE"},
 		},
 		&cli.StringFlag{
 			Name:    "enroll-secret",
@@ -140,10 +151,22 @@ func main() {
 			Usage:   "Launch Fleet Desktop application (flag currently only used on darwin)",
 			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
 		},
+		// Note: this flag doesn't have any effect anymore. I'm keeping
+		// it just for backwards compatibility since some users were
+		// using it because softwareupdated was causing problems and I
+		// don't want to break their setups.
+		//
+		// For more context please check out: https://github.com/fleetdm/fleet/issues/11777
 		&cli.BoolFlag{
 			Name:    "disable-kickstart-softwareupdated",
-			Usage:   "Disable periodic execution of 'launchctl kickstart -k softwareupdated' on macOS",
+			Usage:   "(Deprecated) Disable periodic execution of 'launchctl kickstart -k softwareupdated' on macOS",
 			EnvVars: []string{"ORBIT_FLEET_DISABLE_KICKSTART_SOFTWAREUPDATED"},
+			Hidden:  true,
+		},
+		&cli.BoolFlag{
+			Name:    "use-system-configuration",
+			Usage:   "Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)",
+			EnvVars: []string{"ORBIT_USE_SYSTEM_CONFIGURATION"},
 			Hidden:  true,
 		},
 	}
@@ -208,6 +231,10 @@ func main() {
 			return errors.New("insecure and fleet-certificate may not be specified together")
 		}
 
+		if c.Bool("insecure") && c.String("update-tls-certificate") != "" {
+			return errors.New("insecure and update-tls-certificate may not be specified together")
+		}
+
 		if c.String("enroll-secret-path") != "" {
 			if c.String("enroll-secret") != "" {
 				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
@@ -223,34 +250,48 @@ func main() {
 			}
 		}
 
-		// if neither are set, this might be an agent deployed via MDM, try to read
-		// both configs from a configuration profile
-		if c.String("fleet-url") == "" && c.String("enroll-secret") == "" {
-			config, err := profiles.GetFleetdConfig()
-			switch {
-			// handle these errors separately as debug messages to not raise false
-			// alarms when users look into the orbit logs, it's perfectly normal to
-			// not have a configuration profile, or to get into this situation in
-			// operating systems that don't have profile support.
-			case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
-				log.Debug().Msgf("reading configuration profile: %v", err)
-			case err != nil:
-				log.Error().Err(err).Msg("reading configuration profile")
-			case config.EnrollSecret == "" || config.FleetURL == "":
-				log.Debug().Msg("enroll secret or fleet url are empty in configuration profile, not setting either")
-			default:
-				log.Info().Msg("setting enroll-secret and fleet-url configs from configuration profile")
-				if err := c.Set("enroll-secret", config.EnrollSecret); err != nil {
-					return fmt.Errorf("set enroll secret from configuration profile: %w", err)
-				}
-				if err := c.Set("fleet-url", config.FleetURL); err != nil {
-					return fmt.Errorf("set fleet URL from configuration profile: %w", err)
-				}
-			}
-		}
-
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize root dir: %w", err)
+		}
+
+		// if neither are set, this might be an agent deployed via MDM, try to read
+		// both configs from a configuration profile
+		if runtime.GOOS == "darwin" && c.Bool("use-system-configuration") {
+			log.Info().Msg("trying to read fleet-url and enroll-secret from a configuration profile")
+			for {
+				config, err := profiles.GetFleetdConfig()
+				switch {
+				// handle these errors separately as debug messages to not raise false
+				// alarms when users look into the orbit logs, it's perfectly normal to
+				// not have a configuration profile, or to get into this situation in
+				// operating systems that don't have profile support.
+				case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
+					log.Debug().Msgf("reading configuration profile: %v", err)
+				case err != nil:
+					log.Error().Err(err).Msg("reading configuration profile")
+				case config.EnrollSecret == "" || config.FleetURL == "":
+					log.Debug().Msg("enroll secret or fleet url are empty in configuration profile, not setting either")
+				default:
+					log.Info().Msg("setting enroll-secret and fleet-url configs from configuration profile")
+					if err := c.Set("enroll-secret", config.EnrollSecret); err != nil {
+						return fmt.Errorf("set enroll secret from configuration profile: %w", err)
+					}
+					if err := c.Set("fleet-url", config.FleetURL); err != nil {
+						return fmt.Errorf("set fleet URL from configuration profile: %w", err)
+					}
+					if err := writeSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
+						return fmt.Errorf("write enroll secret: %w", err)
+					}
+				}
+
+				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
+					log.Info().Msg("found configuration values in system profile")
+					break
+				}
+
+				log.Info().Msg("didn't find configuration values in system profile, trying again in 30 seconds")
+				time.Sleep(30 * time.Second)
+			}
 		}
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
@@ -283,6 +324,7 @@ func main() {
 		opt.ServerURL = c.String("update-url")
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
+		opt.ServerCertificatePath = c.String("update-tls-certificate")
 
 		var (
 			osquerydPath string
@@ -299,13 +341,19 @@ func main() {
 		g.Add(systemChecker.Execute, systemChecker.Interrupt)
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
-		// periodically run launchctl kickstart -k softwareupdated on macOS
-		if runtime.GOOS == "darwin" && !c.Bool("disable-kickstart-softwareupdated") {
-			const softwareUpdatedKickstartInterval = 12 * time.Hour
-			updatedRunner := update.NewSoftwareUpdatedRunner(update.SoftwareUpdatedOptions{
-				Interval: softwareUpdatedKickstartInterval,
-			})
-			g.Add(updatedRunner.Execute, updatedRunner.Interrupt)
+		if !c.Bool("disable-kickstart-softwareupdated") {
+			log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
+		}
+
+		updateClientCrtPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientCertificateFileName)
+		updateClientKeyPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientKeyFileName)
+		updateClientCrt, err := certificate.LoadClientCertificateFromFiles(updateClientCrtPath, updateClientKeyPath)
+		if err != nil {
+			return fmt.Errorf("error loading update client certificate: %w", err)
+		}
+		if updateClientCrt != nil {
+			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to the update server.")
+			opt.ClientCertificate = &updateClientCrt.Crt
 		}
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
@@ -534,12 +582,30 @@ func main() {
 
 		}
 
+		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
+		fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
+		fleetClientCrt, err := certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+		if err != nil {
+			return fmt.Errorf("error loading fleet client certificate: %w", err)
+		}
+
+		var fleetClientCertificate *tls.Certificate
+		if fleetClientCrt != nil {
+			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to Fleet.")
+			fleetClientCertificate = &fleetClientCrt.Crt
+			options = append(options, osquery.WithFlags([]string{
+				"--tls_client_cert", fleetClientCertPath,
+				"--tls_client_key", fleetClientKeyPath,
+			}))
+		}
+
 		orbitClient, err := service.NewOrbitClient(
 			c.String("root-dir"),
 			fleetURL,
 			c.String("fleet-certificate"),
 			c.Bool("insecure"),
 			enrollSecret,
+			fleetClientCertificate,
 			orbitHostInfo,
 		)
 		if err != nil {
@@ -548,10 +614,14 @@ func main() {
 
 		// create the notifications middleware that wraps the orbit client
 		// (must be shared by all runners that use a ConfigFetcher).
-		const renewEnrollmentProfileCommandFrequency = time.Hour
+		const (
+			renewEnrollmentProfileCommandFrequency = time.Hour
+			windowsMDMEnrollmentCommandFrequency   = time.Hour
+		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency)
 
-		if runtime.GOOS == "darwin" {
+		switch runtime.GOOS {
+		case "darwin":
 			// add middleware to handle nudge installation and updates
 			const nudgeLaunchInterval = 30 * time.Minute
 			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
@@ -559,6 +629,9 @@ func main() {
 			})
 
 			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
+			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
+		case "windows":
+			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
@@ -640,7 +713,13 @@ func main() {
 				return fmt.Errorf("writing token: %w", err)
 			}
 
-			deviceClient, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
+			deviceClient, err := service.NewDeviceClient(
+				fleetURL,
+				c.Bool("insecure"),
+				c.String("fleet-certificate"),
+				fleetClientCertificate,
+				c.String("fleet-desktop-alternative-browser-host"),
+			)
 			if err != nil {
 				return fmt.Errorf("initializing client: %w", err)
 			}
@@ -748,6 +827,7 @@ func main() {
 			c.String("fleet-certificate"),
 			c.Bool("insecure"),
 			enrollSecret,
+			fleetClientCertificate,
 			orbitHostInfo,
 		)
 		if err != nil {
@@ -769,7 +849,25 @@ func main() {
 		)
 
 		if c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopPath, fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), trw)
+			var (
+				rawClientCrt []byte
+				rawClientKey []byte
+			)
+			if fleetClientCrt != nil {
+				rawClientCrt = fleetClientCrt.RawCrt
+				rawClientKey = fleetClientCrt.RawKey
+			}
+			desktopRunner := newDesktopRunner(
+				desktopPath,
+				fleetURL,
+				c.String("fleet-certificate"),
+				c.Bool("insecure"),
+				trw,
+				rawClientCrt,
+				rawClientKey,
+				c.String("fleet-desktop-alternative-browser-host"),
+				opt.RootDirectory,
+			)
 			g.Add(desktopRunner.actor())
 		}
 
@@ -802,25 +900,54 @@ func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt
 	g.Add(ext.Execute, ext.Interrupt)
 }
 
+// desktopRunner runs the Fleet Desktop application.
 type desktopRunner struct {
-	desktopPath   string
-	fleetURL      string
-	trw           *token.ReadWriter
-	fleetRootCA   string
-	insecure      bool
-	interruptCh   chan struct{} // closed when interrupt is triggered
-	executeDoneCh chan struct{} // closed when execute returns
+	// desktopPath is the path to the desktop executable.
+	desktopPath string
+	updateRoot  string
+	// fleetURL is the URL of the Fleet server.
+	fleetURL string
+	// trw is the Fleet Desktop token reader and writer (implements token rotation).
+	trw *token.ReadWriter
+	// fleetRootCA is the path to a certificate to use for server TLS verification.
+	fleetRootCA string
+	// insecure disables all TLS verification.
+	insecure bool
+	// fleetClientCrt is the raw TLS client certificate (in PEM format)
+	// to use for authenticating to the Fleet server.
+	fleetClientCrt []byte
+	// fleetClientKey is the raw TLS client private key (in PEM format)
+	// to use for authenticating to the Fleet server.
+	fleetClientKey []byte
+	// fleetAlternativeBrowserHost is an alternative host:port to use for
+	// the browser URLs in Fleet Desktop.
+	fleetAlternativeBrowserHost string
+	// interruptCh is closed when interrupt is triggered.
+	interruptCh chan struct{} //
+	// executeDoneCh is closed when execute returns.
+	executeDoneCh chan struct{}
 }
 
-func newDesktopRunner(desktopPath, fleetURL, fleetRootCA string, insecure bool, trw *token.ReadWriter) *desktopRunner {
+func newDesktopRunner(
+	desktopPath, fleetURL, fleetRootCA string,
+	insecure bool,
+	trw *token.ReadWriter,
+	fleetClientCrt []byte, fleetClientKey []byte,
+	fleetAlternativeBrowserHost string,
+	updateRoot string,
+) *desktopRunner {
 	return &desktopRunner{
-		desktopPath:   desktopPath,
-		fleetURL:      fleetURL,
-		trw:           trw,
-		fleetRootCA:   fleetRootCA,
-		insecure:      insecure,
-		interruptCh:   make(chan struct{}),
-		executeDoneCh: make(chan struct{}),
+		desktopPath:                 desktopPath,
+		updateRoot:                  updateRoot,
+		fleetURL:                    fleetURL,
+		trw:                         trw,
+		fleetRootCA:                 fleetRootCA,
+		insecure:                    insecure,
+		fleetClientCrt:              fleetClientCrt,
+		fleetClientKey:              fleetClientKey,
+		fleetAlternativeBrowserHost: fleetAlternativeBrowserHost,
+		interruptCh:                 make(chan struct{}),
+		executeDoneCh:               make(chan struct{}),
 	}
 }
 
@@ -861,9 +988,16 @@ func (d *desktopRunner) execute() error {
 	opts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.trw.Path),
+
 		// TODO(roperzh): this env var is keept only for backwards compatibility,
 		// we should remove it once we think is safe
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", deviceURL.String()),
+
+		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(d.fleetClientCrt)),
+		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(d.fleetClientKey)),
+
+		execuser.WithEnv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST", d.fleetAlternativeBrowserHost),
+		execuser.WithEnv("FLEET_DESKTOP_TUF_UPDATE_ROOT", d.updateRoot),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
@@ -1127,4 +1261,24 @@ func (f *capabilitiesChecker) interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
 	close(f.interruptCh) // Signal execute to return.
 	<-f.executeDoneCh    // Wait for execute to return.
+}
+
+// writeSecret writes the orbit enroll secret to the designated file. We do
+// this at runtime for packages that are using --use-system-config, since they
+// don't contain a secret file in their payload.
+//
+// This implementation is very similar to the one in orbit/pkg/packaging but
+// intentionally kept separate to prevent issues since the writes happen at two
+// completely different circumstances.
+func writeSecret(enrollSecret string, orbitRoot string) error {
+	path := filepath.Join(orbitRoot, constant.OsqueryEnrollSecretFileName)
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+
+	if err := os.WriteFile(path, []byte(enrollSecret), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
 }

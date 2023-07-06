@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -52,6 +54,13 @@ func TestTeamAuth(t *testing.T) {
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{}, nil
+	}
+	ds.CleanupDiskEncryptionKeysOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+		return nil
+	}
+
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		switch name {
 		case "team1":
@@ -179,7 +188,7 @@ func TestTeamAuth(t *testing.T) {
 			_, err = svc.ModifyTeamEnrollSecrets(ctx, 1, []fleet.EnrollSecret{{Secret: "newteamsecret", CreatedAt: time.Now()}})
 			checkAuthErr(t, tt.shouldFailTeamSecretsWrite, err)
 
-			err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1"}}, fleet.ApplySpecOptions{})
+			_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1"}}, fleet.ApplySpecOptions{})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 		})
 	}
@@ -273,7 +282,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return nil
 				}
 
-				err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
+				_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
 				require.NoError(t, err)
 			})
 		}
@@ -341,11 +350,11 @@ func TestApplyTeamSpecs(t *testing.T) {
 		for _, tt := range cases {
 			t.Run(tt.name, func(t *testing.T) {
 				ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-					return &fleet.Team{Config: fleet.TeamConfig{Features: tt.old}}, nil
+					return &fleet.Team{ID: 123, Config: fleet.TeamConfig{Features: tt.old}}, nil
 				}
 
 				ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-					return &fleet.Team{}, nil
+					return &fleet.Team{ID: 123}, nil
 				}
 
 				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -354,9 +363,31 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return nil
 				}
 
-				err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
+				idsByTeam, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
 				require.NoError(t, err)
+				require.Len(t, idsByTeam, 1)
+				require.Equal(t, uint(123), idsByTeam["team1"])
 			})
 		}
 	})
+}
+
+// TestApplyTeamSpecsErrorInTeamByName tests that an error in ds.TeamByName will
+// result in a proper error returned (instead of the authorization check missing error).
+func TestApplyTeamSpecsErrorInTeamByName(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, errors.New("unknown error")
+	}
+	authzctx := &authz_ctx.AuthorizationContext{}
+	ctx = authz_ctx.NewContext(ctx, authzctx)
+	_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "Foo"}}, fleet.ApplySpecOptions{})
+	require.Error(t, err)
+	az, ok := authz_ctx.FromContext(ctx)
+	require.True(t, ok)
+	require.True(t, az.Checked())
 }

@@ -28,8 +28,9 @@ variable "fleet_license" {}
 variable "fleet_image" {
   default = "160035666661.dkr.ecr.us-east-2.amazonaws.com/fleet:1f68e7a5e39339d763da26a0c8ae3e459b2e1f016538d7962312310493381f7c"
 }
-variable "fleet_sentry_dsn" {
-}
+variable "fleet_sentry_dsn" {}
+variable "elastic_url" {}
+variable "elastic_token" {}
 
 data "aws_caller_identity" "current" {}
 
@@ -40,9 +41,14 @@ locals {
     FLEET_LICENSE_KEY                          = var.fleet_license
     FLEET_LOGGING_DEBUG                        = "true"
     FLEET_LOGGING_JSON                         = "true"
+    FLEET_LOGGING_TRACING_ENABLED              = "true"
+    FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
+    ELASTIC_APM_SERVER_URL                     = var.elastic_url
+    ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
+    ELASTIC_APM_SERVICE_NAME                   = "dogfood"
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
@@ -50,7 +56,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=main"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.1.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -67,6 +73,12 @@ module "main" {
   }
   redis_config = {
     name = local.customer
+    log_delivery_configuration = [{
+      destination      = "dogfood-redis-logs"
+      destination_type = "cloudwatch-logs"
+      log_format       = "json"
+      log_type         = "engine-log"
+    }]
   }
   ecs_cluster = {
     cluster_name = local.customer
@@ -75,7 +87,8 @@ module "main" {
     image  = local.fleet_image
     family = local.customer
     awslogs = {
-      name = local.customer
+      name      = local.customer
+      retention = 365
     }
     iam = {
       role = {
@@ -87,9 +100,9 @@ module "main" {
         policy_name = "${local.customer}-iam-policy-execution"
       }
     }
-    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies)
+    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
     extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn])
-    extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, local.extra_environment_variables)
+    extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, module.ses.fleet_extra_environment_variables, local.extra_environment_variables)
     extra_secrets                = merge(module.mdm.extra_secrets, local.sentry_secrets)
   }
   alb_config = {
@@ -99,24 +112,6 @@ module "main" {
       prefix  = local.customer
       enabled = true
     }
-    allowed_cidrs = [
-      "128.0.0.0/1",
-      "64.0.0.0/2",
-      "0.0.0.0/3",
-      "48.0.0.0/4",
-      "40.0.0.0/5",
-      "36.0.0.0/6",
-      "32.0.0.0/7",
-      "34.0.0.0/9",
-      "34.128.0.0/10",
-      "34.224.0.0/11",
-      "34.192.0.0/12",
-      "34.208.0.0/13",
-      "34.216.0.0/14",
-      "34.220.0.0/15",
-      "34.222.0.0/16",
-      "35.0.0.0/8",
-    ]
   }
 }
 
@@ -172,7 +167,7 @@ data "aws_iam_policy_document" "sentry" {
 }
 
 module "migrations" {
-  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=main"
+  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v1.0.0"
   ecs_cluster              = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.main.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.main.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -181,7 +176,7 @@ module "migrations" {
 }
 
 module "mdm" {
-  source             = "github.com/fleetdm/fleet//terraform/addons/mdm?ref=main"
+  source             = "github.com/fleetdm/fleet//terraform/addons/mdm?ref=tf-mod-addon-mdm-v1.1.0"
   public_domain_name = "dogfood.fleetdm.com"
   apn_secret_name    = "${local.customer}-apn"
   scep_secret_name   = "${local.customer}-scep"
@@ -189,7 +184,7 @@ module "mdm" {
 }
 
 module "firehose-logging" {
-  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=main"
+  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.0.0"
   osquery_results_s3_bucket = {
     name = "${local.customer}-osquery-results-archive"
   }
@@ -199,14 +194,14 @@ module "firehose-logging" {
 }
 
 module "osquery-carve" {
-  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=main"
+  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.0.0"
   osquery_carve_s3_bucket = {
     name = "${local.customer}-osquery-carve"
   }
 }
 
 module "monitoring" {
-  source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=main"
+  source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.0.0"
   customer_prefix             = local.customer
   fleet_ecs_service_name      = module.main.byo-vpc.byo-db.byo-ecs.service.name
   fleet_min_containers        = module.main.byo-vpc.byo-db.byo-ecs.service.desired_count
@@ -224,7 +219,7 @@ module "monitoring" {
 }
 
 module "logging_alb" {
-  source        = "github.com/fleetdm/fleet//terraform/addons/logging-alb?ref=main"
+  source        = "github.com/fleetdm/fleet//terraform/addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.0.0"
   prefix        = local.customer
   enable_athena = true
 }
@@ -288,4 +283,16 @@ module "notify_slack" {
   slack_webhook_url = var.slack_webhook
   slack_channel     = "#help-p1"
   slack_username    = "monitoring"
+}
+
+module "ses" {
+  source  = "github.com/fleetdm/fleet//terraform/addons/ses?ref=tf-mod-addon-ses-v1.0.0"
+  zone_id = aws_route53_zone.main.zone_id
+  domain  = "dogfood.fleetdm.com"
+}
+
+module "waf" {
+  source = "github.com/fleetdm/fleet//terraform/addons/waf-alb?ref=tf-mod-addon-waf-alb-v1.0.0"
+  name   = local.customer
+  lb_arn = module.main.byo-vpc.byo-db.alb.lb_arn
 }

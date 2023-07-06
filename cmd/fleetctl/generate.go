@@ -8,6 +8,14 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const (
+	apnsKeyPath         = "fleet-mdm-apple-apns.key"
+	scepCACertPath      = "fleet-mdm-apple-scep.crt"
+	scepCAKeyPath       = "fleet-mdm-apple-scep.key"
+	bmPublicKeyCertPath = "fleet-apple-mdm-bm-public-key.crt"
+	bmPrivateKeyPath    = "fleet-apple-mdm-bm-private.key"
+)
+
 func generateCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "generate",

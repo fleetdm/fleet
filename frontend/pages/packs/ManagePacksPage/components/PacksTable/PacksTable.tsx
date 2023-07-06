@@ -6,7 +6,7 @@ import Button from "components/buttons/Button";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
-import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
 
 const baseClass = "packs-table";
@@ -90,14 +90,14 @@ const PacksTable = ({
       onActionButtonClick: onEnablePackClick,
       buttonText: "Enable",
       variant: "text-icon",
-      icon: "check",
+      iconSvg: "check",
     },
     {
       name: "disable",
       onActionButtonClick: onDisablePackClick,
       buttonText: "Disable",
       variant: "text-icon",
-      icon: "disable",
+      iconSvg: "disable",
     },
   ];
   return (
@@ -115,10 +115,13 @@ const PacksTable = ({
         inputPlaceHolder="Search by name"
         searchable={packs && packs.length > 0}
         disablePagination
-        onPrimarySelectActionClick={onDeletePackClick}
-        primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="delete"
-        primarySelectActionButtonText={"Delete"}
+        primarySelectAction={{
+          name: "delete pack",
+          buttonText: "Delete",
+          iconSvg: "trash",
+          variant: "text-icon",
+          onActionButtonClick: onDeletePackClick,
+        }}
         secondarySelectActions={secondarySelectActions}
         emptyComponent={() =>
           EmptyTable({

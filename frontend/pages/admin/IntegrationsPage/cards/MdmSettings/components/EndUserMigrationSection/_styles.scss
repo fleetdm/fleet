@@ -1,0 +1,43 @@
+.end-user-migration-section {
+  font-size: $x-small;
+
+  &__abm-connect-message {
+    margin-top: 0;
+  }
+
+  &__migration-preview {
+    width: 100%;
+    margin-top: $pad-large;
+    margin-bottom: $pad-xxlarge;
+  }
+
+  &__enabled-slider {
+    margin-bottom: $pad-large;
+  }
+
+  &__mode-field {
+    margin-bottom: $pad-large;
+
+    > span {
+      margin-bottom: 12px;
+      display: block;
+    }
+  }
+
+  &__voluntary-radio {
+    margin-bottom: 12px;
+  }
+
+    &__forced-radio {
+      margin-bottom: $pad-large;
+    }
+
+  &__end-user-migration-form.disabled {
+    opacity: 0.4;
+  }
+
+  &__preview-button {
+    display: block;
+    margin-bottom: $pad-large;
+  }
+}

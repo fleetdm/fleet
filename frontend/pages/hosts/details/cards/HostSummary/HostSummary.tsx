@@ -1,36 +1,45 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
-import TooltipWrapper from "components/TooltipWrapper";
+import { IHostMacMdmProfile, BootstrapPackageStatus } from "interfaces/mdm";
+import getHostStatusTooltipText from "pages/hosts/helpers";
 
+import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
-import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
+import {
+  getHostDiskEncryptionTooltipMessage,
+  humanHostMemory,
+  wrapFleetHelper,
+} from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
-import { IMacSettings } from "interfaces/mdm";
-import getHostStatusTooltipText from "pages/hosts/helpers";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import MacSettingsIndicator from "./MacSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
+import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
 const baseClass = "host-summary";
 
-interface IHostDiskEncryptionProps {
-  enabled?: boolean;
-  tooltip?: string;
+interface IBootstrapPackageData {
+  status?: BootstrapPackageStatus | "";
+  details?: string;
 }
 
 interface IHostSummaryProps {
-  statusClassName: string;
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
-  diskEncryption?: IHostDiskEncryptionProps;
+  bootstrapPackageData?: IBootstrapPackageData;
+  diskEncryptionEnabled?: boolean;
   isPremiumTier?: boolean;
+  isSandboxMode?: boolean;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
-  hostMacSettings?: IMacSettings;
+  toggleBootstrapPackageModal?: () => void;
+  hostMdmProfiles?: IHostMacMdmProfile[];
   mdmName?: string;
   showRefetchSpinner: boolean;
   onRefetchHost: (
@@ -41,20 +50,24 @@ interface IHostSummaryProps {
 }
 
 const HostSummary = ({
-  statusClassName,
   titleData,
-  diskEncryption,
+  bootstrapPackageData,
+  diskEncryptionEnabled,
   isPremiumTier,
+  isSandboxMode = false,
   isOnlyObserver,
   toggleOSPolicyModal,
   toggleMacSettingsModal,
-  hostMacSettings,
+  toggleBootstrapPackageModal,
+  hostMdmProfiles,
   mdmName,
   showRefetchSpinner,
   onRefetchHost,
   renderActionButtons,
   deviceUser,
 }: IHostSummaryProps): JSX.Element => {
+  const { status, id, platform } = titleData;
+
   const renderRefetch = () => {
     const isOnline = titleData.status === "online";
 
@@ -68,14 +81,15 @@ const HostSummary = ({
         >
           <Button
             className={`
-              button
-              ${!isOnline ? "refetch-offline tooltip" : ""}
+            button
+            ${!isOnline ? "refetch-offline tooltip" : ""}
               ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
             disabled={!isOnline}
             onClick={onRefetchHost}
             variant="text-icon"
           >
+            <Icon name="refresh" color="core-fleet-blue" size="small" />
             {showRefetchSpinner
               ? "Fetching fresh vitals...this may take a moment"
               : "Refetch"}
@@ -97,7 +111,9 @@ const HostSummary = ({
 
   const renderIssues = () => (
     <div className="info-flex__item info-flex__item--title">
-      <span className="info-flex__header">Issues</span>
+      <span className="info-flex__header">
+        Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}
+      </span>
       <span className="info-flex__data">
         <span
           className="host-issue tooltip tooltip__tooltip-icon"
@@ -138,8 +154,32 @@ const HostSummary = ({
     </div>
   );
 
+  const renderDiskEncryptionSummary = () => {
+    // TODO: improve this typing, platforms!
+    if (!["darwin", "windows", "chrome"].includes(platform)) {
+      return <></>;
+    }
+    const tooltipMessage = getHostDiskEncryptionTooltipMessage(
+      platform,
+      diskEncryptionEnabled
+    );
+    let statusText;
+    if (platform === "chrome") {
+      statusText = "Always on";
+    } else {
+      statusText = diskEncryptionEnabled ? "On" : "Off";
+    }
+    return (
+      <div className="info-flex__item info-flex__item--title">
+        <span className="info-flex__header">Disk encryption</span>
+        <TooltipWrapper tipContent={tooltipMessage} position="bottom">
+          {statusText}
+        </TooltipWrapper>
+      </div>
+    );
+  };
+
   const renderSummary = () => {
-    const { status, id } = titleData;
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
@@ -154,50 +194,50 @@ const HostSummary = ({
           />
         </div>
 
-        {titleData.issues?.total_issues_count > 0 &&
+        {(titleData.issues?.total_issues_count > 0 || isSandboxMode) &&
           isPremiumTier &&
           renderIssues()}
 
         {isPremiumTier && renderHostTeam()}
 
-        {titleData.platform === "darwin" &&
+        {platform === "darwin" &&
           isPremiumTier &&
           mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
-          hostMacSettings && ( //  2 - host has at least one setting (profile) enforced
+          hostMdmProfiles &&
+          hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <HostSummaryIndicator title="macOS settings">
               <MacSettingsIndicator
-                profiles={hostMacSettings}
+                profiles={hostMdmProfiles}
                 onClick={toggleMacSettingsModal}
               />
             </HostSummaryIndicator>
           )}
 
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Disk space</span>
-          <DiskSpaceGraph
-            baseClass="info-flex"
-            gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
-            percentDiskSpaceAvailable={titleData.percent_disk_space_available}
-            id={`disk-space-tooltip-${titleData.id}`}
-            platform={titleData.platform}
-            tooltipPosition="bottom"
-          />
-        </div>
-
-        {typeof diskEncryption?.enabled === "boolean" &&
-        diskEncryption?.tooltip ? (
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">Disk encryption</span>
-            <TooltipWrapper
-              tipContent={diskEncryption.tooltip}
-              position="bottom"
-            >
-              {diskEncryption.enabled ? "On" : "Off"}
-            </TooltipWrapper>
-          </div>
-        ) : (
-          <></>
+        {bootstrapPackageData?.status && (
+          <HostSummaryIndicator title="Bootstrap package">
+            <BootstrapPackageIndicator
+              status={bootstrapPackageData.status}
+              onClick={toggleBootstrapPackageModal}
+            />
+          </HostSummaryIndicator>
         )}
+
+        {platform !== "chrome" && (
+          <div className="info-flex__item info-flex__item--title">
+            <span className="info-flex__header">Disk space</span>
+            <DiskSpaceGraph
+              baseClass="info-flex"
+              gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
+              percentDiskSpaceAvailable={titleData.percent_disk_space_available}
+              id={`disk-space-tooltip-${titleData.id}`}
+              platform={platform}
+              tooltipPosition="bottom"
+            />
+          </div>
+        )}
+
+        {renderDiskEncryptionSummary()}
+
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Memory</span>
           <span className="info-flex__data">
@@ -239,7 +279,7 @@ const HostSummary = ({
   );
 
   return (
-    <>
+    <div className={baseClass}>
       <div className="header title">
         <div className="title__inner">
           <div className="display-name-container">
@@ -261,7 +301,7 @@ const HostSummary = ({
       <div className="section title">
         <div className="title__inner">{renderSummary()}</div>
       </div>
-    </>
+    </div>
   );
 };
 

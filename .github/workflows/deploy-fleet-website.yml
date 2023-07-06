@@ -54,12 +54,9 @@ jobs:
 
     # Install the right version of Go for the Golang child process that we are currently using for CSR signing
     - name: Set up Go
-      uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: 1.19
-
-    # Download top-level dependencies and build Storybook in the website's assets/ folder
-    - run: npm install && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
 
     # Now start building!
     # > …but first, get a little crazy for a sec and delete the top-level package.json file
@@ -84,7 +81,7 @@ jobs:
     - run: cd website/ && npm test
 
     # Compile browser assets & markdown content into generated collateral
-    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.GITHUB_TOKEN }}" npm run build-for-prod
+    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_RELEASE_GITHUB_PAT }}" npm run build-for-prod
 
     # Build the go binary we use to sign APNS certificates in the website/.tools/ folder.
     - run: cd ee/tools/mdm/ && GOOS=linux GOARCH=amd64 go build -o ../../../website/.tools/mdm-gen-cert .

@@ -23,7 +23,7 @@ PKG_TUF_URL=http://localhost:8081 \
 GENERATE_PKG=1 \
 ENROLL_SECRET=<REPLACE WITH REAL SECRET KEY> \
 FLEET_DESKTOP=1 \
-FLEET_CERTIFICATE=1 \
+USE_FLEET_SERVER_CERTIFICATE=1 \
 ./tools/tuf/test/main.sh
 ```
 ### Get a real secret key

@@ -222,8 +222,13 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
-	// First make sure the user can read queries
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
+	query, err := svc.ds.Query(ctx, id)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, err
+	}
+
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -231,16 +236,6 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
 		})
-	}
-
-	query, err := svc.ds.Query(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Then we make sure they can modify them
-	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
-		return nil, err
 	}
 
 	if p.Name != nil {
@@ -303,17 +298,12 @@ func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
-	// First make sure the user can read queries
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
-		return err
-	}
-
 	query, err := svc.ds.QueryByName(ctx, name)
 	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return err
 	}
 
-	// Then we make sure they can modify them
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -358,17 +348,12 @@ func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
-	// First make sure the user can read queries
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
-		return err
-	}
-
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return ctxerr.Wrap(ctx, err, "lookup query by ID")
 	}
 
-	// Then we make sure they can modify them
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -414,18 +399,13 @@ func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
-	// First make sure the user can read queries
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
-		return 0, err
-	}
-
 	for _, id := range ids {
 		query, err := svc.ds.Query(ctx, id)
 		if err != nil {
+			setAuthCheckedOnPreAuthErr(ctx)
 			return 0, ctxerr.Wrap(ctx, err, "lookup query by ID")
 		}
 
-		// Then we make sure they can modify them
 		if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 			return 0, err
 		}
@@ -472,7 +452,6 @@ func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec) error {
-	// check that the user can create queries
 	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
 		return err
 	}

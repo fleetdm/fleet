@@ -12,7 +12,7 @@ $base-class: "button";
 
   @if $inverse {
     &:hover {
-      background-color: rgba(#192147, .05);
+      background-color: rgba(#192147, 0.05);
 
       &:active {
         background-color: $ui-fleet-black-10;
@@ -34,7 +34,6 @@ $base-class: "button";
         border-radius: 6px;
       }
     }
-
   } @else {
     &:hover:not(.button--disabled) {
       background-color: $hover;
@@ -45,7 +44,7 @@ $base-class: "button";
     }
 
     &:focus-visible {
-      @include button-focus-outline()
+      @include button-focus-outline();
     }
   }
 }
@@ -63,7 +62,7 @@ $base-class: "button";
   padding: $pad-small $pad-medium;
   border-radius: 6px;
   font-size: $x-small;
-  font-family: "Nunito Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: $bold;
   display: inline-flex;
   height: 38px;
@@ -197,7 +196,10 @@ $base-class: "button";
     }
   }
 
-  &--text-icon {
+  // &--icon, &--small-icon used for no text and svg icons
+  &--text-icon,
+  &--icon,
+  &--small-icon {
     @include button-variant(transparent);
     padding: 0;
     border: 0;
@@ -224,7 +226,25 @@ $base-class: "button";
     &:focus {
       color: $core-vibrant-blue-over;
     }
+
+    // globally styled gap between text and icon
+    .children-wrapper {
+      gap: $pad-small;
+    }
   }
+
+  &--icon {
+    svg {
+      padding: $pad-icon;
+    }
+  }
+
+  &--small-icon {
+    svg {
+      padding: $pad-small;
+    }
+  }
+
   &--small-text-icon {
     @include button-variant(transparent);
     margin-left: $pad-medium;
@@ -279,7 +299,6 @@ $base-class: "button";
     color: $core-vibrant-red;
     border: 0;
     box-sizing: border-box;
-    padding: 0;
 
     &:hover,
     &:focus {
@@ -355,6 +374,8 @@ $base-class: "button";
       display: flex;
       width: 100%;
       flex-direction: column;
+      gap: $pad-xsmall;
+      align-items: flex-start;
 
       .info {
         &__header {
@@ -366,7 +387,6 @@ $base-class: "button";
           width: 100%;
           font-weight: normal;
           text-align: left;
-          margin-top: 10px;
         }
       }
     }
@@ -376,5 +396,12 @@ $base-class: "button";
     @include button-variant(transparent, $ui-vibrant-blue-10);
     display: flex;
     justify-content: space-between;
+  }
+
+  &--oversized {
+    background-color: $core-fleet-black;
+    padding: $pad-large $pad-small;
+    font-size: $medium;
+    width: 100%;
   }
 }

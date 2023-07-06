@@ -15,6 +15,7 @@ import (
 
 	"github.com/ghodss/yaml"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -157,8 +158,8 @@ func TestGetTeams(t *testing.T) {
 							},
 							MDM: fleet.TeamMDM{
 								MacOSUpdates: fleet.MacOSUpdates{
-									MinimumVersion: "12.3.1",
-									Deadline:       "2021-12-14",
+									MinimumVersion: optjson.SetString("12.3.1"),
+									Deadline:       optjson.SetString("2021-12-14"),
 								},
 							},
 						},
@@ -192,22 +193,26 @@ func TestGetTeams(t *testing.T) {
 			}
 			expectedJson := buf.String()
 
-			if tt.shouldHaveExpiredBanner {
-				expectedJson = expiredBanner.String() + expectedJson
-				expectedText = expiredBanner.String() + expectedText
-			}
+			var errBuffer strings.Builder
 
-			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
+			actualText, err := runWithErrWriter([]string{"get", "teams"}, &errBuffer)
+			require.NoError(t, err)
+			require.Equal(t, expectedText, actualText.String())
+			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
+
 			// cannot use assert.JSONEq like we do for YAML because this is not a
 			// single JSON value, it is a list of 2 JSON objects.
-			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
+			errBuffer.Reset()
+			actualJSON, err := runWithErrWriter([]string{"get", "teams", "--json"}, &errBuffer)
+			require.NoError(t, err)
+			require.Equal(t, expectedJson, actualJSON.String())
+			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 
-			actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
-			if tt.shouldHaveExpiredBanner {
-				require.True(t, strings.HasPrefix(actualYaml, expiredBanner.String()))
-				actualYaml = strings.TrimPrefix(actualYaml, expiredBanner.String())
-			}
-			assert.YAMLEq(t, expectedYaml, actualYaml)
+			errBuffer.Reset()
+			actualYaml, err := runWithErrWriter([]string{"get", "teams", "--yaml"}, &errBuffer)
+			require.NoError(t, err)
+			assert.YAMLEq(t, expectedYaml, actualYaml.String())
+			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 		})
 	}
 }
@@ -553,6 +558,8 @@ func TestGetConfig(t *testing.T) {
 		return &fleet.AppConfig{
 			Features:              fleet.Features{EnableHostUsers: true},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
+			SMTPSettings:          &fleet.SMTPSettings{},
+			SSOSettings:           &fleet.SSOSettings{},
 		}, nil
 	}
 
@@ -1053,6 +1060,245 @@ spec:
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "query1"}))
 }
 
+// TestGetQueriesAsObservers tests that when observers run `fleectl get queries` they
+// only get queries that they can execute.
+func TestGetQueriesAsObserver(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	setCurrentUserSession := func(user *fleet.User) {
+		user, err := ds.NewUser(context.Background(), user)
+		require.NoError(t, err)
+		ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+			return &fleet.Session{
+				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+				ID:              1,
+				AccessedAt:      time.Now(),
+				UserID:          user.ID,
+				Key:             key,
+			}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return user, nil
+		}
+	}
+
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return []*fleet.Query{
+			{
+				ID:             42,
+				Name:           "query1",
+				Description:    "some desc",
+				Query:          "select 1;",
+				ObserverCanRun: false,
+			},
+			{
+				ID:             43,
+				Name:           "query2",
+				Description:    "some desc 2",
+				Query:          "select 2;",
+				ObserverCanRun: true,
+			},
+			{
+				ID:             44,
+				Name:           "query3",
+				Description:    "some desc 3",
+				Query:          "select 3;",
+				ObserverCanRun: false,
+			},
+		}, nil
+	}
+
+	for _, tc := range []struct {
+		name string
+		user *fleet.User
+	}{
+		{
+			name: "global observer",
+			user: &fleet.User{
+				ID:         1,
+				Name:       "Global observer",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "go@example.com",
+				GlobalRole: ptr.String(fleet.RoleObserverPlus),
+			},
+		},
+		{
+			name: "team observer",
+			user: &fleet.User{
+				ID:         2,
+				Name:       "Team observer",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "tm@example.com",
+				GlobalRole: nil,
+				Teams:      []fleet.UserTeam{{Role: fleet.RoleObserver}},
+			},
+		},
+		{
+			name: "observer of multiple teams",
+			user: &fleet.User{
+				ID:         3,
+				Name:       "Observer of multiple teams",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "omt@example.com",
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{
+						Team: fleet.Team{ID: 1},
+						Role: fleet.RoleObserver,
+					},
+					{
+						Team: fleet.Team{ID: 2},
+						Role: fleet.RoleObserverPlus,
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setCurrentUserSession(tc.user)
+
+			expected := `+--------+-------------+-----------+
+|  NAME  | DESCRIPTION |   QUERY   |
++--------+-------------+-----------+
+| query2 | some desc 2 | select 2; |
++--------+-------------+-----------+
+`
+			expectedYaml := `---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc 2
+  name: query2
+  query: select 2;
+`
+			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+`
+
+			assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
+			assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "queries", "--yaml"}))
+			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
+		})
+	}
+
+	// Test with a user that is observer of a team, but maintainer of another team (should not filter the queries).
+	setCurrentUserSession(&fleet.User{
+		ID:         4,
+		Name:       "Not observer of all teams",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "omt2@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 1},
+				Role: fleet.RoleObserver,
+			},
+			{
+				Team: fleet.Team{ID: 2},
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	})
+
+	expected := `+--------+-------------+-----------+
+|  NAME  | DESCRIPTION |   QUERY   |
++--------+-------------+-----------+
+| query1 | some desc   | select 1; |
++--------+-------------+-----------+
+| query2 | some desc 2 | select 2; |
++--------+-------------+-----------+
+| query3 | some desc 3 | select 3; |
++--------+-------------+-----------+
+`
+	expectedYaml := `---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc
+  name: query1
+  query: select 1;
+---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc 2
+  name: query2
+  query: select 2;
+---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc 3
+  name: query3
+  query: select 3;
+`
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;"}}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "queries", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
+
+	// No queries are returned if none is observer_can_run.
+	setCurrentUserSession(&fleet.User{
+		ID:         2,
+		Name:       "Team observer",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "tm@example.com",
+		GlobalRole: nil,
+		Teams:      []fleet.UserTeam{{Role: fleet.RoleObserver}},
+	})
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return []*fleet.Query{
+			{
+				ID:             42,
+				Name:           "query1",
+				Description:    "some desc",
+				Query:          "select 1;",
+				ObserverCanRun: false,
+			},
+			{
+				ID:             43,
+				Name:           "query2",
+				Description:    "some desc 2",
+				Query:          "select 2;",
+				ObserverCanRun: false,
+			},
+		}, nil
+	}
+	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries"}))
+
+	// No filtering is performed if all are observer_can_run.
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return []*fleet.Query{
+			{
+				ID:             42,
+				Name:           "query1",
+				Description:    "some desc",
+				Query:          "select 1;",
+				ObserverCanRun: true,
+			},
+			{
+				ID:             43,
+				Name:           "query2",
+				Description:    "some desc 2",
+				Query:          "select 2;",
+				ObserverCanRun: true,
+			},
+		}, nil
+	}
+	expected = `+--------+-------------+-----------+
+|  NAME  | DESCRIPTION |   QUERY   |
++--------+-------------+-----------+
+| query1 | some desc   | select 1; |
++--------+-------------+-----------+
+| query2 | some desc 2 | select 2; |
++--------+-------------+-----------+
+`
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
+}
+
 func TestEnrichedAppConfig(t *testing.T) {
 	t.Run("deprecated fields", func(t *testing.T) {
 		resp := []byte(`
@@ -1399,8 +1645,8 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 			},
 			MDM: fleet.TeamMDM{
 				MacOSUpdates: fleet.MacOSUpdates{
-					MinimumVersion: "12.3.1",
-					Deadline:       "2021-12-14",
+					MinimumVersion: optjson.SetString("12.3.1"),
+					Deadline:       optjson.SetString("2021-12-14"),
 				},
 			},
 		},
@@ -1439,4 +1685,357 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	yamlFilePath := writeTmpYml(t, actualYaml)
 
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", yamlFilePath}))
+}
+
+func TestGetMDMCommandResults(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	rawXml := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>ProfileList</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>0001_ProfileList</string>
+</dict>
+</plist>`
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		if len(uuids) == 0 {
+			return nil, nil
+		}
+		require.Len(t, uuids, 2)
+		return []*fleet.Host{
+			{ID: 1, UUID: uuids[0], Hostname: "host1"},
+			{ID: 2, UUID: uuids[1], Hostname: "host2"},
+		}, nil
+	}
+	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		if commandUUID == "no-such-cmd" {
+			return "", &notFoundError{}
+		}
+		return "test", nil
+	}
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+		switch commandUUID {
+		case "empty-cmd":
+			return nil, nil
+		case "fail-cmd":
+			return nil, io.EOF
+		default:
+			return []*fleet.MDMAppleCommandResult{
+				{
+					DeviceID:    "device1",
+					CommandUUID: commandUUID,
+					Status:      "Acknowledged",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "test",
+					Result:      []byte(rawXml),
+				},
+				{
+					DeviceID:    "device2",
+					CommandUUID: commandUUID,
+					Status:      "Error",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "test",
+					Result:      []byte(rawXml),
+				},
+			}, nil
+		}
+	}
+
+	_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `Required flag "id" not set`)
+
+	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `The command doesn't exist.`)
+
+	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `EOF`)
+
+	buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++----+------+------+--------+----------+---------+
+| ID | TIME | TYPE | STATUS | HOSTNAME | RESULTS |
++----+------+------+--------+----------+---------+
+`))
+
+	buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+|    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                      RESULTS                      |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Acknowledged | host1    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
+|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
+|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
+|           |                      |      |              |          | <key>Command</key>     <dict>                     |
+|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
+|           |                      |      |              |          |         <key>RequestType</key>                    |
+|           |                      |      |              |          |    <string>ProfileList</string>                   |
+|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
+|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
+|           |                      |      |              |          | </plist>                                          |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Error        | host2    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
+|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
+|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
+|           |                      |      |              |          | <key>Command</key>     <dict>                     |
+|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
+|           |                      |      |              |          |         <key>RequestType</key>                    |
+|           |                      |      |              |          |    <string>ProfileList</string>                   |
+|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
+|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
+|           |                      |      |              |          | </plist>                                          |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+`))
+}
+
+func TestGetMDMCommands(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	var empty bool
+	var listErr error
+	ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+		if empty || listErr != nil {
+			return nil, listErr
+		}
+		return []*fleet.MDMAppleCommand{
+			{
+				DeviceID:    "h1",
+				CommandUUID: "u1",
+				UpdatedAt:   time.Date(2023, 4, 12, 9, 5, 0, 0, time.UTC),
+				RequestType: "ProfileList",
+				Status:      "Acknowledged",
+				Hostname:    "host1",
+			},
+			{
+				DeviceID:    "h2",
+				CommandUUID: "u2",
+				UpdatedAt:   time.Date(2023, 4, 11, 9, 5, 0, 0, time.UTC),
+				RequestType: "ListApps",
+				Status:      "Acknowledged",
+				Hostname:    "host2",
+			},
+		}, nil
+	}
+
+	listErr = io.ErrUnexpectedEOF
+	_, err := runAppNoChecks([]string{"get", "mdm-commands"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, io.ErrUnexpectedEOF.Error())
+
+	listErr = nil
+	empty = true
+	buf, err := runAppNoChecks([]string{"get", "mdm-commands"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.")
+
+	empty = false
+	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++----+----------------------+-------------+--------------+----------+
+| ID |         TIME         |    TYPE     |    STATUS    | HOSTNAME |
++----+----------------------+-------------+--------------+----------+
+| u1 | 2023-04-12T09:05:00Z | ProfileList | Acknowledged | host1    |
++----+----------------------+-------------+--------------+----------+
+| u2 | 2023-04-11T09:05:00Z | ListApps    | Acknowledged | host2    |
++----+----------------------+-------------+--------------+----------+
+`))
+}
+
+func TestUserIsObserver(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		user        fleet.User
+		expectedVal bool
+		expectedErr error
+	}{
+		{
+			name:        "user without roles",
+			user:        fleet.User{},
+			expectedErr: errUserNoRoles,
+		},
+		{
+			name:        "global observer",
+			user:        fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			expectedVal: true,
+		},
+		{
+			name:        "global observer+",
+			user:        fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			expectedVal: true,
+		},
+		{
+			name:        "global maintainer",
+			user:        fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			expectedVal: false,
+		},
+		{
+			name: "team observer",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleObserver},
+				},
+			},
+			expectedVal: true,
+		},
+		{
+			name: "team observer+",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleObserverPlus},
+				},
+			},
+			expectedVal: true,
+		},
+		{
+			name: "team maintainer",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleMaintainer},
+				},
+			},
+			expectedVal: false,
+		},
+		{
+			name: "team observer and maintainer",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleObserver},
+					{Role: fleet.RoleMaintainer},
+				},
+			},
+			expectedVal: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := userIsObserver(tc.user)
+			require.Equal(t, tc.expectedErr, err)
+			require.Equal(t, tc.expectedVal, actual)
+		})
+	}
+}
+
+func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	agentOpts := json.RawMessage(`
+{
+  "config": {
+      "options": {
+        "distributed_interval": 10
+      }
+  },
+  "overrides": {
+    "platforms": {
+      "darwin": {
+        "options": {
+          "distributed_interval": 5
+        }
+      }
+    }
+  }
+}`)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			AgentOptions: &agentOpts,
+			SSOSettings:  &fleet.SSOSettings{},
+			SMTPSettings: &fleet.SMTPSettings{},
+		}, nil
+	}
+
+	setCurrentUserSession := func(user *fleet.User) {
+		user, err := ds.NewUser(context.Background(), user)
+		require.NoError(t, err)
+		ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+			return &fleet.Session{
+				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+				ID:              1,
+				AccessedAt:      time.Now(),
+				UserID:          user.ID,
+				Key:             key,
+			}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return user, nil
+		}
+	}
+
+	for _, tc := range []struct {
+		name        string
+		user        *fleet.User
+		checkOutput func(output string) bool
+	}{
+		{
+			name: "global admin",
+			user: &fleet.User{
+				ID:         1,
+				Name:       "Global admin",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "ga@example.com",
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			},
+			checkOutput: func(output string) bool {
+				return strings.Contains(output, "sso_settings") && strings.Contains(output, "smtp_settings")
+			},
+		},
+		{
+			name: "global observer",
+			user: &fleet.User{
+				ID:         2,
+				Name:       "Global observer",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "go@example.com",
+				GlobalRole: ptr.String(fleet.RoleObserverPlus),
+			},
+			checkOutput: func(output string) bool {
+				return !strings.Contains(output, "sso_settings") && !strings.Contains(output, "smtp_settings")
+			},
+		},
+		{
+			name: "team observer",
+			user: &fleet.User{
+				ID:         3,
+				Name:       "Team observer",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "tm@example.com",
+				GlobalRole: nil,
+				Teams:      []fleet.UserTeam{{Role: fleet.RoleObserver}},
+			},
+			checkOutput: func(output string) bool {
+				return !strings.Contains(output, "sso_settings") && !strings.Contains(output, "smtp_settings")
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setCurrentUserSession(tc.user)
+
+			ok := tc.checkOutput(runAppForTest(t, []string{"get", "config"}))
+			require.True(t, ok)
+		})
+	}
 }

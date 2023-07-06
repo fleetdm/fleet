@@ -17,9 +17,9 @@ import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableDataError from "components/DataError";
-import Modal from "components/Modal";
 import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserModal from "../DeleteUserModal";
@@ -432,27 +432,25 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     const userData = getUser(userEditing.type, userEditing.id);
 
     return (
-      <Modal title="Edit user" onExit={toggleEditUserModal}>
-        <>
-          <EditUserModal
-            defaultEmail={userData?.email}
-            defaultName={userData?.name}
-            defaultGlobalRole={userData?.global_role}
-            defaultTeams={userData?.teams}
-            onCancel={toggleEditUserModal}
-            onSubmit={onEditUser}
-            availableTeams={teams || []}
-            isPremiumTier={isPremiumTier || false}
-            smtpConfigured={config?.smtp_settings.configured || false}
-            canUseSso={config?.sso_settings.enable_sso || false}
-            isSsoEnabled={userData?.sso_enabled}
-            isModifiedByGlobalAdmin
-            isInvitePending={userEditing.type === "invite"}
-            editUserErrors={editUserErrors}
-            isUpdatingUsers={isUpdatingUsers}
-          />
-        </>
-      </Modal>
+      <EditUserModal
+        defaultEmail={userData?.email}
+        defaultName={userData?.name}
+        defaultGlobalRole={userData?.global_role}
+        defaultTeams={userData?.teams}
+        onCancel={toggleEditUserModal}
+        onSubmit={onEditUser}
+        availableTeams={teams || []}
+        isPremiumTier={isPremiumTier || false}
+        smtpConfigured={config?.smtp_settings.configured || false}
+        sesConfigured={config?.email?.backend === "ses" || false}
+        canUseSso={config?.sso_settings.enable_sso || false}
+        isSsoEnabled={userData?.sso_enabled}
+        isApiOnly={userData?.api_only || false}
+        isModifiedByGlobalAdmin
+        isInvitePending={userEditing.type === "invite"}
+        editUserErrors={editUserErrors}
+        isUpdatingUsers={isUpdatingUsers}
+      />
     );
   };
 
@@ -467,6 +465,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         defaultTeams={[]}
         isPremiumTier={isPremiumTier || false}
         smtpConfigured={config?.smtp_settings.configured || false}
+        sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
         isUpdatingUsers={isUpdatingUsers}
         isModifiedByGlobalAdmin
@@ -539,8 +538,11 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           inputPlaceHolder={"Search"}
-          actionButtonText={"Create user"}
-          onActionButtonClick={toggleCreateUserModal}
+          actionButton={{
+            name: "create user",
+            buttonText: "Create user",
+            onActionButtonClick: toggleCreateUserModal,
+          }}
           onQueryChange={onTableQueryChange}
           resultsTitle={"users"}
           emptyComponent={() => EmptyTable(emptyState)}

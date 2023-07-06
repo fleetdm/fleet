@@ -155,7 +155,7 @@ generate-ci:
 	make generate-go
 
 generate-js: clean-assets .prefix
-	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=production yarn run webpack --progress --colors
+	NODE_ENV=production yarn run webpack --progress
 
 generate-go: .prefix
 	go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
@@ -166,11 +166,11 @@ generate-go: .prefix
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
 generate-dev: .prefix
-	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack --progress --colors
+	NODE_ENV=development yarn run webpack --progress
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
 		frontend/templates/ assets/... server/mail/templates
-	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack --progress --colors --watch
+	NODE_ENV=development yarn run webpack --progress --watch
 
 generate-mock: .prefix
 	go install github.com/fleetdm/mockimpl@ecbb3041eabfc9e046a3f2e414e32c28254b75b2
@@ -237,11 +237,18 @@ binary-bundle: xp-fleet xp-fleetctl
 
 # Build orbit/fleetd fleetd_tables extension
 fleetd-tables-windows:
-	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.ext ./orbit/cmd/fleetd_tables
+	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.exe ./orbit/cmd/fleetd_tables
 fleetd-tables-linux:
 	GOOS=linux GOARCH=amd64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin_arm:
+	GOOS=darwin GOARCH=arm64 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin-universal:
+	$(MAKE) fleetd-tables-darwin fleetd-tables-darwin_arm
+	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext -output fleetd_tables_darwin_universal.ext
+fleetd-tables-all:
+	$(MAKE) fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal
 
 .pre-binary-arch:
 ifndef GOOS
@@ -360,6 +367,24 @@ endif
 	tar czf $(out-path)/nudge.app.tar.gz -C $(TMP_DIR)/nudge_pkg_payload_expanded/ Nudge.app
 	rm -r $(TMP_DIR)
 
+# Generate swiftDialog.app.tar.gz bundle from the swiftDialog repo.
+#
+# Usage:
+# make swift-dialog-app-tar-gz version=2.1.0 build=4148 out-path=.
+swift-dialog-app-tar-gz:
+ifneq ($(shell uname), Darwin)
+	@echo "Makefile target swift-dialog-app-tar-gz is only supported on macOS"
+	@exit 1
+endif
+	$(eval TMP_DIR := $(shell mktemp -d))
+	curl -L https://github.com/bartreardon/swiftDialog/releases/download/v$(version)/dialog-$(version)-$(build).pkg --output $(TMP_DIR)/swiftDialog-$(version).pkg
+	pkgutil --expand $(TMP_DIR)/swiftDialog-$(version).pkg $(TMP_DIR)/swiftDialog_pkg_expanded
+	mkdir -p $(TMP_DIR)/swiftDialog_pkg_payload_expanded
+	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
+	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
+	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
+	rm -rf $(TMP_DIR)
+
 # Build and generate desktop.app.tar.gz bundle.
 #
 # Usage:
@@ -376,13 +401,17 @@ endif
 FLEET_DESKTOP_VERSION ?= unknown
 
 # Build desktop executable for Windows.
+# This generates desktop executable for Windows that includes versioninfo binary properties
+# These properties can be displayed when right-click on the binary in Windows Explorer.
+# See: https://docs.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource
+# To sign this binary with a certificate, use signtool.exe or osslsigncode tool
 #
 # Usage:
 # FLEET_DESKTOP_VERSION=0.0.1 make desktop-windows
 #
 # Output: fleet-desktop.exe
 desktop-windows:
-	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui -X=main.version=$(FLEET_DESKTOP_VERSION)" -o fleet-desktop.exe ./orbit/cmd/desktop
+	go run ./orbit/tools/build/build-windows.go -version $(FLEET_DESKTOP_VERSION) -input ./orbit/cmd/desktop -output fleet-desktop.exe
 
 # Build desktop executable for Linux.
 #
@@ -404,6 +433,19 @@ desktop-linux:
 		/output/fleet-desktop && cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
+
+# Build orbit executable for Windows.
+# This generates orbit executable for Windows that includes versioninfo binary properties
+# These properties can be displayed when right-click on the binary in Windows Explorer.
+# See: https://docs.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource
+# To sign this binary with a certificate, use signtool.exe or osslsigncode tool
+#
+# Usage:
+# ORBIT_VERSION=0.0.1 make orbit-windows
+#
+# Output: orbit.exe
+orbit-windows:
+	go run ./orbit/tools/build/build-windows.go -version $(ORBIT_VERSION) -input ./orbit/cmd/orbit -output orbit.exe
 
 # db-replica-setup setups one main and one read replica MySQL instance for dev/testing.
 #	- Assumes the docker containers are already running (tools/mysql-replica-testing/docker-compose.yml)

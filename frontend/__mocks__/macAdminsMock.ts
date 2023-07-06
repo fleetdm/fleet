@@ -3,16 +3,10 @@ import { IMacadminsResponse } from "interfaces/host";
 const DEFAULT_MAC_ADMINS_MOCK: IMacadminsResponse = {
   macadmins: {
     mobile_device_management: {
-      encryption_key_available: false,
       enrollment_status: "On (manual)",
       server_url: "https://kandji.com/2",
       name: "Kandji",
       id: 11,
-      profiles: [],
-      macos_settings: {
-        disk_encryption: null,
-        action_required: null,
-      },
     },
     munki: {
       version: "1.2.3",

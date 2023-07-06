@@ -21,7 +21,7 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 
 ## Becoming a customer
 
-To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template] (https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn%2Czayhanlon&labels=project%2C%23cx%2C%23sales%2C%23business-operations&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
+To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn%2Czayhanlon&labels=project%2C%23cx%2C%23sales%2C%23business-operations&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
 
 > TODO: dedupe between this section and the "Sale" issue template
 
@@ -57,7 +57,7 @@ This workflow outlines the process that sales and customer success can follow wh
         - Any proof of concept (POC) notes that are relevant
         - Customer expectations for timeline
         - Server deployment type
-4. (CS) The Head of CS kicks off the CS responsibilities in the 'New Sale Issue'
+4. (CS) The CSM kicks off the CS responsibilities in the 'New Sale Issue'
     - Create an “Existing Business” renewal opportunity in Salesforce.com (SFDC).   
     - Send the customer [welcome email](https://docs.google.com/document/d/11zrktUdb5FmJQgMyhtU26Wa-YzMES2jGcqEC7cw8tAo/edit) (internal drive) & [deployment checklist template](https://docs.google.com/spreadsheets/d/1tAQV6AqrRhqKusbA9Z6-5RBtOUknjkXVJXyF-Qp1Zls/edit#gid=1709744959) (internal drive)
     - Create the customer Slack channel
@@ -117,7 +117,7 @@ When we do prospect calls, add the customer's name in both the google doc title 
 
 ## Customer support service level agreements (SLA's)
 
-### Fleet Free
+### Fleet Community Edition
 | Impact Level | Definition | Preferred Contact | Response Time |
 |:---|:---|:---|:---|
 | All Inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
@@ -305,6 +305,10 @@ For all subscription agreements, NDAs, and similar contracts, Fleet maintains a 
 
 Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
 
+### Non-standard NDAs
+
+To get a non-standard NDA (a non-disclosure agreement from another party) signed, [request a legal review](https://fleetdm.com/handbook/business-operations#intake).
+
 ### Reviewing subscription agreement
 
 To quickly get help doing a legal review of a prospect subscription agreement, with or without redlines:
@@ -376,6 +380,11 @@ In the case of a prospect or customer request, we strive to adhere to the follow
 - Web chat: 1 hour response during working hours, 8 hours otherwise
 - Talk to an expert: prospects can schedule chats via our calendar tool
 - All other enquiries: 1-2 days
+
+#### Web chat on-call
+The web chat will be monitored by an on-call rotation. If you are unable to answer a technical/product question, ask the Solution Consultant (SC) in #sales. If the SC is unavailable, post in # help-engineering / #help-product accordingly.
+Transition to the next week on Friday night into Saturday (e.g. Carlos’s shift starts at 12am on 1/21 for the week of 1/23)
+Respond “in-thread” in Slack “_from-prospective-customers”. In-channel reminders for the next person starting their on-call shift are automated with notifications issued every Monday at the beginning of the day.
 
 Fleet employees can find other expectations for action and response times in this [internal document](https://docs.google.com/presentation/d/104-TRXlY55g303q2xazY1bpcDx4dHqS5O5VdJ05OwzE/edit?usp=sharing)
 

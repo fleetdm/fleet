@@ -58,7 +58,7 @@ const ConfirmationPage = ({
   };
 
   const { email, server_url: serverUrl, org_name: orgName, name } = formData;
-  const tabIndex = currentPage ? 1 : -1;
+  const tabIndex = currentPage ? 0 : -1;
 
   const confirmRegClasses = classnames(className, baseClass);
 

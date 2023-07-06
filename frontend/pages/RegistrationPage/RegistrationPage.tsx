@@ -52,7 +52,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
   };
 
   const onRegistrationFormSubmit = async (formData: any) => {
-    const { MANAGE_HOSTS } = paths;
+    const { DASHBOARD } = paths;
 
     try {
       const { token } = await usersAPI.setup(formData);
@@ -61,7 +61,8 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
       const { user, available_teams } = await usersAPI.me();
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
-      return router.push(MANAGE_HOSTS);
+      router.push(DASHBOARD);
+      window.location.reload();
     } catch (error) {
       setPage(1);
       setPageProgress(1);

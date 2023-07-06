@@ -63,7 +63,7 @@
         <div purpose="upgrade-form" v-if="!cloudSuccess">
           <h2 class="text-center">Upgrade to Fleet Premium</h2>
           <p class="text-center">Complete the form below and a member of our team will be in touch within one business day.</p>
-          <ajax-form action="deliverPremiumUpgradeForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+          <ajax-form action="deliverPremiumUpgradeForm" class="premium-upgrade" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
             <div class="form-group">
               <label for="organization">Company</label>
               <input class="form-control" id="organization" :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" @input="typeClearOneFormError('organization')">

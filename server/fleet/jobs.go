@@ -29,4 +29,5 @@ type Job struct {
 	State     JobState         `json:"state" db:"state"`
 	Retries   int              `json:"retries" db:"retries"`
 	Error     string           `json:"error" db:"error"`
+	NotBefore time.Time        `json:"not_before" db:"not_before"`
 }

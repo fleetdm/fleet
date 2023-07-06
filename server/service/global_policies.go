@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -174,10 +175,6 @@ func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc 
 // DeleteGlobalPolicies deletes the given policies from the database.
 // It also deletes the given ids from the failing policies webhook configuration.
 func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
-	// First check if authorized to read policies
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -185,7 +182,6 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
 	}
-	// Then check if authorized to write policies
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -444,6 +440,13 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 		if policy.Team != "" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
+				// This is so that the proper HTTP status code is returned
+				svc.authz.SkipAuthorization(ctx)
+
+				if errors.Is(err, sql.ErrNoRows) {
+					return newNotFoundError()
+				}
+
 				return ctxerr.Wrap(ctx, err, "getting team by name")
 			}
 			if err := svc.authz.Authorize(ctx, &fleet.Policy{

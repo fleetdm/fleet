@@ -11,12 +11,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/stretchr/testify/require"
 )
 
-func setup(t *testing.T) (*mock.Store, *Service, *externalsvc.MockOktaServer) {
-	oktaMock := externalsvc.RunMockOktaServer(t)
+func setup(t *testing.T) (*mock.Store, *Service) {
 	ds := new(mock.Store)
 	svc := &Service{
 		ds: ds,
@@ -24,67 +22,10 @@ func setup(t *testing.T) (*mock.Store, *Service, *externalsvc.MockOktaServer) {
 			MDM: config.MDMConfig{
 				AppleSCEPCertBytes: testCert,
 				AppleSCEPKeyBytes:  testKey,
-				OktaServerURL:      oktaMock.Srv.URL,
-				OktaClientID:       oktaMock.ClientID,
-				OktaClientSecret:   oktaMock.ClientSecret(),
 			},
 		},
 	}
-	return ds, svc, oktaMock
-}
-
-func TestMDMAppleOktaLogin(t *testing.T) {
-	ctx := context.Background()
-	ds, svc, oktaMock := setup(t)
-
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			OrgInfo:        fleet.OrgInfo{OrgName: "Acme Inc."},
-			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.com"},
-		}, nil
-	}
-
-	var uuid string
-	ds.InsertMDMIdPAccountFunc = func(ctx context.Context, account *fleet.MDMIdPAccount) error {
-		uuid = account.UUID
-		require.NotEmpty(t, account.UUID)
-		require.NotEmpty(t, account.SaltedSHA512PBKDF2Dictionary.Entropy)
-		require.NotEmpty(t, account.SaltedSHA512PBKDF2Dictionary.Iterations)
-		require.NotEmpty(t, account.SaltedSHA512PBKDF2Dictionary.Salt)
-		return nil
-	}
-
-	profile, err := svc.MDMAppleOktaLogin(ctx, "bad", "bad")
-	var authFailedError *fleet.AuthFailedError
-	require.ErrorAs(t, err, &authFailedError)
-	require.Nil(t, profile)
-	require.False(t, ds.InsertMDMIdPAccountFuncInvoked)
-
-	profile, err = svc.MDMAppleOktaLogin(ctx, oktaMock.Username, oktaMock.UserPassword)
-	require.NoError(t, err)
-	// enrollment profile contains necessary data
-	require.Contains(t, string(profile), "https://example.com/mdm/apple/mdm?ref="+uuid)
-	require.True(t, ds.AppConfigFuncInvoked)
-	require.True(t, ds.InsertMDMIdPAccountFuncInvoked)
-
-	// error handling
-	appCfgErr := errors.New("appconfig err")
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return nil, appCfgErr
-	}
-
-	profile, err = svc.MDMAppleOktaLogin(ctx, oktaMock.Username, oktaMock.UserPassword)
-	require.ErrorIs(t, err, appCfgErr)
-	require.Nil(t, profile)
-
-	idpErr := errors.New("idp err")
-	ds.InsertMDMIdPAccountFunc = func(ctx context.Context, account *fleet.MDMIdPAccount) error {
-		return idpErr
-	}
-	profile, err = svc.MDMAppleOktaLogin(ctx, oktaMock.Username, oktaMock.UserPassword)
-	require.ErrorIs(t, err, idpErr)
-	require.Nil(t, profile)
-
+	return ds, svc
 }
 
 func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
@@ -98,7 +39,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 	})
 
 	t.Run("fails if the profile can't be saved in the db", func(t *testing.T) {
-		ds, svc, _ := setup(t)
+		ds, svc := setup(t)
 		testErr := errors.New("test")
 		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
 			return nil, testErr
@@ -110,7 +51,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 
 	t.Run("happy path", func(t *testing.T) {
 		var teamID uint = 4
-		ds, svc, _ := setup(t)
+		ds, svc := setup(t)
 		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
 			require.Equal(t, &teamID, p.TeamID)
 			require.Equal(t, p.Identifier, mobileconfig.FleetFileVaultPayloadIdentifier)
@@ -127,7 +68,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 
 func TestMDMAppleDisableFileVaultAndEscrow(t *testing.T) {
 	var wantTeamID uint
-	ds, svc, _ := setup(t)
+	ds, svc := setup(t)
 	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
 		require.NotNil(t, teamID)
 		require.Equal(t, wantTeamID, *teamID)

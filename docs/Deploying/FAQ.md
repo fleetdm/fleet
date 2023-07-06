@@ -193,7 +193,7 @@ If you would like to use the fleetctl CLI from outside of your network, the foll
 - `/api/latest/fleet/*`
 - `/api/v1/fleet/*`
 
-**IN PROGRESS** If you would like to use Fleet MDM, the following endpoints need to be exposed:
+If you would like to use Fleet's MDM features, the following endpoints need to be exposed:
 
 - `/mdm/apple/scep` to allow hosts to obtain a SCEP certificate.
 - `/mdm/apple/mdm` to allow hosts to reach the server using the MDM protocol.

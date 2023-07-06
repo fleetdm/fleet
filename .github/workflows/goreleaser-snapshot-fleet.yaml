@@ -1,6 +1,16 @@
 name: Docker publish
 
-on: push
+on:
+  push:
+    paths-ignore:
+      - 'handbook/**'
+      - 'website/**'
+      - 'mdm-profiles/**'
+  pull_request:
+    paths-ignore:
+      - 'handbook/**'
+      - 'website/**'
+      - 'mdm-profiles/**'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -35,9 +45,9 @@ jobs:
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
       - name: Set up Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+        uses: actions/setup-go@v4.0.1
         with:
-          go-version: 1.19.4
+          go-version: 1.19.10
 
       - name: Install Dependencies
         run: make deps
@@ -60,7 +70,7 @@ jobs:
 
       - name: Get tag
         run: |
-          echo "TAG=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
+          echo "TAG=$(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
         id: docker
 
       - name: List tags for push
@@ -77,5 +87,6 @@ jobs:
       - name: Tag and push to quay.io
         run: |
           for TAG in ${{ steps.docker.outputs.TAG }}; do
-          docker buildx imagetools create --tag quay.io/fleetdm/fleet:${TAG} fleetdm/fleet:${TAG}
+          docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
+          docker push quay.io/fleetdm/fleet:${TAG}
           done

@@ -1,0 +1,17 @@
+.host-summary {
+  .info-flex {
+    &__header {
+      display: flex;
+      align-items: center;
+      gap: $pad-xxsmall;
+      max-height: 20px;
+      .premium-icon-tip {
+        position: relative;
+        top: 3px;
+      }
+    }
+    .component__tooltip-wrapper__tip-text {
+      max-width: 326px;
+    }
+  }
+}

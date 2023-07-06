@@ -7,27 +7,27 @@
 %><!DOCTYPE html>
 <html>
   <head>
-    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %></title>
-    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
+    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %></title>
+    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)' %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <%// Twitter meta tags%>
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="<%= typeof pageImageForMeta !== 'undefined' ? 'summary_large_image' : 'summary' %>" />
     <meta name="twitter:site" content="https://fleetdm.com" />
-    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit'  %>" />
-    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %>" />
+    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)'  %>" />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %>" />
     <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
     <%// Meta tags for other social previews %>
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
-    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %>" />
-    <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
+    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %>" />
+    <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)' %>" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
     Google Fonts, etc. - above the «body» to prevent the page flickering when fonts
     load.) */ %>
-    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Roboto+Mono:ital,wght@0,200;0,300;0,400;0,500;0,700;1,200;1,300;1,400;1,500;1,700&family=Source+Code+Pro:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
     if (sails.config.environment === 'production') { %>
@@ -120,7 +120,6 @@
     <!--STYLES-->
     <link rel="stylesheet" href="/dependencies/bootstrap-4/bootstrap-4.css">
     <link rel="stylesheet" href="/dependencies/fontawesome.css">
-    <link rel="stylesheet" href="/dependencies/nunito-webfonts.css">
     <link rel="stylesheet" href="/styles/importer.css">
     <!--STYLES END-->
   </head>
@@ -139,7 +138,7 @@
             <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
           </a>
           <div purpose="header-nav">
-            <a href="/logout" class="justify-content-end px-3 py-2 text-decoration-none <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
+            <a href="/logout" purpose="logout-btn" class="justify-content-end px-3 py-2 <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
           </div>
         </div>
       </div>
@@ -170,9 +169,6 @@
     */ %>
     <% /* Cookie consent banner */ %>
     <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
-    <% /* Chat (Papercups) */ %>
-    <script>window.Papercups = { config: { accountId: '5b59eeac-1578-4fdb-b946-e17c1dca0c51', primaryColor:'#6A67FE', requireEmailUpfront: true } };</script>
-    <script type="text/javascript" async defer src="https://app.papercups.io/widget.js"></script>
 
     <%/* Stripe.js */%>
     <script src="https://js.stripe.com/v3/"></script>
@@ -249,26 +245,27 @@
     <script src="/js/pages/entrance/login.page.js"></script>
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
-    <script src="/js/pages/experimental/okta-webflow.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
     <script src="/js/pages/fleet-mdm.page.js"></script>
     <script src="/js/pages/get-started.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
+    <script src="/js/pages/imagine/higher-education.page.js"></script>
     <script src="/js/pages/imagine/launch-party.page.js"></script>
+    <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
     <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
     <script src="/js/pages/osquery-management.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
-    <script src="/js/pages/platform.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
     <script src="/js/pages/sales-one-pager.page.js"></script>
+    <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/register.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
@@ -276,6 +273,7 @@
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/upgrade.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
+    <script src="/js/pages/vulnerability-management.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
@@ -295,16 +293,15 @@
         //    - https://github.com/lancedikson/bowser/tree/1fb99ced0e8834fd9662604bad7e0f0c3eba2786#rendering-engine-flags
         // --------------------------------------------------------------------
         var LATEST_SUPPORTED_VERSION_BY_OS = {
-          iOS: '10',//« earliest version to eliminate rare bug where `window.location` doesn't exist momentarily after doing a server-side redirect
-          Android: '6'
+          iOS: '11',//« earliest version that suppports the hubspot chatbot.
+          Android: '7' // « earliest version we can test for compatibility issues with on browserstack
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
-          msedge: '16',
-          // msie: '11',
-          safari: '10',//« earliest version to eliminate rare bug where `window.location` doesn't exist momentarily after doing a server-side redirect
-          firefox: '54',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
-          chrome: '51',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
-          opera: '38',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
+          msedge: '80',//« earliest version to support the backdrop filter css property.
+          safari: '11',//« earliest version that suppports the hubspot chatbot.
+          firefox: '102',//« earliest version to support the backdrop filter css property.
+          chrome: '76',//« earliest version to support the backdrop filter css property.
+          opera: '64',//« earliest version to support the backdrop filter css property.
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {
           'microsoft edge': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.msedge,

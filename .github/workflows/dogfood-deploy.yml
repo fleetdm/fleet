@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       DOCKER_IMAGE:
-        description: 'The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.29.0)'
+        description: 'The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.30.0). Note: do not use fleetdm/fleet:main directly.  Use the short hash instead.  If pull-rate limited, try using the quay.io/fleetdm/fleet mirror.'
         required: true
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -28,6 +28,8 @@ env:
   TF_VAR_fleet_license: ${{ secrets.DOGFOOD_LICENSE_KEY }}
   TF_VAR_slack_webhook: ${{ secrets.SLACK_G_HELP_P1_WEBHOOK_URL }}
   TF_VAR_fleet_sentry_dsn: ${{ secrets.DOGFOOD_SENTRY_DSN }}
+  TF_VAR_elastic_url: ${{ secrets.ELASTIC_APM_SERVER_URL }}
+  TF_VAR_elastic_token: ${{ secrets.ELASTIC_APM_SECRET_TOKEN }}
 
 permissions:
   id-token: write

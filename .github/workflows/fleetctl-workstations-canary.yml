@@ -9,7 +9,8 @@ on:
     branches:
       - main
     paths:
-      - 'mdm_profiles/**.mobileconfig'
+      - "mdm_profiles/**.mobileconfig"
+      - ".github/workflows/fleetctl-workstations-canary.yml"
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -32,37 +33,17 @@ env:
 
 jobs:
   apply-profiles:
-    timeout-minutes: 15
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
-      with:
-        repository: fleetdm/fleet
-
-    - name: Install fleetctl
-      run: npm install -g fleetctl
-
-    - name: Configure fleetctl
-      run: fleetctl config set --address $DOGFOOD_URL --token $DOGFOOD_API_TOKEN
-
-    - name: Run fleetctl apply
-      run: |
-        profiles=""
-          for file in mdm_profiles/*.mobileconfig; do
-            envsubst < "$file" > "${file}.new"
-            mv "${file}.new" "$file"
-            profiles+="- $file
-                  "
-        done
-        echo "apiVersion: v1
-        kind: team
-        spec:
-          team:
-            name: 💻🐣 Workstations (canary)
-            mdm:
-              macos_settings:
-                custom_settings:
-                  $profiles
-        " > team-workstations-config.yml
-        fleetctl apply -f team-workstations-config.yml
+      - name: Apply configuration profiles and updates
+        uses: fleetdm/fleet-mdm-gitops@026ee84a69cb89c869fedbe27c969bf89def418b
+        with:
+          FLEET_API_TOKEN: $DOGFOOD_API_TOKEN
+          FLEET_URL: $DOGFOOD_URL
+          FLEET_TEAM_NAME: 💻🐣 Workstations (canary)
+          MDM_CONFIG_REPO: fleetdm/fleet
+          MDM_CONFIG_DIRECTORY: mdm_profiles
+          MAC_OS_MIN_VERSION: "13.4.1"
+          MAC_OS_VERSION_DEADLINE: 2023-06-26
+          MAC_OS_ENABLE_DISK_ENCRYPTION: true
