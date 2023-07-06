@@ -176,6 +176,14 @@ type MacOSUpdates struct {
 	Deadline optjson.String `json:"deadline"`
 }
 
+// EnabledForHost returns a boolean indicating if updates are enabled for the host
+func (m MacOSUpdates) EnabledForHost(h *Host) bool {
+	return m.Deadline.Value != "" &&
+		m.MinimumVersion.Value != "" &&
+		h.IsOsqueryEnrolled() &&
+		h.MDMInfo.IsFleetEnrolled()
+}
+
 func (m MacOSUpdates) Validate() error {
 	// if no settings are provided it's okay to skip further validation
 	if m.MinimumVersion.Value == "" && m.Deadline.Value == "" {

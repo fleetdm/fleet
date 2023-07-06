@@ -210,8 +210,8 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 
 	// specify the test data in the server config
 	cfg := config.TestConfig()
-	cfg.MDM.MicrosoftWSTEPIdentityCert = certPath
-	cfg.MDM.MicrosoftWSTEPIdentityKey = keyPath
+	cfg.MDM.WindowsWSTEPIdentityCert = certPath
+	cfg.MDM.WindowsWSTEPIdentityKey = keyPath
 
 	// check that config.MDM.MicrosoftWSTEP() returns the expected values
 	_, cfgCertPEM, cfgKeyPEM, err := cfg.MDM.MicrosoftWSTEP()

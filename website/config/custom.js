@@ -103,7 +103,8 @@ module.exports.custom = {
     'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     '.github/workflows': ['zwass', 'mikermcneil'],// (misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
-    'CHANGELOG.md': ['zwass', 'mikermcneil', 'noahtalerman', 'lukeheath'],
+
+    'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
@@ -115,7 +116,8 @@ module.exports.custom = {
 
     'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
-    'handbook/business-operations': ['jostableford','hollidayn', 'mikermcneil'],
+    'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
+    'handbook/business-operations/ceo-handbook': ['sampfluger88', 'mikermcneil'],
     'handbook/engineering': ['zwass', 'lukeheath'],
     'handbook/product': ['noahtalerman', 'zhumo'],
     'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],

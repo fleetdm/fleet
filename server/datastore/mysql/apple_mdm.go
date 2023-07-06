@@ -418,6 +418,7 @@ INNER JOIN
 ON
     nvq.id = h.uuid
 WHERE
+   nvq.active = 1 AND
     %s
 `, ds.whereFilterHostsByTeams(tmFilter, "h"))
 	stmt, params := appendListOptionsWithCursorToSQL(stmt, nil, &listOpts.ListOptions)
@@ -2173,7 +2174,7 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 		if isDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
 		}
-		return ctxerr.Wrap(ctx, err, "create bootstrap pacckage")
+		return ctxerr.Wrap(ctx, err, "create bootstrap package")
 	}
 
 	return nil
@@ -2626,14 +2627,31 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 	return asst.ProfileUUID, asst.UploadedAt, nil
 }
 
-func (ds *Datastore) ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error {
-	// it's okay if we didn't update any rows, `nano_enrollments` entries
-	// are created on `TokenUpdate`, and this function is called on
-	// `Authenticate` to make sure we start on a clean state if a host is
-	// re-enrolling.
-	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET token_update_tally = 0 WHERE id = ?`, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating nano_enrollments")
-	}
-	return nil
+func (ds *Datastore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// it's okay if we didn't update any rows, `nano_enrollments` entries
+		// are created on `TokenUpdate`, and this function is called on
+		// `Authenticate` to make sure we start on a clean state if a host is
+		// re-enrolling.
+		_, err := tx.ExecContext(ctx, `UPDATE nano_enrollments SET token_update_tally = 0 WHERE id = ?`, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting nano_enrollments")
+		}
+
+		// Deleting profiles from this table will cause all profiles to
+		// be re-delivered on the next cron run.
+		if err := ds.deleteMDMAppleProfilesForHost(ctx, tx, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting profiles status")
+		}
+
+		// Deleting the matching entry on this table will cause
+		// the aggregate report to show this host as 'pending' to
+		// install the bootstrap package.
+		_, err = tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting host_mdm_apple_bootstrap_packages")
+		}
+
+		return nil
+	})
 }
