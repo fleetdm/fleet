@@ -568,6 +568,7 @@ func (e *authEndpointer) handleHTTPHandler(path string, h http.Handler, verb str
 }
 
 func (e *authEndpointer) handleEndpoint(path string, f handlerFunc, v interface{}, verb string) {
+	fmt.Printf("%s %s\n", verb, path)
 	endpoint := e.makeEndpoint(f, v)
 	e.handleHTTPHandler(path, endpoint, verb)
 }
