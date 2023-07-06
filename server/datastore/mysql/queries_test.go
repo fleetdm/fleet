@@ -169,12 +169,12 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
-	actual, err := ds.QueryByName(context.Background(), "q1")
+	actual, err := ds.QueryByName(context.Background(), nil, "q1")
 	require.Nil(t, err)
 	assert.Equal(t, "q1", actual.Name)
 	assert.Equal(t, "select * from time", actual.Query)
 
-	actual, err = ds.QueryByName(context.Background(), "xxx")
+	actual, err = ds.QueryByName(context.Background(), nil, "xxx")
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 }
@@ -334,11 +334,11 @@ func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
 	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
-	q0, err := ds.QueryByName(context.Background(), queries[0].Name)
+	q0, err := ds.QueryByName(context.Background(), nil, queries[0].Name)
 	require.Nil(t, err)
 	assert.Empty(t, q0.Packs)
 
-	q1, err := ds.QueryByName(context.Background(), queries[1].Name)
+	q1, err := ds.QueryByName(context.Background(), nil, queries[1].Name)
 	require.Nil(t, err)
 	assert.Empty(t, q1.Packs)
 
@@ -357,13 +357,13 @@ func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
 	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
-	q0, err = ds.QueryByName(context.Background(), queries[0].Name)
+	q0, err = ds.QueryByName(context.Background(), nil, queries[0].Name)
 	require.Nil(t, err)
 	if assert.Len(t, q0.Packs, 1) {
 		assert.Equal(t, "p2", q0.Packs[0].Name)
 	}
 
-	q1, err = ds.QueryByName(context.Background(), queries[1].Name)
+	q1, err = ds.QueryByName(context.Background(), nil, queries[1].Name)
 	require.Nil(t, err)
 	assert.Empty(t, q1.Packs)
 
@@ -390,13 +390,13 @@ func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
 	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
-	q0, err = ds.QueryByName(context.Background(), queries[0].Name)
+	q0, err = ds.QueryByName(context.Background(), nil, queries[0].Name)
 	require.Nil(t, err)
 	if assert.Len(t, q0.Packs, 1) {
 		assert.Equal(t, "p2", q0.Packs[0].Name)
 	}
 
-	q1, err = ds.QueryByName(context.Background(), queries[1].Name)
+	q1, err = ds.QueryByName(context.Background(), nil, queries[1].Name)
 	require.Nil(t, err)
 	if assert.Len(t, q1.Packs, 2) {
 		sort.Slice(q1.Packs, func(i, j int) bool { return q1.Packs[i].Name < q1.Packs[j].Name })
@@ -424,7 +424,7 @@ func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
 	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
-	q0, err = ds.QueryByName(context.Background(), queries[0].Name)
+	q0, err = ds.QueryByName(context.Background(), nil, queries[0].Name)
 	require.Nil(t, err)
 	if assert.Len(t, q0.Packs, 2) {
 		sort.Slice(q0.Packs, func(i, j int) bool { return q0.Packs[i].Name < q0.Packs[j].Name })
@@ -432,7 +432,7 @@ func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
 		assert.Equal(t, "p3", q0.Packs[1].Name)
 	}
 
-	q1, err = ds.QueryByName(context.Background(), queries[1].Name)
+	q1, err = ds.QueryByName(context.Background(), nil, queries[1].Name)
 	require.Nil(t, err)
 	if assert.Len(t, q1.Packs, 2) {
 		sort.Slice(q1.Packs, func(i, j int) bool { return q1.Packs[i].Name < q1.Packs[j].Name })

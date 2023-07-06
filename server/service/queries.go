@@ -298,7 +298,7 @@ func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
-	query, err := svc.ds.QueryByName(ctx, name)
+	query, err := svc.ds.QueryByName(ctx, nil, name)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return err
@@ -469,7 +469,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		}
 
 		// check that the user can update the query if it already exists
-		query, err := svc.ds.QueryByName(ctx, query.Name)
+		query, err := svc.ds.QueryByName(ctx, nil, query.Name)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
 		} else if err == nil {
@@ -578,7 +578,7 @@ func (svc *Service) GetQuerySpec(ctx context.Context, name string) (*fleet.Query
 		return nil, err
 	}
 
-	query, err := svc.ds.QueryByName(ctx, name)
+	query, err := svc.ds.QueryByName(ctx, nil, name)
 	if err != nil {
 		return nil, err
 	}

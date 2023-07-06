@@ -94,8 +94,13 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 	return ctxerr.Wrap(ctx, err, "commit ApplyQueries transaction")
 }
 
-func (ds *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-	sqlStatement := `
+func (ds *Datastore) QueryByName(
+	ctx context.Context,
+	teamID *uint,
+	name string,
+	opts ...fleet.OptionalArg,
+) (*fleet.Query, error) {
+	stmt := `
 		SELECT 
 			id,
 			team_id,
@@ -115,8 +120,16 @@ func (ds *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet
 		FROM queries
 		WHERE name = ?
 	`
+	args := []interface{}{name}
+	whereClause := " AND team_id_char = ''"
+	if teamID != nil {
+		args = append(args, fmt.Sprint(*teamID))
+		whereClause = " AND team_id_char = ?"
+	}
+
+	stmt += whereClause
 	var query fleet.Query
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &query, sqlStatement, name)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &query, stmt, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithName(name))

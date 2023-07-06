@@ -1030,7 +1030,7 @@ spec:
 func TestGetQuery(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
-	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		if name != "query1" {
 			return nil, nil
 		}

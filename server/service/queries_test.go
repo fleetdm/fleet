@@ -85,7 +85,7 @@ func TestQueryAuth(t *testing.T) {
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return query, nil
 	}
-	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		if name == authoredQueryName {
 			return &fleet.Query{ID: 99, AuthorID: ptr.Uint(teamMaintainer.ID)}, nil
 		}
