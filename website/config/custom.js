@@ -112,6 +112,7 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala', 'zhumo','lukeheath','noahtalerman', 'lukeheath'],
 
     'articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+    'website/assets/images/articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
     'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
