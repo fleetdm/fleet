@@ -9,21 +9,21 @@ DDM is a paradigm shift in device management, enabling a seamless, efficient, an
 In this blog post, we dive into Apple's forthcoming DDM in macOS Sonoma, exploring how it will transform how you manage system services, ensure robust security with certificates and identities, and seamlessly transition you from traditional Mobile Device Management (MDM) systems. Whether you're an experienced Mac admin or just getting started, this guide will provide valuable insights into harnessing the full power of DDM for your organization. Let's dive in!
 
 
-## Declarative Device Management for System Services
+## Declarative device management for system services
 
 DDM paves the way for a secure and reliable mechanism to manage system services. Using tamper-resistant system configuration files for different system services ensures uniform and secure configurations across all devices. Declarative Device Management provides an added layer of protection against accidental changes by users.
 
 For instance, system services like sshd, sudo, PAM, CUPS, Apache httpd, bash and Z-shells will be able to adopt managed service configuration files to ensure consistency and compliance. The configuration files reference a data asset that provides a ZIP archive of SSH keys that is downloaded and expanded into a tamper-resistant, service-specific location when required conditions are met—for example, FileVault is enabled—and are always prioritized over any default or overridden system configuration.
 
 
-## Monitoring and Compliance Rules for Background Tasks
+## Monitoring and compliance rules for background tasks
 
 DDM provides an excellent way of keeping track of background tasks. A new status item in this coming release reports the list of installed background tasks, making it easier to verify that required tasks are running and unwanted tasks aren't.
 
 In addition, the FileVault enabled state of the macOS boot volume is reported, allowing you to install sensitive configurations only when it is safe to proceed. With these features, you can ensure compliance and consistency across all macOS devices in your organization.
 
 
-## Secure Access with Certificates and Identities
+## Secure access with certificates and identities
 
 Certificates and identities play a crucial role in ensuring secure access to organizational resources. In this context, DDM provides a more efficient mechanism for managing certificates and identities using its declaration data model.
 
@@ -41,14 +41,14 @@ To improve upon this functionality, Fleet, with its osquery integration, allows 
 DDM represents an important advancement in how we manage and understand software updates. It not only will streamline administrative tasks but also elevates the overall security, performance, and integrity of the devices Mac admins manage.
 
 
-## Seamless Transition from MDM to DDM
+## Seamless transition from MDM to DDM
 
 Transitioning from traditional MDM to DDM will be a challenge. However, DDM provides a smooth transition without causing disruption or leaving a management gap. This is achieved by allowing DDM to take over the management of already installed MDM profiles without the need to remove them.
 
 
 ## Fleet + osquery + DDM = 💗
 
-The innovations introduced with DDM, including the new software update process, represent a paradigm shift in device management. Fleet's MDM solution, powered by osquery, brilliantly complements these changes and offers a robust GitOps-driven management platform for Mac admins.
+The innovations introduced with DDM, including the new software update process, represent a paradigm shift in device management. Fleet's MDM solution, powered by osquery, complements these changes and offers a robust GitOps-driven management platform for Mac admins.
 
 As we continue to navigate this evolving landscape, we have tools that equip us better than ever to handle the challenges and complexities of modern device management. This new era presents opportunities for enhanced security, control, and efficiency in managing our devices.
 
@@ -59,7 +59,7 @@ Fleet is transforming how we manage and secure devices. Offering an open-core, c
 <meta name="category" value="announcements">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="authorFullName" value="JD Strong">
-<meta name="publishedOn" value="2023-06-29">
+<meta name="publishedOn" value="2023-07-06">
 <meta name="articleTitle" value="Embracing the future: Declarative Device Management">
 <meta name="articleImageUrl" value="../website/assets/images/articles/embracing-the-future-declarative-device-management@2x.png">
 <meta name="description" value="Explore the transformative impact of Declarative Device Management (DDM), Fleet, and osquery for MacAdmins.">
