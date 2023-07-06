@@ -74,6 +74,15 @@ interface IAppWrapperProps {
   children: JSX.Element;
 }
 
+Object.values(PATHS).forEach((route) => {
+  if (typeof route === "function") {
+    console.log(route(":id"));
+    return;
+  }
+
+  console.log(route);
+});
+
 // App.tsx needs the context for user and config
 const AppWrapper = ({ children }: IAppWrapperProps) => (
   <AppProvider>
