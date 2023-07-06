@@ -1,0 +1,1 @@
+* Fixed an issue that displayed Nudge to macOS hosts if MDM was configured but MDM features weren't turned on for the host

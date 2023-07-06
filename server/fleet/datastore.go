@@ -852,10 +852,9 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
-	// ResetMDMAppleNanoEnrollment resets the
-	// `nano_enrollments.token_update_tally` if a matching row for the host
-	// exists.
-	ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error
+	// ResetMDMAppleEnrollment resets all tables with enrollment-related
+	// information if a matching row for the host exists.
+	ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error
 
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
@@ -997,6 +996,13 @@ type Datastore interface {
 	WSTEPNewSerial(ctx context.Context) (*big.Int, error)
 	// WSTEPAssociateCertHash associates a certificate hash with a device.
 	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
+
+	// MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
+	MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
+	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
+	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
+	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
+	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
 }
 
 const (
