@@ -64,7 +64,7 @@ const WindowsMdmOnContent = ({ router }: IWindowsMdmOnContentProps) => {
       <h1>Turn on Windows MDM</h1>
       <p>This will turn MDM on for Windows hosts with fleetd.</p>
       <p>Hosts connected to another MDM solution won&apos;t be migrated.</p>
-      <p>MDM won&apos;t be turned on for Windows servers</p>
+      <p>MDM won&apos;t be turned on for Windows servers.</p>
       <Button onClick={turnOnWindowsMdm}>Turn on</Button>
     </>
   );
