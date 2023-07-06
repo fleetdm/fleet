@@ -68,23 +68,23 @@ export default class TablePrivacyPreferences extends Table {
               if (property === "web_rtc_ip_handling_policy") {
                 resolve({ [property]: details.value });
               } else {
-                // convert bool response to binary flag
+                // convert bool response to string binary flag
                 if (details.value === true) {
-                  resolve({ [property]: 1 });
+                  resolve({ [property]: "1" });
                 } else {
-                  resolve({ [property]: 0 });
+                  resolve({ [property]: "0" });
                 }
               }
             });
           } catch (error) {
             errors.push({ [property]: error });
-            resolve({ [property]: null });
+            resolve({ [property]: "data unavailable" });
           }
         })
       );
     }
 
-    // wait for each API to call to resolve
+    // wait for each API call to resolve
     const columns = await Promise.all(results);
     errors.length > 0 &&
       console.log("Caught errors in chrome API calls: ", errors);
