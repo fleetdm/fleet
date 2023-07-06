@@ -250,7 +250,7 @@ describe("SiteTopNav - component", () => {
         config={createMockConfig()}
         currentUser={createMockUser({
           global_role: "",
-          teams: [createMockTeam()],
+          teams: [createMockTeam({ role: "admin" })],
         })}
         location={urlLocation}
         onLogoutUser={noop}
@@ -267,10 +267,11 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/schedule/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(screen.getByText(/settings/i)).toBeInTheDocument();
-    expect(screen.getByText(/manage users/i)).toBeInTheDocument();
     expect(screen.getByText(/my account/i)).toBeInTheDocument();
     expect(screen.getByText(/documentation/i)).toBeInTheDocument();
     expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+
+    expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
   });
   it("renders correct navigation for premium team maintainer", async () => {
     const render = createCustomRenderer({
