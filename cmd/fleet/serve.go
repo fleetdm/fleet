@@ -553,8 +553,9 @@ the way that the Fleet server works.
 			var (
 				wstepCertManager microsoft_mdm.CertManager
 			)
-			// TODO: check if MicrosoftMDM is enabled?
-			if config.MDM.IsMicrosoftWSTEPSet() {
+
+			// Configuring WSTEP certs if Windows MDM feature flag is enabled
+			if configpkg.IsMDMFeatureFlagEnabled() && config.MDM.IsMicrosoftWSTEPSet() {
 				_, crtPEM, keyPEM, err := config.MDM.MicrosoftWSTEP()
 				if err != nil {
 					initFatal(err, "validate Microsoft WSTEP certificate and key")
@@ -563,7 +564,6 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initialize mdm microsoft wstep depot")
 				}
-
 			}
 
 			// save the app config with the updated MDM.Enabled value

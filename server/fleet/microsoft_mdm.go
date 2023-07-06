@@ -1,9 +1,12 @@
 package fleet
 
 import (
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
@@ -125,14 +128,9 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 		return errors.New("invalid discover message: XMLNS")
 	}
 
-	// TODO: add check for valid email address
-	if len(req.Body.Discover.Request.EmailAddress) == 0 {
-		return errors.New("invalid discover message: Request.EmailAddress")
-	}
-
 	// Ensure that only valid versions are supported
-	if req.Body.Discover.Request.RequestVersion != mdm.MinEnrollmentVersion &&
-		req.Body.Discover.Request.RequestVersion != mdm.MaxEnrollmentVersion {
+	if req.Body.Discover.Request.RequestVersion != mdm.EnrollmentVersionV4 &&
+		req.Body.Discover.Request.RequestVersion != mdm.EnrollmentVersionV5 {
 		return errors.New("invalid discover message: Request.RequestVersion")
 	}
 
@@ -199,15 +197,59 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.ValueType")
 	}
 
-	if len(req.Body.RequestSecurityToken.BinarySecurityToken.EncodingType) == 0 {
-		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType")
+	if req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS10 &&
+		req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS7 {
+		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType not supported")
 	}
 
 	if len(req.Body.RequestSecurityToken.BinarySecurityToken.Content) == 0 {
 		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.Content")
 	}
 
+	if len(req.Body.RequestSecurityToken.AdditionalContext.ContextItems) == 0 {
+		return errors.New("invalid requestsecuritytoken message: AdditionalContext.ContextItems missing")
+	}
+
+	reqVersion, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemRequestVersion)
+	if err != nil || (reqVersion != mdm.EnrollmentVersionV5 && reqVersion != mdm.EnrollmentVersionV4) {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemRequestVersion, reqVersion, err)
+	}
+
+	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemEnrollmentType)
+	if err != nil || reqEnrollType != mdm.ReqSecTokenEnrollType {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
+	}
+
+	reqDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemDeviceID)
+	if err != nil || len(reqDeviceID) == 0 {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemDeviceID, reqDeviceID, err)
+	}
+
+	reqHwDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemHWDevID)
+	if err != nil || len(reqHwDeviceID) == 0 {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemHWDevID, reqHwDeviceID, err)
+	}
+
+	reqOSEdition, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemOSEdition)
+	if err != nil || len(reqOSEdition) == 0 {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemOSEdition, reqOSEdition, err)
+	}
+
+	reqOSVersion, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemOSVersion)
+	if err != nil || len(reqOSVersion) == 0 {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemOSVersion, reqOSVersion, err)
+	}
+
 	return nil
+}
+
+// Get RequestSecurityToken MDM Message from the body
+func (req *SoapRequest) GetRequestSecurityTokenMessage() (*RequestSecurityToken, error) {
+	if req.Body.RequestSecurityToken == nil {
+		return nil, errors.New("invalid body: RequestSecurityToken message not present")
+	}
+
+	return req.Body.RequestSecurityToken, nil
 }
 
 // MS-MDE2 Message request types
@@ -361,12 +403,19 @@ type RequestFilter struct {
 /// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/6ba9c509-8bce-4899-85b2-8c3d41f8f845
 
 type RequestSecurityToken struct {
-	TokenType           string              `xml:"TokenType"`
-	RequestType         string              `xml:"RequestType"`
-	BinarySecurityToken BinarySecurityToken `xml:"BinarySecurityToken"`
-	AdditionalContext   AdditionalContext   `xml:"AdditionalContext"`
+	TokenType           string                 `xml:"TokenType"`
+	RequestType         string                 `xml:"RequestType"`
+	BinarySecurityToken BinarySecurityToken    `xml:"BinarySecurityToken"`
+	AdditionalContext   AdditionalContext      `xml:"AdditionalContext"`
+	MapContextItems     map[string]ContextItem `xml:"-"`
 }
 
+// BinarySecurityToken contains the base64 encoding representation of the security token
+// BinarySecurityToken is the sole operation in the WSTEP protocol. It provides the mechanism for
+// certificate enrollment requests, retrieval of pending certificate status, and the request of the
+// server key exchange certificate.
+// The token format is defined by the WS-Trust X509v3 Enrollment Extensions [MS-WSTEP] specification
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/5b02c625-ced2-4a01-a8e1-da0ae84f5bb7
 type BinarySecurityToken struct {
 	Content      string  `xml:",chardata"`
 	XMLNS        *string `xml:"xmlns,attr"`
@@ -380,8 +429,50 @@ type ContextItem struct {
 }
 
 type AdditionalContext struct {
-	XMLNS       string        `xml:"xmlns,attr"`
-	ContextItem []ContextItem `xml:"ContextItem"`
+	XMLNS        string        `xml:"xmlns,attr"`
+	ContextItems []ContextItem `xml:"ContextItem"`
+}
+
+// Get Binary Security Token
+func (msg RequestSecurityToken) GetBinarySecurityTokenData() (string, error) {
+	if len(msg.BinarySecurityToken.Content) == 0 {
+		return "", errors.New("BinarySecurityToken is empty")
+	}
+
+	return msg.BinarySecurityToken.Content, nil
+}
+
+// Get Binary Security Token Type
+func (msg RequestSecurityToken) GetBinarySecurityTokenType() (string, error) {
+	if msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS10 ||
+		msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS7 {
+		return msg.BinarySecurityToken.ValueType, nil
+	}
+
+	return "", errors.New("BinarySecurityToken is invalid")
+}
+
+// Get SecurityToken Context Item
+func (msg *RequestSecurityToken) GetContextItem(item string) (string, error) {
+	if len(msg.AdditionalContext.ContextItems) == 0 {
+		return "", errors.New("ContextItems is empty")
+	}
+
+	// Generate map of ContextItems if not there
+	if msg.MapContextItems == nil {
+		contextMap := make(map[string]ContextItem)
+		for _, item := range msg.AdditionalContext.ContextItems {
+			contextMap[item.Name] = item
+		}
+		msg.MapContextItems = contextMap
+	}
+
+	itemVal, ok := (msg.MapContextItems)[item]
+	if !ok {
+		return "", fmt.Errorf("ContextItem item %s is not present", item)
+	}
+
+	return itemVal.Value, nil
 }
 
 ///////////////////////////////////////////////////////////////
@@ -432,13 +523,17 @@ type Permission struct {
 	AutoEnroll string `xml:"autoEnroll"`
 }
 
+type ProviderAttr struct {
+	Content string `xml:",chardata"`
+}
+
 type PrivateKeyAttributes struct {
-	MinimalKeyLength      string      `xml:"minimalKeyLength"`
-	KeySpec               GenericAttr `xml:"keySpec"`
-	KeyUsageProperty      GenericAttr `xml:"keyUsageProperty"`
-	Permissions           GenericAttr `xml:"permissions"`
-	AlgorithmOIDReference GenericAttr `xml:"algorithmOIDReference"`
-	CryptoProviders       GenericAttr `xml:"cryptoProviders"`
+	MinimalKeyLength      string         `xml:"minimalKeyLength"`
+	KeySpec               GenericAttr    `xml:"keySpec"`
+	KeyUsageProperty      GenericAttr    `xml:"keyUsageProperty"`
+	Permissions           GenericAttr    `xml:"permissions"`
+	AlgorithmOIDReference GenericAttr    `xml:"algorithmOIDReference"`
+	CryptoProviders       []ProviderAttr `xml:"provider"`
 }
 type Revision struct {
 	MajorRevision string `xml:"majorRevision"`
@@ -490,7 +585,7 @@ type OID struct {
 
 type OIDs struct {
 	Content string `xml:",chardata"`
-	OID     OID    `xml:"oID"`
+	OID     []OID  `xml:"oID"`
 }
 
 ///////////////////////////////////////////////////////////////
@@ -548,9 +643,10 @@ type SoapFault struct {
 	OriginalMessageType int      `xml:"-"`
 }
 
-// ///////////////////////////////////////////////////////////////////////////
-// / WindowsMDMAccessTokenPayload is the payload that gets encoded as JSON and
-// / provided as opaque access token to the RegisterDeviceWithManagement API.
+//////////////////////////////////////////////////////////////////////////////
+/// WindowsMDMAccessTokenPayload is the payload that gets encoded as JSON and
+/// provided as opaque access token to the RegisterDeviceWithManagement API
+
 type WindowsMDMAccessTokenPayload struct {
 	// Type is the enrollment type, such as "programmatic".
 	Type    WindowsMDMEnrollmentType `json:"type"`
@@ -561,7 +657,8 @@ type WindowsMDMAccessTokenPayload struct {
 
 type WindowsMDMEnrollmentType int
 
-// List of supported Windows MDM enrollment types.
+// List of supported Windows MDM enrollment types
+
 const (
 	WindowsMDMProgrammaticEnrollmentType WindowsMDMEnrollmentType = 1
 )
@@ -581,4 +678,85 @@ func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
 
 func (t *WindowsMDMAccessTokenPayload) GetType() WindowsMDMEnrollmentType {
 	return t.Type
+}
+
+///////////////////////////////////////////////////////////////
+/// MS-MDE2 ProvisioningDoc (XML Provisioning Schema) message type
+/// Section 2.2.9.1 on the specification
+/// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/35e1aca6-1b8a-48ba-bbc0-23af5d46907a
+
+type Param struct {
+	Name     string `xml:"name,attr,omitempty"`
+	Value    string `xml:"value,attr,omitempty"`
+	Datatype string `xml:"datatype,attr,omitempty"`
+}
+
+type Characteristic struct {
+	Type            string           `xml:"type,attr"`
+	Params          []Param          `xml:"parm"`
+	Characteristics []Characteristic `xml:"characteristic,omitempty"`
+}
+
+type WapProvisioningDoc struct {
+	XMLName         xml.Name         `xml:"wap-provisioningdoc"`
+	Version         string           `xml:"version,attr"`
+	Characteristics []Characteristic `xml:"characteristic"`
+}
+
+// Add Characteristic to the Characteristic container
+func (msg *Characteristic) AddCharacteristic(c Characteristic) {
+	msg.Characteristics = append(msg.Characteristics, c)
+}
+
+// Add Param to the Params container
+func (msg *Characteristic) AddParam(name string, value string, dataType string) {
+	param := Param{Name: name, Value: value, Datatype: dataType}
+	msg.Params = append(msg.Params, param)
+}
+
+// Add Characteristic to the WapProvisioningDoc
+func (msg *WapProvisioningDoc) AddCharacteristic(c Characteristic) {
+	msg.Characteristics = append(msg.Characteristics, c)
+}
+
+// GetEncodedB64Representation returns encoded WapProvisioningDoc representation
+func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
+	rawXML, err := xml.MarshalIndent(msg, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	// Appending the XML header beforing encoding it
+	xmlContent := append([]byte(xml.Header), rawXML...)
+
+	// Create a replacer to replace both "\n" and "\t"
+	replacer := strings.NewReplacer("\n", "", "\t", "")
+
+	// Use the replacer on the string representation of xmlContent
+	xmlStripContent := []byte(replacer.Replace(string(xmlContent)))
+
+	return base64.StdEncoding.EncodeToString(xmlStripContent), nil
+}
+
+///////////////////////////////////////////////////////////////
+/// MDMWindowsEnrolledDevice type
+/// Contains the information of the enrolled Windows host
+
+type MDMWindowsEnrolledDevice struct {
+	MDMDeviceID            string    `db:"mdm_device_id"`
+	MDMHardwareID          string    `db:"mdm_hardware_id"`
+	MDMDeviceState         string    `db:"device_state"`
+	MDMDeviceType          string    `db:"device_type"`
+	MDMDeviceName          string    `db:"device_name"`
+	MDMEnrollType          string    `db:"enroll_type"`
+	MDMEnrollUserID        string    `db:"enroll_user_id"`
+	MDMEnrollProtoVersion  string    `db:"enroll_proto_version"`
+	MDMEnrollClientVersion string    `db:"enroll_client_version"`
+	MDMNotInOOBE           bool      `db:"not_in_oobe"`
+	CreatedAt              time.Time `db:"created_at"`
+	UpdatedAt              time.Time `db:"updated_at"`
+}
+
+func (e MDMWindowsEnrolledDevice) AuthzType() string {
+	return "mdm_windows"
 }
