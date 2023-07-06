@@ -62,12 +62,8 @@ const WindowsMdmOnContent = ({ router }: IWindowsMdmOnContentProps) => {
   return (
     <>
       <h1>Turn on Windows MDM</h1>
-      <p>
-        This will turn MDM on for Windows hosts with fleetd.
-      </p>
-      <p>
-        Hosts connected to another MDM solution won&apos;t be migrated.
-      </p>
+      <p>This will turn MDM on for Windows hosts with fleetd.</p>
+      <p>Hosts connected to another MDM solution won&apos;t be migrated.</p>
       <p>MDM won&apos;t be turned on for Windows servers</p>
       <Button onClick={turnOnWindowsMdm}>Turn on</Button>
     </>
@@ -92,9 +88,7 @@ const WindowsMdmOffContent = ({ router }: IWindowsMdmOffContentProps) => {
       <p>
         MDM will no longer be turned on for Windows hosts that enroll to Fleet.
       </p>
-      <p>
-        Hosts with MDM already turned on MDM will not have MDM removed.
-      </p>
+      <p>Hosts with MDM already turned on MDM will not have MDM removed.</p>
       <Button onClick={turnOffWindowsMdm}>Turn off MDM</Button>
     </>
   );
