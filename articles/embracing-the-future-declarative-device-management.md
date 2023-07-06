@@ -4,9 +4,9 @@
 
 As a Mac administrator, managing a fleet of Apple devices across your organization requires consistency and airtight security. With a variety of system services and background tasks to oversee, the challenge is not only to maintain uniform configurations but also to keep the organization's data secure. Recognizing these challenges, Apple has advanced a powerful new approach - Declarative Device Management (DDM).
 
-DDM is a paradigm shift in device management, enabling a seamless, efficient, and secure administration of macOS devices. It allows for tamper-resistant configurations and ensures simplified monitoring of system services and background tasks.
+DDM is a paradigm shift in device management, enabling a more efficient and secure administration of macOS devices. It allows for tamper-resistant configurations and ensures simplified monitoring of system services and background tasks.
 
-In this blog post, we dive into Apple's forthcoming DDM in macOS Sonoma, exploring how it will transform how you manage system services, ensure robust security with certificates and identities, and seamlessly transition you from traditional Mobile Device Management (MDM) systems. Whether you're an experienced Mac admin or just getting started, this guide will provide valuable insights into harnessing the full power of DDM for your organization. Let's dive in!
+In this blog post, we dive into Apple's forthcoming DDM in macOS Sonoma. Specifically we'll explore how it will alter the way you manage system services, certificates and identities, and how it transitions you from traditional Mobile Device Management (MDM) systems. Whether you're an experienced Mac admin or just getting started, hopefully this guide will provide some insights into DDM for you and your organization. Let's dive in!
 
 
 ## Declarative device management for system services
@@ -48,7 +48,7 @@ Transitioning from traditional MDM to DDM will be a challenge. However, DDM prov
 
 ## Fleet + osquery + DDM = 💗
 
-The innovations introduced with DDM, including the new software update process, represent a paradigm shift in device management. Fleet's MDM solution, powered by osquery, complements these changes and offers a robust GitOps-driven management platform for Mac admins.
+The innovations introduced with DDM, including the new software update process, represent a paradigm shift in device management. Fleet's MDM solution, powered by osquery, complements these changes and offers a GitOps-driven management platform for Mac admins.
 
 As we continue to navigate this evolving landscape, we have tools that equip us better than ever to handle the challenges and complexities of modern device management. This new era presents opportunities for enhanced security, control, and efficiency in managing our devices.
 
