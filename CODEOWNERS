@@ -42,6 +42,7 @@ go.mod @fleetdm/go
 
 # Expanded table documentation
 /schema @eashaw
+/schema/tables @rachaelshaw
 
 # Articles
 /articles @jarodreyes
