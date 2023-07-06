@@ -486,7 +486,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   disabledWindowsMdm: (activity: IActivity) => {
-    return <> told Fleet to turn off MDM features for all Windows hosts.</>;
+    return <> told Fleet to turn off Windows MDM features.</>;
   },
 };
 
