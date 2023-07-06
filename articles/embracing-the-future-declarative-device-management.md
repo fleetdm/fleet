@@ -52,7 +52,7 @@ The innovations introduced with DDM, including the new software update process, 
 
 As we continue to navigate this evolving landscape, we have tools that equip us better than ever to handle the challenges and complexities of modern device management. This new era presents opportunities for enhanced security, control, and efficiency in managing our devices.
 
-Fleet is transforming how we manage and secure devices. Offering an open-core, cross-platform solution, Fleet is committed to empowering Mac admins with the tools they need to meet the challenges of today, and tomorrow's device management. Through its powerful and versatile platform, Fleet is illuminating the path forward in device management.
+Fleet is transforming how we manage and secure devices. Offering an open-core, cross-platform solution, Fleet is committed to empowering Mac admins with the tools they need to meet the challenges of today and tomorrow's device management. Through its powerful and versatile platform, Fleet is illuminating the path forward in device management.
 
 
 
