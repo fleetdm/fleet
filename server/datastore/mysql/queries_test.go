@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,9 +44,24 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	groob := test.NewUser(t, ds, "Victor", "victor@fleet.co", true)
+
 	expectedQueries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo", ObserverCanRun: true},
-		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+		{
+			Name:               "foo",
+			Description:        "get the foos",
+			Query:              "select * from foo",
+			ObserverCanRun:     true,
+			ScheduleInterval:   10,
+			Platform:           ptr.String("macos"),
+			MinOsqueryVersion:  ptr.String("5.2.1"),
+			AutomationsEnabled: true,
+			LoggingType:        "differential",
+		},
+		{
+			Name:        "bar",
+			Description: "do some bars",
+			Query:       "select baz from bar",
+		},
 	}
 
 	// Zach creates some queries
@@ -55,6 +71,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	require.Len(t, queries, len(expectedQueries))
+
 	for i, q := range queries {
 		comp := expectedQueries[i]
 		assert.Equal(t, comp.Name, q.Name)
@@ -62,6 +79,12 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 		assert.Equal(t, comp.Query, q.Query)
 		assert.Equal(t, &zwass.ID, q.AuthorID)
 		assert.Equal(t, comp.ObserverCanRun, q.ObserverCanRun)
+		assert.Equal(t, comp.TeamID, q.TeamID)
+		assert.Equal(t, comp.ScheduleInterval, q.ScheduleInterval)
+		assert.Equal(t, comp.Platform, q.Platform)
+		assert.Equal(t, comp.MinOsqueryVersion, q.MinOsqueryVersion)
+		assert.Equal(t, comp.AutomationsEnabled, q.AutomationsEnabled)
+		assert.Equal(t, comp.LoggingType, q.LoggingType)
 	}
 
 	// Victor modifies a query (but also pushes the same version of the
@@ -79,11 +102,22 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 		assert.Equal(t, comp.Description, q.Description)
 		assert.Equal(t, comp.Query, q.Query)
 		assert.Equal(t, &groob.ID, q.AuthorID)
+		assert.Equal(t, comp.ObserverCanRun, q.ObserverCanRun)
+		assert.Equal(t, comp.TeamID, q.TeamID)
+		assert.Equal(t, comp.ScheduleInterval, q.ScheduleInterval)
+		assert.Equal(t, comp.Platform, q.Platform)
+		assert.Equal(t, comp.MinOsqueryVersion, q.MinOsqueryVersion)
+		assert.Equal(t, comp.AutomationsEnabled, q.AutomationsEnabled)
+		assert.Equal(t, comp.LoggingType, q.LoggingType)
 	}
 
 	// Zach adds a third query (but does not re-apply the others)
 	expectedQueries = append(expectedQueries,
-		&fleet.Query{Name: "trouble", Description: "Look out!", Query: "select * from time"},
+		&fleet.Query{
+			Name:        "trouble",
+			Description: "Look out!",
+			Query:       "select * from time",
+		},
 	)
 	err = ds.ApplyQueries(context.Background(), zwass.ID, []*fleet.Query{expectedQueries[2]})
 	require.Nil(t, err)
@@ -91,12 +125,21 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	require.Len(t, queries, len(expectedQueries))
+
 	for i, q := range queries {
 		comp := expectedQueries[i]
 		assert.Equal(t, comp.Name, q.Name)
 		assert.Equal(t, comp.Description, q.Description)
 		assert.Equal(t, comp.Query, q.Query)
+		assert.Equal(t, comp.ObserverCanRun, q.ObserverCanRun)
+		assert.Equal(t, comp.TeamID, q.TeamID)
+		assert.Equal(t, comp.ScheduleInterval, q.ScheduleInterval)
+		assert.Equal(t, comp.Platform, q.Platform)
+		assert.Equal(t, comp.MinOsqueryVersion, q.MinOsqueryVersion)
+		assert.Equal(t, comp.AutomationsEnabled, q.AutomationsEnabled)
+		assert.Equal(t, comp.LoggingType, q.LoggingType)
 	}
+
 	assert.Equal(t, &groob.ID, queries[0].AuthorID)
 	assert.Equal(t, &groob.ID, queries[1].AuthorID)
 	assert.Equal(t, &zwass.ID, queries[2].AuthorID)
@@ -182,23 +225,42 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 		AuthorID: &user.ID,
 	}
 	query, err := ds.NewQuery(context.Background(), query)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, query)
 	assert.NotEqual(t, 0, query.ID)
 
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "some kind of nature",
+		Description: "some kind of goal",
+	})
+	require.NoError(t, err)
+
 	query.Query = "baz"
 	query.ObserverCanRun = true
-	err = ds.SaveQuery(context.Background(), query)
+	query.TeamID = &team.ID
+	query.ScheduleInterval = 10
+	query.Platform = ptr.String("macos")
+	query.MinOsqueryVersion = ptr.String("5.2.1")
+	query.AutomationsEnabled = true
+	query.LoggingType = "differential"
 
-	require.Nil(t, err)
+	err = ds.SaveQuery(context.Background(), query)
+	require.NoError(t, err)
 
 	queryVerify, err := ds.Query(context.Background(), query.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, queryVerify)
+
 	assert.Equal(t, "baz", queryVerify.Query)
 	assert.Equal(t, "Zach", queryVerify.AuthorName)
 	assert.Equal(t, "zwass@fleet.co", queryVerify.AuthorEmail)
 	assert.True(t, queryVerify.ObserverCanRun)
+	assert.Equal(t, *query.TeamID, team.ID)
+	assert.Equal(t, query.ScheduleInterval, uint(10))
+	assert.Equal(t, *query.Platform, "macos")
+	assert.Equal(t, *query.MinOsqueryVersion, "5.2.1")
+	assert.Equal(t, query.AutomationsEnabled, true)
+	assert.Equal(t, query.LoggingType, "differential")
 }
 
 func testQueriesList(t *testing.T, ds *Datastore) {
@@ -381,21 +443,40 @@ func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
 
 func testQueriesDuplicateNew(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Mike Arpaia", "mike@fleet.co", true)
-	q1, err := ds.NewQuery(context.Background(), &fleet.Query{
+
+	// The uniqueness of 'global' queries should be based on their name alone.
+	globalQ1, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:     "foo",
 		Query:    "select * from time;",
 		AuthorID: &user.ID,
 	})
-	require.Nil(t, err)
-	assert.NotZero(t, q1.ID)
-
+	require.NoError(t, err)
+	assert.NotZero(t, globalQ1.ID)
 	_, err = ds.NewQuery(context.Background(), &fleet.Query{
 		Name:  "foo",
 		Query: "select * from osquery_info;",
 	})
+	assert.Contains(t, err.Error(), "already exists")
 
-	// Note that we can't do the actual type assertion here because existsError
-	// is private to the individual datastore implementations
+	// Check uniqueness constraint on queries that belong to a team
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "some kind of nature",
+		Description: "some kind of goal",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewQuery(context.Background(), &fleet.Query{
+		Name:   "foo",
+		Query:  "select * from osquery_info;",
+		TeamID: &team.ID,
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewQuery(context.Background(), &fleet.Query{
+		Name:   "foo",
+		Query:  "select * from osquery_info;",
+		TeamID: &team.ID,
+	})
 	assert.Contains(t, err.Error(), "already exists")
 }
 
