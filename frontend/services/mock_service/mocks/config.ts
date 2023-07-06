@@ -22,6 +22,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     // request query string is hostname, uuid, or mac address; response is host detail excluding any
     // expensive data operations
     "targets?query={*}": RESPONSES.hosts,
+    // "ScheduleableQueries" to be used in developing frontend for #7765
     queries: RESPONSES.queries,
     "queries/1": RESPONSES.query1,
     "queries/2": RESPONSES.query2,
@@ -35,6 +36,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       targets_offline: 1,
       targets_missing_in_action: 0,
     },
+    // "ScheduleableQueries" to be used in developing frontend for #7765
     queries: {
       description: "Ok",
       name: "New query name",

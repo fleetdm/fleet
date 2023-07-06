@@ -28,10 +28,10 @@ export interface IScheduleableQuery {
   query: string;
   team_id: number | null;
   interval: number;
-  platform: string;
+  platform: string; // TODO: Specify strings
   min_osquery_version: string;
   automations_enabled: boolean;
-  logging: string;
+  logging: string; // TODO: Specify strings
   saved: boolean;
   author_id: number;
   author_name: string;
