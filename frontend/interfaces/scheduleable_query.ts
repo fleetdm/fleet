@@ -1,3 +1,5 @@
+// "ScheduleableQuery" to be used in developing frontend for #7765
+
 import { IFormField } from "./form_field";
 import { IPack } from "./pack";
 import { IScheduledQueryStats } from "./scheduled_query_stats";
@@ -10,20 +12,26 @@ export interface IQueryFormData {
 }
 
 export interface IStoredQueryResponse {
-  query: IQuery;
+  query: IScheduleableQuery;
 }
 
 export interface IFleetQueriesResponse {
-  queries: IQuery[];
+  queries: IScheduleableQuery[];
 }
 
-export interface IQuery {
+export interface IScheduleableQuery {
   created_at: string;
   updated_at: string;
   id: number;
   name: string;
   description: string;
   query: string;
+  team_id: number | null;
+  interval: number;
+  platform: string;
+  min_osquery_version: string;
+  automations_enabled: boolean;
+  logging: string;
   saved: boolean;
   author_id: number;
   author_name: string;

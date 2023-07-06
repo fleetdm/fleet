@@ -364,8 +364,103 @@ const labels = {
   ],
 };
 
+// "ScheduleableQueries" to be used in developing frontend for #7765
+const queries = {
+  queries: [
+    {
+      created_at: "2022-11-03T17:22:14Z",
+      updated_at: "2022-11-03T17:22:14Z",
+      id: 1,
+      name: "Test Query",
+      description: "A test query",
+      query: "SELECT * FROM users",
+      team_id: null,
+      interval: 3600,
+      platform: "macos,windows,linux",
+      min_osquery_version: "",
+      automations_enabled: true,
+      logging: "snapshot",
+      saved: true,
+      author_id: 1,
+      author_name: "Test User",
+      author_email: "test@example.com",
+      observer_can_run: false,
+      packs: [],
+      stats: {
+        system_time_p50: null,
+        system_time_p95: null,
+        user_time_p50: null,
+        user_time_p95: null,
+        total_executions: null,
+      },
+    },
+    {
+      created_at: "2022-11-03T17:22:14Z",
+      updated_at: "2022-11-03T17:22:14Z",
+      id: 2,
+      name: "Test Query 2",
+      description: "A second test query",
+      query: "SELECT * FROM osquery_info",
+      team_id: 1,
+      interval: 3600,
+      platform: "linux",
+      min_osquery_version: "",
+      automations_enabled: false,
+      logging: "differential",
+      saved: false,
+      author_id: 2,
+      author_name: "Test User 2",
+      author_email: "test2@example.com",
+      observer_can_run: true,
+      packs: [],
+      stats: {
+        system_time_p50: null,
+        system_time_p95: null,
+        user_time_p50: null,
+        user_time_p95: null,
+        total_executions: null,
+      },
+    },
+    {
+      created_at: "2022-11-03T17:22:14Z",
+      updated_at: "2022-11-03T17:22:14Z",
+      id: 3,
+      name: "Test Query 3",
+      description: "A third test query",
+      query: "SELECT * FROM osquery_info",
+      team_id: 2,
+      interval: 3600,
+      platform: "",
+      min_osquery_version: "",
+      automations_enabled: false,
+      logging: "differential",
+      saved: false,
+      author_id: 2,
+      author_name: "Test User 2",
+      author_email: "test2@example.com",
+      observer_can_run: true,
+      packs: [],
+      stats: {
+        system_time_p50: null,
+        system_time_p95: null,
+        user_time_p50: null,
+        user_time_p95: null,
+        total_executions: null,
+      },
+    },
+  ],
+};
+
+const query1 = { query: queries.queries[0] };
+const query2 = { query: queries.queries[1] };
+const query3 = { query: queries.queries[2] };
+
 export default {
   count,
   hosts,
   labels,
+  queries,
+  query1,
+  query2,
+  query3,
 };
