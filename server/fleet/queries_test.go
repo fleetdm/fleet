@@ -3,9 +3,34 @@ package fleet
 import (
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestTeamIDStr(t *testing.T) {
+	testCases := []struct {
+		query    *Query
+		expected string
+	}{
+		{
+			query:    nil,
+			expected: "",
+		},
+		{
+			query:    &Query{},
+			expected: "",
+		},
+		{
+			query:    &Query{TeamID: ptr.Uint(10)},
+			expected: "10",
+		},
+	}
+
+	for _, tCase := range testCases {
+		require.Equal(t, tCase.expected, tCase.query.TeamIDStr())
+	}
+}
 
 func TestLoadQueriesFromYamlStrings(t *testing.T) {
 	testCases := []struct {

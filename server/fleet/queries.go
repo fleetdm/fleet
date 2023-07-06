@@ -22,7 +22,7 @@ type Query struct {
 	// team.
 	TeamID *uint `json:"team_id" db:"team_id"`
 	// Interval frequency of execution (in seconds), if 0 then, this query will never run.
-	Interval uint `json:"interval" db:"interval"`
+	ScheduleInterval uint `json:"interval" db:"schedule_interval"`
 	// Platform if set, specifies the platform(s) this query will target.
 	Platform *string `json:"platform" db:"platform"`
 	// MinOsqueryVersion if set, specifies the min required version of osquery that must be
@@ -55,6 +55,14 @@ type Query struct {
 
 func (q Query) AuthzType() string {
 	return "query"
+}
+
+// TeamIDStr returns either the string representation of q.TeamID or ” if nil
+func (q *Query) TeamIDStr() string {
+	if q == nil || q.TeamID == nil {
+		return ""
+	}
+	return fmt.Sprint(*q.TeamID)
 }
 
 // Verify verifies the query payload is valid.

@@ -36,15 +36,29 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			query,
 			author_id,
 			saved,
-			observer_can_run
-		) VALUES ( ?, ?, ?, ?, true, ? )
+			observer_can_run,
+			team_id,
+			team_id_char,
+			platform,
+			min_osquery_version,
+			schedule_interval,
+			automations_enabled,
+			logging_type 
+		) VALUES ( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
 			query = VALUES(query),
 			author_id = VALUES(author_id),
 			saved = VALUES(saved),
-			observer_can_run = VALUES(observer_can_run)
+			observer_can_run = VALUES(observer_can_run),
+			team_id = VALUES(team_id),
+			team_id_char = VALUES(team_id_char),
+			platform = VALUES(platform),
+			min_osquery_version = VALUES(min_osquery_version),
+			schedule_interval = VALUES(schedule_interval),
+			automations_enabled = VALUES(automations_enabled),
+			logging_type = VALUES(logging_type)
 	`
 	stmt, err := tx.PrepareContext(ctx, sql)
 	if err != nil {
@@ -56,7 +70,21 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 		if q.Name == "" {
 			return ctxerr.New(ctx, "query name must not be empty")
 		}
-		_, err := stmt.ExecContext(ctx, q.Name, q.Description, q.Query, authorID, q.ObserverCanRun)
+		_, err := stmt.ExecContext(
+			ctx,
+			q.Name,
+			q.Description,
+			q.Query,
+			authorID,
+			q.ObserverCanRun,
+			q.TeamID,
+			q.TeamIDStr(),
+			q.Platform,
+			q.MinOsqueryVersion,
+			q.ScheduleInterval,
+			q.AutomationsEnabled,
+			q.LoggingType,
+		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec ApplyQueries insert")
 		}
@@ -68,9 +96,24 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 
 func (ds *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	sqlStatement := `
-		SELECT *
-			FROM queries
-			WHERE name = ?
+		SELECT 
+			id,
+			team_id,
+			name,
+			description,
+			query,
+			author_id,
+			saved,
+			observer_can_run,
+			schedule_interval,
+			platform,
+			min_osquery_version,
+			automations_enabled,
+			logging_type,
+			created_at,
+			updated_at
+		FROM queries
+		WHERE name = ?
 	`
 	var query fleet.Query
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &query, sqlStatement, name)
@@ -97,10 +140,33 @@ func (ds *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...f
 			query,
 			saved,
 			author_id,
-			observer_can_run
-		) VALUES ( ?, ?, ?, ?, ?, ? )
+			observer_can_run,
+			team_id,
+			team_id_char,
+			platform,
+			min_osquery_version,
+			schedule_interval,
+			automations_enabled,
+			logging_type 
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
-	result, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
+	result, err := ds.writer(ctx).ExecContext(
+		ctx,
+		sqlStatement,
+		query.Name,
+		query.Description,
+		query.Query,
+		query.Saved,
+		query.AuthorID,
+		query.ObserverCanRun,
+		query.TeamID,
+		query.TeamIDStr(),
+		query.Platform,
+		query.MinOsqueryVersion,
+		query.ScheduleInterval,
+		query.AutomationsEnabled,
+		query.LoggingType,
+	)
 
 	if err != nil && isDuplicate(err) {
 		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", query.Name))
@@ -118,10 +184,38 @@ func (ds *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...f
 func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 	sql := `
 		UPDATE queries
-			SET name = ?, description = ?, query = ?, author_id = ?, saved = ?, observer_can_run = ?
-			WHERE id = ?
+		SET name                = ?,
+			description         = ?,
+			query               = ?,
+			author_id           = ?,
+			saved               = ?,
+			observer_can_run    = ?,
+			team_id             = ?,
+			team_id_char        = ?,
+			platform            = ?,
+			min_osquery_version = ?,
+			schedule_interval   = ?,
+			automations_enabled = ?,
+			logging_type        = ?
+		WHERE id = ?
 	`
-	result, err := ds.writer(ctx).ExecContext(ctx, sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ObserverCanRun, q.ID)
+	result, err := ds.writer(ctx).ExecContext(
+		ctx,
+		sql,
+		q.Name,
+		q.Description,
+		q.Query,
+		q.AuthorID,
+		q.Saved,
+		q.ObserverCanRun,
+		q.TeamID,
+		q.TeamIDStr(),
+		q.Platform,
+		q.MinOsqueryVersion,
+		q.ScheduleInterval,
+		q.AutomationsEnabled,
+		q.LoggingType,
+		q.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating query")
 	}
@@ -150,7 +244,24 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 // Query returns a single Query identified by id, if such exists.
 func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	sqlQuery := `
-		SELECT q.*, COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, COALESCE(u.email, '') AS author_email
+		SELECT 
+			q.id,
+			q.team_id,
+			q.name,
+			q.description,
+			q.query,
+			q.author_id,
+			q.saved,
+			q.observer_can_run,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type,
+			q.created_at,
+			q.updated_at,
+			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, 
+			COALESCE(u.email, '') AS author_email
 		FROM queries q
 		LEFT JOIN users u
 			ON q.author_id = u.id
@@ -176,14 +287,28 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
 	sql := `
 		SELECT
-		       q.*,
-		       COALESCE(u.name, '<deleted>') AS author_name,
-		       COALESCE(u.email, '') AS author_email,
-		       JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
-		       JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
-		       JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
-		       JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
-					 JSON_EXTRACT(json_value, '$.total_executions') as total_executions
+			q.id,
+			q.team_id,
+			q.name,
+			q.description,
+			q.query,
+			q.author_id,
+			q.saved,
+			q.observer_can_run,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type,
+			q.created_at,
+			q.updated_at,
+			COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
+			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
+			JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
+			JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
+			JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
+			JSON_EXTRACT(json_value, '$.total_executions') as total_executions
 		FROM queries q
 		LEFT JOIN users u ON (q.author_id = u.id)
 		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
@@ -197,6 +322,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	results := []*fleet.Query{}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, false, aggregatedStatsTypeQuery); err != nil {
+		fmt.Println(err)
 		return nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
