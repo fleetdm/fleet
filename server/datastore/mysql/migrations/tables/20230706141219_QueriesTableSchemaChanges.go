@@ -31,7 +31,7 @@ func Up_20230706141219(tx *sql.Tx) error {
 			ADD platform VARCHAR(255) DEFAULT NULL,
 			ADD min_osquery_version VARCHAR(255) DEFAULT NULL,
 
-			ADD frequency_seconds INT(10) UNSIGNED DEFAULT 0,
+			ADD interval INT(10) UNSIGNED DEFAULT 0,
 			ADD automations_enabled TINYINT(1) UNSIGNED DEFAULT 0,
 			ADD logging_type VARCHAR(255) DEFAULT 'snapshot',
 

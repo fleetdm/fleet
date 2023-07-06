@@ -17,7 +17,21 @@ type QueryPayload struct {
 
 type Query struct {
 	UpdateCreateTimestamps
-	ID          uint   `json:"id"`
+	ID uint `json:"id"`
+	// TeamID to which team this query belongs. If not set, then the query belongs to the 'Global'
+	// team.
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// Interval frequency of execution (in seconds), if 0 then, this query will never run.
+	Interval uint `json:"interval" db:"interval"`
+	// Platform if set, specifies the platform(s) this query will target.
+	Platform *string `json:"platform" db:"platform"`
+	// MinOsqueryVersion if set, specifies the min required version of osquery that must be
+	// installed on the host.
+	MinOsqueryVersion *string `json:"min_osquery_version" db:"min_osquery_version"`
+	// AutomationsEnabled whether to send data to the configured log destination
+	AutomationsEnabled bool `json:"automations_enabled" db:"automations_enabled"`
+	// LoggingType the type of log output for this query
+	LoggingType string `json:"logging" db:"logging_type"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Query       string `json:"query"`
