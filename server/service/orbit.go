@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -179,19 +180,23 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{Notifications: notifs}, orbitError{message: "internal error: missing host from request context"}
 	}
 
-	config, err := svc.ds.AppConfig(ctx)
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return fleet.OrbitConfig{Notifications: notifs}, err
 	}
 
 	// set the host's orbit notifications for macOS MDM
-	if config.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
+	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
+		// TODO(mna): all those notifications implied a macos hosts, but none of
+		// the checks enforce that (only indirectly in some cases, like
+		// IsDEPAssignedToFleet), should we add such a platform check?
+
 		if host.NeedsDEPEnrollment() {
 			notifs.RenewEnrollmentProfile = true
 		}
 
-		if config.MDM.MacOSMigration.Enable &&
-			host.IsElegibleForDEPMigration() {
+		if appConfig.MDM.MacOSMigration.Enable &&
+			host.IsEligibleForDEPMigration() {
 			notifs.NeedsMDMMigration = true
 		}
 
@@ -207,14 +212,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// set the host's orbit notifications for Windows MDM
-	if config.MDM.WindowsEnabledAndConfigured {
-		if host.IsElegibleForWindowsMDMEnrollment() {
-			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(config.ServerSettings.ServerURL)
+	if appConfig.MDM.WindowsEnabledAndConfigured {
+		if host.IsEligibleForWindowsMDMEnrollment() {
+			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
 				return fleet.OrbitConfig{Notifications: notifs}, err
 			}
 			notifs.WindowsMDMDiscoveryEndpoint = discoURL
 			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
+		}
+	}
+	if config.IsMDMFeatureFlagEnabled() && !appConfig.MDM.WindowsEnabledAndConfigured {
+		if host.IsEligibleForWindowsMDMUnenrollment() {
+			notifs.NeedsProgrammaticWindowsMDMUnenrollment = true
 		}
 	}
 
@@ -238,9 +248,9 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		var nudgeConfig *fleet.NudgeConfig
-		if mdmConfig != nil &&
-			mdmConfig.MacOSUpdates.Deadline.Value != "" &&
-			mdmConfig.MacOSUpdates.MinimumVersion.Value != "" {
+		if appConfig.MDM.EnabledAndConfigured &&
+			mdmConfig != nil &&
+			mdmConfig.MacOSUpdates.EnabledForHost(host) {
 			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
 			if err != nil {
 				return fleet.OrbitConfig{Notifications: notifs}, err
@@ -257,16 +267,16 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// team ID is nil, get global flags and options
 	var opts fleet.AgentOptions
-	if config.AgentOptions != nil {
-		if err := json.Unmarshal(*config.AgentOptions, &opts); err != nil {
+	if appConfig.AgentOptions != nil {
+		if err := json.Unmarshal(*appConfig.AgentOptions, &opts); err != nil {
 			return fleet.OrbitConfig{Notifications: notifs}, err
 		}
 	}
 
 	var nudgeConfig *fleet.NudgeConfig
-	if config.MDM.MacOSUpdates.Deadline.Value != "" &&
-		config.MDM.MacOSUpdates.MinimumVersion.Value != "" {
-		nudgeConfig, err = fleet.NewNudgeConfig(config.MDM.MacOSUpdates)
+	if appConfig.MDM.EnabledAndConfigured &&
+		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
+		nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
 		if err != nil {
 			return fleet.OrbitConfig{Notifications: notifs}, err
 		}

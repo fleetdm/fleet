@@ -1,0 +1,1 @@
+* Added `enabled_windows_mdm` and `disabled_windows_mdm` activities when a user turns on/off Windows MDM.

@@ -26,6 +26,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -214,7 +215,6 @@ func (s *integrationMDMTestSuite) TearDownSuite() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.MDM.EnabledAndConfigured = false
-	appConf.MDM.WindowsEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 }
@@ -233,12 +233,12 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	s.token = s.getTestAdminToken()
 	appCfg := s.getConfig()
-	if appCfg.MDM.MacOSSettings.EnableDiskEncryption {
-		// ensure global disk encryption is disabled on exit
-		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": false } }
-  }`), http.StatusOK)
-	}
+	// ensure windows mdm is always enabled for the next test
+	appCfg.MDM.WindowsEnabledAndConfigured = true
+	// ensure global disk encryption is disabled on exit
+	appCfg.MDM.MacOSSettings.EnableDiskEncryption = false
+	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
+	require.NoError(t, err)
 
 	s.withServer.commonTearDownTest(t)
 
@@ -790,11 +790,21 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		<-ch
 	}
 
+	// add global profiles
+	globalProfile := mobileconfigForTest("N1", "I1")
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{globalProfile}}, http.StatusNoContent)
+
 	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestMDMClient, shouldReceive bool) {
 		// run the worker to process the DEP enroll request
 		s.runWorker()
+		// run the worker to assign configuration profiles
+		ch := make(chan bool)
+		s.onProfileScheduleDone = func() { close(ch) }
+		_, err := s.profileSchedule.Trigger()
+		require.NoError(t, err)
+		<-ch
 
-		var fleetdCmd *micromdm.CommandPayload
+		var fleetdCmd, installProfileCmd *micromdm.CommandPayload
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
@@ -802,16 +812,24 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 				cmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
 				strings.Contains(*cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
 				fleetdCmd = cmd
+			} else if cmd.Command.RequestType == "InstallProfile" {
+				installProfileCmd = cmd
 			}
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
 		}
 
 		if shouldReceive {
-			require.NotNil(t, fleetdCmd)
-			require.NotNil(t, fleetdCmd.Command)
+			// received request to install fleetd
+			require.NotNil(t, fleetdCmd, "host didn't get a command to install fleetd")
+			require.NotNil(t, fleetdCmd.Command, "host didn't get a command to install fleetd")
+
+			// received request to install the global configuration profile
+			require.NotNil(t, installProfileCmd, "host didn't get a command to install profiles")
+			require.NotNil(t, installProfileCmd.Command, "host didn't get a command to install profiles")
 		} else {
-			require.Nil(t, fleetdCmd)
+			require.Nil(t, fleetdCmd, "host got a command to install fleetd")
+			require.Nil(t, installProfileCmd, "host got a command to install profiles")
 		}
 	}
 
@@ -887,7 +905,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// make sure the host gets a request to install fleetd
+	// make sure the host gets post enrollment requests
 	checkPostEnrollmentCommands(mdmDevice, true)
 
 	// only one shows up as pending
@@ -907,7 +925,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			require.JSONEq(
 				t,
 				fmt.Sprintf(
-					`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": true}`,
+					`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple"}`,
 					devices[0].SerialNumber, devices[0].Model, devices[0].SerialNumber,
 				),
 				string(*activity.Details),
@@ -1050,8 +1068,8 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 		}
 	}
 	require.Len(t, details, 2)
-	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), string(*details[len(details)-2]))
-	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), string(*details[len(details)-1]))
+	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), string(*details[len(details)-2]))
+	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), string(*details[len(details)-1]))
 
 	// set an enroll secret
 	var applyResp applyEnrollSecretSpecResponse
@@ -3573,7 +3591,9 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusNotFound, &metadataResp)
 
 	// trying to upload a file that is not a PDF fails
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte("should-fail"), Name: "should-fail.pdf"}, http.StatusBadRequest, "")
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte("should-fail"), Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
+	// trying to upload an empty file fails
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte{}, Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
 
 	// admin is able to upload a new EULA
 	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
@@ -5082,6 +5102,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.True(t, acResp.MDMEnabled)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
 	// get the orbit config for each host, verify that only the expected ones
 	// receive the "needs enrollment to Windows MDM" notification.
@@ -5091,12 +5112,35 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
 			http.StatusOK, &resp)
 		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
 		if meta.shouldEnroll {
 			require.Contains(t, resp.Notifications.WindowsMDMDiscoveryEndpoint, microsoft_mdm.MDE2DiscoveryPath)
 		} else {
 			require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 		}
 	}
+
+	// disable Microsoft MDM
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": false }
+  }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledWindowsMDM{}.ActivityName(), `{}`, 0)
+
+	// set the win-no-team host as enrolled in Windows MDM
+	noTeamHost := hostsBySuffix["win-no-team"]
+	err = s.ds.SetOrUpdateMDMData(ctx, noTeamHost.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	// get the orbit config for win-no-team should return true for the
+	// unenrollment notification
+	var resp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *noTeamHost.OrbitNodeKey)),
+		http.StatusOK, &resp)
+	require.True(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 }
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
@@ -5195,9 +5239,11 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 
 	// Checking if SOAP response contains a valid SoapFault message
 	resSoapMsg := string(resBytes)
+
 	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "invalid SOAP header: Header.MessageID", resSoapMsg))
 }
 
 func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
@@ -5233,7 +5279,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
-	// Checking if SOAP response contains a valid DiscoveryResponse message
+	// Checking if SOAP response contains a valid GetPoliciesResponse message
 	resSoapMsg := string(resBytes)
 	require.True(t, s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
 	require.True(t, s.isXMLTagPresent("policyOIDReference", resSoapMsg))
@@ -5276,11 +5322,12 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
-	// Checking if SOAP response contains a valid DiscoveryResponse message
+	// Checking if SOAP response contains a valid SoapFault message
 	resSoapMsg := string(resBytes)
 	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "binarySecurityTokenValidation: host data cannot be found", resSoapMsg))
 }
 
 func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
@@ -5316,11 +5363,219 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
-	// Checking if SOAP response contains a valid DiscoveryResponse message
+	// Checking if SOAP response contains a valid SoapFault message
 	resSoapMsg := string(resBytes)
 	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "host is not elegible for Windows MDM enrollment", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequest() {
+	t := s.T()
+
+	// create a new Host to get the UUID on the DB
+	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
+		NodeKey:       ptr.String("Desktop-ABCQWE"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// Delete the host from the list of MDM enrolled devices if present
+	_ = s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
+
+	// Preparing the RequestSecurityToken Request message
+	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
+	require.NoError(t, err)
+
+	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid RequestSecurityTokenResponseCollection message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("RequestSecurityTokenResponseCollection", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("DispositionMessage", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("TokenType", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("RequestID", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("BinarySecurityToken", resSoapMsg))
+
+	// Checking if an activity was created for the enrollment
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
+		`{
+			"mdm_platform": "microsoft",
+			"host_serial": "",
+			"installed_from_dep": false,
+			"host_display_name": "DESKTOP-0C89RC0"
+		 }`,
+		0)
+}
+
+func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMissingAdditionalContext() {
+	t := s.T()
+
+	// create a new Host to get the UUID on the DB
+	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
+		NodeKey:       ptr.String("Desktop-ABCQWE"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// Preparing the RequestSecurityToken Request message
+	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
+	require.NoError(t, err)
+
+	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, false)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid SoapFault message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "ContextItem item DeviceType is not present", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
+	t := s.T()
+
+	// ensure the config is empty before starting
+	s.applyConfig([]byte(`
+  mdm:
+    macos_updates:
+      deadline: ""
+      minimum_version: ""
+ `))
+
+	var resp orbitGetConfigResponse
+	// missing orbit key
+	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
+
+	// nudge config is empty if macos_updates is not set, and Windows MDM notifications are unset
+	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.NudgeConfig)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+
+	// set macos_updates
+	s.applyConfig([]byte(`
+  mdm:
+    macos_updates:
+      deadline: 2022-01-04
+      minimum_version: 12.1.3
+ `))
+
+	// still empty if MDM is turned off for the host
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.NudgeConfig)
+
+	// turn on MDM features
+	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	mdmDevice.SerialNumber = h.HardwareSerial
+	mdmDevice.UUID = h.UUID
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
+
+	// create a team with an empty macos_updates config
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          4827,
+		Name:        "team1_" + t.Name(),
+		Description: "desc team1_" + t.Name(),
+	})
+	require.NoError(t, err)
+
+	// add the host to the team
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
+	require.NoError(t, err)
+
+	// NudgeConfig should be empty
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
+
+	// modify the team config, add macos_updates config
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
+				Deadline:       optjson.SetString("1992-01-01"),
+				MinimumVersion: optjson.SetString("13.1.1"),
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.1.1")})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 04:00:00 +0000 UTC")
+
+	// create a new host, still receives the global config
+	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
+	mdmDevice = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	mdmDevice.SerialNumber = h2.HardwareSerial
+	mdmDevice.UUID = h2.UUID
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
+	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
 }
 
 // ///////////////////////////////////////////////////////////////////////////
@@ -5354,6 +5609,17 @@ func (s *integrationMDMTestSuite) isXMLTagContentPresent(xmlTag string, payload 
 	return matched
 }
 
+func (s *integrationMDMTestSuite) checkIfXMLTagContains(xmlTag string, xmlContent string, payload string) bool {
+	regex := fmt.Sprintf("<%s.*>.*%s.*</%s.*>", xmlTag, xmlContent, xmlTag)
+
+	matched, err := regexp.MatchString(regex, payload)
+	if err != nil || !matched {
+		return false
+	}
+
+	return true
+}
+
 func (s *integrationMDMTestSuite) newGetPoliciesMsg(encodedBinToken string) ([]byte, error) {
 	if len(encodedBinToken) == 0 {
 		return nil, errors.New("encodedBinToken is empty")
@@ -5382,4 +5648,89 @@ func (s *integrationMDMTestSuite) newGetPoliciesMsg(encodedBinToken string) ([]b
 				</GetPolicies>
 			</s:Body>
 			</s:Envelope>`), nil
+}
+
+func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, missingContextItem bool) ([]byte, error) {
+	if len(encodedBinToken) == 0 {
+		return nil, errors.New("encodedBinToken is empty")
+	}
+
+	var reqSecTokenContextItemDeviceType []byte
+	if missingContextItem {
+		reqSecTokenContextItemDeviceType = []byte(
+			`<ac:ContextItem Name="DeviceType">
+			 <ac:Value>CIMClient_Windows</ac:Value>
+			 </ac:ContextItem>`)
+	}
+
+	// Preparing the RequestSecurityToken Request message
+	requestBytes := []byte(
+		`<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
+			<s:Header>
+				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</a:Action>
+				<a:MessageID>urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749</a:MessageID>
+				<a:ReplyTo>
+				<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+				</a:ReplyTo>
+				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Enrollment.svc</a:To>
+				<wsse:Security s:mustUnderstand="1">
+				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
+				</wsse:Security>
+			</s:Header>
+			<s:Body>
+				<wst:RequestSecurityToken>
+				<wst:TokenType>http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken</wst:TokenType>
+				<wst:RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</wst:RequestType>
+				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">MIICzjCCAboCAQAwSzFJMEcGA1UEAxNAMkI5QjUyQUMtREYzOC00MTYxLTgxNDItRjRCMUUwIURCMjU3QzNBMDg3NzhGNEZCNjFFMjc0OTA2NkMxRjI3ADCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKogsEpbKL8fuXpTNAE5RTZim8JO5CCpxj3z+SuWabs/s9Zse6RziKr12R4BXPiYE1zb8god4kXxet8x3ilGqAOoXKkdFTdNkdVa23PEMrIZSX5MuQ7mwGtctayARxmDvsWRF/icxJbqSO+bYIKvuifesOCHW2cJ1K+JSKijTMik1N8NFbLi5fg1J+xImT9dW1z2fLhQ7SNEMLosUPHsbU9WKoDBfnPsLHzmhM2IMw+5dICZRoxHZalh70FefBk0XoT8b6w4TIvc8572TyPvvdwhc5o/dvyR3nAwTmJpjBs1YhJfSdP+EBN1IC2T/i/mLNUuzUSC2OwiHPbZ6MMr/hUCAwEAAaBCMEAGCSqGSIb3DQEJDjEzMDEwLwYKKwYBBAGCN0IBAAQhREIyNTdDM0EwODc3OEY0RkI2MUUyNzQ5MDY2QzFGMjcAMAkGBSsOAwIdBQADggEBACQtxyy74sCQjZglwdh/Ggs6ofMvnWLMq9A9rGZyxAni66XqDUoOg5PzRtSt+Gv5vdLQyjsBYVzo42W2HCXLD2sErXWwh/w0k4H7vcRKgEqv6VYzpZ/YRVaewLYPcqo4g9NoXnbW345OPLwT3wFvVR5v7HnD8LB2wHcnMu0fAQORgafCRWJL1lgw8VZRaGw9BwQXCF/OrBNJP1ivgqtRdbSoH9TD4zivlFFa+8VDz76y2mpfo0NbbD+P0mh4r0FOJan3X9bLswOLFD6oTiyXHgcVSzLN0bQ6aQo0qKp3yFZYc8W4SgGdEl07IqNquKqJ/1fvmWxnXEbl3jXwb1efhbM=</wsse:BinarySecurityToken>
+				<ac:AdditionalContext xmlns="http://schemas.xmlsoap.org/ws/2006/12/authorization">
+					<ac:ContextItem Name="UXInitiated">
+					<ac:Value>false</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="HWDevID">
+					<ac:Value>CF1D12AA5AE42E47D52465E9A71316CAF3AFCC1D3088F230F4D50B371FB2256F</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="Locale">
+					<ac:Value>en-US</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="TargetedUserLoggedIn">
+					<ac:Value>true</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="OSEdition">
+					<ac:Value>48</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="DeviceName">
+					<ac:Value>DESKTOP-0C89RC0</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="MAC">
+					<ac:Value>01-1C-29-7B-3E-1C</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="MAC">
+					<ac:Value>01-0C-21-7B-3E-52</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="DeviceID">
+					<ac:Value>AB157C3A18778F4FB21E2739066C1F27</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="EnrollmentType">
+					<ac:Value>Full</ac:Value>
+					</ac:ContextItem>
+					` + string(reqSecTokenContextItemDeviceType) + `
+					<ac:ContextItem Name="OSVersion">
+					<ac:Value>10.0.19045.2965</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="ApplicationVersion">
+					<ac:Value>10.0.19045.1965</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="NotInOobe">
+					<ac:Value>false</ac:Value>
+					</ac:ContextItem>
+					<ac:ContextItem Name="RequestVersion">
+					<ac:Value>5.0</ac:Value>
+					</ac:ContextItem>
+				</ac:AdditionalContext>
+				</wst:RequestSecurityToken>
+			</s:Body>
+			</s:Envelope>
+		`)
+
+	return requestBytes, nil
 }

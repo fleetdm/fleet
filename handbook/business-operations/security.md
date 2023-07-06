@@ -31,10 +31,15 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 | Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
 
 
-Here are the steps we take for the recovery process:
+### Preparing for recovery
 
 
-1. If the requester still has access to Slack, they [ask for help](https://fleetdm.com/handbook/business-operations#intake). If they do not have access to Slack, they can contact their manager or a teammate over the phone via voice or texting, and they will [ask for help](https://fleetdm.com/handbook/business-operations#intake) on behalf of the requester.
+1. If the requester still has access to GitHub and/or Slack, they [ask for
+   help](https://fleetdm.com/handbook/business-operations#intake). For non-urgent requests, please
+   prefer filing an issue with the business operations team. If they do not have access,
+   they can contact their manager or a teammate over the phone via voice or texting, and they will
+   [ask for help](https://fleetdm.com/handbook/business-operations#intake) on behalf of the
+   requester.
 2. The recoverer identifies the requester through a live video call.
 * If the recoverer does not know the requester well enough to positively identify them visually, the
   recoverer can ask a colleague whom they recognize to act as the identifier. **All three must be
@@ -42,8 +47,31 @@ Here are the steps we take for the recovery process:
 *  For example, if the recoverer does not recognize Sam but can recognize Zach, they should ask Zach to identify Sam. Using the requester's manager or a direct teammate is recommended, as it increases the chances they frequently see each other on video.
 3. If the recoverer recognizes the requester or has the identity confirmed by the person acting as
    the identifier, they can perform the recovery and update the login recovery issue.
-* If the recoverer is not 100% satisfied with identification, they do **NOT** proceed and post to `#help-manage` to engage the security team immediately.
+* If the recoverer is not 100% satisfied with identification, they do **NOT** proceed and post to
+  `#_security` to engage the security team immediately.
 
+After the identity confirmation, the recovery can be performed while still on the video call, or asynchronously.
+
+### Performing recovery
+
+Before any account recovery, the recoverer must send a message to `#_security` announcing that the
+recovery will take place. Then, perform the necessary recovery steps.
+
+#### Google
+
+The recoverer (who must be a Google admin) can follow [the instructions](https://support.google.com/a/answer/9176734) to
+get backup verification codes. Provide a code to the requester, which they can use in place of
+2-step verification at login.
+
+After recovery, the requester should reset their 2-step verification.
+
+#### 1Password
+
+The recoverer (who must be a 1Password admin/owner) can follow [the
+instructions](https://support.1password.com/recovery/) to perform a recovery. An email will be sent
+to the requester allowing them to log back into their 1Password account.
+
+After recovery, the requester may need to reinitialize 1Password on their devices.
 
 ## How we protect end-user devices
 
