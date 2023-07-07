@@ -103,7 +103,7 @@ func TestQueryAuth(t *testing.T) {
 	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query) error {
 		return nil
 	}
-	ds.DeleteQueryFunc = func(ctx context.Context, name string) error {
+	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {

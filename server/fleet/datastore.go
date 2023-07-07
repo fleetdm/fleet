@@ -67,13 +67,13 @@ type Datastore interface {
 	// ApplyQueries applies a list of queries (likely from a yaml file) to the datastore. Existing queries are updated,
 	// and new queries are created.
 	ApplyQueries(ctx context.Context, authorID uint, queries []*Query) error
-
 	// NewQuery creates a new query object in thie datastore. The returned query should have the ID updated.
 	NewQuery(ctx context.Context, query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
 	SaveQuery(ctx context.Context, query *Query) error
-	// DeleteQuery deletes an existing query object.
-	DeleteQuery(ctx context.Context, name string) error
+	// DeleteQuery deletes an existing query object on a team. If teamID is nil, then the query is
+	// looked up in the 'global' team.
+	DeleteQuery(ctx context.Context, teamID *uint, name string) error
 	// DeleteQueries deletes the existing query objects with the provided IDs. The number of deleted queries is returned
 	// along with any error.
 	DeleteQueries(ctx context.Context, ids []uint) (uint, error)
@@ -82,7 +82,8 @@ type Datastore interface {
 	// ListQueries returns a list of queries with the provided sorting and paging options. Associated packs should also
 	// be loaded.
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
-	// QueryByName looks up a query by name on a team.
+	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
+	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string, opts ...OptionalArg) (*Query, error)
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query

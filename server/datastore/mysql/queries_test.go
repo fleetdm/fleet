@@ -158,7 +158,7 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	require.NotNil(t, query)
 	assert.NotEqual(t, query.ID, 0)
 
-	err = ds.DeleteQuery(context.Background(), query.Name)
+	err = ds.DeleteQuery(context.Background(), nil, query.Name)
 	require.Nil(t, err)
 
 	assert.NotEqual(t, query.ID, 0)

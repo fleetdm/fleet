@@ -362,7 +362,7 @@ func testScheduledQueriesCascadingDelete(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 3)
 
-	err = ds.DeleteQuery(context.Background(), queries[1].Name)
+	err = ds.DeleteQuery(context.Background(), nil, queries[1].Name)
 	require.Nil(t, err)
 
 	gotQueries, err = ds.ListScheduledQueriesInPackWithStats(context.Background(), 1, fleet.ListOptions{})

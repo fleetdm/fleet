@@ -308,7 +308,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 		return err
 	}
 
-	if err := svc.ds.DeleteQuery(ctx, name); err != nil {
+	if err := svc.ds.DeleteQuery(ctx, nil, name); err != nil {
 		return err
 	}
 
@@ -358,7 +358,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		return err
 	}
 
-	if err := svc.ds.DeleteQuery(ctx, query.Name); err != nil {
+	if err := svc.ds.DeleteQuery(ctx, nil, query.Name); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 

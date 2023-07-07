@@ -145,7 +145,11 @@ func (ds *Datastore) QueryByName(
 }
 
 // NewQuery creates a New Query.
-func (ds *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+func (ds *Datastore) NewQuery(
+	ctx context.Context,
+	query *fleet.Query,
+	opts ...fleet.OptionalArg,
+) (*fleet.Query, error) {
 	sqlStatement := `
 		INSERT INTO queries (
 			name,
@@ -243,9 +247,33 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 	return nil
 }
 
-// DeleteQuery deletes Query identified by Query.ID.
-func (ds *Datastore) DeleteQuery(ctx context.Context, name string) error {
-	return ds.deleteEntityByName(ctx, queriesTable, name)
+func (ds *Datastore) DeleteQuery(
+	ctx context.Context,
+	teamID *uint,
+	name string,
+) error {
+	stmt := "DELETE FROM queries WHERE name = ?"
+
+	args := []interface{}{name}
+	whereClause := " AND team_id_char = ''"
+	if teamID != nil {
+		args = append(args, fmt.Sprint(*teamID))
+		whereClause = " AND team_id_char = ?"
+	}
+	stmt += whereClause
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		if isMySQLForeignKey(err) {
+			return ctxerr.Wrap(ctx, foreignKey("queries", name))
+		}
+		return ctxerr.Wrap(ctx, err, "delete queries")
+	}
+	rows, _ := result.RowsAffected()
+	if rows != 1 {
+		return ctxerr.Wrap(ctx, notFound("queries").WithName(name))
+	}
+	return nil
 }
 
 // DeleteQueries deletes the existing query objects with the provided IDs. The
