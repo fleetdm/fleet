@@ -67,8 +67,8 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 	defer stmt.Close()
 
 	for _, q := range queries {
-		if q.Name == "" {
-			return ctxerr.New(ctx, "query name must not be empty")
+		if err := q.Verify(); err != nil {
+			return ctxerr.Wrap(ctx, err)
 		}
 		_, err := stmt.ExecContext(
 			ctx,
