@@ -2211,6 +2211,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		HostSerial:       info.HardwareSerial,
 		HostDisplayName:  info.DisplayName,
 		InstalledFromDEP: info.InstalledFromDEP,
+		MDMPlatform:      fleet.MDMPlatformApple,
 	})
 }
 

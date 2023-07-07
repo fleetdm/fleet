@@ -71,6 +71,11 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 		return nil, nil
 	}
 
+	if n.opt.UpdateRunner == nil {
+		log.Debug().Msg("NudgeConfigFetcher received nil UpdateRunner, this probably indicates that updates are turned off. Skipping any actions related to Nudge")
+		return cfg, nil
+	}
+
 	if cfg.NudgeConfig == nil {
 		log.Debug().Msg("empty nudge config, removing nudge as target")
 		// TODO(roberto): by early returning and removing the target from the
