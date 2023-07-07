@@ -761,6 +761,9 @@ func (l ListOptions) UsesCursorPagination() bool {
 type ListQueryOptions struct {
 	ListOptions
 
+	// TeamID which team the queries belong to. If teamID is nil, then it is assumed the 'global'
+	// team
+	TeamID             *uint
 	OnlyObserverCanRun bool
 }
 

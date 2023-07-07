@@ -358,12 +358,20 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	if opt.OnlyObserverCanRun {
 		sql += " AND q.observer_can_run=true"
 	}
+
+	args := []interface{}{false, aggregatedStatsTypeQuery}
+	whereClause := " AND team_id_char = ''"
+	if opt.TeamID != nil {
+		args = append(args, fmt.Sprint(*opt.TeamID))
+		whereClause = " AND team_id_char = ?"
+	}
+	sql += whereClause
+
 	sql = appendListOptionsToSQL(sql, &opt.ListOptions)
 
 	results := []*fleet.Query{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, false, aggregatedStatsTypeQuery); err != nil {
-		fmt.Println(err)
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
