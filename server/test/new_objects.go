@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NewQuery(t *testing.T, ds fleet.Datastore, name, q string, authorID uint, saved bool) *fleet.Query {
+func NewQuery(t *testing.T, ds fleet.Datastore, teamID *uint, name, q string, authorID uint, saved bool) *fleet.Query {
 	authorPtr := &authorID
 	if authorID == 0 {
 		authorPtr = nil
@@ -22,6 +22,7 @@ func NewQuery(t *testing.T, ds fleet.Datastore, name, q string, authorID uint, s
 		Query:    q,
 		AuthorID: authorPtr,
 		Saved:    saved,
+		TeamID:   teamID,
 	})
 	require.NoError(t, err)
 

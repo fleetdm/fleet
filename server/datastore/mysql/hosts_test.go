@@ -295,7 +295,7 @@ func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 		HostIDs: []uint{host.ID},
 	})
 	require.NoError(t, err)
-	query1 := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	query1 := test.NewQuery(t, ds, nil, "time", "select * from time", 0, true)
 	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
 	stats1 := []fleet.ScheduledQueryStats{
 		{
@@ -322,7 +322,7 @@ func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query1.ID, 30, true, true, "time-scheduled")
-	query2 := test.NewQuery(t, ds, "processes", "select * from processes", 0, true)
+	query2 := test.NewQuery(t, ds, nil, "processes", "select * from processes", 0, true)
 	squery3 := test.NewScheduledQuery(t, ds, pack2.ID, query2.ID, 30, true, true, "processes")
 	stats2 := []fleet.ScheduledQueryStats{
 		{
@@ -411,7 +411,7 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 		HostIDs: []uint{host.ID},
 	})
 	require.NoError(t, err)
-	query1 := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	query1 := test.NewQuery(t, ds, nil, "time", "select * from time", 0, true)
 	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
 	pack2, err := ds.NewPack(context.Background(), &fleet.Pack{
 		Name:    "test2",
@@ -419,7 +419,7 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query1.ID, 30, true, true, "time-scheduled")
-	query2 := test.NewQuery(t, ds, "processes", "select * from processes", 0, true)
+	query2 := test.NewQuery(t, ds, nil, "processes", "select * from processes", 0, true)
 
 	execTime1 := time.Unix(1620325191, 0).UTC()
 
@@ -566,7 +566,7 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
 	tp, err := ds.EnsureTeamPack(context.Background(), team.ID)
 	require.NoError(t, err)
-	tpQuery := test.NewQuery(t, ds, "tp-time", "select * from time", 0, true)
+	tpQuery := test.NewQuery(t, ds, nil, "tp-time", "select * from time", 0, true)
 	tpSquery := test.NewScheduledQuery(t, ds, tp.ID, tpQuery.ID, 30, true, true, "time-scheduled")
 
 	// Create a new pack and target to the host.
@@ -576,7 +576,7 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 		HostIDs: []uint{host.ID},
 	})
 	require.NoError(t, err)
-	query1 := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	query1 := test.NewQuery(t, ds, nil, "time", "select * from time", 0, true)
 	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
 	stats1 := []fleet.ScheduledQueryStats{
 		{
@@ -2573,7 +2573,7 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
+	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
 		QueryID: &q.ID,
 	})
@@ -3027,8 +3027,8 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
-	q2 := test.NewQuery(t, ds, "query2", "select 1", 0, true)
+	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
+	q2 := test.NewQuery(t, ds, nil, "query2", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
 		QueryID: &q.ID,
 	})
@@ -3121,7 +3121,7 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 	h1 := hosts[0]
 	h2 := hosts[1]
 
-	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
+	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
 		QueryID: &q.ID,
 	})
@@ -3395,11 +3395,11 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host2)
 
 	pack1 := test.NewPack(t, ds, "test1")
-	query1 := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	query1 := test.NewQuery(t, ds, nil, "time", "select * from time", 0, true)
 	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
 
 	pack2 := test.NewPack(t, ds, "test2")
-	query2 := test.NewQuery(t, ds, "time2", "select * from time", 0, true)
+	query2 := test.NewQuery(t, ds, nil, "time2", "select * from time", 0, true)
 	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query2.ID, 30, true, true, "time-scheduled")
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -3628,7 +3628,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 	require.Len(t, labels, 1)
 	globalPack, err := ds.EnsureGlobalPack(context.Background())
 	require.NoError(t, err)
-	globalQuery := test.NewQuery(t, ds, "global-time", "select * from time", 0, true)
+	globalQuery := test.NewQuery(t, ds, nil, "global-time", "select * from time", 0, true)
 	globalSQuery := test.NewScheduledQuery(t, ds, globalPack.ID, globalQuery.ID, 30, true, true, "time-scheduled-global")
 	err = ds.AsyncBatchInsertLabelMembership(context.Background(), [][2]uint{{labels[0].ID, host.ID}})
 	require.NoError(t, err)
@@ -3641,7 +3641,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
 	teamPack, err := ds.EnsureTeamPack(context.Background(), team.ID)
 	require.NoError(t, err)
-	teamQuery := test.NewQuery(t, ds, "team-time", "select * from time", 0, true)
+	teamQuery := test.NewQuery(t, ds, nil, "team-time", "select * from time", 0, true)
 	teamSQuery := test.NewScheduledQuery(t, ds, teamPack.ID, teamQuery.ID, 31, true, true, "time-scheduled-team")
 
 	// Create a "user created" pack (and one scheduled query in it).
@@ -3650,7 +3650,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 		HostIDs: []uint{host.ID},
 	})
 	require.NoError(t, err)
-	userQuery := test.NewQuery(t, ds, "user-time", "select * from time", 0, true)
+	userQuery := test.NewQuery(t, ds, nil, "user-time", "select * from time", 0, true)
 	userSQuery := test.NewScheduledQuery(t, ds, userPack.ID, userQuery.ID, 30, true, true, "time-scheduled-user")
 
 	// Even if the scheduled queries didn't run, we get their pack stats (with zero values).
@@ -3816,7 +3816,7 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 	require.Len(t, labels, 1)
 	globalPack, err := ds.EnsureGlobalPack(context.Background())
 	require.NoError(t, err)
-	globalQuery := test.NewQuery(t, ds, "global-time", "select * from time", 0, true)
+	globalQuery := test.NewQuery(t, ds, nil, "global-time", "select * from time", 0, true)
 	globalSQuery := test.NewScheduledQuery(t, ds, globalPack.ID, globalQuery.ID, 30, true, true, "time-scheduled-global")
 	err = ds.AsyncBatchInsertLabelMembership(context.Background(), [][2]uint{
 		{labels[0].ID, host1.ID},
@@ -3945,7 +3945,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	require.Len(t, labels, 1)
 	globalPack, err := ds.EnsureGlobalPack(context.Background())
 	require.NoError(t, err)
-	globalQuery := test.NewQuery(t, ds, "global-time", "select * from time", 0, true)
+	globalQuery := test.NewQuery(t, ds, nil, "global-time", "select * from time", 0, true)
 	globalSQuery1, err := ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
 		Name:     "Scheduled Query For Linux only",
 		PackID:   globalPack.ID,
@@ -5677,7 +5677,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		HostIDs: []uint{host.ID},
 	})
 	require.NoError(t, err)
-	query := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	query := test.NewQuery(t, ds, nil, "time", "select * from time", 0, true)
 	squery := test.NewScheduledQuery(t, ds, pack.ID, query.ID, 30, true, true, "time-scheduled")
 	stats := []fleet.ScheduledQueryStats{
 		{
@@ -6097,7 +6097,7 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 
 		var policies []*fleet.Policy
 		for i := 0; i < 10; i++ {
-			q := test.NewQuery(t, ds, fmt.Sprintf("query%d", i), "select 1", 0, true)
+			q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
 			p, err := ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
 			require.NoError(t, err)
 			policies = append(policies, p)

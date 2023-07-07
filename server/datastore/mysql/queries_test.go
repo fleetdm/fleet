@@ -22,8 +22,8 @@ func TestQueries(t *testing.T) {
 	}{
 		{"Apply", testQueriesApply},
 		{"Delete", testQueriesDelete},
-		// {"GetByName", testQueriesGetByName},
-		// {"DeleteMany", testQueriesDeleteMany},
+		{"GetByName", testQueriesGetByName},
+		{"DeleteMany", testQueriesDeleteMany},
 		// {"Save", testQueriesSave},
 		// {"List", testQueriesList},
 		// {"LoadPacksForQueries", testQueriesLoadPacksForQueries},
@@ -150,28 +150,30 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, query.ID, 0)
 	_, err = ds.Query(context.Background(), query.ID)
 	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
-	test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
-	actual, err := ds.QueryByName(context.Background(), nil, "q1")
-	require.Nil(t, err)
-	assert.Equal(t, "q1", actual.Name)
-	assert.Equal(t, "select * from time", actual.Query)
+	q := test.NewQuery(t, ds, nil, "q1", "select * from time", user.ID, true)
 
-	actual, err = ds.QueryByName(context.Background(), nil, "xxx")
-	assert.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
+	actual, err := ds.QueryByName(context.Background(), q.TeamID, q.Name)
+	require.NoError(t, err)
+	require.Equal(t, "q1", actual.Name)
+	require.Equal(t, "select * from time", actual.Query)
+
+	actual, err = ds.QueryByName(context.Background(), q.TeamID, "xxx")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
-	q1 := test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
-	q2 := test.NewQuery(t, ds, "q2", "select * from processes", user.ID, true)
-	q3 := test.NewQuery(t, ds, "q3", "select 1", user.ID, true)
-	q4 := test.NewQuery(t, ds, "q4", "select * from osquery_info", user.ID, true)
+	q1 := test.NewQuery(t, ds, nil, "q1", "select * from time", user.ID, true)
+	q2 := test.NewQuery(t, ds, nil, "q2", "select * from processes", user.ID, true)
+	q3 := test.NewQuery(t, ds, nil, "q3", "select 1", user.ID, true)
+	q4 := test.NewQuery(t, ds, nil, "q4", "select * from osquery_info", user.ID, true)
 
 	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
