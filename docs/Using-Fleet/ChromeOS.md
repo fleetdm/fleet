@@ -1,5 +1,5 @@
 # ChromeOS
-For visibility on ChromeeOS hosts, Fleet provides the fleetd Chrome extension which provides similar functionality as osquery on other operating systems.
+For visibility on ChromeOS hosts, Fleet provides the fleetd Chrome extension which provides similar functionality as osquery on other operating systems.
 
 ## Adding ChromeOS hosts to Fleet
 
