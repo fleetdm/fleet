@@ -65,9 +65,9 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 ### 🟠 Ownership
 It takes a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
 
-- **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Especially GitHub, Slack, and emails.
-- **Finish what you bite off.** Follow through on commitments. Own up to mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
-- **No one is coming.** It's up to you.  Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast.
+- **Be reliable.**  Be on time. Communicate proactively. Reply quickly to email, Slack, and GitHub mentions, whether or not you can take immediate action.
+- **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
+- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
 - **Think long term.** Sign up for [the 7 year plan](https://fleetdm.com/handbook/company#strategy).  Understand [Fleet's priorities](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit), beyond your department's goals. Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose).
 
 ### 🟢 Results
@@ -75,23 +75,23 @@ We work to get results. How we work determines what we get.  Aim to deliver resu
 
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always publish.
 - **Start quickly.** Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) -->
-- **Less is more.** Simplify.  Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/).
+- **Keep it simple.** Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/).
 - **Be realistic.** Focus on one or two tasks at a time.  When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity
 To reach our goals, we need to [see reality clearly](https://en.wikipedia.org/wiki/Intellectual_honesty).
 
-- **Assume nothing.** When something isn't working, stop assuming.  Change only one variable at a time. Find [the bottleneck](https://en.wikipedia.org/wiki/Theory_of_constraints). <!-- Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research) and [first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering). -->
-- **Change your mind.**  [Reconsider and adapt](https://about.gitlab.com/handbook/values/#articulate-when-you-change-your-mind) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
+- **Assume nothing.** When something isn't working, change only one variable at a time. Find [the bottleneck](https://en.wikipedia.org/wiki/Theory_of_constraints). <!-- Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research). -->
+- **Change your mind.**  [Be willing to reconsider](https://about.gitlab.com/handbook/values/#articulate-when-you-change-your-mind) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
 - **Interrogate luck.** A lucky fix can do more harm than good.  Understand why it's broken first. <!--  Don't say "just do XYZ". The road to failure is paved with ["happy paths"](https://en.wikipedia.org/wiki/Happy_path). -->
-- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.
+- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.  <!-- Use first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering) -->
 
 ### 🟣 Openness
 Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
 
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
 - **Everyone can contribute.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Encourage others to contribute to your domain.
-- **Be transparent.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
+- **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
 - **[Commit](https://www.audible.com/pd/The-15-Commitments-of-Conscious-Leadership-Audiobook/B00SKV11H2) to candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).  Interrupt and be interrupted.
 
 
