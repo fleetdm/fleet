@@ -5130,7 +5130,17 @@ Returns the query specified by ID.
     "author_id": 1,
     "author_name": "John",
     "author_email": "john@example.com",
-    "packs": []
+    "packs": [
+      {
+        "created_at": "2021-01-19T17:08:31Z",
+        "updated_at": "2021-01-19T17:08:31Z",
+        "id": 14,
+        "name": "test_pack",
+        "description": "",
+        "platform": "",
+        "disabled": false
+      }
+    ]
   }
 }
 ```
@@ -5179,7 +5189,17 @@ Returns a list of global queries or team queries.
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
-    "packs": [],
+    "packs": [
+      {
+        "created_at": "2021-01-05T21:13:04Z",
+        "updated_at": "2021-01-07T19:12:54Z",
+        "id": 1,
+        "name": "Pack",
+        "description": "Pack",
+        "platform": "",
+        "disabled": true
+      }
+    ],
     "stats": {
       "system_time_p50": 1.32,
       "system_time_p95": 4.02,
@@ -5206,7 +5226,17 @@ Returns a list of global queries or team queries.
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
-    "packs": []
+    "packs": [
+      {
+        "created_at": "2021-01-19T17:08:31Z",
+        "updated_at": "2021-01-19T17:08:31Z",
+        "id": 14,
+        "name": "test_pack",
+        "description": "",
+        "platform": "",
+        "disabled": false
+      }
+    ]
   }
 ]}
 ```
