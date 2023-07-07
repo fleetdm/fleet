@@ -151,8 +151,23 @@ type swiftDialogMDMMigrator struct {
 	intervalMu sync.Mutex
 }
 
+func isDarkMode() bool {
+	cmd := exec.Command("defaults", "read", "-g", "AppleInterfaceStyle")
+	if err := cmd.Run(); err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
 	icon := m.props.OrgInfo.OrgLogoURL
+
+	if !isDarkMode() {
+		icon = m.props.OrgInfo.OrgLogoURLLightBackground
+	}
+
 	if icon == "" {
 		icon = "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
 	}
