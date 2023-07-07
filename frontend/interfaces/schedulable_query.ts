@@ -12,7 +12,7 @@ export interface ISchedulableQuery {
   query: string;
   team_id: number | null;
   interval: number;
-  platform: IPlatformString;
+  platforms_to_query: IPlatformString;
   min_osquery_version: string;
   automations_enabled: boolean;
   logging: QueryLoggingOption;
@@ -22,6 +22,14 @@ export interface ISchedulableQuery {
   author_email: string;
   observer_can_run: boolean;
   packs: IPack[];
+  stats: ISchedulableQueryStats;
+}
+export interface ISchedulableQueryStats {
+  user_time_p50?: number;
+  user_time_p95?: number;
+  system_time_p50?: number;
+  system_time_p95?: number;
+  total_executions?: number;
 }
 
 // API shapes
