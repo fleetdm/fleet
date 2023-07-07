@@ -65,7 +65,7 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 ### 🟠 Ownership
 It takes a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
 
-- **Be reliable.**  Be on time. Communicate proactively. Reply quickly to email, Slack, and GitHub mentions, whether or not you can take immediate action.
+- **Be reliable.**  Reply quickly to email, Slack, and GitHub mentions.  Arrive in meetings on time.  <!-- even if you can't take immediate action. -->
 - **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
 - **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
 - **Think long term.** Sign up for [the 7 year plan](https://fleetdm.com/handbook/company#strategy).  Understand [Fleet's priorities](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit), beyond your department's goals. Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose).
@@ -90,7 +90,7 @@ To reach our goals, we need to [see reality clearly](https://en.wikipedia.org/wi
 Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
 
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
-- **Everyone can contribute.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Encourage others to contribute to your domain.
+- **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
 - **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
 - **[Commit](https://www.audible.com/pd/The-15-Commitments-of-Conscious-Leadership-Audiobook/B00SKV11H2) to candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).  Interrupt and be interrupted.
 
