@@ -106,3 +106,5 @@ columns:
       - darwin
       - windows
       - linux
+notes: |
+  - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
