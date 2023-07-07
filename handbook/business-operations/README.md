@@ -859,6 +859,36 @@ The steps for doing this are highlighted in this loom, TODO.
 
 Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook>/business-operations#intake).
 
+
+## Getting a contract signed
+
+If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
+
+When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
+
+The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
+
+## Getting a contract reviewed
+
+> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented above.
+
+To get a contract reviewed, upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
+
+Complete the [contract review issue template in GitHub](https://fleetdm.com/handbook/business-operations#intake), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
+
+Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
+
+The SLA for contract review is **2 business days**.
+
+Once the review is complete, the issue will be closed.
+
+If an agreement requires an additional review during the negotiation process, the requestor will need to follow these steps again. Uploading the new draft and creating a new issue in GitHub. 
+
+When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature.
+
+
+
+
 ## Taxes and compliance
 
 From time to time, you may get notices in the mail from the IRS and/or state agencies regarding your company’s withholding and/or unemployment tax accounts. You can resolve many of these notices on your own by verifying and/or updating the settings in your Gusto account. 
@@ -947,34 +977,6 @@ To make a request of the business operations department, [create an issue using 
 
 > If you're not sure that your request can wait that long, then please ask for urgent help in our group Slack channel: `#g-business-operations`.  Only use this approach or at-mention contributors in business operations directly in urgent situations.  Otherwise, create an issue.
 
-## Contract review
-
-> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented further down in this handbook section.
-
-#### To get a contract reviewed:
-
-Upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
-
-Complete the [contract review issue template in GitHub](https://fleetdm.com/handbook/business-operations#intake), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday.
-
-Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
-
-The SLA for contract review is **2 business days**.
-
-Once the review is complete, the issue will be closed.
-
-If an agreement requires an additional review during the negotiation process, the requestor will need to follow these steps again. Uploading the new draft and creating a new issue in GitHub. 
-
-When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature.
-
-
-## Contract signature
-
-When a contract is ready for signature, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
-
-When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
-
-The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
 
 
 ## Slack channels
