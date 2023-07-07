@@ -51,7 +51,8 @@ Please also see [Business continuity](https://fleetdm.com/handbook/business-oper
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Does Fleet have the following employed in their production environment? File integrity Monitoring (FIM), Host Intrusion Detection Systems (HIDS), Network Based Indrusion Detection Systems (NIDS), OTHER?   | Fleet utilizes several security monitoring solutions depending on the requirements of the system. For instance, given the highly containerized and serverless environment, FIM would not apply. But, we do use tools such as (but not limited to) AWS GuardDuty, AWS CloudTrail, and VPC Flow Logs to actively monitor the security of our environments.                                                               |
 
-## [Privacy](https://fleetdm.com/legal/privacy)
+## Privacy
+Please also see [privacy](https://fleetdm.com/legal/privacy)
 | Question | Answer                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Is Fleet a processor, controller, or joint controller in its relationship with its customer?  | Fleet is a processor.                                                               |
