@@ -68,14 +68,14 @@ It takes a fully-activated mind to achieve ambitious goals. Think like an owner 
 - **Be reliable.**  Reply quickly to email, Slack, and GitHub mentions.  Arrive in meetings on time.  <!-- even if you can't take immediate action. -->
 - **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
 - **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
-- **Think long term.**  Understand [Fleet's priorities](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit), beyond your department's goals. Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose).  <!-- Find your place in [Fleet's 7 year plan](https://fleetdm.com/handbook/company#strategy). -->
+- **Think long term.** Understand [Fleet's priorities](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit), beyond your department's goals. Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose). <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy).  -->
 
 ### 🟢 Results
 We work to get results. How we work determines what we get.  Aim to deliver results daily.
 
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always publish.
 - **Start quickly.** Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) -->
-- **Keep it simple.** Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/).
+- **Keep it simple.** Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). <!-- Practicality over sophistication. -->
 - **Be realistic.** Focus on one or two tasks at a time.  When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity
