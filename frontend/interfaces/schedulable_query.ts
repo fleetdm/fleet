@@ -1,5 +1,6 @@
 import { IFormField } from "./form_field";
 import { IPack } from "./pack";
+import { IPlatformString } from "./platform";
 
 // Query itself
 export interface IScheduleableQuery {
@@ -11,7 +12,7 @@ export interface IScheduleableQuery {
   query: string;
   team_id: number | null;
   interval: number;
-  platform: string; // TODO: Specify strings
+  platform: IPlatformString;
   min_osquery_version: string;
   automations_enabled: boolean;
   logging: QueryLoggingOption;
@@ -26,19 +27,19 @@ export interface IScheduleableQuery {
 // API shapes
 
 // Get a query by id
-// GET /api/v1/fleet/queries/{id}`
+/** GET /api/v1/fleet/queries/{id}` */
 export interface IGetQueryResponse {
   query: IScheduleableQuery;
 }
 
 // List global or team queries
-// GET /api/v1/fleet/queries?order_key={column_from_queries_table}&order_direction={asc|desc}&team_id={team_id}
+/**  GET /api/v1/fleet/queries?order_key={column_from_queries_table}&order_direction={asc|desc}&team_id={team_id} */
 export interface IListQueriesResponse {
   queries: IScheduleableQuery[];
 }
 
 // Create a new query
-// POST /api/v1/fleet/queries
+/** POST /api/v1/fleet/queries */
 export interface ICreateQueryRequestBody {
   name: string;
   query: string;
@@ -46,16 +47,16 @@ export interface ICreateQueryRequestBody {
   observer_can_run?: boolean;
   team_id?: number; // global query if ommitted
   interval?: number; // default 0 means never run
-  platform?: string; // comma-separated platform compatibility, default "all" if ommitted
+  platform?: IPlatformString; // comma-separated platform compatibility, default "all" if ommitted
   min_osquery_version?: string; // default all versions if ommitted
   automations_enabled?: boolean; // whether to send data to the configured log destination according to the query's `interval`.
   logging?: QueryLoggingOption;
 }
 
-// response is IScheduleableQuery // better way to indicate this?
+// response is IScheduleableQuery
 
 // Modify a query by id
-// PATCH /api/v1/fleet/queries/{id}
+/** PATCH /api/v1/fleet/queries/{id} */
 export interface IModifyQueryRequestBody
   extends Omit<ICreateQueryRequestBody, "name" | "query"> {
   id: number;
@@ -66,7 +67,7 @@ export interface IModifyQueryRequestBody
 // response is IScheduleableQuery // better way to indicate this?
 
 // Delete a query by name
-// DELETE /api/v1/fleet/queries/{name}
+/** DELETE /api/v1/fleet/queries/{name} */
 export interface IDeleteQueryRequestBody {
   team_id?: number; // searches for a global query if ommitted
 }
@@ -76,7 +77,7 @@ export interface IDeleteQueryRequestBody {
 // (no body)
 
 // Delete queries by id
-// POST /api/v1/fleet/queries/delete
+/** POST /api/v1/fleet/queries/delete */
 export interface IDeleteQueriesRequestBody {
   ids: number[];
 }
@@ -85,21 +86,13 @@ export interface IDeleteQueriesResponse {
   deleted: number; // number of queries deleted
 }
 
-// @RachelElysia, what is this interface for?
-// export interface IQueryFormData {
-//   description?: string | number | boolean | undefined;
-//   name?: string | number | boolean | undefined;
-//   query?: string | number | boolean | undefined;
-//   observer_can_run?: string | number | boolean | undefined;
-// }
-
 export interface IQueryFormFields {
   name: IFormField<string>;
   description: IFormField<string>;
   query: IFormField<string>;
   observer_can_run: IFormField<boolean>;
   frequency: IFormField<number>;
-  platforms: IFormField<string[]>; // double check this
+  platforms: IFormField<IPlatformString>;
   min_osquery_version: IFormField<string>;
   logging: IFormField<QueryLoggingOption>;
 }
