@@ -23,21 +23,23 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import TeamsDropdown from "components/TeamsDropdown";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
-  route: RouteProps;
   router: InjectedRouter; // v3
   location: {
-    pathname?: string;
+    pathname: string;
     query: {
       platform?: string;
       page?: string;
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      team_id?: string;
     };
     search: string;
   };
@@ -74,12 +76,22 @@ const ManageQueriesPage = ({
     isOnlyObserver,
     isObserverPlus,
     isAnyTeamObserverPlus,
+    isOnGlobalTeam,
     setFilteredQueriesPath,
     filteredQueriesPath,
+    isPremiumTier,
+    isSandboxMode,
   } = useContext(AppContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
+
+  const { userTeams, currentTeamId, handleTeamChange } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
     null
@@ -164,15 +176,32 @@ const ManageQueriesPage = ({
 
   const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
+  const renderHeader = () => {
+    if (isPremiumTier) {
+      if (userTeams) {
+        if (userTeams.length > 1 || isOnGlobalTeam) {
+          return (
+            <TeamsDropdown
+              currentUserTeams={userTeams}
+              selectedTeamId={currentTeamId}
+              onChange={handleTeamChange}
+              isSandboxMode={isSandboxMode}
+            />
+          );
+        } else if (!isOnGlobalTeam && userTeams.length === 1) {
+          return <h1>{userTeams[0].name}</h1>;
+        }
+      }
+    }
+    return <h1>Queries</h1>;
+  };
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
-              <h1 className={`${baseClass}__title`}>
-                <span>Queries</span>
-              </h1>
+              <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
           </div>
           {(!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) &&
