@@ -28,10 +28,10 @@ func testCollectScheduledQueryStats(t *testing.T, ds *mysql.Datastore, pool flee
 	p2 := test.NewPack(t, ds, "p2")
 	p3 := test.NewPack(t, ds, "p3")
 
-	q1 := test.NewQuery(t, ds, "q1", "select 1", user.ID, true)
-	q2 := test.NewQuery(t, ds, "q2", "select 2", user.ID, true)
-	q3 := test.NewQuery(t, ds, "q3", "select 3", user.ID, true)
-	q4 := test.NewQuery(t, ds, "q4", "select 4", user.ID, true)
+	q1 := test.NewQuery(t, ds, nil, "q1", "select 1", user.ID, true)
+	q2 := test.NewQuery(t, ds, nil, "q2", "select 2", user.ID, true)
+	q3 := test.NewQuery(t, ds, nil, "q3", "select 3", user.ID, true)
+	q4 := test.NewQuery(t, ds, nil, "q4", "select 4", user.ID, true)
 
 	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "sq1")
 	sq2 := test.NewScheduledQuery(t, ds, p2.ID, q2.ID, 60, false, false, "sq2")

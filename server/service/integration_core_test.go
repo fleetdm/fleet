@@ -1196,7 +1196,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Greater(t, resp.Hosts[0].SoftwareUpdatedAt, resp.Hosts[0].CreatedAt)
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
-	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
+	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
 	defer cleanupQuery(s, q.ID)
 	p, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
 		QueryID: &q.ID,
