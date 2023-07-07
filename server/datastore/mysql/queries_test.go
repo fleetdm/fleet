@@ -21,7 +21,7 @@ func TestQueries(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"Apply", testQueriesApply},
-		// {"Delete", testQueriesDelete},
+		{"Delete", testQueriesDelete},
 		// {"GetByName", testQueriesGetByName},
 		// {"DeleteMany", testQueriesDeleteMany},
 		// {"Save", testQueriesSave},
@@ -140,16 +140,16 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 		AuthorID: &user.ID,
 	}
 	query, err := ds.NewQuery(context.Background(), query)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, query)
 	assert.NotEqual(t, query.ID, 0)
 
-	err = ds.DeleteQuery(context.Background(), nil, query.Name)
-	require.Nil(t, err)
+	err = ds.DeleteQuery(context.Background(), query.TeamID, query.Name)
+	require.NoError(t, err)
 
-	assert.NotEqual(t, query.ID, 0)
+	require.NotEqual(t, query.ID, 0)
 	_, err = ds.Query(context.Background(), query.ID)
-	assert.NotNil(t, err)
+	require.Error(t, err)
 }
 
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
