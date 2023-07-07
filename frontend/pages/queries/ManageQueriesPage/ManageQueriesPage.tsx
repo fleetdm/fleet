@@ -183,7 +183,7 @@ const ManageQueriesPage = ({
                   className={`${baseClass}__create-button`}
                   onClick={onCreateQueryClick}
                 >
-                  Create new query
+                  Add query
                 </Button>
               </div>
             )}
