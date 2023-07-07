@@ -255,3 +255,32 @@ func QueryElementsMatch(t TestingT, listA, listB interface{}, msgAndArgs ...inte
 	}, cmp.Ignore())
 	return ElementsMatchWithOptions(t, listA, listB, []cmp.Option{opt}, msgAndArgs)
 }
+
+// QueriesMatch asserts that two queries 'match'.
+func QueriesMatch(t TestingT, a, b interface{}, msgAndArgs ...interface{}) (ok bool) {
+	t.Helper()
+
+	opt := cmp.FilterPath(func(p cmp.Path) bool {
+		for _, ps := range p {
+			switch ps := ps.(type) {
+			case cmp.StructField:
+				switch ps.Name() {
+				case "ID",
+					"UpdateCreateTimestamps",
+					"AuthorID",
+					"AuthorName",
+					"AuthorEmail",
+					"Packs",
+					"Saved":
+					return true
+				}
+			}
+		}
+		return false
+	}, cmp.Ignore())
+
+	if !cmp.Equal(a, b, opt) {
+		return assert.Fail(t, cmp.Diff(a, b, opt), msgAndArgs...)
+	}
+	return true
+}

@@ -76,7 +76,7 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 			q.Name = q.QueryName
 		}
 
-		// Check if query exists ... we have to do this manual check because the FK
+		// Check if query exists ... we have to do this manually because the FK
 		// constraint was removed as part of the work required for combining queries and schedules
 		var count int
 		if err := tx.QueryRowxContext(
