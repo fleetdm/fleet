@@ -18,7 +18,7 @@ tldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com
 
 ### Your primary responsibilities 🔍
 
-As a Solutions Consultant at Fleet, you will get the chance to…
+at Fleet you will get the chance to…
 
 In your first 120 days:
 - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop and understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo. 
