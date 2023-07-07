@@ -218,7 +218,10 @@ const ManageQueriesPage = ({
             )}
         </div>
         <div className={`${baseClass}__description`}>
-          <p>Manage queries to ask specific questions about your devices.</p>
+          <p>
+            Manage and schedule queries to ask questions and collect telemetry
+            for all hosts{currentTeamId !== -1 && " assigned to this team"}.
+          </p>
         </div>
         <div>
           {isTableDataLoading && !fleetQueriesError && <Spinner />}
