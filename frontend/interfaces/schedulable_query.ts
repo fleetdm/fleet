@@ -3,7 +3,7 @@ import { IPack } from "./pack";
 import { IPlatformString } from "./platform";
 
 // Query itself
-export interface IScheduleableQuery {
+export interface ISchedulableQuery {
   created_at: string;
   updated_at: string;
   id: number;
@@ -29,13 +29,13 @@ export interface IScheduleableQuery {
 // Get a query by id
 /** GET /api/v1/fleet/queries/{id}` */
 export interface IGetQueryResponse {
-  query: IScheduleableQuery;
+  query: ISchedulableQuery;
 }
 
 // List global or team queries
 /**  GET /api/v1/fleet/queries?order_key={column_from_queries_table}&order_direction={asc|desc}&team_id={team_id} */
 export interface IListQueriesResponse {
-  queries: IScheduleableQuery[];
+  queries: ISchedulableQuery[];
 }
 
 // Create a new query
@@ -53,7 +53,7 @@ export interface ICreateQueryRequestBody {
   logging?: QueryLoggingOption;
 }
 
-// response is IScheduleableQuery
+// response is ISchedulableQuery
 
 // Modify a query by id
 /** PATCH /api/v1/fleet/queries/{id} */
@@ -64,7 +64,7 @@ export interface IModifyQueryRequestBody
   query?: string;
 }
 
-// response is IScheduleableQuery // better way to indicate this?
+// response is ISchedulableQuery // better way to indicate this?
 
 // Delete a query by name
 /** DELETE /api/v1/fleet/queries/{name} */
