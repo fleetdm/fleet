@@ -708,4 +708,65 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("baz")).toBeNull();
     expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
   });
+
+  it("renders a 'mdm_enrolled' type for apple if mdm_platform is not provided", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        host_serial: "ABCD",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (manual)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for apple with all details provided", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        host_serial: "ABCD",
+        installed_from_dep: true,
+        mdm_platform: "apple",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (automatic)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type activity for windows hosts.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        mdm_platform: "microsoft",
+        host_display_name: "ABCD",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        console.log(node?.innerHTML);
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b>Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
 });

@@ -476,7 +476,7 @@ This means that outbound recruiting, 3rd party recruiters, and references from t
 #### Receiving job applications
 Every job description page ends with a "call to action", including a link that candidates can click to apply for the job.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise.  For example:
 
-> "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application update by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
+> "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
 
 When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 

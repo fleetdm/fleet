@@ -28,7 +28,7 @@ go.mod @fleetdm/go
 /CODEOWNERS @mikermcneil
 
 # Changelog
-/CHANGELOG.md @spokanemac
+/CHANGELOG.md @lukeheath
 
 # Fleet documentation (who is auto-requested as reviewer for changes to docs?)
 /docs/ @rachaelshaw
@@ -42,6 +42,7 @@ go.mod @fleetdm/go
 
 # Expanded table documentation
 /schema @eashaw
+/schema/tables @rachaelshaw
 
 # Articles
 /articles @jarodreyes
