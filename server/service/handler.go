@@ -596,9 +596,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// These endpoint are used by Microsoft devices during MDM device enrollment phase
 	neWindowsMDM := ne.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 
-	// Microsoft MS-MDE Endpoints
-	// This endpoint is unauthenticated and is used by Microsoft devices to discover the MDM server
+	// Microsoft MS-MDE2 Endpoints
+	// This endpoint is unauthenticated and is used by Microsoft devices to discover the MDM server endpoints
 	neWindowsMDM.POST(microsoft_mdm.MDE2DiscoveryPath, mdmMicrosoftDiscoveryEndpoint, SoapRequestContainer{})
+
+	// This endpoint is unauthenticated and is used by Microsoft devices to retrieve the opaque STS auth token
+	neWindowsMDM.POST(microsoft_mdm.MDE2AuthPath, mdmMicrosoftDiscoveryEndpoint, SoapRequestContainer{})
 
 	// This endpoint is authenticated using the BinarySecurityToken header field
 	neWindowsMDM.POST(microsoft_mdm.MDE2PolicyPath, mdmMicrosoftPolicyEndpoint, SoapRequestContainer{})

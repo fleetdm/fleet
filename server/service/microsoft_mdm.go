@@ -610,6 +610,37 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
+// mdmMicrosoftAuthEndpoint handles the Security Token Service (STS) implementation
+// XXResponse  issues claims and packages them in encrypted security token format.
+func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*SoapRequestContainer).Data
+
+	// Checking first if Discovery message is valid and returning error if this is not the case
+	if err := req.IsValidDiscoveryMsg(); err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Getting the DiscoveryResponse message
+	discoveryResponseMsg, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Embedding the DiscoveryResponse message inside of a SoapResponse
+	response, err := NewSoapResponse(discoveryResponseMsg, req.GetMessageID())
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	return SoapResponseContainer{
+		Data: &response,
+		Err:  nil,
+	}, nil
+}
+
 // mdmMicrosoftPolicyEndpoint handles the GetPolicies message and returns a valid GetPoliciesResponse message
 // GetPoliciesResponse message contains the certificate policies required for the next enrollment step. For more information about these messages, see [MS-XCEP] sections 3.1.4.1.1.1 and 3.1.4.1.1.2.
 func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {

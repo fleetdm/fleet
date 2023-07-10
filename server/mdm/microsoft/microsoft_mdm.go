@@ -14,6 +14,12 @@ const (
 	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/2681fd76-1997-4557-8963-cf656ab8d887
 	MDE2DiscoveryPath = MDMPath + "/discovery"
 
+	// AuthPath is the HTTP endpoint path that delivers the Security Token Servicefunctionality.
+	// The MS-MDE2 protocol is agnostic to the token format and value returned by this endpoint.
+	// See the section 3.2 on the MS-MDE2 specification for more details:
+	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/27ed8c2c-0140-41ce-b2fa-c3d1a793ab4a
+	MDE2AuthPath = MDMPath + "/auth"
+
 	// MDE2PolicyPath is the HTTP endpoint path that delivers the X.509 Certificate Enrollment Policy (MS-XCEP) functionality.
 	// This is the endpoint that process the GetPolicies and GetPoliciesResponse messages
 	// See the section 3.3 on the MS-MDE2 specification for more details on this endpoint requirements:
