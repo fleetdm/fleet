@@ -63,7 +63,7 @@
   gap: $pad-medium;
 
   // Overlay below 768px
-  @media (min-width: 768px) {
+  @media (min-width: $break-xs) {
     display: none;
   }
 

@@ -195,7 +195,7 @@
   // table header content responsive styles
   // NOTE: 990px is a custom breakpoint to deal with responsiveness of the
   // table controls.
-  @media (max-width: 990px) {
+  @media (max-width: $break-md) {
     thead .name__header {
       width: $col-md;
       min-width: 252px;
