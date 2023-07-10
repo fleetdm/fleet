@@ -1,4 +1,4 @@
-## Fleet 4.34.0 (Jul 21, 2023)
+## Fleet 4.34.0 (Jul 11, 2023)
 
 * Added execution of programmatic Windows MDM enrollment on eligible devices when Windows MDM is enabled.
 
