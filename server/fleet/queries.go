@@ -69,6 +69,14 @@ func (q *Query) TeamIDStr() string {
 	return fmt.Sprint(*q.TeamID)
 }
 
+func (q *Query) GetSnapshot() *bool {
+	return nil
+}
+
+func (q *Query) GetRemoved() *bool {
+	return nil
+}
+
 // Verify verifies the query payload is valid.
 func (q *QueryPayload) Verify() error {
 	if q.Name != nil {

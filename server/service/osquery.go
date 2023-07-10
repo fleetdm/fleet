@@ -422,6 +422,33 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		config["packs"] = json.RawMessage(packJSON)
 	}
 
+	// Get all scheduled queries that are not used in packs (since those are included inside the
+	// 'packs' config).
+	scheduledQueries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
+		TeamID:            host.TeamID,
+		IsScheduled:       ptr.Bool(true),
+		IsIncludedInPacks: ptr.Bool(false),
+	})
+	scheduledConfig := make(fleet.Queries, len(scheduledQueries))
+	for _, query := range scheduledQueries {
+		scheduledConfig[query.Name] = fleet.QueryContent{
+			Query:    query.Query,
+			Interval: query.ScheduleInterval,
+			Platform: &query.Platform,
+			Version:  &query.MinOsqueryVersion,
+			Removed:  query.GetRemoved(),
+			Snapshot: query.GetSnapshot(),
+		}
+	}
+
+	if len(scheduledConfig) > 0 {
+		jsonPayload, err := json.Marshal(scheduledConfig)
+		if err != nil {
+			return nil, newOsqueryError("internal error: marshal schedule JSON: " + err.Error())
+		}
+		config["schedule"] = json.RawMessage(jsonPayload)
+	}
+
 	// Save interval values if they have been updated.
 	intervalsModified := false
 	intervals := fleet.HostOsqueryIntervals{
