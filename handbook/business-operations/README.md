@@ -867,6 +867,7 @@ If a contract is ready for signature and requires no review or revision, the req
 When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
 The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
+> _Note: signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
 
 ## Getting a contract reviewed
 
