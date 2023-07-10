@@ -5140,7 +5140,14 @@ Returns the query specified by ID.
         "platform": "",
         "disabled": false
       }
-    ]
+    ],
+    "stats": {
+      "system_time_p50": 1.32,
+      "system_time_p95": 4.02,
+      "user_time_p50": 3.55,
+      "user_time_p95": 3.00,
+      "total_executions": 3920
+    }
   }
 }
 ```
@@ -5236,7 +5243,14 @@ Returns a list of global queries or team queries.
         "platform": "",
         "disabled": false
       }
-    ]
+    ],
+    "stats": {
+      "system_time_p50": null,
+      "system_time_p95": null,
+      "user_time_p50": null,
+      "user_time_p95": null,
+      "total_executions": null
+    }
   }
 ]}
 ```
