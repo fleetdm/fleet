@@ -265,13 +265,13 @@ The reason for sentence case at Fleet is that everyone capitalizes differently i
 
 Fleet is more than an MDM (mobile device management) solution.
 
-With Fleet, you can collect telemetry from Macs, Windows servers, Chromebooks, and more by installing the fleetd agent (or chrome extension for Chromebooks). When we use the word "enroll" in Fleet, we want this to mean anytime one of these hosts shows up in Fleet and the user can see that sweet telemetry.
+With Fleet, you can secure and investigate Macs, Windows servers, Chromebooks, and more by installing the fleetd agent (or chrome extension for Chromebooks). When we use the word "enroll" in Fleet, we want this to mean anytime one of these hosts shows up in Fleet and the user can see that sweet telemetry.
 
-Fleet also has MDM features that allow IT admins to enforce OS settings, OS updates, and more. When we use the phrase "MDM on" in Fleet, we want this to mean anytime a host has these features activated.
+Fleet also has MDM features that allow IT admins to enforce OS settings, OS updates, and more. When we use the phrase "MDM on" in Fleet, it means a host has these features activated.
 
-Jamf, and other MDM solutions use "enroll" to mean both telemetry is being collecting and enforcement features are activated.
+Workspace ONE and other MDM solutions use "enroll" to mean both telemetry is being collecting and enforcement features are activated.
 
-Since Fleet is more than MDM, as a user, you can collect telemetry on your Windows servers and you can enforce OS settings on your Macs. Or, you can collecting telemtry for both without enforcing OS settings.
+Since Fleet is more than MDM, you can collect telemetry on your Windows servers and you can enforce OS settings on your Macs. Or you can collect telemetry for both without enforcing OS settings.
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">
