@@ -53,11 +53,11 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			Description:        "get the foos",
 			Query:              "select * from foo",
 			ObserverCanRun:     true,
-			ScheduleInterval:   10,
+			Interval:           10,
 			Platform:           "macos",
 			MinOsqueryVersion:  "5.2.1",
 			AutomationsEnabled: true,
-			LoggingType:        "differential",
+			Logging:            "differential",
 		},
 		{
 			Name:        "bar",
@@ -253,11 +253,11 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.Query = "baz"
 	query.ObserverCanRun = true
 	query.TeamID = &team.ID
-	query.ScheduleInterval = 10
+	query.Interval = 10
 	query.Platform = "macos"
 	query.MinOsqueryVersion = "5.2.1"
 	query.AutomationsEnabled = true
-	query.LoggingType = "differential"
+	query.Logging = "differential"
 
 	err = ds.SaveQuery(context.Background(), query)
 	require.NoError(t, err)
@@ -619,17 +619,17 @@ func testQueriesListFiltersByTeamID(t *testing.T, ds *Datastore) {
 
 func testQueriesListFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 	q1, err := ds.NewQuery(context.Background(), &fleet.Query{
-		Name:             "query1",
-		Query:            "select 1;",
-		Saved:            true,
-		ScheduleInterval: 0,
+		Name:     "query1",
+		Query:    "select 1;",
+		Saved:    true,
+		Interval: 0,
 	})
 	require.NoError(t, err)
 	q2, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:               "query2",
 		Query:              "select 1;",
 		Saved:              true,
-		ScheduleInterval:   10,
+		Interval:           10,
 		AutomationsEnabled: false,
 	})
 	require.NoError(t, err)
@@ -637,7 +637,7 @@ func testQueriesListFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 		Name:               "query3",
 		Query:              "select 1;",
 		Saved:              true,
-		ScheduleInterval:   20,
+		Interval:           20,
 		AutomationsEnabled: true,
 	})
 	require.NoError(t, err)

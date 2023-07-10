@@ -4916,6 +4916,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, defAppCfg), http.StatusOK)
 }
 
+// TODO(lucas): Add tests here.
 func (s *integrationTestSuite) TestQuerySpecs() {
 	t := s.T()
 

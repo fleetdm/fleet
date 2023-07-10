@@ -2,12 +2,16 @@ package service
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"gopkg.in/guregu/null.v3"
 )
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Scheduled Queries of a team.
+/////////////////////////////////////////////////////////////////////////////////
 
 type getTeamScheduleRequest struct {
 	TeamID      uint              `url:"team_id"`
@@ -37,22 +41,23 @@ func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{
-		Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
-	}, fleet.ActionRead); err != nil {
-		return nil, err
+	var teamID_ *uint
+	if teamID != 0 {
+		teamID_ = &teamID
 	}
-
-	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
+	queries, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true))
 	if err != nil {
 		return nil, err
 	}
-
-	return svc.ds.ListScheduledQueriesInPackWithStats(ctx, gp.ID, opts)
+	scheduledQueries := make([]*fleet.ScheduledQuery, 0, len(queries))
+	for _, query := range queries {
+		scheduledQueries = append(scheduledQueries, fleet.ScheduledQueryFromQuery(query))
+	}
+	return scheduledQueries, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-// Add
+// Add schedule query to a team.
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamScheduleQueryRequest struct {
@@ -100,24 +105,23 @@ func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fle
 	}, nil
 }
 
-func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, q *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{
-		Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
-	}, fleet.ActionWrite); err != nil {
-		return nil, err
+func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+	query, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get query from id")
 	}
-
-	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
+	if query.TeamID == nil || *query.TeamID != teamID {
+		return nil, ctxerr.Wrap(ctx, err, "query must belong to the team")
+	}
+	query, err = svc.ModifyQuery(ctx, scheduledQuery.QueryID, fleet.ScheduledQueryToQueryPayloadForModifyQuery(scheduledQuery, nil, nil))
 	if err != nil {
 		return nil, err
 	}
-	q.PackID = gp.ID
-
-	return svc.unauthorizedScheduleQuery(ctx, q)
+	return fleet.ScheduledQueryFromQuery(query), nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-// Modify
+// Modify team scheduled query.
 /////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamScheduleRequest struct {
@@ -135,33 +139,29 @@ func (r modifyTeamScheduleResponse) error() error { return r.Err }
 
 func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamScheduleRequest)
-	resp, err := svc.ModifyTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID, req.ScheduledQueryPayload)
-	if err != nil {
+	if _, err := svc.ModifyTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID, req.ScheduledQueryPayload); err != nil {
 		return modifyTeamScheduleResponse{Err: err}, nil
 	}
-	_ = resp
 	return modifyTeamScheduleResponse{}, nil
 }
 
-func (svc Service) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint, query fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{
-		Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
-	}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
+// TODO(lucas): Document new behavior.
+// teamID is not used because of mismatch between old internal representation and API.
+func (svc Service) ModifyTeamScheduledQueries(
+	ctx context.Context,
+	teamID uint,
+	scheduledQueryID uint,
+	scheduledQueryPayload fleet.ScheduledQueryPayload,
+) (*fleet.ScheduledQuery, error) {
+	query, err := svc.ModifyQuery(ctx, scheduledQueryID, fleet.ScheduledQueryPayloadToQueryPayload(scheduledQueryPayload))
 	if err != nil {
 		return nil, err
 	}
-
-	query.PackID = ptr.Uint(gp.ID)
-
-	return svc.unauthorizedModifyScheduledQuery(ctx, scheduledQueryID, query)
+	return fleet.ScheduledQueryFromQuery(query), nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-// Delete
+// Delete a scheduled query from a team.
 /////////////////////////////////////////////////////////////////////////////////
 
 type deleteTeamScheduleRequest struct {
@@ -185,11 +185,14 @@ func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 	return deleteTeamScheduleResponse{}, nil
 }
 
+// TODO(lucas): Document new behavior.
+// teamID is not used because of mismatch between old internal representation and API.
 func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{
-		Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
-	}, fleet.ActionWrite); err != nil {
+	if _, err := svc.ModifyQuery(ctx, scheduledQueryID, fleet.QueryPayload{
+		Interval:           ptr.Uint(0),
+		AutomationsEnabled: ptr.Bool(false),
+	}); err != nil {
 		return err
 	}
-	return svc.ds.DeleteScheduledQuery(ctx, scheduledQueryID)
+	return nil
 }

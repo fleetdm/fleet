@@ -104,6 +104,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 	if err != nil {
 		return fmt.Errorf("do multipart request: %w", err)
 	}
+	defer response.Body.Close()
 
 	var bpResponse uploadBootstrapPackageResponse
 	if err := c.parseResponse(verb, path, response, &bpResponse); err != nil {

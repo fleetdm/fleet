@@ -63,7 +63,7 @@ func TestListQueries(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.title, func(t *testing.T) {
 			viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
-			_, err := svc.ListQueries(viewerCtx, fleet.ListOptions{})
+			_, err := svc.ListQueries(viewerCtx, fleet.ListOptions{}, nil, nil)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedOpts, calledWithOpts)
 		})
@@ -183,7 +183,7 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.ModifyQuery(ctx, tt.qid, fleet.QueryPayload{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			err = svc.DeleteQuery(ctx, queryName[tt.qid])
+			err = svc.DeleteQuery(ctx, nil, queryName[tt.qid])
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			err = svc.DeleteQueryByID(ctx, tt.qid)
@@ -195,16 +195,16 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.GetQuery(ctx, tt.qid)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ListQueries(ctx, fleet.ListOptions{})
+			_, err = svc.ListQueries(ctx, fleet.ListOptions{}, nil, nil)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			err = svc.ApplyQuerySpecs(ctx, []*fleet.QuerySpec{{Name: queryName[tt.qid], Query: "SELECT 1"}})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.GetQuerySpecs(ctx)
+			_, err = svc.GetQuerySpecs(ctx, nil)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.GetQuerySpec(ctx, queryName[tt.qid])
+			_, err = svc.GetQuerySpec(ctx, nil, queryName[tt.qid])
 			checkAuthErr(t, tt.shouldFailRead, err)
 		})
 	}

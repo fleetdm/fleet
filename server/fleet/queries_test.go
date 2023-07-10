@@ -18,15 +18,15 @@ func TestGetSnapshot(t *testing.T) {
 			expected: nil,
 		},
 		{
-			query:    &Query{LoggingType: "snapshot"},
+			query:    &Query{Logging: "snapshot"},
 			expected: ptr.Bool(true),
 		},
 		{
-			query:    &Query{LoggingType: "differential"},
+			query:    &Query{Logging: "differential"},
 			expected: nil,
 		},
 		{
-			query:    &Query{LoggingType: "differential_ignore_removals"},
+			query:    &Query{Logging: "differential_ignore_removals"},
 			expected: nil,
 		},
 	}
@@ -45,15 +45,15 @@ func TestGetRemoved(t *testing.T) {
 			expected: nil,
 		},
 		{
-			query:    &Query{LoggingType: "snapshot"},
+			query:    &Query{Logging: "snapshot"},
 			expected: nil,
 		},
 		{
-			query:    &Query{LoggingType: "differential"},
+			query:    &Query{Logging: "differential"},
 			expected: ptr.Bool(true),
 		},
 		{
-			query:    &Query{LoggingType: "differential_ignore_removals"},
+			query:    &Query{Logging: "differential_ignore_removals"},
 			expected: ptr.Bool(false),
 		},
 	}

@@ -756,7 +756,7 @@ func TestAuthorizeQuery(t *testing.T) {
 		{user: test.UserObserverPlus, object: team12ObsQuery, action: run, allow: true}, // can run observer query
 		{user: test.UserObserverPlus, object: observerQuery, action: runNew, allow: true},
 
-		// Global maintainer can read/write (even not authored by them)/run any.
+		// Global maintainer can read/write/run any query.
 		{user: test.UserMaintainer, object: query, action: read, allow: true},
 		{user: test.UserMaintainer, object: query, action: write, allow: true},
 		{user: test.UserMaintainer, object: teamMaintQuery, action: write, allow: true},
@@ -770,7 +770,7 @@ func TestAuthorizeQuery(t *testing.T) {
 		{user: test.UserMaintainer, object: team1ObsQuery, action: run, allow: true},
 		{user: test.UserMaintainer, object: observerQuery, action: runNew, allow: true},
 
-		// Global admin can read/write (even not authored by them)/run any
+		// Global admin can read/write/run any query.
 		{user: test.UserAdmin, object: query, action: read, allow: true},
 		{user: test.UserAdmin, object: query, action: write, allow: true},
 		{user: test.UserAdmin, object: teamMaintQuery, action: write, allow: true},
@@ -828,7 +828,7 @@ func TestAuthorizeQuery(t *testing.T) {
 		{user: teamObserverPlus, object: team2ObsQuery, action: run, allow: false},  // not filtered only to observed teams
 		{user: teamObserverPlus, object: observerQuery, action: runNew, allow: true},
 
-		// Team maintainer can read/write their own queries/run queries filtered on their team(s)
+		// Team maintainer can read/write/run queries filtered on their team(s)
 		{user: teamMaintainer, object: query, action: read, allow: true},
 		{user: teamMaintainer, object: query, action: write, allow: true},
 		{user: teamMaintainer, object: teamMaintQuery, action: write, allow: true},

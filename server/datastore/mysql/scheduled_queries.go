@@ -37,7 +37,7 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 			JSON_EXTRACT(ag.json_value, '$.system_time_p95') as system_time_p95,
 			JSON_EXTRACT(ag.json_value, '$.total_executions') as total_executions
 		FROM scheduled_queries sq
-		JOIN queries q ON (sq.query_name = q.name)
+		JOIN (SELECT * FROM queries WHERE team_id IS NULL) q ON (sq.query_name = q.name)
 		LEFT JOIN aggregated_stats ag ON (ag.id = sq.id AND ag.global_stats = ? AND ag.type = ?)
 		WHERE sq.pack_id = ?
 	`

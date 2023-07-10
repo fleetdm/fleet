@@ -79,19 +79,19 @@ func TestGetClientConfig(t *testing.T) {
 			{
 				Query:             "SELECT 1 FROM table_1",
 				Name:              "Some strings carry more weight than others",
-				ScheduleInterval:  10,
+				Interval:          10,
 				Platform:          "linux",
 				MinOsqueryVersion: "5.12.2",
-				LoggingType:       "snapshot",
+				Logging:           "snapshot",
 				TeamID:            ptr.Uint(1),
 			},
 			{
-				Query:            "SELECT 1 FROM table_2",
-				Name:             "You shall not pass",
-				ScheduleInterval: 20,
-				Platform:         "macos",
-				LoggingType:      "differential",
-				TeamID:           ptr.Uint(1),
+				Query:    "SELECT 1 FROM table_2",
+				Name:     "You shall not pass",
+				Interval: 20,
+				Platform: "macos",
+				Logging:  "differential",
+				TeamID:   ptr.Uint(1),
 			},
 		}, nil
 	}
