@@ -1,0 +1,19 @@
+name: cpu_info
+platforms:
+  - darwin
+  - linux
+  - windows
+  - chrome
+columns:
+  - name: model
+    platforms:
+      - macOS
+      - linux
+      - windows
+      - chrome
+  - name: logical_processors
+    platforms:
+      - macOS
+      - linux
+      - windows
+      - chrome

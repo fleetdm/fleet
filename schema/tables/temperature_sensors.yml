@@ -1,4 +1,16 @@
 name: temperature_sensors
+platforms:
+  - darwin
+  - chrome
+columns:
+  - name: celcius
+    platforms:
+      - macOS
+      - chrome
+  - name: fahrenheit
+    platforms:
+      - macOS
+      - chrome
 examples: >-
   Identify systems with CPU temperature sensors above or equal to 90c.
 

@@ -1,4 +1,33 @@
 name: cpu_time
+platforms:
+  - darwin
+  - linux
+  - chrome
+columns:
+  - name: user
+    platforms:
+      - macOS
+      - linux
+      - chrome
+  - name: idle
+    platforms:
+      - macOS
+      - linux
+      - chrome
+  - name: kernel
+    platforms:
+      - chrome
+    type: bigint
+    required: false
+    description: |
+      The cumulative time used by kernel programs on this processor.
+  - name: total
+    platforms:
+      - chrome
+      type: bigint
+    required: false
+    description: |
+      The total cumulative time for this processor. This value is equal to user + kernel + idle.
 examples: >-
   Identify overworked CPUs using a ratio of system to user CPU usage. Here, a
   ratio of 2 was arbitrarily chosen.
