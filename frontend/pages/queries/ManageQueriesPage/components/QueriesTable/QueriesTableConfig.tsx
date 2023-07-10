@@ -148,30 +148,6 @@ const generateTableHeaders = ({
       },
     },
     {
-      title: "Author",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      accessor: "author_name",
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        const { author_name, author_email } = cellProps.row.original;
-        const author = author_name === currentUser.name ? "You" : author_name;
-        return (
-          <span>
-            <Avatar
-              user={addGravatarUrlToResource({ email: author_email })}
-              size="xsmall"
-            />
-            <span className="text-cell author-name">{author}</span>
-          </span>
-        );
-      },
-      sortType: "caseInsensitive",
-    },
-    {
       Header: () => {
         return (
           <div>
