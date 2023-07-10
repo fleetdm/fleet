@@ -762,6 +762,8 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 			parts = append(parts, "?")
 		}
 		var hostsWithMDMInfo []hostWithMDMInfo
+		// TODO: should we force ds.writer context here? should we join on host_dep_assignments
+		// instead of host_mdm?
 		err = sqlx.SelectContext(ctx, tx, &hostsWithMDMInfo, fmt.Sprintf(`
 			SELECT
 				h.id,
@@ -781,6 +783,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		var unmanagedHostIDs []uint
 		for _, h := range hostsWithMDMInfo {
 			hosts = append(hosts, h.Host)
+			// TODO: should we also check server url is empty here?
 			if h.Enrolled == nil || !*h.Enrolled {
 				unmanagedHostIDs = append(unmanagedHostIDs, h.ID)
 			}
@@ -965,11 +968,11 @@ func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid str
 			return ctxerr.Wrap(ctx, err, "getting host id from UUID")
 		}
 
+		// TODO: what about installed_from_dep?
 		_, err = tx.ExecContext(ctx, `
-			DELETE FROM host_mdm
-			WHERE host_id = ?`, hostID)
+			UPDATE host_mdm SET enrolled = 0, installed_from_dep = 0, server_url = '', mdm_id = NULL WHERE host_id = ?`, hostID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "removing host_mdm rows for host")
+			return ctxerr.Wrap(ctx, err, "clearing host_mdm for host")
 		}
 
 		// Since the host is unenrolled, delete all profiles assigned to the
@@ -2207,6 +2210,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
+	// TODO: should we join on host_dep_assignments instead of host_mdm?
 	stmt := `
           SELECT
               COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
@@ -2238,6 +2242,7 @@ func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID
 }
 
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+	// TODO: join on host_dep_assignments instead of host_mdm?
 	stmt := `
 SELECT
     CASE

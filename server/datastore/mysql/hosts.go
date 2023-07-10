@@ -838,7 +838,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		}
 	}
 	if opt.MDMNameFilter != nil || opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
-		sql += ` AND NOT COALESCE(hmdm.is_server, false) `
+		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN('darwin', 'windows')`
 	}
 	return sql, params
 }
@@ -1618,6 +1618,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 		host := hostWithMDM.Host
 		// leave MDMInfo nil unless it has mdm information
 		if hostWithMDM.HostID != nil {
+			// TODO: confirm this works as expected
 			host.MDMInfo = &fleet.HostMDM{
 				HostID:           *hostWithMDM.HostID,
 				Enrolled:         *hostWithMDM.Enrolled,
@@ -1714,6 +1715,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 		host := hostWithMDM.Host
 		// leave MDMInfo nil unless it has mdm information
 		if hostWithMDM.HostID != nil {
+			// TODO: confirm this works as expected
 			host.MDMInfo = &fleet.HostMDM{
 				HostID:           *hostWithMDM.HostID,
 				Enrolled:         *hostWithMDM.Enrolled,
@@ -2755,31 +2757,13 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	installedFromDep bool,
 	name string,
 ) error {
-	// MDM queries return an empty server URL when the host is not enrolled to an MDM.
-	if serverURL == "" {
-		// We use the reader even if it might miss some not replicated rows,
-		// because it will eventually catch up on subsequent ingestions and
-		// the entry will be deleted.
-		var id uint
-		switch err := sqlx.GetContext(ctx, ds.reader(ctx), &id,
-			`SELECT host_id FROM host_mdm WHERE host_id = ?`, hostID,
-		); {
-		case err == nil:
-			if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm WHERE host_id = ?`, hostID); err != nil {
-				return ctxerr.Wrapf(ctx, err, "delete host_mdm row: %d", hostID)
-			}
-			return nil
-		case errors.Is(err, sql.ErrNoRows):
-			return nil
-		default:
-			return ctxerr.Wrapf(ctx, err, "getting host_mdm row: %d", hostID)
+	var mdmID *uint
+	if serverURL != "" {
+		id, err := ds.getOrInsertMDMSolution(ctx, serverURL, name)
+		if err != nil {
+			return err
 		}
-
-	}
-
-	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL, name)
-	if err != nil {
-		return err
+		mdmID = &id
 	}
 
 	return ds.updateOrInsert(
@@ -2873,7 +2857,7 @@ func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) 
 			msg := fmt.Sprintf("for host %d", hostID)
 			return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
 		}
-		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_disk_encryption_keys for host_id %d", hostID)
 	}
 	return &key, nil
 }
@@ -2936,6 +2920,7 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 	var hmdm fleet.HostMDMCheckinInfo
 
 	// use writer as it is used just after creation in some cases
+	// TODO: should we join on host_dep_assignments instead?
 	err := sqlx.GetContext(ctx, ds.writer(ctx), &hmdm, `
 		SELECT
 			h.hardware_serial,
@@ -3308,7 +3293,7 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 		globalStats = true
 		status      fleet.AggregatedMDMStatus
 	)
-
+	// TODO: confirm this is ok as-is
 	query := `SELECT
 				COUNT(DISTINCT host_id) as hosts_count,
 				COALESCE(SUM(CASE WHEN NOT enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END), 0) as unenrolled_hosts_count,
@@ -3370,6 +3355,7 @@ func (ds *Datastore) generateAggregatedMDMSolutions(ctx context.Context, teamID 
 		results     []fleet.AggregatedMDMSolutions
 		whereAnd    = "WHERE"
 	)
+	// TODO: confirm this is ok as-is
 	query := `SELECT
 				mdms.id,
 				mdms.server_url,

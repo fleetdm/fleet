@@ -3448,7 +3448,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
-
 }
 
 func testMDMAppleEULA(t *testing.T, ds *Datastore) {
@@ -4108,13 +4107,14 @@ func TestHostDEPAssignments(t *testing.T) {
 		// simulate MDM unenroll
 		require.NoError(t, ds.UpdateHostTablesOnMDMUnenroll(ctx, depUUID))
 
-		// host MDM row is deleted on unenrollment
+		// host MDM row is set to defaults on unenrollment
 		getHostResp, err = ds.Host(ctx, testHost.ID)
 		require.NoError(t, err)
 		require.NotNil(t, getHostResp)
 		require.Equal(t, testHost.ID, getHostResp.ID)
-		require.Nil(t, getHostResp.MDM.EnrollmentStatus)
-		require.Nil(t, getHostResp.MDM.ServerURL)
+		require.NotNil(t, getHostResp.MDM.EnrollmentStatus)
+		require.Equal(t, "Off", *getHostResp.MDM.EnrollmentStatus)
+		require.Empty(t, getHostResp.MDM.ServerURL)
 		require.Empty(t, getHostResp.MDM.Name)
 		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
@@ -4152,13 +4152,14 @@ func TestHostDEPAssignments(t *testing.T) {
 		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "")
 		require.NoError(t, err)
 
-		// host MDM row is deleted when osquery reports MDM detail query with empty server URL
+		// host MDM row is reset to defaults when osquery reports MDM detail query with empty server URL
 		getHostResp, err = ds.Host(ctx, testHost.ID)
 		require.NoError(t, err)
 		require.NotNil(t, getHostResp)
 		require.Equal(t, testHost.ID, getHostResp.ID)
-		require.Nil(t, getHostResp.MDM.EnrollmentStatus)
-		require.Nil(t, getHostResp.MDM.ServerURL)
+		require.NotNil(t, getHostResp.MDM.EnrollmentStatus)
+		require.Equal(t, "Off", *getHostResp.MDM.EnrollmentStatus)
+		require.Empty(t, getHostResp.MDM.ServerURL)
 		require.Empty(t, getHostResp.MDM.Name)
 		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
