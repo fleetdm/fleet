@@ -294,7 +294,7 @@ We use Figma for most of our design work. This includes the Fleet product, our w
 
 ##### Which file should I use?
 
-**Fleet product.** All product design work is done in the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project. Check out the [Wireframing section](https://fleetdm.com/handbook/product#wireframing) for more information.
+**Fleet product.** All product design work is done in the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project. Check out the [Wireframing](https://fleetdm.com/handbook/product#wireframing) for more details.
 
 **Fleet website.** All website design work is done in the [fleetdm.com (current, dev-ready)](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/%E2%9C%85-fleetdm.com-(current%2C-dev-ready)?node-id=794%3A373) Figma file.
 
