@@ -12,7 +12,7 @@ export interface ISchedulableQuery {
   query: string;
   team_id: number | null;
   interval: number;
-  platforms_to_query: IPlatformString;
+  platform: IPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
   min_osquery_version: string;
   automations_enabled: boolean;
   logging: QueryLoggingOption;
