@@ -1079,7 +1079,7 @@ CREATE TABLE `scheduled_queries` (
   KEY `scheduled_queries_pack_id` (`pack_id`),
   KEY `scheduled_queries_query_name` (`query_name`),
   KEY `fk_scheduled_queries_queries` (`team_id_char`,`query_name`),
-  CONSTRAINT `scheduled_queries_ibfk_1` FOREIGN KEY (`team_id_char`, `query_name`) REFERENCES `queries` (`team_id_char`, `name`),
+  CONSTRAINT `scheduled_queries_ibfk_1` FOREIGN KEY (`team_id_char`, `query_name`) REFERENCES `queries` (`team_id_char`, `name`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `scheduled_queries_pack_id` FOREIGN KEY (`pack_id`) REFERENCES `packs` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
