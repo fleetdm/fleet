@@ -12,4 +12,4 @@ examples: >-
   ```sql
   SELECT author, description, directory, version FROM npm_packages WHERE name='webpack';
   ```
-description: Node packages globally installed on a system.
+description: Node.js packages globally installed on a system.
