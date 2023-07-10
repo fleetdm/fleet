@@ -269,9 +269,9 @@ With Fleet, you can collect telemetry from Macs, Windows servers, Chromebooks, a
 
 Fleet also has MDM features that allow IT admins to enforce OS settings, OS updates, and more. When we use the phrase "MDM on" in Fleet, we want this to mean anytime a host has these features activated.
 
-Jamf, and other MDM solutions use "enroll" to mean both telemetry is being colecting and enforcement features are activated.
+Jamf, and other MDM solutions use "enroll" to mean both telemetry is being collecting and enforcement features are activated.
 
-Since Fleet is more than MDM, as a user, you can collect telemtry on your Windows servers and you can enforce OS settings on your Macs. Or, you can collecting telemtry for both without enforcing OS settings.
+Since Fleet is more than MDM, as a user, you can collect telemetry on your Windows servers and you can enforce OS settings on your Macs. Or, you can collecting telemtry for both without enforcing OS settings.
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">
