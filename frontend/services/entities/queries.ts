@@ -5,6 +5,7 @@ import { IQueryFormData } from "interfaces/query";
 import { ISelectedTargets } from "interfaces/target";
 import { AxiosResponse } from "axios";
 import { buildQueryStringFromParams } from "utilities/url";
+import { IListQueriesResponse } from "interfaces/schedulable_query";
 
 export default {
   create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
@@ -34,38 +35,10 @@ export default {
     const queryString = buildQueryStringFromParams({ team_id: teamId });
     const path = `${QUERIES}`;
 
-    // dummy
-    return {
-      queries: [
-        {
-          created_at: "2023-06-08T15:31:35Z",
-          updated_at: "2023-06-08T15:31:35Z",
-          id: 2,
-          name: "test",
-          description: "",
-          query: "SELECT * FROM osquery_info;",
-          team_id: 43,
-          // saved: true,
-          interval: 0,
-          observer_can_run: false,
-          author_id: 1,
-          author_name: "Jacob",
-          author_email: "jacob@fleetdm.com",
-          packs: [],
-          stats: {
-            system_time_p50: null,
-            system_time_p95: null,
-            user_time_p50: null,
-            user_time_p95: null,
-            total_executions: 0,
-          },
-        },
-      ],
-    };
-    // return sendRequest(
-    //   "GET",
-    //   queryString ? path.concat(`?${queryString}`) : path
-    // );
+    return sendRequest(
+      "GET",
+      queryString ? path.concat(`?${queryString}`) : path
+    );
   },
   run: async ({
     query,

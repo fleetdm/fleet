@@ -61,7 +61,7 @@ const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
   return platforms || [DEFAULT_EMPTY_CELL_VALUE];
 };
 
-const enhanceQuery = (q: IQuery) => {
+const enhanceQuery = (q: ISchedulableQuery) => {
   return {
     ...q,
     performance: performanceIndicator(
@@ -96,6 +96,7 @@ const ManageQueriesPage = ({
     currentTeamId,
     handleTeamChange,
     teamIdForApi,
+    isRouteOk,
   } = useTeamIdParam({
     location,
     router,
@@ -120,12 +121,13 @@ const ManageQueriesPage = ({
     () => fleetQueriesAPI.loadAll(teamIdForApi),
     {
       refetchOnWindowFocus: false,
+      enabled: isRouteOk,
       select: (data) => data.queries,
     }
   );
 
   const enhancedQueriesList = useMemo(() => {
-    const enhancedQueries = fleetQueries?.map((q: IQuery) => {
+    const enhancedQueries = fleetQueries?.map((q: ISchedulableQuery) => {
       const query = enhanceQuery(q);
       return query;
     });
