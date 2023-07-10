@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,8 +52,8 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			Query:              "select * from foo",
 			ObserverCanRun:     true,
 			ScheduleInterval:   10,
-			Platform:           ptr.String("macos"),
-			MinOsqueryVersion:  ptr.String("5.2.1"),
+			Platform:           "macos",
+			MinOsqueryVersion:  "5.2.1",
 			AutomationsEnabled: true,
 			LoggingType:        "differential",
 		},
@@ -253,8 +252,8 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.ObserverCanRun = true
 	query.TeamID = &team.ID
 	query.ScheduleInterval = 10
-	query.Platform = ptr.String("macos")
-	query.MinOsqueryVersion = ptr.String("5.2.1")
+	query.Platform = "macos"
+	query.MinOsqueryVersion = "5.2.1"
 	query.AutomationsEnabled = true
 	query.LoggingType = "differential"
 

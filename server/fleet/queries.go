@@ -28,10 +28,10 @@ type Query struct {
 	// Interval frequency of execution (in seconds), if 0 then, this query will never run.
 	ScheduleInterval uint `json:"interval" db:"schedule_interval"`
 	// Platform if set, specifies the platform(s) this query will target.
-	Platform *string `json:"platform" db:"platform"`
+	Platform string `json:"platform" db:"platform"`
 	// MinOsqueryVersion if set, specifies the min required version of osquery that must be
 	// installed on the host.
-	MinOsqueryVersion *string `json:"min_osquery_version" db:"min_osquery_version"`
+	MinOsqueryVersion string `json:"min_osquery_version" db:"min_osquery_version"`
 	// AutomationsEnabled whether to send data to the configured log destination
 	AutomationsEnabled bool `json:"automations_enabled" db:"automations_enabled"`
 	// LoggingType the type of log output for this query

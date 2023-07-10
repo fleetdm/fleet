@@ -28,12 +28,12 @@ func Up_20230706141219(tx *sql.Tx) error {
 			ADD team_id INT(10) UNSIGNED DEFAULT NULL,
 			ADD team_id_char CHAR(10) DEFAULT '',
 
-			ADD platform VARCHAR(255) DEFAULT NULL,
-			ADD min_osquery_version VARCHAR(255) DEFAULT NULL,
+			ADD platform VARCHAR(255) DEFAULT '' NOT NULL,
+			ADD min_osquery_version VARCHAR(255) DEFAULT '' NOT NULL,
 
-			ADD schedule_interval INT(10) UNSIGNED DEFAULT 0,
-			ADD automations_enabled TINYINT(1) UNSIGNED DEFAULT 0,
-			ADD logging_type VARCHAR(255) DEFAULT 'snapshot',
+			ADD schedule_interval INT(10) UNSIGNED DEFAULT 0 NOT NULL,
+			ADD automations_enabled TINYINT(1) UNSIGNED DEFAULT 0 NOT NULL,
+			ADD logging_type VARCHAR(255) DEFAULT 'snapshot' NOT NULL,
 
 			ADD FOREIGN KEY fk_queries_team_id (team_id) REFERENCES teams (id) ON DELETE CASCADE ON UPDATE CASCADE,
 			ADD UNIQUE INDEX idx_team_id_name_unq (team_id_char, name);
