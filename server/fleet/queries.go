@@ -19,7 +19,11 @@ type Query struct {
 	UpdateCreateTimestamps
 	ID uint `json:"id"`
 	// TeamID to which team this query belongs. If not set, then the query belongs to the 'Global'
-	// team.
+	// team. The table schema for queries includes another column related to this one:
+	// `team_id_char`, this is because the unique constraint for queries is based on both the
+	// team_id and their name, but since team_id can be null (and (NULL == NULL) != true), we need
+	// to use something else to guarantee uniqueness, hence the use of team_id_char. team_id_char
+	// will be computed as string(team_id), if team_id IS NULL then team_char_id will be ''.
 	TeamID *uint `json:"team_id" db:"team_id"`
 	// Interval frequency of execution (in seconds), if 0 then, this query will never run.
 	ScheduleInterval uint `json:"interval" db:"schedule_interval"`
