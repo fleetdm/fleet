@@ -82,6 +82,7 @@ export interface IActivityDetails {
   host_display_names?: string[];
   host_ids?: number[];
   installed_from_dep?: boolean;
+  mdm_platform?: "microsoft" | "apple";
   minimum_version?: string;
   deadline?: string;
   profile_name?: string;

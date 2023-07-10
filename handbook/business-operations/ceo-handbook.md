@@ -145,15 +145,15 @@ Every month the Apprentice will do the prep work for the monthly "✌️ All han
 
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
-### After the all hands
+### After the All hands
 
-The Apprentice will post a link to the All hands meeting recording and slide deck in Slack.
+The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
 Template to use:
 ```
 Thanks to everyone who contributed to today's "All hands" call.
 
-:tv: If you weren't able to attend, please [**watch the recording**](Current.link.to.Gong.recording) _(1.5x playback supported)_.
+:tv: If you weren't able to attend, please *[watch the recording](Current-link-to-Gong-recording)* _(1.5x playback supported)_.
 
 You can also grab a copy of the [original slides](https://fleetdm.com/handbook/business-operations#all-hands) for use in your own confidential presentations.
 ```
@@ -162,10 +162,10 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/b
  - To create the recording link:
  - Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and `Share call`
  - `Share with customers`
- - `Copy link` and paste the url `[**Watch the recording**](here.in.your.template.message)`.
+ - `Copy link` and paste the url `*[Watch the recording](`here-in-your-template-message`)*`.
   
  - The PDF can be found in the current months [👋All hands folder](https://drive.google.com/drive/u/0/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) in Google Drive.
- - Drag and drop the PDF into your updated Slack message, which will look like this:👇 
+ - Download the PDF and upload (double click the `+`) into your updated Slack message, which will look like this:👇 
 
 ![image](https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1)
 

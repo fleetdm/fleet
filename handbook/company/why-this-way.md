@@ -249,5 +249,17 @@ The first step was to add a simpler way to schedule queries, and tuck away the l
 
 Packs will always be supported in Fleet.
 
+## Why does Fleet use sentence case?
+
+Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
+
+In sentence case, we write and capitalize words as if they were in sentences:
+
+> Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
+
+As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized.
+
+The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
+
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">
