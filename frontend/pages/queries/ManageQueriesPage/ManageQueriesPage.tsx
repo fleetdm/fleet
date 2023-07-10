@@ -64,9 +64,16 @@ const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
 const enhanceQuery = (q: ISchedulableQuery) => {
   return {
     ...q,
-    performance: performanceIndicator(
-      pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
-    ),
+    performance:
+      q.interval || q.automations_enabled
+        ? performanceIndicator(
+            pick(q.stats, [
+              "user_time_p50",
+              "system_time_p50",
+              "total_executions",
+            ])
+          )
+        : "Undetermined",
     platforms: getPlatforms(q.query),
   };
 };
