@@ -57,7 +57,7 @@ export interface ICreateQueryRequestBody {
   interval?: number; // default 0 means never run
   platform?: IPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
   min_osquery_version?: string; // default all versions if ommitted
-  automations_enabled?: boolean; // whether to send data to the configured log destination according to the query's `interval`.
+  automations_enabled?: boolean; // whether to send data to the configured log destination according to the query's `interval`. Default false if ommitted.
   logging?: QueryLoggingOption;
 }
 
