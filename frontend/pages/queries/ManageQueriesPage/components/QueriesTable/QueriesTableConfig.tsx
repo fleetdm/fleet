@@ -19,6 +19,7 @@ import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import StatusIndicator from "components/StatusIndicator";
 
 interface IQueryRow {
   id: string;
@@ -208,6 +209,38 @@ const generateTableHeaders = ({
           }}
         />
       ),
+    },
+    {
+      title: "Automations",
+      Header: "Automations",
+      disableSortBy: true,
+      accessor: "automations_enabled",
+      Cell: (cellProps: IStringCellProps): JSX.Element => {
+        let status;
+        if (cellProps.cell.value) {
+          if (cellProps.row.original.interval === 0) {
+            status = "paused";
+          } else {
+            status = "on";
+          }
+        } else {
+          status = "off";
+        }
+
+        const tooltip =
+          status === "paused"
+            ? {
+                id: cellProps.row.original.id,
+                tooltipText: (
+                  <>
+                    <strong>Automations</strong> will resume for this query when
+                    a frequency is set.
+                  </>
+                ),
+              }
+            : undefined;
+        return <StatusIndicator value={status} tooltip={tooltip} />;
+      },
     },
     {
       title: "Last modified",
