@@ -45,7 +45,7 @@ func Up_20230706141219(tx *sql.Tx) error {
 	// Add new FK constraint to make sure all scheduled_queries exists as 'global' queries.
 	if _, err := tx.Exec(`
 		ALTER TABLE scheduled_queries 
-			ADD FOREIGN KEY fk_scheduled_queries_queries (team_id_char, query_name) REFERENCES queries (team_id_char, name);
+			ADD FOREIGN KEY fk_scheduled_queries_queries (team_id_char, query_name) REFERENCES queries (team_id_char, name) ON DELETE CASCADE ON UPDATE CASCADE;
 	`); err != nil {
 		return errors.Wrap(err, "adding new FK on scheduled_queries")
 	}
