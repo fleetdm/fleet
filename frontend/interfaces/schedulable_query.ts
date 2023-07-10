@@ -55,7 +55,7 @@ export interface ICreateQueryRequestBody {
   observer_can_run?: boolean;
   team_id?: number; // global query if ommitted
   interval?: number; // default 0 means never run
-  platform?: IPlatformString; // comma-separated platform compatibility, default "all" if ommitted
+  platform?: IPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
   min_osquery_version?: string; // default all versions if ommitted
   automations_enabled?: boolean; // whether to send data to the configured log destination according to the query's `interval`.
   logging?: QueryLoggingOption;
