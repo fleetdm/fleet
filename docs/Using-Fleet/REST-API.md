@@ -5187,7 +5187,7 @@ Returns a list of global queries or team queries.
     "query": "SELECT * FROM osquery_info",
     "team_id": null,
     "interval": 3600,
-    "platform": "macos,windows,linux",
+    "platform": "darwin,windows,linux",
     "min_osquery_version": "",
     "automations_enabled": true,
     "logging": "snapshot",
@@ -5287,7 +5287,7 @@ Creates a global query or team query.
   "description": "This is a new query.",
   "query": "SELECT * FROM osquery_info",
   "interval": 3600, // Once per hour
-  "platform": "macos,windows,linux",
+  "platform": "darwin,windows,linux",
   "min_osquery_version": "",
   "automations_enabled": true,
   "logging": "snapshot"
@@ -5309,7 +5309,7 @@ Creates a global query or team query.
     "description": "This is a new query.",
     "team_id": null,
     "interval": 3600,
-    "platform": "macos,windows,linux",
+    "platform": "darwin,windows,linux",
     "min_osquery_version": "",
     "automations_enabled": true,
     "logging": "snapshot",
