@@ -34,9 +34,7 @@ In this guide, we're going to install Fleet and all of its application dependenc
 
 ### Setting up a host
 
-If you don't have a CentOS host readily available, Fleet recommends using [Vagrant](https://www.vagrantup.com/) for this guide.
-
-To install vagrant on a mac run `brew install vagrant`. To install vagrant on a pc [download it here](https://developer.hashicorp.com/vagrant/downloads). To install Vagrant on Linux [follow these instructions](https://developer.hashicorp.com/vagrant/downloads).
+If you don't have a CentOS host readily available, Fleet recommends using [Vagrant](https://www.vagrantup.com/) for this guide. You can find installation instructions on Vagrant's [downloads page](https://developer.hashicorp.com/vagrant/downloads).
 
 Once you have installed Vagrant, run the following to create a Vagrant box, start it, and log into it:
 
