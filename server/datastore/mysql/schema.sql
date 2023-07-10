@@ -1073,7 +1073,7 @@ CREATE TABLE `scheduled_queries` (
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` varchar(1023) COLLATE utf8mb4_unicode_ci DEFAULT '',
   `denylist` tinyint(1) DEFAULT NULL,
-  `team_id_char` char(10) COLLATE utf8mb4_unicode_ci DEFAULT '',
+  `team_id_char` char(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_names_in_packs` (`name`,`pack_id`),
   KEY `scheduled_queries_pack_id` (`pack_id`),

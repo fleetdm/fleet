@@ -15,7 +15,7 @@ func Up_20230706141219(tx *sql.Tx) error {
 	// table changed.
 	if _, err := tx.Exec(`
 		ALTER TABLE scheduled_queries 
-			ADD team_id_char CHAR(10) DEFAULT '',
+			ADD team_id_char CHAR(10) DEFAULT '' NOT NULL,
 			DROP FOREIGN KEY scheduled_queries_query_name;
 	`); err != nil {
 		return errors.Wrap(err, "removing FK on scheduled_queries")
