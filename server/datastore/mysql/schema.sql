@@ -1018,7 +1018,7 @@ CREATE TABLE `queries` (
   `author_id` int(10) unsigned DEFAULT NULL,
   `observer_can_run` tinyint(1) NOT NULL DEFAULT '0',
   `team_id` int(10) unsigned DEFAULT NULL,
-  `team_id_char` char(10) COLLATE utf8mb4_unicode_ci DEFAULT '',
+  `team_id_char` char(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `platform` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `min_osquery_version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `schedule_interval` int(10) unsigned NOT NULL DEFAULT '0',
@@ -1029,7 +1029,7 @@ CREATE TABLE `queries` (
   KEY `author_id` (`author_id`),
   KEY `fk_queries_team_id` (`team_id`),
   CONSTRAINT `queries_ibfk_1` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `queries_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `queries_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -1073,10 +1073,13 @@ CREATE TABLE `scheduled_queries` (
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` varchar(1023) COLLATE utf8mb4_unicode_ci DEFAULT '',
   `denylist` tinyint(1) DEFAULT NULL,
+  `team_id_char` char(10) COLLATE utf8mb4_unicode_ci DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_names_in_packs` (`name`,`pack_id`),
   KEY `scheduled_queries_pack_id` (`pack_id`),
   KEY `scheduled_queries_query_name` (`query_name`),
+  KEY `fk_scheduled_queries_queries` (`team_id_char`,`query_name`),
+  CONSTRAINT `scheduled_queries_ibfk_1` FOREIGN KEY (`team_id_char`, `query_name`) REFERENCES `queries` (`team_id_char`, `name`),
   CONSTRAINT `scheduled_queries_pack_id` FOREIGN KEY (`pack_id`) REFERENCES `packs` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

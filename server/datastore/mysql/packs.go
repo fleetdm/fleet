@@ -75,22 +75,7 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 		if q.Name == "" {
 			q.Name = q.QueryName
 		}
-
-		// Check if query exists ... we have to do this manually because the FK
-		// constraint was removed as part of the work required for combining queries and schedules
-		var count int
-		if err := tx.QueryRowxContext(
-			ctx,
-			`SELECT COUNT(1) FROM queries WHERE team_id_char = '' AND name = ?`,
-			q.QueryName,
-		).Scan(&count); err != nil {
-			return ctxerr.Wrap(ctx, err, "checking if query exists")
-		}
-		if count == 0 {
-			return ctxerr.Errorf(ctx, "cannot schedule unknown query '%s'", q.QueryName)
-		}
-
-		if _, err := tx.ExecContext(ctx, query,
+		_, err := tx.ExecContext(ctx, query,
 			packID,
 			q.QueryName,
 			q.Name,
@@ -102,7 +87,11 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 			q.Platform,
 			q.Version,
 			q.Denylist,
-		); err != nil {
+		)
+		switch {
+		case isChildForeignKeyError(err):
+			return ctxerr.Errorf(ctx, "cannot schedule unknown query '%s'", q.QueryName)
+		case err != nil:
 			return ctxerr.Wrapf(ctx, err, "adding query %s referencing %s", q.Name, q.QueryName)
 		}
 	}

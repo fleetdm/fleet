@@ -11,11 +11,12 @@ func init() {
 }
 
 func Up_20230706141219(tx *sql.Tx) error {
-	// If we want to drop the uniq constraint on queries.name, we first need to remove this
-	// constraint on scheduled_queries, due to a FK constraint scheduled_queries (query_name) =>
-	// queries (name).
+	// Drop FK constraint based on queries (name) - since the uniqueness constraint on the queries
+	// table changed.
 	if _, err := tx.Exec(`
-		ALTER TABLE scheduled_queries DROP FOREIGN KEY scheduled_queries_query_name;
+		ALTER TABLE scheduled_queries 
+			ADD team_id_char CHAR(10) DEFAULT '',
+			DROP FOREIGN KEY scheduled_queries_query_name;
 	`); err != nil {
 		return errors.Wrap(err, "removing FK on scheduled_queries")
 	}
@@ -26,7 +27,7 @@ func Up_20230706141219(tx *sql.Tx) error {
 			DROP INDEX constraint_query_name_unique,
 
 			ADD team_id INT(10) UNSIGNED DEFAULT NULL,
-			ADD team_id_char CHAR(10) DEFAULT '',
+			ADD team_id_char CHAR(10) DEFAULT '' NOT NULL,
 
 			ADD platform VARCHAR(255) DEFAULT '' NOT NULL,
 			ADD min_osquery_version VARCHAR(255) DEFAULT '' NOT NULL,
@@ -35,10 +36,18 @@ func Up_20230706141219(tx *sql.Tx) error {
 			ADD automations_enabled TINYINT(1) UNSIGNED DEFAULT 0 NOT NULL,
 			ADD logging_type VARCHAR(255) DEFAULT 'snapshot' NOT NULL,
 
-			ADD FOREIGN KEY fk_queries_team_id (team_id) REFERENCES teams (id) ON DELETE CASCADE ON UPDATE CASCADE,
+			ADD FOREIGN KEY fk_queries_team_id (team_id) REFERENCES teams (id) ON DELETE CASCADE,
 			ADD UNIQUE INDEX idx_team_id_name_unq (team_id_char, name);
 	`); err != nil {
 		return errors.Wrap(err, "updating queries schema")
+	}
+
+	// Add new FK constraint to make sure all scheduled_queries exists as 'global' queries.
+	if _, err := tx.Exec(`
+		ALTER TABLE scheduled_queries 
+			ADD FOREIGN KEY fk_scheduled_queries_queries (team_id_char, query_name) REFERENCES queries (team_id_char, name);
+	`); err != nil {
+		return errors.Wrap(err, "adding new FK on scheduled_queries")
 	}
 
 	return nil
