@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { RouteProps, InjectedRouter } from "react-router";
+import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { pick } from "lodash";
 
@@ -14,7 +14,12 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { performanceIndicator } from "utilities/helpers";
 import { IOsqueryPlatform } from "interfaces/platform";
+// TODO: remove old interfaces
 import { IQuery, IFleetQueriesResponse } from "interfaces/query";
+import {
+  IListQueriesResponse,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import fleetQueriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -86,7 +91,12 @@ const ManageQueriesPage = ({
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const { userTeams, currentTeamId, handleTeamChange } = useTeamIdParam({
+  const {
+    userTeams,
+    currentTeamId,
+    handleTeamChange,
+    teamIdForApi,
+  } = useTeamIdParam({
     location,
     router,
     includeAllTeams: true,
@@ -105,12 +115,12 @@ const ManageQueriesPage = ({
     error: fleetQueriesError,
     isFetching: isFetchingFleetQueries,
     refetch: refetchFleetQueries,
-  } = useQuery<IFleetQueriesResponse, Error, IQuery[]>(
-    "fleet queries by platform",
-    () => fleetQueriesAPI.loadAll(),
+  } = useQuery<IListQueriesResponse, Error, ISchedulableQuery[]>(
+    [{ scope: "queries", teamId: teamIdForApi }],
+    () => fleetQueriesAPI.loadAll(teamIdForApi),
     {
       refetchOnWindowFocus: false,
-      select: (data: IFleetQueriesResponse) => data.queries,
+      select: (data) => data.queries,
     }
   );
 
