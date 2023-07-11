@@ -34,6 +34,9 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 - Prepare your draft in the user story issue.
 - Prepare the agenda for your design review meeting, which should be an empty document other than the proposed changes you will present.
 - Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/business-operations/ceo-handbook). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
+- When introducing a story, clarify which review "mode" the CEO should operate in:
+  + **Final review** mode — you are 70% sure the design is 100% done. If you've engaged your PM or engineering in drafting the story, you've aligned on a solution.
+  + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback.
 - During the review meeting, take detailed notes of any feedback on the draft.
 - Address the feedback by modifying your draft.
 - Rinse and repeat at subsequent sessions until there is no more feedback.
