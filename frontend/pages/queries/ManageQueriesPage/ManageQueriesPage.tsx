@@ -14,8 +14,6 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { performanceIndicator } from "utilities/helpers";
 import { IOsqueryPlatform } from "interfaces/platform";
-// TODO: remove old interfaces
-import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import {
   IListQueriesResponse,
   ISchedulableQuery,
@@ -51,7 +49,7 @@ interface IManageQueriesPageProps {
   };
 }
 
-interface IQueryTableData extends IQuery {
+interface IQueryTableData extends ISchedulableQuery {
   performance: string;
   platforms: string[];
 }
@@ -65,16 +63,9 @@ const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
 const enhanceQuery = (q: ISchedulableQuery) => {
   return {
     ...q,
-    performance:
-      q.interval && q.automations_enabled
-        ? performanceIndicator(
-            pick(q.stats, [
-              "user_time_p50",
-              "system_time_p50",
-              "total_executions",
-            ])
-          )
-        : "Undetermined",
+    performance: performanceIndicator(
+      pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
+    ),
     platforms: getPlatforms(q.query),
   };
 };
@@ -124,67 +115,20 @@ const ManageQueriesPage = ({
     false
   );
 
-  // TODO: reenable API call once backend work completed
-
-  // const {
-  //   data: fleetQueries,
-  //   error: fleetQueriesError,
-  //   isFetching: isFetchingFleetQueries,
-  //   refetch: refetchFleetQueries,
-  // } = useQuery<IListQueriesResponse, Error, ISchedulableQuery[]>(
-  //   [{ scope: "queries", teamId: teamIdForApi }],
-  //   () => fleetQueriesAPI.loadAll(teamIdForApi),
-  //   {
-  //     refetchOnWindowFocus: false,
-  //     enabled: isRouteOk,
-  //     select: (data) => data.queries,
-  //   }
-  // );
-
-  const [
-    fleetQueries,
-    fleetQueriesError,
-    isFetchingFleetQueries,
-    refetchFleetQueries,
-  ] = useMemo(() => {
-    return [
-      [
-        {
-          created_at: "2023-06-08T15:31:35Z",
-          updated_at: "2023-06-08T15:31:35Z",
-          id: 2,
-          name: "test",
-          description: "",
-          query: "SELECT * FROM osquery_info;",
-          team_id: 43,
-          platform: "darwin",
-          min_osquery_version: "",
-          automations_enabled: true,
-          logging: "snapshot",
-          saved: true,
-          // interval: 300,
-          interval: 0,
-          observer_can_run: false,
-          author_id: 1,
-          author_name: "Jacob",
-          author_email: "jacob@fleetdm.com",
-          packs: [],
-          stats: {
-            system_time_p50: 1,
-            // system_time_p95: null,
-            user_time_p50: 1,
-            // user_time_p95: null,
-            total_executions: 1,
-          },
-        },
-      ] as ISchedulableQuery[],
-      undefined,
-      false,
-      () => {
-        console.log("got the new queries");
-      },
-    ];
-  }, []);
+  const {
+    data: fleetQueries,
+    error: fleetQueriesError,
+    isFetching: isFetchingFleetQueries,
+    refetch: refetchFleetQueries,
+  } = useQuery<IListQueriesResponse, Error, ISchedulableQuery[]>(
+    [{ scope: "queries", teamId: teamIdForApi }],
+    () => fleetQueriesAPI.loadAll(teamIdForApi),
+    {
+      refetchOnWindowFocus: false,
+      enabled: isRouteOk,
+      select: (data) => data.queries,
+    }
+  );
 
   const enhancedQueriesList = useMemo(() => {
     const enhancedQueries = fleetQueries?.map((q: ISchedulableQuery) => {

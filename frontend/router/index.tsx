@@ -33,7 +33,6 @@ import ManageSoftwarePage from "pages/software/ManageSoftwarePage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
-import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PolicyPage from "pages/policies/PolicyPage";
 import QueryPage from "pages/queries/QueryPage";
@@ -169,7 +168,6 @@ const routes = (
             <Route component={HostDetailsPage}>
               <Route path=":host_id" component={HostDetailsPage}>
                 <Route path="software" component={HostDetailsPage} />
-                <Route path="schedule" component={HostDetailsPage} />
                 <Route path="policies" component={HostDetailsPage} />
               </Route>
             </Route>
