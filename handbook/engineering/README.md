@@ -589,13 +589,13 @@ In the above process, any reference to "QA" refers to: Reed Haynes, Product Qual
 
 ## Infrastructure
 
-- [Infrastructure Links](#infrastructure-links)
-- [Best Practices](#best-practices)
+- [Infrastructure links](#infrastructure-links)
+- [Best practices](#best-practices)
 - [24/7 on-call](#24-7-on-call)
 
 The [infrastructure product group](https://fleetdm.com/handbook/company/development-groups#infrastructure-group) is responsible for deploying, supporting, and maintaining all Fleet-managed cloud deployments.
 
-### Infrastructure Links
+### Infrastructure links
 
 The following are quick links to infrastructure-related README files in both public and private repos that can be used as a quick reference for infrastructure-related code:
 
@@ -606,11 +606,11 @@ The following are quick links to infrastructure-related README files in both pub
 - [SSO](https://github.com/fleetdm/confidential/blob/main/infrastructure/sso/README.md)
 - [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
 
-### Best Practices
+### Best practices
 
 The infrastructure team follows industry best practices when designing and deploying infrastructure. For containerized infrastructure, Google has created a [reference document](https://cloud.google.com/architecture/best-practices-for-operating-containers) as an ideal reference for these practices.
 
-Many of these practices must be implemented in Fleet directly, and engineering will work to ensure that features follow these practices. The infrastructure team will make itself available to provide guidance as needed. If a feature is not compatible with these practices, an issue will be created with a request to make it so. The infrastructure team will provide as much information on the impact on existing and future production deployments.
+Many of these practices must be implemented in Fleet directly, and engineering will work to ensure that feature implementation follows these practices. The infrastructure team will make itself available to provide guidance as needed. If a feature is not compatible with these practices, an issue will be created with a request to correct the implementation.
 
 ### 24/7 on-call
 The 24/7 on-call (aka infrastructure on-call) is responsible for alarms related to fleetdm.com, Fleet sandbox, Fleet managed cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility happens in shifts of one week. The people involved in them will be:
