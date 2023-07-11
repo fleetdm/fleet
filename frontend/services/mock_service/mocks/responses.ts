@@ -364,7 +364,7 @@ const labels = {
   ],
 };
 
-// "ScheduleableQueries" to be used in developing frontend for #7765
+// "SchedulableQueries" to be used in developing frontend for #7765
 const queries = {
   queries: [
     {

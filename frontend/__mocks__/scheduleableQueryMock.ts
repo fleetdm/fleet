@@ -1,8 +1,8 @@
-// "ScheduleableQuery" to be used in developing frontend for #7765
+// "SchedulableQuery" to be used in developing frontend for #7765
 
-import { IScheduleableQuery } from "interfaces/scheduleable_query";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
 
-const DEFAULT_SCHEDULEABLE_QUERY_MOCK: IScheduleableQuery = {
+const DEFAULT_SCHEDULABLE_QUERY_MOCK: ISchedulableQuery = {
   created_at: "2022-11-03T17:22:14Z",
   updated_at: "2022-11-03T17:22:14Z",
   id: 1,
@@ -23,10 +23,10 @@ const DEFAULT_SCHEDULEABLE_QUERY_MOCK: IScheduleableQuery = {
   packs: [],
 };
 
-const createMockScheduleableQuery = (
-  overrides?: Partial<IScheduleableQuery>
-): IScheduleableQuery => {
-  return { ...DEFAULT_SCHEDULEABLE_QUERY_MOCK, ...overrides };
+const createMockSchedulableQuery = (
+  overrides?: Partial<ISchedulableQuery>
+): ISchedulableQuery => {
+  return { ...DEFAULT_SCHEDULABLE_QUERY_MOCK, ...overrides };
 };
 
-export default createMockScheduleableQuery;
+export default createMockSchedulableQuery;
