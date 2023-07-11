@@ -45,7 +45,7 @@ On Intel Macs, Fleet triggers step 1 (downloading the macOS update) programmatic
 
 Step 2 (installing the update) always requires end user action.
 
-### Known issue
+### Known issues
 
 Sometimes after the end user clicks "update" on the Nudge window, the end user's Mac will say that macOS is up to date when it isn't. This known issue can create a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
 
@@ -60,6 +60,8 @@ Sometimes after the end user clicks "update" on the Nudge window, the end user's
 5. After your Mac restarts, from the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
 
 6. In the search bar, type "Software Update." Select **Software Update** and select **Restart Now** to update.
+
+Currently, Nudge does not support [Apple Rapid Security Responses](https://support.apple.com/en-us/HT201224), but this feature is under review and may be included in a future release.  
 
 ## End user macOS update via built-in macOS notifications
 
