@@ -46,7 +46,6 @@ import MunkiIssuesCard from "../cards/MunkiIssues";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
-import ScheduleCard from "../cards/Schedule";
 import PacksCard from "../cards/Packs";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -152,7 +151,6 @@ const HostDetailsPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [packsState, setPacksState] = useState<IPackStats[]>();
-  const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -313,7 +311,6 @@ const HostDetailsPage = ({
             { packs: [], schedule: [] }
           );
           setPacksState(packStatsByType.packs);
-          setSchedule(packStatsByType.schedule);
         }
       },
       onError: (error) => handlePageError(error),
@@ -577,11 +574,6 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
     },
     {
-      name: "Schedule",
-      title: "schedule",
-      pathname: PATHS.HOST_SCHEDULE(hostIdFromURL),
-    },
-    {
       name: (
         <>
           {failingPoliciesCount > 0 && (
@@ -736,16 +728,6 @@ const HostDetailsPage = ({
                   munkiIssues={macadmins.munki_issues}
                   deviceType={host?.platform === "darwin" ? "macos" : ""}
                 />
-              )}
-            </TabPanel>
-            <TabPanel>
-              <ScheduleCard
-                isChromeOSHost={host?.platform === "chrome"}
-                schedule={schedule}
-                isLoading={isLoadingHost}
-              />
-              {canViewPacks && (
-                <PacksCard packsState={packsState} isLoading={isLoadingHost} />
               )}
             </TabPanel>
             <TabPanel>
