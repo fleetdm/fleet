@@ -102,7 +102,7 @@ const QueryForm = ({
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const isEditMode = !!queryIdForEdit;
+  const savedQueryMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
@@ -135,7 +135,7 @@ const QueryForm = ({
     debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
-  const hasTeamMaintainerPermissions = isEditMode
+  const hasTeamMaintainerPermissions = savedQueryMode
     ? isAnyTeamMaintainerOrTeamAdmin &&
       storedQuery &&
       currentUser &&
@@ -180,7 +180,7 @@ const QueryForm = ({
   ) => {
     evt.preventDefault();
 
-    if (isEditMode && !lastEditedQueryName) {
+    if (savedQueryMode && !lastEditedQueryName) {
       return setErrors({
         ...errors,
         name: "Query name must be present",
@@ -248,7 +248,7 @@ const QueryForm = ({
   const promptSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (isEditMode && !lastEditedQueryName) {
+    if (savedQueryMode && !lastEditedQueryName) {
       return setErrors({
         ...errors,
         name: "Query name must be present",
@@ -261,7 +261,7 @@ const QueryForm = ({
     valid = isValidated;
 
     if (valid) {
-      if (!isEditMode) {
+      if (!savedQueryMode) {
         setIsSaveModalOpen(true);
       } else {
         onUpdate({
@@ -327,7 +327,7 @@ const QueryForm = ({
   });
 
   const renderName = () => {
-    if (isEditMode) {
+    if (savedQueryMode) {
       return (
         <>
           <div className={queryNameClasses}>
@@ -363,7 +363,7 @@ const QueryForm = ({
   };
 
   const renderDescription = () => {
-    if (isEditMode) {
+    if (savedQueryMode) {
       return (
         <>
           <div className={queryDescriptionClasses}>
@@ -424,7 +424,9 @@ const QueryForm = ({
           name="query editor"
           label="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          readOnly={!isObserverPlus || !isAnyTeamObserverPlus}
+          readOnly={
+            (!isObserverPlus && !isAnyTeamObserverPlus) || savedQueryMode
+          }
           labelActionComponent={isObserverPlus && renderLabelComponent()}
           wrapEnabled
         />
@@ -459,7 +461,7 @@ const QueryForm = ({
             {renderName()}
             {renderDescription()}
           </div>
-          <div className="author">{isEditMode && renderAuthor()}</div>
+          <div className="author">{savedQueryMode && renderAuthor()}</div>
         </div>
         <FleetAce
           value={lastEditedQueryBody}
@@ -472,12 +474,12 @@ const QueryForm = ({
           onChange={onChangeQuery}
           handleSubmit={promptSaveQuery}
           wrapEnabled
-          focus={!isEditMode}
+          focus={!savedQueryMode}
         />
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}
         </span>
-        {isEditMode && (
+        {savedQueryMode && (
           <>
             <Checkbox
               value={lastEditedQueryObserverCanRun}
@@ -489,7 +491,7 @@ const QueryForm = ({
               Observers can run
             </Checkbox>
             <p>
-              Users with the Observer role will be able to run this query on
+              Users with the observer role will be able to run this query on
               hosts where they have access.
             </p>
           </>
@@ -500,7 +502,7 @@ const QueryForm = ({
         >
           {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
             <>
-              {isEditMode && (
+              {savedQueryMode && (
                 <Button
                   variant="text-link"
                   onClick={promptSaveAsNewQuery()}

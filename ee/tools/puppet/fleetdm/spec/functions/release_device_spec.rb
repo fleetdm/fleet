@@ -16,7 +16,7 @@ describe 'fleetdm::release_device' do
   it { is_expected.to run.with_params(nil).and_raise_error(StandardError) }
 
   it 'performs an API call to Fleet' do
-    expect(fleet_client_mock).to receive(:send_mdm_command).with(device_uuid, %r{DeviceConfigured})
+    expect(fleet_client_mock).to receive(:send_mdm_command).with(device_uuid, %r{DeviceConfigured}).and_return({ 'error' => '' })
     is_expected.to run.with_params(device_uuid)
   end
 end

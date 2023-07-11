@@ -49,7 +49,7 @@ func TestGetLatestCronStats(t *testing.T) {
 
 	insertTestCS := func(name string, statsType fleet.CronStatsType, status fleet.CronStatsStatus, createdAt time.Time) {
 		stmt := `INSERT INTO cron_stats (stats_type, name, instance, status, created_at) VALUES (?, ?, ?, ?, ?)`
-		_, err := ds.writer.ExecContext(ctx, stmt, statsType, name, instanceID, status, createdAt)
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, statsType, name, instanceID, status, createdAt)
 		require.NoError(t, err)
 	}
 
@@ -167,12 +167,12 @@ func TestCleanupCronStats(t *testing.T) {
 
 	for _, c := range cases {
 		stmt := `INSERT INTO cron_stats (stats_type, name, instance, status, created_at) VALUES (?, ?, ?, ?, ?)`
-		_, err := ds.writer.ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, name, instance, c.status, c.createdAt)
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, name, instance, c.status, c.createdAt)
 		require.NoError(t, err)
 	}
 
 	var stats []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
 	for i, s := range stats {
@@ -184,7 +184,7 @@ func TestCleanupCronStats(t *testing.T) {
 	require.NoError(t, err)
 
 	stats = []fleet.CronStats{}
-	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases)-1) // case[7] was deleted because it exceeded max age
 	for i, c := range cases {
@@ -250,12 +250,12 @@ func TestUpdateAllCronStatsForInstance(t *testing.T) {
 
 	for _, c := range cases {
 		stmt := `INSERT INTO cron_stats (stats_type, name, instance, status) VALUES (?, ?, ?, ?)`
-		_, err := ds.writer.ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, c.schedName, c.instance, c.status)
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, c.schedName, c.instance, c.status)
 		require.NoError(t, err)
 	}
 
 	var stats []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
 	for i, s := range stats {
@@ -268,7 +268,7 @@ func TestUpdateAllCronStatsForInstance(t *testing.T) {
 	require.NoError(t, err)
 
 	stats = []fleet.CronStats{}
-	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
 	for i, c := range cases {

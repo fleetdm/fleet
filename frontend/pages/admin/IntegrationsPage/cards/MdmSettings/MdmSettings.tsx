@@ -8,14 +8,16 @@ import { AppContext } from "context/app";
 import mdmAppleAPI from "services/entities/mdm_apple";
 import { IMdmApple } from "interfaces/mdm";
 
+import { readableDate } from "utilities/helpers";
+import PATHS from "router/paths";
+
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import { readableDate } from "utilities/helpers";
-
 import RequestCSRModal from "./components/RequestCSRModal";
 import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
+import WindowsMdmSection from "./components/WindowsMdmSection/WindowsMdmSection";
 
 const baseClass = "mdm-settings";
 
@@ -44,6 +46,10 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
 
   const toggleRequestCSRModal = () => {
     setShowRequestCSRModal(!showRequestCSRModal);
+  };
+
+  const navigateToWindowsMdm = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM_WINDOWS);
   };
 
   // The API returns a 404 error if APNs is not configured yet, in that case we
@@ -127,10 +133,19 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
         <h2>Apple Push Certificates Portal</h2>
         {isLoadingMdmApple ? <Spinner /> : renderMdmAppleSection()}
       </div>
+      {/* TODO: remove conditional rendering when windows MDM is released. */}
+      {config?.mdm_enabled && (
+        <WindowsMdmSection
+          turnOnWindowsMdm={navigateToWindowsMdm}
+          editWindowsMdm={navigateToWindowsMdm}
+        />
+      )}
       {isPremiumTier && (
-        <div className={`${baseClass}__section`}>
-          <EndUserMigrationSection router={router} />
-        </div>
+        <>
+          <div className={`${baseClass}__section`}>
+            <EndUserMigrationSection router={router} />
+          </div>
+        </>
       )}
       {showRequestCSRModal && (
         <RequestCSRModal onCancel={toggleRequestCSRModal} />

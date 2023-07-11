@@ -55,6 +55,7 @@
 
  [purpose='button-row'] {
     a {
+      white-space: nowrap;
       font-weight: 700;
       font-size: 16px;
       line-height: 24px;
@@ -198,6 +199,71 @@
     }
   }
 
+  [purpose='modal-form'] {
+    color: #192147;
+    input {
+      border-radius: 6px;
+      // height: 48px;
+    }
+    // Disable default buttons on type="number" inputs
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type='number'] {
+      -moz-appearance: textfield;
+    }
+    input[type='radio'] {
+      accent-color: #6a67fe;
+    }
+
+    label {
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    width: 100%;
+    max-width: 450px;
+  }
+
+  [purpose='submit-button'] {
+    border-radius: 8px;
+    height: 54px;
+  }
+
+  [purpose='mdm-modal'] {
+    h2 {
+      font-weight: 800;
+      font-size: 28px;
+      line-height: 38px;
+    }
+    p {
+      font-size: 16px;
+      line-height: 24px;
+    }
+  }
+  [purpose='modal-dialog'] {
+    max-width: 800px;
+  }
+
+  [purpose='modal-content'] {
+    background-color: #F9FAFC;
+    padding: 40px;
+    margin-top: 150px;
+    margin-left: auto;
+    margin-right: auto;
+    [purpose='modal-close-button'] {
+      top: -40px;
+      right: -40px;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      padding: 0px 0px 4px 0px;
+      background-color: #192147;
+      color: #FFF;
+      opacity: 1;
+    }
+  }
+
   @media (min-width: 1200px) {
     [purpose='page-container'] {
       padding-left: 120px;
@@ -314,6 +380,25 @@
   }
 
   @media (max-width: 575px) {
+
+    [purpose='modal-content'] {
+      background-color: #F9FAFC;
+      padding: 24px;
+      margin-top: 100px;
+      margin-left: auto;
+      margin-right: auto;
+      [purpose='modal-close-button'] {
+        top: 5px;
+        right: 0;
+        border-radius: 100%;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        background-color: unset;
+        color: #192147;
+        opacity: 1;
+      }
+    }
 
     [purpose='button-row'] {
       max-width: 100%;
