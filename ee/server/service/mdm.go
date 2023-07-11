@@ -156,7 +156,7 @@ func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID
 		return nil, ctxerr.Wrap(ctx, err, "find host to list profiles")
 	}
 
-	var tmID uint = 0
+	var tmID uint
 	if host.TeamID != nil {
 		tmID = *host.TeamID
 	}

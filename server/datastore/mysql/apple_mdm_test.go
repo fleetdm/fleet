@@ -250,7 +250,7 @@ func checkConfigProfile(t *testing.T, expected, actual fleet.MDMAppleConfigProfi
 
 func checkConfigProfileWithChecksum(t *testing.T, expected, actual fleet.MDMAppleConfigProfile) {
 	checkConfigProfile(t, expected, actual)
-	require.ElementsMatch(t, md5.Sum(expected.Mobileconfig), actual.Checksum)
+	require.ElementsMatch(t, md5.Sum(expected.Mobileconfig), actual.Checksum) // nolint:gosec // used only to hash for efficient comparisons
 }
 
 func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
