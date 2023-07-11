@@ -1622,7 +1622,7 @@ type DataStore struct {
 	MDMWindowsInsertEnrolledDeviceFuncInvoked bool
 
 	MDMWindowsDeleteEnrolledDeviceFunc        MDMWindowsDeleteEnrolledDeviceFunc
-	MDMWindowsDeleteEnrolledDeviceFuncInvoked bool	
+	MDMWindowsDeleteEnrolledDeviceFuncInvoked bool
 
 	mu sync.Mutex
 }
