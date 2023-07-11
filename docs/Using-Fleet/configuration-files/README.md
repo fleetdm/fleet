@@ -290,11 +290,9 @@ integrations
 webhook_settings
 ```
 
-You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
+You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force the application of the changes without validation but should be used with caution.
 
 ### Mobile device management (MDM) settings for teams
-
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
 
