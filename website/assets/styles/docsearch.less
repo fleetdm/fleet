@@ -91,6 +91,7 @@
   margin: 60px auto auto;
   max-width: @docsearch-modal-width;
   position: relative;
+  overflow: scroll;
 }
 
 /* Modal Searchbox */
@@ -583,6 +584,7 @@ svg.DocSearch-Hit-Select-Icon {
 
   .DocSearch-Container {
     height: 100vh;
+    height: -webkit-fill-available;
     position: absolute;
   }
 
@@ -605,9 +607,11 @@ svg.DocSearch-Hit-Select-Icon {
     margin: 0;
     max-width: 100%;
     width: 100%;
+    overflow: hidden;
   }
 
   .DocSearch-Dropdown {
+    max-height: calc(~'100vh - 100px');
   }
 
   .DocSearch-Cancel {
