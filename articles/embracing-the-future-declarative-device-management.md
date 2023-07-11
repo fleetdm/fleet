@@ -30,7 +30,7 @@ Certificates and identities play a crucial role in ensuring secure access to org
 Certificates and identities are defined as asset declarations, which various configurations can reference. This eliminates the need for duplicating certificates and identities across multiple profiles, thereby reducing management overhead.
 
 
-## A New Paradigm: Software Updates
+## A new paradigm: software spdates
 
 Apple's DDM introduces a redefined software update process, which marks another significant step forward in device management.
 
