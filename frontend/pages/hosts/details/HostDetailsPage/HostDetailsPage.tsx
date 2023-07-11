@@ -17,13 +17,11 @@ import {
   IHost,
   IDeviceMappingResponse,
   IMacadminsResponse,
-  IPackStats,
   IHostResponse,
   IHostMdmData,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
-import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 
@@ -34,7 +32,6 @@ import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
-import permissions from "utilities/permissions";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -44,7 +41,6 @@ import MunkiIssuesCard from "../cards/MunkiIssues";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
-import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -91,12 +87,6 @@ interface IHostDetailsSubNavItem {
   pathname: string;
 }
 
-const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId: number | undefined | null) => {
-    return `${hostId ? `?host_ids=${hostId}` : ""}`;
-  },
-};
-
 const HostDetailsPage = ({
   route,
   router,
@@ -109,9 +99,7 @@ const HostDetailsPage = ({
 
   const {
     config,
-    currentUser,
     isGlobalAdmin = false,
-    isGlobalObserver,
     isPremiumTier = false,
     isSandboxMode,
     isOnlyObserver,
@@ -146,7 +134,6 @@ const HostDetailsPage = ({
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [packsState, setPacksState] = useState<IPackStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -275,26 +262,6 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
-        if (returnedHost.pack_stats) {
-          const packStatsByType = returnedHost.pack_stats.reduce(
-            (
-              dictionary: {
-                packs: IPackStats[];
-                schedule: IQueryStats[];
-              },
-              pack: IPackStats
-            ) => {
-              if (pack.type === "pack") {
-                dictionary.packs.push(pack);
-              } else {
-                dictionary.schedule.push(...pack.query_stats);
-              }
-              return dictionary;
-            },
-            { packs: [], schedule: [] }
-          );
-          setPacksState(packStatsByType.packs);
-        }
       },
       onError: (error) => handlePageError(error),
     }
@@ -575,23 +542,6 @@ const HostDetailsPage = ({
     config?.mdm.enabled_and_configured &&
     host?.mdm.name === "Fleet" &&
     host?.mdm.macos_settings?.disk_encryption === "action_required";
-
-  /*  Context team id might be different that host's team id
-  Observer plus must be checked against host's team id  */
-  const isGlobalOrHostsTeamObserverPlus =
-    currentUser && host?.team_id
-      ? permissions.isObserverPlus(currentUser, host.team_id)
-      : false;
-
-  const isHostsTeamObserver =
-    currentUser && host?.team_id
-      ? permissions.isTeamObserver(currentUser, host.team_id)
-      : false;
-
-  const canViewPacks =
-    !isGlobalObserver &&
-    !isGlobalOrHostsTeamObserverPlus &&
-    !isHostsTeamObserver;
 
   const bootstrapPackageData = {
     status: host?.mdm.macos_setup?.bootstrap_package_status,
