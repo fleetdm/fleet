@@ -2222,7 +2222,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
-- [Trigger Filevault key escrow](#trigger-filevault-key-escrow) 
+- [Trigger FileVault key escrow](#trigger-filevault-key-escrow) 
 
 #### Get device's host
 
@@ -2657,9 +2657,9 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 
 ---
 
-#### Trigger Filevault key escrow
+#### Trigger FileVault key escrow
 
-Sends a signal to Fleet Desktop to initiate a Filevault key escrow. This is useful for setting the escrow key initially as well as in scenarios where a token rotation is required. **Requires Fleet Premium license**
+Sends a signal to Fleet Desktop to initiate a FileVault key escrow. This is useful for setting the escrow key initially as well as in scenarios where a token rotation is required. **Requires Fleet Premium license**
 
 `POST /api/v1/fleet/device/{token}/rotate_encryption_key`
 
