@@ -639,6 +639,7 @@ func testQueriesListFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 		Saved:            true,
 		ScheduleInterval: 20,
 	})
+	require.NoError(t, err)
 
 	testCases := []struct {
 		opts     fleet.ListQueryOptions
@@ -676,12 +677,15 @@ func testQueriesListFiltersByExcludedIDs(t *testing.T, ds *Datastore) {
 		ScheduleInterval: 0,
 	})
 	require.NoError(t, err)
+
 	q2, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:             "query2",
 		Query:            "select 1;",
 		Saved:            true,
 		ScheduleInterval: 10,
 	})
+	require.NoError(t, err)
+
 	testCases := []struct {
 		opts     fleet.ListQueryOptions
 		expected []*fleet.Query
