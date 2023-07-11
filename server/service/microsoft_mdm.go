@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -23,22 +24,31 @@ import (
 )
 
 type SoapRequestContainer struct {
-	Data *fleet.SoapRequest
-	Err  error
+	Data   *fleet.SoapRequest
+	Params url.Values
+	Err    error
 }
 
 // MDM SOAP request decoder
-func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader) error {
+func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
 	// Reading the request bytes
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading soap mdm request")
 	}
 
-	// Unmarshal the XML data from the request into the SoapRequest struct
-	err = xml.Unmarshal(reqBytes, &req.Data)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshalling soap mdm request")
+	// Set the request parameters
+	req.Params = u
+
+	// Handle empty body scenario
+	if len(reqBytes) == 0 {
+		req.Data = &fleet.SoapRequest{}
+	} else {
+		// Unmarshal the XML data from the request into the SoapRequest struct
+		err = xml.Unmarshal(reqBytes, &req.Data)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unmarshalling soap mdm request")
+		}
 	}
 
 	return nil
@@ -70,6 +80,23 @@ func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.Response
 	}
 }
 
+type MDMAuthContainer struct {
+	Data *string
+	Err  error
+}
+
+func (r MDMAuthContainer) error() error { return r.Err }
+
+// hijackRender writes the response header and the RAW XML output
+func (r MDMAuthContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	w.Header().Set("Content-Length", strconv.Itoa(len(*r.Data)))
+	w.WriteHeader(http.StatusOK)
+	if n, err := w.Write([]byte(*r.Data)); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
 // getUtcTime returns the current timestamp plus the specified number of minutes,
 // formatted as "2006-01-02T15:04:05.000Z".
 func getUtcTime(minutes int) string {
@@ -82,7 +109,7 @@ func getUtcTime(minutes int) string {
 }
 
 // NewDiscoverResponse creates a new DiscoverResponse struct based on the auth policy, policy url, and enrollment url
-func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl string) (mdm_types.DiscoverResponse, error) {
+func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl string, authUrl string) (mdm_types.DiscoverResponse, error) {
 	if (len(authPolicy) == 0) || (len(policyUrl) == 0) || (len(enrollmentUrl) == 0) {
 		return mdm_types.DiscoverResponse{}, errors.New("invalid parameters")
 	}
@@ -94,6 +121,7 @@ func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl stri
 			EnrollmentVersion:          mdm.EnrollmentVersionV4,
 			EnrollmentPolicyServiceUrl: policyUrl,
 			EnrollmentServiceUrl:       enrollmentUrl,
+			AuthServiceUrl:             &authUrl,
 		},
 	}, nil
 }
@@ -263,6 +291,14 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 	}
 }
 
+// getSTSAuthContent Retuns an auth error
+func getSTSAuthContent(data string) errorer {
+	return MDMAuthContainer{
+		Data: &data,
+		Err:  nil,
+	}
+}
+
 // getSoapResponseFault Returns a SoapResponse with a SoapFault on its body
 func getSoapResponseFault(relatesTo string, soapFault *mdm_types.SoapFault) errorer {
 	if len(relatesTo) == 0 {
@@ -408,11 +444,19 @@ func NewBinarySecurityTokenPayload(encodedToken string) (fleet.WindowsMDMAccessT
 	return tokenPayload, nil
 }
 
-// GetEncodedBinarySecurityToken returns the base64 form of a BinarySecurityTokenPayload
-func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, hostUUID string) (string, error) {
+// GetEncodedBinarySecurityToken returns the base64 form of a input payload
+func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, payload string) (string, error) {
 	var pld fleet.WindowsMDMAccessTokenPayload
 	pld.Type = typeID
-	pld.Payload.HostUUID = hostUUID
+
+	if typeID == fleet.WindowsMDMProgrammaticEnrollmentType {
+		pld.Payload.HostUUID = payload
+	} else if typeID == fleet.WindowsMDMAutomaticEnrollmentType {
+		pld.Payload.AuthToken = payload
+	} else {
+		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
+	}
+
 	rawBytes, err := json.Marshal(pld)
 	if err != nil {
 		return "", err
@@ -591,7 +635,7 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 	}
 
 	// Getting the DiscoveryResponse message
-	discoveryResponseMsg, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx)
+	discoveryResponseMsg, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx, req.Body.Discover.Request.EmailAddress)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
@@ -611,34 +655,28 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 }
 
 // mdmMicrosoftAuthEndpoint handles the Security Token Service (STS) implementation
-// XXResponse  issues claims and packages them in encrypted security token format.
 func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*SoapRequestContainer).Data
+	params := request.(*SoapRequestContainer).Params
 
-	// Checking first if Discovery message is valid and returning error if this is not the case
-	if err := req.IsValidDiscoveryMsg(); err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	// Sanity check on the expected query params
+	if !params.Has(mdm.STSAuthAppRu) || !params.Has(mdm.STSLoginHint) {
+		return getSTSAuthContent(""), errors.New("expected STS params are not present")
 	}
 
-	// Getting the DiscoveryResponse message
-	discoveryResponseMsg, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx)
+	appru := params.Get(mdm.STSAuthAppRu)
+	loginHint := params.Get(mdm.STSLoginHint)
+
+	if (len(appru) == 0) || (len(loginHint) == 0) {
+		return getSTSAuthContent(""), errors.New("expected STS params are empty")
+	}
+
+	// Getting the STS endpoint HTML content
+	stsAuthContent, err := svc.GetMDMMicrosoftSTSAuthResponse(ctx, appru, loginHint)
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+		return getSTSAuthContent(""), errors.New("error generating STS content")
 	}
 
-	// Embedding the DiscoveryResponse message inside of a SoapResponse
-	response, err := NewSoapResponse(discoveryResponseMsg, req.GetMessageID())
-	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
-	}
-
-	return SoapResponseContainer{
-		Data: &response,
-		Err:  nil,
-	}, nil
+	return getSTSAuthContent(stsAuthContent), nil
 }
 
 // mdmMicrosoftPolicyEndpoint handles the GetPolicies message and returns a valid GetPoliciesResponse message
@@ -758,11 +796,28 @@ func (svc *Service) validateBinarySecurityToken(ctx context.Context, encodedBina
 		return nil
 	}
 
+	// Validating the Binary Security Token Type used on Automatic Enrollments
+	if binSecToken.Type == mdm_types.WindowsMDMAutomaticEnrollmentType {
+
+		if len(binSecToken.Payload.AuthToken) == 0 {
+			return fmt.Errorf("automatic enrollment auth token cannot be found %v", err)
+		}
+
+		// Validate the JWT Auth token by retreving the UPN claim
+		_, err := svc.wstepCertManager.GetSTSAuthTokenUPNClaim(binSecToken.Payload.AuthToken)
+		if err != nil {
+			return fmt.Errorf("binary security token claim failed: %v", err)
+		}
+
+		// No errors, token is authorized
+		return nil
+	}
+
 	return errors.New("binarySecurityTokenValidation: token is not authorized")
 }
 
 // GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
-func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*fleet.DiscoverResponse, error) {
+func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*fleet.DiscoverResponse, error) {
 	// skipauth: This endpoint does not use authentication
 	svc.authz.SkipAuthorization(ctx)
 
@@ -783,12 +838,71 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*flee
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
-	discoveryMsg, err := NewDiscoverResponse(mdm.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
+	urlSTSAuthEndpoint, err := mdm.ResolveWindowsMDMAuth(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
+	}
+
+	if len(upnEmail) > 0 {
+	}
+
+	discoveryMsg, err := NewDiscoverResponse(mdm.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint, urlSTSAuthEndpoint)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
 	}
 
 	return &discoveryMsg, nil
+}
+
+// GetMDMMicrosoftSTSAuthResponse returns a valid Security Token Service (STS) page content
+func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error) {
+	// skipauth: This endpoint does not use authentication
+	svc.authz.SkipAuthorization(ctx)
+
+	// Create a new JWT token with the UPN claim
+	authToken, err := svc.wstepCertManager.NewSTSAuthToken(loginHint)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creation of STS JWT Auth token")
+	}
+
+	encodedBST, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, authToken)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creation of STS binary security token")
+	}
+
+	// STS Auth Endpoint returns HTML content that gets render in a webview container
+	// The webview container expect a POST request to the appru URL with the wresult parameter set to the auth token
+	// The security token in wresult is later passed back in <wsse:BinarySecurityToken>
+	// This string is opaque to the enrollment client; the client does not interpret the string.
+	// The returned HTML content contains a JS script that will perform a POST request to the appru URL automatically
+	// This will set the wresult parameter to the value of auth token
+	resData := []byte(`
+				<script>
+				function performPost() {
+				  // Dinamically create a form element to submit the request
+				  var form = document.createElement('form');
+				  form.method = 'POST';
+				  form.action = "` + appru + `"
+
+				  var inputToken = document.createElement('input');
+				  inputToken.type = 'hidden';
+				  inputToken.name = 'wresult';
+				  inputToken.value = '` + encodedBST + `';
+				  form.appendChild(inputToken);
+
+				  // Submit the form
+				  document.body.appendChild(form);
+				  form.submit();
+				}
+
+				// Call performPost() when the script is executed
+				performPost();
+				</script>
+				`)
+
+	htmlContent := string(resData)
+
+	return htmlContent, nil
 }
 
 // GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message

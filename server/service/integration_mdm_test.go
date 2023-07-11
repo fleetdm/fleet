@@ -5578,6 +5578,43 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
 }
 
+func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
+	t := s.T()
+
+	// Target Endpoint url with query params
+	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel&login_hint=demo%40mdmwindows.com"
+	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Contains(t, resp.Header["Content-Type"], "text/html; charset=UTF-8")
+	require.NotEmpty(t, resBytes)
+
+	// Checking response content
+	resContent := string(resBytes)
+	require.Contains(t, resContent, "inputToken.name = 'wresult'")
+	require.Contains(t, resContent, "form.action = \"ms-app://windows.immersivecontrolpanel\"")
+	require.Contains(t, resContent, "performPost()")
+
+	// Getting token content
+	encodedToken := s.getEncodedTokenValue(resContent)
+	require.NotEmpty(t, encodedToken)
+}
+
+func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
+	t := s.T()
+
+	// Target Endpoint url with no login_hit query param
+	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel"
+	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	resContent := string(resBytes)
+	require.NoError(t, err)
+	require.NotEmpty(t, resBytes)
+	require.Contains(t, resContent, "forbidden")
+}
+
 // ///////////////////////////////////////////////////////////////////////////
 // Common helpers
 
@@ -5587,6 +5624,24 @@ func (s *integrationMDMTestSuite) runWorker() {
 	pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
 	require.NoError(s.T(), err)
 	require.Empty(s.T(), pending)
+}
+
+func (s *integrationMDMTestSuite) getEncodedTokenValue(content string) string {
+	// Create a regex object with the defined pattern
+	pattern := `inputToken.value\s*=\s*'([^']*)'`
+	regex := regexp.MustCompile(pattern)
+
+	// Find the submatch using the regex pattern
+	submatches := regex.FindStringSubmatch(content)
+
+	if len(submatches) >= 2 {
+		// Extract the content from the submatch
+		content := submatches[1]
+
+		return content
+	}
+
+	return ""
 }
 
 func (s *integrationMDMTestSuite) isXMLTagPresent(xmlTag string, payload string) bool {

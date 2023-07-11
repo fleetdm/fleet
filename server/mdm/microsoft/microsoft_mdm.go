@@ -220,6 +220,12 @@ const (
 	ReqSecTokenContextItemApplicationVersion   = "ApplicationVersion"
 	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
 	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
+
+	// APPRU query param expected by STS Auth endpoint
+	STSAuthAppRu = "appru"
+
+	// Login related query param expected by STS Auth endpoint
+	STSLoginHint = "login_hint"
 )
 
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
@@ -232,6 +238,10 @@ func ResolveWindowsMDMPolicy(serverURL string) (string, error) {
 
 func ResolveWindowsMDMEnroll(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2EnrollPath, false)
+}
+
+func ResolveWindowsMDMAuth(serverURL string) (string, error) {
+	return commonmdm.ResolveURL(serverURL, MDE2AuthPath, false)
 }
 
 func ResolveWindowsMDMManagement(serverURL string) (string, error) {

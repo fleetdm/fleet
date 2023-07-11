@@ -486,10 +486,11 @@ type DiscoverResponse struct {
 }
 
 type DiscoverResult struct {
-	AuthPolicy                 string `xml:"AuthPolicy"`
-	EnrollmentVersion          string `xml:"EnrollmentVersion"`
-	EnrollmentPolicyServiceUrl string `xml:"EnrollmentPolicyServiceUrl"`
-	EnrollmentServiceUrl       string `xml:"EnrollmentServiceUrl"`
+	AuthPolicy                 string  `xml:"AuthPolicy"`
+	EnrollmentVersion          string  `xml:"EnrollmentVersion"`
+	EnrollmentPolicyServiceUrl string  `xml:"EnrollmentPolicyServiceUrl"`
+	EnrollmentServiceUrl       string  `xml:"EnrollmentServiceUrl"`
+	AuthServiceUrl             *string `xml:"AuthenticationServiceUrl"`
 }
 
 ///////////////////////////////////////////////////////////////
@@ -651,7 +652,8 @@ type WindowsMDMAccessTokenPayload struct {
 	// Type is the enrollment type, such as "programmatic".
 	Type    WindowsMDMEnrollmentType `json:"type"`
 	Payload struct {
-		HostUUID string `json:"host_uuid"`
+		HostUUID  string `json:"host_uuid"`
+		AuthToken string `json:"auth_token"`
 	} `json:"payload"`
 }
 
@@ -661,16 +663,21 @@ type WindowsMDMEnrollmentType int
 
 const (
 	WindowsMDMProgrammaticEnrollmentType WindowsMDMEnrollmentType = 1
+	WindowsMDMAutomaticEnrollmentType    WindowsMDMEnrollmentType = 2
 )
 
 func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
 	// Only BSProgrammaticEnrollment are supported for now
-	if t.Type != WindowsMDMProgrammaticEnrollmentType {
+	if t.Type != WindowsMDMProgrammaticEnrollmentType && t.Type != WindowsMDMAutomaticEnrollmentType {
 		return errors.New("invalid binary security payload type")
 	}
 
-	if len(t.Payload.HostUUID) == 0 {
+	if t.Type == WindowsMDMProgrammaticEnrollmentType && len(t.Payload.HostUUID) == 0 {
 		return errors.New("invalid binary security payload content")
+	}
+
+	if t.Type == WindowsMDMAutomaticEnrollmentType && len(t.Payload.AuthToken) == 0 {
+		return errors.New("invalid STS auth token payload content")
 	}
 
 	return nil

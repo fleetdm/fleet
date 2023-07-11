@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"go.mozilla.org/pkcs7"
 )
@@ -35,6 +36,12 @@ type CertManager interface {
 	// IdentityCert returns the identity certificate of the depot.
 	IdentityCert() x509.Certificate
 
+	// NewSTSAuthToken returns an STS auth token for the given UPN claim.
+	NewSTSAuthToken(upn string) (string, error)
+
+	// GetSTSAuthTokenUPNClaim validates the given token and returns the UPN claim
+	GetSTSAuthTokenUPNClaim(token string) (string, error)
+
 	// TODO: implement other methods as needed:
 	// - verify certificate-device association
 	// - certificate lifecycle management (e.g., renewal, revocation)
@@ -46,6 +53,11 @@ type CertStore interface {
 	WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error
 	WSTEPNewSerial(ctx context.Context) (*big.Int, error)
 	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
+}
+
+type STSClaims struct {
+	UPN string `json:"upn"`
+	jwt.RegisteredClaims
 }
 
 type manager struct {
@@ -130,6 +142,74 @@ func (m *manager) SignClientCSR(ctx context.Context, subject string, clientCSR *
 	}
 
 	return rawSignedDER, CertFingerprintHexStr(signedCert), nil
+}
+
+// NewSTSAuthToken returns an STS auth token for the given UPN claim.
+func (m *manager) NewSTSAuthToken(upn string) (string, error) {
+	if m == nil {
+		return "", errors.New("windows mdm identity keypair was not configured")
+	}
+
+	if m.identityCert == nil || m.identityPrivateKey == nil {
+		return "", errors.New("invalid identity certificate or private key")
+	}
+
+	if len(upn) == 0 {
+		return "", errors.New("invalid upn field")
+	}
+
+	// Create claims with upn field populated
+	claims := STSClaims{
+		upn,
+		jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Subject:   "STSAuthToken",
+		},
+	}
+
+	// Create a new token with the claims and sign it with the private key
+	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS256"), claims)
+	signedToken, err := token.SignedString(m.identityPrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign STS token: %w", err)
+	}
+
+	return signedToken, nil
+}
+
+// GetSTSAuthToken validates the given token and returns the UPN claim
+func (m *manager) GetSTSAuthTokenUPNClaim(tokenStr string) (string, error) {
+	if m == nil {
+		return "", errors.New("windows mdm identity keypair was not configured")
+	}
+
+	if m.identityCert == nil || m.identityPrivateKey == nil {
+		return "", errors.New("invalid identity certificate or private key")
+	}
+
+	if len(tokenStr) == 0 {
+		return "", errors.New("invalid STS token")
+	}
+
+	// Since we used the private key to sign the tokens, we use the public counterpart to verify the signature
+	token, err := jwt.ParseWithClaims(tokenStr, &STSClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return m.identityCert.PublicKey, nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("there was an error parsing the STS token claims: %w", err)
+	}
+
+	if claims, ok := token.Claims.(*STSClaims); ok && token.Valid {
+		if len(claims.UPN) == 0 {
+			return "", errors.New("issue with UPN token claim")
+		}
+
+		return claims.UPN, nil
+	}
+
+	return "", errors.New("issue with STS token validation")
 }
 
 func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {
