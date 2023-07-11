@@ -131,4 +131,4 @@ To delete a team:
 3. On the right side, select "Delete team" and confirm the action.
 
 <meta name="pageOrderInSection" value="1000">
-<meta name="description" value="Learn how to group hosts in Fleet to apply specific queries, policies, and agent options using teams">
+<meta name="description" value="Learn how to group hosts in Fleet to apply specific queries, policies, and agent options using teams.">
