@@ -9,7 +9,6 @@ import { pick } from "lodash";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
-import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -24,7 +23,6 @@ import {
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
-import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -47,7 +45,6 @@ import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
 import PacksCard from "../cards/Packs";
-import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -134,7 +131,6 @@ const HostDetailsPage = ({
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
-  const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
@@ -155,19 +151,6 @@ const HostDetailsPage = ({
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
-
-  const { data: fleetQueries, error: fleetQueriesError } = useQuery<
-    IFleetQueriesResponse,
-    Error,
-    IQuery[]
-  >("fleet queries", () => queryAPI.loadAll(), {
-    enabled: !!hostIdFromURL,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    refetchOnWindowFocus: false,
-    retry: false,
-    select: (data: IFleetQueriesResponse) => data.queries,
-  });
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -477,17 +460,6 @@ const HostDetailsPage = ({
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
-  const onQueryHostCustom = () => {
-    router.push(PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host?.id));
-  };
-
-  const onQueryHostSaved = (selectedQuery: IQuery) => {
-    router.push(
-      PATHS.EDIT_QUERY(selectedQuery) +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id)
-    );
-  };
-
   const onTransferHostSubmit = async (team: ITeam) => {
     setIsUpdatingHost(true);
 
@@ -524,9 +496,6 @@ const HostDetailsPage = ({
     switch (action) {
       case "transfer":
         setShowTransferHostModal(true);
-        break;
-      case "query":
-        setShowSelectQueryModal(true);
         break;
       case "diskEncryption":
         setShowDiskEncryptionModal(true);
@@ -745,17 +714,6 @@ const HostDetailsPage = ({
             onSubmit={onDestroyHost}
             hostName={host?.display_name}
             isUpdating={isUpdatingHost}
-          />
-        )}
-        {showSelectQueryModal && host && (
-          <SelectQueryModal
-            onCancel={() => setShowSelectQueryModal(false)}
-            queries={fleetQueries || []}
-            queryErrors={fleetQueriesError}
-            isOnlyObserver={isOnlyObserver}
-            onQueryHostCustom={onQueryHostCustom}
-            onQueryHostSaved={onQueryHostSaved}
-            hostsTeamId={host?.team_id}
           />
         )}
         {!!host && showTransferHostModal && (
