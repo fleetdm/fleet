@@ -42,7 +42,7 @@ func TestGetRemoved(t *testing.T) {
 	}{
 		{
 			query:    nil,
-			expected: ptr.Bool(true),
+			expected: nil,
 		},
 		{
 			query:    &Query{LoggingType: "snapshot"},
@@ -57,8 +57,8 @@ func TestGetRemoved(t *testing.T) {
 			expected: ptr.Bool(false),
 		},
 	}
-	for _, tCase := range testCases {
-		require.Equal(t, tCase.expected, tCase.query.GetRemoved())
+	for i, tCase := range testCases {
+		require.Equal(t, tCase.expected, tCase.query.GetRemoved(), i)
 	}
 }
 
