@@ -1,32 +1,34 @@
 # CIS Benchmarks
 
+> Available in Fleet Premium
+
 ## Overview
 CIS Benchmarks represent the consensus-based effort of cybersecurity experts globally to help you protect your systems against threats more confidently.
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
-Fleet has implemented native support for CIS benchmarks for the following platforms:
+Fleet has implemented native support for CIS Benchmarks for the following platforms:
 - macOS 13.0 Ventura (96 checks)
 - Windows 10 Enterprise (496 checks)
 
-[Where possible](#limitations), each CIS benchmark is implemented with a [policy query](./REST-API.md#policies) in Fleet. 
+[Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](./REST-API.md#policies) in Fleet. 
 
 ## Requirements
 
 Following are the requirements to use the CIS Benchmarks in Fleet:
 
-- Fleet must be Premium or Ultimate licensed.
-- Devices must be running [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.
-- Devices must be enrolled to an MDM solution.
+- To use these policies, Fleet must have an up-to-date paid license (≥Fleet Premium).
+- Devices must be running [`fleetd`](https://fleetdm.com/docs/using-fleet/orbit), the lightweight agent that bundles the latest osqueryd.
+- Some CIS Benchmarks explicitly involve verifying MDM-based controls, so devices must be enrolled to an MDM solution.  (Any MDM solution works, it doesn't have to be Fleet.)
 - On macOS, the orbit executable in Fleetd must have "Full Disk Access", see [Grant Full Disk Access to Osquery on macOS](./Adding-hosts.md#grant-full-disk-access-to-osquery-on-macos).
 
 ### MDM required
 Some of the policies created by Fleet use the [managed_policies](https://www.fleetdm.com/tables/managed_policies) table. This checks whether an MDM solution has turned on the setting to enforce the policy.
-Using MDM is the recommended way to manage and enforce CIS benchmarks. To learn how to set up MDM in Fleet, visit [here](/docs/using-fleet/mdm-setup).
+Using MDM is the recommended way to manage and enforce CIS Benchmarks. To learn how to set up MDM in Fleet, visit [here](/docs/using-fleet/mdm-setup).
 
 ### Fleetd required
-Fleet's CIS benchmarks require our [osquery manager, Fleetd](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). This is because Fleetd includes tables which are not part of vanilla osquery in order to accomplish auditing the benchmarks.
+Fleet's CIS Benchmarks require our [osquery manager, Fleetd](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). This is because Fleetd includes tables which are not part of vanilla osquery in order to accomplish auditing the benchmarks.
 
-## How to add CIS benchmarks
+## How to add CIS Benchmarks
 
 All CIS policies are stored under our restricted licensed folder `ee/cis/`.
 

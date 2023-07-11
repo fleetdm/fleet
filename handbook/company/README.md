@@ -6,9 +6,9 @@ Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbo
 
 We are dedicated to:
 
-- 🧑‍🚀 automating IT and security with a living, breathing API.
-- 🪟 privacy, transparency, and trust through open-source software.
-- 💻 a better way to manage computers.
+- 🔌 making security and IT interoperable and easy to automate
+- 🚪 a real-time, inviting (outsider-friendly) way to manage computers
+- 🪟 clarity and trust through open-source software
 
 
 ## Culture
@@ -30,6 +30,9 @@ Fleet is currently hiring for the following positions:
 - 🚀 Senior Software Engineer (Golang)
 - [🐋 Head of Public Sector](https://fleetdm.com/handbook/company/head-of-public-sector)
 - [🐋 Solutions Consultant](https://fleetdm.com/handbook/company/solutions-consultant)
+- [🐋 Customer Support Engineer](https://fleetdm.com/handbook/company/customer-support-engineer)
+- [🐋 Account Executive](https://fleetdm.com/handbook/company/account-executive)
+- [🚀 Software Engineer](https://fleetdm.com/handbook/company/software-engineer)
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
@@ -59,39 +62,39 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 
 - **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and [assume](https://about.gitlab.com/handbook/values/#assume-positive-intent) others are doing the same.
 - **Be a helper.** Take care of customers first. But give hospitality and [service with a smile](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy) to everyone you can.
-- **Roleplay.** Read what you write.  [Again.](http://www.paulgraham.com/useful.html)  Use your imagination to see situations from different perspectives.
-- **Get curious.** Genuinely care. Ask questions. Listen closely to the answers. Be present.
+- **Read what you write.**  [Shorten](http://www.paulgraham.com/writing44.html) it. [Repeat](http://www.paulgraham.com/useful.html).
+- **Get curious.**  Wonder about things. Ask people genuine questions, and listen closely. <!-- Roleplay. Use your imagination to see situations from different perspectives. -->
 
 ### 🟠 Ownership
-It takes reliable execution and a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
+It takes a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
 
-- **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Especially merge requests, Slack, and emails.
-- **Assume responsibility.** Own up to mistakes. There's no time for finger-pointing, just fix it.  Follow through on commitments quickly.
-- **No one is coming.** Take initiative. Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. Understand [Fleet's goals](https://fleetdm.com/handbook/company#purpose) yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
-- **Think long term.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals.
+- **Be reliable.**  Reply quickly to email, Slack, and GitHub mentions.  Arrive in meetings on time.  <!-- even if you can't take immediate action. -->
+- **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
+- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
+- **Think long term.** Understand [Fleet's priorities](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit), beyond your department's goals. Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose). <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy).  -->
 
 ### 🟢 Results
 We work to get results. How we work determines what we get.  Aim to deliver results daily.
 
-- **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always be cutting scope.  But finish what you bite off.
-- **Move quickly.** Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) and [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
-- **Keep things simple.** Focus on fewer tasks. Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Use [fewer words](http://www.paulgraham.com/writing44.html). Avoid preemptive structure.
-- **Be realistic.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge.  Practice self-care.
+- **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always publish.
+- **Start quickly.** Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) -->
+- **Keep it simple.** Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). <!-- Practicality over sophistication. -->
+- **Be realistic.** Focus on one or two tasks at a time.  When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity
-To reach our goals, we need to see reality clearly.
+To reach our goals, we need to [see reality clearly](https://en.wikipedia.org/wiki/Intellectual_honesty).
 
-- **Be humble.** When something isn't working, stop assuming.  Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research). <!-- and [first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering). -->
-- **Seek the truth.** [Change your mind](https://fleetdm.com/handbook/company#why-this-way) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
-- **Interrogate luck.** Understand why it's broken first. A lucky fix can do more harm than good. <!--  Don't say "just do XYZ". The road to failure is paved with ["happy paths"](https://en.wikipedia.org/wiki/Happy_path). -->
-- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.
+- **Assume nothing.** When something isn't working, change only one variable at a time. Find [the bottleneck](https://en.wikipedia.org/wiki/Theory_of_constraints). <!-- Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research). -->
+- **Change your mind.**  [Be willing to reconsider](https://about.gitlab.com/handbook/values/#articulate-when-you-change-your-mind) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
+- **Interrogate luck.** A lucky fix can do more harm than good.  Understand why it's broken first. <!--  Don't say "just do XYZ". The road to failure is paved with ["happy paths"](https://en.wikipedia.org/wiki/Happy_path). -->
+- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.  <!-- Use first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering) -->
 
 ### 🟣 Openness
 Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
 
-- **Write it down.** Let people learn about your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
-- **Everyone can contribute.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain.
-- **Be transparent.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
+- **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
+- **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
+- **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
 - **[Commit](https://www.audible.com/pd/The-15-Commitments-of-Conscious-Leadership-Audiobook/B00SKV11H2) to candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).  Interrupt and be interrupted.
 
 
@@ -126,8 +129,7 @@ While most improvements at Fleet are driven by informal conversations with custo
 
 ## Strategy
 
-You can read about the [company's positioning ("👑 Crown jewels")](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#), or review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" [meetings](https://fleetdm.com/handbook/business-operations#meetings).
-
+You can read about the [company's positioning ("👑 Crown jewels")](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#) and [vulnerability management positioning ("👑 Crown jewels pt. 2"](https://docs.google.com/document/d/1VXnZo5EQeircKvUPYai69GPW8QnECamCE5CU1vjLMPU/edit), or review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide ["All hands" meetings](https://fleetdm.com/handbook/business-operations#all-hands).
 
 ## Slack channels
 

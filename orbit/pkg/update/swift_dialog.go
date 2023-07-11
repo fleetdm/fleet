@@ -35,6 +35,11 @@ func (s *SwiftDialogDownloader) GetConfig() (*fleet.OrbitConfig, error) {
 		return nil, nil
 	}
 
+	if s.UpdateRunner == nil {
+		log.Debug().Msg("SwiftDialogDownloader received nil UpdateRunner, this probably indicates that updates are turned off. Skipping any actions related to swiftDialog")
+		return cfg, nil
+	}
+
 	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile {
 		return cfg, nil
 	}
