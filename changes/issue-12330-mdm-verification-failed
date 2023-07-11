@@ -1,2 +1,0 @@
-- Updated MDM detail query ingestion to switch MDM profiles from "verifying" or "verified"
-  status to "failed" status when osquery reports that this profile is not installed on the host.
