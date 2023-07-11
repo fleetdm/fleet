@@ -148,7 +148,7 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	cps, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
-	checkConfigProfile(t, *expectedTeam0[0], *cps[0])
+	checkConfigProfileWithChecksum(t, *expectedTeam0[0], *cps[0])
 
 	// add fleet-managed profiles for the team and globally
 	for idf := range mobileconfig.FleetPayloadIdentifiers() {
@@ -166,7 +166,7 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	cps, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(1))
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
-	checkConfigProfile(t, *expectedTeam1[0], *cps[0])
+	checkConfigProfileWithChecksum(t, *expectedTeam1[0], *cps[0])
 
 	// add another profile with team id 1
 	cp, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("another_name1", "another_identifier1", 1))
@@ -179,9 +179,9 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	for _, cp := range cps {
 		switch cp.Name {
 		case "name1":
-			checkConfigProfile(t, *expectedTeam1[0], *cp)
+			checkConfigProfileWithChecksum(t, *expectedTeam1[0], *cp)
 		case "another_name1":
-			checkConfigProfile(t, *expectedTeam1[1], *cp)
+			checkConfigProfileWithChecksum(t, *expectedTeam1[1], *cp)
 		default:
 			t.FailNow()
 		}
@@ -242,10 +242,15 @@ func storeDummyConfigProfileForTest(t *testing.T, ds *Datastore) *fleet.MDMApple
 	return storedCP
 }
 
-func checkConfigProfile(t *testing.T, expected fleet.MDMAppleConfigProfile, actual fleet.MDMAppleConfigProfile) {
+func checkConfigProfile(t *testing.T, expected, actual fleet.MDMAppleConfigProfile) {
 	require.Equal(t, expected.Name, actual.Name)
 	require.Equal(t, expected.Identifier, actual.Identifier)
 	require.Equal(t, expected.Mobileconfig, actual.Mobileconfig)
+}
+
+func checkConfigProfileWithChecksum(t *testing.T, expected, actual fleet.MDMAppleConfigProfile) {
+	checkConfigProfile(t, expected, actual)
+	require.ElementsMatch(t, md5.Sum(expected.Mobileconfig), actual.Checksum)
 }
 
 func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {

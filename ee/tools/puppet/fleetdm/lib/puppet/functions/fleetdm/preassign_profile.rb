@@ -12,14 +12,21 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
   end
 
   def preassign_profile(profile_identifier, host_uuid, template, group = 'default', ensure_profile = 'present')
-    host = call_function('lookup', 'fleetdm::host')
-    token = call_function('lookup', 'fleetdm::token')
-    client = Puppet::Util::FleetClient.new(host, token)
+    client = Puppet::Util::FleetClient.instance
     run_identifier = "#{closure_scope.catalog.catalog_uuid}-#{Puppet[:node_name_value]}"
     response = client.preassign_profile(run_identifier, host_uuid, template, group, ensure_profile)
 
     if response['error'].empty?
-      Puppet.info("successfully pre-assigned profile #{profile_identifier}")
+      base64_checksum = Digest::MD5.base64digest(template)
+      host = client.get_host_by_identifier(host_uuid)
+      host_profiles = client.get_host_profiles(host['body']['host']['id'])
+
+      if host_profiles['error'].empty?
+        unless host_profiles['body']['profiles'].any? { |p| p['checksum'] == base64_checksum }
+          Puppet.info("successfully pre-assigned profile #{profile_identifier}")
+          response['changed'] = true
+        end
+      end
     else
       Puppet.err("error pre-assigning profile #{profile_identifier}: #{response['error']} \n\n #{template}")
     end

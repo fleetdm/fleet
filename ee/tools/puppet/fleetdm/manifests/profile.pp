@@ -44,12 +44,15 @@ define fleetdm::profile (
     $host_uuid = $facts['system_profiler']['hardware_uuid']
     $response = fleetdm::preassign_profile($name, $host_uuid, $template, $group, $ensure)
     $err = $response['error']
+    $changed = $response['changed']
 
     if $err != '' {
       notify { "error pre-assigning profile ${$name}: ${$err}":
         loglevel => 'err',
       }
-    } else {
+    } elsif $changed {
+      # NOTE: sending a notification also marks the
+      # 'fleetdm::profile' as changed in the reports.
       notify { "successfully pre-assigned profile ${$name}": }
     }
   }
