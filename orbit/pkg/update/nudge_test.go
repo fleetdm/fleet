@@ -25,6 +25,29 @@ type nudgeTestSuite struct {
 	withTUF
 }
 
+func (s *nudgeTestSuite) TestUpdatesDisabled() {
+	t := s.T()
+	var err error
+	cfg := &fleet.OrbitConfig{}
+	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
+	require.NoError(t, err)
+	runNudgeFn := func(execPath, configPath string) error {
+		return nil
+	}
+	var f OrbitConfigFetcher = &dummyConfigFetcher{cfg: cfg}
+	f = ApplyNudgeConfigFetcherMiddleware(f, NudgeConfigFetcherOptions{
+		UpdateRunner: nil,
+		RootDir:      t.TempDir(),
+		Interval:     time.Minute,
+		runNudgeFn:   runNudgeFn,
+	})
+
+	// we used to get a panic if updates were disabled (see #11980)
+	gotCfg, err := f.GetConfig()
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotCfg)
+}
+
 func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	t := s.T()
 	tmpDir := t.TempDir()
@@ -68,6 +91,8 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 
 	// add nuge to the remote
 	s.addRemoteTarget(nudgePath)
+
+	// nothing happens if a nil runner is provided
 
 	// nudge is added to targets when nudge config is present
 	gotCfg, err = f.GetConfig()
