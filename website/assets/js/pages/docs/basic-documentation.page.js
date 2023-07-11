@@ -96,7 +96,7 @@ parasails.registerPage('basic-documentation', {
         apiKey: this.algoliaPublicKey,
         indexName: 'fleetdm',
         container: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
-        debug: true,
+        clickAnalytics: true,
         searchParameters: {
           'facetFilters': ['section:docs']
         },
