@@ -143,4 +143,4 @@ See the [osquery logging documentation](https://osquery.readthedocs.io/en/stable
 If `--logger_plugin=tls` is used with osquery clients, the following configuration can be applied on the Fleet server for handling the incoming logs.
 
 <meta name="pageOrderInSection" value="600">
-<meta name="description" value="Learn about supported log destinations in Fleet, including Amazon Kinesis, AWS Lambada Snowflake, Splunk, and more.">
+<meta name="description" value="Learn about supported log destinations in Fleet, including Amazon Kinesis, AWS Lambda Snowflake, Splunk, and more.">

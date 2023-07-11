@@ -519,4 +519,4 @@ Below are some projects created by Fleet community members. These projects provi
 - [CptOfEvilMinions/FleetDM-Automation](https://github.com/CptOfEvilMinions/FleetDM-Automation) - Ansible and Docker code to set up Fleet
 
 <meta name="pageOrderInSection" value="200">
-<meta name="description" value="This page provides information on installing and running the Fleet server on various platforms, including CentOS, Kubernetes, and AWS ECS.">
+<meta name="description" value="Information on installing and running the Fleet server on various platforms, including CentOS, Kubernetes, and AWS ECS.">

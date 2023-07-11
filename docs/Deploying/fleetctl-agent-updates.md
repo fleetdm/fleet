@@ -161,4 +161,4 @@ fleetctl updates rotate targets
 After the key(s) have been rotated, publish the repository in the same fashion as any other update.
 
 <meta name="pageOrderInSection" value="400">
-<meta name="description" value="This page provides information on how to manage and secure Fleet agent updates">
+<meta name="description" value="Information on how to manage and secure Fleet agent updates.">

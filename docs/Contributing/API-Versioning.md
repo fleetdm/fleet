@@ -107,4 +107,4 @@ This will mean that the following are the only valid paths after this point:
 And the code doesn't have to specify `.StartingAtVersion("2021-12")` anymore.
 
 <meta name="pageOrderInSection" value="900">
-<meta name="description" value="This page contains information on how and why the Fleet API is versioned.">
+<meta name="description" value="Learn about how and why the Fleet API is versioned.">

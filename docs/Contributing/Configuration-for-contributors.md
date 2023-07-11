@@ -362,4 +362,4 @@ Whether the SMTP server's SSL certificates should be verified. This can be turne
   ```
 
 <meta name="pageOrderInSection" value="1100">
-<meta name="description" value="This page contains configuration files and settings that are helpful when developing or contributing to Fleet.">
+<meta name="description" value="Learn about the configuration files and settings that are helpful when developing or contributing to Fleet.">
