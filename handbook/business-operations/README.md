@@ -868,6 +868,8 @@ When a contract is going to be routed for signature by someone outside of Fleet 
 
 The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
 
+> _**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
+
 ## Getting a contract reviewed
 
 > If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented above.
