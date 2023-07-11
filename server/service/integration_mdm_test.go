@@ -4532,6 +4532,33 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, "team_id", strconv.Itoa(int(t2.ID)))
 }
 
+func (s *integrationMDMTestSuite) TestOrgLogo() {
+	t := s.T()
+
+	// change org logo urls
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_logo_url": "http://test-image.com",
+			"org_logo_url_light_background": "http://test-image-light.com"
+		}
+	}`), http.StatusOK, &acResp)
+
+	// enroll a host
+	token := "token_test_migration"
+	host := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	// check icon urls are correct
+	getDesktopResp := fleetDesktopResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, getDesktopResp.Err)
+	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
+	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
+}
+
 func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password string) {
 	oldToken := s.token
 	t.Cleanup(func() {
