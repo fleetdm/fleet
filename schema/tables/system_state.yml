@@ -17,4 +17,4 @@ columns:
     required: false
 evented: false
 notes: >-
-  - This table is not a core osquery table. It is included as part of the Fleetd Chrome extension.
+  - This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
