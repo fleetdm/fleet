@@ -5,7 +5,6 @@ import { IQueryFormData } from "interfaces/query";
 import { ISelectedTargets } from "interfaces/target";
 import { AxiosResponse } from "axios";
 import { buildQueryStringFromParams } from "utilities/url";
-import { IListQueriesResponse } from "interfaces/schedulable_query";
 
 export default {
   create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
@@ -23,6 +22,11 @@ export default {
     const path = `${QUERIES}/id/${id}`;
 
     return sendRequest("DELETE", path);
+  },
+  bulkDestroy: (ids: number[]) => {
+    const { QUERIES } = endpoints;
+    const path = `${QUERIES}/delete`;
+    return sendRequest("POST", path, { ids });
   },
   load: (id: number) => {
     const { QUERIES } = endpoints;

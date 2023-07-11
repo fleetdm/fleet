@@ -224,25 +224,27 @@ const ManageQueriesPage = ({
   };
 
   const onDeleteQuerySubmit = useCallback(async () => {
-    const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
-
+    const bulk = selectedQueryIds.length > 1;
     setIsUpdatingQueries(true);
 
-    const deleteQueries = selectedQueryIds.map((id) =>
-      fleetQueriesAPI.destroy(id)
-    );
-
     try {
-      await Promise.all(deleteQueries).then(() => {
-        renderFlash("success", `Successfully deleted ${queryOrQueries}.`);
-        setResetSelectedRows(true);
-        refetchFleetQueries();
-      });
-      renderFlash("success", `Successfully deleted ${queryOrQueries}.`);
+      if (bulk) {
+        await fleetQueriesAPI.bulkDestroy(selectedQueryIds);
+      } else {
+        await fleetQueriesAPI.destroy(selectedQueryIds[0]);
+      }
+      renderFlash(
+        "success",
+        `Successfully deleted ${bulk ? "queries" : "query"}.`
+      );
+      setResetSelectedRows(true);
+      refetchFleetQueries();
     } catch (errorResponse) {
       renderFlash(
         "error",
-        `There was an error deleting your ${queryOrQueries}. Please try again later.`
+        `There was an error deleting your ${
+          bulk ? "queries" : "query"
+        }. Please try again later.`
       );
     } finally {
       toggleDeleteQueryModal();
