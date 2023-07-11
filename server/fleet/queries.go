@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 )
 
@@ -70,11 +71,35 @@ func (q *Query) TeamIDStr() string {
 }
 
 func (q *Query) GetSnapshot() *bool {
-	return nil
+	var loggingType string
+	if q != nil {
+		loggingType = q.LoggingType
+	}
+
+	switch loggingType {
+	case "snapshot":
+		return ptr.Bool(true)
+	case "differential", "differential_ignore_removals":
+		return ptr.Bool(false)
+	default:
+		// Default value of `snapshot` according the docs is false
+		return ptr.Bool(false)
+	}
 }
 
 func (q *Query) GetRemoved() *bool {
-	return nil
+	var loggingType string
+	if q != nil {
+		loggingType = q.LoggingType
+	}
+
+	switch loggingType {
+	case "snapshot", "differential_ignore_removals":
+		return ptr.Bool(false)
+	default:
+		// Default value of `removed` according the docs is true
+		return ptr.Bool(true)
+	}
 }
 
 // Verify verifies the query payload is valid.
