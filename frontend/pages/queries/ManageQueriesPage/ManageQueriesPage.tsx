@@ -32,6 +32,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
+import ManageAutomationsModal from "./components/ManageAutomationsModal";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
@@ -65,7 +66,7 @@ const enhanceQuery = (q: ISchedulableQuery) => {
   return {
     ...q,
     performance:
-      q.interval || q.automations_enabled
+      q.interval && q.automations_enabled
         ? performanceIndicator(
             pick(q.stats, [
               "user_time_p50",
@@ -85,6 +86,8 @@ const ManageQueriesPage = ({
   const queryParams = location.query;
 
   const {
+    isGlobalAdmin,
+    isTeamAdmin,
     isOnlyObserver,
     isObserverPlus,
     isAnyTeamObserverPlus,
@@ -117,6 +120,9 @@ const ManageQueriesPage = ({
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showDeleteQueryModal, setShowDeleteQueryModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
+  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
+    false
+  );
 
   // TODO: reenable API call once backend work completed
 
@@ -153,7 +159,7 @@ const ManageQueriesPage = ({
           team_id: 43,
           platform: "darwin",
           min_osquery_version: "",
-          automations_enabled: false,
+          automations_enabled: true,
           logging: "snapshot",
           saved: true,
           // interval: 300,
@@ -207,6 +213,10 @@ const ManageQueriesPage = ({
   const toggleDeleteQueryModal = useCallback(() => {
     setShowDeleteQueryModal(!showDeleteQueryModal);
   }, [showDeleteQueryModal, setShowDeleteQueryModal]);
+
+  const toggleManageAutomationsModal = useCallback(() => {
+    setShowManageAutomationsModal(!showManageAutomationsModal);
+  }, [showManageAutomationsModal, setShowManageAutomationsModal]);
 
   const onDeleteQueryClick = (selectedTableQueryIds: number[]) => {
     toggleDeleteQueryModal();
@@ -270,9 +280,18 @@ const ManageQueriesPage = ({
               <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
           </div>
-          {(!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) &&
-            !!fleetQueries?.length && (
-              <div className={`${baseClass}__action-button-container`}>
+          <div className={`${baseClass}__action-button-container`}>
+            {(isGlobalAdmin || isTeamAdmin) && (
+              <Button
+                onClick={toggleManageAutomationsModal}
+                className={`${baseClass}__manage-automations button`}
+                variant="inverse"
+              >
+                Manage automations
+              </Button>
+            )}
+            {(!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) &&
+              !!fleetQueries?.length && (
                 <Button
                   variant="brand"
                   className={`${baseClass}__create-button`}
@@ -280,8 +299,8 @@ const ManageQueriesPage = ({
                 >
                   Add query
                 </Button>
-              </div>
-            )}
+              )}
+          </div>
         </div>
         <div className={`${baseClass}__description`}>
           <p>
@@ -313,6 +332,9 @@ const ManageQueriesPage = ({
             onCancel={toggleDeleteQueryModal}
             onSubmit={onDeleteQuerySubmit}
           />
+        )}
+        {showManageAutomationsModal && (
+          <ManageAutomationsModal onExit={toggleManageAutomationsModal} />
         )}
       </div>
     </MainContent>

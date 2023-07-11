@@ -56,7 +56,7 @@
 
   &__action-button-container {
     display: flex;
-    align-items: flex-start;
+    gap: $pad-small;
   }
 
   .form-field--dropdown {
