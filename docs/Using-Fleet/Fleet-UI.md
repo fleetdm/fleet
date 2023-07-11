@@ -99,5 +99,5 @@ The agents may take several seconds to update because Fleet has to wait for the 
 
 <meta name="title" value="Fleet UI">
 <meta name="pageOrderInSection" value="200">
-<meta name="description" value="Learn how to create, run, and schedule queries, as well as update agent options in the Fleet user interface">
+<meta name="description" value="Learn how to create, run, and schedule queries, as well as update agent options in the Fleet user interface.">
 
