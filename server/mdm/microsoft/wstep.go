@@ -100,10 +100,18 @@ func newManager(store CertStore, certPEM []byte, privKeyPEM []byte) (*manager, e
 }
 
 func (m *manager) IdentityFingerprint() string {
+	if m == nil {
+		return ""
+	}
+
 	return m.identityFingerprint
 }
 
 func (m *manager) IdentityCert() x509.Certificate {
+	if m == nil {
+		return x509.Certificate{}
+	}
+
 	return *m.identityCert
 }
 
@@ -111,6 +119,10 @@ func (m *manager) IdentityCert() x509.Certificate {
 // subject is the DeviceID of the about to be MDM enrolled device, it will be used as the CommonName of the certificate
 // clientCSR is the client certificate signing request
 func (m *manager) SignClientCSR(ctx context.Context, subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error) {
+	if m == nil {
+		return nil, "", errors.New("windows mdm identity keypair was not configured")
+	}
+
 	if m.identityCert == nil || m.identityPrivateKey == nil {
 		return nil, "", errors.New("invalid identity certificate or private key")
 	}

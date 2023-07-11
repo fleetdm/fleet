@@ -1193,6 +1193,10 @@ func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, or
 }
 
 func (svc *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error) {
+	if svc.wstepCertManager == nil {
+		return nil, "", errors.New("windows mdm identity keypair was not configured")
+	}
+
 	cert, fpHex, err := svc.wstepCertManager.SignClientCSR(ctx, subject, csr)
 	if err != nil {
 		return nil, "signing wstep client csr", ctxerr.Wrap(ctx, err)
