@@ -5739,7 +5739,7 @@ func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {
 		// Extract the content from the submatch
 		encodedToken := submatches[1]
 
-		return string(encodedToken)
+		return encodedToken
 	}
 
 	return ""

@@ -839,7 +839,7 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 	}
 
 	// Only adding STS Auth endpoint if the UPN email is provided
-	var urlSTSAuthEndpoint *string = nil
+	var urlSTSAuthEndpoint *string
 	if len(upnEmail) > 0 {
 		workUrlSTSAuthEndpoint, err := mdm.ResolveWindowsMDMAuth(appCfg.ServerSettings.ServerURL)
 		if err != nil {
