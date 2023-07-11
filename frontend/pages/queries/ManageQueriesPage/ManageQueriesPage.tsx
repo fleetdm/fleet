@@ -110,11 +110,13 @@ const ManageQueriesPage = ({
 
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showDeleteQueryModal, setShowDeleteQueryModal] = useState(false);
-  const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
+  const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
+  const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [showInheritedQueries, setShowInheritedQueries] = useState(false);
+  const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
 
   const {
     data: curTeamEnhancedQueries,
@@ -160,10 +162,6 @@ const ManageQueriesPage = ({
     setShowDeleteQueryModal(!showDeleteQueryModal);
   }, [showDeleteQueryModal, setShowDeleteQueryModal]);
 
-  const toggleManageAutomationsModal = useCallback(() => {
-    setShowManageAutomationsModal(!showManageAutomationsModal);
-  }, [showManageAutomationsModal, setShowManageAutomationsModal]);
-
   const onDeleteQueryClick = (selectedTableQueryIds: number[]) => {
     toggleDeleteQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
@@ -173,6 +171,18 @@ const ManageQueriesPage = ({
     refetchCurTeamQueries();
     refetchGlobalQueries();
   }, [refetchCurTeamQueries, refetchGlobalQueries]);
+
+  const toggleManageAutomationsModal = useCallback(() => {
+    setShowManageAutomationsModal(!showManageAutomationsModal);
+  }, [showManageAutomationsModal, setShowManageAutomationsModal]);
+
+  const onManageAutomationsClick = () => {
+    toggleManageAutomationsModal();
+  };
+
+  const togglePreviewDataModal = useCallback(() => {
+    setShowPreviewDataModal(!showPreviewDataModal);
+  }, [showPreviewDataModal, setShowPreviewDataModal]);
 
   const onDeleteQuerySubmit = useCallback(async () => {
     const bulk = selectedQueryIds.length > 1;
@@ -319,6 +329,33 @@ const ManageQueriesPage = ({
       </>
     );
   };
+  const onSaveQueryAutomations = useCallback(async () => {
+    const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
+
+    setIsUpdatingQueries(true);
+
+    // TODO: Change to saving query automations
+    const deleteQueries = selectedQueryIds.map((id) => queriesAPI.destroy(id));
+
+    try {
+      await Promise.all(deleteQueries).then(() => {
+        renderFlash("success", `Successfully deleted ${queryOrQueries}.`);
+        setResetSelectedRows(true);
+        refetchAllQueries(); // TODO: Is this the only refetch?
+      });
+      renderFlash("success", `Successfully deleted ${queryOrQueries}.`);
+    } catch (errorResponse) {
+      renderFlash(
+        "error",
+        `There was an error deleting your ${queryOrQueries}. Please try again later.`
+      );
+    } finally {
+      toggleDeleteQueryModal();
+      setIsUpdatingQueries(false);
+    }
+  }, [refetchAllQueries, selectedQueryIds, toggleDeleteQueryModal]);
+
+  // const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
   return (
     <MainContent className={baseClass}>
@@ -341,13 +378,22 @@ const ManageQueriesPage = ({
             )}
             {(!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) &&
               !!curTeamEnhancedQueries?.length && (
-                <Button
-                  variant="brand"
-                  className={`${baseClass}__create-button`}
-                  onClick={onCreateQueryClick}
-                >
-                  Add query
-                </Button>
+                <>
+                  <Button
+                    variant="inverse"
+                    className={`${baseClass}__create-button`}
+                    onClick={onManageAutomationsClick}
+                  >
+                    Manage automations
+                  </Button>
+                  <Button
+                    variant="brand"
+                    className={`${baseClass}__create-button`}
+                    onClick={onCreateQueryClick}
+                  >
+                    Add query
+                  </Button>
+                </>
               )}
           </div>
         </div>
@@ -363,6 +409,23 @@ const ManageQueriesPage = ({
           globalEnhancedQueries?.length > 0 &&
           renderInheritedQueriesSection()}
         {renderModals()}
+        {showDeleteQueryModal && (
+          <DeleteQueryModal
+            isUpdatingQueries={isUpdatingQueries}
+            onCancel={toggleDeleteQueryModal}
+            onSubmit={onDeleteQuerySubmit}
+          />
+        )}
+        {showManageAutomationsModal && (
+          <ManageAutomationsModal
+            isUpdatingAutomations={isUpdatingAutomations}
+            handleSubmit={onSaveQueryAutomations}
+            onCancel={toggleManageAutomationsModal}
+            togglePreviewDataModal={togglePreviewDataModal}
+            availableQueries={queries}
+            scheduledQueriesConfig={{ query_ids: [1, 2] }}
+          />
+        )}
       </div>
     </MainContent>
   );

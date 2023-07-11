@@ -1,5 +1,6 @@
 import { IFormField } from "./form_field";
 import { IPack } from "./pack";
+import { ISchedulableQuery } from "./schedulable_query";
 import { IScheduledQueryStats } from "./scheduled_query_stats";
 
 export interface IQueryFormData {
@@ -10,11 +11,11 @@ export interface IQueryFormData {
 }
 
 export interface IStoredQueryResponse {
-  query: IQuery;
+  query: ISchedulableQuery;
 }
 
 export interface IFleetQueriesResponse {
-  queries: IQuery[];
+  queries: ISchedulableQuery[];
 }
 
 export interface IQuery {

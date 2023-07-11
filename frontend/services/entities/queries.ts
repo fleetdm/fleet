@@ -1,5 +1,5 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest, { getError } from "services";
+import { getError } from "services";
 import endpoints from "utilities/endpoints";
 import { IQueryFormData } from "interfaces/query";
 import { ISelectedTargets } from "interfaces/target";
@@ -10,7 +10,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 // import { sendRequest } from "services/mock_service/service/service";
 
 // Mock API requests to be used in developing FE for #7765 in parallel with BE development
-// import { sendRequest } from "services/mock_service/service/service";
+import { sendRequest } from "services/mock_service/service/service";
 
 export default {
   create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
