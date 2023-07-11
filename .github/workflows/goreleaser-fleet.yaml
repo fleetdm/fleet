@@ -37,7 +37,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
       - name: Set up Go
-        uses: actions/setup-go@v4.0.1
+        uses: actions/setup-go@v2.1.3
         with:
           go-version: ${{ vars.GO_VERSION }}
 
