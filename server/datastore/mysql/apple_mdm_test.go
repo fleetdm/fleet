@@ -4496,6 +4496,13 @@ func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
 	require.NoError(t, err)
+	// add a record of the host DEP assignment
+	_, err = ds.writer(ctx).Exec(`
+		INSERT INTO host_dep_assignments (host_id)
+		VALUES (?)
+		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL
+	`, host.ID)
+	require.NoError(t, err)
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "")
 	require.NoError(t, err)
 

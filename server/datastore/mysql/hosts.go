@@ -824,6 +824,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		params = append(params, *opt.MDMNameFilter)
 	}
 	if opt.MDMEnrollmentStatusFilter != "" {
+		// NOTE: ds.UpdateHostTablesOnMDMUnenroll sets installed_from_dep = 0 so DEP hosts are not counted as pending after unenrollment
 		switch opt.MDMEnrollmentStatusFilter {
 		case fleet.MDMEnrollStatusAutomatic:
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1`
@@ -1618,7 +1619,6 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 		host := hostWithMDM.Host
 		// leave MDMInfo nil unless it has mdm information
 		if hostWithMDM.HostID != nil {
-			// TODO: confirm this works as expected
 			host.MDMInfo = &fleet.HostMDM{
 				HostID:           *hostWithMDM.HostID,
 				Enrolled:         *hostWithMDM.Enrolled,
@@ -1715,7 +1715,6 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 		host := hostWithMDM.Host
 		// leave MDMInfo nil unless it has mdm information
 		if hostWithMDM.HostID != nil {
-			// TODO: confirm this works as expected
 			host.MDMInfo = &fleet.HostMDM{
 				HostID:           *hostWithMDM.HostID,
 				Enrolled:         *hostWithMDM.Enrolled,
@@ -2917,10 +2916,14 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 }
 
 func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+	// TODO: consider using host_dep_assignments instead of host_mdm because installed_from_dep can
+	// be set to false for DEP-assigned host (e.g., ds.UpdateHostTablesOnMDMUnenroll), which may
+	// lead to unexpected results in certain edge cases where HostMDMCheckinInfo is used to
+	// determine like bootstrap package installation
+
 	var hmdm fleet.HostMDMCheckinInfo
 
 	// use writer as it is used just after creation in some cases
-	// TODO: should we join on host_dep_assignments instead?
 	err := sqlx.GetContext(ctx, ds.writer(ctx), &hmdm, `
 		SELECT
 			h.hardware_serial,
@@ -3293,7 +3296,7 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 		globalStats = true
 		status      fleet.AggregatedMDMStatus
 	)
-	// TODO: confirm this is ok as-is
+	// NOTE: ds.UpdateHostTablesOnMDMUnenroll sets installed_from_dep = 0 so DEP hosts are not counted as pending after unenrollment
 	query := `SELECT
 				COUNT(DISTINCT host_id) as hosts_count,
 				COALESCE(SUM(CASE WHEN NOT enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END), 0) as unenrolled_hosts_count,
@@ -3355,7 +3358,6 @@ func (ds *Datastore) generateAggregatedMDMSolutions(ctx context.Context, teamID 
 		results     []fleet.AggregatedMDMSolutions
 		whereAnd    = "WHERE"
 	)
-	// TODO: confirm this is ok as-is
 	query := `SELECT
 				mdms.id,
 				mdms.server_url,
