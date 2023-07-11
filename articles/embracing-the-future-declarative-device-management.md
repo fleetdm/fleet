@@ -6,7 +6,7 @@ As a Mac administrator, managing a fleet of Apple devices across your organizati
 
 DDM is a paradigm shift in device management, enabling a more efficient and secure administration of macOS devices. It allows for tamper-resistant configurations and ensures simplified monitoring of system services and background tasks.
 
-In this blog post, we dive into Apple's forthcoming DDM in macOS Sonoma. Specifically we'll explore how it will alter the way you manage system services, certificates and identities, and how it transitions you from traditional Mobile Device Management (MDM) systems. Whether you're an experienced Mac admin or just getting started, hopefully this guide will provide some insights into DDM for you and your organization. Let's dive in!
+In this blog post, we dive into Apple's forthcoming DDM in macOS Sonoma. Specifically, we'll explore how it will alter the way you manage system services, certificates and identities, and how it transitions you from traditional Mobile Device Management (MDM) systems. Whether you're an experienced Mac admin or just getting started, hopefully, this guide will provide some insights into DDM for you and your organization. Let's dive in!
 
 
 ## Declarative device management for system services
@@ -30,7 +30,7 @@ Certificates and identities play a crucial role in ensuring secure access to org
 Certificates and identities are defined as asset declarations, which various configurations can reference. This eliminates the need for duplicating certificates and identities across multiple profiles, thereby reducing management overhead.
 
 
-## A new paradigm: software spdates
+## A new paradigm: software updates
 
 Apple's DDM introduces a redefined software update process, which marks another significant step forward in device management.
 
@@ -52,7 +52,7 @@ The innovations introduced with DDM, including the new software update process, 
 
 As we continue to navigate this evolving landscape, we have tools that equip us better than ever to handle the challenges and complexities of modern device management. This new era presents opportunities for enhanced security, control, and efficiency in managing our devices.
 
-Fleet is transforming how we manage and secure devices. Offering an open-core, cross-platform solution, Fleet is committed to empowering Mac admins with the tools they need to meet the challenges of today and tomorrow's device management. Through its powerful and versatile platform, Fleet is illuminating the path forward in device management.
+Fleet is transforming how we manage and secure devices. Offering an open-core, cross-platform solution, Fleet is committed to empowering Mac admins with the tools they need to meet the challenges of today's and tomorrow's device management. Through its powerful and versatile platform, Fleet is illuminating the path forward in device management.
 
 
 
