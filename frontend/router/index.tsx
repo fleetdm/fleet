@@ -204,14 +204,6 @@ const routes = (
               </Route>
             </Route>
           </Route>
-          <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-            <Route path="schedule">
-              <IndexRedirect to="manage" />
-              <Route path="manage" component={ManageSchedulePage} />
-              <Redirect from="manage/teams" to="manage" />
-              <Redirect from="manage/teams/:team_id" to="manage" />
-            </Route>
-          </Route>
           <Route path="queries">
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageQueriesPage} />
