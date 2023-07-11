@@ -5143,6 +5143,116 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 }
 
+func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
+	t := s.T()
+
+	// ensure the config is empty before starting
+	s.applyConfig([]byte(`
+  mdm:
+    macos_updates:
+      deadline: ""
+      minimum_version: ""
+ `))
+
+	var resp orbitGetConfigResponse
+	// missing orbit key
+	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
+
+	// nudge config is empty if macos_updates is not set, and Windows MDM notifications are unset
+	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.NudgeConfig)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+
+	// set macos_updates
+	s.applyConfig([]byte(`
+  mdm:
+    macos_updates:
+      deadline: 2022-01-04
+      minimum_version: 12.1.3
+ `))
+
+	// still empty if MDM is turned off for the host
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.NudgeConfig)
+
+	// turn on MDM features
+	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	mdmDevice.SerialNumber = h.HardwareSerial
+	mdmDevice.UUID = h.UUID
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
+
+	// create a team with an empty macos_updates config
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          4827,
+		Name:        "team1_" + t.Name(),
+		Description: "desc team1_" + t.Name(),
+	})
+	require.NoError(t, err)
+
+	// add the host to the team
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
+	require.NoError(t, err)
+
+	// NudgeConfig should be empty
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
+
+	// modify the team config, add macos_updates config
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
+				Deadline:       optjson.SetString("1992-01-01"),
+				MinimumVersion: optjson.SetString("13.1.1"),
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.1.1")})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 04:00:00 +0000 UTC")
+
+	// create a new host, still receives the global config
+	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
+	mdmDevice = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	mdmDevice.SerialNumber = h2.HardwareSerial
+	mdmDevice.UUID = h2.UUID
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
+	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
+}
+
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 	t := s.T()
 
@@ -5244,6 +5354,59 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
 	require.True(t, s.checkIfXMLTagContains("s:text", "invalid SOAP header: Header.MessageID", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestNoEmailDiscoveryRequest() {
+	t := s.T()
+
+	// Preparing the Discovery Request message
+	requestBytes := []byte(`
+		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+		   <s:Header>
+		     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
+		     <a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+		     <a:ReplyTo>
+		       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+		     </a:ReplyTo>
+		     <a:To s:mustUnderstand="1">https://mdmwindows.com:443/EnrollmentServer/Discovery.svc</a:To>
+		   </s:Header>
+		   <s:Body>
+		     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
+		       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+		         <EmailAddress></EmailAddress>
+		         <RequestVersion>5.0</RequestVersion>
+		         <DeviceType>CIMClient_Windows</DeviceType>
+		         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
+		         <OSEdition>48</OSEdition>
+		         <AuthPolicies>
+		           <AuthPolicy>OnPremise</AuthPolicy>
+		           <AuthPolicy>Federated</AuthPolicy>
+		         </AuthPolicies>
+		       </request>
+		     </Discover>
+		   </s:Body>
+		 </s:Envelope>`)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid DiscoveryResponse message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
+	require.True(t, !s.isXMLTagContentPresent("AuthenticationServiceUrl", resSoapMsg))
 }
 
 func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
@@ -5468,116 +5631,6 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	require.True(t, s.checkIfXMLTagContains("s:text", "ContextItem item DeviceType is not present", resSoapMsg))
 }
 
-func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
-	t := s.T()
-
-	// ensure the config is empty before starting
-	s.applyConfig([]byte(`
-  mdm:
-    macos_updates:
-      deadline: ""
-      minimum_version: ""
- `))
-
-	var resp orbitGetConfigResponse
-	// missing orbit key
-	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
-
-	// nudge config is empty if macos_updates is not set, and Windows MDM notifications are unset
-	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.Empty(t, resp.NudgeConfig)
-	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
-	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
-	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
-
-	// set macos_updates
-	s.applyConfig([]byte(`
-  mdm:
-    macos_updates:
-      deadline: 2022-01-04
-      minimum_version: 12.1.3
- `))
-
-	// still empty if MDM is turned off for the host
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.Empty(t, resp.NudgeConfig)
-
-	// turn on MDM features
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
-		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
-		MDMURL:        s.server.URL + apple_mdm.MDMPath,
-	})
-	mdmDevice.SerialNumber = h.HardwareSerial
-	mdmDevice.UUID = h.UUID
-	err := mdmDevice.Enroll()
-	require.NoError(t, err)
-
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
-	require.NoError(t, err)
-	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
-
-	// create a team with an empty macos_updates config
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          4827,
-		Name:        "team1_" + t.Name(),
-		Description: "desc team1_" + t.Name(),
-	})
-	require.NoError(t, err)
-
-	// add the host to the team
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
-	require.NoError(t, err)
-
-	// NudgeConfig should be empty
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.Empty(t, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
-
-	// modify the team config, add macos_updates config
-	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
-				Deadline:       optjson.SetString("1992-01-01"),
-				MinimumVersion: optjson.SetString("13.1.1"),
-			},
-		},
-	}, http.StatusOK, &tmResp)
-
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.1.1")})
-	require.NoError(t, err)
-	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 04:00:00 +0000 UTC")
-
-	// create a new host, still receives the global config
-	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
-	mdmDevice = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
-		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
-		MDMURL:        s.server.URL + apple_mdm.MDMPath,
-	})
-	mdmDevice.SerialNumber = h2.HardwareSerial
-	mdmDevice.UUID = h2.UUID
-	err = mdmDevice.Enroll()
-	require.NoError(t, err)
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
-	require.NoError(t, err)
-	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
-}
-
 func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
 	t := s.T()
 
@@ -5597,7 +5650,7 @@ func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
 	require.Contains(t, resContent, "performPost()")
 
 	// Getting token content
-	encodedToken := s.getEncodedTokenValue(resContent)
+	encodedToken := s.getRawTokenValue(resContent)
 	require.NotEmpty(t, encodedToken)
 }
 
@@ -5615,6 +5668,54 @@ func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
 	require.Contains(t, resContent, "forbidden")
 }
 
+func (s *integrationMDMTestSuite) TestValidFederatedAuthPolicyRequest() {
+	t := s.T()
+
+	// Target Endpoint url with query params
+	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel&login_hint=demo%40mdmwindows.com"
+	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Contains(t, resp.Header["Content-Type"], "text/html; charset=UTF-8")
+	require.NotEmpty(t, resBytes)
+
+	// Checking response content
+	resContent := string(resBytes)
+	require.Contains(t, resContent, "inputToken.name = 'wresult'")
+	require.Contains(t, resContent, "form.action = \"ms-app://windows.immersivecontrolpanel\"")
+	require.Contains(t, resContent, "performPost()")
+
+	// Getting token content
+	encodedToken := s.getRawTokenValue(resContent)
+	require.NotEmpty(t, encodedToken)
+
+	// Preparing the GetPolicies Request message
+	requestBytes, err := s.newGetPoliciesMsg(encodedToken)
+	require.NoError(t, err)
+
+	resp = s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
+
+	resBytes, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid GetPoliciesResponse message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("policyOIDReference", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("oIDReferenceID", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("validityPeriodSeconds", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("renewalPeriodSeconds", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
+}
+
 // ///////////////////////////////////////////////////////////////////////////
 // Common helpers
 
@@ -5626,7 +5727,7 @@ func (s *integrationMDMTestSuite) runWorker() {
 	require.Empty(s.T(), pending)
 }
 
-func (s *integrationMDMTestSuite) getEncodedTokenValue(content string) string {
+func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {
 	// Create a regex object with the defined pattern
 	pattern := `inputToken.value\s*=\s*'([^']*)'`
 	regex := regexp.MustCompile(pattern)
@@ -5636,9 +5737,9 @@ func (s *integrationMDMTestSuite) getEncodedTokenValue(content string) string {
 
 	if len(submatches) >= 2 {
 		// Extract the content from the submatch
-		content := submatches[1]
+		encodedToken := submatches[1]
 
-		return content
+		return string(encodedToken)
 	}
 
 	return ""

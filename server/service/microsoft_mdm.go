@@ -109,7 +109,7 @@ func getUtcTime(minutes int) string {
 }
 
 // NewDiscoverResponse creates a new DiscoverResponse struct based on the auth policy, policy url, and enrollment url
-func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl string, authUrl string) (mdm_types.DiscoverResponse, error) {
+func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl string, authUrl *string) (mdm_types.DiscoverResponse, error) {
 	if (len(authPolicy) == 0) || (len(policyUrl) == 0) || (len(enrollmentUrl) == 0) {
 		return mdm_types.DiscoverResponse{}, errors.New("invalid parameters")
 	}
@@ -121,7 +121,7 @@ func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl stri
 			EnrollmentVersion:          mdm.EnrollmentVersionV4,
 			EnrollmentPolicyServiceUrl: policyUrl,
 			EnrollmentServiceUrl:       enrollmentUrl,
-			AuthServiceUrl:             &authUrl,
+			AuthServiceUrl:             authUrl,
 		},
 	}, nil
 }
@@ -838,12 +838,15 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
-	urlSTSAuthEndpoint, err := mdm.ResolveWindowsMDMAuth(appCfg.ServerSettings.ServerURL)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
-	}
-
+	// Only adding STS Auth endpoint if the UPN email is provided
+	var urlSTSAuthEndpoint *string = nil
 	if len(upnEmail) > 0 {
+		workUrlSTSAuthEndpoint, err := mdm.ResolveWindowsMDMAuth(appCfg.ServerSettings.ServerURL)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
+		}
+
+		urlSTSAuthEndpoint = &workUrlSTSAuthEndpoint
 	}
 
 	discoveryMsg, err := NewDiscoverResponse(mdm.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint, urlSTSAuthEndpoint)
@@ -865,7 +868,7 @@ func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru st
 		return "", ctxerr.Wrap(ctx, err, "creation of STS JWT Auth token")
 	}
 
-	encodedBST, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, authToken)
+	encodedBST, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMAutomaticEnrollmentType, authToken)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "creation of STS binary security token")
 	}
