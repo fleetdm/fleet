@@ -353,24 +353,51 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		FROM queries q
 		LEFT JOIN users u ON (q.author_id = u.id)
 		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
-		WHERE saved = true
-	`
-	if opt.OnlyObserverCanRun {
-		sql += " AND q.observer_can_run=true"
-	}
+		WHERE saved = true`
 
 	args := []interface{}{false, aggregatedStatsTypeQuery}
-	whereClause := " AND team_id_char = ''"
+	whereClauses := ""
+
+	if opt.OnlyObserverCanRun {
+		whereClauses += " AND q.observer_can_run=true"
+	}
+
 	if opt.TeamID != nil {
 		args = append(args, fmt.Sprint(*opt.TeamID))
-		whereClause = " AND team_id_char = ?"
+		whereClauses += " AND team_id_char = ?"
+	} else {
+		whereClauses += " AND team_id_char = ''"
 	}
-	sql += whereClause
+
+	if opt.IsScheduled != nil {
+		if *opt.IsScheduled {
+			whereClauses += " AND q.schedule_interval>0"
+		} else {
+			whereClauses += " AND q.schedule_interval=0"
+		}
+	}
+
+	sql += whereClauses
+
+	var err error
+	if len(opt.ExcludeIDs) > 0 {
+		ids := make([]uint, 0, len(opt.ExcludeIDs))
+		for id := range opt.ExcludeIDs {
+			ids = append(ids, id)
+		}
+
+		sql += " AND q.id NOT IN (?)"
+		args = append(args, ids)
+
+		sql, args, err = sqlx.In(sql, args...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "listing queries exclude IDs")
+		}
+	}
 
 	sql = appendListOptionsToSQL(sql, &opt.ListOptions)
 
 	results := []*fleet.Query{}
-
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}

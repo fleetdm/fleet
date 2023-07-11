@@ -79,11 +79,8 @@ func (q *Query) GetSnapshot() *bool {
 	switch loggingType {
 	case "snapshot":
 		return ptr.Bool(true)
-	case "differential", "differential_ignore_removals":
-		return ptr.Bool(false)
 	default:
-		// Default value of `snapshot` according the docs is false
-		return ptr.Bool(false)
+		return nil
 	}
 }
 
@@ -94,11 +91,12 @@ func (q *Query) GetRemoved() *bool {
 	}
 
 	switch loggingType {
-	case "snapshot", "differential_ignore_removals":
+	case "differential":
+		return ptr.Bool(true)
+	case "differential_ignore_removals":
 		return ptr.Bool(false)
 	default:
-		// Default value of `removed` according the docs is true
-		return ptr.Bool(true)
+		return nil
 	}
 }
 

@@ -374,6 +374,8 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	}
 
 	packConfig := fleet.Packs{}
+	excludeInScheduled := make(map[uint]struct{})
+
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
 		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
@@ -385,6 +387,9 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		// particular format, so we do the conversion here
 		configQueries := fleet.Queries{}
 		for _, query := range queries {
+			// Used to indicate that this query should not be included in the `schedule` prop.
+			excludeInScheduled[query.QueryID] = struct{}{}
+
 			queryContent := fleet.QueryContent{
 				Query:    query.Query,
 				Interval: query.Interval,
@@ -422,12 +427,11 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		config["packs"] = json.RawMessage(packJSON)
 	}
 
-	// Get all scheduled queries that are not used in packs (since those are included inside the
-	// 'packs' config).
+	// Get all scheduled queries that are not used in packsf or the host's team.
 	scheduledQueries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
-		TeamID:            host.TeamID,
-		IsScheduled:       ptr.Bool(true),
-		IsIncludedInPacks: ptr.Bool(false),
+		TeamID:      host.TeamID,
+		IsScheduled: ptr.Bool(true),
+		ExcludeIDs:  excludeInScheduled,
 	})
 	scheduledConfig := make(fleet.Queries, len(scheduledQueries))
 	for _, query := range scheduledQueries {
@@ -440,13 +444,12 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 			Snapshot: query.GetSnapshot(),
 		}
 	}
-
 	if len(scheduledConfig) > 0 {
-		jsonPayload, err := json.Marshal(scheduledConfig)
+		payload, err := json.Marshal(scheduledConfig)
 		if err != nil {
 			return nil, newOsqueryError("internal error: marshal schedule JSON: " + err.Error())
 		}
-		config["schedule"] = json.RawMessage(jsonPayload)
+		config["schedule"] = json.RawMessage(payload)
 	}
 
 	// Save interval values if they have been updated.

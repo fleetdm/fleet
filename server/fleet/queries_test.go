@@ -15,7 +15,7 @@ func TestGetSnapshot(t *testing.T) {
 	}{
 		{
 			query:    nil,
-			expected: ptr.Bool(false),
+			expected: nil,
 		},
 		{
 			query:    &Query{LoggingType: "snapshot"},
@@ -23,11 +23,11 @@ func TestGetSnapshot(t *testing.T) {
 		},
 		{
 			query:    &Query{LoggingType: "differential"},
-			expected: ptr.Bool(false),
+			expected: nil,
 		},
 		{
 			query:    &Query{LoggingType: "differential_ignore_removals"},
-			expected: ptr.Bool(false),
+			expected: nil,
 		},
 	}
 	for _, tCase := range testCases {
@@ -46,7 +46,7 @@ func TestGetRemoved(t *testing.T) {
 		},
 		{
 			query:    &Query{LoggingType: "snapshot"},
-			expected: ptr.Bool(false),
+			expected: nil,
 		},
 		{
 			query:    &Query{LoggingType: "differential"},

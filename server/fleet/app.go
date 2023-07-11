@@ -762,12 +762,12 @@ type ListQueryOptions struct {
 	ListOptions
 
 	// TeamID which team the queries belong to. If teamID is nil, then it is assumed the 'global'
-	// team
+	// team.
 	TeamID *uint
-	// IsScheduled filters queries that are meant to run at a set interval
+	// IsScheduled filters queries that are meant to run at a set interval.
 	IsScheduled *bool
-	// IsIncludedInPacks filters queries included/excluded in packs
-	IsIncludedInPacks  *bool
+	// ExcludeIDs set with ids of queries that should not be included in the result.
+	ExcludeIDs         map[uint]struct{}
 	OnlyObserverCanRun bool
 }
 

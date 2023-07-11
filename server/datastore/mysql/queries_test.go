@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +31,8 @@ func TestQueries(t *testing.T) {
 		{"ListFiltersObservers", testQueriesListFiltersObservers},
 		{"ObserverCanRunQuery", testObserverCanRunQuery},
 		{"ListFiltersByTeamID", testQueriesListFiltersByTeamID},
+		{"ListFiltersByIsScheduled", testQueriesListFiltersByIsScheduled},
+		{"ListFiltersByExcludedIDs", testQueriesListFiltersByExcludedIDs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -613,4 +616,96 @@ func testQueriesListFiltersByTeamID(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	test.QueryElementsMatch(t, queries, []*fleet.Query{teamQ1, teamQ2, teamQ3})
+}
+
+func testQueriesListFiltersByIsScheduled(t *testing.T, ds *Datastore) {
+	q1, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:             "query1",
+		Query:            "select 1;",
+		Saved:            true,
+		ScheduleInterval: 0,
+	})
+	require.NoError(t, err)
+	q2, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:             "query2",
+		Query:            "select 1;",
+		Saved:            true,
+		ScheduleInterval: 10,
+	})
+	require.NoError(t, err)
+	q3, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:             "query3",
+		Query:            "select 1;",
+		Saved:            true,
+		ScheduleInterval: 20,
+	})
+
+	testCases := []struct {
+		opts     fleet.ListQueryOptions
+		expected []*fleet.Query
+	}{
+		{
+			opts:     fleet.ListQueryOptions{},
+			expected: []*fleet.Query{q1, q2, q3},
+		},
+		{
+			opts:     fleet.ListQueryOptions{IsScheduled: ptr.Bool(true)},
+			expected: []*fleet.Query{q2, q3},
+		},
+		{
+			opts:     fleet.ListQueryOptions{IsScheduled: ptr.Bool(false)},
+			expected: []*fleet.Query{q1},
+		},
+	}
+
+	for i, tCase := range testCases {
+		queries, err := ds.ListQueries(
+			context.Background(),
+			tCase.opts,
+		)
+		require.NoError(t, err)
+		test.QueryElementsMatch(t, queries, tCase.expected, i)
+	}
+}
+
+func testQueriesListFiltersByExcludedIDs(t *testing.T, ds *Datastore) {
+	q1, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:             "query1",
+		Query:            "select 1;",
+		Saved:            true,
+		ScheduleInterval: 0,
+	})
+	require.NoError(t, err)
+	q2, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:             "query2",
+		Query:            "select 1;",
+		Saved:            true,
+		ScheduleInterval: 10,
+	})
+	testCases := []struct {
+		opts     fleet.ListQueryOptions
+		expected []*fleet.Query
+	}{
+		{
+			opts:     fleet.ListQueryOptions{},
+			expected: []*fleet.Query{q1, q2},
+		},
+		{
+			opts:     fleet.ListQueryOptions{ExcludeIDs: make(map[uint]struct{})},
+			expected: []*fleet.Query{q1, q2},
+		},
+		{
+			opts:     fleet.ListQueryOptions{ExcludeIDs: map[uint]struct{}{q1.ID: {}}},
+			expected: []*fleet.Query{q2},
+		},
+	}
+
+	for i, tCase := range testCases {
+		queries, err := ds.ListQueries(
+			context.Background(),
+			tCase.opts,
+		)
+		require.NoError(t, err)
+		test.QueryElementsMatch(t, queries, tCase.expected, i)
+	}
 }
