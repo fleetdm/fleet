@@ -5,6 +5,7 @@ import { IQueryFormData } from "interfaces/query";
 import { ISelectedTargets } from "interfaces/target";
 import { AxiosResponse } from "axios";
 import { ICreateQueryRequestBody } from "interfaces/schedulable_query";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export default {
   create: (createQueryRequestBody: ICreateQueryRequestBody) => {
@@ -18,16 +19,26 @@ export default {
 
     return sendRequest("DELETE", path);
   },
+  bulkDestroy: (ids: number[]) => {
+    const { QUERIES } = endpoints;
+    const path = `${QUERIES}/delete`;
+    return sendRequest("POST", path, { ids });
+  },
   load: (id: number) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 
     return sendRequest("GET", path);
   },
-  loadAll: () => {
+  loadAll: (teamId?: number) => {
     const { QUERIES } = endpoints;
+    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const path = `${QUERIES}`;
 
-    return sendRequest("GET", QUERIES);
+    return sendRequest(
+      "GET",
+      queryString ? path.concat(`?${queryString}`) : path
+    );
   },
   run: async ({
     query,

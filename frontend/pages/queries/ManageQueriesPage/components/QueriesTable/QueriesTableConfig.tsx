@@ -7,12 +7,11 @@ import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import PATHS from "router/paths";
 
 import permissionsUtils from "utilities/permissions";
-import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
-import { addGravatarUrlToResource } from "utilities/helpers";
+import { secondsToDhms } from "utilities/helpers";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
 
 import Icon from "components/Icon";
-import Avatar from "components/Avatar";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -20,10 +19,11 @@ import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import StatusIndicator from "components/StatusIndicator";
 
 interface IQueryRow {
   id: string;
-  original: IQuery;
+  original: ISchedulableQuery;
 }
 
 interface IGetToggleAllRowsSelectedProps {
@@ -46,7 +46,7 @@ interface IHeaderProps {
 }
 interface IRowProps {
   row: {
-    original: IQuery;
+    original: ISchedulableQuery;
     getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
@@ -54,6 +54,18 @@ interface IRowProps {
 }
 
 interface ICellProps extends IRowProps {
+  cell: {
+    value: string | number | boolean;
+  };
+}
+
+interface INumberCellProps extends IRowProps {
+  cell: {
+    value: number;
+  };
+}
+
+interface IStringCellProps extends IRowProps {
   cell: {
     value: string;
   };
@@ -69,7 +81,9 @@ interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IPlatformCellProps) => JSX.Element);
+    | ((props: IPlatformCellProps) => JSX.Element)
+    | ((props: IStringCellProps) => JSX.Element)
+    | ((props: INumberCellProps) => JSX.Element);
   id?: string;
   title?: string;
   accessor?: string;
@@ -148,28 +162,26 @@ const generateTableHeaders = ({
       },
     },
     {
-      title: "Author",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      accessor: "author_name",
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        const { author_name, author_email } = cellProps.row.original;
-        const author = author_name === currentUser.name ? "You" : author_name;
+      title: "Frequency",
+      Header: "Frequency",
+      disableSortBy: true,
+      accessor: "interval",
+      Cell: (cellProps: INumberCellProps): JSX.Element => {
+        const val = cellProps.cell.value
+          ? `Every ${secondsToDhms(cellProps.cell.value)}`
+          : undefined;
         return (
-          <span>
-            <Avatar
-              user={addGravatarUrlToResource({ email: author_email })}
-              size="xsmall"
-            />
-            <span className="text-cell author-name">{author}</span>
-          </span>
+          <TextCell
+            value={val}
+            emptyCellTooltipText={
+              <>
+                Assign a frequency and turn <strong>automations</strong> on to
+                collect data at an interval.
+              </>
+            }
+          />
         );
       },
-      sortType: "caseInsensitive",
     },
     {
       Header: () => {
@@ -189,7 +201,7 @@ const generateTableHeaders = ({
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps: ICellProps) => (
+      Cell: (cellProps: IStringCellProps) => (
         <PillCell
           value={{
             indicator: cellProps.cell.value,
@@ -197,6 +209,38 @@ const generateTableHeaders = ({
           }}
         />
       ),
+    },
+    {
+      title: "Automations",
+      Header: "Automations",
+      disableSortBy: true,
+      accessor: "automations_enabled",
+      Cell: (cellProps: IStringCellProps): JSX.Element => {
+        let status;
+        if (cellProps.cell.value) {
+          if (cellProps.row.original.interval === 0) {
+            status = "paused";
+          } else {
+            status = "on";
+          }
+        } else {
+          status = "off";
+        }
+
+        const tooltip =
+          status === "paused"
+            ? {
+                id: cellProps.row.original.id,
+                tooltipText: (
+                  <>
+                    <strong>Automations</strong> will resume for this query when
+                    a frequency is set.
+                  </>
+                ),
+              }
+            : undefined;
+        return <StatusIndicator value={status} tooltip={tooltip} />;
+      },
     },
     {
       title: "Last modified",
@@ -207,7 +251,7 @@ const generateTableHeaders = ({
         />
       ),
       accessor: "updated_at",
-      Cell: (cellProps: ICellProps): JSX.Element => (
+      Cell: (cellProps: INumberCellProps): JSX.Element => (
         <TextCell
           value={formatDistanceToNow(new Date(cellProps.cell.value), {
             includeSeconds: true,
