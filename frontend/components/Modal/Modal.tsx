@@ -11,6 +11,7 @@ export interface IModalProps {
   children: JSX.Element;
   onExit: () => void;
   onEnter?: () => void;
+  /**     default 650px, large 800px, xlarge 850px, auto auto-width */
   width?: ModalWidth;
   className?: string;
 }

@@ -31,7 +31,8 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import RevealButton from "components/buttons/RevealButton";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
-import ManageAutomationsModal from "./components/ManageAutomationsModal";
+import ManageAutomationsModal from "./components/ManageAutomationsModal/ManageAutomationsModal";
+import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
@@ -182,8 +183,15 @@ const ManageQueriesPage = ({
   };
 
   const togglePreviewDataModal = useCallback(() => {
+    // Manage automation modal must close/open every time preview data modal opens/closes
+    setShowManageAutomationsModal(!showManageAutomationsModal);
     setShowPreviewDataModal(!showPreviewDataModal);
-  }, [showPreviewDataModal, setShowPreviewDataModal]);
+  }, [
+    showPreviewDataModal,
+    setShowPreviewDataModal,
+    showManageAutomationsModal,
+    setShowManageAutomationsModal,
+  ]);
 
   const onDeleteQuerySubmit = useCallback(async () => {
     const bulk = selectedQueryIds.length > 1;
@@ -419,6 +427,9 @@ const ManageQueriesPage = ({
           globalEnhancedQueries?.length > 0 &&
           renderInheritedQueriesSection()}
         {renderModals()}
+        {showPreviewDataModal && (
+          <PreviewDataModal onCancel={togglePreviewDataModal} />
+        )}
       </div>
     </MainContent>
   );

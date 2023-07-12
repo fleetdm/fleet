@@ -398,7 +398,8 @@ const globalQueries = {
       created_at: "2022-11-03T17:22:14Z",
       updated_at: "2022-11-03T17:22:14Z",
       id: 2,
-      name: "Test Query 2",
+      name:
+        "Test Query 2 has a really long name that is wider than a modal allows without truncating",
       description: "A second test query",
       query: "SELECT * FROM osquery_info",
       team_id: null,

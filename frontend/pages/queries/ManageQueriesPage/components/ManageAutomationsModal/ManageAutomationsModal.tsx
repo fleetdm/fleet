@@ -7,12 +7,18 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
+import Icon from "components/Icon/Icon";
 
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 
 // TODO
 interface ISchedulableQueriesScheduled {
   query_ids: number[];
+}
+
+interface IFrequencyIndicator {
+  frequency: number;
+  checked: boolean;
 }
 interface IManageAutomationsModalProps {
   isUpdatingAutomations: boolean;
@@ -24,21 +30,23 @@ interface IManageAutomationsModalProps {
   logDestination: string;
 }
 
-interface ICheckedPolicy {
+interface ICheckedQuery {
   name?: string;
   id: number;
   isChecked: boolean;
+  interval: number;
 }
 
 const useCheckboxListStateManagement = (
   allQueries: ISchedulableQuery[],
   automatedQueries: number[] | undefined
 ) => {
-  const [queryItems, setQueryItems] = useState<ICheckedPolicy[]>(() => {
-    return allQueries.map(({ name, id }) => ({
+  const [queryItems, setQueryItems] = useState<ICheckedQuery[]>(() => {
+    return allQueries.map(({ name, id, interval }) => ({
       name,
       id,
       isChecked: !!automatedQueries?.includes(id),
+      interval,
     }));
   });
 
@@ -116,7 +124,7 @@ const ManageAutomationsModal = ({
         case "stdout":
           return "Standard output (stdout)";
         case "":
-          return "Not set";
+          return "Not configured";
         default:
           return logDestination;
       }
@@ -159,36 +167,86 @@ const ManageAutomationsModal = ({
     );
   };
 
+  const renderScheduleIndicator = ({
+    frequency,
+    checked,
+  }: IFrequencyIndicator) => {
+    const readableQueryFrequency = () => {
+      switch (frequency) {
+        case 3600:
+          return "Hourly";
+        case 43200:
+          return "12 hours";
+        case 86400:
+          return "Daily";
+        case 604800:
+          return "Weekly";
+        case 0:
+          return "Never";
+        default:
+          return "Unknown";
+      }
+    };
+
+    const frequencyIcon = () => {
+      switch (frequency) {
+        case 0:
+          return checked ? (
+            <Icon size="small" name="warning" />
+          ) : (
+            <Icon size="small" name="clock" color="ui-fleet-black-33" />
+          );
+        default:
+          return <Icon size="small" name="clock" />;
+      }
+    };
+    return (
+      <div className={`${baseClass}__schedule-indicator`}>
+        {frequencyIcon()}
+        {readableQueryFrequency()}
+      </div>
+    );
+  };
+
   return (
-    <Modal title={"Manage automations"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Manage automations"}
+      onExit={onCancel}
+      className={baseClass}
+      width="large"
+    >
       <div className={baseClass}>
         <p className={`${baseClass}__heading`}>
           Query automations let you send data to your log destination on a
           schedule. Data is sent according to a query’s frequency.
         </p>
-        <div className={`${baseClass}__select`}>
+        <div className={`${baseClass}__body`}>
           {availableQueries?.length ? (
-            <div className={`${baseClass}__query-select-items`}>
+            <div className={`${baseClass}__select`}>
               <p>
                 <strong>Choose which queries will send data:</strong>
               </p>
               <div className={`${baseClass}__checkboxes`}>
                 {queryItems &&
                   queryItems.map((queryItem) => {
-                    const { isChecked, name, id } = queryItem;
+                    const { isChecked, name, id, interval } = queryItem;
                     return (
                       <div key={id} className={`${baseClass}__query-item`}>
                         <Checkbox
                           value={isChecked}
                           name={name}
                           onChange={() => {
-                            updateQueryItems(queryItem.id);
+                            updateQueryItems(id);
                             !isChecked &&
                               setErrors((errs) => omit(errs, "queryItems"));
                           }}
                         >
                           {name}
                         </Checkbox>
+                        {renderScheduleIndicator({
+                          frequency: interval,
+                          checked: isChecked,
+                        })}
                       </div>
                     );
                   })}
@@ -216,17 +274,17 @@ const ManageAutomationsModal = ({
               />
             </div>
           </div>
+          <InfoBanner className={`${baseClass}__supported-platforms`}>
+            Automations currently run on macOS, Windows, and Linux hosts.
+            <br />
+            Interested in query automations for your Chromebooks? &nbsp;
+            <CustomLink
+              url="https://fleetdm.com/contact"
+              text="Let us know"
+              newTab
+            />
+          </InfoBanner>
         </div>
-        <InfoBanner className={`${baseClass}__supported-platforms`}>
-          Automations currently run on macOS, Windows, and Linux hosts.
-          <br />
-          Interested in query automations for your Chromebooks? &nbsp;
-          <CustomLink
-            url="https://fleetdm.com/contact"
-            text="Let us know"
-            newTab
-          />
-        </InfoBanner>
         <div className={`${baseClass}__btn-wrap`}>
           <div className={`${baseClass}__preview-btn-wrap`}>
             <Button
