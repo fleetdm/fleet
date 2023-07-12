@@ -36,10 +36,10 @@ When starting a new draft:
 
 - Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project).
 - Rename each Figma file to include the number and name of the corresponding issue on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). (e.g. # 11766 Instructions for Autopilot enrollment).
--  Starter file will have 3 predefined pages: Cover, Ready, and Scratchpad.
-    -  **Cover page.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
-    -  **Ready page.** Use to keep all screens relevant for design reviews and development.
-    -  **Scratchpad page.** Use to move all screens that are not relevant for design reviews or development and might be useful in the future.
+-  The starter file includes 3 predefined pages: Cover, Ready, and Scratchpad.
+    -  **Cover.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
+    -  **Ready.** Use this page to communicate designs reviews and development.
+    -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
 
 
 #### Keep projects/files clean and up-to-date
