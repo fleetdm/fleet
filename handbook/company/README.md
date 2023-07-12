@@ -7,7 +7,7 @@ Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbo
 We are dedicated to:
 
 - 🔌 making security and IT interoperable and easy to automate
-- 🚪 a real-time, inviting (outsider-friendly) way to manage computers
+- 🚪 an inviting (outsider-friendly) way to manage computers
 - 🪟 clarity and trust through open-source software
 
 
