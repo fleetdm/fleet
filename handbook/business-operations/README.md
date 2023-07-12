@@ -858,6 +858,7 @@ The steps for doing this are highlighted in this loom, TODO.
 ## Legal
 
 Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook>/business-operations#intake).
+> **Note:** Escalate first-of-its-kind agreements to the CEO. Mike will review business terms and consult with lawyers as necessary.
 
 
 ## Getting a contract signed
