@@ -491,7 +491,7 @@ const QueryForm = ({
               Observers can run
             </Checkbox>
             <p>
-              Users with the Observer role will be able to run this query on
+              Users with the observer role will be able to run this query on
               hosts where they have access.
             </p>
           </>

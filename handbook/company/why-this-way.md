@@ -41,6 +41,54 @@ Making changes to the handbook first [encourages](https://www.youtube.com/watch?
 To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company).
 
 
+## Why read documentation?
+
+The three main things people are searching for are:
+
+### 🐋 "Tire-kicking" 
+
+>I think this is cool, now is it something that I could ACTUALLY use? Does it ACTUALLY work? What all's in it?  
+
+ _**This is where I want to be sold!**_ 
+
+>I want to have resources. _**Shiney new toys**_ 🕹️ to show my boss. Links I can share with colleagues to get them excited.
+
+### 📚 "Committed learning" 
+
+>I've decided to learn this. I need a curriculum to get me there. Content that makes it as easy as possible, surface-level as possible. This is where I want to learn how it works and how to do things. 
+
+### 🧭 "Quick reference"
+
+ >Is this thing broken or am I using it right? How do I use this? Maybe they just stumbbled in from Google, an on-site search, or through Fleet nav itself.
+
+ Quick refrence needs are especially relevant for: 
+- REST API pages 
+- The config surface of Fleet itself
+- Agent options
+- How to build YAML for fleetctl apply
+- The built-in MDM profiles
+- The table schema
+- Query library with built-in policies
+- Use cases like pulling up the reference architectures and AWS cost calculators
+
+## 🔌🚪🪟 Principles 
+
+### 🚪 Little tiny white lies   
+  
+Think of an iceberg . _**Looks**_ like smooth sailing, always.  Happy path up top, hide the tricky bits underneath. Like math teachers don't even touch long division until long after you've learned fractions. 
+This is why the most complex stuff is always on the bottom of each page or section.
+
+It's ok if the sentences above the fold are overly simplified. 
+
+Get to the _**SIMPLE, CLEAR**_ instructions first.  Ideally a short example.  Be prescriptive, brief, and clear.  You can always hedge and caveat further down the page.  
+
+- Example: Notice how this page gets more complicated as you scroll down:https://sailsjs.com/documentation/reference/blueprint-api/destroy
+
+- Another one: See how it starts off dead simple?  (And then the caveats are below)https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?seldomused-settings
+
+- Good example in sails.js: https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?schema
+
+
 ## Why the emphasis on training?
 Investing in people and providing generous, prioritized training, especially up front, helps contributors understand what is going on at Fleet. By making training a prerequisite at Fleet, we can:
 - help team members feel confident in the better decisions they make at work. 
@@ -249,7 +297,7 @@ The first step was to add a simpler way to schedule queries, and tuck away the l
 
 Packs will always be supported in Fleet.
 
-#### Why does Fleet use sentence case?
+## Why does Fleet use sentence case?
 
 Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
 
@@ -257,9 +305,21 @@ In sentence case, we write and capitalize words as if they were in sentences:
 
 > Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
 
-As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized.
+As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer") and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized.
 
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
+
+## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
+
+Fleet is more than an MDM (mobile device management) solution.
+
+With Fleet, you can secure and investigate Macs, Windows servers, Chromebooks, and more by installing the fleetd agent (or chrome extension for Chromebooks). When we use the word "enroll" in Fleet, we want this to mean anytime one of these hosts shows up in Fleet and the user can see that sweet telemetry.
+
+Fleet also has MDM features that allow IT admins to enforce OS settings, OS updates, and more. When we use the phrase "MDM on" in Fleet, it means a host has these features activated.
+
+Workspace ONE and other MDM solutions use "enroll" to mean both telemetry is being collecting and enforcement features are activated.
+
+Since Fleet is more than MDM, you can collect telemetry on your Windows servers and you can enforce OS settings on your Macs. Or you can collect telemetry for both without enforcing OS settings.
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">

@@ -104,7 +104,7 @@
     - name: Ship logs to Splunk, Snowflake, and more
       tier: Free
       comingSoon: false
-    - name: Programable audit log
+    - name: Programmable audit log
       tier: Premium
       comingSoon: true
     - name: Just-in-time (JIT) provisioning

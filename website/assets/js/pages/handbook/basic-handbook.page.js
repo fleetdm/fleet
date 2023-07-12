@@ -33,10 +33,11 @@ parasails.registerPage('basic-handbook', {
         appId: 'NZXAYZXDGH',
         apiKey: this.algoliaPublicKey,
         indexName: 'fleetdm',
-        inputSelector: '#docsearch-query',
+        container: '#docsearch-query',
+        placeholder: 'Search the handbook...',
         debug: false,
         clickAnalytics: true,
-        algoliaOptions: {
+        searchParameters: {
           facetFilters: ['section:handbook']
         },
       });

@@ -46,5 +46,6 @@ columns:
     platforms:
       - windows
 evented: false
-notes: >-
-  - For ChromeOS, this table is not a core osquery table. It is included as part of the Fleetd Chrome extension. Available for Chrome 91+.
+notes: |
+  - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
+  - Available for ChromeOS 91+.
