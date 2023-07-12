@@ -73,15 +73,14 @@ The three main things people are searching for are:
 
 ## 🔌🚪🪟 Principles 
 
-### 🚪 little tiny white lies   
+### 🚪 Little tiny white lies   
   
-Think of an iceberg . Looks like smooth sailing, No matter what, always.  Happy path up top, Hide the tricky bits underneath. Like how the math teachers don't talk about long division until long after you've learned to do the basic times tables.  
+Think of an iceberg . Looks like smooth sailing, No matter what, always.  Happy path up top, hide the tricky bits underneath. Like math teachers don't even touch long division until long after you've learned fractions. 
+This is why the most complex stuff is always on the bottom of each page or section.
 
 It's ok if the sentences above the fold are overly simplified. 
 
-Get to the _**SIMPLE, CLEAR**_ instructions first.  Ideally a short example.  Be prescriptive, brief, and clear.  You can always hedge and caveat further down the page.
-
-This is why the most complex stuff is always on the bottom of each page or section.  
+Get to the _**SIMPLE, CLEAR**_ instructions first.  Ideally a short example.  Be prescriptive, brief, and clear.  You can always hedge and caveat further down the page.  
 
 - Example: Notice how this page gets more complicated as you scroll down:https://sailsjs.com/documentation/reference/blueprint-api/destroy
 
