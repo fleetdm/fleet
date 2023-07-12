@@ -513,6 +513,8 @@ A bug is in engineering after it has been reproduced and assigned to an EM. If a
 
 If the bug does not meet the criteria of a critical bug, the EM will determine if there is capacity in the current sprint for this bug. If so, the `:release` label is added, and it is moved to the "Current release' column on the bugs board. If there is no available capacity in the current sprint, the EM will move the bug to the "Sprint backlog" column where it will be prioritized for the next sprint.
 
+When fixing the bug, if the proposed solution requires changes that would affect the user experience (UI, API, or CLI), notify the EM and PM to align on the acceptability of the change. 
+
 Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements) into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary. 
 
 #### Awaiting QA 
@@ -587,9 +589,28 @@ In the above process, any reference to "QA" refers to: Reed Haynes, Product Qual
 
 ## Infrastructure
 
+- [Infrastructure links](#infrastructure-links)
+- [Best practices](#best-practices)
 - [24/7 on-call](#24-7-on-call)
 
 The [infrastructure product group](https://fleetdm.com/handbook/company/development-groups#infrastructure-group) is responsible for deploying, supporting, and maintaining all Fleet-managed cloud deployments.
+
+### Infrastructure links
+
+The following are quick links to infrastructure-related README files in both public and private repos that can be used as a quick reference for infrastructure-related code:
+
+- [Sandbox](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md)
+- [Terraform Module](https://github.com/fleetdm/fleet/blob/main/terraform/README.md)
+- [Loadtesting](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/readme.md)
+- [Cloud](https://github.com/fleetdm/confidential/blob/main/infrastructure/cloud/template/README.md)
+- [SSO](https://github.com/fleetdm/confidential/blob/main/infrastructure/sso/README.md)
+- [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
+
+### Best practices
+
+The infrastructure team follows industry best practices when designing and deploying infrastructure. For containerized infrastructure, Google has created a [reference document](https://cloud.google.com/architecture/best-practices-for-operating-containers) as an ideal reference for these practices.
+
+Many of these practices must be implemented in Fleet directly, and engineering will work to ensure that feature implementation follows these practices. The infrastructure team will make itself available to provide guidance as needed. If a feature is not compatible with these practices, an issue will be created with a request to correct the implementation.
 
 ### 24/7 on-call
 The 24/7 on-call (aka infrastructure on-call) is responsible for alarms related to fleetdm.com, Fleet sandbox, Fleet managed cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility happens in shifts of one week. The people involved in them will be:

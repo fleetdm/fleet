@@ -465,12 +465,12 @@ type MDMConfig struct {
 	// certificates.
 	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"`
 
-	// MicrosoftWSTEPIdentityCert is the path to the certificate used to sign
+	// WindowsWSTEPIdentityCert is the path to the certificate used to sign
 	// WSTEP responses.
-	MicrosoftWSTEPIdentityCert string `yaml:"microsoft_wstep_identity_cert"`
-	// MicrosoftWSTEPIdentityKey is the path to the private key used to sign
+	WindowsWSTEPIdentityCert string `yaml:"windows_wstep_identity_cert"`
+	// WindowsWSTEPIdentityKey is the path to the private key used to sign
 	// WSTEP responses.
-	MicrosoftWSTEPIdentityKey string `yaml:"microsoft_wstep_identity_key"`
+	WindowsWSTEPIdentityKey string `yaml:"windows_wstep_identity_key"`
 
 	// the following fields hold the parsed, validated TLS certificate set the
 	// first time Microsoft WSTEP is called, as well as the PEM-encoded
@@ -674,9 +674,9 @@ func (m *MDMConfig) MicrosoftWSTEP() (cert *tls.Certificate, pemCert, pemKey []b
 	// TODO: should we also implement support for setting raw bytes in the config (like we do for Apple MDM)?
 	if m.microsoftWSTEP == nil {
 		pair := x509KeyPairConfig{
-			m.MicrosoftWSTEPIdentityCert,
+			m.WindowsWSTEPIdentityCert,
 			nil,
-			m.MicrosoftWSTEPIdentityKey,
+			m.WindowsWSTEPIdentityKey,
 			nil,
 		}
 		cert, err := pair.Parse(true)
@@ -692,9 +692,9 @@ func (m *MDMConfig) MicrosoftWSTEP() (cert *tls.Certificate, pemCert, pemKey []b
 
 func (m *MDMConfig) IsMicrosoftWSTEPSet() bool {
 	pair := x509KeyPairConfig{
-		m.MicrosoftWSTEPIdentityCert,
+		m.WindowsWSTEPIdentityCert,
 		nil,
-		m.MicrosoftWSTEPIdentityKey,
+		m.WindowsWSTEPIdentityKey,
 		nil,
 	}
 	return pair.IsSet()
@@ -1090,8 +1090,8 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("mdm.apple_scep_signer_allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
-	man.addConfigString("mdm.microsoft_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
-	man.addConfigString("mdm.microsoft_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
+	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
+	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -1352,8 +1352,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleSCEPSignerAllowRenewalDays: man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
 			AppleSCEPChallenge:              man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:         man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
-			MicrosoftWSTEPIdentityCert:      man.getConfigString("mdm.microsoft_wstep_identity_cert"),
-			MicrosoftWSTEPIdentityKey:       man.getConfigString("mdm.microsoft_wstep_identity_key"),
+			WindowsWSTEPIdentityCert:        man.getConfigString("mdm.windows_wstep_identity_cert"),
+			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
 		},
 	}
 
@@ -1707,6 +1707,12 @@ func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMT
 	cfg.MDM.appleBMToken = appleBMToken
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 	cfg.MDM.AppleSCEPChallenge = "testchallenge"
+
+	certPath := "../service/testdata/server.pem"
+	keyPath := "../service/testdata/server.key"
+
+	cfg.MDM.WindowsWSTEPIdentityCert = certPath
+	cfg.MDM.WindowsWSTEPIdentityKey = keyPath
 }
 
 // Undocumented feature flag for Windows MDM, used to determine if the Windows
