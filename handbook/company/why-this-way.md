@@ -75,7 +75,7 @@ The three main things people are searching for are:
 
 ### 🚪 Little tiny white lies   
   
-Think of an iceberg . Looks like smooth sailing, No matter what, always.  Happy path up top, hide the tricky bits underneath. Like math teachers don't even touch long division until long after you've learned fractions. 
+Think of an iceberg . _**Looks**_ like smooth sailing, always.  Happy path up top, hide the tricky bits underneath. Like math teachers don't even touch long division until long after you've learned fractions. 
 This is why the most complex stuff is always on the bottom of each page or section.
 
 It's ok if the sentences above the fold are overly simplified. 
@@ -86,8 +86,7 @@ Get to the _**SIMPLE, CLEAR**_ instructions first.  Ideally a short example.  Be
 
 - Another one: See how it starts off dead simple?  (And then the caveats are below)https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?seldomused-settings
 
-- Get to the SIMPLE, CLEAR instructions first.  Ideally a short example.  Be prescriptive, brief, and clear.  You can always hedge and caveat further down the page. https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?schema
-
+- Good example in sails.js: https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?schema
 
 
 ## Why the emphasis on training?
