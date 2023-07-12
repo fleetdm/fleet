@@ -20,6 +20,7 @@ import {
 import RevealButton from "components/buttons/RevealButton";
 import { IPlatformString } from "interfaces/platform";
 import {
+  ICreateQueryRequestBody,
   ISchedulableQuery,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
@@ -27,8 +28,9 @@ import {
 export interface ISaveQueryModalProps {
   baseClass: string;
   queryValue: string;
+  teamIdForQuery?: number; // query will be global if omitted
   isLoading: boolean;
-  saveQuery: (formData: IQueryFormData) => void;
+  saveQuery: (formData: ICreateQueryRequestBody) => void;
   toggleSaveQueryModal: () => void;
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;
@@ -48,6 +50,7 @@ const validateQueryName = (name: string) => {
 const SaveQueryModal = ({
   baseClass,
   queryValue,
+  teamIdForQuery,
   isLoading,
   saveQuery,
   toggleSaveQueryModal,
@@ -70,7 +73,7 @@ const SaveQueryModal = ({
   const [
     selectedLoggingType,
     setSelectedLoggingType,
-  ] = useState<QueryLoggingOption | null>(existingQuery?.logging ?? "snapshot");
+  ] = useState<QueryLoggingOption>(existingQuery?.logging ?? "snapshot");
   const [observerCanRun, setObserverCanRun] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
@@ -102,10 +105,18 @@ const SaveQueryModal = ({
 
     if (valid) {
       saveQuery({
-        description,
+        // from modal fields
         name,
-        query: queryValue,
+        description,
+        interval: selectedFrequency,
         observer_can_run: observerCanRun,
+        platform: selectedPlatformOptions,
+        min_osquery_version: selectedMinOsqueryVersionOptions,
+        logging: selectedLoggingType,
+        // from previous New query page
+        query: queryValue,
+        // from doubly previous ManageQueriesPage
+        team_id: teamIdForQuery,
       });
     }
   };

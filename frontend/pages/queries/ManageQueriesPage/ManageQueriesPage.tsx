@@ -1,10 +1,4 @@
-import React, {
-  useContext,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useContext, useCallback, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { pick } from "lodash";
@@ -154,7 +148,7 @@ const ManageQueriesPage = ({
     }
   }, [location, filteredQueriesPath, setFilteredQueriesPath]);
 
-  const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY);
+  const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY(currentTeamId));
 
   const toggleDeleteQueryModal = useCallback(() => {
     setShowDeleteQueryModal(!showDeleteQueryModal);

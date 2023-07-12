@@ -34,6 +34,7 @@ const baseClass = "query-form";
 interface IQueryFormProps {
   router: InjectedRouter;
   queryIdForEdit: number | null;
+  teamIdForQuery?: number;
   showOpenSchemaActionText: boolean;
   storedQuery: IQuery | undefined;
   isStoredQueryLoading: boolean;
@@ -63,6 +64,7 @@ const validateQuerySQL = (query: string) => {
 const QueryForm = ({
   router,
   queryIdForEdit,
+  teamIdForQuery,
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
@@ -571,6 +573,7 @@ const QueryForm = ({
         <SaveQueryModal
           baseClass={baseClass}
           queryValue={lastEditedQueryBody}
+          teamIdForQuery={teamIdForQuery}
           saveQuery={saveQuery}
           toggleSaveQueryModal={toggleSaveQueryModal}
           backendValidators={backendValidators}

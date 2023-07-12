@@ -23,6 +23,7 @@ interface IQueryEditorProps {
   router: InjectedRouter;
   baseClass: string;
   queryIdForEdit: number | null;
+  teamIdForQuery?: number;
   storedQuery: IQuery | undefined;
   storedQueryError: Error | null;
   showOpenSchemaActionText: boolean;
@@ -42,6 +43,7 @@ const QueryEditor = ({
   router,
   baseClass,
   queryIdForEdit,
+  teamIdForQuery,
   storedQuery,
   storedQueryError,
   showOpenSchemaActionText,
@@ -158,6 +160,7 @@ const QueryEditor = ({
         onUpdate={onUpdateQuery}
         storedQuery={storedQuery}
         queryIdForEdit={queryIdForEdit}
+        teamIdForQuery={teamIdForQuery}
         isStoredQueryLoading={isStoredQueryLoading}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}

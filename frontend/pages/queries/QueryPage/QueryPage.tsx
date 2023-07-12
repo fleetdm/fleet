@@ -27,12 +27,15 @@ import CustomLink from "components/CustomLink";
 
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
 import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 interface IQueryPageProps {
   router: InjectedRouter;
   params: Params;
   location: {
-    query: { host_ids: string };
+    pathname: string;
+    query: { host_ids: string; team_id?: string };
+    search: string;
   };
 }
 
@@ -41,9 +44,15 @@ const baseClass = "query-page";
 const QueryPage = ({
   router,
   params: { id: paramsQueryId },
-  location: { query: URLQuerySearch },
+  location,
 }: IQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const { teamIdForApi: teamIdForQuery } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   const handlePageError = useErrorHandler();
   const {
@@ -103,9 +112,9 @@ const QueryPage = ({
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
     () =>
-      hostAPI.loadHostDetails(parseInt(URLQuerySearch.host_ids as string, 10)),
+      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
     {
-      enabled: !!URLQuerySearch.host_ids && !queryParamHostsAdded,
+      enabled: !!location.query.host_ids && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
         setTargetedHosts((prevHosts) =>
@@ -185,10 +194,11 @@ const QueryPage = ({
   const goToQueryEditor = useCallback(() => setStep(QUERIES_PAGE_STEPS[1]), []);
 
   const renderScreen = () => {
-    const step1Opts = {
+    const step1Props = {
       router,
       baseClass,
       queryIdForEdit: queryId,
+      teamIdForQuery,
       showOpenSchemaActionText,
       storedQuery,
       isStoredQueryLoading,
@@ -200,7 +210,7 @@ const QueryPage = ({
       renderLiveQueryWarning,
     };
 
-    const step2Opts = {
+    const step2Props = {
       baseClass,
       queryId,
       selectedTargets,
@@ -217,7 +227,7 @@ const QueryPage = ({
       setTargetsTotalCount,
     };
 
-    const step3Opts = {
+    const step3Props = {
       queryId,
       selectedTargets,
       storedQuery,
@@ -228,11 +238,11 @@ const QueryPage = ({
 
     switch (step) {
       case QUERIES_PAGE_STEPS[2]:
-        return <SelectTargets {...step2Opts} />;
+        return <SelectTargets {...step2Props} />;
       case QUERIES_PAGE_STEPS[3]:
-        return <RunQuery {...step3Opts} />;
+        return <RunQuery {...step3Props} />;
       default:
-        return <QueryEditor {...step1Opts} />;
+        return <QueryEditor {...step1Props} />;
     }
   };
 
