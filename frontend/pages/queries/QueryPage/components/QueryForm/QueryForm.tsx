@@ -39,7 +39,7 @@ interface IQueryFormProps {
   isStoredQueryLoading: boolean;
   isQuerySaving: boolean;
   isQueryUpdating: boolean;
-  onCreateQuery: (formData: IQueryFormData) => void;
+  saveQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onUpdate: (formData: IQueryFormData) => void;
@@ -68,7 +68,7 @@ const QueryForm = ({
   isStoredQueryLoading,
   isQuerySaving,
   isQueryUpdating,
-  onCreateQuery,
+  saveQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
   onUpdate,
@@ -567,7 +567,7 @@ const QueryForm = ({
         <SaveQueryModal
           baseClass={baseClass}
           queryValue={lastEditedQueryBody}
-          onCreateQuery={onCreateQuery}
+          saveQuery={saveQuery}
           setIsSaveModalOpen={setIsSaveModalOpen}
           backendValidators={backendValidators}
           isLoading={isQuerySaving}

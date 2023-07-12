@@ -14,7 +14,7 @@ export interface ISaveQueryModalProps {
   baseClass: string;
   queryValue: string;
   isLoading: boolean;
-  onCreateQuery: (formData: IQueryFormData) => void;
+  saveQuery: (formData: IQueryFormData) => void;
   setIsSaveModalOpen: (isOpen: boolean) => void;
   backendValidators: { [key: string]: string };
 }
@@ -34,7 +34,7 @@ const SaveQueryModal = ({
   baseClass,
   queryValue,
   isLoading,
-  onCreateQuery,
+  saveQuery,
   setIsSaveModalOpen,
   backendValidators,
 }: ISaveQueryModalProps): JSX.Element => {
@@ -55,7 +55,7 @@ const SaveQueryModal = ({
     setErrors(backendValidators);
   }, [backendValidators]);
 
-  const handleUpdate = (evt: React.MouseEvent<HTMLFormElement>) => {
+  const onClickSaveQuery = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const { valid, errors: newErrors } = validateQueryName(name);
@@ -65,7 +65,7 @@ const SaveQueryModal = ({
     });
 
     if (valid) {
-      onCreateQuery({
+      saveQuery({
         description,
         name,
         query: queryValue,
@@ -78,7 +78,7 @@ const SaveQueryModal = ({
     <Modal title={"Save query"} onExit={() => setIsSaveModalOpen(false)}>
       <>
         <form
-          onSubmit={handleUpdate}
+          onSubmit={onClickSaveQuery}
           className={`${baseClass}__save-modal-form`}
           autoComplete="off"
         >

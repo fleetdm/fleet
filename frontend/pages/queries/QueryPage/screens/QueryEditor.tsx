@@ -77,7 +77,7 @@ const QueryEditor = ({
     [key: string]: string;
   }>({});
 
-  const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
+  const saveQuery = debounce(async (formData: IQueryFormData) => {
     setIsQuerySaving(true);
     try {
       const { query }: { query: IQuery } = await createQuery(formData);
@@ -149,7 +149,7 @@ const QueryEditor = ({
       </div>
       <QueryForm
         router={router}
-        onCreateQuery={onSaveQueryFormSubmit}
+        saveQuery={saveQuery}
         goToSelectTargets={goToSelectTargets}
         onOsqueryTableSelect={onOsqueryTableSelect}
         onUpdate={onUpdateQuery}
