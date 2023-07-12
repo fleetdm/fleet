@@ -1,5 +1,4 @@
 name: privacy_preferences
-notes: This table is not a core osquery table. It is included as part of the Fleetd Chrome extension.
 description: Information on Chrome features that can affect a user's privacy, available from the [chrome.privacy APIs](https://developer.chrome.com/docs/extensions/reference/privacy/)
 platforms:
   - chrome
@@ -85,3 +84,5 @@ columns:
     description: 1 if enabled else 0 * Available for Chrome 111+
     required: false
     type: integer
+notes: |
+  - This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
