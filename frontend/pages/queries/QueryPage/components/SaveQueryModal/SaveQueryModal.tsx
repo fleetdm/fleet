@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { size } from "lodash";
+import React, { useState, useEffect, useCallback } from "react";
+import { pull, size } from "lodash";
 
 import { IQueryFormData } from "interfaces/query";
 import useDeepEffect from "hooks/useDeepEffect";
@@ -7,16 +7,31 @@ import useDeepEffect from "hooks/useDeepEffect";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import {
+  FREQUENCY_DROPDOWN_OPTIONS,
+  LOGGING_TYPE_OPTIONS,
+  MIN_OSQUERY_VERSION_OPTIONS,
+  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
+} from "utilities/constants";
+import RevealButton from "components/buttons/RevealButton";
+import { IPlatformString } from "interfaces/platform";
+import {
+  ISchedulableQuery,
+  QueryLoggingOption,
+} from "interfaces/schedulable_query";
 
 export interface ISaveQueryModalProps {
   baseClass: string;
   queryValue: string;
   isLoading: boolean;
   saveQuery: (formData: IQueryFormData) => void;
-  setIsSaveModalOpen: (isOpen: boolean) => void;
+  toggleSaveQueryModal: () => void;
   backendValidators: { [key: string]: string };
+  existingQuery?: ISchedulableQuery;
 }
 
 const validateQueryName = (name: string) => {
@@ -35,15 +50,36 @@ const SaveQueryModal = ({
   queryValue,
   isLoading,
   saveQuery,
-  setIsSaveModalOpen,
+  toggleSaveQueryModal,
   backendValidators,
+  existingQuery,
 }: ISaveQueryModalProps): JSX.Element => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedFrequency, setSelectedFrequency] = useState(
+    existingQuery?.interval ?? 3600
+  );
+  const [
+    selectedPlatformOptions,
+    setSelectedPlatformOptions,
+  ] = useState<IPlatformString>(existingQuery?.platform ?? "");
+  const [
+    selectedMinOsqueryVersionOptions,
+    setSelectedMinOsqueryVersionOptions,
+  ] = useState(existingQuery?.min_osquery_version ?? "");
+  const [
+    selectedLoggingType,
+    setSelectedLoggingType,
+  ] = useState<QueryLoggingOption | null>(existingQuery?.logging ?? "snapshot");
   const [observerCanRun, setObserverCanRun] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
+  const toggleAdvancedOptions = () => {
+    setShowAdvancedOptions(!showAdvancedOptions);
+  };
 
   useDeepEffect(() => {
     if (name) {
@@ -74,8 +110,28 @@ const SaveQueryModal = ({
     }
   };
 
+  const onChangeSelectPlatformOptions = useCallback(
+    (values: string) => {
+      const valArray = values.split(",");
+
+      // Remove All if another OS is chosen
+      // else if Remove OS if All is chosen
+      if (valArray.indexOf("") === 0 && valArray.length > 1) {
+        // TODO - inmprove type safety of all 3 options
+        setSelectedPlatformOptions(
+          pull(valArray, "").join(",") as IPlatformString
+        );
+      } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
+        setSelectedPlatformOptions("");
+      } else {
+        setSelectedPlatformOptions(values as IPlatformString);
+      }
+    },
+    [setSelectedPlatformOptions]
+  );
+
   return (
-    <Modal title={"Save query"} onExit={() => setIsSaveModalOpen(false)}>
+    <Modal title={"Save query"} onExit={toggleSaveQueryModal}>
       <>
         <form
           onSubmit={onClickSaveQuery}
@@ -101,6 +157,16 @@ const SaveQueryModal = ({
             type="textarea"
             placeholder="What information does your query reveal? (optional)"
           />
+          <Dropdown
+            searchable={false}
+            options={FREQUENCY_DROPDOWN_OPTIONS}
+            onChange={(value: number) => {
+              setSelectedFrequency(value);
+            }}
+            placeholder={"Every hour"}
+            value={selectedFrequency}
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+          />
           <Checkbox
             name="observerCanRun"
             onChange={setObserverCanRun}
@@ -110,9 +176,46 @@ const SaveQueryModal = ({
             Observers can run
           </Checkbox>
           <p>
-            Users with the Observer role will be able to run this query on hosts
-            where they have access.
+            Users with the Observer role will be able to run this query as a
+            live query.
           </p>
+          <RevealButton
+            isShowing={showAdvancedOptions}
+            className={baseClass}
+            hideText={"Hide advanced options"}
+            showText={"Show advanced options"}
+            caretPosition={"after"}
+            onClick={toggleAdvancedOptions}
+          />
+          {showAdvancedOptions && (
+            <>
+              <Dropdown
+                options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
+                placeholder="Select"
+                label="Platform"
+                onChange={onChangeSelectPlatformOptions}
+                value={selectedPlatformOptions}
+                multi
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+              />
+              <Dropdown
+                options={MIN_OSQUERY_VERSION_OPTIONS}
+                onChange={setSelectedMinOsqueryVersionOptions}
+                placeholder="Select"
+                value={selectedMinOsqueryVersionOptions}
+                label="Minimum osquery version"
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
+              />
+              <Dropdown
+                options={LOGGING_TYPE_OPTIONS}
+                onChange={setSelectedLoggingType}
+                placeholder="Select"
+                value={selectedLoggingType}
+                label="Logging"
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+              />
+            </>
+          )}
           <div className="modal-cta-wrap">
             <Button
               type="submit"
@@ -122,7 +225,7 @@ const SaveQueryModal = ({
             >
               Save query
             </Button>
-            <Button onClick={() => setIsSaveModalOpen(false)} variant="inverse">
+            <Button onClick={toggleSaveQueryModal} variant="inverse">
               Cancel
             </Button>
           </div>

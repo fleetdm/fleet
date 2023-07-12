@@ -104,7 +104,7 @@ const QueryForm = ({
 
   const savedQueryMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [showSaveQueryModal, setShowSaveQueryModal] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
   );
@@ -143,6 +143,10 @@ const QueryForm = ({
     : isAnyTeamMaintainerOrTeamAdmin;
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
+
+  const toggleSaveQueryModal = () => {
+    setShowSaveQueryModal(!showSaveQueryModal);
+  };
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -262,7 +266,7 @@ const QueryForm = ({
 
     if (valid) {
       if (!savedQueryMode) {
-        setIsSaveModalOpen(true);
+        setShowSaveQueryModal(true);
       } else {
         onUpdate({
           name: lastEditedQueryName,
@@ -563,12 +567,12 @@ const QueryForm = ({
           </Button>
         </div>
       </form>
-      {isSaveModalOpen && (
+      {showSaveQueryModal && (
         <SaveQueryModal
           baseClass={baseClass}
           queryValue={lastEditedQueryBody}
           saveQuery={saveQuery}
-          setIsSaveModalOpen={setIsSaveModalOpen}
+          toggleSaveQueryModal={toggleSaveQueryModal}
           backendValidators={backendValidators}
           isLoading={isQuerySaving}
         />

@@ -77,7 +77,7 @@ export interface IModifyQueryRequestBody
 // Delete a query by name
 /** DELETE /api/v1/fleet/queries/{name} */
 export interface IDeleteQueryRequestBody {
-  team_id?: number; // searches for a global query if ommitted
+  team_id?: number; // searches for a global query if omitted
 }
 
 // Delete a query by id
