@@ -45,7 +45,7 @@ const PreviewDataModal = ({
             to the following JSON:
           </TooltipWrapper>
         </p>
-        <div className={`${baseClass}__automated-queries-preview`}>
+        <div className={`${baseClass}__host-status-webhook-preview`}>
           <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
         </div>
         <div className="modal-cta-wrap">

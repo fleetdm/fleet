@@ -16,6 +16,14 @@
     border: 1px solid $ui-fleet-black-10;
   }
 
+  &__query-item {
+    width: 100%;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $ui-fleet-black-10;
+    }
+  }
+
   .fleet-checkbox {
     height: 20px;
   }
@@ -26,7 +34,7 @@
     justify-content: space-between;
     align-items: center;
     align-self: stretch;
-    border-bottom: 1px solid $ui-fleet-black-10;
     margin-bottom: 0;
+    width: 100%;
   }
 }

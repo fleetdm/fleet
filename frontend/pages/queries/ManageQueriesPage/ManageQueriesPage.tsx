@@ -88,6 +88,7 @@ const ManageQueriesPage = ({
     filteredQueriesPath,
     isPremiumTier,
     isSandboxMode,
+    config,
   } = useContext(AppContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
@@ -313,6 +314,34 @@ const ManageQueriesPage = ({
     );
   };
 
+  const onSaveQueryAutomations = useCallback(async () => {
+    const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
+
+    setIsUpdatingAutomations(true);
+
+    // TODO: build/format API call to update query automations rather than delete queries
+    const updateAutomatedQueries = selectedQueryIds.map((id) =>
+      queriesAPI.destroy(id)
+    );
+
+    try {
+      await Promise.all(updateAutomatedQueries).then(() => {
+        renderFlash("success", `Successfully updated query automations.`);
+        refetchAllQueries();
+      });
+    } catch (errorResponse) {
+      renderFlash(
+        "error",
+        `There was an error updating your query automations. Please try again later.`
+      );
+    } finally {
+      toggleManageAutomationsModal();
+      setIsUpdatingAutomations(false);
+    }
+  }, [refetchAllQueries, selectedQueryIds, toggleManageAutomationsModal]);
+
+  // const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
+
   const renderModals = () => {
     return (
       <>
@@ -324,38 +353,19 @@ const ManageQueriesPage = ({
           />
         )}
         {showManageAutomationsModal && (
-          <ManageAutomationsModal onExit={toggleManageAutomationsModal} />
+          <ManageAutomationsModal
+            isUpdatingAutomations={isUpdatingAutomations}
+            handleSubmit={onSaveQueryAutomations}
+            onCancel={toggleManageAutomationsModal}
+            togglePreviewDataModal={togglePreviewDataModal}
+            availableQueries={globalEnhancedQueries}
+            scheduledQueriesConfig={{ query_ids: [1, 2] }}
+            logDestination={config?.logging.result.plugin || ""}
+          />
         )}
       </>
     );
   };
-  const onSaveQueryAutomations = useCallback(async () => {
-    const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
-
-    setIsUpdatingQueries(true);
-
-    // TODO: Change to saving query automations
-    const deleteQueries = selectedQueryIds.map((id) => queriesAPI.destroy(id));
-
-    try {
-      await Promise.all(deleteQueries).then(() => {
-        renderFlash("success", `Successfully deleted ${queryOrQueries}.`);
-        setResetSelectedRows(true);
-        refetchAllQueries(); // TODO: Is this the only refetch?
-      });
-      renderFlash("success", `Successfully deleted ${queryOrQueries}.`);
-    } catch (errorResponse) {
-      renderFlash(
-        "error",
-        `There was an error deleting your ${queryOrQueries}. Please try again later.`
-      );
-    } finally {
-      toggleDeleteQueryModal();
-      setIsUpdatingQueries(false);
-    }
-  }, [refetchAllQueries, selectedQueryIds, toggleDeleteQueryModal]);
-
-  // const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
   return (
     <MainContent className={baseClass}>
@@ -409,23 +419,6 @@ const ManageQueriesPage = ({
           globalEnhancedQueries?.length > 0 &&
           renderInheritedQueriesSection()}
         {renderModals()}
-        {showDeleteQueryModal && (
-          <DeleteQueryModal
-            isUpdatingQueries={isUpdatingQueries}
-            onCancel={toggleDeleteQueryModal}
-            onSubmit={onDeleteQuerySubmit}
-          />
-        )}
-        {showManageAutomationsModal && (
-          <ManageAutomationsModal
-            isUpdatingAutomations={isUpdatingAutomations}
-            handleSubmit={onSaveQueryAutomations}
-            onCancel={toggleManageAutomationsModal}
-            togglePreviewDataModal={togglePreviewDataModal}
-            availableQueries={queries}
-            scheduledQueriesConfig={{ query_ids: [1, 2] }}
-          />
-        )}
       </div>
     </MainContent>
   );

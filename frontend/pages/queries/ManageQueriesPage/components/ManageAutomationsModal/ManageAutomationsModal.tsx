@@ -21,6 +21,7 @@ interface IManageAutomationsModalProps {
   togglePreviewDataModal: () => void;
   availableQueries?: ISchedulableQuery[];
   scheduledQueriesConfig: ISchedulableQueriesScheduled;
+  logDestination: string;
 }
 
 interface ICheckedPolicy {
@@ -61,6 +62,7 @@ const ManageAutomationsModal = ({
   onCancel,
   togglePreviewDataModal,
   availableQueries,
+  logDestination,
 }: IManageAutomationsModalProps): JSX.Element => {
   // TODO: Error handling, if any
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -97,16 +99,66 @@ const ManageAutomationsModal = ({
   });
 
   const renderLogDestination = () => {
-    // TODO: tip content
-    // TODO: dynamic log destination
+    const readableLogDestination = () => {
+      switch (logDestination) {
+        case "filesystem":
+          return "Filesystem";
+        case "firehose":
+          return "Amazon Kinesis Data Firehose";
+        case "kinesis":
+          return "Amazon Kinesis Data Streams";
+        case "lambda":
+          return "AWS Lambda";
+        case "pubsub":
+          return "Google Cloud Pub/Sub";
+        case "kafta":
+          return "Apache Kafka";
+        case "stdout":
+          return "Standard output (stdout)";
+        case "":
+          return "Not set";
+        default:
+          return logDestination;
+      }
+    };
+
+    const tooltipText = () => {
+      switch (logDestination) {
+        case "filesystem":
+          return `Each time a query runs, the data is sent to <br />
+            /var/log/osquery/osqueryd.snapshots.log <br />
+            in each host&apos;s filesystem.`;
+        case "firehose":
+          return `Each time a query runs, the data is sent to <br />
+            Amazon Kinesis Data Firehose.`;
+        case "kinesis":
+          return `Each time a query runs, the data is sent to <br />
+            Amazon Kinesis Data Streams.`;
+        case "lambda":
+          return `
+            Each time a query runs, the data <br />is sent to AWS Lambda.
+          `;
+        case "pubsub":
+          return `Each time a query runs, the data is <br />sent to Google Cloud Pub/Sub.`;
+        case "kafta":
+          return `Each time a query runs, the data <br />is sent to Apache Kafka.`;
+        case "stdout":
+          return `Each time a query runs, the data is sent to <br />
+            standard output (stdout) on the Fleet server.`;
+        case "":
+          return "Please configure a log destination.";
+        default:
+          return "No additional information is available about this log destination.";
+      }
+    };
+
     return (
-      <TooltipWrapper
-        tipContent={`Each time a query runs, the data is sent to /var/log/osquery/osqueryd.snapshots.log in each host’s filesystem.`}
-      >
-        Filesystem
+      <TooltipWrapper tipContent={tooltipText()}>
+        {readableLogDestination()}
       </TooltipWrapper>
     );
   };
+
   return (
     <Modal title={"Manage automations"} onExit={onCancel} className={baseClass}>
       <div className={baseClass}>
@@ -125,7 +177,7 @@ const ManageAutomationsModal = ({
                   queryItems.map((queryItem) => {
                     const { isChecked, name, id } = queryItem;
                     return (
-                      <div key={id} className={`${baseClass}__team-item`}>
+                      <div key={id} className={`${baseClass}__query-item`}>
                         <Checkbox
                           value={isChecked}
                           name={name}
@@ -143,9 +195,9 @@ const ManageAutomationsModal = ({
               </div>
             </div>
           ) : (
-            <div className={`${baseClass}__no-policies`}>
-              <b>You have no policies.</b>
-              <p>Add a policy to turn on automations.</p>
+            <div className={`${baseClass}__no-queries`}>
+              <b>You have no queries.</b>
+              <p>Add a query to turn on automations.</p>
             </div>
           )}
           <div className={`${baseClass}__log-destination`}>
@@ -154,7 +206,7 @@ const ManageAutomationsModal = ({
             </p>
             <div className={`${baseClass}__selection`}>
               {renderLogDestination()}
-            </div>{" "}
+            </div>
             <div className={`${baseClass}__configure`}>
               Users with the admin role can&nbsp;
               <CustomLink
