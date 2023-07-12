@@ -64,6 +64,6 @@ Learn more about the company and [why you should join us here](https://fleetdm.c
 
 Want to join the team?
 
-Reach out to Joanne Stableford on [Linkedin](https://www.linkedin.com/in/joanne-stableford/).
+You can [apply for this position here](https://3x3q33auqgj.typeform.com/to/ndA2wMXl) or reach out to Joanne Stableford on [LinkedIn](https://www.linkedin.com/in/joanne-stableford/).
 
 <meta name="maintainedBy" value="jostableford">
