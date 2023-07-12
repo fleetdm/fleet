@@ -23,7 +23,11 @@ export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
+  { value: 0, label: "Never" },
+  { value: 300, label: "Every 5 minutes" },
+  { value: 600, label: "Every 10 minutes" },
   { value: 900, label: "Every 15 minutes" },
+  { value: 1800, label: "Every 30 minutes" },
   { value: 3600, label: "Every hour" },
   { value: 21600, label: "Every 6 hours" },
   { value: 43200, label: "Every 12 hours" },
