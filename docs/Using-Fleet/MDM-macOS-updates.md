@@ -53,6 +53,8 @@ Currently, end user macOS update reminders via Nudge don't support RSR versions 
 
 You can use custom MDM commands in Fleet to trigger built-in macOS update reminders for RSRs. Learn which MDM commands to use in the Apple docs [here](https://support.apple.com/guide/deployment/rapid-security-responses-dep93ff7ea78/web).
 
+#### Mac is up to date
+
 Sometimes after the end user clicks "update" on the Nudge window, the end user's Mac will say that macOS is up to date when it isn't. This known issue can create a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
 
 1. From the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
