@@ -269,7 +269,7 @@ There are a number of tools that are used throughout Fleet. Some of these tools 
 Here is an overview of a few of the most important and generally-applicable tools we use at Fleet:
 
 ### Slack
-At Fleet, we do not send internal emails to each other. Instead, we prefer to use Slack to communicate with other folks who work at Fleet.
+At Fleet, we do not send internal emails to each other. Instead, we prefer to use [Slack](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/) to communicate with other folks who work at Fleet.
 We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 
