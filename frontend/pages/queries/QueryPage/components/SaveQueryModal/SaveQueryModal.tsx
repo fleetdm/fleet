@@ -10,7 +10,7 @@ import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-export interface INewQueryModalProps {
+export interface ISaveQueryModalProps {
   baseClass: string;
   queryValue: string;
   isLoading: boolean;
@@ -30,14 +30,14 @@ const validateQueryName = (name: string) => {
   return { valid, errors };
 };
 
-const NewQueryModal = ({
+const SaveQueryModal = ({
   baseClass,
   queryValue,
   isLoading,
   onCreateQuery,
   setIsSaveModalOpen,
   backendValidators,
-}: INewQueryModalProps): JSX.Element => {
+}: ISaveQueryModalProps): JSX.Element => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [observerCanRun, setObserverCanRun] = useState(false);
@@ -132,4 +132,4 @@ const NewQueryModal = ({
   );
 };
 
-export default NewQueryModal;
+export default SaveQueryModal;

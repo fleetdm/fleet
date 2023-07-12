@@ -26,7 +26,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
-import NewQueryModal from "../NewQueryModal";
+import SaveQueryModal from "../SaveQueryModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form";
@@ -564,7 +564,7 @@ const QueryForm = ({
         </div>
       </form>
       {isSaveModalOpen && (
-        <NewQueryModal
+        <SaveQueryModal
           baseClass={baseClass}
           queryValue={lastEditedQueryBody}
           onCreateQuery={onCreateQuery}
