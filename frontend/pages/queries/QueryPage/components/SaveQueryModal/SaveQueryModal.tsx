@@ -165,8 +165,12 @@ const SaveQueryModal = ({
             }}
             placeholder={"Every hour"}
             value={selectedFrequency}
+            label="Frequency"
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
           />
+          <p>
+            If automations are on, this is how often your query collects data.
+          </p>
           <Checkbox
             name="observerCanRun"
             onChange={setObserverCanRun}
@@ -192,12 +196,18 @@ const SaveQueryModal = ({
               <Dropdown
                 options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
                 placeholder="Select"
-                label="Platform"
+                label="Platforms"
                 onChange={onChangeSelectPlatformOptions}
                 value={selectedPlatformOptions}
                 multi
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
               />
+              <p>
+                If automations are turned on, your query collects data on
+                compatible platforms.
+                <br />
+                If you want more control, override platforms.
+              </p>
               <Dropdown
                 options={MIN_OSQUERY_VERSION_OPTIONS}
                 onChange={setSelectedMinOsqueryVersionOptions}
@@ -223,7 +233,7 @@ const SaveQueryModal = ({
               className="save-query-loading"
               isLoading={isLoading}
             >
-              Save query
+              Save
             </Button>
             <Button onClick={toggleSaveQueryModal} variant="inverse">
               Cancel
