@@ -12,7 +12,11 @@ import statusAPI from "services/entities/status";
 import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { IQueryFormData, IQuery, IStoredQueryResponse } from "interfaces/query";
+import {
+  ICreateQueryRequestBody,
+  IGetQueryResponse,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import { ITarget } from "interfaces/target";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -78,13 +82,13 @@ const QueryPage = ({
     isLoading: isStoredQueryLoading,
     data: storedQuery,
     error: storedQueryError,
-  } = useQuery<IStoredQueryResponse, Error, IQuery>(
+  } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
     ["query", queryId],
     () => queryAPI.load(queryId as number),
     {
       enabled: !!queryId,
       refetchOnWindowFocus: false,
-      select: (data: IStoredQueryResponse) => data.query,
+      select: (data) => data.query,
       onSuccess: (returnedQuery) => {
         setLastEditedQueryId(returnedQuery.id);
         setLastEditedQueryName(returnedQuery.name);
@@ -119,7 +123,9 @@ const QueryPage = ({
     }
   );
 
-  const { mutateAsync: createQuery } = useMutation((formData: IQueryFormData) =>
+  const {
+    mutateAsync: createQuery,
+  } = useMutation((formData: ICreateQueryRequestBody) =>
     queryAPI.create(formData)
   );
 

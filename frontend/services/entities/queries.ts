@@ -4,17 +4,13 @@ import endpoints from "utilities/endpoints";
 import { IQueryFormData } from "interfaces/query";
 import { ISelectedTargets } from "interfaces/target";
 import { AxiosResponse } from "axios";
+import { ICreateQueryRequestBody } from "interfaces/schedulable_query";
 
 export default {
-  create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
+  create: (createQueryRequestBody: ICreateQueryRequestBody) => {
     const { QUERIES } = endpoints;
 
-    return sendRequest("POST", QUERIES, {
-      description,
-      name,
-      query,
-      observer_can_run,
-    });
+    return sendRequest("POST", QUERIES, createQueryRequestBody);
   },
   destroy: (id: string | number) => {
     const { QUERIES } = endpoints;
