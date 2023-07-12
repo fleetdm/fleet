@@ -290,7 +290,7 @@ integrations
 webhook_settings
 ```
 
-You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force the application of the changes without validation but should be used with caution.
+You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will apply the changes without validation and should be used with caution.
 
 ### Mobile device management (MDM) settings for teams
 
