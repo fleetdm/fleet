@@ -1,3 +1,0 @@
-- Added built-in label for ChromeOS.
-- Fixed issue with `chrome_extensions` virtual table not returning a path value on `fleetd-chrome`,
-  which was breaking software ingestion.

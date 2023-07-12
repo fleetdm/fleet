@@ -108,10 +108,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	team, err := s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
+	require.Equal(t, applyResp.TeamIDsByName[teamName], team.ID)
 	assert.Len(t, team.Secrets, 1)
 	require.JSONEq(t, string(agentOpts), string(*team.Config.AgentOptions))
 	require.Equal(t, fleet.Features{
@@ -121,8 +124,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}, team.Config.Features)
 	require.Equal(t, fleet.TeamMDM{
 		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "10.15.0",
-			Deadline:       "2021-01-01",
+			MinimumVersion: optjson.SetString("10.15.0"),
+			Deadline:       optjson.SetString("2021-01-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
@@ -197,7 +200,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
+	// dry-run never returns id to name mappings as it may not have them
+	require.Empty(t, applyResp.TeamIDsByName)
 
 	// dry-run with macos disk encryption set to true
 	teamSpecs = map[string]any{
@@ -334,7 +340,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	teams, err = s.ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -342,6 +350,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	team, err = s.ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
+	require.Equal(t, applyResp.TeamIDsByName["team2"], team.ID)
 
 	appConfig, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -364,10 +373,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	team, err = s.ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
+	require.Equal(t, applyResp.TeamIDsByName["team2"], team.ID)
 
 	require.Len(t, team.Secrets, 1)
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
@@ -752,7 +764,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	defaultFeatures := fleet.Features{}
 	defaultFeatures.ApplyDefaultsForNewInstalls()
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = NULL WHERE id = ? `, team.ID)
+		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = NULL WHERE id = ? `, tm1ID)
 		return err
 	})
 	tmResp.Team = nil
@@ -761,7 +773,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// modify a team with an empty config
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = '{}' WHERE id = ? `, team.ID)
+		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = '{}' WHERE id = ? `, tm1ID)
 		return err
 	})
 	tmResp.Team = nil
@@ -905,6 +917,186 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// delete team again, now an unknown team
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), nil, http.StatusNotFound, &delResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
+	t := s.T()
+
+	// -----------------
+	// Set up test data
+	// -----------------
+	teams := []*fleet.Team{
+		{
+			Name:        "Team One",
+			Description: "Team description",
+			Secrets:     []*fleet.EnrollSecret{{Secret: "DEF"}},
+		},
+		{
+			Name:        "Team Two",
+			Description: "Team Two description",
+			Secrets:     []*fleet.EnrollSecret{{Secret: "ABC"}},
+		},
+	}
+	for _, team := range teams {
+		_, err := s.ds.NewTeam(context.Background(), team)
+		require.NoError(t, err)
+	}
+
+	global_obs := &fleet.User{
+		Name:       "Global Obs",
+		Email:      "global_obs@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	global_obs_plus := &fleet.User{
+		Name:       "Global Obs+",
+		Email:      "global_obs_plus@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserverPlus),
+	}
+	team_obs := &fleet.User{
+		Name:  "Team Obs",
+		Email: "team_obs@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleObserver,
+			},
+			{
+				Team: *teams[1],
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	team_obs_plus := &fleet.User{
+		Name:  "Team Obs Plus",
+		Email: "team_obs_plus@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleAdmin,
+			},
+			{
+				Team: *teams[1],
+				Role: fleet.RoleObserverPlus,
+			},
+		},
+	}
+	users := []*fleet.User{global_obs, global_obs_plus, team_obs, team_obs_plus}
+	for _, u := range users {
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(context.Background(), u)
+		require.NoError(t, err)
+	}
+
+	// --------------------------------------------------------------------
+	// Global obs/obs+ should not be able to see any team secrets
+	// --------------------------------------------------------------------
+	for _, u := range []*fleet.User{global_obs, global_obs_plus} {
+
+		s.setTokenForTest(t, u.Email, test.GoodPassword)
+
+		// list all teams
+		var listResp listTeamsResponse
+		s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp)
+
+		require.Len(t, listResp.Teams, len(teams))
+		require.NoError(t, listResp.Err)
+
+		for _, team := range listResp.Teams {
+			for _, secret := range team.Secrets {
+				require.Equal(t, fleet.MaskedPassword, secret.Secret)
+			}
+		}
+
+		// listing a team / team secrets
+		for _, team := range teams {
+			var getResp getTeamResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+
+			require.NoError(t, getResp.Err)
+			for _, secret := range getResp.Team.Secrets {
+				require.Equal(t, fleet.MaskedPassword, secret.Secret)
+			}
+
+			var secResp teamEnrollSecretsResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), nil, http.StatusOK, &secResp)
+
+			require.Len(t, secResp.Secrets, 1)
+			require.NoError(t, secResp.Err)
+			for _, secret := range secResp.Secrets {
+				require.Equal(t, fleet.MaskedPassword, secret.Secret)
+			}
+		}
+	}
+
+	// --------------------------------------------------------------------
+	// Team obs/obs+ should not be able to see their team secrets
+	// --------------------------------------------------------------------
+	for _, u := range []*fleet.User{team_obs, team_obs_plus} {
+
+		s.setTokenForTest(t, u.Email, test.GoodPassword)
+
+		// list all teams
+		var listResp listTeamsResponse
+		s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp)
+
+		require.Len(t, listResp.Teams, len(u.Teams))
+		require.NoError(t, listResp.Err)
+
+		for _, team := range listResp.Teams {
+			for _, secret := range team.Secrets {
+				// team_obs has RoleObserver in Team 1, and an RoleAdmin in Team 2
+				// so it should be able to see the secrets in Team 1
+				if u.ID == team_obs.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[1].ID)
+				}
+
+				// team_obs_plus should not be able to see any Team Secret
+				if u.ID == team_obs_plus.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[0].ID)
+				}
+			}
+		}
+
+		// listing a team / team secrets
+		for _, team := range teams {
+			var getResp getTeamResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+
+			require.NoError(t, getResp.Err)
+			// team_obs has RoleObserver in Team 1, and an RoleAdmin in Team 2
+			// so it should be able to see the secrets in Team 1
+			for _, secret := range getResp.Team.Secrets {
+				if u.ID == team_obs.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[1].ID)
+				}
+
+				if u.ID == team_obs_plus.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[0].ID)
+				}
+			}
+
+			var secResp teamEnrollSecretsResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), nil, http.StatusOK, &secResp)
+
+			require.Len(t, secResp.Secrets, 1)
+			require.NoError(t, secResp.Err)
+			for _, secret := range secResp.Secrets {
+				if u.ID == team_obs.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[1].ID)
+				}
+
+				if u.ID == team_obs_plus.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[0].ID)
+				}
+			}
+		}
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
@@ -1448,80 +1640,125 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 	team.ID = tmResp.Team.ID
 
 	// modify the team's config
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0",
-				Deadline:       "2021-01-01",
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": &fleet.MacOSUpdates{
+				MinimumVersion: optjson.SetString("10.15.0"),
+				Deadline:       optjson.SetString("2021-01-01"),
 			},
 		},
 	}, http.StatusOK, &tmResp)
-	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
 
 	// only update the deadline
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0",
-				Deadline:       "2025-10-01",
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": &fleet.MacOSUpdates{
+				MinimumVersion: optjson.SetString("10.15.0"),
+				Deadline:       optjson.SetString("2025-10-01"),
 			},
 		},
 	}, http.StatusOK, &tmResp)
-	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2025-10-01"}`, team.ID, team.Name), 0)
 
-	// sending a nil MacOSUpdate config doesn't modify anything
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{MDM: nil}, http.StatusOK, &tmResp)
-	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	// sending a nil MDM or MacOSUpdate config doesn't modify anything
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": nil,
+	}, http.StatusOK, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": nil,
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	// no new activity is created
 	s.lastActivityMatches("", "", lastActivity)
 
-	// sending an empty MacOSUpdate empties both fields
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{MacOSUpdates: &fleet.MacOSUpdates{}}}, http.StatusOK, &tmResp)
-	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
-	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	// sending macos settings but no macos_updates does not change the macos updates
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_settings": map[string]any{
+				"custom_settings": nil,
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	// no new activity is created
+	s.lastActivityMatches("", "", lastActivity)
+
+	// sending empty MacOSUpdate fields empties both fields
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": map[string]any{
+				"minimum_version": "",
+				"deadline":        nil,
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
 
 	// error checks:
 
 	// try to set an invalid deadline
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0",
-				Deadline:       "2021-01-01T00:00:00Z",
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": map[string]any{
+				"minimum_version": "10.15.0",
+				"deadline":        "2021-01-01T00:00:00Z",
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
 
 	// try to set an invalid minimum version
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0 (19A583)",
-				Deadline:       "2021-01-01T00:00:00Z",
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": map[string]any{
+				"minimum_version": "10.15.0 (19A583)",
+				"deadline":        "2021-01-01T00:00:00Z",
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
 
 	// try to set a deadline but not a minimum version
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
-				Deadline: "2021-01-01T00:00:00Z",
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": map[string]any{
+				"deadline": "2021-01-01T00:00:00Z",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// try to set an empty deadline but not a minimum version
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": map[string]any{
+				"deadline": "",
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
 
 	// try to set a minimum version but not a deadline
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0 (19A583)",
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": map[string]any{
+				"minimum_version": "10.15.0 (19A583)",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// try to set an empty minimum version but not a deadline
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": map[string]any{
+				"minimum_version": "",
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
@@ -1745,7 +1982,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 		// get the appconfig, nothing changed
 		acResp = appConfigResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-		require.Equal(t, fleet.MacOSUpdates{}, acResp.MDM.MacOSUpdates)
+		require.Equal(t, fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}}, acResp.MDM.MacOSUpdates)
 
 		// no activity got created
 		activitiesResp = listActivitiesResponse{}
@@ -1804,8 +2041,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 				}
 			}
 		}`), http.StatusOK, &acResp)
-	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// edited macos min version activity got created
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
@@ -1813,8 +2050,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	// get the appconfig
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// update the deadline
 	acResp = appConfigResponse{}
@@ -1826,8 +2063,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 				}
 			}
 		}`), http.StatusOK, &acResp)
-	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2024-01-01", acResp.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// another edited macos min version activity got created
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
@@ -1835,6 +2072,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	// update something unrelated - the transparency url
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"transparency_url": "customURL"}}`), http.StatusOK, &acResp)
+	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// no activity got created
 	s.lastActivityMatches("", ``, lastActivity)
@@ -1849,8 +2088,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 				}
 			}
 		}`), http.StatusOK, &acResp)
-	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion)
-	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline)
+	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// edited macos min version activity got created with empty requirement
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
@@ -1865,8 +2104,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 				}
 			}
 		}`), http.StatusOK, &acResp)
-	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion)
-	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline)
+	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// no activity got created
 	s.lastActivityMatches("", ``, lastActivity)
@@ -1879,7 +2118,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1894,7 +2132,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	// users can't be created if SSO is disabled
 	auth, body := s.LoginSSOUser("sso_user", "user123#")
@@ -1903,6 +2140,8 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	_, err := s.ds.UserByEmail(context.Background(), auth.UserID())
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
+
+	// If enable_jit_provisioning is enabled Roles won't be updated for existing SSO users.
 
 	// enable JIT provisioning
 	acResp = appConfigResponse{}
@@ -1913,13 +2152,11 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-			"enable_jit_provisioning": true,
-			"enable_jit_role_sync": false
+			"enable_jit_provisioning": true
 		}
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	// a new user is created and redirected accordingly
 	auth, body = s.LoginSSOUser("sso_user", "user123#")
@@ -1943,13 +2180,14 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		return false
 	})
 
-	// Test that roles are not updated for an existing user because enable_jit_role_sync is false.
+	// Test that roles are not updated for an existing user when SSO attributes are not set.
 
 	// Change role to global admin first.
 	user.GlobalRole = ptr.String("admin")
 	err = s.ds.SaveUser(context.Background(), user)
 	require.NoError(t, err)
-	// Login should NOT change the role to the default (global observer).
+	// Login should NOT change the role to the default (global observer) because SSO attributes
+	// are not set for this user (see ../../tools/saml/users.php).
 	auth, body = s.LoginSSOUser("sso_user", "user123#")
 	assert.Equal(t, "sso_user@example.com", auth.UserID())
 	assert.Equal(t, "SSO User 1", auth.UserDisplayName())
@@ -1958,32 +2196,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NoError(t, err)
 	require.NotNil(t, user.GlobalRole)
 	require.Equal(t, *user.GlobalRole, "admin")
-
-	// Test that roles are updated for an existing user because enable_jit_role_sync is true.
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"sso_settings": {
-			"enable_sso": true,
-			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
-			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-			"enable_jit_provisioning": true,
-			"enable_jit_role_sync": true
-		}
-	}`), http.StatusOK, &acResp)
-	require.NotNil(t, acResp)
-	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.True(t, acResp.SSOSettings.EnableJITRoleSync)
-	// Login should change the role to the default role (global observer).
-	auth, body = s.LoginSSOUser("sso_user", "user123#")
-	assert.Equal(t, "sso_user@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 1", auth.UserDisplayName())
-	require.Contains(t, body, "Redirecting to Fleet at  ...")
-	user, err = s.ds.UserByEmail(context.Background(), "sso_user@example.com")
-	require.NoError(t, err)
-	require.NotNil(t, user.GlobalRole)
-	require.Equal(t, *user.GlobalRole, "observer")
 
 	// A user with pre-configured roles can be created
 	// see `tools/saml/users.php` for details.
@@ -1997,6 +2209,26 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		}},
 	})
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// Test that roles are updated for an existing user when SSO attributes are set.
+
+	// Change role to global maintainer first.
+	user3, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	require.NoError(t, err)
+	require.Equal(t, auth.UserID(), user3.Email)
+	user3.GlobalRole = ptr.String("maintainer")
+	err = s.ds.SaveUser(context.Background(), user3)
+	require.NoError(t, err)
+
+	// Login should change the role to the configured role in the SSO attributes (global admin).
+	auth, body = s.LoginSSOUser("sso_user_3_global_admin", "user123#")
+	assert.Equal(t, "sso_user_3_global_admin@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 3", auth.UserDisplayName())
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user3, err = s.ds.UserByEmail(context.Background(), "sso_user_3_global_admin@example.com")
+	require.NoError(t, err)
+	require.NotNil(t, user3.GlobalRole)
+	require.Equal(t, *user3.GlobalRole, "admin")
 
 	// We cannot use NewTeam and must use adhoc SQL because the teams.id is
 	// auto-incremented and other tests cause it to be different than what we need (ID=1).
@@ -2259,6 +2491,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 		if route.deviceAuthenticated {
 			path = fmt.Sprintf(route.path, tkn)
 		}
+
 		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error())
@@ -2546,88 +2779,6 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	require.Len(s.T(), pfs, 1)
 }
 
-func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
-	t := s.T()
-
-	// ensure the config is empty before starting
-	s.applyConfig([]byte(`
-  mdm:
-    macos_updates:
-      deadline: ""
-      minimum_version: ""
- `))
-
-	var resp orbitGetConfigResponse
-	// missing orbit key
-	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
-
-	// nudge config is empty if macos_updates is not set
-	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.Empty(t, resp.NudgeConfig)
-
-	// set macos_updates
-	s.applyConfig([]byte(`
-  mdm:
-    macos_updates:
-      deadline: 2022-01-04
-      minimum_version: 12.1.3
- `))
-
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "2022-01-04", MinimumVersion: "12.1.3"})
-	require.NoError(t, err)
-	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
-
-	// create a team with an empty macos_updates config
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          4827,
-		Name:        "team1_" + t.Name(),
-		Description: "desc team1_" + t.Name(),
-	})
-	require.NoError(t, err)
-
-	// add the host to the team
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
-	require.NoError(t, err)
-
-	// NudgeConfig should be empty
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.Empty(t, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
-
-	// modify the team config, add macos_updates config
-	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
-				Deadline:       "1992-01-01",
-				MinimumVersion: "13.1.1",
-			},
-		},
-	}, http.StatusOK, &tmResp)
-
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "1992-01-01", MinimumVersion: "13.1.1"})
-	require.NoError(t, err)
-	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 04:00:00 +0000 UTC")
-
-	// create a new host, still receives the global config
-	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "2022-01-04", MinimumVersion: "12.1.3"})
-	require.NoError(t, err)
-	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
-}
-
 // allEqual compares all fields of a struct.
 // If a field is a pointer on one side but not on the other, then it follows that pointer. This is useful for optional
 // arguments.
@@ -2663,11 +2814,16 @@ func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *
 	})
 	require.NoError(t, err)
 
+	createDeviceTokenForHost(t, ds, host.ID, token)
+
+	return host
+}
+
+func createDeviceTokenForHost(t *testing.T, ds *mysql.Datastore, hostID uint, token string) {
 	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hostID, token)
 		return err
 	})
-	return host
 }
 
 func (s *integrationEnterpriseTestSuite) TestListSoftware() {

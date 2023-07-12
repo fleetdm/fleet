@@ -9,6 +9,9 @@ go.mod @fleetdm/go
 # Compliance
 /ee/cis/ @sharon-fdm @lucasmrod @marcosd4h @rachelElysia
 
+# MDM
+/ee/tools/puppet @roperzh @gillespi314 @mna @georgekarrv
+
 # React engineers are automatically added as reviewers when changes are made to react files
 /frontend/ @fleetdm/frontend
 
@@ -25,7 +28,7 @@ go.mod @fleetdm/go
 /CODEOWNERS @mikermcneil
 
 # Changelog
-/CHANGELOG.md @noahtalerman
+/CHANGELOG.md @lukeheath
 
 # Fleet documentation (who is auto-requested as reviewer for changes to docs?)
 /docs/ @rachaelshaw
@@ -39,6 +42,7 @@ go.mod @fleetdm/go
 
 # Expanded table documentation
 /schema @eashaw
+/schema/tables @rachaelshaw
 
 # Articles
 /articles @jarodreyes

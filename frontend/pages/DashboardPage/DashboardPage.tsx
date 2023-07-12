@@ -118,6 +118,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [macCount, setMacCount] = useState(0);
   const [windowsCount, setWindowsCount] = useState(0);
   const [linuxCount, setLinuxCount] = useState(0);
+  const [chromeCount, setChromeCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -200,9 +201,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
 
+        const chromebooks = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
+        ) || { platform: "chrome", hosts_count: 0 };
+
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
+        setChromeCount(chromebooks.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -318,7 +324,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     [`mdm-${selectedPlatform}`, teamIdForApi],
     () => hosts.getMdmSummary(selectedPlatform, teamIdForApi),
     {
-      enabled: isRouteOk && selectedPlatform !== "linux",
+      enabled: isRouteOk && !["linux", "chrome"].includes(selectedPlatform),
       onSuccess: ({
         counts_updated_at,
         mobile_device_management_solution,
@@ -416,12 +422,18 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setShowAddHostsModal(!showAddHostsModal);
   };
 
+  const { MANAGE_HOSTS } = paths;
+
   const HostsSummaryCard = useInfoCard({
     title: "Hosts",
-    action: {
-      type: "link",
-      text: "View all hosts",
-    },
+    action:
+      selectedPlatform === "all"
+        ? {
+            type: "link",
+            text: "View all hosts",
+          }
+        : undefined,
+    actionUrl: selectedPlatform === "all" ? MANAGE_HOSTS : undefined,
     total_host_count: (() => {
       if (!isHostSummaryFetching && !errorHosts) {
         return `${hostSummaryData?.totals_hosts_count}` || undefined;
@@ -436,6 +448,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         macCount={macCount}
         windowsCount={windowsCount}
         linuxCount={linuxCount}
+        chromeCount={chromeCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
@@ -496,6 +509,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         selectedPlatformLabelId={selectedPlatformLabelId}
         currentTeamId={teamIdForApi}
         isSandboxMode={isSandboxMode}
+        notSupported={selectedPlatform === "chrome"}
       />
     ),
   });
@@ -588,7 +602,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       {useInfoCard({
         title: "Mobile device management (MDM)",
         titleDetail: mdmTitleDetail,
-        showTitle: !isMacAdminsFetching,
+        showTitle: !isMdmFetching,
         description: (
           <p>
             MDM is used to change settings and install software on your hosts.
@@ -658,6 +672,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   );
   const linuxLayout = () => null;
 
+  const chromeLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    </>
+  );
+
   const renderCards = () => {
     switch (selectedPlatform) {
       case "darwin":
@@ -666,6 +686,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return windowsLayout();
       case "linux":
         return linuxLayout();
+      case "chrome":
+        return chromeLayout();
       default:
         return allLayout();
     }

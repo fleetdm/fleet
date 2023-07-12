@@ -3,7 +3,7 @@ parasails.registerPage('pricing', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    displaySecurityPricingMode: false, // For pricing mode switch
+    displaySecurityPricingMode: false,// For pricing mode switch
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗

@@ -23,6 +23,13 @@
     }
   }
 
+  // allows for the tooltip text to break on a word instead of a character
+  &.tooltip-break-on-word {
+    .truncated-tooltip {
+      word-break: normal
+    }
+  }
+
   // Responsive design overrides react-tooltip width that overflows off screen
   .truncated-tooltip {
     max-width: 300px;

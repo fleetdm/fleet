@@ -62,12 +62,6 @@
             }
           }
         }
-
-        // Position tooltip over parent div
-        .component__tooltip-wrapper {
-          position: absolute;
-          margin-top: 20px;
-        }
       }
 
       &__header {
@@ -83,10 +77,18 @@
     .info-grid {
       display: grid;
       grid-auto-flow: column;
-      grid-template-columns: repeat(4, max-content);
-      grid-template-rows: repeat(3, 1fr);
+      grid-template-columns: repeat(
+        3,
+        max-content
+      ); // Prevents overflow off screen
+      grid-template-rows: repeat(4, 1fr);
       column-gap: $pad-xxlarge;
       row-gap: $pad-medium;
+
+      @media (min-width: $break-990) {
+        grid-template-columns: repeat(4, max-content);
+        grid-template-rows: repeat(3, 1fr);
+      }
 
       &__block {
         font-size: $x-small;
@@ -173,16 +175,7 @@
       .refetch-btn {
         font-size: $x-small;
         height: 38px;
-        margin-right: $pad-small;
-
-        &::before {
-          display: inline-block;
-          position: relative;
-          padding: 5px 0 0 0; // centers spin
-          content: url(../assets/images/icon-refetch-12x12@2x.png);
-          transform: scale(0.5);
-          height: 28px;
-        }
+        margin-left: $pad-small;
       }
 
       .refetch-offline {
@@ -196,24 +189,19 @@
         height: 38px;
         opacity: 50%;
         filter: saturate(100%);
+        margin-left: $pad-small;
 
-        &::before {
-          display: inline-block;
-          position: relative;
-          padding: 5px 0 0 0; // centers spin
-          display: inline-block;
-          content: url(../assets/images/icon-refetch-12x12@2x.png);
-          transform: scale(0.5);
+        .icon {
           animation: spin 2s linear infinite;
         }
 
         @keyframes spin {
           0% {
-            transform: scale(0.5) rotate(0deg);
+            transform: rotate(0deg);
             transform-origin: center center;
           }
           100% {
-            transform: scale(0.5) rotate(360deg);
+            transform: rotate(360deg);
             transform-origin: center center;
           }
         }

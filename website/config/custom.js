@@ -103,7 +103,7 @@ module.exports.custom = {
     'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     '.github/workflows': ['zwass', 'mikermcneil'],// (misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
-    'CHANGELOG.md': ['zwass', 'mikermcneil'],
+    'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
@@ -112,14 +112,16 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala', 'zhumo','lukeheath','noahtalerman', 'lukeheath'],
 
     'articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+    'website/assets/images/articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
     'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
-    'handbook/business-operations': ['hollidayn', 'mikermcneil'],
-    'handbook/engineering': 'zwass',
+    'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
+    'handbook/business-operations/ceo-handbook': ['sampfluger88', 'mikermcneil'],
+    'handbook/engineering': ['zwass', 'lukeheath'],
     'handbook/product': ['noahtalerman', 'zhumo'],
     'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
-    'handbook/marketing': ['jarodreyes', 'mike-j-thomas'],
+    'handbook/marketing': ['jarodreyes', 'mike-j-thomas', 'spokanemac'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
@@ -135,7 +137,7 @@ module.exports.custom = {
     'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
 
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
-    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h'],// (Osquery table schema)
+    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h','rachaelshaw'],// (Osquery table schema)
   },
 
   confidentialGithubRepoDRIByPath: {// fleetdm/confidential
@@ -186,6 +188,12 @@ module.exports.custom = {
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
   // datadogApiKey: '…',
+
+  // For receive-from-customer-fleet-instance webhook.
+  // customerWorkspaceOneBaseUrl: '…',
+  // customerWorkspaceOneOauthId: '…',
+  // customerWorkspaceOneOauthSecret: '…',
+  // customerMigrationWebhookSecret: '…',
 
   //…
 

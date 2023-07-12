@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -22,6 +23,29 @@ func TestNudge(t *testing.T) {
 type nudgeTestSuite struct {
 	suite.Suite
 	withTUF
+}
+
+func (s *nudgeTestSuite) TestUpdatesDisabled() {
+	t := s.T()
+	var err error
+	cfg := &fleet.OrbitConfig{}
+	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
+	require.NoError(t, err)
+	runNudgeFn := func(execPath, configPath string) error {
+		return nil
+	}
+	var f OrbitConfigFetcher = &dummyConfigFetcher{cfg: cfg}
+	f = ApplyNudgeConfigFetcherMiddleware(f, NudgeConfigFetcherOptions{
+		UpdateRunner: nil,
+		RootDir:      t.TempDir(),
+		Interval:     time.Minute,
+		runNudgeFn:   runNudgeFn,
+	})
+
+	// we used to get a panic if updates were disabled (see #11980)
+	gotCfg, err := f.GetConfig()
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotCfg)
 }
 
 func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
@@ -57,7 +81,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	require.Len(t, targets, 0)
 
 	// set the config
-	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: "11", Deadline: "2022-01-04"})
+	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
 	require.NoError(t, err)
 
 	// there's an error when the remote repo doesn't have the target yet
@@ -67,6 +91,8 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 
 	// add nuge to the remote
 	s.addRemoteTarget(nudgePath)
+
+	// nothing happens if a nil runner is provided
 
 	// nudge is added to targets when nudge config is present
 	gotCfg, err = f.GetConfig()

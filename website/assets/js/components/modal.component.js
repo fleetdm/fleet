@@ -48,7 +48,7 @@ parasails.registerComponent('modal', {
       <div class="petticoat"></div>
       <div class="modal-dialog custom-width position-relative" role="document" purpose="modal-dialog">
         <div class="modal-content" purpose="modal-content">
-          <button type="button" style="top: 5px; right: 0; font-size: 28px; line-height: 1;" class="py-2 px-3 position-absolute" data-dismiss="modal" aria-label="Close" purpose="modal-close-button" v-if="!hideCloseButton">&times;</button>
+          <button type="button" class="position-absolute" data-dismiss="modal" aria-label="Close" purpose="modal-close-button" v-if="!hideCloseButton">&times;</button>
           <slot></slot>
         </div><!-- /.modal-content -->
       </div><!-- /.modal-dialog -->

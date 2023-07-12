@@ -2,8 +2,11 @@ package osquery_utils
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -465,6 +468,12 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("munki_info"),
 	},
+	// On ChromeOS, the `users` table returns only the user signed into the primary chrome profile.
+	"chromeos_profile_user_info": {
+		Query:            `SELECT email FROM users`,
+		DirectIngestFunc: directIngestChromeProfiles,
+		Platforms:        []string{"chrome"},
+	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
 		DirectIngestFunc: directIngestChromeProfiles,
@@ -568,30 +577,56 @@ var extraDetailQueries = map[string]DetailQuery{
 // They are only sent to the device when Fleet's MDM is on and properly
 // configured
 var mdmQueries = map[string]DetailQuery{
-	"mdm_disk_encryption_key_darwin": {
-		// This query has two pre-requisites:
-		//
-		// 1. FileVault must be enabled with a personal recovery key.
-		// 2. The "FileVault Recovery Key Escrow" profile must be configured
-		//    in the host.
-		//
-		// This file is safe to access and well [documented by Apple][1]:
-		//
-		// > If FileVault is enabled after this payload is installed on the system,
-		// > the FileVault PRK will be encrypted with the specified certificate,
-		// > wrapped with a CMS envelope and stored at /var/db/FileVaultPRK.dat. The
-		// > encrypted data will be made available to the MDM server as part of the
-		// > SecurityInfo command.
-		// >
-		// > Alternatively, if a site uses its own administration
-		// > software, it can extract the PRK from the foregoing
-		// > location at any time.
-		//
-		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
-		Query:            fmt.Sprintf(`SELECT to_base64(group_concat(line, x'0a')) as filevault_key, COALESCE((%s), 0) as encrypted FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`, usesMacOSDiskEncryptionQuery),
+	"mdm_config_profiles_darwin": {
+		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";`,
 		Platforms:        []string{"darwin"},
-		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
-		Discovery:        discoveryTable("file_lines"),
+		DirectIngestFunc: directIngestMacOSProfiles,
+		Discovery:        discoveryTable("macos_profiles"),
+	},
+	// There are two mutually-exclusive queries used to read the FileVaultPRK depending on which
+	// extension tables are discovered on the agent. The preferred query uses the newer custom
+	// `filevault_prk` extension table rather than the macadmins `file_lines` table. It is preferred
+	// because the `file_lines` implementation uses bufio.ScanLines which drops end of line
+	// characters.
+	//
+	// Both queries depend on the same pre-requisites:
+	//
+	// 1. FileVault must be enabled with a personal recovery key.
+	// 2. The "FileVault Recovery Key Escrow" profile must be configured
+	//    in the host.
+	//
+	// This file is safe to access and well [documented by Apple][1]:
+	//
+	// > If FileVault is enabled after this payload is installed on the system,
+	// > the FileVault PRK will be encrypted with the specified certificate,
+	// > wrapped with a CMS envelope and stored at /var/db/FileVaultPRK.dat. The
+	// > encrypted data will be made available to the MDM server as part of the
+	// > SecurityInfo command.
+	// >
+	// > Alternatively, if a site uses its own administration
+	// > software, it can extract the PRK from the foregoing
+	// > location at any time.
+	//
+	// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
+	"mdm_disk_encryption_key_file_lines_darwin": {
+		Query: fmt.Sprintf(`
+	WITH 
+		de AS (SELECT IFNULL((%s), 0) as encrypted),
+		fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
+	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;`, usesMacOSDiskEncryptionQuery),
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryptionKeyFileLinesDarwin,
+		Discovery:        fmt.Sprintf(`SELECT 1 WHERE EXISTS (%s) AND NOT EXISTS (%s);`, strings.Trim(discoveryTable("file_lines"), ";"), strings.Trim(discoveryTable("filevault_prk"), ";")),
+	},
+	"mdm_disk_encryption_key_file_darwin": {
+		Query: fmt.Sprintf(`
+	WITH
+		de AS (SELECT IFNULL((%s), 0) as encrypted),
+		fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
+	SELECT encrypted, filevault_key FROM de LEFT JOIN fv;`, usesMacOSDiskEncryptionQuery),
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryptionKeyFileDarwin,
+		Discovery:        discoveryTable("filevault_prk"),
 	},
 }
 
@@ -1277,11 +1312,18 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		host.RefetchCriticalQueriesUntil = nil
 	}
 
+	serverURL, err := url.Parse(rows[0]["server_url"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing server_url")
+	}
+	// strip any query parameters from the URL
+	serverURL.RawQuery = ""
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		false,
 		enrolled,
-		rows[0]["server_url"],
+		serverURL.String(),
 		installedFromDep,
 		mdmSolutionName,
 	)
@@ -1353,7 +1395,9 @@ func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fl
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
-func directIngestDiskEncryptionKeyDarwin(
+// directIngestDiskEncryptionKeyFileDarwin ingests the FileVault key from the `filevault_prk`
+// extension table. It is the preferred method when a host has the extension table available.
+func directIngestDiskEncryptionKeyFileDarwin(
 	ctx context.Context,
 	logger log.Logger,
 	host *fleet.Host,
@@ -1364,7 +1408,7 @@ func directIngestDiskEncryptionKeyDarwin(
 		// assume the extension is not there
 		level.Debug(logger).Log(
 			"component", "service",
-			"method", "directIngestDiskEncryptionKeyDarwin",
+			"method", "directIngestDiskEncryptionKeyFileDarwin",
 			"msg", "no rows or failed",
 			"host", host.Hostname,
 		)
@@ -1374,16 +1418,16 @@ func directIngestDiskEncryptionKeyDarwin(
 	if len(rows) > 1 {
 		level.Debug(logger).Log(
 			"component", "service",
-			"method", "directIngestDiskEncryptionKeyDarwin",
-			"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
+			"method", "directIngestDiskEncryptionKeyFileDarwin",
+			"msg", fmt.Sprintf("filevault_prk should have a single row, but got %d", len(rows)),
 			"host", host.Hostname,
 		)
 	}
 
-	if rows[0]["encrypted"] == "0" {
+	if rows[0]["encrypted"] != "1" {
 		level.Debug(logger).Log(
 			"component", "service",
-			"method", "directIngestDiskEncryptionKeyDarwin",
+			"method", "directIngestDiskEncryptionKeyFileDarwin",
 			"msg", "host does not use disk encryption",
 			"host", host.Hostname,
 		)
@@ -1393,6 +1437,91 @@ func directIngestDiskEncryptionKeyDarwin(
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+}
+
+// directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
+// extension table. It is the fallback method in cases where the preferred `filevault_prk` extension
+// table is not available on the host.
+func directIngestDiskEncryptionKeyFileLinesDarwin(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// assume the extension is not there
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
+			"msg", "no rows or failed",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	var hexLines []string
+	for _, row := range rows {
+		if row["encrypted"] != "1" {
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "directIngestDiskEncryptionKeyDarwin",
+				"msg", "host does not use disk encryption",
+				"host", host.Hostname,
+			)
+			return nil
+		}
+		hexLines = append(hexLines, row["hex_line"])
+	}
+	// We concatenate the lines in Go rather than using SQL `group_concat` because the order in
+	// which SQL appends the lines is not deterministic, nor guaranteed to be the right order.
+	// We assume that hexadecimal 0A (i.e. new line) was the delimiter used to split all lines;
+	// however, there are edge cases where this will not be true. It is a known limitation
+	// with the `file_lines` extension table and its reliance on bufio.ScanLines that carriage
+	// returns will be lost if the source file contains hexadecimal 0D0A (i.e. carriage
+	// return preceding new line). In such cases, the stored key will be incorrect.
+	b, err := hex.DecodeString(strings.Join(hexLines, "0A"))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding hex string")
+	}
+
+	// it's okay if the key comes empty, this can happen and if the disk is
+	// encrypted it means we need to reset the encryption key
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b))
+}
+
+func directIngestMacOSProfiles(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// assume the extension is not there
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestMacOSProfiles",
+			"msg", "no rows or failed",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	mapping := make([]*fleet.HostMacOSProfile, 0, len(rows))
+	for _, row := range rows {
+		installDate, err := time.Parse("2006-01-02 15:04:05 -0700", row["install_date"])
+		if err != nil {
+			return err
+		}
+		mapping = append(mapping, &fleet.HostMacOSProfile{
+			DisplayName: row["display_name"],
+			Identifier:  row["identifier"],
+			InstallDate: installDate,
+		})
+	}
+
+	return ds.UpdateVerificationHostMacOSProfiles(ctx, host, mapping)
 }
 
 //go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md

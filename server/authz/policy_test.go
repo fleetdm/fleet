@@ -1480,6 +1480,96 @@ func TestAuthorizeMDMAppleSetupAssistant(t *testing.T) {
 	})
 }
 
+func TestAuthorizeMDMAppleBootstrapPackage(t *testing.T) {
+	t.Parallel()
+
+	globalSettings := &fleet.MDMAppleBootstrapPackage{}
+	team1Settings := &fleet.MDMAppleBootstrapPackage{
+		TeamID: 1,
+	}
+	runTestCases(t, []authTestCase{
+		{user: test.UserNoRoles, object: globalSettings, action: write, allow: false},
+		{user: test.UserNoRoles, object: globalSettings, action: read, allow: false},
+		{user: test.UserNoRoles, object: team1Settings, action: write, allow: false},
+		{user: test.UserNoRoles, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserAdmin, object: globalSettings, action: write, allow: true},
+		{user: test.UserAdmin, object: globalSettings, action: read, allow: true},
+		{user: test.UserAdmin, object: team1Settings, action: write, allow: true},
+		{user: test.UserAdmin, object: team1Settings, action: read, allow: true},
+
+		{user: test.UserMaintainer, object: globalSettings, action: write, allow: true},
+		{user: test.UserMaintainer, object: globalSettings, action: read, allow: true},
+		{user: test.UserMaintainer, object: team1Settings, action: write, allow: true},
+		{user: test.UserMaintainer, object: team1Settings, action: read, allow: true},
+
+		{user: test.UserObserver, object: globalSettings, action: write, allow: false},
+		{user: test.UserObserver, object: globalSettings, action: read, allow: false},
+		{user: test.UserObserver, object: team1Settings, action: write, allow: false},
+		{user: test.UserObserver, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserObserverPlus, object: globalSettings, action: write, allow: false},
+		{user: test.UserObserverPlus, object: globalSettings, action: read, allow: false},
+		{user: test.UserObserverPlus, object: team1Settings, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserGitOps, object: globalSettings, action: write, allow: true},
+		{user: test.UserGitOps, object: globalSettings, action: read, allow: false},
+		{user: test.UserGitOps, object: team1Settings, action: write, allow: true},
+		{user: test.UserGitOps, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1Settings, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team1Settings, action: read, allow: true},
+
+		{user: test.UserTeamAdminTeam2, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1Settings, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team1Settings, action: read, allow: true},
+
+		{user: test.UserTeamMaintainerTeam2, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam2, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam2, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Settings, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamGitOpsTeam2, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: team1Settings, action: read, allow: false},
+	})
+}
+
 func assertAuthorized(t *testing.T, user *fleet.User, object, action interface{}) {
 	t.Helper()
 

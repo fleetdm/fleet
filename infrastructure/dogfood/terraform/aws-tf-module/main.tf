@@ -87,7 +87,8 @@ module "main" {
     image  = local.fleet_image
     family = local.customer
     awslogs = {
-      name = local.customer
+      name      = local.customer
+      retention = 365
     }
     iam = {
       role = {

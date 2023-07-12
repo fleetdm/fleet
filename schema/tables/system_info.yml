@@ -1,4 +1,82 @@
 name: system_info
+platforms:
+  - windows
+  - darwin
+  - linux
+  - chrome
+columns:
+  - name: cpu_subtype
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: cpu_physical_cores
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: cpu_logical_cores
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: cpu_microcode
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: hardware_version
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: board_vendor
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: board_model
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: board_version
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: board_serial
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: local_hostname
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: hostname
+    type: string
+    description: For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
+  - name: computer_name
+    type: string
+    description: For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only
+  - name: hardware_serial
+    type: string
+    description: The device's serial number (For chromeos, this is only available if the extension was force-installed by an enterprise policy)
+  - name: hardware_vendor
+    type: string
+    description: For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
+  - name: hardware_model
+    type: string
+    description: For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
+  - name: cpu_brand
+    type: string
+  - name: cpu_type
+    type: string
+  - name: physical_memory
+    type: string
+
 examples: >-
   See the CPU architecture of a machine as well as who made it and what its
   serial number is.
@@ -8,3 +86,5 @@ examples: >-
   SELECT CPU_type, hardware_vendor, hardware_model, hardware_serial FROM system_info;
 
   ```
+notes: |
+  - This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

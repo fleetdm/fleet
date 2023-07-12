@@ -15,6 +15,12 @@ variable "firehose_status_name" {
   default     = "osquery_status"
 }
 
+variable "firehose_audit_name" {
+  type        = string
+  description = "firehose delivery stream name for Fleet audit logs"
+  default     = ""
+}
+
 variable "fleet_iam_role_arn" {
   type        = string
   description = "the arn of the fleet role that firehose will assume to write data to your bucket"
@@ -28,4 +34,9 @@ variable "results_prefix" {
 variable "status_prefix" {
   default     = "status/"
   description = "s3 object prefix to give status logs"
+}
+
+variable "audit_prefix" {
+  default     = "audit/"
+  description = "s3 object prefix to give Fleet audit logs"
 }
