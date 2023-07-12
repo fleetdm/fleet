@@ -66,4 +66,4 @@ Want to join the team?
 
 You can [apply for this position here](https://3x3q33auqgj.typeform.com/to/ndA2wMXl) or reach out to Joanne Stableford on [LinkedIn](https://www.linkedin.com/in/joanne-stableford/).
 
-<meta name="maintainedBy" value="jostableford">
+<meta name="maintainedBy" value="mikermcneil">
