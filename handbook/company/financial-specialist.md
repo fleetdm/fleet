@@ -56,7 +56,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 The Business Operations team at Fleet is a growing team of high achieving, collaborative, and enthusiastic spreadsheet nerds.
 We've been getting by with our contracted financial services and spreading the regular financial functions across teammates, but as we scale we need someone that can take ownership of all the finacial functions and build our processes to be consistent and scalable.
 The team is looking forward to future startup funding rounds, and we want to add a teammate that can help guide and shape our financial operations and reports to support our growth.
-Ideal candidate is a player-coach who can grow into finacial leadership as we scale.
+Ideal candidate is a collaborative team player who is interested in growing as the company does into a financial leadership role.
 
 Learn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).
 
