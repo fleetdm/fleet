@@ -57,7 +57,6 @@
   &__action-button-container {
     display: flex;
     gap: $pad-small;
-    gap: $pad-small;
   }
 
   .form-field--dropdown {
@@ -105,11 +104,9 @@
             width: $col-sm;
           }
           .updated_at__header {
-          .updated_at__header {
             display: none;
             width: 0;
           }
-          .performance__header {
           .performance__header {
             display: none;
             width: 0;
@@ -155,11 +152,9 @@
             max-width: $col-md;
           }
           .updated_at__cell {
-          .updated_at__cell {
             display: none;
             max-width: $col-md;
           }
-          .performance__cell {
           .performance__cell {
             display: none;
             max-width: $col-md;

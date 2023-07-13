@@ -144,8 +144,6 @@ const QueryForm = ({
       storedQuery.author_id === currentUser.id
     : isAnyTeamMaintainerOrTeamAdmin;
 
-  const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
-
   const toggleSaveQueryModal = () => {
     setShowSaveQueryModal(!showSaveQueryModal);
   };
