@@ -1,13 +1,12 @@
-# Deploying ChromeOS test Extensions to enrolled ChromeBooks
+# Deploying ChromeOS test extensions to enrolled Chromebooks
 
-As part of validating any ChromeOS extention, run this process to force-install extension on our debug Chromebooks.
+As part of validating any ChromeOS extension, run this process to force-install the extension on Chromebooks for debugging.
 
 ## Build the extension
 
 ### Bump the extension version
 
-Open ee/fleetd-chrome package.json for edit.
-Modify the version field at the top of the file (Line 4 when writing this doc)
+Modify the version field at the top of the [`package.json`](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/package.json) file in `ee/fleetd-chrome`
 ```
 {
   "name": "fleetd-for-chrome",
@@ -15,7 +14,7 @@ Modify the version field at the top of the file (Line 4 when writing this doc)
   "version": "1.0.3",
   ...
 ```
-Bump the version also in ee/fleetd-chrome/updates.xml
+Update the version in [`updates.xml`](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/updates.xml) to match the `package.json` version.
 
 ### Build the distribution folder
 
@@ -26,28 +25,25 @@ yarn run build
 
 ### Pack the extension
 
-- Go to chrome web browser.
-- go to chrome://extensions
-- Press "Pack Extensions" button (Top left of the screen)
-- Press the top Browse button and select the newly created dist folder (ee/fleetd-chrome/dist)
-- Press "Pack Extension" (No need to give it a key. It will generate it)
+Navigate to chrome://extensions in your Chrome web browser.
+- In developer mode, select "Pack extension"
+- Set "Extension root directory" to the newly-created `ee/fleetd-chrome/dist` folder
+- Press "Pack extension" (key name will auto-generate)
 
 ### Load the new extension to the Chrome web browser
 
 - Open the finder app 
-- Drag and srop the ee/fleetd-chrome/dist.crx binary file to chrome web browser
+- Drag and drop the `ee/fleetd-chrome/dist.crx` binary file on top of a Chrome web browser window
 - Press "Add Extension"
 - Verify that the extension works
-- **Copy the appid for later use.**
-
-
+- **Copy the `appid` for later use**
 
 ## Run a local server to make the new extension available
 
 ### Edit update.xml
-Open ee/fleetd-chrome/update.xml for edit and modify:
-- the version
-- the appid (What we copied from the extension in the web browser). This will only be done for debug versions. For production we will keep the original ID we have.
+Open `ee/fleetd-chrome/update.xml` in your text editor and modify:
+- The version.
+- The `appid` (copied previously). This will only be done for debug versions. For production, we will keep the original ID we have.
 
 ### Create the server
 
@@ -55,7 +51,7 @@ Open ee/fleetd-chrome/update.xml for edit and modify:
 cd ee/fleetd-chrome
 python3 -m http.server
 ```
-- Verify that it works by going to http://localhost:8000 and see the files.
+- Verify that it works by going to http://localhost:8000 to see the files.
 
 ```
 cd ee/fleetd-chrome
@@ -63,27 +59,22 @@ npm install -g localtunnel
 lt --port 8000 --subdomain test-new-tables
 ```
 - In your web browser go to: http://test-new-tables.loca.lt
-- Click the hazard link on item number 1 (below the big button "Click To Submit"). from the new page copy the IP and paste it in the previous page in the window.
-- Open ee/fleetd-chrome/update.xml for edit and modify the codebase to the newly created URL (in this example: http://test-new-tables.loca.lt/dist.crx)
+- Click the hazard link on item number 1 (below the big button "Click To Submit"). From the new page, copy the IP and paste it into the previous page in the window.
+- Open `ee/fleetd-chrome/update.xml` in your text editor and modify the codebase to use the newly created URL (in this example: http://test-new-tables.loca.lt/dist.crx).
 
 ### Deploy the extension using Google Admin
 
-- Go to google admin
-- On the left menu, open Apps & Extensions --> Users & browsers
-- Select CHromeOSTesting
-- Press bottom right + symbal then the apps logo (Quadrant with dots)
-- Put the appid we copied earlier.
-- change the dropdown menu to "custom URL"
-- paste http://test-new-tables.loca.lt/updates.xml
-- SAVE
+- Go to Google Admin
+- On the left menu, open "Apps & Extensions" > "Users & Browsers"
+- Select ChromeOSTesting
+- Press the bottom right + symbol, then the apps logo (area with dots)
+- Put the `appid` copied earlier
+- Change the dropdown menu to "custom URL"
+- Paste http://test-new-tables.loca.lt/updates.xml
+- Press "Save"
 - On the right tab change from "Allow Install" to "Force Install"
-- SAVE (top right of screen)
-- remove the filters (The one with our appid)
-- Click the original FleetDM extention. From the right tab, copy the "Policy for extension" json and put it in the our new extension in the same place.
-- SAVE (top right of screen)
-
-
-
-
-
+- Press "Save" (top right of screen)
+- Remove the filters (The one with our `appid`)
+- Click the original FleetDM extention. From the right tab, copy the "Policy for extension" JSON and put it in the new extension in the same place.
+- Press "Save" (top right of screen)
 
