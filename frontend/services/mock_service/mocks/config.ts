@@ -22,6 +22,11 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     // request query string is hostname, uuid, or mac address; response is host detail excluding any
     // expensive data operations
     "targets?query={*}": RESPONSES.hosts,
+    // "SchedulableQueries" to be used in developing frontend for #7765
+    queries: RESPONSES.queries,
+    "queries/1": RESPONSES.query1,
+    "queries/2": RESPONSES.query2,
+    "queries/3": RESPONSES.query3,
   },
   POST: {
     // request body is ISelectedTargets
@@ -30,6 +35,15 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       targets_online: 0,
       targets_offline: 1,
       targets_missing_in_action: 0,
+    },
+    // "SchedulableQueries" to be used in developing frontend for #7765
+    queries: {
+      description: "Ok",
+      name: "New query name",
+      observer_can_run: false,
+      query: "SELECT * FROM osquery_info;",
+      team_id: null,
+      platform: "linux",
     },
   },
 } as IResponses;
