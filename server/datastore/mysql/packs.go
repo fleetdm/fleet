@@ -577,10 +577,10 @@ func (ds *Datastore) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.P
 	return listPacksForHost(ctx, ds.reader(ctx), hid)
 }
 
-// listPacksForHost returns all the packs that are configured to run on the given host.
+// listPacksForHost returns all the "user packs" that are configured to run on the given host.
 func listPacksForHost(ctx context.Context, db sqlx.QueryerContext, hid uint) ([]*fleet.Pack, error) {
 	query := `
-SELECT DISTINCT packs.* FROM (
+	SELECT DISTINCT packs.* FROM (
 	(
 		SELECT p.* FROM packs p
 		JOIN pack_targets pt
@@ -590,26 +590,30 @@ SELECT DISTINCT packs.* FROM (
 			AND pt.target_id = lm.label_id
 			AND pt.type = ?
 		)
-		WHERE lm.host_id = ? AND NOT p.disabled
+		WHERE lm.host_id = ? AND NOT p.disabled AND p.pack_type IS NULL
 	)
 	UNION ALL
 	(
 		SELECT p.* FROM packs p
-		JOIN pack_targets pt
-		ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = ?)
+		JOIN pack_targets pt ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = ?)
+		WHERE p.pack_type IS NULL
 	)
 	UNION ALL
 	(
 		SELECT p.*
 		FROM packs p
 		JOIN pack_targets pt
-		ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = (SELECT team_id FROM hosts WHERE id = ?)))
-	) packs`
+		ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = (SELECT team_id FROM hosts WHERE id = ?))
+		WHERE p.pack_type IS NULL
+	)) packs`
+
 	packs := []*fleet.Pack{}
 	if err := sqlx.SelectContext(ctx, db, &packs, query,
 		fleet.TargetLabel, hid, fleet.TargetHost, hid, fleet.TargetTeam, hid,
 	); err != nil && err != sql.ErrNoRows {
+		fmt.Println(err)
 		return nil, ctxerr.Wrap(ctx, err, "listing hosts in pack")
 	}
+
 	return packs, nil
 }

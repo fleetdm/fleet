@@ -140,7 +140,7 @@ type Datastore interface {
 	// PackByName fetches pack if it exists, if the pack exists the bool return value is true
 	PackByName(ctx context.Context, name string, opts ...OptionalArg) (*Pack, bool, error)
 
-	// ListPacksForHost lists the packs that a host should execute.
+	// ListPacksForHost lists the "user packs" that a host should execute.
 	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
 
 	// EnsureGlobalPack gets or inserts a pack with type global

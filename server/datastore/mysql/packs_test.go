@@ -38,6 +38,7 @@ func TestPacks(t *testing.T) {
 		{"ApplySpecFailsOnTargetIDNull", testPacksApplySpecFailsOnTargetIDNull},
 		{"ApplyStatsNotLocking", testPacksApplyStatsNotLocking},
 		{"ApplyStatsNotLockingTryTwo", testPacksApplyStatsNotLockingTryTwo},
+		{"ListForHostIncludesOnlyUserPacks", testListForHostIncludesOnlyUserPacks},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -682,4 +683,44 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 	time.Sleep(60 * time.Second)
 
 	cancelFunc()
+}
+
+func testListForHostIncludesOnlyUserPacks(t *testing.T, ds *Datastore) {
+	mockClock := clock.NewMockClock()
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", mockClock.Now())
+	ctx := context.Background()
+
+	label := &fleet.LabelSpec{
+		ID:   1,
+		Name: "All Hosts",
+	}
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{label}))
+
+	pack := &fleet.PackSpec{
+		ID:   1,
+		Name: "foo_pack",
+		Targets: fleet.PackSpecTargets{
+			Labels: []string{
+				label.Name,
+			},
+		},
+	}
+	require.NoError(t, ds.ApplyPackSpecs(ctx, []*fleet.PackSpec{pack}))
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{label.ID: ptr.Bool(true)}, mockClock.Now(), false))
+
+	_, err := ds.EnsureGlobalPack(ctx)
+	require.NoError(t, err)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.AddHostsToTeam(ctx, &team.ID, []uint{h1.ID}))
+	_, err = ds.EnsureTeamPack(ctx, team.ID)
+	require.NoError(t, err)
+
+	packs, err := ds.ListPacksForHost(ctx, h1.ID)
+	require.Nil(t, err)
+	if assert.Len(t, packs, 1) {
+		assert.Equal(t, "foo_pack", packs[0].Name)
+	}
 }
