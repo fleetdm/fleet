@@ -39,27 +39,26 @@ const TurnOffMacOSMdm = ({ onClickDetails }: ITurnOffMacOSMdmProps) => {
       </div>
       <Button onClick={onClickDetails} variant="text-icon">
         Details
-        <Icon name="chevron" direction="right" />
+        <Icon name="chevron" direction="right" color="core-fleet-blue" />
       </Button>
     </div>
   );
 };
 
 interface IMacOSMdmCardProps {
+  isEnabled: boolean;
   turnOnMacOSMdm: () => void;
   viewDetails: () => void;
 }
 
-const MacOSMdmCard = ({ turnOnMacOSMdm, viewDetails }: IMacOSMdmCardProps) => {
-  const { config } = useContext(AppContext);
-
-  // TODO: find right condition
-  const isWindowsMdmEnabled =
-    config?.mdm?.windows_enabled_and_configured ?? false;
-
+const MacOSMdmCard = ({
+  isEnabled,
+  turnOnMacOSMdm,
+  viewDetails,
+}: IMacOSMdmCardProps) => {
   return (
     <Card className={baseClass} color="gray">
-      {isWindowsMdmEnabled ? (
+      {isEnabled ? (
         <TurnOffMacOSMdm onClickDetails={viewDetails} />
       ) : (
         <TurnOnMacOSMdm onClickTurnOn={turnOnMacOSMdm} />

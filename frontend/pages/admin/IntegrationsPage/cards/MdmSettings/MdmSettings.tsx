@@ -14,6 +14,7 @@ import Spinner from "components/Spinner";
 import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
 import WindowsMdmSection from "./components/WindowsMdmSection/WindowsMdmSection";
 import MacOSMdmCard from "./components/MacOSMdmCard/MacOSMdmCard";
+import DataError from "components/DataError/DataError";
 
 const baseClass = "mdm-settings";
 
@@ -49,6 +50,24 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM_WINDOWS);
   };
 
+  const renderMacOSMdmCard = () => {
+    // The API returns a 404 error if APNS is not configured yet. If there is any
+    // other error we will show the DataError component.
+    const showMdmAppleError = errorMdmApple && errorMdmApple.status !== 404;
+
+    if (showMdmAppleError) {
+      return <DataError />;
+    }
+
+    return (
+      <MacOSMdmCard
+        isEnabled={appleAPNInfo !== undefined}
+        turnOnMacOSMdm={navigateToMacOSMdm}
+        viewDetails={navigateToMacOSMdm}
+      />
+    );
+  };
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section ${baseClass}__mdm-section`}>
@@ -57,12 +76,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
           <Spinner />
         ) : (
           <>
-            {appleAPNInfo && (
-              <MacOSMdmCard
-                turnOnMacOSMdm={navigateToMacOSMdm}
-                viewDetails={navigateToMacOSMdm}
-              />
-            )}
+            {renderMacOSMdmCard()}
             {/* TODO: remove conditional rendering when windows MDM is released. */}
             {config?.mdm_enabled && (
               <WindowsMdmSection
