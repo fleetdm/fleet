@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -49,16 +51,51 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to POST to %s: %s, request-size=%d", url, err, len(jsonBytes))
+		return fmt.Errorf("failed to POST to %s: %s, request-size=%d", maskSecretURLParams(url), err, len(jsonBytes))
 	}
 	defer resp.Body.Close()
 
 	if !httpSuccessStatus(resp.StatusCode) {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("error posting to %s: %d. %s", url, resp.StatusCode, string(body))
+		return fmt.Errorf("error posting to %s: %d. %s", maskSecretURLParams(url), resp.StatusCode, string(body))
 	}
 
 	return nil
+}
+
+func secretKeywords() []string {
+	return []string{"secret", "token", "key", "password"}
+}
+
+// maskSecretURLParams masks URL parameters that match a limited set of keywords. It accepts a raw
+// string and returns a redacted string if the raw string is URL-parseable. If it is not
+// URL-parseable, the raw string is returned unchanged.
+func maskSecretURLParams(rawURL string) string {
+	matchKeyword := func(k string) bool {
+		kws := secretKeywords()
+		for _, kw := range kws {
+			if strings.Contains(strings.ToLower(k), kw) {
+				return true
+			}
+		}
+		return false
+	}
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+
+	q := u.Query()
+	for k := range q {
+		if matchKeyword(k) {
+			fmt.Println("masking", k)
+			q[k] = []string{"MASKED"}
+		}
+	}
+	u.RawQuery = q.Encode()
+
+	return u.Redacted()
 }
 
 // TODO: Consider moving other crypto functions from server/mdm/apple/util to here

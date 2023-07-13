@@ -1,0 +1,2 @@
+- Updated server logging for webhook requests to mask URL parameters that match a limited set of
+  keywords.
