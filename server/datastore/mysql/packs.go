@@ -611,7 +611,6 @@ func listPacksForHost(ctx context.Context, db sqlx.QueryerContext, hid uint) ([]
 	if err := sqlx.SelectContext(ctx, db, &packs, query,
 		fleet.TargetLabel, hid, fleet.TargetHost, hid, fleet.TargetTeam, hid,
 	); err != nil && err != sql.ErrNoRows {
-		fmt.Println(err)
 		return nil, ctxerr.Wrap(ctx, err, "listing hosts in pack")
 	}
 
