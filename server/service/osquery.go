@@ -346,6 +346,25 @@ func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	}, nil
 }
 
+func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (fleet.Queries, error) {
+	opts := fleet.ListQueryOptions{IsScheduled: ptr.Bool(true), TeamID: teamID}
+	queries, err := svc.ds.ListQueries(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(queries) == 0 {
+		return nil, nil
+	}
+
+	config := make(fleet.Queries, len(queries))
+	for _, query := range queries {
+		config[query.Name] = query.ToQueryContent()
+	}
+
+	return config, nil
+}
+
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -368,12 +387,12 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		}
 	}
 
+	packConfig := fleet.Packs{}
+
 	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
 	if err != nil {
 		return nil, newOsqueryError("database error: " + err.Error())
 	}
-
-	packConfig := fleet.Packs{}
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
 		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
@@ -414,36 +433,35 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		}
 	}
 
+	globalQueries, err := svc.getScheduledQueries(ctx, nil)
+	if err != nil {
+		return nil, newOsqueryError("database error: " + err.Error())
+	}
+	if len(globalQueries) > 0 {
+		packConfig["Global"] = fleet.PackContent{
+			Queries: globalQueries,
+		}
+	}
+
+	if host.TeamID != nil && host.TeamName != nil {
+		teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
+		if err != nil {
+			return nil, newOsqueryError("database error: " + err.Error())
+		}
+		if len(teamQueries) > 0 {
+			packName := fmt.Sprintf("Team: %s", *host.TeamName)
+			packConfig[packName] = fleet.PackContent{
+				Queries: teamQueries,
+			}
+		}
+	}
+
 	if len(packConfig) > 0 {
 		packJSON, err := json.Marshal(packConfig)
 		if err != nil {
 			return nil, newOsqueryError("internal error: marshal pack JSON: " + err.Error())
 		}
 		config["packs"] = json.RawMessage(packJSON)
-	}
-
-	// Get all scheduled queries for the current team
-	scheduledQueries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
-		TeamID:      host.TeamID,
-		IsScheduled: ptr.Bool(true),
-	})
-	scheduledConfig := make(fleet.Queries, len(scheduledQueries))
-	for _, query := range scheduledQueries {
-		scheduledConfig[query.Name] = fleet.QueryContent{
-			Query:    query.Query,
-			Interval: query.ScheduleInterval,
-			Platform: &query.Platform,
-			Version:  &query.MinOsqueryVersion,
-			Removed:  query.GetRemoved(),
-			Snapshot: query.GetSnapshot(),
-		}
-	}
-	if len(scheduledConfig) > 0 {
-		payload, err := json.Marshal(scheduledConfig)
-		if err != nil {
-			return nil, newOsqueryError("internal error: marshal schedule JSON: " + err.Error())
-		}
-		config["schedule"] = json.RawMessage(payload)
 	}
 
 	// Save interval values if they have been updated.

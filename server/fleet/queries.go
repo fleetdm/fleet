@@ -126,6 +126,17 @@ func (q *Query) Verify() error {
 	return nil
 }
 
+func (q *Query) ToQueryContent() QueryContent {
+	return QueryContent{
+		Query:    q.Query,
+		Interval: q.ScheduleInterval,
+		Platform: &q.Platform,
+		Version:  &q.MinOsqueryVersion,
+		Removed:  q.GetRemoved(),
+		Snapshot: q.GetSnapshot(),
+	}
+}
+
 type TargetedQuery struct {
 	*Query
 	HostTargets HostTargets `json:"host_targets"`

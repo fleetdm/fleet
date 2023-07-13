@@ -371,9 +371,9 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 
 	if opt.IsScheduled != nil {
 		if *opt.IsScheduled {
-			whereClauses += " AND q.schedule_interval>0 AND q.automations_enabled=1"
+			whereClauses += " AND (q.schedule_interval>0 AND q.automations_enabled=1)"
 		} else {
-			whereClauses += " AND q.schedule_interval=0 OR q.automations_enabled=0"
+			whereClauses += " AND (q.schedule_interval=0 OR q.automations_enabled=0)"
 		}
 	}
 

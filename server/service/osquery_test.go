@@ -105,7 +105,7 @@ func TestGetClientConfig(t *testing.T) {
 
 	ctx1 := hostctx.NewContext(ctx, &fleet.Host{ID: 1})
 	ctx2 := hostctx.NewContext(ctx, &fleet.Host{ID: 2})
-	ctx3 := hostctx.NewContext(ctx, &fleet.Host{ID: 1, TeamID: ptr.Uint(1)})
+	ctx3 := hostctx.NewContext(ctx, &fleet.Host{ID: 1, TeamID: ptr.Uint(1), TeamName: ptr.String("Alamo")})
 
 	expectedOptions := map[string]interface{}{
 		"baz": "bar",
@@ -176,23 +176,38 @@ func TestGetClientConfig(t *testing.T) {
 	// Check scheduled queries are loaded properly
 	conf, err = svc.GetClientConfig(ctx3)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{
-		"Some strings carry more weight than others": {
-			"query": "SELECT 1 FROM table_1",
-			"interval": 10,
-			"platform": "linux",
-			"version": "5.12.2",
-			"snapshot": true
+	assert.JSONEq(t, `{ 
+		"pack_by_label": {
+			"queries":{
+				"time":{"query":"select * from time","interval":30,"removed":false}
+			}
 		},
-		"You shall not pass": {
-			"query": "SELECT 1 FROM table_2",
-			"interval": 20,
-			"platform": "macos",
-			"removed": true,
-			"version": ""
-		}
+		"pack_by_other_label": {
+			"queries": {
+				"foobar":{"query":"select 3","interval":20,"shard":42},
+				"froobing":{"query":"select 'guacamole'","interval":60,"snapshot":true}
+			}
+		},
+		"Team: Alamo": {
+			"queries": {
+				"Some strings carry more weight than others": {
+					"query": "SELECT 1 FROM table_1",
+					"interval": 10,
+					"platform": "linux",
+					"version": "5.12.2",
+					"snapshot": true
+				},
+				"You shall not pass": {
+					"query": "SELECT 1 FROM table_2",
+					"interval": 20,
+					"platform": "macos",
+					"removed": true,
+					"version": ""
+				}
+			}
+		} 
 	}`,
-		string(conf["schedule"].(json.RawMessage)),
+		string(conf["packs"].(json.RawMessage)),
 	)
 }
 
