@@ -15,7 +15,7 @@ type DpkgInfoTest struct {
 	StateMatch    StateMatchType
 }
 
-// Eval evaluates the given dpkg info test againts a host's installed packages.
+// Eval evaluates the given dpkg info test against a host's installed packages.
 // If test evaluates to true, returns all Software involved with the test match, otherwise will
 // return nil.
 func (t *DpkgInfoTest) Eval(packages []fleet.Software) ([]fleet.Software, error) {

@@ -62,8 +62,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
-		{"TestMatchMDMAppleConfigProfiles", testMatchMDMAppleConfigProfiles},
-		{"TestResetMDMAppleNanoEnrollment", testResetMDMAppleNanoEnrollment},
+		{"TestResetMDMAppleEnrollment", testResetMDMAppleEnrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 	}
 
@@ -3438,6 +3437,17 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 			TeamID:      &tm1.ID,
 		},
 	})
+
+	// randomly set two commadns as inactive
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `UPDATE nano_enrollment_queue SET active = 0 LIMIT 2`)
+		return err
+	})
+	// only two results are listed
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
 }
 
 func testMDMAppleEULA(t *testing.T, ds *Datastore) {
@@ -4291,146 +4301,7 @@ func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testMatchMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	// create some teams with different sets of profiles
-	tmNoProf, err := ds.NewTeam(ctx, &fleet.Team{Name: "no-prof"})
-	require.NoError(t, err)
-	require.NotNil(t, tmNoProf)
-
-	tmProfA, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-a"})
-	require.NoError(t, err)
-
-	tmProfAB, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-ab"})
-	require.NoError(t, err)
-
-	tmProfBC, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-bc"})
-	require.NoError(t, err)
-
-	tmProfABC, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-abc"})
-	require.NoError(t, err)
-
-	tmProfFVB, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-fvb"}) // file-vault and B profiles
-	require.NoError(t, err)
-
-	tmProfFVFD, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-fvfd"}) // file-vault and fleetd profiles only
-	require.NoError(t, err)
-
-	tmProfFDB, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-fdb"}) // fleetd and B profiles
-	require.NoError(t, err)
-
-	tmProfFVFDB, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-fvfdb"}) // file-vault, fleetd and B profiles
-	require.NoError(t, err)
-
-	// create another team with profile A
-	tmProfA2, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-a2"})
-	require.NoError(t, err)
-
-	profA := configProfileForTest(t, "A", "A", "A")
-	profB := configProfileForTest(t, "B", "B", "B")
-	profC := configProfileForTest(t, "C", "C", "C")
-	profFV := configProfileForTest(t, "Disk Encryption", mobileconfig.FleetFileVaultPayloadIdentifier, uuid.New().String())
-	profFD := configProfileForTest(t, "Fleetd Configuration", mobileconfig.FleetdConfigPayloadIdentifier, uuid.New().String())
-
-	// tmProfA and tmProfA2
-	profA.TeamID = &tmProfA.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profA)
-	require.NoError(t, err)
-	profA.TeamID = &tmProfA2.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profA)
-	require.NoError(t, err)
-
-	// tmProfAB
-	profA.TeamID = &tmProfAB.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profA)
-	require.NoError(t, err)
-	profB.TeamID = &tmProfAB.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profB)
-	require.NoError(t, err)
-
-	// tmProfABC
-	profA.TeamID = &tmProfABC.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profA)
-	require.NoError(t, err)
-	profB.TeamID = &tmProfABC.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profB)
-	require.NoError(t, err)
-	profC.TeamID = &tmProfABC.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profC)
-	require.NoError(t, err)
-
-	// tmProfBC
-	profB.TeamID = &tmProfBC.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profB)
-	require.NoError(t, err)
-	profC.TeamID = &tmProfBC.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profC)
-	require.NoError(t, err)
-
-	// tmProfFVB
-	profB.TeamID = &tmProfFVB.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profB)
-	require.NoError(t, err)
-	profFV.TeamID = &tmProfFVB.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profFV)
-	require.NoError(t, err)
-
-	// tmProfFVFD
-	profFV.TeamID = &tmProfFVFD.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profFV)
-	require.NoError(t, err)
-	profFD.TeamID = &tmProfFVFD.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profFD)
-	require.NoError(t, err)
-
-	// tmProfFDB
-	profB.TeamID = &tmProfFDB.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profB)
-	require.NoError(t, err)
-	profFD.TeamID = &tmProfFDB.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profFD)
-	require.NoError(t, err)
-
-	// tmProfFVFDB
-	profFV.TeamID = &tmProfFVFDB.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profFV)
-	require.NoError(t, err)
-	profFD.TeamID = &tmProfFVFDB.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profFD)
-	require.NoError(t, err)
-	profB.TeamID = &tmProfFVFDB.ID
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *profB)
-	require.NoError(t, err)
-
-	// get the hashes for each profile, the same way the matching logic would
-	profAHash := (fleet.MDMApplePreassignProfilePayload{Profile: profA.Mobileconfig}).HexMD5Hash()
-	profBHash := (fleet.MDMApplePreassignProfilePayload{Profile: profB.Mobileconfig}).HexMD5Hash()
-	profCHash := (fleet.MDMApplePreassignProfilePayload{Profile: profC.Mobileconfig}).HexMD5Hash()
-
-	cases := []struct {
-		hashes  []string
-		teamIDs []uint
-	}{
-		{nil, nil},
-		{[]string{profAHash}, []uint{tmProfA.ID, tmProfA2.ID}},
-		{[]string{profBHash}, []uint{tmProfFVB.ID, tmProfFDB.ID, tmProfFVFDB.ID}}, // matches even though the team has filevault/fleetd in addition to B
-		{[]string{profCHash}, nil},
-		{[]string{profAHash, profBHash}, []uint{tmProfAB.ID}},
-		{[]string{profAHash, profBHash, profCHash}, []uint{tmProfABC.ID}},
-		{[]string{profBHash, profCHash}, []uint{tmProfBC.ID}},
-		{[]string{profAHash, profCHash}, nil},
-	}
-	for _, c := range cases {
-		t.Run(fmt.Sprintf("%v", c.hashes), func(t *testing.T) {
-			matches, err := ds.MatchMDMAppleConfigProfiles(ctx, c.hashes)
-			require.NoError(t, err)
-			require.ElementsMatch(t, c.teamIDs, matches)
-		})
-	}
-}
-
-func testResetMDMAppleNanoEnrollment(t *testing.T, ds *Datastore) {
+func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host1-name",
@@ -4444,22 +4315,72 @@ func testResetMDMAppleNanoEnrollment(t *testing.T, ds *Datastore) {
 
 	// try with a host that doesn't have a matching entry
 	// in nano_enrollments
-	err = ds.ResetMDMAppleNanoEnrollment(ctx, host.UUID)
+	err = ds.ResetMDMAppleEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 
-	// add a matching entry
+	// add a matching entry in the nano table
 	nanoEnroll(t, ds, host, false)
 
 	enrollment, err := ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Equal(t, enrollment.TokenUpdateTally, 1)
 
-	err = ds.ResetMDMAppleNanoEnrollment(ctx, host.UUID)
+	// add configuration profiles
+	cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("name0", "identifier0", 0))
+	require.NoError(t, err)
+	upsertHostCPs([]*fleet.Host{host}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerified, ctx, ds, t)
+
+	gotProfs, err := ds.GetHostMDMProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 1)
+
+	// add a record of the bootstrap package being installed
+	_, err = ds.writer(ctx).Exec(`
+          INSERT INTO nano_commands (command_uuid, request_type, command)
+          VALUES ('command-uuid', 'foo', '<?xml')
+	`)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec(`
+          INSERT INTO nano_command_results (id, command_uuid, status, result)
+          VALUES (?, 'command-uuid', 'Acknowledged', '<?xml')
+	`, host.UUID)
+	require.NoError(t, err)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(0),
+		Name:   t.Name(),
+		Sha256: sha256.New().Sum(nil),
+		Bytes:  []byte("content"),
+		Token:  uuid.New().String(),
+	})
+	require.NoError(t, err)
+	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "")
+	require.NoError(t, err)
+
+	sum, err := ds.GetMDMAppleBootstrapPackageSummary(ctx, uint(0))
+	require.NoError(t, err)
+	require.Zero(t, sum.Failed)
+	require.Zero(t, sum.Pending)
+	require.EqualValues(t, 1, sum.Installed)
+
+	// reset the enrollment
+	err = ds.ResetMDMAppleEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 
 	enrollment, err = ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Zero(t, enrollment.TokenUpdateTally)
+
+	gotProfs, err = ds.GetHostMDMProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, gotProfs)
+
+	sum, err = ds.GetMDMAppleBootstrapPackageSummary(ctx, uint(0))
+	require.NoError(t, err)
+	require.Zero(t, sum.Failed)
+	require.Zero(t, sum.Installed)
+	require.EqualValues(t, 1, sum.Pending)
 }
 
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {

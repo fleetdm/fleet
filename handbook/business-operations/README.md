@@ -133,6 +133,7 @@ At Fleet, performance feedback is a continuous process. We give feedback (partic
 ## Compensation changes
 Fleet's founders [evaluate and update compensation decisions yearly](#workiversaries), shortly after the anniversary of a team member's start date.
 
+Compensation at Fleet is determined by benchmarking (we use [Pave](https://pave.com)) with role, experience, location, and performance. Annual raises are not guaranteed, particularly when compensation is already strong relative to benchmarks.
 
 ## CEO handbook
 The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
@@ -268,7 +269,7 @@ There are a number of tools that are used throughout Fleet. Some of these tools 
 Here is an overview of a few of the most important and generally-applicable tools we use at Fleet:
 
 ### Slack
-At Fleet, we do not send internal emails to each other. Instead, we prefer to use Slack to communicate with other folks who work at Fleet.
+At Fleet, we do not send internal emails to each other. Instead, we prefer to use [Slack](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/) to communicate with other folks who work at Fleet.
 We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 
@@ -430,7 +431,7 @@ Want to hire?  Here's how to open up a new position on the core team:
 > If you think this job posting may need to stay temporarily classified (¶¶) and not shared company-wide or publicly yet, for any reason, then stop here and send a Slack DM with your proposal to the CEO instead of modifying ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit) (which is visible company-wide) or submitting a draft pull request to "Open positions" (which is public).
 -->
 
-1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department. Set the start date to the first Monday of the next Month (This position is still only proposed (not approved), but would make it easier for the approver to have the date set).
+1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department. Set the start date to the first Monday of the next month (This position is still only proposed (not approved), but would make it easier for the approver to have the date set).
 2. **Propose job description:** Copy, personalize, and publish the job description:
    - _Duplicate file:_ Locate [one of the existing job description files inside `handbook/company/`](https://github.com/fleetdm/fleet/tree/main/handbook/company) and duplicate it into a new handbook subpage.  If no other open job descriptions currently exist, you can [copy and paste the raw text](https://raw.githubusercontent.com/fleetdm/fleet/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md) from an [old job description](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md).
      - _Filename:_ Use the [same style of filename](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md), but based on the new job title.  (This filename will determine the living URL on fleetdm.com where candidates can apply.)
@@ -447,7 +448,7 @@ Want to hire?  Here's how to open up a new position on the core team:
 #### Approving a new position
 When review is requested on a proposal to open a new position, the CEO will complete the following steps when reviewing the pull request:
 
-1. **Consider role and reporting structure:** Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is set to the first Monday of the next Month.
+1. **Consider role and reporting structure:** Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is set to the first Monday of the next month.
 2. **Read job description:** Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. **Budget compensation:** Ballpark and document compensation research for the role based on 
    - _Add screenshot:_ Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings. Then create written documentation of your research for future reference.  The easiest way to do this is to take screenshots of the [relevant benchmarks in Pave](https://pave.com) and paste those screenshots under the new heading.
@@ -475,7 +476,7 @@ This means that outbound recruiting, 3rd party recruiters, and references from t
 #### Receiving job applications
 Every job description page ends with a "call to action", including a link that candidates can click to apply for the job.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise.  For example:
 
-> "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application update by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
+> "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
 
 When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 
@@ -485,7 +486,7 @@ Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZ
 #### Hiring restrictions
 
 ##### Incompatible former employers
-Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [BizOps spreadhseet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
+Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [BizOps spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
 
 ##### Incompatible locations
 Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
@@ -598,9 +599,11 @@ Now what happens?  Business Operations will then follow the steps in the "Hiring
 
 
 ### Purchasing a company-issued device
-Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process and will work with the new team member to get their laptop purchased and shipped to them on time.
+Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their laptop purchased and shipped to them on time.
 
-Apple computers shipping to the United States, Canada, and countries Apple does business with should be ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), by contacting the business team at an Apple Store, or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie, if needed.
+Apple computers shipping to the United States, Canada, and countries Apple does business with are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
+
+When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
 
 > The Apple Store business team will need Fleet's customer number (located in 1Password) to place an order. This will ensure the computer is automatically added to Fleet's Apple Business Manager, and will automatically configure using Automated Device Enrollment (ADE) (aka DEP).
 
@@ -769,7 +772,7 @@ Here are a few different entry points for a tour of Fleet's security policies an
 6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
 
 ### Vendor questionnaires 
-In responding to security questionnaires, Fleet endeavors to provide full transparency via our [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [Application Security](https://fleetdm.com/docs/using-fleet/application-security) documentation. In addition to this documentation, please refer to [the Vendor questionnaires page](./vendor-questionnaires.md) 
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [Application security](https://fleetdm.com/docs/using-fleet/application-security) documentation. In addition to this documentation, please refer to [the Vendor questionnaires page](./vendor-questionnaires.md) 
 
 ## Finance
 
@@ -833,6 +836,61 @@ The steps for doing this are highlighted in this loom, TODO.
 - Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
 - Check balance sheet and profit and loss statements (P&Ls) in QBO against the [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
 
+### Quarterly investor reporting
+- Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
+- Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+  - Headcount at end of the previous quarter.
+  - Starting ARR for the previous quarter.
+  - Total new ARR for the previous quarter.
+  - "Upsell ARR" (new ARR from expansions only- Chronograph defines "upsell" as price increases for any reason.
+    **- Fleet does not "upsell" anything; we deliver more value and customers enroll more hosts), downgrade ARR and churn ARR (if any) for the previous quarter.**
+  - Ending ARR for the previous quarter.
+  - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
+  - Total amount of Fleet customers at the end of the previous quarter.
+  - Gross margin % 
+    - How to calculate: total revenue for the quarter - cost of goods sold for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
+  - Net dollar retention rate
+    - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
+  - Cash burn
+    - How to calculate: (start of quarter runway - end of quarter runway)/3. 
+
+
+## Legal
+
+Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook>/business-operations#intake).
+> **Note:** Escalate first-of-its-kind agreements to the CEO. Mike will review business terms and consult with lawyers as necessary.
+
+
+## Getting a contract signed
+
+If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
+
+When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
+
+The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
+
+> _**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
+
+## Getting a contract reviewed
+
+> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented above.
+
+To get a contract reviewed, upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
+
+Complete the [contract review issue template in GitHub](https://fleetdm.com/handbook/business-operations#intake), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
+
+Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
+
+The SLA for contract review is **2 business days**.
+
+Once the review is complete, the issue will be closed.
+
+If an agreement requires an additional review during the negotiation process, the requestor will need to follow these steps again. Uploading the new draft and creating a new issue in GitHub. 
+
+When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature.
+
+
+
 
 ## Taxes and compliance
 
@@ -876,7 +934,9 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
 | Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
 | Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
+| Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
 | Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
+
 
 
 
@@ -908,6 +968,7 @@ Note: These are out of date, but retained for future reference:
 | Recruiting progress checkup | Weekly | Mike McNeil looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Mike McNeil |
 | Investor and advisor updates | PRN | Mike McNeil tracks the last contact with investors and coordinates outreach with CEO. | Mike McNeil |
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
+
 -->
 
 
@@ -918,6 +979,7 @@ Any Fleet team member can [view the 🔦#g-business-operations kanban board](htt
 To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
 
 > If you're not sure that your request can wait that long, then please ask for urgent help in our group Slack channel: `#g-business-operations`.  Only use this approach or at-mention contributors in business operations directly in urgent situations.  Otherwise, create an issue.
+
 
 
 ## Slack channels
@@ -931,6 +993,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-onboarding`                      | Mike McNeil
 | `#help-manage`                          | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
+| `#_security`                            | Zach Wasserman
 
 #### Stubs
 The following stubs are included only to make links backward compatible.

@@ -151,11 +151,11 @@ type MDM struct {
 	MacOSMigration        MacOSMigration           `json:"macos_migration"`
 	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
 
-	// MicrosoftEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
+	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
 	// with the similarly named macOS-specific fields.
-	MicrosoftEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
+	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -174,6 +174,14 @@ type MacOSUpdates struct {
 	// Deadline the required installation date for Nudge to enforce the required
 	// operating system version.
 	Deadline optjson.String `json:"deadline"`
+}
+
+// EnabledForHost returns a boolean indicating if updates are enabled for the host
+func (m MacOSUpdates) EnabledForHost(h *Host) bool {
+	return m.Deadline.Value != "" &&
+		m.MinimumVersion.Value != "" &&
+		h.IsOsqueryEnrolled() &&
+		h.MDMInfo.IsFleetEnrolled()
 }
 
 func (m MacOSUpdates) Validate() error {
@@ -655,8 +663,9 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 
 // OrgInfo contains general info about the organization using Fleet.
 type OrgInfo struct {
-	OrgName    string `json:"org_name"`
-	OrgLogoURL string `json:"org_logo_url"`
+	OrgName                   string `json:"org_name"`
+	OrgLogoURL                string `json:"org_logo_url"`
+	OrgLogoURLLightBackground string `json:"org_logo_url_light_background"`
 	// ContactURL is the URL displayed for users to contact support. By default,
 	// https://fleetdm.com/company/contact is used.
 	ContactURL string `json:"contact_url"`

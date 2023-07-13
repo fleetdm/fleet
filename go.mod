@@ -12,7 +12,7 @@ require (
 	github.com/XSAM/otelsql v0.10.0
 	github.com/andygrunwald/go-jira v1.16.0
 	github.com/antchfx/xmlquery v1.3.14
-	github.com/aws/aws-sdk-go v1.43.16
+	github.com/aws/aws-sdk-go v1.44.288
 	github.com/beevik/etree v1.1.0
 	github.com/beevik/ntp v0.3.0
 	github.com/briandowns/spinner v1.13.0

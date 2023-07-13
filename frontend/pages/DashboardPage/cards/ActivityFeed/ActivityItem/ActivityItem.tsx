@@ -215,6 +215,17 @@ const TAGGED_TEMPLATES = {
     );
   },
   mdmEnrolled: (activity: IActivity) => {
+    if (activity.details?.mdm_platform === "microsoft") {
+      return (
+        <>
+          Mobile device management (MDM) was turned on for{" "}
+          <b>{activity.details?.host_display_name} (manual)</b>.
+        </>
+      );
+    }
+
+    // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
+    // compatibility
     return (
       <>
         An end user turned on MDM features for a host with serial number{" "}
@@ -464,6 +475,19 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+
+  enabledWindowsMdm: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        told Fleet to turn on MDM features for all Windows hosts (servers
+        excluded).
+      </>
+    );
+  },
+  disabledWindowsMdm: (activity: IActivity) => {
+    return <> told Fleet to turn off Windows MDM features.</>;
+  },
 };
 
 const getDetail = (
@@ -567,6 +591,12 @@ const getDetail = (
     }
     case ActivityType.TransferredHosts: {
       return TAGGED_TEMPLATES.transferredHosts(activity);
+    }
+    case ActivityType.EnabledWindowsMdm: {
+      return TAGGED_TEMPLATES.enabledWindowsMdm(activity);
+    }
+    case ActivityType.DisabledWindowsMdm: {
+      return TAGGED_TEMPLATES.disabledWindowsMdm(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

@@ -46,6 +46,8 @@ export enum ActivityType {
   EnabledMacOSSetupEndUserAuth = "enabled_macos_setup_end_user_auth",
   DisabledMacOSSetupEndUserAuth = "disabled_macos_setup_end_user_auth",
   TransferredHosts = "transferred_hosts",
+  EnabledWindowsMdm = "enabled_windows_mdm",
+  DisabledWindowsMdm = "disabled_windows_mdm",
 }
 export interface IActivity {
   created_at: string;
@@ -80,6 +82,7 @@ export interface IActivityDetails {
   host_display_names?: string[];
   host_ids?: number[];
   installed_from_dep?: boolean;
+  mdm_platform?: "microsoft" | "apple";
   minimum_version?: string;
   deadline?: string;
   profile_name?: string;

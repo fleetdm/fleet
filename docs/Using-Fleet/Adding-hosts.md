@@ -17,6 +17,7 @@
     - [Migrating from plain osquery to osquery installer](#migrating-from-plain-osquery-to-osquery-installer)
       - [Generate installer](#generate-installer)
       - [Migrate](#migrate)
+  - [Add Chromebooks with the fleetd Chrome extension](#add-chromebooks-with-the-fleetd-chrome-extension)
   - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos)
     - [Creating the configuration profile](#creating-the-configuration-profile)
       - [Obtaining identifiers](#obtaining-identifiers)
@@ -29,7 +30,7 @@ Fleet gathers information from an [osquery](https://github.com/osquery/osquery) 
 
 You can also install plain osquery on your hosts and connect to Fleet using osquery's `TLS API` plugins.
 
-> For ChromeOS hosts, the fleetd Chrome extension is installed instead of osquery. This Chrome browser extension is only supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). 
+> For ChromeOS hosts, the [fleetd Chrome extension](#add-chromebooks-with-the-fleetd-chrome-extension) is installed instead of osquery.
 
 ## Add hosts with Orbit
 
@@ -279,7 +280,9 @@ installation should appear as the same host in the Fleet UI. If other settings a
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration setting. To configure this setting, in the Fleet UI, head to **Settings > Organization settings > Advanced options**. 
 
-## Add Chromebooks with the Fleetd Chrome extension
+## Add Chromebooks with the fleetd Chrome extension
+
+> The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
 
 Visit the Google Admin console. In the navigation menu, visit Devices > Chrome > Apps & Extensions > Users & browsers.
 
@@ -363,3 +366,4 @@ See the last hour of logs related to TCC permissions with this command:
 You can then look for `orbit` or `osquery` to narrow down results.
 
 <meta name="pageOrderInSection" value="500">
+<meta name="description" value="Learn how to generate installers and enroll hosts in your Fleet instance using fleetd or osquery.">

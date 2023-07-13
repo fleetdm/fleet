@@ -432,3 +432,4 @@ This will generate a `tar.gz` file with:
 - Files containing database-specific information.
 
 <meta name="pageOrderInSection" value="300">
+<meta name="description" value="Read about fleetctl, a CLI tool for managing Fleet and osquery configurations, running queries, generating installers, and more.">

@@ -128,7 +128,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		team, ok := teamsByName[name]
 		if !ok {
-			return nil, sql.ErrNoRows
+			return nil, &notFoundError{}
 		}
 		return team, nil
 	}
@@ -898,7 +898,7 @@ spec:
 	emptySetupAsst := writeTmpJSON(t, map[string]any{})
 
 	// Apply global config with custom setting and macos setup assistant, and enable
-	// Microsoft MDM.
+	// Windows MDM.
 	name = writeTmpYml(t, fmt.Sprintf(`---
 apiVersion: v1
 kind: config
@@ -929,7 +929,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
 		},
-		MicrosoftEnabledAndConfigured: true,
+		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
 	// start a server to return the bootstrap package
@@ -962,7 +962,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
 		},
-		MicrosoftEnabledAndConfigured: true,
+		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
 	// Apply team config.
@@ -1344,11 +1344,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
 			if !ok {
-				// TeamByName in the real Datastore does not return notFoundError, it
-				// returns ErrNoRows directly, we're a bit inconsistent with that at
-				// the moment. This is important as ApplyTeamSpecs checks if TeamByName
-				// returns an error that wraps ErrNoRows (and not an IsNotFound).
-				return nil, sql.ErrNoRows
+				return nil, &notFoundError{}
 			}
 			clone := *team
 			return &clone, nil
@@ -2052,7 +2048,7 @@ func TestApplySpecs(t *testing.T) {
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
 			if !ok {
-				return nil, sql.ErrNoRows
+				return nil, &notFoundError{}
 			}
 			return team, nil
 		}

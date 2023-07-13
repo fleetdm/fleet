@@ -2200,7 +2200,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	if err := svc.ds.IngestMDMAppleDeviceFromCheckin(r.Context, host); err != nil {
 		return ctxerr.Wrap(r.Context, err, "ingesting device in Authenticate message")
 	}
-	if err := svc.ds.ResetMDMAppleNanoEnrollment(r.Context, host.UDID); err != nil {
+	if err := svc.ds.ResetMDMAppleEnrollment(r.Context, host.UDID); err != nil {
 		return ctxerr.Wrap(r.Context, err, "resetting nano enrollment info in Authenticate message")
 	}
 	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
@@ -2211,6 +2211,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		HostSerial:       info.HardwareSerial,
 		HostDisplayName:  info.DisplayName,
 		InstalledFromDEP: info.InstalledFromDEP,
+		MDMPlatform:      fleet.MDMPlatformApple,
 	})
 }
 

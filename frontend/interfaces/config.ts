@@ -47,6 +47,7 @@ export default PropTypes.shape({
     enabled_and_configured: PropTypes.bool,
     apple_bm_terms_expired: PropTypes.bool,
     apple_bm_enabled_and_configured: PropTypes.bool,
+    windows_enabled_and_configured: PropTypes.bool,
     macos_updates: PropTypes.shape({
       minimum_version: PropTypes.string,
       deadline: PropTypes.string,
@@ -116,6 +117,7 @@ export interface IMdmConfig {
   apple_bm_default_team?: string;
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
+  windows_enabled_and_configured: boolean;
   end_user_authentication: IEndUserAuthentication;
   macos_updates: {
     minimum_version: string;
@@ -185,6 +187,7 @@ export interface IConfig {
   org_info: {
     org_name: string;
     org_logo_url: string;
+    org_logo_url_light_background: string;
     contact_url: string;
   };
   sandbox_enabled: boolean;
@@ -282,6 +285,7 @@ export interface IConfig {
     };
   };
   mdm: IMdmConfig;
+  mdm_enabled?: boolean; // TODO: remove when windows MDM is released. Only used for windows MDM dev currently.
 }
 
 export interface IWebhookSettings {

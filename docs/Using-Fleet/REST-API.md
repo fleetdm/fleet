@@ -1849,6 +1849,8 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "detail_updated_at": "2020-11-05T05:09:45Z",
       "software_updated_at": "2020-11-05T05:09:44Z",
       "label_updated_at": "2020-11-05T05:14:51Z",
+      "policy_updated_at": "2023-06-26T18:33:15Z",
+      "last_enrolled_at": "2023-02-26T22:33:12Z",
       "seen_time": "2020-11-05T06:03:39Z",
       "hostname": "2ceca32fe484",
       "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
@@ -2154,6 +2156,7 @@ Returns the information of the specified host.
     "detail_updated_at": "2021-08-19T21:07:53Z",
     "software_updated_at": "2020-11-05T05:09:44Z",
     "label_updated_at": "2021-08-19T21:07:53Z",
+    "policy_updated_at": "2023-06-26T18:33:15Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
@@ -3472,6 +3475,7 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
       "id": 2,
       "detail_updated_at": "2021-02-03T21:58:10Z",
       "label_updated_at": "2021-02-03T21:58:10Z",
+      "policy_updated_at": "2023-06-26T18:33:15Z",
       "last_enrolled_at": "2021-02-03T16:11:43Z",
       "software_updated_at": "2020-11-05T05:09:44Z",
       "seen_time": "2021-02-03T21:58:20Z",
@@ -6128,6 +6132,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "id": 3,
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
+	      "policy_updated_at": "2023-06-26T18:33:15Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
         "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
@@ -6167,6 +6172,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "id": 4,
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
+        "policy_updated_at": "2023-06-26T18:33:15Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
         "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
@@ -7566,3 +7572,4 @@ Response:
 
 ---
 <meta name="pageOrderInSection" value="400">
+<meta name="description" value="Documentation for Fleet's REST API. See example requests and responses for each API endpoint.">

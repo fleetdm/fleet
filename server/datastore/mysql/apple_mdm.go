@@ -107,55 +107,6 @@ ORDER BY name`
 	return res, nil
 }
 
-func (ds *Datastore) MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]uint, error) {
-	// as a special-case, should never be called without at least one hash but if
-	// so, never matches anything.
-	if len(hexMD5Hashes) == 0 {
-		return nil, nil
-	}
-
-	stmt := `
-SELECT
-	p1.team_id
-FROM
-	mdm_apple_configuration_profiles p1
-WHERE
-	p1.identifier NOT IN (?) AND
-	NOT EXISTS (
-		SELECT
-			1
-		FROM
-			mdm_apple_configuration_profiles p2
-		WHERE
-			p2.identifier NOT IN (?) AND
-			p1.team_id = p2.team_id AND
-			HEX(p2.checksum) NOT IN (?)
-	)
-GROUP BY
-	p1.team_id
-HAVING
-	COUNT(*) = ?`
-
-	// when matching a set of profiles to a team, only the custom profiles need
-	// to match, i.e. we ignore any fleet-specific profiles.
-	idents := mobileconfig.FleetPayloadIdentifiers()
-	fleetIdents := make([]string, 0, len(idents))
-	for ident := range idents {
-		fleetIdents = append(fleetIdents, ident)
-	}
-
-	stmt, args, err := sqlx.In(stmt, fleetIdents, fleetIdents, hexMD5Hashes, len(hexMD5Hashes))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare query arguments")
-	}
-
-	var teamIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute query")
-	}
-	return teamIDs, nil
-}
-
 func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 	stmt := `
 SELECT
@@ -418,6 +369,7 @@ INNER JOIN
 ON
     nvq.id = h.uuid
 WHERE
+   nvq.active = 1 AND
     %s
 `, ds.whereFilterHostsByTeams(tmFilter, "h"))
 	stmt, params := appendListOptionsWithCursorToSQL(stmt, nil, &listOpts.ListOptions)
@@ -692,7 +644,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
 		team, err := ds.TeamByName(ctx, name)
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case fleet.IsNotFound(err):
 			level.Debug(ds.logger).Log(
 				"msg",
 				"ingesting devices from DEP: unable to find default team assigned in config, the devices won't be assigned to a team",
@@ -1553,6 +1505,9 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               status = VALUES(status),
               operation_type = VALUES(operation_type),
               detail = VALUES(detail),
+              checksum = VALUES(checksum),
+              profile_identifier = VALUES(profile_identifier),
+              profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid)`,
 		strings.TrimSuffix(sb.String(), ","),
 	)
@@ -2173,7 +2128,7 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 		if isDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
 		}
-		return ctxerr.Wrap(ctx, err, "create bootstrap pacckage")
+		return ctxerr.Wrap(ctx, err, "create bootstrap package")
 	}
 
 	return nil
@@ -2626,14 +2581,31 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 	return asst.ProfileUUID, asst.UploadedAt, nil
 }
 
-func (ds *Datastore) ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error {
-	// it's okay if we didn't update any rows, `nano_enrollments` entries
-	// are created on `TokenUpdate`, and this function is called on
-	// `Authenticate` to make sure we start on a clean state if a host is
-	// re-enrolling.
-	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET token_update_tally = 0 WHERE id = ?`, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating nano_enrollments")
-	}
-	return nil
+func (ds *Datastore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// it's okay if we didn't update any rows, `nano_enrollments` entries
+		// are created on `TokenUpdate`, and this function is called on
+		// `Authenticate` to make sure we start on a clean state if a host is
+		// re-enrolling.
+		_, err := tx.ExecContext(ctx, `UPDATE nano_enrollments SET token_update_tally = 0 WHERE id = ?`, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting nano_enrollments")
+		}
+
+		// Deleting profiles from this table will cause all profiles to
+		// be re-delivered on the next cron run.
+		if err := ds.deleteMDMAppleProfilesForHost(ctx, tx, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting profiles status")
+		}
+
+		// Deleting the matching entry on this table will cause
+		// the aggregate report to show this host as 'pending' to
+		// install the bootstrap package.
+		_, err = tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting host_mdm_apple_bootstrap_packages")
+		}
+
+		return nil
+	})
 }
