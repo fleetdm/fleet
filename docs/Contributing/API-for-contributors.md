@@ -677,7 +677,7 @@ This endpoint stores a profile to be assigned to a host at some point in the fut
 | host_uuid                | string  | body | **Required**. The UUID of the host.                                                          |
 | profile                  | string  | body | **Required**. The base64-encoded .mobileconfig content of the MDM profile.                   |
 | group                    | string  | body | The group label associated with that profile. This information is used to generate team names if they need to be created. |
-| exclude                  | boolean | body | If the profile shouldn't be delivered to this host. |
+| exclude                  | boolean | body | Whether to skip delivering the profile to this host. |
 
 #### Example
 
