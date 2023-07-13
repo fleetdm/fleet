@@ -371,30 +371,13 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 
 	if opt.IsScheduled != nil {
 		if *opt.IsScheduled {
-			whereClauses += " AND q.schedule_interval>0"
+			whereClauses += " AND q.schedule_interval>0 AND q.automations_enabled=1"
 		} else {
-			whereClauses += " AND q.schedule_interval=0"
+			whereClauses += " AND q.schedule_interval=0 OR q.automations_enabled=0"
 		}
 	}
 
 	sql += whereClauses
-
-	var err error
-	if len(opt.ExcludeIDs) > 0 {
-		ids := make([]uint, 0, len(opt.ExcludeIDs))
-		for id := range opt.ExcludeIDs {
-			ids = append(ids, id)
-		}
-
-		sql += " AND q.id NOT IN (?)"
-		args = append(args, ids)
-
-		sql, args, err = sqlx.In(sql, args...)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "listing queries exclude IDs")
-		}
-	}
-
 	sql = appendListOptionsToSQL(sql, &opt.ListOptions)
 
 	results := []*fleet.Query{}

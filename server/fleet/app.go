@@ -765,9 +765,7 @@ type ListQueryOptions struct {
 	// team.
 	TeamID *uint
 	// IsScheduled filters queries that are meant to run at a set interval.
-	IsScheduled *bool
-	// ExcludeIDs set with ids of queries that should not be included in the result.
-	ExcludeIDs         map[uint]struct{}
+	IsScheduled        *bool
 	OnlyObserverCanRun bool
 }
 

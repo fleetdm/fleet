@@ -374,8 +374,6 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	}
 
 	packConfig := fleet.Packs{}
-	excludeInScheduled := make(map[uint]struct{})
-
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
 		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
@@ -387,9 +385,6 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		// particular format, so we do the conversion here
 		configQueries := fleet.Queries{}
 		for _, query := range queries {
-			// Used to indicate that this query should not be included in the `schedule` prop.
-			excludeInScheduled[query.QueryID] = struct{}{}
-
 			queryContent := fleet.QueryContent{
 				Query:    query.Query,
 				Interval: query.Interval,
@@ -427,11 +422,10 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		config["packs"] = json.RawMessage(packJSON)
 	}
 
-	// Get all scheduled queries that are not used in packsf or the host's team.
+	// Get all scheduled queries for the current team
 	scheduledQueries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
 		TeamID:      host.TeamID,
 		IsScheduled: ptr.Bool(true),
-		ExcludeIDs:  excludeInScheduled,
 	})
 	scheduledConfig := make(fleet.Queries, len(scheduledQueries))
 	for _, query := range scheduledQueries {
