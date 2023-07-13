@@ -107,55 +107,6 @@ ORDER BY name`
 	return res, nil
 }
 
-func (ds *Datastore) MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]uint, error) {
-	// as a special-case, should never be called without at least one hash but if
-	// so, never matches anything.
-	if len(hexMD5Hashes) == 0 {
-		return nil, nil
-	}
-
-	stmt := `
-SELECT
-	p1.team_id
-FROM
-	mdm_apple_configuration_profiles p1
-WHERE
-	p1.identifier NOT IN (?) AND
-	NOT EXISTS (
-		SELECT
-			1
-		FROM
-			mdm_apple_configuration_profiles p2
-		WHERE
-			p2.identifier NOT IN (?) AND
-			p1.team_id = p2.team_id AND
-			HEX(p2.checksum) NOT IN (?)
-	)
-GROUP BY
-	p1.team_id
-HAVING
-	COUNT(*) = ?`
-
-	// when matching a set of profiles to a team, only the custom profiles need
-	// to match, i.e. we ignore any fleet-specific profiles.
-	idents := mobileconfig.FleetPayloadIdentifiers()
-	fleetIdents := make([]string, 0, len(idents))
-	for ident := range idents {
-		fleetIdents = append(fleetIdents, ident)
-	}
-
-	stmt, args, err := sqlx.In(stmt, fleetIdents, fleetIdents, hexMD5Hashes, len(hexMD5Hashes))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare query arguments")
-	}
-
-	var teamIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute query")
-	}
-	return teamIDs, nil
-}
-
 func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 	stmt := `
 SELECT
@@ -693,7 +644,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
 		team, err := ds.TeamByName(ctx, name)
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case fleet.IsNotFound(err):
 			level.Debug(ds.logger).Log(
 				"msg",
 				"ingesting devices from DEP: unable to find default team assigned in config, the devices won't be assigned to a team",
@@ -1554,6 +1505,9 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               status = VALUES(status),
               operation_type = VALUES(operation_type),
               detail = VALUES(detail),
+              checksum = VALUES(checksum),
+              profile_identifier = VALUES(profile_identifier),
+              profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid)`,
 		strings.TrimSuffix(sb.String(), ","),
 	)

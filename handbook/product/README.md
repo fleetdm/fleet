@@ -16,24 +16,54 @@ The product team is responsible for product design tasks like drafting [changes 
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-* Take the top issue that is assigned to you in the "Prioritized" column of the drafting board.
+- Take the top issue that is assigned to you in the "Prioritized" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
+  
+- Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project. See [Working with Figma](https://fleetdm.com/handbook/product#working-with-figma) below for more details.
+  
+-  Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
 
-* Create a page in the [Fleet EE (scratchpad, dev-ready) Figma file](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-dev-ready%2C-scratchpad?node-id=3923%3A208793) and combine your issue's number and
-  title to name the Figma page.
+- Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
 
-* Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place
-  yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate
-  Figma page in Fleet EE (scratchpad, dev-ready).
+- While drafting, reach out to sales, customer success, and marketing for a business perspective.
 
-* While drafting, reach out to sales, customer success, and marketing for a business perspective.
+- While drafting, engage engineering to gain insight into technical costs and feasibility.
 
-* While drafting, engage engineering to gain insight into technical costs and feasibility.
+### Working with Figma
+
+#### Create a new file
+
+When starting a new draft:
+
+- Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project).
+- Rename each Figma file to include the number and name of the corresponding issue on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). (e.g. # 11766 Instructions for Autopilot enrollment).
+-  The starter file includes 3 predefined pages: Cover, Ready, and Scratchpad.
+    -  **Cover.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
+    -  **Ready.** Use this page to communicate designs reviews and development.
+    -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
+
+
+#### Keep projects/files clean and up-to-date
+
+- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Designed" column.
+- After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
+
+#### Questions and missing information
+
+1. Take a screenshot of the area in Figma
+2. Start a thread in the #help-product Slack channel and paste in the screenshot
+
+Note: Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred.
+
+For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
 
 ### Scheduling design reviews
 
 - Prepare your draft in the user story issue.
 - Prepare the agenda for your design review meeting, which should be an empty document other than the proposed changes you will present.
 - Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/business-operations/ceo-handbook). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
+- When introducing a story, clarify which review "mode" the CEO should operate in:
+  + **Final review** mode — you are 70% sure the design is 100% done.
+  + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback.
 - During the review meeting, take detailed notes of any feedback on the draft.
 - Address the feedback by modifying your draft.
 - Rinse and repeat at subsequent sessions until there is no more feedback.
@@ -289,6 +319,9 @@ Every week, a member of the product team (as determined in the [rituals](#ritual
 5. a new major or minor version of [ChromeOS](https://chromereleases.googleblog.com/search/label/Chrome%20OS)
 
 If there are changes, the DRI should send a message in the #help-product Slack channel, noting the current versions and whether any of the above has changed.
+
+### New CIS benchmarks
+When we create new CIS benchmarks, also submit the new CIS benchmark set to CIS for [certification](https://www.cisecurity.org/cis-securesuite/pricing-and-categories/product-vendor/cis-benchmark-assessment#:~:text=In%20order%20to%20incorporate%20and,recommendations%20in%20the%20associated%20CIS). 
 
 ## Rituals
 

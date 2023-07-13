@@ -1,1 +1,0 @@
-- Ignore casing in SAML response for display name. For example the display name attribute can be provided now as `displayname` or `displayName`.

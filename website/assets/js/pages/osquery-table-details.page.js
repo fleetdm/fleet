@@ -42,9 +42,10 @@ parasails.registerPage('osquery-table-details', {
         appId: 'NZXAYZXDGH',
         apiKey: this.algoliaPublicKey,
         indexName: 'fleetdm',
-        inputSelector: '#docsearch-query',
+        container: '#docsearch-query',
+        placeholder: 'Search tables',
         debug: false,
-        algoliaOptions: {
+        searchParameters: {
           'facetFilters': ['section:tables']
         },
       });

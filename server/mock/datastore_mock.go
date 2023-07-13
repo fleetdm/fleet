@@ -532,8 +532,6 @@ type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fl
 
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
 
-type MatchMDMAppleConfigProfilesFunc func(ctx context.Context, hexMD5Hashes []string) ([]uint, error)
-
 type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) error
 
 type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, teamID *uint, profileIdentifier string) error
@@ -1431,9 +1429,6 @@ type DataStore struct {
 
 	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
 	ListMDMAppleConfigProfilesFuncInvoked bool
-
-	MatchMDMAppleConfigProfilesFunc        MatchMDMAppleConfigProfilesFunc
-	MatchMDMAppleConfigProfilesFuncInvoked bool
 
 	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
 	DeleteMDMAppleConfigProfileFuncInvoked bool
@@ -3424,13 +3419,6 @@ func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint
 	s.ListMDMAppleConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAppleConfigProfilesFunc(ctx, teamID)
-}
-
-func (s *DataStore) MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]uint, error) {
-	s.mu.Lock()
-	s.MatchMDMAppleConfigProfilesFuncInvoked = true
-	s.mu.Unlock()
-	return s.MatchMDMAppleConfigProfilesFunc(ctx, hexMD5Hashes)
 }
 
 func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {

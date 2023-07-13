@@ -153,7 +153,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           value={formData.isEnabled}
           onChange={toggleMigrationEnabled}
           activeText="Enabled"
-          inactiveText="Diabled"
+          inactiveText="Disabled"
           className={`${baseClass}__enabled-slider`}
         />
         <div className={formClasses}>

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -442,11 +441,6 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 			if err != nil {
 				// This is so that the proper HTTP status code is returned
 				svc.authz.SkipAuthorization(ctx)
-
-				if errors.Is(err, sql.ErrNoRows) {
-					return newNotFoundError()
-				}
-
 				return ctxerr.Wrap(ctx, err, "getting team by name")
 			}
 			if err := svc.authz.Authorize(ctx, &fleet.Policy{
