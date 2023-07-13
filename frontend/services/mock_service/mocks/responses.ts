@@ -376,7 +376,7 @@ const queries = {
       query: "SELECT * FROM users",
       team_id: null,
       interval: 3600,
-      platform: "macos,windows,linux",
+      platform: "darwin,windows,linux",
       min_osquery_version: "",
       automations_enabled: true,
       logging: "snapshot",

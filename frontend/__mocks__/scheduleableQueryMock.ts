@@ -11,7 +11,7 @@ const DEFAULT_SCHEDULABLE_QUERY_MOCK: ISchedulableQuery = {
   query: "SELECT * FROM users",
   team_id: null,
   interval: 3600,
-  platform: "macos,windows,linux",
+  platform: "darwin,windows,linux",
   min_osquery_version: "",
   automations_enabled: true,
   logging: "snapshot",
@@ -21,6 +21,13 @@ const DEFAULT_SCHEDULABLE_QUERY_MOCK: ISchedulableQuery = {
   author_email: "test@example.com",
   observer_can_run: false,
   packs: [],
+  stats: {
+    system_time_p50: 1,
+    system_time_p95: 1,
+    user_time_p50: 1,
+    user_time_p95: 1,
+    total_executions: 3,
+  },
 };
 
 const createMockSchedulableQuery = (
