@@ -5,6 +5,9 @@ import { IQueryFormData } from "interfaces/query";
 import { ISelectedTargets } from "interfaces/target";
 import { AxiosResponse } from "axios";
 
+// Mock API requests to be used in developing FE for #7765 in parallel with BE development
+// import { sendRequest } from "services/mock_service/service/service";
+
 export default {
   create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
     const { QUERIES } = endpoints;
