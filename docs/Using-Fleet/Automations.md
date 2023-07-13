@@ -161,3 +161,4 @@ To enable and configure host status automations, navigate to **Settings > Organi
 status webhook** in the Fleet UI.
 
 <meta name="pageOrderInSection" value="1300">
+<meta name="description" value="Configure Fleet automations to trigger webhooks or create tickets in Jira and Zendesk for vulnerability, policy, and host status events.">

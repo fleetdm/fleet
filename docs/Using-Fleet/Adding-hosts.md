@@ -366,3 +366,4 @@ See the last hour of logs related to TCC permissions with this command:
 You can then look for `orbit` or `osquery` to narrow down results.
 
 <meta name="pageOrderInSection" value="500">
+<meta name="description" value="Learn how to generate installers and enroll hosts in your Fleet instance using fleetd or osquery.">

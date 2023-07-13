@@ -1465,3 +1465,5 @@ If you're using Fleet Premium, this enforces disk encryption on all hosts assign
 #### Advanced configuration
 
 > **Note:** More settings are included in the [contributor documentation](https://fleetdm.com/docs/contributing/configuration-for-contributors). It's possible, although not recommended, to configure these settings in the YAML configuration file.
+
+<meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure Fleet.">
