@@ -4,16 +4,15 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -786,46 +785,35 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		return err
 	}
 
-	// Collect the profiles' hashes and look for a team with exactly that set.
-	// Also collect the profiles' groups in case we need to create a new team,
+	// Collect the profiles' groups in case we need to create a new team,
 	// and the list of raw profiles bytes.
-	hashes, groups, rawProfiles := make([]string, 0, len(profs.Profiles)),
-		make([]string, 0, len(profs.Profiles)),
+	groups, rawProfiles := make([]string, 0, len(profs.Profiles)),
 		make([][]byte, 0, len(profs.Profiles))
 	for _, prof := range profs.Profiles {
-		hashes = append(hashes, prof.HexMD5Hash)
-		rawProfiles = append(rawProfiles, prof.Profile)
 		if prof.Group != "" {
 			groups = append(groups, prof.Group)
 		}
-	}
 
-	// find a team with exactly that set of profiles
-	teamIDs, err := svc.ds.MatchMDMAppleConfigProfiles(ctx, hashes)
-	if err != nil {
-		return err
-	}
-
-	var targetTeamID uint
-	if len(teamIDs) > 0 {
-		// if the host is already in one of those valid teams, nothing to do.
-		if host.TeamID != nil {
-			for _, tmID := range teamIDs {
-				if *host.TeamID == tmID {
-					return nil
-				}
-			}
+		if !prof.Exclude {
+			rawProfiles = append(rawProfiles, prof.Profile)
 		}
-		// else assign the host to the first valid team
-		targetTeamID = teamIDs[0]
+	}
 
-	} else {
+	teamName := teamNameFromPreassignGroups(groups)
+	team, err := svc.ds.TeamByName(ctx, teamName)
+
+	if err != nil {
+		// TODO: update to use fleet.IsNotFound once
+		// https://github.com/fleetdm/fleet/pull/12620 is merged
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+
 		// Create a new team with this set of profiles. Creating via the service
 		// call so that it properly assigns the agent options and creates audit
 		// activities, etc.
-		teamName := teamNameFromPreassignGroups(groups)
 		payload := fleet.TeamPayload{Name: &teamName}
-		tm, err := svc.NewTeam(ctx, payload)
+		team, err = svc.NewTeam(ctx, payload)
 		if err != nil {
 			return err
 		}
@@ -842,27 +830,24 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		// TODO: seems like we don't support enabling disk encryption
 		// on team creation?
 		// see https://github.com/fleetdm/fleet/issues/12220
-		tm, err = svc.ModifyTeam(ctx, tm.ID, payload)
+		team, err = svc.ModifyTeam(ctx, team.ID, payload)
 		if err != nil {
 			return err
 		}
+	}
 
-		// create profiles for that team via the service call, so that uniqueness
-		// of profile identifier/name is verified, activity created, etc.
-		// NOTE: this will use the read replica to load the team, which was just
-		// created above, could lead to not found issues with slow replication.
-		if err := svc.BatchSetMDMAppleProfiles(ctx, &tm.ID, nil, rawProfiles, false); err != nil {
-			return err
-		}
-
-		targetTeamID = tm.ID
+	// create profiles for that team via the service call, so that uniqueness
+	// of profile identifier/name is verified, activity created, etc.
+	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false); err != nil {
+		return err
 	}
 
 	// assign host to that team via the service call, which will trigger
 	// deployment of the profiles.
-	if err := svc.AddHostsToTeam(ctx, &targetTeamID, []uint{host.ID}); err != nil {
+	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -870,8 +855,7 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 // created to match the set of profiles preassigned to a host. The team name is
 // derived from the "group" field provided with each request to pre-assign a
 // profile to a host (in fleet.MDMApplePreassignProfilePayload). That field is
-// optional, and empty groups are ignored. The current timestamp is appended to
-// the team's name to help avoid duplicates.
+// optional, and empty groups are ignored.
 func teamNameFromPreassignGroups(groups []string) string {
 	const defaultName = "default"
 
@@ -891,5 +875,5 @@ func teamNameFromPreassignGroups(groups []string) string {
 		groups = []string{defaultName}
 	}
 
-	return fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05.000"))
+	return strings.Join(groups, " - ")
 }

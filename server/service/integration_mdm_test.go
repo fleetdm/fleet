@@ -604,7 +604,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NotNil(t, h.TeamID)
 	tm1, err := s.ds.Team(ctx, *h.TeamID)
 	require.NoError(t, err)
-	require.Regexp(t, `^g1 \(\d+-\d+-\d+:\d+:\d+:\d+\.\d\d\d\)$`, tm1.Name)
+	require.Equal(t, "g1", tm1.Name)
 
 	// it create activities for the new team, the profiles assigned to it, and
 	// the host moved to it
@@ -634,7 +634,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// create a team and set profiles to it
 	tm2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name: "team2_" + t.Name(),
+		Name: "g1 - g4",
 	})
 	require.NoError(t, err)
 	prof4 := mobileconfigForTest("n4", "i4")
@@ -702,9 +702,9 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// create a new mdm host enrolled in fleet
 	mdmHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	s.runWorker()
-	// make it part of team 4
+	// make it part of team 2
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
-		addHostsToTeamRequest{TeamID: &tm4.ID, HostIDs: []uint{mdmHost2.ID}}, http.StatusOK)
+		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{mdmHost2.ID}}, http.StatusOK)
 
 	// simulate having its profiles installed
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -712,23 +712,22 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		return err
 	})
 
-	// preassign the MDM host to prof1, prof2 and prof4, should match existing
-	// team tm3 and tm4, and nothing be done since the host is already in tm4
+	// preassign the MDM host using "g1" and "g4", should match existing
+	// team tm2, and nothing be done since the host is already in tm2
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm2", HostUUID: mdmHost2.UUID, Profile: prof1, Group: "g1"}}, http.StatusNoContent)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm2", HostUUID: mdmHost2.UUID, Profile: prof2, Group: "g2"}}, http.StatusNoContent)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm2", HostUUID: mdmHost2.UUID, Profile: prof4, Group: "g4"}}, http.StatusNoContent)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "mdm2"}, http.StatusNoContent)
 
-	// the host is still part of tm4
+	// the host is still part of tm2
 	h, err = s.ds.Host(ctx, mdmHost2.ID)
 	require.NoError(t, err)
 	require.NotNil(t, h.TeamID)
-	require.Equal(t, tm4.ID, *h.TeamID)
+	require.Equal(t, tm2.ID, *h.TeamID)
 
 	// and its profiles have been left untouched
 	hostProfs, err = s.ds.GetHostMDMProfiles(ctx, mdmHost2.UUID)
 	require.NoError(t, err)
-	require.Len(t, hostProfs, 3)
+	require.Len(t, hostProfs, 2)
 
 	sort.Slice(hostProfs, func(i, j int) bool {
 		l, r := hostProfs[i], hostProfs[j]
@@ -737,12 +736,377 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.Equal(t, "n1", hostProfs[0].Name)
 	require.NotNil(t, hostProfs[0].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryVerifying, *hostProfs[0].Status)
-	require.Equal(t, "n2", hostProfs[1].Name)
+	require.Equal(t, "n4", hostProfs[1].Name)
 	require.NotNil(t, hostProfs[1].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryVerifying, *hostProfs[1].Status)
-	require.Equal(t, "n4", hostProfs[2].Name)
-	require.NotNil(t, hostProfs[2].Status)
-	require.Equal(t, fleet.MDMAppleDeliveryVerifying, *hostProfs[2].Status)
+}
+
+// while s.TestPuppetMatchPreassignProfiles focuses on many edge cases/extra
+// checks around profile assignment, this test is mainly focused on
+// simulating a few puppet runs in scenarios we want to support, and ensuring that:
+//
+// - different hosts end up in the right teams
+// - teams get edited as expected
+// - commands to add/remove profiles are issued adequately
+func (s *integrationMDMTestSuite) TestPuppetRun() {
+	t := s.T()
+	ctx := context.Background()
+
+	// define a few profiles
+	prof1, prof2, prof3, prof4 := mobileconfigForTest("n1", "i1"),
+		mobileconfigForTest("n2", "i2"),
+		mobileconfigForTest("n3", "i3"),
+		mobileconfigForTest("n4", "i4")
+
+	// create three hosts
+	host1, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host3, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.runWorker()
+
+	// preassignAndMatch simulates the puppet module doing all the
+	// preassign/match calls for a given set of profiles.
+	preassignAndMatch := func(profs []fleet.MDMApplePreassignProfilePayload) {
+		require.NotEmpty(t, profs)
+		for _, prof := range profs {
+			s.Do(
+				"POST",
+				"/api/latest/fleet/mdm/apple/profiles/preassign",
+				preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: prof},
+				http.StatusNoContent,
+			)
+		}
+		s.Do(
+			"POST",
+			"/api/latest/fleet/mdm/apple/profiles/match",
+			matchMDMApplePreassignmentRequest{ExternalHostIdentifier: profs[0].ExternalHostIdentifier},
+			http.StatusNoContent,
+		)
+	}
+
+	// node default {
+	//   fleetdm::profile { 'n1':
+	//     template => template('n1.mobileconfig.erb'),
+	//     group    => 'base',
+	//   }
+	//
+	//   fleetdm::profile { 'n2':
+	//     template => template('n2.mobileconfig.erb'),
+	//     group    => 'workstations',
+	//   }
+	//
+	//   fleetdm::profile { 'n3':
+	//     template => template('n3.mobileconfig.erb'),
+	//     group    => 'workstations',
+	//   }
+	//
+	//   if $facts['system_profiler']['hardware_uuid'] == 'host_2_uuid' {
+	//       fleetdm::profile { 'n4':
+	//         template => template('fleetdm/n4.mobileconfig.erb'),
+	//         group    => 'kiosks',
+	//       }
+	//   }
+	puppetRun := func(host *fleet.Host) {
+		payload := []fleet.MDMApplePreassignProfilePayload{
+			{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof1,
+				Group:                  "base",
+			},
+			{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof2,
+				Group:                  "workstations",
+			},
+			{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof3,
+				Group:                  "workstations",
+			},
+		}
+
+		if host.UUID == host2.UUID {
+			payload = append(payload, fleet.MDMApplePreassignProfilePayload{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof4,
+				Group:                  "kiosks",
+			})
+		}
+
+		preassignAndMatch(payload)
+	}
+
+	// host1 checks in
+	puppetRun(host1)
+
+	// the host now belongs to a team
+	h1, err := s.ds.Host(ctx, host1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, h1.TeamID)
+
+	// the team has the right name
+	tm1, err := s.ds.Team(ctx, *h1.TeamID)
+	require.NoError(t, err)
+	require.Equal(t, "base - workstations", tm1.Name)
+	// and the right profiles
+	profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.Len(t, profs, 3)
+	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
+	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	require.Equal(t, prof3, []byte(profs[2].Mobileconfig))
+	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// host2 checks in
+	puppetRun(host2)
+	// a new team is created
+	h2, err := s.ds.Host(ctx, host2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, h2.TeamID)
+
+	// the team has the right name
+	tm2, err := s.ds.Team(ctx, *h2.TeamID)
+	require.NoError(t, err)
+	require.Equal(t, "base - kiosks - workstations", tm2.Name)
+	// and the right profiles
+	profs, err = s.ds.ListMDMAppleConfigProfiles(ctx, &tm2.ID)
+	require.NoError(t, err)
+	require.Len(t, profs, 4)
+	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
+	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	require.Equal(t, prof3, []byte(profs[2].Mobileconfig))
+	require.Equal(t, prof4, []byte(profs[3].Mobileconfig))
+	require.True(t, tm2.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// host3 checks in
+	puppetRun(host3)
+	// it belongs to the same team as host1
+	h3, err := s.ds.Host(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Equal(t, h1.TeamID, h3.TeamID)
+
+	// prof2 is edited
+	oldProf2 := prof2
+	prof2 = mobileconfigForTest("n2", "i2-v2")
+	// host3 checks in again
+	puppetRun(host3)
+	// still belongs to the same team
+	h3, err = s.ds.Host(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Equal(t, tm1.ID, *h3.TeamID)
+
+	// but the team has prof2 updated
+	profs, err = s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.Len(t, profs, 3)
+	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
+	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	require.Equal(t, prof3, []byte(profs[2].Mobileconfig))
+	require.NotEqual(t, oldProf2, []byte(profs[1].Mobileconfig))
+	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// host2 checks in, still belongs to the same team
+	puppetRun(host2)
+	h2, err = s.ds.Host(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, tm2.ID, *h2.TeamID)
+
+	// but the team has prof2 updated as well
+	profs, err = s.ds.ListMDMAppleConfigProfiles(ctx, &tm2.ID)
+	require.NoError(t, err)
+	require.Len(t, profs, 4)
+	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
+	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	require.Equal(t, prof3, []byte(profs[2].Mobileconfig))
+	require.Equal(t, prof4, []byte(profs[3].Mobileconfig))
+	require.NotEqual(t, oldProf2, []byte(profs[1].Mobileconfig))
+	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// the puppet manifest is changed, and prof3 is removed
+	// node default {
+	//   fleetdm::profile { 'n1':
+	//     template => template('n1.mobileconfig.erb'),
+	//     group    => 'base',
+	//   }
+	//
+	//   fleetdm::profile { 'n2':
+	//     template => template('n2.mobileconfig.erb'),
+	//     group    => 'workstations',
+	//   }
+	//
+	//   if $facts['system_profiler']['hardware_uuid'] == 'host_2_uuid' {
+	//       fleetdm::profile { 'n4':
+	//         template => template('fleetdm/n4.mobileconfig.erb'),
+	//         group    => 'kiosks',
+	//       }
+	//   }
+	puppetRun = func(host *fleet.Host) {
+		payload := []fleet.MDMApplePreassignProfilePayload{
+			{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof1,
+				Group:                  "base",
+			},
+			{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof2,
+				Group:                  "workstations",
+			},
+		}
+
+		if host.UUID == host2.UUID {
+			payload = append(payload, fleet.MDMApplePreassignProfilePayload{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof4,
+				Group:                  "kiosks",
+			})
+		}
+
+		preassignAndMatch(payload)
+	}
+
+	// host1 checks in again
+	puppetRun(host1)
+	// still belongs to the same team
+	h1, err = s.ds.Host(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Equal(t, tm1.ID, *h1.TeamID)
+
+	// but the team doesn't have prof3 anymore
+	profs, err = s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.Len(t, profs, 2)
+	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
+	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// same for host2
+	puppetRun(host2)
+	h2, err = s.ds.Host(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, tm2.ID, *h2.TeamID)
+	profs, err = s.ds.ListMDMAppleConfigProfiles(ctx, &tm2.ID)
+	require.NoError(t, err)
+	require.Len(t, profs, 3)
+	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
+	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	require.Equal(t, prof4, []byte(profs[2].Mobileconfig))
+	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// The puppet manifest is drastically updated, this time to use exclusions on host3:
+	//
+	// node default {
+	//   fleetdm::profile { 'n1':
+	//     template => template('n1.mobileconfig.erb'),
+	//     group    => 'base',
+	//   }
+	//
+	//   fleetdm::profile { 'n2':
+	//     template => template('n2.mobileconfig.erb'),
+	//     group    => 'workstations',
+	//   }
+	//
+	//   if $facts['system_profiler']['hardware_uuid'] == 'host_3_uuid' {
+	//       fleetdm::profile { 'n3':
+	//         template => template('fleetdm/n3.mobileconfig.erb'),
+	//         group    => 'no-nudge',
+	//       }
+	//   } else {
+	//       fleetdm::profile { 'n3':
+	//         ensure => absent,
+	//         template => template('fleetdm/n3.mobileconfig.erb'),
+	//         group    => 'workstations',
+	//       }
+	//   }
+	// }
+	puppetRun = func(host *fleet.Host) {
+		manifest := []fleet.MDMApplePreassignProfilePayload{
+			{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof1,
+				Group:                  "base",
+			},
+			{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof2,
+				Group:                  "workstations",
+			},
+		}
+
+		if host.UUID == host3.UUID {
+			manifest = append(manifest, fleet.MDMApplePreassignProfilePayload{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof3,
+				Group:                  "no-nudge",
+				Exclude:                true,
+			})
+		} else {
+			manifest = append(manifest, fleet.MDMApplePreassignProfilePayload{
+				ExternalHostIdentifier: host.Hostname,
+				HostUUID:               host.UUID,
+				Profile:                prof3,
+				Group:                  "workstations",
+			})
+		}
+
+		preassignAndMatch(manifest)
+	}
+
+	// host1 checks in
+	puppetRun(host1)
+
+	// the host belongs to the same team
+	h1, err = s.ds.Host(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Equal(t, tm1.ID, *h1.TeamID)
+
+	// the team has the right profiles
+	profs, err = s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.Len(t, profs, 3)
+	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
+	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	require.Equal(t, prof3, []byte(profs[2].Mobileconfig))
+	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// host2 checks in
+	puppetRun(host2)
+	// it is assigned to tm1
+	h2, err = s.ds.Host(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, tm1.ID, *h2.TeamID)
+
+	// host3 checks in
+	puppetRun(host3)
+
+	// it is assigned to a new team
+	h3, err = s.ds.Host(ctx, host3.ID)
+	require.NoError(t, err)
+	require.NotNil(t, h3.TeamID)
+	require.NotEqual(t, tm1.ID, *h3.TeamID)
+	require.NotEqual(t, tm2.ID, *h3.TeamID)
+
+	// a new team is created
+	tm3, err := s.ds.Team(ctx, *h3.TeamID)
+	require.NoError(t, err)
+	require.Equal(t, "base - no-nudge - workstations", tm3.Name)
+	// and the right profiles
+	profs, err = s.ds.ListMDMAppleConfigProfiles(ctx, &tm3.ID)
+	require.NoError(t, err)
+	require.Len(t, profs, 2)
+	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
+	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	require.True(t, tm3.Config.MDM.MacOSSettings.EnableDiskEncryption)
 }
 
 func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestMDMClient) {
