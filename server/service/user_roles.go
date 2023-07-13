@@ -47,6 +47,12 @@ func (svc *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRo
 		for _, team := range spec.Teams {
 			t, err := svc.ds.TeamByName(ctx, team.Name)
 			if err != nil {
+				if fleet.IsNotFound(err) {
+					return &fleet.BadRequestError{
+						Message:     err.Error(),
+						InternalErr: err,
+					}
+				}
 				return err
 			}
 			teams = append(teams, fleet.UserTeam{
