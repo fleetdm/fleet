@@ -67,24 +67,25 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 // "key", "password". It accepts a raw string and returns a redacted string if the raw string is
 // URL-parseable. If it is not URL-parseable, the raw string is returned unchanged.
 func maskSecretURLParams(rawURL string) string {
-	matchKeyword := func(k string) bool {
-		kws := []string{"secret", "token", "key", "password"}
-		for _, kw := range kws {
-			if strings.Contains(strings.ToLower(k), kw) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+
+	keywords := []string{"secret", "token", "key", "password"}
+	containsKeyword := func(s string) bool {
+		s = strings.ToLower(s)
+		for _, kw := range keywords {
+			if strings.Contains(s, kw) {
 				return true
 			}
 		}
 		return false
 	}
 
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return rawURL
-	}
-
 	q := u.Query()
 	for k := range q {
-		if matchKeyword(k) {
+		if containsKeyword(k) {
 			q[k] = []string{"MASKED"}
 		}
 	}
