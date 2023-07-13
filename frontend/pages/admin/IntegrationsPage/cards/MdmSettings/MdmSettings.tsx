@@ -11,10 +11,10 @@ import { IMdmApple } from "interfaces/mdm";
 import PATHS from "router/paths";
 
 import Spinner from "components/Spinner";
+import DataError from "components/DataError/DataError";
 import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
 import WindowsMdmSection from "./components/WindowsMdmSection/WindowsMdmSection";
 import MacOSMdmCard from "./components/MacOSMdmCard/MacOSMdmCard";
-import DataError from "components/DataError/DataError";
 
 const baseClass = "mdm-settings";
 
