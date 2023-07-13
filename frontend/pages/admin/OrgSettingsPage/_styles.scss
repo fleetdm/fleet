@@ -72,7 +72,7 @@
           border-bottom: solid 1px $ui-fleet-black-10;
           margin: 0 0 $pad-xxlarge;
 
-          @media (min-width: $break-990) {
+          @media (min-width: $break-md) {
             max-width: 65%;
           }
         }
@@ -85,7 +85,7 @@
         .empty-table__container {
           margin: 96px 0 1.5rem;
 
-          @media (min-width: $break-990) {
+          @media (min-width: $break-md) {
             max-width: 65%;
           }
         }
@@ -119,7 +119,7 @@
         color: $core-fleet-black;
         width: 100%;
 
-        @media (min-width: $break-990) {
+        @media (min-width: $break-md) {
           width: 60%;
         }
       }
@@ -130,7 +130,7 @@
         padding-right: $pad-small;
         box-sizing: border-box;
 
-        @media (min-width: $break-990) {
+        @media (min-width: $break-md) {
           width: 60%;
         }
 

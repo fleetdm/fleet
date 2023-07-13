@@ -79,7 +79,7 @@
     display: grid;
     row-gap: $pad-medium;
 
-    @media screen and (min-width: 990px) {
+    @media screen and (min-width: $break-md) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       column-gap: $pad-medium;
 

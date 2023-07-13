@@ -43,50 +43,16 @@ To contribute to the handbook, click "Edit this page" and make your [edits in Ma
 
 ## Why read documentation?
 
-The three main things people are searching for are:
+There are three reasons for visiting [the docs](https://fleetdm.com/docs):
+- **Tire-kicking**: "I think this is cool, now is it something that I could ACTUALLY use? Does it ACTUALLY work? What all's in it?  What links can I share with my colleagues to help them see what I'm seeing?"
+- **Committed learning**: "I've decided to learn this. I need a curriculum to get me there; with content that makes it as easy as possible, surface-level as possible. I want to learn how Fleet works and how to do all the things."
+- **Quick reference**: "Is this thing broken or am I using it right? How do I use this?" Whether they just stumbled in from a search engine, an on-site search, or through the Fleet website navigation, visitors interested in quick reference are interested in getting to the correct answer quickly.  Quick referencers search for REST API pages, the config surface of the Fleet server, agent options, how to build YAML for `fleetctl apply`, the built-in MDM profiles, the table schema, the built-in queries, reference architectures and cost calculators for deploying your own Fleet instance.
 
-### 🐋 "Tire-kicking" 
+Everyone [can contribute](https://fleetdm.com/handbook/company#openness) to Fleet's documentation.  Here are a few principles to keep in mind:
+ 
+- **🚪 Start simple.** It's easier to learn when you aren't overwhelmed.  Good documentation pages and sections start _prescriptive, brief, and clear_; ideally with a short example.  You can always hedge and caveat further down the page. This makes the docs more [accessible and outsider-friendly](https://fleetdm.com/handbook/company#purpose).  For example, notice how [this page gets more complicated as you scroll down](https://sailsjs.com/documentation/reference/blueprint-api/destroy), or how [both](https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?schema) of [these sections](https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?seldomused-settings) start simple, with caveats pushed down to the end. 
 
->I think this is cool, now is it something that I could ACTUALLY use? Does it ACTUALLY work? What all's in it?  
-
- _**This is where I want to be sold!**_ 
-
->I want to have resources. _**Shiney new toys**_ 🕹️ to show my boss. Links I can share with colleagues to get them excited.
-
-### 📚 "Committed learning" 
-
->I've decided to learn this. I need a curriculum to get me there. Content that makes it as easy as possible, surface-level as possible. This is where I want to learn how it works and how to do things. 
-
-### 🧭 "Quick reference"
-
- >Is this thing broken or am I using it right? How do I use this? Maybe they just stumbbled in from Google, an on-site search, or through Fleet nav itself.
-
- Quick refrence needs are especially relevant for: 
-- REST API pages 
-- The config surface of Fleet itself
-- Agent options
-- How to build YAML for fleetctl apply
-- The built-in MDM profiles
-- The table schema
-- Query library with built-in policies
-- Use cases like pulling up the reference architectures and AWS cost calculators
-
-## 🔌🚪🪟 Principles 
-
-### 🚪 Little tiny white lies   
-  
-Think of an iceberg . _**Looks**_ like smooth sailing, always.  Happy path up top, hide the tricky bits underneath. Like math teachers don't even touch long division until long after you've learned fractions. 
-This is why the most complex stuff is always on the bottom of each page or section.
-
-It's ok if the sentences above the fold are overly simplified. 
-
-Get to the _**SIMPLE, CLEAR**_ instructions first.  Ideally a short example.  Be prescriptive, brief, and clear.  You can always hedge and caveat further down the page.  
-
-- Example: Notice how this page gets more complicated as you scroll down:https://sailsjs.com/documentation/reference/blueprint-api/destroy
-
-- Another one: See how it starts off dead simple?  (And then the caveats are below)https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?seldomused-settings
-
-- Good example in sails.js: https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?schema
+<!-- 🔌🚪🪟 -->
 
 
 ## Why the emphasis on training?
