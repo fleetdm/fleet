@@ -142,8 +142,6 @@ const QueryForm = ({
       storedQuery.author_id === currentUser.id
     : isAnyTeamMaintainerOrTeamAdmin;
 
-  const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
-
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
@@ -396,7 +394,8 @@ const QueryForm = ({
     return null;
   };
 
-  const renderRunForObserver = (
+  // Observers and observer+ of existing query
+  const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
         <div className="name-description">
@@ -453,7 +452,10 @@ const QueryForm = ({
     </form>
   );
 
-  const renderForGlobalAdminOrAnyMaintainer = (
+  const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
+
+  // Global admin, any maintainer, any observer+ on new query
+  const renderEditableQueryForm = (
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
         <div className={`${baseClass}__title-bar`}>
@@ -580,17 +582,21 @@ const QueryForm = ({
     return <Spinner />;
   }
 
-  if (
-    (isOnlyObserver ||
-      isGlobalObserver ||
-      isObserverPlus ||
-      isAnyTeamObserverPlus) &&
-    !isAnyTeamMaintainerOrTeamAdmin
-  ) {
-    return renderRunForObserver;
+  const noEditPermissions =
+    (isOnlyObserver && !isObserverPlus) || // Only team observer but not Observer+
+    (isGlobalObserver && !isObserverPlus) || // Global observer but not Observer+
+    (isObserverPlus && queryIdForEdit !== 0) || // Global observer+ on existing query
+    (isAnyTeamObserverPlus && // Team Observer+ on existing query
+      !isAnyTeamMaintainerOrTeamAdmin &&
+      queryIdForEdit !== 0);
+
+  // Render non-editable form only
+  if (noEditPermissions) {
+    return renderNonEditableForm;
   }
 
-  return renderForGlobalAdminOrAnyMaintainer;
+  // Render default editable form
+  return renderEditableQueryForm;
 };
 
 export default QueryForm;
