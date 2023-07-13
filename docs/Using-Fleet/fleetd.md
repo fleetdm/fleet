@@ -391,7 +391,7 @@ Run the [cleanup script](https://github.com/fleetdm/fleet/tree/main/orbit/tools/
 fleetctl package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
 ```
 
-> With fleetctl preview running, you can find your Fleet enroll secret by selecting the "Add new host" button on the Hosts page in the Fleet UI.
+> With fleetctl preview running, you can find your Fleet enroll secret by selecting the "Add hosts" button on the Hosts page in the Fleet UI.
 
 An installer configured to point at your Fleet instance has now been generated.
 

@@ -25,7 +25,7 @@
 
 ## Introduction
 
-Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recomended way to install osquery is using Fleetd, which includes [Orbit](https://fleetdm.com/docs/using-fleet/fleetd), Fleet's lightweight osquery runtime and autoupdater.
+Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recommended way to install osquery is using Fleetd, which includes [Orbit](https://fleetdm.com/docs/using-fleet/fleetd), Fleet's lightweight osquery runtime and auto-updater.
 
 You can also install plain osquery on your hosts and connect to Fleet using osquery's `TLS API` plugins.
 
@@ -33,11 +33,11 @@ You can also install plain osquery on your hosts and connect to Fleet using osqu
 
 ## Add hosts with Fleetd
 
-To create an Fleet installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
+To create a Fleet installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
 
-The `fleetctl package` can create an Fleetd installer, which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
+The `fleetctl package` can create a Fleetd installer, which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
 
-The following command creates an Fleetd installer, `.pkg` file, which adds macOS hosts to Fleet. Locate this osquery installer in the folder where the `fleetctl package` command is run.
+The following command creates a Fleetd installer, `.pkg` file, which adds macOS hosts to Fleet. Locate this osquery installer in the folder where the `fleetctl package` command is run.
 
 ```sh
 fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]

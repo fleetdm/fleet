@@ -1,8 +1,8 @@
-# Run Locally Built Fleetd 
+# Run locally built Fleetd 
 (MacOS)
 
 
-### Run fleet server (And the released Fleetd).
+### Run fleet server (and the released Fleetd).
 In order to run a local agent (Fleetd + osquery) the first step is to run the Fleet server locally.
 Follow this document which will run it together with the released agent.
 https://fleetdm.com/docs/contributing/building-fleet
@@ -10,7 +10,7 @@ https://fleetdm.com/docs/contributing/building-fleet
 ### Modify the Fleetd code as needed
 
 ### Build and run locally.
-In order to use a local version we need to create a local TUF service that will point the installer to take the local Fleetd (Instead of the official one)
+In order to use a local version we need to create a local TUF service that will point the installer to take the local Fleetd (instead of the official one).
 More details on TUF testing is here:
 https://github.com/fleetdm/fleet/tree/main/tools/tuf/test
 
@@ -54,7 +54,7 @@ chmod +x my_build.sh
 - → the end result is the installer located in ```/Your-Repo-Folder/fleet/fleet-osquery.pkg```
 
 ### Install it
-Double-Click this pkg file and install the local Fleetd.
+Double-click this pkg file and install the local Fleetd.
 
 ### Run osquery directly from the Orbit shell
 ```sudo orbit shell```
