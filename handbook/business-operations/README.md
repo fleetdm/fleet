@@ -135,11 +135,6 @@ Fleet's founders [evaluate and update compensation decisions yearly](#workiversa
 
 Compensation at Fleet is determined by benchmarking (we use [Pave](https://pave.com)) with role, experience, location, and performance. Annual raises are not guaranteed, particularly when compensation is already strong relative to benchmarks.
 
-## CEO handbook
-The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
-
-
-
 ## Team member onboarding
 
 ### Before the start date

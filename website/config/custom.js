@@ -116,8 +116,8 @@ module.exports.custom = {
 
     'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
+    'handbook/company/ceo-handbook': ['sampfluger88', 'mikermcneil'],
     'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
-    'handbook/business-operations/ceo-handbook': ['sampfluger88', 'mikermcneil'],
     'handbook/engineering': ['zwass', 'lukeheath'],
     'handbook/product': ['noahtalerman', 'zhumo'],
     'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
