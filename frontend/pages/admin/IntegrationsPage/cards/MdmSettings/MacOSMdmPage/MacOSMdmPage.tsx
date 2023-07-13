@@ -26,10 +26,10 @@ const ApplePushCertificatePortalSetup = ({
 }: IApplePuushCertificatePortalSetupProps) => {
   return (
     <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
-      <div className={`${baseClass}__setup-description`}>
+      <p className={`${baseClass}__setup-description`}>
         Connect Fleet to Apple Push Certificates Portal to change settings and
         install software on your macOS hosts.
-      </div>
+      </p>
       <ol className={`${baseClass}__setup-instructions-list`}>
         <li>
           <p>

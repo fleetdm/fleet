@@ -26,6 +26,10 @@
     flex-direction: column;
     gap: $pad-large;
     color: $core-fleet-black;
+
+    p {
+      margin: 0;
+    }
   }
 
   &__setup-instructions-list {
@@ -35,10 +39,6 @@
     display: flex;
     flex-direction: column;
     gap: $pad-large;
-
-    p {
-      margin: 0;
-    }
   };
 
   &__request-button {
