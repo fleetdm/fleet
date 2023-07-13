@@ -1,0 +1,33 @@
+.mac-os-mdm-page {
+  &__back-to-mdm {
+    margin-bottom: $pad-xlarge;
+  }
+
+  h1 {
+    margin-bottom: $pad-xxlarge;
+    font-size: $x-large;
+  }
+
+  h4 {
+    margin-bottom: 0;
+  }
+
+  p {
+    font-size: $x-small;
+    margin: 0 0 $pad-large;
+  }
+
+  &__section-description,
+  &__section-instructions,
+  &__section-information {
+    font-size: $x-small;
+    color: $core-fleet-black;
+    width: 100%;
+  }
+
+  &__section-information {
+    p {
+      margin: 0;
+    }
+  }
+}

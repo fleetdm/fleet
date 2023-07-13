@@ -11,10 +11,11 @@ const baseClass = "windows-mdm-section";
 interface ITurnOnWindowsMdmProps {
   onClickTurnOn: () => void;
 }
+
 const TurnOnWindowsMdm = ({ onClickTurnOn }: ITurnOnWindowsMdmProps) => {
   return (
     <div className={`${baseClass}__turn-on-windows`}>
-      <div className={`${baseClass}__`}>
+      <div>
         <h3>Turn on Windows MDM</h3>
         <p>Turn MDM on for Windows hosts with fleetd.</p>
       </div>
