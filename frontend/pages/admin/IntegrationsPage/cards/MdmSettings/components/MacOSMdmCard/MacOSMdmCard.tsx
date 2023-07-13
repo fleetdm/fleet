@@ -1,9 +1,8 @@
-import React, { useContext } from "react";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import Card from "components/Card";
-import { AppContext } from "context/app";
 
 const baseClass = "mac-os-mdm-card";
 
