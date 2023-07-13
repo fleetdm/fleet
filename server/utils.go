@@ -63,16 +63,12 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	return nil
 }
 
-func secretKeywords() []string {
-	return []string{"secret", "token", "key", "password"}
-}
-
-// maskSecretURLParams masks URL parameters that match a limited set of keywords. It accepts a raw
+// maskSecretURLParams masks URL parameters that match a limited set of keywords (comprising "secret", "token", "key", "password"). It accepts a raw
 // string and returns a redacted string if the raw string is URL-parseable. If it is not
 // URL-parseable, the raw string is returned unchanged.
 func maskSecretURLParams(rawURL string) string {
 	matchKeyword := func(k string) bool {
-		kws := secretKeywords()
+		kws := []string{"secret", "token", "key", "password"}
 		for _, kw := range kws {
 			if strings.Contains(strings.ToLower(k), kw) {
 				return true
@@ -89,7 +85,6 @@ func maskSecretURLParams(rawURL string) string {
 	q := u.Query()
 	for k := range q {
 		if matchKeyword(k) {
-			fmt.Println("masking", k)
 			q[k] = []string{"MASKED"}
 		}
 	}
