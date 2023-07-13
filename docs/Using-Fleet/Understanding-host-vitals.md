@@ -1,14 +1,13 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
-# Detail Queries Summary
+# Understanding host vitals
 
-Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
+A reference page of the hard-coded queries Fleet uses to populate device details.
 
 ## battery
 
 - Platforms: darwin
 
 - Query:
-
 ```sql
 SELECT serial_number, cycle_count, health FROM battery;
 ```
@@ -18,7 +17,6 @@ SELECT serial_number, cycle_count, health FROM battery;
 - Platforms: chrome
 
 - Query:
-
 ```sql
 SELECT email FROM users
 ```
@@ -28,7 +26,6 @@ SELECT email FROM users
 - Platforms: darwin
 
 - Query:
-
 ```sql
 SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1
 ```
@@ -38,7 +35,6 @@ SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = '
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
 
 - Query:
-
 ```sql
 SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_alias = de.name;
 ```
@@ -48,7 +44,6 @@ SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_al
 - Platforms: windows
 
 - Query:
-
 ```sql
 SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;
 ```
@@ -58,7 +53,6 @@ SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
 
 - Query:
-
 ```sql
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
        round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
@@ -70,7 +64,6 @@ FROM mounts WHERE path = '/' LIMIT 1;
 - Platforms: windows
 
 - Query:
-
 ```sql
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
        ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available
@@ -82,13 +75,11 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;
 - Platforms: all
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'google_chrome_profiles';
 ```
 
 - Query:
-
 ```sql
 SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''
 ```
@@ -98,13 +89,11 @@ SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''
 - Platforms: all
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'kubernetes_info';
 ```
 
 - Query:
-
 ```sql
 SELECT * from kubernetes_info
 ```
@@ -114,13 +103,11 @@ SELECT * from kubernetes_info
 - Platforms: darwin
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm';
 ```
 
 - Query:
-
 ```sql
 select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 ```
@@ -130,7 +117,6 @@ select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 - Platforms: windows
 
 - Query:
-
 ```sql
 SELECT * FROM (
 				SELECT "provider_id" AS "key", data as "value" FROM registry
@@ -163,13 +149,11 @@ SELECT * FROM (
 - Platforms: darwin
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'munki_info';
 ```
 
 - Query:
-
 ```sql
 select version, errors, warnings from munki_info;
 ```
@@ -179,7 +163,6 @@ select version, errors, warnings from munki_info;
 - Platforms: chrome
 
 - Query:
-
 ```sql
 SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 ```
@@ -189,7 +172,6 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
 
 - Query:
-
 ```sql
 SELECT
     ia.address,
@@ -228,7 +210,6 @@ LIMIT 1;
 - Platforms: windows
 
 - Query:
-
 ```sql
 SELECT
     ia.address,
@@ -267,13 +248,11 @@ LIMIT 1;
 - Platforms: all
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'orbit_info';
 ```
 
 - Query:
-
 ```sql
 SELECT version FROM orbit_info
 ```
@@ -283,7 +262,6 @@ SELECT version FROM orbit_info
 - Platforms: chrome
 
 - Query:
-
 ```sql
 SELECT
 		os.name,
@@ -304,7 +282,6 @@ SELECT
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
 
 - Query:
-
 ```sql
 SELECT
 		os.name,
@@ -326,7 +303,6 @@ SELECT
 - Platforms: all
 
 - Query:
-
 ```sql
 SELECT * FROM os_version LIMIT 1
 ```
@@ -336,7 +312,6 @@ SELECT * FROM os_version LIMIT 1
 - Platforms: windows
 
 - Query:
-
 ```sql
 SELECT
 		os.name,
@@ -350,7 +325,6 @@ SELECT
 - Platforms: windows
 
 - Query:
-
 ```sql
 SELECT
 		os.name,
@@ -368,7 +342,6 @@ SELECT
 - Platforms: all
 
 - Query:
-
 ```sql
 select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")
 ```
@@ -378,7 +351,6 @@ select name, value from osquery_flags where name in ("distributed_interval", "co
 - Platforms: all
 
 - Query:
-
 ```sql
 select * from osquery_info limit 1
 ```
@@ -388,7 +360,6 @@ select * from osquery_info limit 1
 - Platforms: all
 
 - Query:
-
 ```sql
 SELECT *,
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
@@ -400,7 +371,6 @@ SELECT *,
 - Platforms: chrome
 
 - Query:
-
 ```sql
 SELECT
   name AS name,
@@ -417,7 +387,6 @@ FROM chrome_extensions
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
 
 - Query:
-
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
@@ -518,7 +487,6 @@ FROM python_packages;
 - Platforms: darwin
 
 - Query:
-
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
@@ -600,7 +568,6 @@ FROM homebrew_packages;
 - Platforms: windows
 
 - Query:
-
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
@@ -675,7 +642,6 @@ FROM cached_users CROSS JOIN atom_packages USING (uid);
 - Platforms: all
 
 - Query:
-
 ```sql
 select * from system_info limit 1
 ```
@@ -685,7 +651,6 @@ select * from system_info limit 1
 - Platforms: all
 
 - Query:
-
 ```sql
 select * from uptime limit 1
 ```
@@ -695,7 +660,6 @@ select * from uptime limit 1
 - Platforms: linux, darwin, windows
 
 - Query:
-
 ```sql
 WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
@@ -708,7 +672,6 @@ WITH cached_groups AS (select * from groups)
 - Platforms: chrome
 
 - Query:
-
 ```sql
 SELECT uid, username, email FROM users
 ```
@@ -718,13 +681,11 @@ SELECT uid, username, email FROM users
 - Platforms: windows
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'windows_update_history';
 ```
 
 - Query:
-
 ```sql
 SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'
 ```

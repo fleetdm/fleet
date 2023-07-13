@@ -1524,7 +1524,7 @@ func directIngestMacOSProfiles(
 	return ds.UpdateVerificationHostMacOSProfiles(ctx, host, mapping)
 }
 
-//go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md
+//go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Understanding-host-vitals.md
 
 func GetDetailQueries(
 	ctx context.Context,
