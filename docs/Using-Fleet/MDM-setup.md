@@ -282,3 +282,4 @@ To renew the token:
 
 <meta name="pageOrderInSection" value="1500">
 <meta name="title" value="MDM setup">
+<meta name="description" value="Learn how to configure Fleet to use Apple's Push Notification service and connect to Apple Business Manager.">

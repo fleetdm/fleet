@@ -328,3 +328,4 @@ in that we believe tests should resemble real-world usage as closely as possible
 // TODO
 
 <meta name="pageOrderInSection" value="250">
+<meta name="description" value="Learn about the testing strategy and plan for Fleet's frontend codebase.">
