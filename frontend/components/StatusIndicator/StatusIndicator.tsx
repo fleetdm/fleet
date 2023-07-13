@@ -7,7 +7,7 @@ interface IStatusIndicatorProps {
   value: string;
   tooltip?: {
     id: number;
-    tooltipText: string;
+    tooltipText: string | JSX.Element;
     position?: "top" | "bottom";
   };
 }

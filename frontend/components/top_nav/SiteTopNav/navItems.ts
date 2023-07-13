@@ -79,15 +79,6 @@ export default (
       },
     },
     {
-      name: "Schedule",
-      location: {
-        regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
-        pathname: PATHS.MANAGE_SCHEDULE,
-      },
-      exclude: !isMaintainerOrAdmin,
-      withParams: { type: "query", names: ["team_id"] },
-    },
-    {
       name: "Policies",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
