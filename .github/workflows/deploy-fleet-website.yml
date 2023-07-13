@@ -58,6 +58,9 @@ jobs:
       with:
         go-version: 1.19
 
+    # Download top-level dependencies and build Storybook in the website's assets/ folder
+    - run: npm install && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
+
     # Now start building!
     # > …but first, get a little crazy for a sec and delete the top-level package.json file
     # > i.e. the one used by the Fleet server.  This is because require() in node will go
