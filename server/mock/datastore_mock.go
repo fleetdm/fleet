@@ -652,6 +652,12 @@ type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
 
 type WSTEPAssociateCertHashFunc func(ctx context.Context, deviceUUID string, hash string) error
 
+type MDMWindowsGetEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
+
+type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error
+
+type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1603,6 +1609,15 @@ type DataStore struct {
 
 	WSTEPAssociateCertHashFunc        WSTEPAssociateCertHashFunc
 	WSTEPAssociateCertHashFuncInvoked bool
+
+	MDMWindowsGetEnrolledDeviceFunc        MDMWindowsGetEnrolledDeviceFunc
+	MDMWindowsGetEnrolledDeviceFuncInvoked bool
+
+	MDMWindowsInsertEnrolledDeviceFunc        MDMWindowsInsertEnrolledDeviceFunc
+	MDMWindowsInsertEnrolledDeviceFuncInvoked bool
+
+	MDMWindowsDeleteEnrolledDeviceFunc        MDMWindowsDeleteEnrolledDeviceFunc
+	MDMWindowsDeleteEnrolledDeviceFuncInvoked bool	
 
 	mu sync.Mutex
 }
@@ -3824,4 +3839,25 @@ func (s *DataStore) WSTEPAssociateCertHash(ctx context.Context, deviceUUID strin
 	s.WSTEPAssociateCertHashFuncInvoked = true
 	s.mu.Unlock()
 	return s.WSTEPAssociateCertHashFunc(ctx, deviceUUID, hash)
+}
+
+func (s *DataStore) MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetEnrolledDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetEnrolledDeviceFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
+	s.mu.Lock()
+	s.MDMWindowsInsertEnrolledDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsInsertEnrolledDeviceFunc(ctx, device)
+}
+
+func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error {
+	s.mu.Lock()
+	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceID)
 }

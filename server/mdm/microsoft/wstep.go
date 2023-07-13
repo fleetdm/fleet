@@ -21,22 +21,6 @@ import (
 	"go.mozilla.org/pkcs7"
 )
 
-// TODO: Replace with imports from Marcos' PR
-const (
-	DocProvisioningAppProviderID = "FleetDM"
-	CertRenewalPeriodInSecs      = "15552000"
-)
-
-// TODO: Replace with imports from Marcos' PR
-type BinSecTokenType int
-
-// TODO: Replace with imports from Marcos' PR
-const (
-	MDETokenPKCS7 BinSecTokenType = iota
-	MDETokenPKCS10
-	MDETokenPKCSInvalid
-)
-
 // CertManager is an interface for certificate management tasks associated with Microsoft MDM (e.g.,
 // signing CSRs).
 type CertManager interface {
@@ -47,6 +31,9 @@ type CertManager interface {
 	// its uppercased, hex-endcoded sha1 fingerprint. The subject passed is set as the common name of
 	// the signed certificate.
 	SignClientCSR(ctx context.Context, subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error)
+
+	// IdentityCert returns the identity certificate of the depot.
+	IdentityCert() x509.Certificate
 
 	// TODO: implement other methods as needed:
 	// - verify certificate-device association
@@ -101,11 +88,29 @@ func newManager(store CertStore, certPEM []byte, privKeyPEM []byte) (*manager, e
 }
 
 func (m *manager) IdentityFingerprint() string {
+	if m == nil {
+		return ""
+	}
+
 	return m.identityFingerprint
 }
 
-// TODO: Marcos to update the POC implementation of this function
+func (m *manager) IdentityCert() x509.Certificate {
+	if m == nil {
+		return x509.Certificate{}
+	}
+
+	return *m.identityCert
+}
+
+// SignClientCSR returns a signed certificate from the client certificate signing request and the certificate fingerprint
+// subject is the DeviceID of the about to be MDM enrolled device, it will be used as the CommonName of the certificate
+// clientCSR is the client certificate signing request
 func (m *manager) SignClientCSR(ctx context.Context, subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error) {
+	if m == nil {
+		return nil, "", errors.New("windows mdm identity keypair was not configured")
+	}
+
 	if m.identityCert == nil || m.identityPrivateKey == nil {
 		return nil, "", errors.New("invalid identity certificate or private key")
 	}
@@ -140,7 +145,7 @@ func (m *manager) SignClientCSR(ctx context.Context, subject string, clientCSR *
 }
 
 func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	certRenewalPeriodInSecsInt, err := strconv.Atoi(CertRenewalPeriodInSecs)
+	certRenewalPeriodInSecsInt, err := strconv.Atoi(PolicyCertRenewalPeriodInSecs)
 	if err != nil {
 		return nil, fmt.Errorf("invalid renewal time: %w", err)
 	}
@@ -160,7 +165,7 @@ func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificat
 		PublicKey:          csr.PublicKey,
 		PublicKeyAlgorithm: csr.PublicKeyAlgorithm,
 		Signature:          csr.Signature,
-		SignatureAlgorithm: csr.SignatureAlgorithm,
+		SignatureAlgorithm: x509.SHA256WithRSA,
 		Extensions:         csr.Extensions,
 		ExtraExtensions:    csr.ExtraExtensions,
 		IPAddresses:        csr.IPAddresses,
@@ -170,7 +175,7 @@ func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificat
 		NotBefore:          notBeforeDuration,
 		NotAfter:           notBeforeDuration.Add(yearDuration),
 		SerialNumber:       sn,
-		KeyUsage:           x509.KeyUsageDigitalSignature,
+		KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
@@ -180,33 +185,31 @@ func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificat
 }
 
 // GetClientCSR returns the client certificate signing request from the BinarySecurityToken
-//
-// TODO: Marcos to update the POC implementation of this function
-func GetClientCSR(binSecTokenData string, tokenType BinSecTokenType) (*x509.CertificateRequest, error) {
-	// Verify the token padding type
-	if (tokenType != MDETokenPKCS7) && (tokenType != MDETokenPKCS10) {
-		return nil, fmt.Errorf("provided binary security token type is invalid: %d", tokenType)
+func GetClientCSR(binSecTokenData string, tokenType string) (*x509.CertificateRequest, error) {
+	// Checking if this is a valid enroll security token (CSR)
+	if (tokenType != EnrollReqTypePKCS10) && (tokenType != EnrollReqTypePKCS7) {
+		return nil, fmt.Errorf("token type is not valid for MDM enrollment: %s", tokenType)
 	}
 
 	// Decoding the Base64 encoded binary security token to obtain the client CSR bytes
 	rawCSR, err := base64.StdEncoding.DecodeString(binSecTokenData)
 	if err != nil {
-		return nil, fmt.Errorf("problem decoding the binary security token: %v", err)
+		return nil, fmt.Errorf("decoding the binary security token: %w", err)
 	}
 
 	// Sanity checks on binary signature token
 	// Sanity checks are done on PKCS10 for the moment
-	if tokenType == MDETokenPKCS7 {
+	if tokenType == EnrollReqTypePKCS7 {
 		// Parse the CSR in PKCS7 Syntax Standard
 		pk7CSR, err := pkcs7.Parse(rawCSR)
 		if err != nil {
-			return nil, fmt.Errorf("problem parsing the binary security token: %v", err)
+			return nil, fmt.Errorf("parsing the binary security token: %v", err)
 		}
 
 		// Verify the signatures of the CSR PKCS7 object
 		err = pk7CSR.Verify()
 		if err != nil {
-			return nil, fmt.Errorf("problem verifying CSR data: %v", err)
+			return nil, fmt.Errorf("verifying CSR data: %v", err)
 		}
 
 		// Verify signing time
@@ -217,22 +220,22 @@ func GetClientCSR(binSecTokenData string, tokenType BinSecTokenType) (*x509.Cert
 	}
 
 	// Decode and verify CSR
-	certCSR, err := x509.ParseCertificateRequest(rawCSR)
+	certCSR, err := ParseCertificateRequestFromWindowsDevice(rawCSR)
 	if err != nil {
-		return nil, fmt.Errorf("problem parsing CSR data: %v", err)
+		return nil, fmt.Errorf("parsing CSR data: %v", err)
 	}
 
 	err = certCSR.CheckSignature()
 	if err != nil {
-		return nil, fmt.Errorf("invalid CSR signature: %v", err)
+		return nil, fmt.Errorf("CSR signature: %v", err)
 	}
 
 	if certCSR.PublicKey == nil {
-		return nil, fmt.Errorf("invalid CSR public key: %v", err)
+		return nil, fmt.Errorf("CSR public key: %v", err)
 	}
 
 	if len(certCSR.Subject.String()) == 0 {
-		return nil, fmt.Errorf("invalid CSR subject: %v", err)
+		return nil, fmt.Errorf("CSR subject: %v", err)
 	}
 
 	return certCSR, nil

@@ -128,7 +128,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		team, ok := teamsByName[name]
 		if !ok {
-			return nil, sql.ErrNoRows
+			return nil, &notFoundError{}
 		}
 		return team, nil
 	}
@@ -1344,11 +1344,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
 			if !ok {
-				// TeamByName in the real Datastore does not return notFoundError, it
-				// returns ErrNoRows directly, we're a bit inconsistent with that at
-				// the moment. This is important as ApplyTeamSpecs checks if TeamByName
-				// returns an error that wraps ErrNoRows (and not an IsNotFound).
-				return nil, sql.ErrNoRows
+				return nil, &notFoundError{}
 			}
 			clone := *team
 			return &clone, nil
@@ -2052,7 +2048,7 @@ func TestApplySpecs(t *testing.T) {
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
 			if !ok {
-				return nil, sql.ErrNoRows
+				return nil, &notFoundError{}
 			}
 			return team, nil
 		}

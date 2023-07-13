@@ -991,6 +991,13 @@ type Datastore interface {
 	WSTEPNewSerial(ctx context.Context) (*big.Int, error)
 	// WSTEPAssociateCertHash associates a certificate hash with a device.
 	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
+
+	// MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
+	MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
+	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
+	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
+	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
+	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
 }
 
 const (

@@ -1,16 +1,15 @@
 .end-user-authentication {
-
   &__content {
-    max-width: $break-1600;
+    max-width: $break-xxl;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
     gap: $pad-xxlarge;
   }
 
-    @media (max-width: $break-990) {
-      &__content {
-        flex-direction: column;
-      }
+  @media (max-width: $break-md) {
+    &__content {
+      flex-direction: column;
     }
+  }
 }

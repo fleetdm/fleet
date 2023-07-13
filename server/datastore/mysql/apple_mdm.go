@@ -644,7 +644,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
 		team, err := ds.TeamByName(ctx, name)
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case fleet.IsNotFound(err):
 			level.Debug(ds.logger).Log(
 				"msg",
 				"ingesting devices from DEP: unable to find default team assigned in config, the devices won't be assigned to a team",
@@ -1505,6 +1505,9 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               status = VALUES(status),
               operation_type = VALUES(operation_type),
               detail = VALUES(detail),
+              checksum = VALUES(checksum),
+              profile_identifier = VALUES(profile_identifier),
+              profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid)`,
 		strings.TrimSuffix(sb.String(), ","),
 	)
