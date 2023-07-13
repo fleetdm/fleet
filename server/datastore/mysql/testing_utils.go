@@ -103,6 +103,10 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 		for _, fk := range fks {
 			stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
 			_, err := replica.ExecContext(ctx, stmt)
+			// If the FK was already removed ...
+			if strings.Contains(err.Error(), "check that column/key exists") {
+				continue
+			}
 			require.NoError(t, err)
 		}
 
