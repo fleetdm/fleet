@@ -1,4 +1,4 @@
-# Fleet 4.34.0 | ChromeOS tables, CIS benchmark load testing.
+# Fleet 4.34.0 | ChromeOS tables, CIS Benchmark load testing.
 
 ![Fleet 4.34.0](../website/assets/images/articles/fleet-4.34.0-1600x900@2x.png)
 
@@ -129,6 +129,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
-<meta name="publishedOn" value="2023-07-05">
-<meta name="articleTitle" value="Fleet 4.34.0 | ChromeOS tables, CIS benchmark load testing">
+<meta name="publishedOn" value="2023-07-12">
+<meta name="articleTitle" value="Fleet 4.34.0 | ChromeOS tables, CIS Benchmark load testing">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.34.0-1600x900@2x.png">
