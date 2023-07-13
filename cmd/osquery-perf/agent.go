@@ -9,7 +9,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -787,27 +786,6 @@ func (a *agent) hostUsers() []map[string]string {
 		users[i], users[j] = users[j], users[i]
 	})
 	return users
-}
-
-func extract(src, dst string) {
-	srcF, err := os.Open(src)
-	if err != nil {
-		panic(err)
-	}
-	defer srcF.Close()
-
-	dstF, err := os.Create(dst)
-	if err != nil {
-		panic(err)
-	}
-	defer dstF.Close()
-
-	r := bzip2.NewReader(srcF)
-	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
-	_, err = io.Copy(dstF, r) //nolint:gosec
-	if err != nil {
-		panic(err)
-	}
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
