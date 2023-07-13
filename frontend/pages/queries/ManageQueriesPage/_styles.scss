@@ -59,7 +59,7 @@
     gap: $pad-small;
   }
 
-  .form-field--dropdown {
+  form-field--dropdown {
     margin: 0;
   }
 
@@ -110,9 +110,7 @@
           .performance__header {
             display: none;
             width: 0;
-          }
-          @media (min-width: $break-md) {
-            .author_name__header {
+            @media (min-width: $break-md) {
               display: table-cell;
               width: auto;
             }
