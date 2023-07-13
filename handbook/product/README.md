@@ -50,7 +50,7 @@ When starting a new draft:
 #### Questions and missing information
 
 1. Take a screenshot of the area in Figma
-2. Start a thread in the #g-product Slack channel and paste in the screenshot
+2. Start a thread in the #help-product Slack channel and paste in the screenshot
 
 Note: Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred.
 
