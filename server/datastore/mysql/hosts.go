@@ -345,7 +345,8 @@ var hostRefs = []string{
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
-	"host_mdm_apple_profiles": "host_uuid",
+	"host_mdm_apple_profiles":           "host_uuid",
+	"host_mdm_apple_bootstrap_packages": "host_uuid",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -2229,7 +2230,7 @@ func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host)
 	query := `
 		SELECT SUM(1 - pm.passes) AS n_failed
 		FROM policy_membership pm
-		WHERE pm.host_id = ?
+		WHERE pm.host_id = ? AND pm.passes IS NOT null
 		GROUP BY host_id
 	`
 

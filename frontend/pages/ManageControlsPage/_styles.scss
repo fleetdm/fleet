@@ -33,7 +33,7 @@
     margin: 0;
     margin-bottom: $pad-large;
     max-width: 75%;
-    @media (min-width: $break-990) {
+    @media (min-width: $break-md) {
       max-width: none;
     }
 

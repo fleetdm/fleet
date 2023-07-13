@@ -522,6 +522,20 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 	require.NoError(t, err)
 	require.Len(t, user.Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
+
+	spec = []byte(fmt.Sprintf(`
+  roles:
+    %s:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: non-existent
+`,
+		email))
+	userRoleSpec = applyUserRoleSpecsRequest{}
+	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
+	require.NoError(t, err)
+	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusBadRequest)
 }
 
 func (s *integrationTestSuite) TestGlobalSchedule() {
@@ -6611,6 +6625,7 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 		NodeKey:         ptr.String(name),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
+		HardwareSerial:  uuid.New().String(),
 		Platform:        os,
 	})
 	require.NoError(t, err)

@@ -2779,91 +2779,6 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	require.Len(s.T(), pfs, 1)
 }
 
-func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
-	t := s.T()
-
-	// ensure the config is empty before starting
-	s.applyConfig([]byte(`
-  mdm:
-    macos_updates:
-      deadline: ""
-      minimum_version: ""
- `))
-
-	var resp orbitGetConfigResponse
-	// missing orbit key
-	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
-
-	// nudge config is empty if macos_updates is not set, and Windows MDM notifications are unset
-	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.Empty(t, resp.NudgeConfig)
-	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
-	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
-	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
-
-	// set macos_updates
-	s.applyConfig([]byte(`
-  mdm:
-    macos_updates:
-      deadline: 2022-01-04
-      minimum_version: 12.1.3
- `))
-
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
-	require.NoError(t, err)
-	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
-
-	// create a team with an empty macos_updates config
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          4827,
-		Name:        "team1_" + t.Name(),
-		Description: "desc team1_" + t.Name(),
-	})
-	require.NoError(t, err)
-
-	// add the host to the team
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
-	require.NoError(t, err)
-
-	// NudgeConfig should be empty
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.Empty(t, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
-
-	// modify the team config, add macos_updates config
-	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
-				Deadline:       optjson.SetString("1992-01-01"),
-				MinimumVersion: optjson.SetString("13.1.1"),
-			},
-		},
-	}, http.StatusOK, &tmResp)
-
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.1.1")})
-	require.NoError(t, err)
-	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 04:00:00 +0000 UTC")
-
-	// create a new host, still receives the global config
-	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
-	require.NoError(t, err)
-	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
-}
-
 // allEqual compares all fields of a struct.
 // If a field is a pointer on one side but not on the other, then it follows that pointer. This is useful for optional
 // arguments.
@@ -3673,4 +3588,35 @@ func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, email, pa
 	})
 
 	s.token = s.getCachedUserToken(email, password)
+}
+
+func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() {
+	t := s.T()
+
+	token := "abcd123"
+	host := createHostAndDeviceToken(t, s.ds, token)
+
+	// Create an 'invalid' global policy for host
+	admin := s.users["admin1@example.com"]
+	err := s.ds.SaveUser(context.Background(), &admin)
+	require.NoError(t, err)
+
+	policy, err := s.ds.NewGlobalPolicy(context.Background(), &admin.ID, fleet.PolicyPayload{
+		Query:       "SELECT 1 FROM table",
+		Name:        "test",
+		Description: "Some invalid Query",
+		Resolution:  "",
+		Platform:    host.Platform,
+		Critical:    false,
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: nil}, time.Now(), false))
+
+	// Any 'invalid' policies should be ignored.
+	desktopRes := fleetDesktopResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&desktopRes))
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, desktopRes.Err)
+	require.Equal(t, uint(0), *desktopRes.FailingPolicies)
 }

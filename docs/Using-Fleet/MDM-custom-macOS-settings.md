@@ -99,3 +99,4 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 
 <meta name="pageOrderInSection" value="1504">
 <meta name="title" value="MDM custom macOS settings">
+<meta name="description" value="Learn how to enforce custom settings on macOS hosts using Fleet's configuration profiles.">

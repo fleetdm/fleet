@@ -16,7 +16,7 @@
           display: none;
           width: 0;
         }
-        @media (min-width: $break-990) {
+        @media (min-width: $break-md) {
           .last_run__header {
             display: table-cell;
           }
@@ -33,7 +33,7 @@
           display: none;
           width: 0;
         }
-        @media (min-width: $break-990) {
+        @media (min-width: $break-md) {
           .last_run__cell {
             display: table-cell;
           }

@@ -74,3 +74,4 @@ They are sized to be the smallest that Fargate allows, so it is still cost effec
 The [osquery-perf](https://github.com/fleetdm/fleet/tree/main/cmd/osquery-perf) tool doesn't simulate all data that's included when a real device communicates to a Fleet instance. For example, system users and software inventory data are not yet simulated by osquery-perf.
 
 <meta name="pageOrderInSection" value="500">
+<meta name="description" value="This page outlines the most recent results of a semi-annual load test of the Fleet server.">

@@ -145,3 +145,4 @@ A patch release is required when a critical bug is found. Critical bugs are defi
    TODO [#2850](https://github.com/fleetdm/fleet/issues/2850): Improve docs/tooling for this.
 
 <meta name="pageOrderInSection" value="500">
+<meta name="description" value="Learn how new versions of Fleet are tested and released.">

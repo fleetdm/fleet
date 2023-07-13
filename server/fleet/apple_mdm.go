@@ -459,6 +459,7 @@ type MDMApplePreassignProfilePayload struct {
 	HostUUID               string `json:"host_uuid"`
 	Profile                []byte `json:"profile"`
 	Group                  string `json:"group"`
+	Exclude                bool   `json:"exclude"`
 }
 
 // HexMD5Hash returns the hex-encoded MD5 hash of the profile. Note that MD5 is
@@ -484,6 +485,7 @@ type MDMApplePreassignProfile struct {
 	Profile    []byte
 	Group      string
 	HexMD5Hash string
+	Exclude    bool
 }
 
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
