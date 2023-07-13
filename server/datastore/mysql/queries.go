@@ -363,10 +363,10 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	}
 
 	if opt.TeamID != nil {
-		args = append(args, fmt.Sprint(*opt.TeamID))
-		whereClauses += " AND team_id_char = ?"
+		args = append(args, *opt.TeamID)
+		whereClauses += " AND team_id = ?"
 	} else {
-		whereClauses += " AND team_id_char = ''"
+		whereClauses += " AND team_id IS NULL"
 	}
 
 	if opt.IsScheduled != nil {
