@@ -27,7 +27,10 @@ describe 'fleetdm::profile' do
 
       it 'compiles' do
         uuid = os_facts[:system_profiler]['hardware_uuid']
-        expect(fleet_client_mock).to receive(:preassign_profile).with(run_identifier, uuid, template, group).and_return({ 'error' => '' })
+        expect(fleet_client_mock)
+          .to receive(:preassign_profile)
+          .with(run_identifier, uuid, template, group, 'present')
+          .and_return({ 'error' => '' })
         is_expected.to compile
       end
 
@@ -55,6 +58,14 @@ describe 'fleetdm::profile' do
         it { is_expected.to compile.and_raise_error(%r{invalid group}) }
       end
 
+      context 'invalid ensure' do
+        let(:params) do
+          { 'template' => template, 'ensure' => 'nothing' }
+        end
+
+        it { is_expected.to compile.and_raise_error(%r{'ensure' expects a match for Enum\['absent', 'present'\]}) }
+      end
+
       context 'without group' do
         let(:params) do
           { 'template' => template }
@@ -62,7 +73,25 @@ describe 'fleetdm::profile' do
 
         it 'compiles' do
           uuid = os_facts[:system_profiler]['hardware_uuid']
-          expect(fleet_client_mock).to receive(:preassign_profile).with(run_identifier, uuid, template, 'default').and_return({ 'error' => '' })
+          expect(fleet_client_mock)
+            .to receive(:preassign_profile)
+            .with(run_identifier, uuid, template, 'default', 'present')
+            .and_return({ 'error' => '' })
+          is_expected.to compile
+        end
+      end
+
+      context 'ensure => absent' do
+        let(:params) do
+          { 'template' => template, 'ensure' => 'absent' }
+        end
+
+        it 'compiles' do
+          uuid = os_facts[:system_profiler]['hardware_uuid']
+          expect(fleet_client_mock)
+            .to receive(:preassign_profile)
+            .with(run_identifier, uuid, template, 'default', 'absent')
+            .and_return({ 'error' => '' })
           is_expected.to compile
         end
       end
