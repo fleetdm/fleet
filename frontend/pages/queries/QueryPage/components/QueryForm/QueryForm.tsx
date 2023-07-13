@@ -571,7 +571,6 @@ const QueryForm = ({
       </form>
       {showSaveQueryModal && (
         <SaveQueryModal
-          baseClass={baseClass}
           queryValue={lastEditedQueryBody}
           teamIdForQuery={teamIdForQuery}
           saveQuery={saveQuery}

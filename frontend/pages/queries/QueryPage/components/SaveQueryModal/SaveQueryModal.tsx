@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { pull, size } from "lodash";
 
-import { IQueryFormData } from "interfaces/query";
 import useDeepEffect from "hooks/useDeepEffect";
 
 import Checkbox from "components/forms/fields/Checkbox";
@@ -25,8 +24,8 @@ import {
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
 
+const baseClass = "save-query-modal";
 export interface ISaveQueryModalProps {
-  baseClass: string;
   queryValue: string;
   teamIdForQuery?: number; // query will be global if omitted
   isLoading: boolean;
@@ -48,7 +47,6 @@ const validateQueryName = (name: string) => {
 };
 
 const SaveQueryModal = ({
-  baseClass,
   queryValue,
   teamIdForQuery,
   isLoading,
@@ -146,7 +144,7 @@ const SaveQueryModal = ({
       <>
         <form
           onSubmit={onClickSaveQuery}
-          className={`${baseClass}__save-modal-form`}
+          className={baseClass}
           autoComplete="off"
         >
           <InputField
@@ -154,7 +152,7 @@ const SaveQueryModal = ({
             onChange={(value: string) => setName(value)}
             value={name}
             error={errors.name}
-            inputClassName={`${baseClass}__query-save-modal-name`}
+            inputClassName={`${baseClass}__name`}
             label="Name"
             placeholder="What is your query called?"
             autofocus
@@ -163,40 +161,42 @@ const SaveQueryModal = ({
             name="description"
             onChange={(value: string) => setDescription(value)}
             value={description}
-            inputClassName={`${baseClass}__query-save-modal-description`}
+            inputClassName={`${baseClass}__description`}
             label="Description"
             type="textarea"
             placeholder="What information does your query reveal? (optional)"
           />
-          <Dropdown
-            searchable={false}
-            options={FREQUENCY_DROPDOWN_OPTIONS}
-            onChange={(value: number) => {
-              setSelectedFrequency(value);
-            }}
-            placeholder={"Every hour"}
-            value={selectedFrequency}
-            label="Frequency"
-            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-          />
-          <p>
-            If automations are on, this is how often your query collects data.
-          </p>
+          <div>
+            <Dropdown
+              searchable={false}
+              options={FREQUENCY_DROPDOWN_OPTIONS}
+              onChange={(value: number) => {
+                setSelectedFrequency(value);
+              }}
+              placeholder={"Every hour"}
+              value={selectedFrequency}
+              label="Frequency"
+              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+            />
+            <p className="help-text">
+              If automations are on, this is how often your query collects data.
+            </p>
+          </div>
           <Checkbox
             name="observerCanRun"
             onChange={setObserverCanRun}
             value={observerCanRun}
-            wrapperClassName={`${baseClass}__query-save-modal-observer-can-run-wrapper`}
+            wrapperClassName={`${baseClass}__observer-can-run-wrapper`}
           >
             Observers can run
           </Checkbox>
-          <p>
+          <p className="help-text">
             Users with the Observer role will be able to run this query as a
             live query.
           </p>
           <RevealButton
             isShowing={showAdvancedOptions}
-            className={baseClass}
+            className={`${baseClass}__advanced-options-toggle`}
             hideText={"Hide advanced options"}
             showText={"Show advanced options"}
             caretPosition={"after"}
@@ -213,7 +213,7 @@ const SaveQueryModal = ({
                 multi
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
               />
-              <p>
+              <p className="help-text">
                 If automations are turned on, your query collects data on
                 compatible platforms.
                 <br />

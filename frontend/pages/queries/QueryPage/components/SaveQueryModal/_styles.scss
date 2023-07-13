@@ -1,0 +1,32 @@
+.save-query-modal {
+  .fleet-checkbox {
+    display: flex;
+    align-items: center;
+  }
+
+  .help-text {
+    margin-top: $pad-small;
+    margin-bottom: $pad-large;
+    font-weight: $regular;
+    font-size: 0.75rem;
+    color: $ui-fleet-black-75;
+  }
+
+  &__form-field {
+    &--frequency {
+      margin-bottom: 0;
+    }
+    &--platform {
+      margin-bottom: 0;
+      margin-top: $pad-large;
+    }
+  }
+
+  &__observer-can-run-wrapper {
+    margin-bottom: 0;
+  }
+
+  &__advanced-options-toggle {
+    font-weight: $xbold;
+  }
+}
