@@ -322,6 +322,18 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	return cp.Mobileconfig.ScreenPayloads()
 }
 
+// IsWithinGracePeriod returns true if the host is within the grace period for the profile.
+//
+// The grace period is defined as 1 hour after the profile was updated. It is checked against the
+// host's detail_updated_at timestamp to allow for the host to check in at least once before the
+// profile is considered failed. If the host is online, it should report detail queries hourly by
+// default. If the host is offline, it should report detail queries shortly after it comes back
+// online.
+func (cp MDMAppleConfigProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) bool {
+	gracePeriod := 1 * time.Hour
+	return hostDetailUpdatedAt.Before(cp.UpdatedAt.Add(gracePeriod))
+}
+
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
 	HostUUID      string                  `db:"host_uuid" json:"-"`
@@ -345,6 +357,25 @@ func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
 	return false
 }
 
+type HostMDMProfileDetail string
+
+const (
+	HostMDMProfileDetailFailedWasVerified  HostMDMProfileDetail = "Failed, was verified"
+	HostMDMProfileDetailFailedWasVerifying HostMDMProfileDetail = "Failed, was verifying"
+)
+
+// Message returns a human-friendly message for the detail.
+func (d HostMDMProfileDetail) Message() string {
+	switch d {
+	case HostMDMProfileDetailFailedWasVerified:
+		return "This setting had been verified by osquery, but has since been found missing on the host."
+	case HostMDMProfileDetailFailedWasVerifying:
+		return "The MDM protocol returned a success but the setting couldn’t be verified by osquery."
+	default:
+		return string(d)
+	}
+}
+
 type MDMAppleProfilePayload struct {
 	ProfileID         uint   `db:"profile_id"`
 	ProfileIdentifier string `db:"profile_identifier"`
@@ -361,6 +392,7 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	CommandUUID       string
 	OperationType     MDMAppleOperationType
 	Status            *MDMAppleDeliveryStatus
+	Detail            string
 	Checksum          []byte
 }
 
@@ -427,6 +459,7 @@ type MDMApplePreassignProfilePayload struct {
 	HostUUID               string `json:"host_uuid"`
 	Profile                []byte `json:"profile"`
 	Group                  string `json:"group"`
+	Exclude                bool   `json:"exclude"`
 }
 
 // HexMD5Hash returns the hex-encoded MD5 hash of the profile. Note that MD5 is
@@ -452,6 +485,7 @@ type MDMApplePreassignProfile struct {
 	Profile    []byte
 	Group      string
 	HexMD5Hash string
+	Exclude    bool
 }
 
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to

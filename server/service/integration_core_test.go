@@ -522,6 +522,20 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 	require.NoError(t, err)
 	require.Len(t, user.Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
+
+	spec = []byte(fmt.Sprintf(`
+  roles:
+    %s:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: non-existent
+`,
+		email))
+	userRoleSpec = applyUserRoleSpecsRequest{}
+	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
+	require.NoError(t, err)
+	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusBadRequest)
 }
 
 func (s *integrationTestSuite) TestGlobalSchedule() {
@@ -4692,6 +4706,7 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, "test", acResp.OrgInfo.OrgName)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
+	assert.False(t, acResp.MDMEnabled)
 
 	// the global agent options were not modified by the last call, so the
 	// corresponding activity should not have been created.
@@ -4876,7 +4891,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"mdm": { "apple_bm_default_team": "xyz" }
   }`), http.StatusUnprocessableEntity, &acResp)
 
-	// try to enable windows mdm, impossible without the feature flag
+	// try to enable Windows MDM, impossible without the feature flag
 	// (only set in mdm integrations tests)
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": true }
@@ -6610,6 +6625,7 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 		NodeKey:         ptr.String(name),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
+		HardwareSerial:  uuid.New().String(),
 		Platform:        os,
 	})
 	require.NoError(t, err)

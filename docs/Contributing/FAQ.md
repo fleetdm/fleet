@@ -92,3 +92,6 @@ If you also have Fleetd running on hosts, it will need access to these API endpo
 * `/api/fleet/orbit/device_token`
 * `/api/fleet/orbit/ping`
 * `/api/osquery/log`
+
+
+<meta name="description" value="Find commonly asked questions and answers about contributing to Fleet as part of our community.">

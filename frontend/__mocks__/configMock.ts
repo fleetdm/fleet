@@ -4,6 +4,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   org_info: {
     org_name: "fleet",
     org_logo_url: "",
+    org_logo_url_light_background: "",
     contact_url: "https://fleetdm.com/company/contact",
   },
   server_settings: {
@@ -124,6 +125,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
   fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
   mdm: {
+    windows_enabled_and_configured: true,
     apple_bm_default_team: "Apples",
     apple_bm_enabled_and_configured: true,
     apple_bm_terms_expired: false,

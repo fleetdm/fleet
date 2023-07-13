@@ -32,7 +32,7 @@ The goal of the MDM group is to reach [product maturity](https://drive.google.co
 |:----------------------------------|:--------------------------|
 | Designer                          | Marko Lisica
 | Engineering manager               | George Karr
-| Quality assurance                 | Reed Haynes
+| Quality assurance                 | Reed Haynes, Sabrina Coy
 | Product manager                   | Noah Talerman
 | Software engineers (developers)   | Gabe Hernandez, Martin Angers*, Roberto Dip, Sarah Gillespie, Marcos Oviedo
 
@@ -178,7 +178,7 @@ These questions are helpful for the product team when considering what to priori
 
 #### Design reviews
 
-Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/business-operations/ceo-handbook#calendar-audit).
+Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/company/ceo-handbook#calendar-audit).
 
 The product designer prepares proposed changes in the form of wireframes for this meeting, and presents them quickly.  Here are some tips for making this meeting effective:
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.

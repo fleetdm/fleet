@@ -67,7 +67,7 @@ module.exports.routes = {
     }
   },
 
-  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
+  'r|^/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
@@ -171,6 +171,8 @@ module.exports.routes = {
     action: 'try-fleet/view-register',
     locals: {
       layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet Sandbox | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet Sandbox - The fastest way to test Fleet. Get up and running in minutes to try out Fleet.',
     }
   },
 
@@ -178,6 +180,8 @@ module.exports.routes = {
     action: 'try-fleet/view-sandbox-login',
     locals: {
       layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Log in to Fleet Sandbox | Fleet for osquery',
+      pageDescriptionForMeta: 'Log in to Fleet Sandbox.',
     }
   },
 
@@ -243,7 +247,7 @@ module.exports.routes = {
     action: 'view-fleet-mdm',
     locals: {
       pageTitleForMeta: 'Device management | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about upcoming features and join the Fleet MDM beta today.',
+      pageDescriptionForMeta: 'GitOps-driven MDM. Automate the management of your fleet of devices with increased visibility, control, and improved stability.',
       currentSection: 'platform',
     }
   },
@@ -278,6 +282,15 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Vulnerability management | Fleet for osquery',
       pageDescriptionForMeta: 'Know what\’s going on with your computers. Measure and automate risk across your laptops and servers.',
+    }
+  },
+
+  'GET /support': {
+    action: 'view-support',
+    locals: {
+      pageTitleForMeta: 'Support | Fleet for osquery',
+      pageDescriptionForMeta: 'Ask a question, chat with other engineers, or get in touch with the Fleet team.',
+      currentSection: 'documentation',
     }
   },
 
@@ -363,10 +376,10 @@ module.exports.routes = {
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
   'GET /platform': (req,res)=> {return res.redirect(302, '/');},// FUTURE: change this to a 301 (permanent) redirect once we are sure what the page that replaces this is.
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
+  'GET /handbook/business-operations/ceo-handbook': '/handbook/company/ceo-handbook',
   'GET /docs/using-fleet/orbit': '/docs/using-fleet/fleetd',
   'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
   'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
-
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -384,7 +397,6 @@ module.exports.routes = {
   'GET /install':                    '/fleetctl-preview',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
-  'GET /support':                    '/company/contact',
   'GET /contact':                    '/company/contact',
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',

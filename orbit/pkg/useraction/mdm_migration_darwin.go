@@ -33,11 +33,8 @@ var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Pa
 To begin, click "Start." Your default browser will open your My Device page.
 
 {{ if .IsUnmanaged }}You {{ else }} Once you start, you {{ end -}} will see this dialog every 15 minutes until you click "Turn on MDM" and complete the instructions.` +
-
-	"\n\n![Image showing the Fleet UI](https://fleetdm.com/images/permanent/mdm-migration-screenshot-768x180-2x.png)\n\n" +
-
-	`Unsure? Contact {{ .OrgInfo.OrgName }} IT [here]({{ .OrgInfo.ContactURL }}).
-`))
+	"\n\n![Image showing the Fleet UI](https://fleetdm.com/images/permanent/mdm-migration-screenshot-768x180-2x.png)\n\n",
+))
 
 var errorTemplate = template.Must(template.New("").Parse(`
 ### Something's gone wrong.
@@ -154,8 +151,33 @@ type swiftDialogMDMMigrator struct {
 	intervalMu sync.Mutex
 }
 
+/**
+ * Checks in macOS if the user is using dark mode. If we encounter an exit error this is because
+ * out command returned a non-zero exit code. In this case we can assume the user is NOT using dark
+ * mode as the "AppleInterfaceStyle" key is only set when dark mode has been set.
+ *
+ * More info can be found here:
+ * https://gist.github.com/jerblack/869a303d1a604171bf8f00bbbefa59c2#file-2-dark-monitor-go-L33-L41
+ */
+func isDarkMode() bool {
+	cmd := exec.Command("defaults", "read", "-g", "AppleInterfaceStyle")
+	if err := cmd.Run(); err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
 	icon := m.props.OrgInfo.OrgLogoURL
+
+	// If the user is using light mode we will set the icon to use the light background logo
+	if !isDarkMode() {
+		icon = m.props.OrgInfo.OrgLogoURLLightBackground
+	}
+
+	// If the user has not set an org logo url, we will use the default fleet logo.
 	if icon == "" {
 		icon = "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
 	}
@@ -202,7 +224,6 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 }
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
-
 	var message bytes.Buffer
 	if err := mdmMigrationTemplate.Execute(
 		&message,
@@ -211,16 +232,24 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	exitCodeCh, errCh := m.render(message.String(),
-		// info button
-		"--infobuttontext", "?",
-		"--infobuttonaction", "https://fleetdm.com/handbook/company/why-this-way#why-open-source",
+	flags := []string{
 		// main button
 		"--button1text", "Start",
 		// secondary button
 		"--button2text", "Later",
-		"--blurscreen", "--ontop", "--height", "600",
-	)
+		"--blurscreen", "--ontop", "--height", "500",
+	}
+
+	if m.props.OrgInfo.ContactURL != "" {
+		flags = append(flags,
+			// info button
+			"--infobuttontext", "Unsure? Contact IT",
+			"--infobuttonaction", m.props.OrgInfo.ContactURL,
+			"--quitoninfo",
+		)
+	}
+
+	exitCodeCh, errCh := m.render(message.String(), flags...)
 
 	select {
 	case err := <-errCh:

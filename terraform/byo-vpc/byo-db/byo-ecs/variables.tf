@@ -16,6 +16,9 @@ variable "fleet_config" {
     image                        = optional(string, "fleetdm/fleet:v4.31.1")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
+    depends_on                   = optional(list(any), [])
+    mount_points                 = optional(list(any), [])
+    volumes                      = optional(list(any), [])
     extra_environment_variables  = optional(map(string), {})
     extra_iam_policies           = optional(list(string), [])
     extra_execution_iam_policies = optional(list(string), [])
@@ -94,6 +97,9 @@ variable "fleet_config" {
     image                        = "fleetdm/fleet:v4.31.1"
     family                       = "fleet"
     sidecars                     = []
+    depends_on                   = []
+    mount_points                 = []
+    volumes                      = []
     extra_environment_variables  = {}
     extra_iam_policies           = []
     extra_execution_iam_policies = []

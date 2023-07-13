@@ -38,8 +38,6 @@ import BackLink from "components/BackLink";
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 
-import { createMockHostMacMdmProfile } from "__mocks__/hostMock";
-
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
 import AgentOptionsCard from "../cards/AgentOptions";

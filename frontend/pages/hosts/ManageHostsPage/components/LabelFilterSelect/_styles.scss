@@ -49,7 +49,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    @media (max-width: $break-990) {
+    @media (max-width: $break-md) {
       width: auto;
     }
   }

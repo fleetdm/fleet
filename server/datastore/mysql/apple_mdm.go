@@ -107,55 +107,6 @@ ORDER BY name`
 	return res, nil
 }
 
-func (ds *Datastore) MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]uint, error) {
-	// as a special-case, should never be called without at least one hash but if
-	// so, never matches anything.
-	if len(hexMD5Hashes) == 0 {
-		return nil, nil
-	}
-
-	stmt := `
-SELECT
-	p1.team_id
-FROM
-	mdm_apple_configuration_profiles p1
-WHERE
-	p1.identifier NOT IN (?) AND
-	NOT EXISTS (
-		SELECT
-			1
-		FROM
-			mdm_apple_configuration_profiles p2
-		WHERE
-			p2.identifier NOT IN (?) AND
-			p1.team_id = p2.team_id AND
-			HEX(p2.checksum) NOT IN (?)
-	)
-GROUP BY
-	p1.team_id
-HAVING
-	COUNT(*) = ?`
-
-	// when matching a set of profiles to a team, only the custom profiles need
-	// to match, i.e. we ignore any fleet-specific profiles.
-	idents := mobileconfig.FleetPayloadIdentifiers()
-	fleetIdents := make([]string, 0, len(idents))
-	for ident := range idents {
-		fleetIdents = append(fleetIdents, ident)
-	}
-
-	stmt, args, err := sqlx.In(stmt, fleetIdents, fleetIdents, hexMD5Hashes, len(hexMD5Hashes))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare query arguments")
-	}
-
-	var teamIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute query")
-	}
-	return teamIDs, nil
-}
-
 func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 	stmt := `
 SELECT
@@ -418,6 +369,7 @@ INNER JOIN
 ON
     nvq.id = h.uuid
 WHERE
+   nvq.active = 1 AND
     %s
 `, ds.whereFilterHostsByTeams(tmFilter, "h"))
 	stmt, params := appendListOptionsWithCursorToSQL(stmt, nil, &listOpts.ListOptions)
@@ -692,7 +644,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
 		team, err := ds.TeamByName(ctx, name)
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case fleet.IsNotFound(err):
 			level.Debug(ds.logger).Log(
 				"msg",
 				"ingesting devices from DEP: unable to find default team assigned in config, the devices won't be assigned to a team",
@@ -1532,8 +1484,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	var sb strings.Builder
 
 	for _, p := range payload {
-		args = append(args, p.ProfileID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.CommandUUID, p.Checksum)
-		sb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?),")
+		args = append(args, p.ProfileID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.Checksum)
+		sb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
 	}
 
 	stmt := fmt.Sprintf(`
@@ -1544,6 +1496,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               host_uuid,
               status,
               operation_type,
+              detail,
               command_uuid,
 	      checksum
             )
@@ -1551,6 +1504,10 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	    ON DUPLICATE KEY UPDATE
               status = VALUES(status),
               operation_type = VALUES(operation_type),
+              detail = VALUES(detail),
+              checksum = VALUES(checksum),
+              profile_identifier = VALUES(profile_identifier),
+              profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid)`,
 		strings.TrimSuffix(sb.String(), ","),
 	)
@@ -1578,7 +1535,7 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
-func (ds *Datastore) SetVerifiedHostMacOSProfiles(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
+func (ds *Datastore) UpdateVerificationHostMacOSProfiles(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
 	installedProfsByIdentifier := make(map[string]*fleet.HostMacOSProfile, len(installedProfiles))
 	for _, p := range installedProfiles {
 		installedProfsByIdentifier[p.Identifier] = p
@@ -1601,26 +1558,60 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "listing expected profiles to set verified host macOS profiles")
 	}
 
-	verifiedIdentifiers := make([]string, 0, len(expectedProfs))
+	foundIdentifiers := make([]string, 0, len(expectedProfs))
+	missingIdentifiers := make([]string, 0, len(expectedProfs))
+
 	for _, ep := range expectedProfs {
+		withinGracePeriod := ep.IsWithinGracePeriod(host.DetailUpdatedAt) // Note: The host detail timestamp is updated after the current set is ingested, see https://github.com/fleetdm/fleet/blob/e9fd28717d474668ca626efbacdd0615d42b2e0a/server/service/osquery.go#L950
 		ip, ok := installedProfsByIdentifier[ep.Identifier]
 		if !ok {
-			// TODO: expected profile is not installed on host, skip it for now
+			// expected profile is missing from host
+			if !withinGracePeriod {
+				missingIdentifiers = append(missingIdentifiers, ep.Identifier)
+			}
 			continue
 		}
 		if ep.UpdatedAt.After(ip.InstallDate) {
-			// TODO: host has an older version of expected profile installed, skip it for now
+			// TODO: host has an older version of expected profile installed, treat it as a missing
+			// profile for now but we should think about an appropriate grace period to account for
+			// clock skew between the host and the server or a checksum comparison instead
+			if !withinGracePeriod {
+				missingIdentifiers = append(missingIdentifiers, ep.Identifier)
+			}
 			continue
 		}
 		if ep.Name != ip.DisplayName {
-			// TODO: host has a different name for expected profile, skip it for now
+			// TODO: host has a different name for expected profile, treat it as a missing profile
+			// for now but we should think about a checksum comparison instead
+			if !withinGracePeriod {
+				missingIdentifiers = append(missingIdentifiers, ep.Identifier)
+			}
 			continue
 		}
-		verifiedIdentifiers = append(verifiedIdentifiers, ep.Identifier)
+		foundIdentifiers = append(foundIdentifiers, ep.Identifier)
 	}
 
-	if len(verifiedIdentifiers) == 0 {
+	if len(foundIdentifiers) == 0 && len(missingIdentifiers) == 0 {
 		// nothing to update, return early
+		return nil
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := setMDMProfilesVerifiedDB(ctx, tx, host, foundIdentifiers); err != nil {
+			return err
+		}
+		if err := setMDMProfilesFailedDB(ctx, tx, host, missingIdentifiers); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// setMDMProfilesFailedDB sets the status of the given identifiers to failed if the current status
+// is verifying or verified. It also sets the detail to a message indicating that the profile was
+// either verifying or verified. Only profiles with the install operation type are updated.
+func setMDMProfilesFailedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiers []string) error {
+	if len(identifiers) == 0 {
 		return nil
 	}
 
@@ -1628,23 +1619,69 @@ WHERE
 UPDATE
 	host_mdm_apple_profiles
 SET
+	detail = if(status = ?, ?, ?),
+	status = ?
+WHERE
+	host_uuid = ?
+	AND status IN(?)
+	AND operation_type = ?
+	AND profile_identifier IN(?)`
+
+	args := []interface{}{
+		fleet.MDMAppleDeliveryVerifying,
+		fleet.HostMDMProfileDetailFailedWasVerifying,
+		fleet.HostMDMProfileDetailFailedWasVerified,
+		fleet.MDMAppleDeliveryFailed,
+		host.UUID,
+		[]interface{}{fleet.MDMAppleDeliveryVerifying, fleet.MDMAppleDeliveryVerified},
+		fleet.MDMAppleOperationTypeInstall,
+		identifiers,
+	}
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building sql statement to set failed host macOS profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting failed host macOS profiles")
+	}
+	return nil
+}
+
+// setMDMProfilesVerifiedDB sets the status of the given identifiers to verified if the current
+// status is verifying. Only profiles with the install operation type are updated.
+func setMDMProfilesVerifiedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiers []string) error {
+	if len(identifiers) == 0 {
+		return nil
+	}
+
+	stmt := `
+UPDATE
+	host_mdm_apple_profiles
+SET
+	detail = '',
 	status = ?
 WHERE
 	host_uuid = ?
 	AND status = ?
-	AND operation_type = 'install'
+	AND operation_type = ?
 	AND profile_identifier IN(?)`
 
-	args := []interface{}{fleet.MDMAppleDeliveryVerified, host.UUID, fleet.MDMAppleDeliveryVerifying, verifiedIdentifiers}
+	args := []interface{}{
+		fleet.MDMAppleDeliveryVerified,
+		host.UUID,
+		fleet.MDMAppleDeliveryVerifying,
+		fleet.MDMAppleOperationTypeInstall,
+		identifiers,
+	}
 	stmt, args, err := sqlx.In(stmt, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building sql statement to set verified host macOS profiles")
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting verified host macOS profiles")
 	}
-
 	return nil
 }
 
@@ -2091,7 +2128,7 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 		if isDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
 		}
-		return ctxerr.Wrap(ctx, err, "create bootstrap pacckage")
+		return ctxerr.Wrap(ctx, err, "create bootstrap package")
 	}
 
 	return nil
@@ -2544,14 +2581,31 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 	return asst.ProfileUUID, asst.UploadedAt, nil
 }
 
-func (ds *Datastore) ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error {
-	// it's okay if we didn't update any rows, `nano_enrollments` entries
-	// are created on `TokenUpdate`, and this function is called on
-	// `Authenticate` to make sure we start on a clean state if a host is
-	// re-enrolling.
-	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET token_update_tally = 0 WHERE id = ?`, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating nano_enrollments")
-	}
-	return nil
+func (ds *Datastore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// it's okay if we didn't update any rows, `nano_enrollments` entries
+		// are created on `TokenUpdate`, and this function is called on
+		// `Authenticate` to make sure we start on a clean state if a host is
+		// re-enrolling.
+		_, err := tx.ExecContext(ctx, `UPDATE nano_enrollments SET token_update_tally = 0 WHERE id = ?`, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting nano_enrollments")
+		}
+
+		// Deleting profiles from this table will cause all profiles to
+		// be re-delivered on the next cron run.
+		if err := ds.deleteMDMAppleProfilesForHost(ctx, tx, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting profiles status")
+		}
+
+		// Deleting the matching entry on this table will cause
+		// the aggregate report to show this host as 'pending' to
+		// install the bootstrap package.
+		_, err = tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting host_mdm_apple_bootstrap_packages")
+		}
+
+		return nil
+	})
 }

@@ -59,3 +59,4 @@ This change is imperceptible to users, as clicking on the "My Device" tray item 
 
 <meta name="title" value="Fleet Desktop">
 <meta name="pageOrderInSection" value="450">
+<meta name="description" value="Learn about Fleet Desktop's features for self-remediation and transparency.">

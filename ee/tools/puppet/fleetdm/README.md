@@ -60,6 +60,71 @@ node default {
 }
 ```
 
+The `group` parameter is used to create/match profiles with teams in
+Fleet. In the example above, all devices will be assigned to a team named
+`workstations`.
+
+You can use this feature along with the `ensure` param to create teams that
+**don't** contain specific profiles, for example given the following manifest:
+
+```pp
+node default {
+  fleetdm::profile { 'com.apple.universalaccess':
+    template => template('fleetdm/profile-template.mobileconfig.erb'),
+    group    => 'workstations',
+  }
+
+  if $facts['architecture'] == 'x86_64' {
+      fleetdm::profile { 'my.arm.only.profile':
+        ensure => absent,
+        template => template('fleetdm/my-arm-only-profile.mobileconfig.erb'),
+        group    => 'amd64',
+      }
+  } else {
+      fleetdm::profile { 'my.arm.only.profile':
+        template => template('fleetdm/my-arm-only-profile.mobileconfig.erb'),
+        group    => 'workstations',
+      }
+  }
+}
+```
+
+Assuming you have devices with both architectures checking in, you'll end up
+with the following two teams in Fleet:
+
+- `workstations`: with two profiles, `com.apple.universalaccess` and `my.arm.only.profile`
+- `workstations - amd64`: with only one profile, `com.apple.universalaccess`
+
+### Sending a custom MDM Command
+
+You can use the `fleetdm::command_xml` function to send any custom MDM command to the device:
+
+```pp
+$host_uuid = $facts['system_profiler']['hardware_uuid']
+$command_uuid = generate('/usr/bin/uuidgen').strip
+
+$xml_data = "<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE plist PUBLIC '-//Apple//DTD PLIST 1.0//EN' 'http://www.apple.com/DTDs/PropertyList-1.0.dtd'>
+<plist version='1.0'>
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>EnableRemoteDesktop</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>${command_uuid}</string>
+</dict>
+</plist>"
+
+$response = fleetdm::command_xml($host_uuid, $xml_data)
+$err = $response['error']
+
+if $err != '' {
+  notify { "Error sending MDM command: ${err}": }
+}
+```
+
 ### Releasing a device from await configuration
 
 If your DEP profile had `await_device_configured` set to `true`, you can use the `fleetdm::release_device` function to release the device:

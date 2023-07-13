@@ -127,3 +127,4 @@ To disable usage statistics:
 3. Uncheck the "Enable usage statistics" checkbox and then select "Update settings."
 
 <meta name="pageOrderInSection" value="1100">
+<meta name="description" value="Learn about Fleet's usage statistics and what information is collected.">

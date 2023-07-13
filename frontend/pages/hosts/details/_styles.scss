@@ -62,12 +62,6 @@
             }
           }
         }
-
-        // Position tooltip over parent div
-        .component__tooltip-wrapper {
-          position: absolute;
-          margin-top: 20px;
-        }
       }
 
       &__header {
@@ -91,7 +85,7 @@
       column-gap: $pad-xxlarge;
       row-gap: $pad-medium;
 
-      @media (min-width: $break-990) {
+      @media (min-width: $break-md) {
         grid-template-columns: repeat(4, max-content);
         grid-template-rows: repeat(3, 1fr);
       }

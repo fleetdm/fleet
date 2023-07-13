@@ -8,13 +8,15 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
     param 'String', :host_uuid
     param 'String', :template
     optional_param 'String', :group
+    optional_param 'Enum[absent, present]', :ensure
   end
 
-  def preassign_profile(profile_identifier, host_uuid, template, group = 'default')
+  def preassign_profile(profile_identifier, host_uuid, template, group = 'default', ensure_profile = 'present')
     host = call_function('lookup', 'fleetdm::host')
     token = call_function('lookup', 'fleetdm::token')
     client = Puppet::Util::FleetClient.new(host, token)
-    response = client.preassign_profile(host_uuid, template, group)
+    run_identifier = "#{closure_scope.catalog.catalog_uuid}-#{Puppet[:node_name_value]}"
+    response = client.preassign_profile(run_identifier, host_uuid, template, group, ensure_profile)
 
     if response['error'].empty?
       Puppet.info("successfully pre-assigned profile #{profile_identifier}")

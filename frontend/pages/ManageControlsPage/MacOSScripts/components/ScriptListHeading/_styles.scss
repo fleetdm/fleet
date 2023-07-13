@@ -34,11 +34,10 @@
     font-weight: normal;
   }
 
-  @media (max-width: $break-990) {
+  @media (max-width: $break-md) {
     &__script-statuses {
       justify-content: flex-end;
     }
-
 
     &__actions-heading {
       display: none;

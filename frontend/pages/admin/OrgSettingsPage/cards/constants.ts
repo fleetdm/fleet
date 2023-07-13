@@ -22,6 +22,8 @@ export interface IAppConfigFormErrors {
   server_url?: string | null;
   org_name?: string | null;
   org_logo_url?: string | null;
+  org_logo_url_light_background?: string | null;
+  org_support_url?: string | null;
   idp_image_url?: string | null;
   sender_address?: string | null;
   server?: string | null;

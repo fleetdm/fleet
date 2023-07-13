@@ -173,3 +173,4 @@ Make sure as well that your cloud provider is not having issues of their own. Fo
 [AWS](https://health.aws.amazon.com/health/status) for status.
 
 <meta name="pageOrderInSection"  value="600">
+<meta name="description"  value="A guide to triaging and diagnosing issues in Fleet.">
