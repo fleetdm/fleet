@@ -229,6 +229,11 @@ TODO: Document.
 
 TODO: Document.
 
+## Rituals
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
+| Generate latest schema | once every 3 weeks | After each sprint, generate the latest tables json file to incorporate any new schema documentation. | Eric Shaw |
+
 
 <meta name="maintainedBy" value="mike-j-thomas">
 <meta name="title" value="Website handbook">
