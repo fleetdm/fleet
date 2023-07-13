@@ -7572,3 +7572,4 @@ Response:
 
 ---
 <meta name="pageOrderInSection" value="400">
+<meta name="description" value="Documentation for Fleet's REST API. See example requests and responses for each API endpoint.">

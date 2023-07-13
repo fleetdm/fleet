@@ -187,6 +187,7 @@ export interface IConfig {
   org_info: {
     org_name: string;
     org_logo_url: string;
+    org_logo_url_light_background: string;
     contact_url: string;
   };
   sandbox_enabled: boolean;

@@ -260,3 +260,4 @@ Requires this GPO in place: 'Computer Configuration\Policies\Administrative Temp
 
 <meta name="pageOrderInSection" value="1700">
 <meta name="title" value="CIS Benchmarks">
+<meta name="description" value="Read about how Fleet's implementation of CIS Benchmarks offers consensus-based cybersecurity guidance, covering macOS 13.0 Ventura & Windows 10 Enterprise.">
