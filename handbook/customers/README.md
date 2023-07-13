@@ -66,9 +66,12 @@ This workflow outlines the process that sales and customer success can follow wh
     - Schedule the customer onboarding kickoff call
     - Collect deployment details (if not completed during POC)
     - Schedule the recurring customer check-in
-    - Owns running the meeting, note taking, TODO follow up, etc. 
+    - Owns running the meeting, note taking, TODO follow up, etc.
 
 
+> Due to legislation by the U.S. Department of Commerce, we are unable to initiate business with [certain countries and territories including specific U.S. sanction programs.](https://ofac.treasury.gov/sanctions-programs-and-country-information)
+
+ 
 ## Fleet's W-9
 
 A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
