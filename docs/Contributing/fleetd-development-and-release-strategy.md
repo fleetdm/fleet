@@ -30,3 +30,4 @@ This allows some flexibility when developing new features in Fleetd and Fleet.
 2. When the new Fleet server version doesn't support older Fleetd versions (see [Nice to have](#nice-to-have)), the release notes must document their minimum supported Fleetd version. This is for users that use Fleetd with auto-updates disabled or they pin to a specific channel. These users would need to first update Fleetd on their devices and then proceed to upgrade Fleet server.
 
 <meta name="pageOrderInSection" value="1200">
+<meta name="description" value="An outline of the strategy that developers must follow when introducing new features to fleetd.">
