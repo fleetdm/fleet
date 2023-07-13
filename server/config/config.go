@@ -1092,6 +1092,17 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
+
+	// Hide Microsoft/Windows MDM flags as we don't want it to be discoverable for users for now
+	betaMDMFlags := []string{
+		"mdm.windows_wstep_identity_cert",
+		"mdm.windows_wstep_identity_key",
+	}
+	for _, mdmFlag := range betaMDMFlags {
+		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
+			flag.Hidden = true
+		}
+	}
 }
 
 // LoadConfig will load the config variables into a fully initialized
