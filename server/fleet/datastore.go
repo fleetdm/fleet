@@ -2,9 +2,11 @@ package fleet
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"io"
+	"math/big"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -698,8 +700,8 @@ type Datastore interface {
 
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 
-	// SetVerifiedHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
-	SetVerifiedHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
+	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
+	UpdateVerificationHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
@@ -850,10 +852,9 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
-	// ResetMDMAppleNanoEnrollment resets the
-	// `nano_enrollments.token_update_tally` if a matching row for the host
-	// exists.
-	ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error
+	// ResetMDMAppleEnrollment resets all tables with enrollment-related
+	// information if a matching row for the host exists.
+	ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error
 
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
@@ -985,6 +986,23 @@ type Datastore interface {
 	// DeleteHostDEPAssignments marks as deleted entries in
 	// host_dep_assignments for host with matching serials.
 	DeleteHostDEPAssignments(ctx context.Context, serials []string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Microsoft MDM
+
+	// WSTEPStoreCertificate stores a certificate in the database.
+	WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error
+	// WSTEPNewSerial returns a new serial number for a certificate.
+	WSTEPNewSerial(ctx context.Context) (*big.Int, error)
+	// WSTEPAssociateCertHash associates a certificate hash with a device.
+	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
+
+	// MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
+	MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
+	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
+	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
+	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
+	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
 }
 
 const (

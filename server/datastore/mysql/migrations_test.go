@@ -40,12 +40,12 @@ func TestMigrationStatus(t *testing.T) {
 	assert.Empty(t, status.MissingData)
 
 	// Insert unknown migration.
-	_, err = ds.writer.Exec(`INSERT INTO ` + tables.MigrationClient.TableName + ` (version_id, is_applied) VALUES (1638994765, 1)`)
+	_, err = ds.writer(context.Background()).Exec(`INSERT INTO ` + tables.MigrationClient.TableName + ` (version_id, is_applied) VALUES (1638994765, 1)`)
 	require.NoError(t, err)
 	status, err = ds.MigrationStatus(context.Background())
 	require.NoError(t, err)
 	assert.EqualValues(t, fleet.UnknownMigrations, status.StatusCode)
-	_, err = ds.writer.Exec(`DELETE FROM ` + tables.MigrationClient.TableName + ` WHERE version_id = 1638994765`)
+	_, err = ds.writer(context.Background()).Exec(`DELETE FROM ` + tables.MigrationClient.TableName + ` WHERE version_id = 1638994765`)
 	require.NoError(t, err)
 
 	status, err = ds.MigrationStatus(context.Background())

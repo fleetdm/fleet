@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -16,7 +15,7 @@ func TestCheckPolicySpecAuthorization(t *testing.T) {
 	t.Run("when team not found", func(t *testing.T) {
 		ds := new(mock.Store)
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-			return nil, sql.ErrNoRows
+			return nil, &notFoundError{}
 		}
 
 		svc, ctx := newTestService(t, ds, nil, nil)
@@ -31,7 +30,7 @@ func TestCheckPolicySpecAuthorization(t *testing.T) {
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
 		actual := svc.ApplyPolicySpecs(ctx, req)
-		var expected *notFoundError
+		var expected fleet.NotFoundError
 
 		require.ErrorAs(t, actual, &expected)
 	})

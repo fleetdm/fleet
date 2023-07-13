@@ -274,7 +274,7 @@ fleetctl get mdm-apple
 If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password changed.
 
 To renew the token: 
-1. Log in to (business.apple.com)[https://business.apple.com]
+1. Log in to [business.apple.com](https://business.apple.com)
 2. Select Fleet's MDM server record
 3. Download a new token for that server record
 4. In your Fleet server, update the environment variable [FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-bm-server-token-bytes)
@@ -282,3 +282,4 @@ To renew the token:
 
 <meta name="pageOrderInSection" value="1500">
 <meta name="title" value="MDM setup">
+<meta name="description" value="Learn how to configure Fleet to use Apple's Push Notification service and connect to Apple Business Manager.">

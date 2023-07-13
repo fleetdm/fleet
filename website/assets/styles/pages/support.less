@@ -1,0 +1,234 @@
+#support {
+
+  background: linear-gradient(180deg, #E8F1F6 0%, #FFF 100%);
+
+  p {
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  a {
+    color: unset;
+  }
+
+  a:hover {
+    text-decoration: none;
+  }
+
+  h1 {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 54px;
+    margin-bottom: 16px;
+  }
+  h2 {
+    font-size: 18px;
+    line-height: 27px;
+  }
+
+  [purpose='page-container'] {
+    max-width: 1200px;
+    padding-top: 60px;
+    padding-bottom: 60px;
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  [purpose='page-title'] {
+    margin-bottom: 60px;
+    text-align: center;
+    max-width: 800px;
+  }
+
+  [purpose='support-card']:hover {
+    box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.05);
+  }
+  [purpose='support-card'] {
+    cursor: pointer;
+    img {
+      height: auto;
+      width: 48px;
+      margin-bottom: 16px;
+    }
+    h3 {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 27px;
+    }
+    p {
+      font-size: 14px;
+      line-height: 21px;
+      margin-bottom: 0px;
+    }
+    height: 318px;
+    background: #FFFFFF;
+    border: 1px solid #E2E4EA;
+    border-radius: 16px;
+    padding: 40px;
+    margin-left: 12px;
+    margin-right: 12px;
+    margin-bottom: 30px;
+    box-shadow: none;
+  }
+
+
+  [purpose='community-cards'] {
+    [purpose='support-card'] {
+      width: 100%;
+      height: 200px;
+      img {
+        margin-right: 12px;
+      }
+    }
+  }
+  [purpose='support-cards'] {
+    flex-direction: column;
+    [purpose='support-row'] {
+      flex-direction: row;
+      width: 100%;
+    }
+    a {
+      width: 50%;
+    }
+
+    margin-bottom: 30px;
+  }
+
+  @media (min-width: 1201px) {
+    [purpose='page-container'] {
+      max-width: 1200px;
+      padding-top: 80px;
+      padding-bottom: 80px;
+    }
+
+
+    [purpose='support-cards'] {
+      flex-direction: row;
+      margin-bottom: 50px;
+      max-width: 1120px;
+      [purpose='support-row'] {
+        flex-direction: row;
+      }
+    }
+
+    [purpose='support-row'] {
+      [purpose='support-card'] {
+        width: 282px;
+        height: 221px;
+      }
+    }
+
+    [purpose='community-cards'] {
+      [purpose='support-card'] {
+        width: 384px;
+        height: 178px;
+      }
+    }
+    [purpose='page-title'] {
+      margin-bottom: 80px;
+    }
+
+
+  }
+  @media (max-width: 1201px) {
+    [purpose='page-container'] {
+      padding-top: 60px;
+      padding-bottom: 60px;
+    }
+
+    [purpose='community-cards'] {
+      a {
+        width: 50%;
+      }
+      [purpose='support-card'] {
+        height: 178px;
+      }
+    }
+    [purpose='support-cards'] {
+      [purpose='support-card'] {
+        height: 200px;
+      }
+    }
+  }
+  @media (max-width: 991px) {
+    [purpose='support-card'] {
+      margin-bottom: 30px;
+    }
+    [purpose='support-cards'] {
+      [purpose='support-card'] {
+        height: 221px;
+      }
+    }
+
+  }
+  @media (max-width: 768px) {
+
+    [purpose='support-cards'] {
+      flex-direction: column;
+      [purpose='support-row'] {
+        flex-direction: column;
+      }
+      a {
+        width: 100%;
+      }
+    }
+
+    [purpose='community-cards'] {
+      a {
+        width: 100%;
+      }
+    }
+
+  }
+  @media (max-width: 576px) {
+
+    [purpose='support-cards'] {
+      [purpose='support-card'] {
+        text-align: center;
+        align-items: center;
+      }
+    }
+    [purpose='community-cards'] {
+      [purpose='support-card'] {
+        padding: 32px 40px 40px 40px;
+      }
+    }
+    [purpose='page-title'] {
+      margin-bottom: 40px;
+      max-width: 380px;
+    }
+    [purpose='page-container'] {
+      padding-top: 40px;
+      padding-bottom: 40px;
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+  }
+  @media (max-width: 375px) {
+
+    h1 {
+      line-height: 43px;
+    }
+
+    [purpose='support-card'] {
+      margin-bottom: 30px;
+      margin-right: 0px;
+      margin-left: 0px;
+    }
+    [purpose='community-cards'] {
+      [purpose='support-card'] {
+        padding-top: 32px;
+        margin-bottom: 16px;
+      }
+    }
+    [purpose='support-cards'] {
+      [purpose='support-card'] {
+        margin-bottom: 16px;
+      }
+    }
+
+  }
+
+
+
+}

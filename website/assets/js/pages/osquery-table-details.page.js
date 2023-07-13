@@ -42,9 +42,10 @@ parasails.registerPage('osquery-table-details', {
         appId: 'NZXAYZXDGH',
         apiKey: this.algoliaPublicKey,
         indexName: 'fleetdm',
-        inputSelector: '#docsearch-query',
+        container: '#docsearch-query',
+        placeholder: 'Search tables',
         debug: false,
-        algoliaOptions: {
+        searchParameters: {
           'facetFilters': ['section:tables']
         },
       });
@@ -88,7 +89,7 @@ parasails.registerPage('osquery-table-details', {
         }
         $(block).html(replacementHMTL);
         // After we've highlighted our keywords, we'll highlight the rest of the codeblock
-        window.hljs.highlightBlock(block);
+        window.hljs.highlightElement(block);
       });
       // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
       $('.hljs-keyword').each((i, el)=>{

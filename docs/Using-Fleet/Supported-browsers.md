@@ -24,3 +24,4 @@ We test each browser on Windows whenever possible, because our engineering team 
 > - The Fleet user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on ChromeOS
 
 <meta name="pageOrderInSection" value="1200">
+<meta name="description" value="Learn what browser versions are compatible with Fleet.">

@@ -16,12 +16,14 @@ import (
 
 // Code forked from https://github.com/oscartbeaumont/windows_mdm
 // Global config, populated via Command line flags
-var domain string
-var deepLinkUserEmail string
-var authPolicy string
-var profileDir string
-var staticDir string
-var verbose bool
+var (
+	domain            string
+	deepLinkUserEmail string
+	authPolicy        string
+	profileDir        string
+	staticDir         string
+	verbose           bool
+)
 
 func main() {
 	fmt.Println("Starting Windows MDM Demo Server")
@@ -63,20 +65,20 @@ func main() {
 	// Create HTTP request router
 	r := mux.NewRouter()
 
-	//MS-MDE and MS-MDM endpoints
+	// MS-MDE and MS-MDM endpoints
 	r.Path("/EnrollmentServer/Discovery.svc").Methods("GET", "POST").HandlerFunc(DiscoveryHandler)
 	r.Path("/EnrollmentServer/Policy.svc").Methods("POST").HandlerFunc(PolicyHandler)
 	r.Path("/EnrollmentServer/Enrollment.svc").Methods("POST").HandlerFunc(EnrollHandler)
 	r.Path("/ManagementServer/MDM.svc").Methods("POST").HandlerFunc(ManageHandler)
 
-	//Static root endpoint
+	// Static root endpoint
 	r.Path("/").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		w.Write([]byte(`<center><h1>FleetDM Windows MDM Demo Server<br></h1>.<center>`))
 		w.Write([]byte(`<br><center><img src="https://fleetdm.com/images/press-kit/fleet-logo-dark-rgb.png"></center>`))
 	})
 
-	//Static file serve
+	// Static file serve
 	fileServer := http.FileServer(http.Dir(staticDir))
 	r.PathPrefix("/").Handler(http.StripPrefix("/static", fileServer))
 
@@ -111,7 +113,6 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, body []byte, err error) {
 // global HTTP handler to log input and output https traffic
 func globalHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		if verbose {
 			// grabbing Input Header and Body
 			reqHeader, err := httputil.DumpRequest(r, false)

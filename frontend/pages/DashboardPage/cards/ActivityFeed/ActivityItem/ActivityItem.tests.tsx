@@ -634,4 +634,139 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
   });
+
+  it("renders a 'transferred_hosts' type activity for one host transferred to no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1],
+        host_display_names: ["foo"],
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred host", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("no team", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for one host transferred to a team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1],
+        host_display_names: ["foo"],
+        team_name: "Alphas",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred host", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1, 2, 3],
+        host_display_names: ["foo", "bar", "baz"],
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred 3 hosts", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("foo")).toBeNull();
+    expect(screen.queryByText("bar")).toBeNull();
+    expect(screen.queryByText("baz")).toBeNull();
+    expect(screen.getByText("no team", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to a team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1, 2, 3],
+        host_display_names: ["foo", "bar", "baz"],
+        team_name: "Alphas",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred 3 hosts", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("foo")).toBeNull();
+    expect(screen.queryByText("bar")).toBeNull();
+    expect(screen.queryByText("baz")).toBeNull();
+    expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for apple if mdm_platform is not provided", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        host_serial: "ABCD",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (manual)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for apple with all details provided", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        host_serial: "ABCD",
+        installed_from_dep: true,
+        mdm_platform: "apple",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (automatic)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type activity for windows hosts.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        mdm_platform: "microsoft",
+        host_display_name: "ABCD",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        console.log(node?.innerHTML);
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b>Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
 });

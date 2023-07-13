@@ -701,7 +701,7 @@ This endpoint stores a profile to be assigned to a host at some point in the fut
 
 _Available in Fleet Premium_
 
-This endpoint uses the profiles stored by the [Preassign profiles to devices][#preassign-profiles-to-devices] endpoint to match the set of profiles to an existing team if possible, creating one if none exists. It then assigns the host to that team so that it receives the associated profiles. It is meant to be called only once all desired profiles have been pre-assigned to the host.
+This endpoint uses the profiles stored by the [Preassign profiles to devices](#preassign-profiles-to-devices) endpoint to match the set of profiles to an existing team if possible, creating one if none exists. It then assigns the host to that team so that it receives the associated profiles. It is meant to be called only once all desired profiles have been pre-assigned to the host.
 
 `POST /api/v1/fleet/mdm/apple/profiles/match`
 
@@ -2222,6 +2222,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
+- [Trigger FileVault key escrow](#trigger-filevault-key-escrow) 
 
 #### Get device's host
 
@@ -2478,6 +2479,18 @@ Gets all information required by Fleet Desktop, this includes things like the nu
   "failing_policies_count": 3,
   "notifications": {
     "needs_mdm_migration": true
+  },
+  "config": {
+    "org_info": {
+      "org_name": "Fleet",
+      "org_logo_url": "https://example.com/logo.jpg",
+      "contact_url": "https://fleetdm.com/company/contact"
+    },
+    "mdm": {
+      "macos_migration": {
+        "mode": "forced"
+      }
+    }
   }
 }
 ```
@@ -2486,7 +2499,6 @@ In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
-
 
 
 #### Get device's policies
@@ -2645,6 +2657,28 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 
 ---
 
+#### Trigger FileVault key escrow
+
+Sends a signal to Fleet Desktop to initiate a FileVault key escrow. This is useful for setting the escrow key initially as well as in scenarios where a token rotation is required. **Requires Fleet Premium license**
+
+`POST /api/v1/fleet/device/{token}/rotate_encryption_key`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/rotate_encryption_key`
+
+##### Default response
+
+`Status: 204`
+
+---
+
 
 ## Downloadable installers
 
@@ -2779,3 +2813,4 @@ If the Fleet instance is provided required parameters to complete setup.
 ```
 
 <meta name="pageOrderInSection" value="800">
+<meta name="description" value="Read about Fleet API routes that are helpful when developing or contributing to Fleet.">

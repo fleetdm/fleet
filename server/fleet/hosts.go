@@ -538,9 +538,9 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
 }
 
-// IsElegibleForDEPMigration returns true if the host fulfills all requirements
+// IsEligibleForDEPMigration returns true if the host fulfills all requirements
 // for DEP migration from a third-party provider into Fleet.
-func (h *Host) IsElegibleForDEPMigration() bool {
+func (h *Host) IsEligibleForDEPMigration() bool {
 	return h.IsOsqueryEnrolled() &&
 		h.IsDEPAssignedToFleet() &&
 		h.MDMInfo.IsEnrolledInThirdPartyMDM()
@@ -553,6 +553,25 @@ func (h *Host) NeedsDEPEnrollment() bool {
 		!h.MDMInfo.IsManualFleetEnrolled() &&
 		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
 		h.IsDEPAssignedToFleet()
+}
+
+// IsEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
+// in Fleet's Windows MDM (if it was enabled).
+func (h *Host) IsEligibleForWindowsMDMEnrollment() bool {
+	return h.FleetPlatform() == "windows" &&
+		h.IsOsqueryEnrolled() &&
+		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
+		!h.MDMInfo.IsFleetEnrolled() &&
+		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
+}
+
+// IsEligibleForWindowsMDMUnenrollment returns true if the host must be
+// unenrolled from Fleet's Windows MDM (if it MDM was disabled).
+func (h *Host) IsEligibleForWindowsMDMUnenrollment() bool {
+	return h.FleetPlatform() == "windows" &&
+		h.IsOsqueryEnrolled() &&
+		h.MDMInfo.IsFleetEnrolled() &&
+		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
 }
 
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't

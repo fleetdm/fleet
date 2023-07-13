@@ -322,7 +322,7 @@ module.exports = {
                   if (isBaseUrl) {
                     return hrefString.replace(/href="https?:\/\//, '').replace(/([^\.]+\.)*fleetdm\.com/, 'href="/');
                   } else {
-                    return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
+                    return hrefString.replace(/href="https?:\/\//, '').replace(/^([^\.]+\.)*fleetdm\.com/, 'href="');
                   }
                 }
 
@@ -432,6 +432,13 @@ module.exports = {
                 } else if(!embeddedMetadata.pageOrderInSection && !isPageAReadmeOrFAQ){
                   // If the page is not a Readme or a FAQ, we'll throw an error if its missing a pageOrderInSection meta tag.
                   throw new Error(`Failed compiling markdown content: A Non FAQ or README Documentation page is missing a pageOrderInSection meta tag (<meta name="pageOrderInSection" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with a number higher than 0.`);
+                }
+              }
+
+              if(sectionRepoPath === 'handbook/') {
+                if(!embeddedMetadata.maintainedBy) {
+                  // Throw an error if a handbook page is missing a maintainedBy meta tag.
+                  throw new Error(`Failed compiling markdown content: A handbook page is missing a maintainedBy meta tag (<meta name="maintainedBy" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a maintainedBy meta tag with the page maintainer's GitHub username as the value.`);
                 }
               }
 

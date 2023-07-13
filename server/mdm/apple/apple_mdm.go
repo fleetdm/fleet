@@ -3,13 +3,9 @@ package apple_mdm
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"fmt"
-	"net/url"
-	"path"
 	"strings"
 	"text/template"
 	"time"
@@ -18,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/log/level"
@@ -56,11 +53,11 @@ const (
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, MDMPath, false)
+	return commonmdm.ResolveURL(serverURL, MDMPath, false)
 }
 
 func ResolveAppleEnrollMDMURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, EnrollPath, false)
+	return commonmdm.ResolveURL(serverURL, EnrollPath, false)
 }
 
 func ResolveAppleSCEPURL(serverURL string) (string, error) {
@@ -70,19 +67,7 @@ func ResolveAppleSCEPURL(serverURL string) (string, error) {
 	// request to `/test/example?foo=bar?SCEPOperation=..`
 	//
 	// As a consequence we ensure that the query is always clean for the SCEP URL.
-	return resolveURL(serverURL, SCEPPath, true)
-}
-
-func resolveURL(serverURL, relPath string, cleanQuery bool) (string, error) {
-	u, err := url.Parse(serverURL)
-	if err != nil {
-		return "", err
-	}
-	u.Path = path.Join(u.Path, relPath)
-	if cleanQuery {
-		u.RawQuery = ""
-	}
-	return u.String(), nil
+	return commonmdm.ResolveURL(serverURL, SCEPPath, true)
 }
 
 // DEPService is used to encapsulate tasks related to DEP enrollment.
@@ -313,8 +298,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 	var appleBMTeam *fleet.Team
 	if appCfg.MDM.AppleBMDefaultTeam != "" {
 		tm, err := d.ds.TeamByName(ctx, appCfg.MDM.AppleBMDefaultTeam)
-		// NOTE: TeamByName does NOT return a not found error if it does not exist
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		if err != nil && !fleet.IsNotFound(err) {
 			return err
 		}
 		appleBMTeam = tm

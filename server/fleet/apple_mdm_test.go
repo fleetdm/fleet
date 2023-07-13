@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -323,6 +324,53 @@ func TestHostDEPAssignment(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
 			require.Equal(t, c.expect, c.input.IsDEPAssignedToFleet())
+		})
+	}
+}
+
+func TestMDMProfileIsWithinGracePeriod(t *testing.T) {
+	// create a test profile
+	var b bytes.Buffer
+	params := mobileconfig.FleetdProfileOptions{
+		EnrollSecret: t.Name(),
+		ServerURL:    "https://example.com",
+		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+	}
+	err := mobileconfig.FleetdProfileTemplate.Execute(&b, params)
+	require.NoError(t, err)
+	testProfile, err := NewMDMAppleConfigProfile(b.Bytes(), nil)
+	require.NoError(t, err)
+
+	// set profile updated at 2 hours ago
+	testProfile.UpdatedAt = time.Now().Truncate(time.Second).Add(-2 * time.Hour)
+	// set profile created at 24 hours ago (irrelevant but included for completeness)
+	testProfile.CreatedAt = testProfile.UpdatedAt.Add(-24 * time.Hour)
+
+	cases := []struct {
+		testName            string
+		hostDetailUpdatedAt time.Time
+		expect              bool
+	}{
+		{
+			testName:            "outside grace period",
+			hostDetailUpdatedAt: testProfile.UpdatedAt.Add(61 * time.Minute), // more than 1 hour grace period
+			expect:              false,
+		},
+		{
+			testName:            "online host within grace period",
+			hostDetailUpdatedAt: testProfile.UpdatedAt.Add(59 * time.Minute), // less than 1 hour grace period
+			expect:              true,
+		},
+		{
+			testName:            "offline host within grace period",
+			hostDetailUpdatedAt: testProfile.UpdatedAt.Add(-48 * time.Hour), // grace period doesn't start until host is online (i.e. host detail updated at is after profile updated at)
+			expect:              true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.testName, func(t *testing.T) {
+			require.Equal(t, c.expect, testProfile.IsWithinGracePeriod(c.hostDetailUpdatedAt))
 		})
 	}
 }

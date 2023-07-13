@@ -5,12 +5,10 @@
 
       <div class="text-center">
         <h1 class="pt-5">Fleet documentation</h1>
-        <p class="mb-2">Welcome to the documentation for Fleet, the lightweight telemetry platform for servers and workstations.</p>
-        <!-- <p class="mb-0"><strong>v4.0.1 </strong><a href="https://github.com/fleetdm/fleet/releases">changelog</a></p> -->
-        <!-- TODO automatically display latest release version or come up with some other way to present this that doesn't rely on knowing the version number -->
+        <p class="mb-2">Welcome to the documentation for Fleet, the lightweight management platform for laptops and servers.</p>
       </div>
 
-      <div purpose="search" class="d-flex p-0 mt-5">
+      <div purpose="search" id="docsearch-query-landing" class="d-flex p-0 mt-5">
         <div class="input-group">
           <div class="input-group-prepend">
             <span class="input-group-text border-0 bg-transparent pl-3" >
@@ -18,13 +16,13 @@
             </span>
           </div>
           <div class="form-control border-0 ">
-          <input id="docsearch-query-landing" class="docsearch-input pr-1"
+          <input class="docsearch-input pr-1"
             placeholder="Search the docs..." aria-label="Search the docs"
-            v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+            />
           </div>
         </div>
       </div>
-      <p purpose="support-link">Can't find what you're looking for? <a href="/slack" target="_blank">Support</a></p>
+      <p purpose="support-link">Can't find what you're looking for? <a href="/support">Support</a></p>
 
 
       <div purpose="docs-tree">
@@ -67,7 +65,7 @@
           </div>
         </div>
 
-        <div purpose="search" class="d-flex p-0 mb-2 mb-lg-0">
+        <div purpose="search" id="docsearch-query" class="d-flex p-0 mb-2 mb-lg-0">
           <div class="input-group">
             <div class="input-group-prepend">
               <span class="input-group-text border-0 bg-transparent pl-3">
@@ -75,9 +73,9 @@
               </span>
             </div>
             <div class="form-control border-0 ">
-              <input id="docsearch-query" class="docsearch-input pr-1"
+              <input class="docsearch-input pr-1"
               placeholder="Search the docs..." aria-label="Search the docs"
-              v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+              v-model="inputTextValue"/>
             </div>
           </div>
         </div>
@@ -223,7 +221,7 @@
           <div class="d-block" purpose="slack-cta">
             <h3 class="pt-0" style="font-size: 24px; line-height: 28px;">Need more help?</h3>
             <div class="d-sm-flex">
-              <a href="/slack" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
+              <a href="/support" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
                 <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
                 Ask the community on Slack
               </a>
@@ -242,6 +240,11 @@
 
     </div>
 
+    <div purpose="back-to-top-button-container">
+      <div purpose="back-to-top-button" nohightlight @click="clickScrollToTop">
+        <p class="mb-0"><img alt="An arrow pointing up" class="d-inline" src="/images/icon-arrow-up-12x13@2x.png">Back to top</p>
+      </div>
+    </div>
   </div>
 
 </div>

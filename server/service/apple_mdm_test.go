@@ -972,10 +972,11 @@ func TestMDMAuthenticate(t *testing.T) {
 		require.Equal(t, serial, a.HostSerial)
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.False(t, a.InstalledFromDEP)
+		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
 		return nil
 	}
 
-	ds.ResetMDMAppleNanoEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.ResetMDMAppleEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
 	}
@@ -994,7 +995,7 @@ func TestMDMAuthenticate(t *testing.T) {
 	require.True(t, ds.IngestMDMAppleDeviceFromCheckinFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewActivityFuncInvoked)
-	require.True(t, ds.ResetMDMAppleNanoEnrollmentFuncInvoked)
+	require.True(t, ds.ResetMDMAppleEnrollmentFuncInvoked)
 }
 
 func TestMDMTokenUpdate(t *testing.T) {

@@ -290,11 +290,9 @@ integrations
 webhook_settings
 ```
 
-You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
+You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will apply the changes without validation and should be used with caution.
 
 ### Mobile device management (MDM) settings for teams
-
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
 
@@ -406,6 +404,7 @@ spec:
       host_batch_size: 0
   mdm:
     apple_bm_default_team: ""
+    windows_enabled_and_configured: false
     macos_updates:
       minimum_version: ""
       deadline: ""
@@ -705,7 +704,7 @@ For additional information on SSO configuration, including just-in-time (JIT) us
 ##### sso_settings.enable_jit_role_sync
 
 > This setting is now deprecated and will be removed soon.
-> For more information on how SSO login and role syncing works see [customization of user roles](../../Deploying/Configuration.md#customization-of-user-roles) 
+> For more information on how SSO login and role syncing works see [customization of user roles](../../Deploying/Configuration.md#customization-of-user-roles)
 
 ##### sso_settings.enable_sso
 
@@ -1376,6 +1375,17 @@ Set name of default team to use with Apple Business Manager.
     apple_bm_default_team: "Workstations"
   ```
 
+##### mdm.windows_enabled_and_configured
+
+Enables or disables Windows MDM support.
+
+- Default value: false
+- Config file format:
+  ```yaml
+  mdm:
+    windows_enabled_and_configured: true
+  ```
+
 ##### mdm.macos_updates
 
 **Applies only to Fleet Premium**.
@@ -1418,7 +1428,7 @@ The following settings are macOS-specific settings for Fleet's MDM solution.
 
 ##### mdm.macos_settings.custom_settings
 
-List of configuration profile files to apply to all hosts. 
+List of configuration profile files to apply to all hosts.
 
 If you're using Fleet Premium, these profiles apply to all hosts assigned to no team.
 
@@ -1455,3 +1465,5 @@ If you're using Fleet Premium, this enforces disk encryption on all hosts assign
 #### Advanced configuration
 
 > **Note:** More settings are included in the [contributor documentation](https://fleetdm.com/docs/contributing/configuration-for-contributors). It's possible, although not recommended, to configure these settings in the YAML configuration file.
+
+<meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure Fleet.">
