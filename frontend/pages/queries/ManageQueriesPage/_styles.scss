@@ -56,7 +56,7 @@
 
   &__action-button-container {
     display: flex;
-    align-items: flex-start;
+    gap: $pad-small;
   }
 
   .form-field--dropdown {
@@ -103,11 +103,11 @@
           .platforms__header {
             width: $col-sm;
           }
-          .author_name__header {
+          .updated_at__header {
             display: none;
             width: 0;
           }
-          .updated_at__header {
+          .performance__header {
             display: none;
             width: 0;
           }
@@ -151,28 +151,16 @@
           .platforms__cell {
             max-width: $col-md;
           }
-          .author_name__cell {
-            display: none;
-            max-width: $col-md;
-            img,
-            div,
-            span {
-              display: flex;
-              align-items: center;
-            }
-            div {
-              padding-right: $pad-small;
-            }
-            .author-name {
-              display: block;
-            }
-          }
           .updated_at__cell {
             display: none;
             max-width: $col-md;
           }
+          .performance__cell {
+            display: none;
+            max-width: $col-md;
+          }
           @media (min-width: $break-md) {
-            .author_name__cell {
+            .performance__cell {
               display: table-cell;
             }
           }
