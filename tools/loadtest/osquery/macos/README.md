@@ -30,6 +30,10 @@ echo "/usr/local/osquery_extensions/fleetd_tables.ext" > /tmp/extensions.load
 > The following assumes a Fleet server instance running and listening at `localhost:8080`.
 
 ```sh
+mkdir -p /Users/luk/osqueryd/osquery_log
+```
+
+```sh
 sudo ENROLL_SECRET=<...> ./osquery/osqueryd \
     --verbose=true \
     --tls_dump=true \
@@ -37,6 +41,7 @@ sudo ENROLL_SECRET=<...> ./osquery/osqueryd \
     --database_path=/Users/luk/osqueryd/osquery.db \
     --logger_path=/Users/luk/osqueryd/osquery_log \
     --host_identifier=instance \
+    # /Users/luk/fleetdm/git/fleet is the location of the Fleet mono repository.
     --tls_server_certs=/Users/luk/fleetdm/git/fleet/tools/osquery/fleet.crt \
     --enroll_secret_env=ENROLL_SECRET \
     --tls_hostname=localhost:8080 \
