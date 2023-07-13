@@ -476,6 +476,60 @@ const globalQueries = {
         total_executions: null,
       },
     },
+    {
+      created_at: "2022-11-03T17:22:14Z",
+      updated_at: "2022-11-03T17:22:14Z",
+      id: 5,
+      name: "Test Query 5 runs every 5 minutes!",
+      description: "A fifth test query",
+      query: "SELECT * FROM osquery_info",
+      team_id: 2,
+      interval: 300, // 5 minutes
+      platform: "",
+      min_osquery_version: "",
+      automations_enabled: false,
+      logging: "differential",
+      saved: false,
+      author_id: 2,
+      author_name: "Test User 2",
+      author_email: "test2@example.com",
+      observer_can_run: true,
+      packs: [],
+      stats: {
+        system_time_p50: null,
+        system_time_p95: null,
+        user_time_p50: null,
+        user_time_p95: null,
+        total_executions: null,
+      },
+    },
+    {
+      created_at: "2022-11-03T17:22:14Z",
+      updated_at: "2022-11-03T17:22:14Z",
+      id: 6,
+      name: "Test Query 6 runs every 6 hours",
+      description: "A 6th test query",
+      query: "SELECT * FROM osquery_info",
+      team_id: null,
+      interval: 21600, // 6 hours
+      platform: "",
+      min_osquery_version: "",
+      automations_enabled: false,
+      logging: "snapshot",
+      saved: false,
+      author_id: 2,
+      author_name: "Test User",
+      author_email: "test@example.com",
+      observer_can_run: true,
+      packs: [],
+      stats: {
+        system_time_p50: null,
+        system_time_p95: null,
+        user_time_p50: null,
+        user_time_p95: null,
+        total_executions: null,
+      },
+    },
   ],
 };
 
@@ -517,6 +571,9 @@ const teamQueries = {
 const globalQuery1 = { query: globalQueries.queries[0] };
 const globalQuery2 = { query: globalQueries.queries[1] };
 const globalQuery3 = { query: globalQueries.queries[2] };
+const globalQuery4 = { query: globalQueries.queries[0] };
+const globalQuery5 = { query: globalQueries.queries[1] };
+const globalQuery6 = { query: globalQueries.queries[2] };
 const teamQuery1 = { query: teamQueries.queries[0] };
 
 export default {
@@ -527,6 +584,9 @@ export default {
   globalQuery1,
   globalQuery2,
   globalQuery3,
+  globalQuery4,
+  globalQuery5,
+  globalQuery6,
   teamQueries,
   teamQuery1,
 };

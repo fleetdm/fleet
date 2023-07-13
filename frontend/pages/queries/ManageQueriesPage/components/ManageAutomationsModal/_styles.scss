@@ -1,5 +1,5 @@
 .manage-automations-modal {
-  &__body > div:not(:last-child) {
+  > div:not(:last-child) {
     margin-bottom: $pad-xlarge;
   }
 
@@ -54,6 +54,10 @@
     .icon {
       padding-right: $pad-small;
     }
+  }
+
+  .grey {
+    color: $ui-fleet-black-33;
   }
 
   &__preview-btn-wrap {

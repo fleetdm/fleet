@@ -173,16 +173,22 @@ const ManageAutomationsModal = ({
   }: IFrequencyIndicator) => {
     const readableQueryFrequency = () => {
       switch (frequency) {
+        case 0:
+          return "Never";
+        case 300:
+        case 600:
+        case 900:
+        case 1800: // 5, 10, 15, 30 minutes
+          return `${(frequency / 60).toString()} minutes`;
         case 3600:
           return "Hourly";
-        case 43200:
-          return "12 hours";
+        case 21600:
+        case 43200: // 6, 12 hours
+          return `${(frequency / 3600).toString()} hours`;
         case 86400:
           return "Daily";
         case 604800:
           return "Weekly";
-        case 0:
-          return "Never";
         default:
           return "Unknown";
       }
@@ -201,7 +207,10 @@ const ManageAutomationsModal = ({
       }
     };
     return (
-      <div className={`${baseClass}__schedule-indicator`}>
+      <div
+        className={`${baseClass}__schedule-indicator
+        ${frequency === 0 && !checked && "grey"}`}
+      >
         {frequencyIcon()}
         {readableQueryFrequency()}
       </div>
@@ -216,75 +225,73 @@ const ManageAutomationsModal = ({
       width="large"
     >
       <div className={baseClass}>
-        <p className={`${baseClass}__heading`}>
+        <div className={`${baseClass}__heading`}>
           Query automations let you send data to your log destination on a
           schedule. Data is sent according to a query’s frequency.
-        </p>
-        <div className={`${baseClass}__body`}>
-          {availableQueries?.length ? (
-            <div className={`${baseClass}__select`}>
-              <p>
-                <strong>Choose which queries will send data:</strong>
-              </p>
-              <div className={`${baseClass}__checkboxes`}>
-                {queryItems &&
-                  queryItems.map((queryItem) => {
-                    const { isChecked, name, id, interval } = queryItem;
-                    return (
-                      <div key={id} className={`${baseClass}__query-item`}>
-                        <Checkbox
-                          value={isChecked}
-                          name={name}
-                          onChange={() => {
-                            updateQueryItems(id);
-                            !isChecked &&
-                              setErrors((errs) => omit(errs, "queryItems"));
-                          }}
-                        >
-                          {name}
-                        </Checkbox>
-                        {renderScheduleIndicator({
-                          frequency: interval,
-                          checked: isChecked,
-                        })}
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          ) : (
-            <div className={`${baseClass}__no-queries`}>
-              <b>You have no queries.</b>
-              <p>Add a query to turn on automations.</p>
-            </div>
-          )}
-          <div className={`${baseClass}__log-destination`}>
+        </div>
+        {availableQueries?.length ? (
+          <div className={`${baseClass}__select`}>
             <p>
-              <strong>Log destination:</strong>
+              <strong>Choose which queries will send data:</strong>
             </p>
-            <div className={`${baseClass}__selection`}>
-              {renderLogDestination()}
-            </div>
-            <div className={`${baseClass}__configure`}>
-              Users with the admin role can&nbsp;
-              <CustomLink
-                url="https://fleetdm.com/docs/using-fleet/log-destinations"
-                text="configure a different log destination"
-                newTab
-              />
+            <div className={`${baseClass}__checkboxes`}>
+              {queryItems &&
+                queryItems.map((queryItem) => {
+                  const { isChecked, name, id, interval } = queryItem;
+                  return (
+                    <div key={id} className={`${baseClass}__query-item`}>
+                      <Checkbox
+                        value={isChecked}
+                        name={name}
+                        onChange={() => {
+                          updateQueryItems(id);
+                          !isChecked &&
+                            setErrors((errs) => omit(errs, "queryItems"));
+                        }}
+                      >
+                        {name}
+                      </Checkbox>
+                      {renderScheduleIndicator({
+                        frequency: interval,
+                        checked: isChecked,
+                      })}
+                    </div>
+                  );
+                })}
             </div>
           </div>
-          <InfoBanner className={`${baseClass}__supported-platforms`}>
-            Automations currently run on macOS, Windows, and Linux hosts.
-            <br />
-            Interested in query automations for your Chromebooks? &nbsp;
+        ) : (
+          <div className={`${baseClass}__no-queries`}>
+            <b>You have no queries.</b>
+            <p>Add a query to turn on automations.</p>
+          </div>
+        )}
+        <div className={`${baseClass}__log-destination`}>
+          <p>
+            <strong>Log destination:</strong>
+          </p>
+          <div className={`${baseClass}__selection`}>
+            {renderLogDestination()}
+          </div>
+          <div className={`${baseClass}__configure`}>
+            Users with the admin role can&nbsp;
             <CustomLink
-              url="https://fleetdm.com/contact"
-              text="Let us know"
+              url="https://fleetdm.com/docs/using-fleet/log-destinations"
+              text="configure a different log destination"
               newTab
             />
-          </InfoBanner>
+          </div>
         </div>
+        <InfoBanner className={`${baseClass}__supported-platforms`}>
+          Automations currently run on macOS, Windows, and Linux hosts.
+          <br />
+          Interested in query automations for your Chromebooks? &nbsp;
+          <CustomLink
+            url="https://fleetdm.com/contact"
+            text="Let us know"
+            newTab
+          />
+        </InfoBanner>
         <div className={`${baseClass}__btn-wrap`}>
           <div className={`${baseClass}__preview-btn-wrap`}>
             <Button
