@@ -54,3 +54,4 @@ When the query has finished, you should see several columns in the "Results" tab
 - The "version" column answers: "What version of the installed operating system is on my device?"
 
 <meta name="pageOrderInSection" value="100">
+<meta name="description" value="Get started with using Fleet by learning how to enroll your device into a Fleet instance and run queries to ask questions about it.">

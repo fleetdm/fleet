@@ -663,8 +663,9 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 
 // OrgInfo contains general info about the organization using Fleet.
 type OrgInfo struct {
-	OrgName    string `json:"org_name"`
-	OrgLogoURL string `json:"org_logo_url"`
+	OrgName                   string `json:"org_name"`
+	OrgLogoURL                string `json:"org_logo_url"`
+	OrgLogoURLLightBackground string `json:"org_logo_url_light_background"`
 	// ContactURL is the URL displayed for users to contact support. By default,
 	// https://fleetdm.com/company/contact is used.
 	ContactURL string `json:"contact_url"`

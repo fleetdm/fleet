@@ -46,3 +46,4 @@ Move the migration file from [server/datastore/mysql/migrations/tables/](https:/
 Proceed as for table migrations, editing and running the newly created migration file.
 
 <meta name="pageOrderInSection" value="300">
+<meta name="description" value="Learn about creating and updating database migrations for Fleet.">

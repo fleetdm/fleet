@@ -30,6 +30,8 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<integer>1</integer>
 			<key>ShowRecoveryKey</key>
 			<false/>
+			<key>DeferForceAtUserLoginMaxBypassAttempts</key>
+			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>EncryptCertPayloadUUID</key>
@@ -64,17 +66,17 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<integer>1</integer>
 		</dict>
 		<dict>
-            <key>dontAllowFDEDisable</key>
-            <true/>
-            <key>PayloadIdentifier</key>
-            <string>com.apple.MCX.62024f29-105E-497A-A724-1D5BA4D9E854</string>
-            <key>PayloadType</key>
-            <string>com.apple.MCX</string>
-            <key>PayloadUUID</key>
-            <string>62024f29-105E-497A-A724-1D5BA4D9E854</string>
-            <key>PayloadVersion</key>
-            <integer>1</integer>
-        </dict>
+			<key>dontAllowFDEDisable</key>
+			<true/>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.MCX.62024f29-105E-497A-A724-1D5BA4D9E854</string>
+			<key>PayloadType</key>
+			<string>com.apple.MCX</string>
+			<key>PayloadUUID</key>
+			<string>62024f29-105E-497A-A724-1D5BA4D9E854</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
 	<string>Disk encryption</string>
