@@ -8,7 +8,7 @@
         <p class="mb-2">Welcome to the documentation for Fleet, the lightweight management platform for laptops and servers.</p>
       </div>
 
-      <div purpose="search" class="d-flex p-0 mt-5">
+      <div purpose="search" id="docsearch-query-landing" class="d-flex p-0 mt-5">
         <div class="input-group">
           <div class="input-group-prepend">
             <span class="input-group-text border-0 bg-transparent pl-3" >
@@ -16,9 +16,9 @@
             </span>
           </div>
           <div class="form-control border-0 ">
-          <input id="docsearch-query-landing" class="docsearch-input pr-1"
+          <input class="docsearch-input pr-1"
             placeholder="Search the docs..." aria-label="Search the docs"
-            v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+            />
           </div>
         </div>
       </div>
@@ -65,7 +65,7 @@
           </div>
         </div>
 
-        <div purpose="search" class="d-flex p-0 mb-2 mb-lg-0">
+        <div purpose="search" id="docsearch-query" class="d-flex p-0 mb-2 mb-lg-0">
           <div class="input-group">
             <div class="input-group-prepend">
               <span class="input-group-text border-0 bg-transparent pl-3">
@@ -73,9 +73,9 @@
               </span>
             </div>
             <div class="form-control border-0 ">
-              <input id="docsearch-query" class="docsearch-input pr-1"
+              <input class="docsearch-input pr-1"
               placeholder="Search the docs..." aria-label="Search the docs"
-              v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+              v-model="inputTextValue"/>
             </div>
           </div>
         </div>
