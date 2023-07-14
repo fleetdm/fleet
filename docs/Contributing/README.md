@@ -29,3 +29,5 @@ Learn how to deploy a test version of the fleetd Chrome extension for debug purp
 
 ### [FAQ](./FAQ.md) 
 Find commonly asked questions and answers about contributing to Fleet as part of our community.
+
+<meta name="pageOrderInSection" value="1650">
