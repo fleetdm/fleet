@@ -43,9 +43,10 @@ func TestGetClientConfig(t *testing.T) {
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{
 			Name: "Alamo",
-			ID: 1,
+			ID:   1,
 		}, nil
 	}
+
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 		return nil, nil
 	}
