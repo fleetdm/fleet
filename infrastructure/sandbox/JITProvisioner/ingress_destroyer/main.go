@@ -66,14 +66,18 @@ func deleteIngress(id, name, ddbTable string) {
 		log.Fatal(err)
 	}
 
-	/*
+	// Delete the cronjob so we don't spam the database for stuff that's not running
+	_, err = clientset.BatchV1().CronJob("default").ApplyScale(context.Background(), id, v1.DeleteOptions{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Scale it down to save money
 	time.sleep(60)
 	_, err = clientset.AppsV1().Deployments("default").ApplyScale(context.Background(), id, &autoscaling.ScaleApplyConfiguration{Spec: &autoscaling.ScaleSpecApplyConfiguration{Replicas: new(int32)}}, v1.ApplyOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}
-	*/
 
 	svc := dynamodb.New(sess)
 	err = updateFleetInstanceState(id, ddbTable, svc)
