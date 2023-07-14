@@ -16,3 +16,4 @@ You can also run `./generate -h` for information about the other options availab
 specifying destination.
 
 <meta name="pageOrderInSection" value="450">
+<meta name="description" value="How to create boilerplate for new UI components in Fleet.">

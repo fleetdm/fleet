@@ -93,4 +93,4 @@ If you also have Orbit running on hosts, it will need access to these API endpoi
 * `/api/fleet/orbit/ping`
 * `/api/osquery/log`
 
-<meta name="pageOrderInSection" value="1700">
+<meta name="description" value="Find commonly asked questions and answers about contributing to Fleet as part of our community.">

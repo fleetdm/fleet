@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/stretchr/testify/require"
 )
 
@@ -193,4 +194,29 @@ func TestInvalidSoapRequestWithDiscoverMsg(t *testing.T) {
 	require.NoError(t, err)
 	err = req.IsValidDiscoveryMsg()
 	require.Error(t, err)
+}
+
+func TestProvisioningDocGeneration(t *testing.T) {
+	deviceIdentityFingerprint := "031336C933CC7E228B88880D78824FB2909A0A2F"
+	serverIdentityFingerprint := "F9A4F20FC50D990FDD0E3DB9AFCBF401818D5462"
+
+	// Preparing the WAP Provisioning Doc response
+	certStoreData := NewCertStoreProvisioningData(
+		"full",
+		deviceIdentityFingerprint,
+		[]byte{0x1, 0x2, 0x3},
+		serverIdentityFingerprint,
+		[]byte{0x4, 0x5, 0x6})
+
+	// Preparing the WAP Provisioning Doc response
+	appConfigData := NewApplicationProvisioningData(microsoft_mdm.MDE2EnrollPath)
+	appDMClientData := NewDMClientProvisioningData()
+	provDoc := NewProvisioningDoc(certStoreData, appConfigData, appDMClientData)
+
+	outXML, err := xml.MarshalIndent(provDoc, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	require.Contains(t, string(outXML), deviceIdentityFingerprint)
+	require.Contains(t, string(outXML), serverIdentityFingerprint)
+	require.Contains(t, string(outXML), microsoft_mdm.MDE2EnrollPath)
 }

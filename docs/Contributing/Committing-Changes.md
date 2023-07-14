@@ -102,3 +102,4 @@ Keep in mind that the commit title and description are what developers see when 
 Keeping to around 80 character line lengths helps with rendering when folks have narrow, tiled terminal windows.
 
 <meta name="pageOrderInSection" value="400">
+<meta name="description" value="A guide to contributing to the Fleet GitHub repository.">
