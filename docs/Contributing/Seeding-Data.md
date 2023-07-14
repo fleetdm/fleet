@@ -90,5 +90,4 @@ Fleet supports [SSO users](https://fleetdm.com/docs/deploying/configuration#conf
 To create a handful of test hosts, you can run containerized `osqueryd` [Docker test hosts](https://github.com/fleetdm/fleet/tree/main/tools/osquery). As these Docker test hosts are RAM intensive, alternatively, you can use `osquery-perf` to create thousands of [simulated test hosts](https://github.com/fleetdm/fleet/tree/main/cmd/osquery-perf).
 
 
-
-<meta name="description" value="Learn how to add fake data to your development Fleet instance.">
+<meta name="pageOrderInSection" value="600">
