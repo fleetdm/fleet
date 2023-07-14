@@ -346,6 +346,25 @@ func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	}, nil
 }
 
+func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (fleet.Queries, error) {
+	opts := fleet.ListQueryOptions{IsScheduled: ptr.Bool(true), TeamID: teamID}
+	queries, err := svc.ds.ListQueries(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(queries) == 0 {
+		return nil, nil
+	}
+
+	config := make(fleet.Queries, len(queries))
+	for _, query := range queries {
+		config[query.Name] = query.ToQueryContent()
+	}
+
+	return config, nil
+}
+
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -368,12 +387,12 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		}
 	}
 
+	packConfig := fleet.Packs{}
+
 	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
 	if err != nil {
 		return nil, newOsqueryError("database error: " + err.Error())
 	}
-
-	packConfig := fleet.Packs{}
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
 		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
@@ -412,6 +431,37 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 			Platform: pack.Platform,
 			Queries:  configQueries,
 		}
+	}
+
+	globalQueries, err := svc.getScheduledQueries(ctx, nil)
+	if err != nil {
+		return nil, newOsqueryError("database error: " + err.Error())
+	}
+	if len(globalQueries) > 0 {
+		packConfig["Global"] = fleet.PackContent{
+			Queries: globalQueries,
+		}
+	}
+
+	if host.TeamID != nil {
+		team, err := svc.ds.Team(ctx, *host.TeamID)
+		if err != nil {
+			return nil, newOsqueryError("database error: " + err.Error())
+		}
+
+		if team != nil {
+			teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
+			if err != nil {
+				return nil, newOsqueryError("database error: " + err.Error())
+			}
+			if len(teamQueries) > 0 {
+				packName := fmt.Sprintf("Team: %s", team.Name)
+				packConfig[packName] = fleet.PackContent{
+					Queries: teamQueries,
+				}
+			}
+		}
+
 	}
 
 	if len(packConfig) > 0 {

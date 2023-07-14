@@ -8,6 +8,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGetSnapshot(t *testing.T) {
+	testCases := []struct {
+		query    *Query
+		expected *bool
+	}{
+		{
+			query:    nil,
+			expected: nil,
+		},
+		{
+			query:    &Query{LoggingType: "snapshot"},
+			expected: ptr.Bool(true),
+		},
+		{
+			query:    &Query{LoggingType: "differential"},
+			expected: nil,
+		},
+		{
+			query:    &Query{LoggingType: "differential_ignore_removals"},
+			expected: nil,
+		},
+	}
+	for _, tCase := range testCases {
+		require.Equal(t, tCase.expected, tCase.query.GetSnapshot())
+	}
+}
+
+func TestGetRemoved(t *testing.T) {
+	testCases := []struct {
+		query    *Query
+		expected *bool
+	}{
+		{
+			query:    nil,
+			expected: nil,
+		},
+		{
+			query:    &Query{LoggingType: "snapshot"},
+			expected: nil,
+		},
+		{
+			query:    &Query{LoggingType: "differential"},
+			expected: ptr.Bool(true),
+		},
+		{
+			query:    &Query{LoggingType: "differential_ignore_removals"},
+			expected: ptr.Bool(false),
+		},
+	}
+	for i, tCase := range testCases {
+		require.Equal(t, tCase.expected, tCase.query.GetRemoved(), i)
+	}
+}
+
 func TestTeamIDStr(t *testing.T) {
 	testCases := []struct {
 		query    *Query

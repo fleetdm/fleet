@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 )
 
@@ -69,6 +70,36 @@ func (q *Query) TeamIDStr() string {
 	return fmt.Sprint(*q.TeamID)
 }
 
+func (q *Query) GetSnapshot() *bool {
+	var loggingType string
+	if q != nil {
+		loggingType = q.LoggingType
+	}
+
+	switch loggingType {
+	case "snapshot":
+		return ptr.Bool(true)
+	default:
+		return nil
+	}
+}
+
+func (q *Query) GetRemoved() *bool {
+	var loggingType string
+	if q != nil {
+		loggingType = q.LoggingType
+	}
+
+	switch loggingType {
+	case "differential":
+		return ptr.Bool(true)
+	case "differential_ignore_removals":
+		return ptr.Bool(false)
+	default:
+		return nil
+	}
+}
+
 // Verify verifies the query payload is valid.
 func (q *QueryPayload) Verify() error {
 	if q.Name != nil {
@@ -93,6 +124,17 @@ func (q *Query) Verify() error {
 		return err
 	}
 	return nil
+}
+
+func (q *Query) ToQueryContent() QueryContent {
+	return QueryContent{
+		Query:    q.Query,
+		Interval: q.ScheduleInterval,
+		Platform: &q.Platform,
+		Version:  &q.MinOsqueryVersion,
+		Removed:  q.GetRemoved(),
+		Snapshot: q.GetSnapshot(),
+	}
 }
 
 type TargetedQuery struct {
