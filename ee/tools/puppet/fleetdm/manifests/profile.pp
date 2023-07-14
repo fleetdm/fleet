@@ -47,7 +47,7 @@ define fleetdm::profile (
     $changed = $response['resource_changed']
 
     if $err != '' {
-      notify { "error pre-assigning profile ${name} (ensure ${ensure}): ${err}":
+      notify { "error pre-setting profile ${name} as ${ensure}: ${err}":
         loglevel => 'err',
       }
     } elsif $changed {
