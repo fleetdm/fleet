@@ -2,11 +2,12 @@ import React from "react";
 import classnames from "classnames";
 import ReactTooltip from "react-tooltip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { uniqueId } from "lodash";
+import { COLORS } from "styles/var/colors";
 
 interface IStatusIndicatorProps {
   value: string;
   tooltip?: {
-    id: number;
     tooltipText: string | JSX.Element;
     position?: "top" | "bottom";
   };
@@ -29,30 +30,34 @@ const StatusIndicator = ({
     `status-indicator--${classTag}`,
     `status--${classTag}`
   );
-  const indicatorContent = tooltip ? (
-    <>
-      <span
-        className="host-status tooltip tooltip__tooltip-icon"
-        data-tip
-        data-for={`status-${tooltip.id}`}
-        data-tip-disable={false}
-      >
-        {value}
-      </span>
-      <ReactTooltip
-        className="status-tooltip"
-        place={tooltip?.position ? tooltip.position : "top"}
-        type="dark"
-        effect="solid"
-        id={`status-${tooltip.id}`}
-        backgroundColor="#3e4771"
-      >
-        {tooltip.tooltipText}
-      </ReactTooltip>
-    </>
-  ) : (
-    <>{value}</>
-  );
+  let indicatorContent;
+  if (tooltip) {
+    const tooltipId = uniqueId();
+    indicatorContent = (
+      <>
+        <span
+          className="host-status tooltip tooltip__tooltip-icon"
+          data-tip
+          data-for={`status-${tooltipId}`}
+          data-tip-disable={false}
+        >
+          {value}
+        </span>
+        <ReactTooltip
+          className="status-tooltip"
+          place={tooltip?.position ? tooltip.position : "top"}
+          type="dark"
+          effect="solid"
+          id={`status-${tooltipId}`}
+          backgroundColor={COLORS["tooltip-bg"]}
+        >
+          {tooltip.tooltipText}
+        </ReactTooltip>
+      </>
+    );
+  } else {
+    indicatorContent = <>{value}</>;
+  }
   return <span className={statusClassName}>{indicatorContent}</span>;
 };
 
