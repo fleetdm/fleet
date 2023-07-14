@@ -40,6 +40,12 @@ import (
 
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{
+			Name: "Alamo",
+			ID: 1,
+		}, nil
+	}
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 		return nil, nil
 	}
@@ -105,7 +111,7 @@ func TestGetClientConfig(t *testing.T) {
 
 	ctx1 := hostctx.NewContext(ctx, &fleet.Host{ID: 1})
 	ctx2 := hostctx.NewContext(ctx, &fleet.Host{ID: 2})
-	ctx3 := hostctx.NewContext(ctx, &fleet.Host{ID: 1, TeamID: ptr.Uint(1), TeamName: ptr.String("Alamo")})
+	ctx3 := hostctx.NewContext(ctx, &fleet.Host{ID: 1, TeamID: ptr.Uint(1)})
 
 	expectedOptions := map[string]interface{}{
 		"baz": "bar",
