@@ -2,10 +2,10 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-import { OsqueryPlatform } from "interfaces/platform";
+import { SupportedPlatform } from "interfaces/platform";
 import PlatformCell from "./PlatformCell";
 
-const PLATFORMS: OsqueryPlatform[] = ["windows", "darwin", "linux", "chrome"];
+const PLATFORMS: SupportedPlatform[] = ["windows", "darwin", "linux", "chrome"];
 
 describe("Platform cell", () => {
   it("renders platform icons in correct order", () => {

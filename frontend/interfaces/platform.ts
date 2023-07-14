@@ -8,12 +8,15 @@ export type OsqueryPlatform =
   | "chrome"
   | "ChromeOS";
 
-export type SelectedPlatform =
-  | "all"
-  | "darwin"
-  | "windows"
-  | "linux"
-  | "chrome";
+export type SupportedPlatform = "darwin" | "windows" | "linux" | "chrome";
+
+export const SUPPORTED_PLATFORMS: SupportedPlatform[] = [
+  "darwin",
+  "windows",
+  "linux",
+  "chrome",
+];
+export type SelectedPlatform = SupportedPlatform | "all";
 
 export type SelectedPlatformString =
   | ""
@@ -32,13 +35,6 @@ export type SelectedPlatformString =
   | "windows,linux"
   | "windows,chrome"
   | "linux,chrome";
-
-export const SUPPORTED_PLATFORMS = [
-  "darwin",
-  "windows",
-  "linux",
-  "chrome",
-] as const;
 
 // TODO: revisit this approach pending resolution of https://github.com/fleetdm/fleet/issues/3555.
 export const MACADMINS_EXTENSION_TABLES: Record<string, OsqueryPlatform[]> = {

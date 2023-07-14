@@ -6,6 +6,7 @@ import {
   OsqueryPlatform,
   MACADMINS_EXTENSION_TABLES,
   SUPPORTED_PLATFORMS,
+  SupportedPlatform,
 } from "interfaces/platform";
 
 type IAstNode = Record<string | number | symbol, unknown>;
@@ -64,7 +65,9 @@ const _visit = (
   }
 };
 
-const filterCompatiblePlatforms = (sqlTables: string[]): OsqueryPlatform[] => {
+const filterCompatiblePlatforms = (
+  sqlTables: string[]
+): SupportedPlatform[] => {
   if (!sqlTables.length) {
     return [...SUPPORTED_PLATFORMS]; // if a query has no tables but is still syntatically valid sql, it is treated as compatible with all platforms
   }
@@ -122,7 +125,7 @@ const parseSqlTables = (
 const checkPlatformCompatibility = (
   sqlString: string,
   includeCteTables = false
-): { platforms: OsqueryPlatform[] | null; error: Error | null } => {
+): { platforms: SupportedPlatform[] | null; error: Error | null } => {
   let sqlTables: string[] | undefined;
   try {
     sqlTables = parseSqlTables(sqlString, includeCteTables);

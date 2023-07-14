@@ -1,9 +1,9 @@
 import React from "react";
 import Icon from "components/Icon";
-import { OsqueryPlatform } from "interfaces/platform";
+import { SupportedPlatform } from "interfaces/platform";
 
 interface IPlatformCellProps {
-  platforms: OsqueryPlatform[];
+  platforms: SupportedPlatform[];
 }
 
 const baseClass = "platform-cell";
@@ -15,7 +15,7 @@ const ICONS: Record<string, "darwin" | "windows" | "linux" | "chrome"> = {
   chrome: "chrome",
 };
 
-const DISPLAY_ORDER: OsqueryPlatform[] = [
+const DISPLAY_ORDER: SupportedPlatform[] = [
   "darwin",
   "windows",
   "linux",
