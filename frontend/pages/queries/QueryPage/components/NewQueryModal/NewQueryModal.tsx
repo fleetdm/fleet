@@ -70,7 +70,7 @@ const NewQueryModal = ({
         name,
         query: queryValue,
         observer_can_run: observerCanRun,
-        frequency: 0,
+        frequency: 0, // Work on create query is a part of Jacob's PR
       });
     }
   };

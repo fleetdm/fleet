@@ -73,6 +73,8 @@ export interface IModifyQueryRequestBody
   description?: string;
   observer_can_run?: boolean;
   frequency?: number;
+  platform?: IPlatformString;
+  min_osquery_version?: string;
 }
 
 // response is ISchedulableQuery // better way to indicate this?

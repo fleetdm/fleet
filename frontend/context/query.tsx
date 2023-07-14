@@ -26,10 +26,10 @@ type InitialStateType = {
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryObserverCanRun: (value: boolean) => void;
   setLastEditedQueryFrequency: (value: number) => void;
-  setSelectedOsqueryTable: (tableName: string) => void;
   setLastEditedQueryPlatforms: (value: string) => void;
   setLastEditedQueryMinOsqueryVersion: (value: string) => void;
   setLastEditedQueryLoggingType: (value: string) => void;
+  setSelectedOsqueryTable: (tableName: string) => void;
 };
 
 const initialState = {
