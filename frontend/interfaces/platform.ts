@@ -15,7 +15,7 @@ export type ISelectedPlatform =
   | "linux"
   | "chrome";
 
-export type IPlatformString =
+export type SelectedPlatformString =
   | ""
   | "darwin"
   | "windows"
