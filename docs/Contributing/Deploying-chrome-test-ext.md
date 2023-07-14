@@ -7,13 +7,7 @@ As part of validating any ChromeOS extension, run this process to force-install 
 ### Bump the extension version
 
 Modify the version field at the top of the [`package.json`](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/package.json) file in `ee/fleetd-chrome`
-```
-{
-  "name": "fleetd-for-chrome",
-  "description": "Extension for Fleetd on ChromeOS",
-  "version": "1.0.3",
-  ...
-```
+
 Update the version in [`updates.xml`](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/updates.xml) to match the `package.json` version.
 
 ### Build the distribution folder
@@ -64,17 +58,9 @@ lt --port 8000 --subdomain test-new-tables
 
 ### Deploy the extension using Google Admin
 
-- Go to Google Admin
-- On the left menu, open "Apps & Extensions" > "Users & Browsers"
-- Select ChromeOSTesting
-- Press the bottom right + symbol, then the apps logo (area with dots)
-- Put the `appid` copied earlier
-- Change the dropdown menu to "custom URL"
-- Paste http://test-new-tables.loca.lt/updates.xml
-- Press "Save"
-- On the right tab change from "Allow Install" to "Force Install"
-- Press "Save" (top right of screen)
-- Remove the filters (The one with our `appid`)
-- Click the original FleetDM extention. From the right tab, copy the "Policy for extension" JSON and put it in the new extension in the same place.
-- Press "Save" (top right of screen)
-
+> Follow the instructions [here](https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension) for installing the fleetd Chrome extension, with the following modifications:
+> + Select the "ChromeOSTesting" group.
+> + For "Extension ID", use the ID previously copied.
+> + For "Installation URL", use `http://test-new-tables.loca.lt/updates.xml`.
+> + Remove the filters (the filters with our `appid`).
+> + For "Policy for extensions", copy over the JSON from the original extension.
