@@ -3745,6 +3745,7 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 		Name:    "test1",
 		HostIDs: []uint{host1.ID, host2.ID},
 	})
+	require.NoError(t, err)
 
 	userQuery := test.NewQuery(t, ds, nil, "global-time", "select * from time", 0, true)
 	userSQuery := test.NewScheduledQuery(t, ds, userPack.ID, userQuery.ID, 30, true, true, "time-scheduled-global")
