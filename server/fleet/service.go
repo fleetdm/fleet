@@ -679,6 +679,9 @@ type Service interface {
 	// MMDAppleEraseDevice erases a host
 	MDMAppleEraseDevice(ctx context.Context, hostID uint) error
 
+	// MDMListHostConfigurationProfiles returns configuration profiles for a given host
+	MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*MDMAppleConfigProfile, error)
+
 	// MDMAppleEnableFileVaultAndEscrow adds a configuration profile for the
 	// given team that enables FileVault with a config that allows Fleet to
 	// escrow the recovery key.

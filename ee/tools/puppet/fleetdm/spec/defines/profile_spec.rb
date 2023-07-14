@@ -10,6 +10,7 @@ describe 'fleetdm::profile' do
   let(:node_name) { Puppet[:node_name_value] }
   let(:catalog_uuid) { '827a74c8-cf98-44da-9ff7-18c5e4bee41e' }
   let(:run_identifier) { "#{catalog_uuid}-#{node_name}" }
+  let(:host_response) { { 'host' => { 'id' => 1 } } }
   let(:params) do
     { 'template' => template, 'group' => group }
   end
@@ -17,7 +18,7 @@ describe 'fleetdm::profile' do
   before(:each) do
     fleet_client_class = class_spy('Puppet::Util::FleetClient')
     stub_const('Puppet::Util::FleetClient', fleet_client_class)
-    allow(fleet_client_class).to receive(:new).with('https://example.com', 'test_token') { fleet_client_mock }
+    allow(fleet_client_class).to receive(:instance) { fleet_client_mock }
     allow(SecureRandom).to receive(:uuid).and_return(catalog_uuid)
   end
 
@@ -27,6 +28,14 @@ describe 'fleetdm::profile' do
 
       it 'compiles' do
         uuid = os_facts[:system_profiler]['hardware_uuid']
+        expect(fleet_client_mock)
+          .to receive(:get_host_by_identifier)
+          .with(uuid)
+          .and_return({ 'error' => '', 'body' => host_response })
+        expect(fleet_client_mock)
+          .to receive(:get_host_profiles)
+          .with(host_response['host']['id'])
+          .and_return({ 'error' => '', 'body' => { 'profiles' => [] } })
         expect(fleet_client_mock)
           .to receive(:preassign_profile)
           .with(run_identifier, uuid, template, group, 'present')
@@ -74,6 +83,14 @@ describe 'fleetdm::profile' do
         it 'compiles' do
           uuid = os_facts[:system_profiler]['hardware_uuid']
           expect(fleet_client_mock)
+            .to receive(:get_host_by_identifier)
+            .with(uuid)
+            .and_return({ 'error' => '', 'body' => host_response })
+          expect(fleet_client_mock)
+            .to receive(:get_host_profiles)
+            .with(host_response['host']['id'])
+            .and_return({ 'error' => '', 'body' => { 'profiles' => [] } })
+          expect(fleet_client_mock)
             .to receive(:preassign_profile)
             .with(run_identifier, uuid, template, 'default', 'present')
             .and_return({ 'error' => '' })
@@ -88,6 +105,14 @@ describe 'fleetdm::profile' do
 
         it 'compiles' do
           uuid = os_facts[:system_profiler]['hardware_uuid']
+          expect(fleet_client_mock)
+            .to receive(:get_host_by_identifier)
+            .with(uuid)
+            .and_return({ 'error' => '', 'body' => host_response })
+          expect(fleet_client_mock)
+            .to receive(:get_host_profiles)
+            .with(host_response['host']['id'])
+            .and_return({ 'error' => '', 'body' => { 'profiles' => [] } })
           expect(fleet_client_mock)
             .to receive(:preassign_profile)
             .with(run_identifier, uuid, template, 'default', 'absent')
