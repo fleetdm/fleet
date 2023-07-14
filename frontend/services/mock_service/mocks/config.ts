@@ -31,7 +31,8 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     "queries/5": RESPONSES.globalQuery4,
     "queries/6": RESPONSES.globalQuery5,
     "queries/7": RESPONSES.globalQuery6,
-    "queries?team_id=43": RESPONSES.teamQueries,
+    "queries/8": RESPONSES.teamQuery2,
+    "queries?team_id=13": RESPONSES.teamQueries,
   },
   POST: {
     // request body is ISelectedTargets

@@ -322,6 +322,7 @@ const ManageQueriesPage = ({
     );
   };
 
+  // TODO: Need backend API specs to create correct call
   const onSaveQueryAutomations = useCallback(async () => {
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
 
@@ -366,10 +367,13 @@ const ManageQueriesPage = ({
             handleSubmit={onSaveQueryAutomations}
             onCancel={toggleManageAutomationsModal}
             togglePreviewDataModal={togglePreviewDataModal}
-            availableQueries={globalEnhancedQueries}
+            availableQueries={curTeamEnhancedQueries}
             scheduledQueriesConfig={{ query_ids: [1, 2] }}
             logDestination={config?.logging.result.plugin || ""}
           />
+        )}
+        {showPreviewDataModal && (
+          <PreviewDataModal onCancel={togglePreviewDataModal} />
         )}
       </>
     );
@@ -398,13 +402,6 @@ const ManageQueriesPage = ({
               !!curTeamEnhancedQueries?.length && (
                 <>
                   <Button
-                    variant="inverse"
-                    className={`${baseClass}__create-button`}
-                    onClick={onManageAutomationsClick}
-                  >
-                    Manage automations
-                  </Button>
-                  <Button
                     variant="brand"
                     className={`${baseClass}__create-button`}
                     onClick={onCreateQueryClick}
@@ -427,9 +424,6 @@ const ManageQueriesPage = ({
           globalEnhancedQueries?.length > 0 &&
           renderInheritedQueriesSection()}
         {renderModals()}
-        {showPreviewDataModal && (
-          <PreviewDataModal onCancel={togglePreviewDataModal} />
-        )}
       </div>
     </MainContent>
   );

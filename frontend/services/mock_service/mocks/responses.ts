@@ -452,7 +452,7 @@ const globalQueries = {
     {
       created_at: "2022-11-03T17:22:14Z",
       updated_at: "2022-11-03T17:22:14Z",
-      id: 4,
+      id: 5,
       name: "Test Query 4 (Never runs)",
       description: "A third test query",
       query: "SELECT * FROM osquery_info",
@@ -479,7 +479,7 @@ const globalQueries = {
     {
       created_at: "2022-11-03T17:22:14Z",
       updated_at: "2022-11-03T17:22:14Z",
-      id: 5,
+      id: 6,
       name: "Test Query 5 runs every 5 minutes!",
       description: "A fifth test query",
       query: "SELECT * FROM osquery_info",
@@ -506,7 +506,7 @@ const globalQueries = {
     {
       created_at: "2022-11-03T17:22:14Z",
       updated_at: "2022-11-03T17:22:14Z",
-      id: 6,
+      id: 7,
       name: "Test Query 6 runs every 6 hours",
       description: "A 6th test query",
       query: "SELECT * FROM osquery_info",
@@ -539,6 +539,35 @@ const teamQueries = {
       created_at: "2023-06-08T15:31:35Z",
       updated_at: "2023-06-08T15:31:35Z",
       id: 4,
+      name: "test specific team query 2",
+      description: "",
+      query: "SELECT * FROM video_info;",
+      team_id: 13,
+      platform: "windows",
+      min_osquery_version: "",
+      automations_enabled: true,
+      logging: "snapshot",
+      saved: true,
+      interval: 0,
+      observer_can_run: true,
+      author_id: 1,
+      author_name: "Jacob",
+      author_email: "jacob@fleetdm.com",
+      packs: [],
+      stats: {
+        system_time_p50: 1,
+        // system_time_p95: null,
+        user_time_p50: 1,
+        // user_time_p95: null,
+        total_executions: 1,
+      },
+      performance: "Undetermined",
+      platforms: ["windows"],
+    },
+    {
+      created_at: "2023-06-08T15:31:35Z",
+      updated_at: "2023-06-08T15:31:35Z",
+      id: 8,
       name: "test specific team query",
       description: "",
       query: "SELECT * FROM osquery_info;",
@@ -556,14 +585,14 @@ const teamQueries = {
       author_email: "jacob@fleetdm.com",
       packs: [],
       stats: {
-        system_time_p50: 1,
+        system_time_p50: 4,
         // system_time_p95: null,
-        user_time_p50: 1,
+        user_time_p50: 10,
         // user_time_p95: null,
         total_executions: 1,
       },
       performance: "Undetermined",
-      platforms: ["windows", "darwin", "linux"],
+      platforms: ["darwin"],
     },
   ],
 };
@@ -571,10 +600,11 @@ const teamQueries = {
 const globalQuery1 = { query: globalQueries.queries[0] };
 const globalQuery2 = { query: globalQueries.queries[1] };
 const globalQuery3 = { query: globalQueries.queries[2] };
-const globalQuery4 = { query: globalQueries.queries[0] };
-const globalQuery5 = { query: globalQueries.queries[1] };
-const globalQuery6 = { query: globalQueries.queries[2] };
+const globalQuery4 = { query: globalQueries.queries[4] };
+const globalQuery5 = { query: globalQueries.queries[5] };
+const globalQuery6 = { query: globalQueries.queries[6] };
 const teamQuery1 = { query: teamQueries.queries[0] };
+const teamQuery2 = { query: teamQueries.queries[1] };
 
 export default {
   count,
@@ -589,4 +619,5 @@ export default {
   globalQuery6,
   teamQueries,
   teamQuery1,
+  teamQuery2,
 };
