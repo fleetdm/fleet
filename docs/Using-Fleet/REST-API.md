@@ -3150,13 +3150,13 @@ Retrieves a list of the configuration profiles assigned to a host.
   "host_id": 8,
   "profiles": [
     {
-        "profile_id": 1337,
-        "team_id": 0,
-        "name": "Example profile",
-        "identifier": "com.example.profile",
-        "created_at": "2023-03-31T00:00:00Z",
-        "updated_at": "2023-03-31T00:00:00Z",
-        "checksum": "dGVzdAo="
+      "profile_id": 1337,
+      "team_id": 0,
+      "name": "Example profile",
+      "identifier": "com.example.profile",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo="
     }
   ]
 }
@@ -3741,13 +3741,13 @@ List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are
 {
   "profiles": [
     {
-        "profile_id": 1337,
-        "team_id": 0,
-        "name": "Example profile",
-        "identifier": "com.example.profile",
-        "created_at": "2023-03-31T00:00:00Z",
-        "updated_at": "2023-03-31T00:00:00Z",
-        "checksum": "dGVzdAo="
+      "profile_id": 1337,
+      "team_id": 0,
+      "name": "Example profile",
+      "identifier": "com.example.profile",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo="
     }
   ]
 }
