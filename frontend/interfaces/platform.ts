@@ -8,7 +8,7 @@ export type OsqueryPlatform =
   | "chrome"
   | "ChromeOS";
 
-export type ISelectedPlatform =
+export type SelectedPlatform =
   | "all"
   | "darwin"
   | "windows"
