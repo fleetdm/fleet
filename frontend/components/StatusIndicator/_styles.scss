@@ -52,24 +52,4 @@
       background-color: $ui-warning;
     }
   }
-
-  // Query automations status
-  &--on {
-    &:before {
-      background-color: $ui-success;
-    }
-  }
-  &--off {
-    &:before {
-      background-color: $ui-offline;
-    }
-  }
-  &--paused {
-    .status-tooltip {
-      text-transform: none;
-    }
-    &:before {
-      background-color: $ui-offline;
-    }
-  }
 }
