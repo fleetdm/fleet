@@ -10,6 +10,7 @@ import permissionsUtils from "utilities/permissions";
 import { IUser } from "interfaces/user";
 import { secondsToDhms } from "utilities/helpers";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
+import { IOsqueryPlatform } from "interfaces/platform";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -74,7 +75,7 @@ interface IBoolCellProps extends IRowProps {
 }
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: string[];
+    value: IOsqueryPlatform[];
   };
 }
 
@@ -160,7 +161,7 @@ const generateTableHeaders = ({
       disableSortBy: true,
       accessor: "platforms",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
-        return <PlatformCell value={cellProps.cell.value} />;
+        return <PlatformCell platforms={cellProps.cell.value} />;
       },
     },
     {

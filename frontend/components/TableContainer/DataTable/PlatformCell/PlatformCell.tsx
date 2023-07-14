@@ -1,8 +1,9 @@
 import React from "react";
 import Icon from "components/Icon";
+import { IOsqueryPlatform } from "interfaces/platform";
 
 interface IPlatformCellProps {
-  value: string[];
+  platforms: IOsqueryPlatform[];
 }
 
 const baseClass = "platform-cell";
@@ -14,7 +15,7 @@ const ICONS: Record<string, "darwin" | "windows" | "linux" | "chrome"> = {
   chrome: "chrome",
 };
 
-const DISPLAY_ORDER = [
+const DISPLAY_ORDER: IOsqueryPlatform[] = [
   "darwin",
   "windows",
   "linux",
@@ -23,9 +24,7 @@ const DISPLAY_ORDER = [
   // "Invalid query",
 ];
 
-const PlatformCell = ({
-  value: platforms,
-}: IPlatformCellProps): JSX.Element => {
+const PlatformCell = ({ platforms }: IPlatformCellProps): JSX.Element => {
   const orderedList = DISPLAY_ORDER.filter((platform) =>
     platforms.includes(platform)
   );
