@@ -22,13 +22,16 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
       host_profiles = client.get_host_profiles(host['body']['host']['id'])
 
       if host_profiles['error'].empty?
+        Puppet.info("successfully set profile #{profile_identifier} as #{ensure_profile}")
+
+        # if this profile is not in the list of profiles assigned to the host,
+        # signal that the resource has changed.
         unless host_profiles['body']['profiles'].any? { |p| p['checksum'] == base64_checksum }
-          Puppet.info("successfully pre-assigned profile #{profile_identifier}")
-          response['changed'] = true
+          response['resource_changed'] = true
         end
       end
     else
-      Puppet.err("error pre-assigning profile #{profile_identifier}: #{response['error']} \n\n #{template}")
+      Puppet.err("error pre-assigning profile #{profile_identifier} (ensure #{ensure_profile}): #{response['error']} \n\n #{template}")
     end
 
     response
