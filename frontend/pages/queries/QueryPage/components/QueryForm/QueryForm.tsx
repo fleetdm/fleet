@@ -582,11 +582,6 @@ const QueryForm = ({
     return <Spinner />;
   }
 
-  console.log("isGlobalObserver", isGlobalObserver);
-  console.log("isObserverPlus", isObserverPlus);
-  console.log("isOnlyObserver", isOnlyObserver);
-  console.log("isAnyTeamObserverPlus", isAnyTeamObserverPlus);
-  console.log("isAnyTeamMaintainerOrTeamAdmin", isAnyTeamMaintainerOrTeamAdmin);
   const noEditPermissions =
     (isGlobalObserver && !isObserverPlus) || // Global observer but not Observer+
     (isObserverPlus && queryIdForEdit !== 0) || // Global observer+ on existing query
