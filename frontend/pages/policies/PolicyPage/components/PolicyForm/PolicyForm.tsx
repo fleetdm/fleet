@@ -14,7 +14,7 @@ import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { IOsqueryPlatform, SelectedPlatformString } from "interfaces/platform";
+import { OsqueryPlatform, SelectedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
 import Avatar from "components/Avatar";
@@ -226,7 +226,7 @@ const PolicyForm = ({
       });
     }
 
-    let selectedPlatforms: IOsqueryPlatform[] = [];
+    let selectedPlatforms: OsqueryPlatform[] = [];
     if (isEditMode || defaultPolicy) {
       selectedPlatforms = getSelectedPlatforms();
     } else {

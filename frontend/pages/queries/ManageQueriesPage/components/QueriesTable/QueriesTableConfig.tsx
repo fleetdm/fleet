@@ -10,7 +10,7 @@ import permissionsUtils from "utilities/permissions";
 import { IUser } from "interfaces/user";
 import { secondsToDhms } from "utilities/helpers";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import { IOsqueryPlatform } from "interfaces/platform";
+import { OsqueryPlatform } from "interfaces/platform";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -75,7 +75,7 @@ interface IBoolCellProps extends IRowProps {
 }
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: IOsqueryPlatform[];
+    value: OsqueryPlatform[];
   };
 }
 

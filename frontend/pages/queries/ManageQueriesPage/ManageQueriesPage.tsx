@@ -7,7 +7,7 @@ import { AppContext } from "context/app";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { performanceIndicator } from "utilities/helpers";
-import { IOsqueryPlatform } from "interfaces/platform";
+import { OsqueryPlatform } from "interfaces/platform";
 import {
   IListQueriesResponse,
   ISchedulableQuery,
@@ -49,7 +49,7 @@ interface IEnhancedQuery extends ISchedulableQuery {
   platforms: string[];
 }
 
-const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
+const getPlatforms = (queryString: string): Array<OsqueryPlatform | "---"> => {
   const { platforms } = checkPlatformCompatibility(queryString);
 
   return platforms || [DEFAULT_EMPTY_CELL_VALUE];

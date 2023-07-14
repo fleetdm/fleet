@@ -1,4 +1,4 @@
-export type IOsqueryPlatform =
+export type OsqueryPlatform =
   | "darwin"
   | "macOS"
   | "windows"
@@ -41,7 +41,7 @@ export const SUPPORTED_PLATFORMS = [
 ] as const;
 
 // TODO: revisit this approach pending resolution of https://github.com/fleetdm/fleet/issues/3555.
-export const MACADMINS_EXTENSION_TABLES: Record<string, IOsqueryPlatform[]> = {
+export const MACADMINS_EXTENSION_TABLES: Record<string, OsqueryPlatform[]> = {
   file_lines: ["darwin", "linux", "windows"],
   filevault_users: ["darwin"],
   google_chrome_profiles: ["darwin", "linux", "windows"],
