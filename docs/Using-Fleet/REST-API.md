@@ -3122,11 +3122,11 @@ Retrieves the disk encryption key for a host.
 }
 ```
 
-### Get configuration profiles assigned to a Host 
+### Get configuration profiles assigned to a host 
 
 Requires Fleet's MDM properly [enabled and configured](./Mobile-device-management.md).
 
-Retrieves a list of the configuration profiles assigned to the Host.
+Retrieves a list of the configuration profiles assigned to a host.
 
 `GET /api/v1/fleet/mdm/hosts/:id/profiles`
 
@@ -3134,7 +3134,7 @@ Retrieves a list of the configuration profiles assigned to the Host.
 
 | Name | Type    | In   | Description                      |
 | ---- | ------- | ---- | -------------------------------- |
-| id   | integer | path | **Required** The id of the host  |
+| id   | integer | path | **Required**. The ID of the host  |
 
 
 #### Example
