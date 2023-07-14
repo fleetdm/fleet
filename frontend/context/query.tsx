@@ -16,12 +16,20 @@ type InitialStateType = {
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
   lastEditedQueryObserverCanRun: boolean;
+  lastEditedQueryFrequency: number;
+  lastEditedQueryPlatforms: string;
+  lastEditedQueryMinOsqueryVersion: string;
+  lastEditedQueryLoggingType: string;
   setLastEditedQueryId: (value: number) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryObserverCanRun: (value: boolean) => void;
+  setLastEditedQueryFrequency: (value: number) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
+  setLastEditedQueryPlatforms: (value: string) => void;
+  setLastEditedQueryMinOsqueryVersion: (value: string) => void;
+  setLastEditedQueryLoggingType: (value: string) => void;
 };
 
 const initialState = {
@@ -32,11 +40,19 @@ const initialState = {
   lastEditedQueryDescription: DEFAULT_QUERY.description,
   lastEditedQueryBody: DEFAULT_QUERY.query,
   lastEditedQueryObserverCanRun: DEFAULT_QUERY.observer_can_run,
+  lastEditedQueryFrequency: DEFAULT_QUERY.frequency,
+  lastEditedQueryPlatforms: DEFAULT_QUERY.platform,
+  lastEditedQueryMinOsqueryVersion: DEFAULT_QUERY.min_osquery_version,
+  lastEditedQueryLoggingType: DEFAULT_QUERY.logging,
   setLastEditedQueryId: () => null,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
   setLastEditedQueryObserverCanRun: () => null,
+  setLastEditedQueryFrequency: () => null,
+  setLastEditedQueryPlatforms: () => null,
+  setLastEditedQueryMinOsqueryVersion: () => null,
+  setLastEditedQueryLoggingType: () => null,
   setSelectedOsqueryTable: () => null,
 };
 
@@ -77,6 +93,22 @@ const reducer = (state: InitialStateType, action: any) => {
           typeof action.lastEditedQueryObserverCanRun === "undefined"
             ? state.lastEditedQueryObserverCanRun
             : action.lastEditedQueryObserverCanRun,
+        lastEditedQueryFrequency:
+          typeof action.lastEditedQueryFrequency === "undefined"
+            ? state.lastEditedQueryFrequency
+            : action.lastEditedQueryFrequency,
+        lastEditedQueryPlatforms:
+          typeof action.lastEditedQueryPlatforms === "undefined"
+            ? state.lastEditedQueryPlatforms
+            : action.lastEditedQueryPlatforms,
+        lastEditedQueryMinOsqueryVersion:
+          typeof action.lastEditedQueryMinOsqueryVersion === "undefined"
+            ? state.lastEditedQueryMinOsqueryVersion
+            : action.lastEditedQueryMinOsqueryVersion,
+        lastEditedQueryLoggingType:
+          typeof action.lastEditedQueryLoggingType === "undefined"
+            ? state.lastEditedQueryLoggingType
+            : action.lastEditedQueryLoggingType,
       };
     default:
       return state;
@@ -95,6 +127,10 @@ const QueryProvider = ({ children }: Props) => {
     lastEditedQueryDescription: state.lastEditedQueryDescription,
     lastEditedQueryBody: state.lastEditedQueryBody,
     lastEditedQueryObserverCanRun: state.lastEditedQueryObserverCanRun,
+    lastEditedQueryFrequency: state.lastEditedQueryFrequency,
+    lastEditedQueryPlatforms: state.lastEditedQueryPlatforms,
+    lastEditedQueryMinOsqueryVersion: state.lastEditedQueryMinOsqueryVersion,
+    lastEditedQueryLoggingType: state.lastEditedQueryLoggingType,
     setLastEditedQueryId: (lastEditedQueryId: number) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
@@ -125,6 +161,32 @@ const QueryProvider = ({ children }: Props) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryObserverCanRun,
+      });
+    },
+    setLastEditedQueryFrequency: (lastEditedQueryFrequency: number) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryFrequency,
+      });
+    },
+    setLastEditedQueryPlatforms: (lastEditedQueryPlatforms: string) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryPlatforms,
+      });
+    },
+    setLastEditedQueryMinOsqueryVersion: (
+      lastEditedQueryMinOsqueryVersion: string
+    ) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryMinOsqueryVersion,
+      });
+    },
+    setLastEditedQueryLoggingType: (lastEditedQueryLoggingType: string) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryLoggingType,
       });
     },
     setSelectedOsqueryTable: (tableName: string) => {

@@ -1,6 +1,12 @@
-import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
+import React, {
+  useState,
+  useContext,
+  useEffect,
+  KeyboardEvent,
+  useCallback,
+} from "react";
 import { InjectedRouter } from "react-router";
-import { size } from "lodash";
+import { pull, size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
 
@@ -9,9 +15,20 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import { addGravatarUrlToResource } from "utilities/helpers";
+import {
+  FREQUENCY_DROPDOWN_OPTIONS,
+  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
+  LOGGING_TYPE_OPTIONS,
+  MIN_OSQUERY_VERSION_OPTIONS,
+} from "utilities/constants";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import { IApiError } from "interfaces/errors";
-import { IQuery, IQueryFormData } from "interfaces/query";
+import {
+  ISchedulableQuery,
+  IModifyQueryRequestBody,
+  IGetQueryResponse,
+  ICreateQueryRequestBody,
+} from "interfaces/schedulable_query";
 import queryAPI from "services/entities/queries";
 
 import { IAceEditor } from "react-ace/lib/types";
@@ -23,6 +40,8 @@ import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
@@ -36,14 +55,14 @@ interface IQueryFormProps {
   queryIdForEdit: number | null;
   teamIdForQuery?: number;
   showOpenSchemaActionText: boolean;
-  storedQuery: IQuery | undefined;
+  storedQuery: ISchedulableQuery | undefined;
   isStoredQueryLoading: boolean;
   isQuerySaving: boolean;
   isQueryUpdating: boolean;
-  saveQuery: (formData: IQueryFormData) => void;
+  saveQuery: (formData: ICreateQueryRequestBody) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
-  onUpdate: (formData: IQueryFormData) => void;
+  onUpdate: (formData: ICreateQueryRequestBody) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
@@ -86,10 +105,15 @@ const QueryForm = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
+    lastEditedQueryFrequency,
+    lastEditedQueryPlatforms,
+    lastEditedQueryLoggingType,
+    lastEditedQueryMinOsqueryVersion,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
+    setLastEditedQueryFrequency,
   } = useContext(QueryContext);
 
   const {
@@ -113,6 +137,20 @@ const QueryForm = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
+  const [selectedFrequency, setSelectedFrequency] = useState(
+    lastEditedQueryFrequency
+  );
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [selectedPlatformOptions, setSelectedPlatformOptions] = useState(
+    lastEditedQueryPlatforms || ""
+  );
+  const [selectedLoggingType, setSelectedLoggingType] = useState(
+    lastEditedQueryLoggingType || "snapshot"
+  );
+  const [
+    selectedMinOsqueryVersionOptions,
+    setSelectedMinOsqueryVersionOptions,
+  ] = useState(lastEditedQueryMinOsqueryVersion || "");
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
@@ -179,6 +217,49 @@ const QueryForm = ({
     }
   };
 
+  const onChangeSelectFrequency = useCallback(
+    (value: number) => {
+      setSelectedFrequency(value);
+      setLastEditedQueryFrequency(value);
+    },
+    [setSelectedFrequency]
+  );
+
+  const toggleAdvancedOptions = () => {
+    setShowAdvancedOptions(!showAdvancedOptions);
+  };
+
+  const onChangeSelectPlatformOptions = useCallback(
+    (values: string) => {
+      const valArray = values.split(",");
+
+      // Remove All if another OS is chosen
+      // else if Remove OS if All is chosen
+      if (valArray.indexOf("") === 0 && valArray.length > 1) {
+        setSelectedPlatformOptions(pull(valArray, "").join(","));
+      } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
+        setSelectedPlatformOptions("");
+      } else {
+        setSelectedPlatformOptions(values);
+      }
+    },
+    [setSelectedPlatformOptions]
+  );
+
+  const onChangeSelectLoggingType = useCallback(
+    (value: string) => {
+      setSelectedLoggingType(value);
+    },
+    [setSelectedLoggingType]
+  );
+
+  const onChangeMinOsqueryVersionOptions = useCallback(
+    (value: string) => {
+      setSelectedMinOsqueryVersionOptions(value);
+    },
+    [setSelectedMinOsqueryVersionOptions]
+  );
+
   const promptSaveAsNewQuery = () => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
@@ -205,10 +286,11 @@ const QueryForm = ({
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
+          interval: lastEditedQueryFrequency,
         })
-        .then((response: { query: IQuery }) => {
+        .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
-          router.push(PATHS.EDIT_QUERY(response.query));
+          router.push(PATHS.EDIT_QUERY(response.query.id));
           renderFlash("success", `Successfully added query.`);
         })
         .catch((createError: { data: IApiError }) => {
@@ -219,10 +301,11 @@ const QueryForm = ({
                 description: lastEditedQueryDescription,
                 query: lastEditedQueryBody,
                 observer_can_run: lastEditedQueryObserverCanRun,
+                interval: lastEditedQueryFrequency,
               })
-              .then((response: { query: IQuery }) => {
+              .then((response: { query: ISchedulableQuery }) => {
                 setIsSaveAsNewLoading(false);
-                router.push(PATHS.EDIT_QUERY(response.query));
+                router.push(PATHS.EDIT_QUERY(response.query.id));
                 renderFlash(
                   "success",
                   `Successfully added query as "Copy of ${lastEditedQueryName}".`
@@ -283,12 +366,12 @@ const QueryForm = ({
       <>
         <b>Author</b>
         <div>
-          <Avatar
+          {/* <Avatar
             user={addGravatarUrlToResource({
               email: storedQuery.author_email,
             })}
             size="xsmall"
-          />
+          /> */}
           <span>
             {storedQuery.author_name === currentUser?.name
               ? "You"
@@ -487,6 +570,18 @@ const QueryForm = ({
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}
         </span>
+        <Dropdown
+          searchable={false}
+          options={FREQUENCY_DROPDOWN_OPTIONS}
+          onChange={onChangeSelectFrequency}
+          placeholder={"Every day"}
+          value={selectedFrequency}
+          label={"Frequency"}
+          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+          tooltip={
+            "If automations are on, this is how often your query collects data."
+          }
+        />
         {savedQueryMode && (
           <>
             <Checkbox
@@ -504,6 +599,45 @@ const QueryForm = ({
             </p>
           </>
         )}
+        <div>
+          <RevealButton
+            isShowing={showAdvancedOptions}
+            className={baseClass}
+            hideText={"Hide advanced options"}
+            showText={"Show advanced options"}
+            caretPosition={"after"}
+            onClick={toggleAdvancedOptions}
+          />
+          {showAdvancedOptions && (
+            <div>
+              <Dropdown
+                options={LOGGING_TYPE_OPTIONS}
+                onChange={onChangeSelectLoggingType}
+                placeholder="Select"
+                value={selectedLoggingType}
+                label="Logging"
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+              />
+              <Dropdown
+                options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
+                placeholder="Select"
+                label="Platform"
+                onChange={onChangeSelectPlatformOptions}
+                value={selectedPlatformOptions}
+                multi
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+              />
+              <Dropdown
+                options={MIN_OSQUERY_VERSION_OPTIONS}
+                onChange={onChangeMinOsqueryVersionOptions}
+                placeholder="Select"
+                value={selectedMinOsqueryVersionOptions}
+                label="Minimum osquery version"
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
+              />
+            </div>
+          )}
+        </div>
         {renderLiveQueryWarning()}
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
