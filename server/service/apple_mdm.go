@@ -1413,6 +1413,43 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Get profiles assigned to a host
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostProfilesRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostProfilesResponse struct {
+	HostID   uint                           `json:"host_id"`
+	Profiles []*fleet.MDMAppleConfigProfile `json:"profiles"`
+	Err      error                          `json:"error,omitempty"`
+}
+
+func (r getHostProfilesResponse) error() error { return r.Err }
+
+func getHostProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostProfilesRequest)
+	sums, err := svc.MDMListHostConfigurationProfiles(ctx, req.ID)
+	if err != nil {
+		return getHostProfilesResponse{Err: err}, nil
+	}
+	res := getHostProfilesResponse{Profiles: sums, HostID: req.ID}
+	if res.Profiles == nil {
+		res.Profiles = []*fleet.MDMAppleConfigProfile{} // return empty json array instead of json null
+	}
+	return res, nil
+}
+
+func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Batch Replace MDM Apple Profiles
 ////////////////////////////////////////////////////////////////////////////////
 
