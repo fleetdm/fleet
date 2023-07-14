@@ -11,24 +11,33 @@ interface IStatusIndicatorProps {
     tooltipText: string | JSX.Element;
     position?: "top" | "bottom";
   };
+  customIndicatorType?: string;
 }
 
-const generateClassTag = (rawValue: string): string => {
+const generateIndicatorStateClassTag = (
+  rawValue: string,
+  customIndicatorType?: string
+): string => {
   if (rawValue === DEFAULT_EMPTY_CELL_VALUE) {
     return "indeterminate";
   }
-  return rawValue.replace(" ", "-").toLowerCase();
+  const prefix = customIndicatorType ? `${customIndicatorType}-` : "";
+  return `${prefix}${rawValue.replace(" ", "-").toLowerCase()}`;
 };
 
 const StatusIndicator = ({
   value,
   tooltip,
+  customIndicatorType,
 }: IStatusIndicatorProps): JSX.Element => {
-  const classTag = generateClassTag(value);
-  const statusClassName = classnames(
+  const indicatorStateClassTag = generateIndicatorStateClassTag(
+    value,
+    customIndicatorType
+  );
+  const indicatorClassNames = classnames(
     "status-indicator",
-    `status-indicator--${classTag}`,
-    `status--${classTag}`
+    `status-indicator--${indicatorStateClassTag}`,
+    `status--${indicatorStateClassTag}`
   );
   let indicatorContent;
   if (tooltip) {
@@ -58,7 +67,7 @@ const StatusIndicator = ({
   } else {
     indicatorContent = <>{value}</>;
   }
-  return <span className={statusClassName}>{indicatorContent}</span>;
+  return <span className={indicatorClassNames}>{indicatorContent}</span>;
 };
 
 export default StatusIndicator;
