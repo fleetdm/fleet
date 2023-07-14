@@ -570,74 +570,74 @@ const QueryForm = ({
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}
         </span>
-        <Dropdown
-          searchable={false}
-          options={FREQUENCY_DROPDOWN_OPTIONS}
-          onChange={onChangeSelectFrequency}
-          placeholder={"Every day"}
-          value={selectedFrequency}
-          label={"Frequency"}
-          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-          tooltip={
-            "If automations are on, this is how often your query collects data."
-          }
-        />
         {savedQueryMode && (
-          <>
-            <Checkbox
-              value={lastEditedQueryObserverCanRun}
-              onChange={(value: boolean) =>
-                setLastEditedQueryObserverCanRun(value)
-              }
-              wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
-            >
-              Observers can run
-            </Checkbox>
-            <p>
-              Users with the observer role will be able to run this query on
-              hosts where they have access.
-            </p>
-          </>
-        )}
-        <div>
-          <RevealButton
-            isShowing={showAdvancedOptions}
-            className={baseClass}
-            hideText={"Hide advanced options"}
-            showText={"Show advanced options"}
-            caretPosition={"after"}
-            onClick={toggleAdvancedOptions}
-          />
-          {showAdvancedOptions && (
-            <div>
+          <div className={`${baseClass}__edit-options`}>
+            <div className={`${baseClass}__frequency`}>
               <Dropdown
-                options={LOGGING_TYPE_OPTIONS}
-                onChange={onChangeSelectLoggingType}
-                placeholder="Select"
-                value={selectedLoggingType}
-                label="Logging"
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+                searchable={false}
+                options={FREQUENCY_DROPDOWN_OPTIONS}
+                onChange={onChangeSelectFrequency}
+                placeholder={"Every day"}
+                value={selectedFrequency}
+                label={"Frequency"}
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
               />
-              <Dropdown
-                options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
-                placeholder="Select"
-                label="Platform"
-                onChange={onChangeSelectPlatformOptions}
-                value={selectedPlatformOptions}
-                multi
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
-              />
-              <Dropdown
-                options={MIN_OSQUERY_VERSION_OPTIONS}
-                onChange={onChangeMinOsqueryVersionOptions}
-                placeholder="Select"
-                value={selectedMinOsqueryVersionOptions}
-                label="Minimum osquery version"
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
-              />
+              If automations are on, this is how often your query collects data.
             </div>
-          )}
-        </div>
+            <div className={`${baseClass}__observers-can-run`}>
+              <Checkbox
+                value={lastEditedQueryObserverCanRun}
+                onChange={(value: boolean) =>
+                  setLastEditedQueryObserverCanRun(value)
+                }
+                wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
+              >
+                Observers can run
+              </Checkbox>
+              <p>
+                Users with the observer role will be able to run this query on
+                hosts where they have access.
+              </p>
+            </div>
+            <RevealButton
+              isShowing={showAdvancedOptions}
+              className={baseClass}
+              hideText={"Hide advanced options"}
+              showText={"Show advanced options"}
+              caretPosition={"after"}
+              onClick={toggleAdvancedOptions}
+            />
+            {showAdvancedOptions && (
+              <div className={`${baseClass}__advanced-options`}>
+                <Dropdown
+                  options={LOGGING_TYPE_OPTIONS}
+                  onChange={onChangeSelectLoggingType}
+                  placeholder="Select"
+                  value={selectedLoggingType}
+                  label="Logging"
+                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+                />
+                <Dropdown
+                  options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
+                  placeholder="Select"
+                  label="Platform"
+                  onChange={onChangeSelectPlatformOptions}
+                  value={selectedPlatformOptions}
+                  multi
+                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+                />
+                <Dropdown
+                  options={MIN_OSQUERY_VERSION_OPTIONS}
+                  onChange={onChangeMinOsqueryVersionOptions}
+                  placeholder="Select"
+                  value={selectedMinOsqueryVersionOptions}
+                  label="Minimum osquery version"
+                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
+                />
+              </div>
+            )}
+          </div>
+        )}
         {renderLiveQueryWarning()}
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
