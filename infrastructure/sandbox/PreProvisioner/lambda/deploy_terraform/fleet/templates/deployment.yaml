@@ -62,7 +62,7 @@ spec:
             value: elasticapm
           - name: FLEET_LOGGING_TRACING_ENABLED
             value: "true"
-          - name: FLEET_VULNERABILITIES_EXTERNAL_SCHEDULED
+          - name: FLEET_VULNERABILITIES_DISABLE_SCHEDULE
             value: "true"
           - name: FLEET_SESSION_DURATION
             value: "1y"

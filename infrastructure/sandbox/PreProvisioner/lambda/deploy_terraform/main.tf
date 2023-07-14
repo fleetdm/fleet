@@ -212,6 +212,16 @@ resource "helm_release" "main" {
     name  = "apm.token"
     value = var.apm_token
   }
+
+  set {
+    name  = "resources.limits.memory"
+    value = "512Mi"
+  }
+
+  set {
+    name  = "resources.requests.memory"
+    value = "512Mi"
+  }
 }
 
 data "aws_iam_policy_document" "main" {
