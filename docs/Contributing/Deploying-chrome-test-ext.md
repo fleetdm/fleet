@@ -64,3 +64,5 @@ lt --port 8000 --subdomain test-new-tables
 > + For "Installation URL", use `http://test-new-tables.loca.lt/updates.xml`.
 > + Remove the filters (the filters with our `appid`).
 > + For "Policy for extensions", copy over the JSON from the original extension.
+
+<meta name="pageOrderInSection" value="750">
