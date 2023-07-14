@@ -1907,16 +1907,25 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
 	require.NoError(t, err)
 
-	t.Run("no profiles", func(t *testing.T) {
-		var resp listMDMAppleConfigProfilesResponse
-		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles", nil, http.StatusOK, &resp)
-		require.NotNil(t, resp.ConfigProfiles) // expect empty slice instead of nil
-		require.Len(t, resp.ConfigProfiles, 0)
+	mdmHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.runWorker()
 
-		resp = listMDMAppleConfigProfilesResponse{}
-		s.DoJSON("GET", fmt.Sprintf(`/api/v1/fleet/mdm/apple/profiles?team_id=%d`, testTeam.ID), nil, http.StatusOK, &resp)
-		require.NotNil(t, resp.ConfigProfiles) // expect empty slice instead of nil
-		require.Len(t, resp.ConfigProfiles, 0)
+	t.Run("no profiles", func(t *testing.T) {
+		var listResp listMDMAppleConfigProfilesResponse
+		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles", nil, http.StatusOK, &listResp)
+		require.NotNil(t, listResp.ConfigProfiles) // expect empty slice instead of nil
+		require.Len(t, listResp.ConfigProfiles, 0)
+
+		listResp = listMDMAppleConfigProfilesResponse{}
+		s.DoJSON("GET", fmt.Sprintf(`/api/v1/fleet/mdm/apple/profiles?team_id=%d`, testTeam.ID), nil, http.StatusOK, &listResp)
+		require.NotNil(t, listResp.ConfigProfiles) // expect empty slice instead of nil
+		require.Len(t, listResp.ConfigProfiles, 0)
+
+		var hostProfilesResp getHostProfilesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/mdm/hosts/%d/profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
+		require.NotNil(t, hostProfilesResp.Profiles) // expect empty slice instead of nil
+		require.Len(t, hostProfilesResp.Profiles, 0)
+		require.EqualValues(t, mdmHost.ID, hostProfilesResp.HostID)
 	})
 
 	t.Run("with profiles", func(t *testing.T) {
@@ -1953,6 +1962,33 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		s.DoJSON("GET", fmt.Sprintf(`/api/v1/fleet/mdm/apple/profiles?team_id=%d`, testTeam.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.ConfigProfiles)
 		require.Len(t, resp.ConfigProfiles, 2)
+		for _, p := range resp.ConfigProfiles {
+			if p.Name == p2.Name {
+				require.Equal(t, p2.Identifier, p.Identifier)
+			} else if p.Name == p3.Name {
+				require.Equal(t, p3.Identifier, p.Identifier)
+			} else {
+				require.Fail(t, "unexpected profile name")
+			}
+		}
+
+		var hostProfilesResp getHostProfilesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/mdm/hosts/%d/profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
+		require.NotNil(t, hostProfilesResp.Profiles)
+		require.Len(t, hostProfilesResp.Profiles, 1)
+		require.Equal(t, p1.Name, hostProfilesResp.Profiles[0].Name)
+		require.Equal(t, p1.Identifier, hostProfilesResp.Profiles[0].Identifier)
+		require.EqualValues(t, mdmHost.ID, hostProfilesResp.HostID)
+
+		// add the host to a team
+		err = s.ds.AddHostsToTeam(ctx, &testTeam.ID, []uint{mdmHost.ID})
+		require.NoError(t, err)
+
+		hostProfilesResp = getHostProfilesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/mdm/hosts/%d/profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
+		require.NotNil(t, hostProfilesResp.Profiles)
+		require.Len(t, hostProfilesResp.Profiles, 2)
+		require.EqualValues(t, mdmHost.ID, hostProfilesResp.HostID)
 		for _, p := range resp.ConfigProfiles {
 			if p.Name == p2.Name {
 				require.Equal(t, p2.Identifier, p.Identifier)

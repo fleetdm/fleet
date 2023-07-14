@@ -80,7 +80,8 @@ SELECT
 	identifier,
 	mobileconfig,
 	created_at,
-	updated_at
+	updated_at,
+	checksum
 FROM
 	mdm_apple_configuration_profiles
 WHERE
