@@ -18,6 +18,39 @@ By default, the hostname for a Chromebook host will be blank. The hostname can b
 - The Fleetd Chrome extension must be force-installed by enterprise policy in order to have full access to the host's data.
 - More tables will be added in https://github.com/fleetdm/fleet/issues/11037
 
+## Required access
+In order to function properly, the ChromeOS extension requests permission to use the following Chrome APIs:
+
+- activeTab
+- alarms
+- cookies
+- enterprise.deviceAttributes
+- enterprise.hardwarePlatform
+- enterprise.networkingAttributes
+- enterprise.platformKeys
+- gcm
+- history
+- identity
+- identity.email
+- idle
+- loginState
+- management
+- privacy
+- proxy
+- platformKeys
+- sessions
+- storage
+- system.cpu
+- system.display
+- system.memory
+- system.storage
+- unlimitedStorage
+- tabs
+
+If any of these APIs are disabled, tables relying on that data will not return results as expected. 
+
+> The [`enterprise.hardware_platform` API](https://chromeenterprise.google/policies/#EnterpriseHardwarePlatformAPIEnabled) is disabled by default and must be explicitly enabled. Without this API, the extension cannot gather hardware information from the host. 
+
 ## Debugging ChromeOS
 To learn how to debug the Fleetd Chrome extension, visit [here](https://fleetdm.com/docs/contributing/testing-and-local-development#fleetd-chrome-extension).
 
