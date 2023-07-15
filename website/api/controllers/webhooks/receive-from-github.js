@@ -308,6 +308,7 @@ module.exports = {
           githubUserToCheck: sender.login,
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
+
         let isHandbookPR = false;
         if(repo === 'fleet'){
           isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
