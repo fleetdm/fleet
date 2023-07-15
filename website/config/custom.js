@@ -94,7 +94,7 @@ module.exports.custom = {
   * See also the CODEOWNERS file in fleetdm/fleet for more context / links.  *
   *                                                                          *
   ***************************************************************************/
-  githubRepoDriByPath: {// fleetdm/fleet  
+  githubRepoDriByPath: {// fleetdm/fleet
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // FUTURE: To avoid repeating structure and comments, consolidate all these configs w/ something like:
     //    ````
@@ -107,10 +107,10 @@ module.exports.custom = {
 
     // Reference, config surface, built-in queries, API, and other documentation
     'docs': 'rachaelshaw', //« Fleet documentation (who is auto-requested as reviewer for changes to docs?)
-    
+
     'docs/Using-Fleet/REST-API.md': 'rachaelshaw', //« REST API reference documentation
     'docs/Contributing/API-for-contributors.md': 'rachaelshaw',//« Advanced / contributors-only API reference documentation
-    
+
     'schema': 'rachaelshaw', //« Data tables (osquery/fleetd schema) documentation
 
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'zwass', //« Built-in queries
@@ -178,7 +178,7 @@ module.exports.custom = {
     'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
     'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h','rachaelshaw'],// (Osquery table schema)
-    'ee/cis' ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia'],
+    'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia'],
 
     // Articles and release notes
     'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
