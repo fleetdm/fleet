@@ -301,6 +301,14 @@ module.exports = {
 
         require('assert')(sender.login !== undefined);
 
+        // Check whether auto-requesting review is warranted.
+        // (only relevant for paths NOT in the CODEOWNERS file)
+        // [?] History: https://github.com/fleetdm/fleet/pull/12786)
+        if (action === 'edited') {
+          // TODO: paste in logic from the helper (just duplicate it).
+          // TODO: Have it stop looking after it finds the first DRI match
+        }//ﬁ
+
         // Check whether auto-approval is warranted.
         let isAutoApproved = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
           repo: repo,
