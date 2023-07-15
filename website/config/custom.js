@@ -87,42 +87,25 @@ module.exports.custom = {
 
   /***************************************************************************
   *                                                                          *
-  * Directly responsible individuals (DRIs) whose changes to areas of the    *
-  * code respository (outside of the core product code) are auto-approved,   *
+  * Maintainers whose changes to areas of respositories are auto-approved,   *
   * even during code freezes.                                                *
   *                                                                          *
-  * See api/controllers/webhooks/receive-from-github.js for context.         *
+  * See also the CODEOWNERS file in fleetdm/file for more context and links. *
   *                                                                          *
   ***************************************************************************/
   githubRepoDRIByPath: {// fleetdm/fleet
-    'README.md': ['mikermcneil', 'jarodreyes', 'mike-j-thomas', 'zwass'],// (github brandfront)
-    'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
 
-    // Directly responsible individual (DRI) automation
-    'CODEOWNERS': ['zwass', 'mikermcneil'],// (« for changing who reviews is automatically requested from for given paths)
-    'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
-
-    '.github/workflows': ['zwass', 'mikermcneil'],// (misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
+    // API reference and documentation
+    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
+    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h','rachaelshaw'],// (Osquery table schema)
+  
+    // Articles and release notes
     'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
-
-    // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','zhumo','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala', 'zhumo','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala', 'zhumo','lukeheath','noahtalerman', 'lukeheath'],
-
     'articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
     'website/assets/images/articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
-
-    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
-    'handbook/company': 'mikermcneil',
-    'handbook/company/ceo-handbook': ['sampfluger88', 'mikermcneil'],
-    'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
-    'handbook/engineering': ['zwass', 'lukeheath'],
-    'handbook/product': ['noahtalerman', 'zhumo'],
-    'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
-    'handbook/marketing': ['jarodreyes', 'mike-j-thomas', 'spokanemac'],
-
+  
+    // Website (fleetdm.com)
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
     'website/generators': 'eashaw',
@@ -133,38 +116,55 @@ module.exports.custom = {
     'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
     'website/api/controllers/imagine': ['eashaw', 'jarodreyes'],// landing pages
-
-    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
-
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
-    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h','rachaelshaw'],// (Osquery table schema)
+  
+    // Other brandfronts
+    'README.md': ['mikermcneil', 'jarodreyes', 'mike-j-thomas', 'zwass'],//« github brandfront (github.com/fleetdm/fleet)
+    'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm (npmjs.com/package/fleetctl)
+  
+    // Repo automation and change control settings
+    'CODEOWNERS': ['zwass', 'mikermcneil'],// (« for changing who reviews is automatically requested from for given paths)
+    'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
+    '.github/workflows': ['zwass', 'mikermcneil'],// (misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
+  
+    // Handbook
+    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
+    'handbook/company': 'mikermcneil',
+    'handbook/company/ceo-handbook': ['sampfluger88', 'mikermcneil'],
+    'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
+    'handbook/engineering': ['zwass', 'lukeheath'],
+    'handbook/product': ['noahtalerman', 'zhumo'],
+    'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
+    'handbook/marketing': ['jarodreyes', 'mike-j-thomas', 'spokanemac'],
+  
+    // GitHub issue templates
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','zhumo','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala', 'zhumo','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala', 'zhumo','lukeheath','noahtalerman', 'lukeheath'],
   },
-
+  
   confidentialGithubRepoDRIByPath: {// fleetdm/confidential
-
-    // Folders of configuration files
-    'mdm_profiles': ['lukeheath', 'zwass'],
-    'vpn': ['rfairburn', 'zwass'],
-
-    // Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
-    'free-for-all': '*',
-
-    // Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
-    'cold-outbound-strategy.md': ['mikermcneil','bradmacd'],
-
-    // Boilerplate
-    'README.md': ['mikermcneil'],
+  
+    // Infrastructure as code for internal security and IT use cases
+    'mdm_profiles': ['lukeheath', 'zwass'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
+    'vpn': ['rfairburn', 'zwass'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
+  
+    // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil'],
-    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'zwinnerman-fleetdm', 'rfairburn'],
-
-    // CI/CD workflows
-    '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn', 'lukeheath'],
-
+    '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn', 'lukeheath'],//« CI/CD workflows
+    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'zwinnerman-fleetdm', 'rfairburn'],// « what files should not be checked in?
+    'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
+  
+    // "Secret handbook"
+    // Standard operating procedures (SOP), etc that would be public handbook content except for that it's confidential.
+    'README.md': ['mikermcneil'],// « about this repo
+    'cold-outbound-strategy.md': ['mikermcneil','bradmacd'],// « Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
+  
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'jostableford'],
-
+  
   },
-
+  
   fleetMdmGitopsGithubRepoDRIByPath: {
     '/': ['lukeheath']
   },
