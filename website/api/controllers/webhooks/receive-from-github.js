@@ -304,9 +304,14 @@ module.exports = {
         // Check whether auto-requesting review is warranted.
         // (only relevant for paths NOT in the CODEOWNERS file)
         // [?] History: https://github.com/fleetdm/fleet/pull/12786)
-        if (action === 'edited') {
+        if (action === 'opened') {
           // TODO: paste in logic from the helper (just duplicate it).
           // TODO: Have it stop looking after it finds the first DRI match
+
+          // Request review from DRI
+          // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
+          // TODO
+          
         }//ﬁ
 
         // Check whether auto-approval is warranted.
