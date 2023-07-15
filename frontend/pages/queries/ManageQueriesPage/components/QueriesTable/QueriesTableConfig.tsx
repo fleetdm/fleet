@@ -79,7 +79,7 @@ interface IBoolCellProps extends IRowProps {
 }
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: SelectedPlatformString;
+    value: SupportedPlatform[];
   };
 }
 
@@ -166,17 +166,16 @@ const generateTableHeaders = ({
       accessor: "platforms",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
         // translate the SelectedPlatformString into an array of `SupportedPlatform`s
-        const selectedPlatforms = cellProps.cell.value
+        const selectedPlatforms = cellProps.row.original.platform
           .split(",")
           .filter((platform) => platform !== "") as SupportedPlatform[];
 
-        let platformIconsToRender: SupportedPlatform[];
-        if (selectedPlatforms.length === 0) {
-          // User didn't select any platforms, so we render all of them
-          platformIconsToRender = SUPPORTED_PLATFORMS;
-        } else {
-          platformIconsToRender = selectedPlatforms;
-        }
+        const platformIconsToRender: SupportedPlatform[] =
+          selectedPlatforms.length === 0
+            ? // User didn't select any platforms, so we render all compatible
+              cellProps.cell.value
+            : // Render the platforms the user has selected for this query
+              selectedPlatforms;
 
         return <PlatformCell platforms={platformIconsToRender} />;
       },
