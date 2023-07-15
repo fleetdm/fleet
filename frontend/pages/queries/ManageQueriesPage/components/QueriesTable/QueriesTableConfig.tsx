@@ -10,7 +10,11 @@ import permissionsUtils from "utilities/permissions";
 import { IUser } from "interfaces/user";
 import { secondsToDhms } from "utilities/helpers";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import { OsqueryPlatform } from "interfaces/platform";
+import {
+  SelectedPlatformString,
+  SupportedPlatform,
+  SUPPORTED_PLATFORMS,
+} from "interfaces/platform";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -75,7 +79,7 @@ interface IBoolCellProps extends IRowProps {
 }
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: OsqueryPlatform[];
+    value: SelectedPlatformString;
   };
 }
 
@@ -161,7 +165,20 @@ const generateTableHeaders = ({
       disableSortBy: true,
       accessor: "platforms",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
-        return <PlatformCell platforms={cellProps.cell.value} />;
+        // translate the SelectedPlatformString into an array of `SupportedPlatform`s
+        const selectedPlatforms = cellProps.cell.value
+          .split(",")
+          .filter((platform) => platform !== "") as SupportedPlatform[];
+
+        let platformIconsToRender: SupportedPlatform[];
+        if (selectedPlatforms.length === 0) {
+          // User didn't select any platforms, so we render all of them
+          platformIconsToRender = SUPPORTED_PLATFORMS;
+        } else {
+          platformIconsToRender = selectedPlatforms;
+        }
+
+        return <PlatformCell platforms={platformIconsToRender} />;
       },
     },
     {
