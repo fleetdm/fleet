@@ -87,24 +87,98 @@ module.exports.custom = {
 
   /***************************************************************************
   *                                                                          *
+  * If a PR contains changes within one of these paths, the DRI is requested *
+  * for approval. (If a higher-level path also has a DRI specified, only the *
+  * most specific DRI is requested for approval.)                            *
+  *                                                                          *
+  * See also the CODEOWNERS file in fleetdm/fleet for more context / links.  *
+  *                                                                          *
+  ***************************************************************************/
+  githubRepoDriByPath: {// fleetdm/fleet  
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // FUTURE: To avoid repeating structure and comments, consolidate all these configs w/ something like:
+    //    ````
+    //    'articles': { dri: 'jarodreyes', maintainers: ['jarodreyes', 'mike-j-thomas', 'spokanemac', 'mikermcneil'], repo: 'fleetdm/fleet' },
+    //    ````
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    // Code for core product and integrations
+    'ee/tools/puppet': 'georgekarrv',//« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
+
+    // Reference, config surface, built-in queries, API, and other documentation
+    'docs': 'rachaelshaw', //« Fleet documentation (who is auto-requested as reviewer for changes to docs?)
+    
+    'docs/Using-Fleet/REST-API.md': 'rachaelshaw', //« REST API reference documentation
+    'docs/Contributing/API-for-contributors.md': 'rachaelshaw',//« Advanced / contributors-only API reference documentation
+    
+    'schema': 'rachaelshaw', //« Data tables (osquery/fleetd schema) documentation
+
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'zwass', //« Built-in queries
+    'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, Marcos, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
+
+    // Articles and release notes
+    'articles': 'jarodreyes',
+    'CHANGELOG.md': 'lukeheath',
+
+    // Website (fleetdm.com)
+    'website': 'mikermcneil',// (catch-all)
+    'website/assets': 'eashaw', // « Eric is DRI for website frontend code
+    'website/views': 'eashaw',
+    'website/views/pages/pricing.ejs': 'mikermcneil',//« But CEO is DRI for pricing
+    'website/api': 'mikermcneil',//« Website backend, scripts, deps
+    'website/api/controllers/webhooks/receive-from-github.js': 'mikermcneil',// github bot (webhook)
+    'website/api/controllers/imagine': 'eashaw',// landing pages
+    'website/config': 'mikermcneil',
+    'website/config/routes.js': 'eashaw',//« Website redirects and URLs
+    'website/scripts': 'mikermcneil',
+    'website/package.json': 'eashaw',
+
+    // Other brandfronts
+    'README.md': 'mikermcneil',// « GitHub brandfront
+    'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
+
+    // Config as code for infrastructure, internal security and IT use cases, and more.
+    'infrastructure': 'lukeheath',//« infrastructure and related terraform configuration files
+    'charts': 'lukeheath',
+    'terraform': 'lukeheath',
+
+    // Repo automation and change control settings
+    'CODEOWNERS': 'mikermcneil',
+
+    // Handbook
+    'handbook/company': 'mikermcneil',
+    'handbook/business-operations': 'mikermcneil',
+    'handbook/engineering': 'lukeheath',
+    'handbook/product': 'zhumo',
+    'handbook/product/pricing-features-table.yml': 'mikermcneil',//« CEO is current DRI for product marketing (e.g. features table)
+    'handbook/customers': 'alexmitchelliii',
+    'handbook/marketing': 'jarodreyes',
+    'handbook/README.md': 'mikermcneil', // « This is the "Table of contents" landing page
+
+    // GitHub issue templates
+    '.github/ISSUE_TEMPLATE': 'mikermcneil',//« GitHub issue templates
+
+  },
+
+
+  /***************************************************************************
+  *                                                                          *
   * Maintainers whose changes to areas of respositories are auto-approved,   *
   * even during code freezes.                                                *
   *                                                                          *
-  * See also the CODEOWNERS file in fleetdm/file for more context and links. *
-  *                                                                          *
-  * FUTURE: Rename DRI configs because these are maintainers, not DRIs.      *
+  * See also the CODEOWNERS file in fleetdm/fleet for more context / links.  *
   *                                                                          *
   ***************************************************************************/
-  githubRepoDRIByPath: {// fleetdm/fleet
+  githubRepoMaintainersByPath: {// fleetdm/fleet
 
-    // API reference and documentation
+    // Code for core product and integrations
+    'ee/tools/puppet': ['roperzh', 'gillespi314', 'mna', 'georgekarrv'],
+
+    // Reference, config surface, built-in queries, API, and other documentation
     'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
     'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h','rachaelshaw'],// (Osquery table schema)
-    'ee/cis' ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia'],//« Built-in policies for CIS benchmarks  (FYI: On 2023-07-15, we changed this so that Sharon, Lucas, Marcos, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.)
-
-    // Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
-    'ee/tools/puppet': ['roperzh', 'gillespi314', 'mna', 'georgekarrv'],
+    'ee/cis' ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia'],
 
     // Articles and release notes
     'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
@@ -126,9 +200,9 @@ module.exports.custom = {
     'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm (npmjs.com/package/fleetctl)
 
     // Config as code for infrastructure, internal security and IT use cases, and more.
-    'infrastructure': ['edwardsb', 'zwinnerman-fleetdm', 'rfairburn', 'lukeheath'],//« infrastructure and related terraform configuration files
-    'charts': ['edwardsb', 'zwinnerman-fleetdm', 'rfairburn', 'lukeheath'],//« infrastructure and related terraform configuration files
-    'terraform': ['edwardsb', 'zwinnerman-fleetdm', 'rfairburn', 'lukeheath'],//« infrastructure and related terraform configuration files
+    'infrastructure': ['edwardsb', 'zwinnerman-fleetdm', 'rfairburn', 'lukeheath'],
+    'charts': ['edwardsb', 'zwinnerman-fleetdm', 'rfairburn', 'lukeheath'],
+    'terraform': ['edwardsb', 'zwinnerman-fleetdm', 'rfairburn', 'lukeheath'],
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],//« website CI test script
     '.github/workflows': ['zwass', 'mikermcneil'],//« CI/CD workflows & misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
@@ -154,7 +228,7 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala', 'zhumo','lukeheath','noahtalerman', 'lukeheath'],
   },
 
-  confidentialGithubRepoDRIByPath: {// fleetdm/confidential
+  confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential
 
     // Config as code for infrastructure, internal security and IT use cases, and more.
     'mdm_profiles': ['lukeheath', 'zwass'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
@@ -176,7 +250,7 @@ module.exports.custom = {
 
   },
 
-  fleetMdmGitopsGithubRepoDRIByPath: {
+  fleetMdmGitopsGithubRepoMaintainersByPath: {
     '/': ['lukeheath']
   },
 
