@@ -154,7 +154,8 @@ module.exports.custom = {
 
     // Handbook
     'handbook/company': 'mikermcneil',
-    'handbook/business-operations': 'mikermcneil',
+    'handbook/company/ceo-handbook': 'sampfluger88',
+    'handbook/business-operations': 'mikermcneil',// TODO: Transfer to joanne once the philosophical stuff is deduplicated
     'handbook/engineering': 'lukeheath',
     'handbook/product': 'zhumo',
     'handbook/product/pricing-features-table.yml': 'mikermcneil',//« CEO is current DRI for product marketing (e.g. features table)
