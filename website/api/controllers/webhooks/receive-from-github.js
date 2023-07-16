@@ -301,17 +301,73 @@ module.exports = {
 
         require('assert')(sender.login !== undefined);
 
-        // Check whether auto-requesting review is warranted.
-        // (only relevant for paths NOT in the CODEOWNERS file)
-        // [?] History: https://github.com/fleetdm/fleet/pull/12786)
-        if (action === 'opened') {
-          // TODO: paste in logic from the helper (just duplicate it).
-          // TODO: Have it stop looking after it finds the first DRI match
+        let DRI_BY_PATH = {};
+        if (repo === 'fleet') {
+          DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
+        } else {
+          // Other repos don't have this configured.
+        }
 
-          // Request review from DRI
+        // Request review from DRI
+        // [?] History: https://github.com/fleetdm/fleet/pull/12786)
+        // (only relevant for paths NOT in the CODEOWNERS file)
+        if (action === 'opened') {
+
+          let reviewers = [];//« GitHub usernames of people to request review from.
+
+          // Look up paths
+          // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
+          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
+            per_page: 100,//eslint-disable-line camelcase
+          }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
+
+          // Check the PR's author versus the intersection of DRIs for all changed files.
+          for (let changedPath of changedPaths) {
+            changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
+            // sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
+
+            let reviewer = undefined;//« whether to request review for this change
+            let exactMatchDri = DRI_BY_PATH[changedPath];
+            if (exactMatchDri) {
+              let isAuthorDRI = exactMatchDri !== sender.login.toLowerCase();
+              if (isAuthorDRI) {
+                // If you, the author, are the DRI, then do nothing.
+                // No need to request review from yourself.
+              } else {
+                // Otherwise, we've found our match.  We'll request review from this person.
+                // (And we'll stop looking.)
+                reviewer = exactMatchDri;
+              }
+            } else {// If there's no DRI for this *exact* file path, then check ancestral paths for the nearest DRI
+
+              let numRemainingPathsToCheck = changedPath.split('/').length;
+              while (numRemainingPathsToCheck > 0) {
+                let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
+                // sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
+
+                let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
+
+                let isAuthorAncestralDRI = nearestAncestralDri !== sender.login.toLowerCase();
+                if (isAuthorAncestralDRI) {
+                  reviewer = nearestAncestralDri;
+                  break;
+                }
+                numRemainingPathsToCheck--;
+              }//∞
+            }
+
+            if (reviewer) {
+              reviewers.push(reviewer);
+            }//ﬁ
+
+          }//∞
+
+
           // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
-          // TODO
-          
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, {
+            reviewers: reviewers,
+          }, baseHeaders);
+
         }//ﬁ
 
         // Check whether auto-approval is warranted.
