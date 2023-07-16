@@ -350,9 +350,9 @@ module.exports = {
               }
             } else {// If there's no DRI for this *exact* file path, then check ancestral paths for the nearest DRI
 
-              let numRemainingPathsToCheck = changedPath.split('/').length;
+              let numRemainingPathsToCheck = changedPath.split('/').length - 1;
               while (numRemainingPathsToCheck > 0) {
-                let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
+                let ancestralPath = changedPath.split('/').slice(0, numRemainingPathsToCheck).join('/');
                 sails.log.debug(`…checking DRI of ancestral path "${ancestralPath}" for changed path "${changedPath}"`);
 
                 let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
@@ -362,7 +362,7 @@ module.exports = {
                 if (isAuthorAncestralDRI || isSenderAncestralDRI) {
                   // For the same reasons as above, if the original PR author or you (current author/editor)
                   // are the editor, then we do nothing.
-                } else {// Otherwise, we have our DRI, and we can stop here.
+                } else if (nearestAncestralDri) {// Otherwise, if we have our DRI, we can stop here.
                   reviewer = nearestAncestralDri;
                   break;
                 }
