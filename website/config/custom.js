@@ -154,7 +154,7 @@ module.exports.custom = {
 
     // Handbook
     'handbook/company': 'mikermcneil',
-    'handbook/company/ceo-handbook': 'sampfluger88',
+    'handbook/company/ceo-handbook.md': 'sampfluger88',
     'handbook/business-operations': 'mikermcneil',// TODO: Transfer to joanne once the philosophical stuff is deduplicated
     'handbook/engineering': 'lukeheath',
     'handbook/product': 'zhumo',
