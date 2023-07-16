@@ -337,7 +337,7 @@ module.exports = {
             let reviewer = undefined;//« whether to request review for this change
             let exactMatchDri = DRI_BY_PATH[changedPath];
             if (exactMatchDri) {
-              let isAuthorDRI = exactMatchDri !== sender.login.toLowerCase();
+              let isAuthorDRI = exactMatchDri === sender.login.toLowerCase();
               if (isAuthorDRI) {
                 // If you, the author, are the DRI, then do nothing.
                 // No need to request review from yourself.
