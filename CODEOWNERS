@@ -12,7 +12,7 @@
 # > the logic behaves slightly differently.  See GitHub's latest documentation on CODEOWNERS
 # > for more information.
 #
-# ⚠️ For file paths not listed, the DRI is indicated elsewhere.
+# ⚠️ For file paths not listed, the DRI is indicated elsewhere (website/config/custom.js).
 # (In either case, the DRI is automatically requested for review when changes are proposed.)
 #
 # ✅ Some paths also have multiple individuals who are allowed to make changes without review,
