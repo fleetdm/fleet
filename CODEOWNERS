@@ -42,6 +42,19 @@ go.mod @fleetdm/go
 ##############################################################################################
 /frontend/ @fleetdm/frontend
 
+##############################################################################################
+# Key handbook pages w/ required reviewers
+#
+# (Especially useful for paths that tend to end up in PRs with lots of other reviewers)
+##############################################################################################
+/handbook/company/development-groups.md @mikermcneil
+/handbook/company/why-this-way.md @mikermcneil
+/handbook/company/README.md @mikermcneil
+/handbook/business-operations/README.md @mikermcneil
+/docs/ @rachaelshaw
+/schema/ @rachaelshaw #« Data tables (osquery/fleetd schema) documentation
+CHANGELOG.md @lukeheath
+
 
 
 # ℹ️ But wait, there's more!
