@@ -337,7 +337,7 @@ module.exports = {
             let reviewer = undefined;//« whether to request review for this change
             let exactMatchDri = DRI_BY_PATH[changedPath];
             if (exactMatchDri) {
-              let isAuthorDRI = issueOrPr.user.login;//« See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
+              let isAuthorDRI = exactMatchDri === issueOrPr.user.login.toLowerCase();//« See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
               let isSenderDRI = exactMatchDri === sender.login.toLowerCase();
               if (isAuthorDRI || isSenderDRI) {
                 // If the original PR author OR you, the sender (current PR author/editor) are the DRI,
@@ -357,7 +357,7 @@ module.exports = {
 
                 let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
 
-                let isAuthorAncestralDRI = issueOrPr.user.login;//« See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
+                let isAuthorAncestralDRI = nearestAncestralDri === issueOrPr.user.login.toLowerCase();//« See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
                 let isSenderAncestralDRI = nearestAncestralDri === sender.login.toLowerCase();
                 if (isAuthorAncestralDRI || isSenderAncestralDRI) {
                   // For the same reasons as above, if the original PR author or you (current author/editor)
