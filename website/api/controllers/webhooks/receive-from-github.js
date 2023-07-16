@@ -355,8 +355,8 @@ module.exports = {
 
                 let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
 
-                let isAuthorAncestralDRI = nearestAncestralDri !== sender.login.toLowerCase();
-                if (isAuthorAncestralDRI) {
+                let isAuthorAncestralDRI = nearestAncestralDri === sender.login.toLowerCase();
+                if (!isAuthorAncestralDRI) {
                   reviewer = nearestAncestralDri;
                   break;
                 }
