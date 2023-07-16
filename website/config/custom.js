@@ -231,7 +231,7 @@ module.exports.custom = {
     // Handbook
     'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
-    'handbook/company/ceo-handbook': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/ceo-handbook.md': ['sampfluger88', 'mikermcneil'],
     'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
     'handbook/engineering': ['zwass', 'lukeheath'],
     'handbook/product': ['noahtalerman', 'zhumo'],
