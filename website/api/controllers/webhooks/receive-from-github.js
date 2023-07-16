@@ -249,7 +249,7 @@ module.exports = {
       );
 
     } else if (
-      (ghNoun === 'pull_request' &&  ['opened','reopened','edited'].includes(action))
+      (ghNoun === 'pull_request' &&  ['opened','reopened','edited', 'synchronize'].includes(action))
     ) {
       //  ██████╗ ██╗   ██╗██╗     ██╗         ██████╗ ███████╗ ██████╗ ██╗   ██╗███████╗███████╗████████╗
       //  ██╔══██╗██║   ██║██║     ██║         ██╔══██╗██╔════╝██╔═══██╗██║   ██║██╔════╝██╔════╝╚══██╔══╝
@@ -309,10 +309,9 @@ module.exports = {
         }
 
         // Request review from DRI
-        // [?] History: https://github.com/fleetdm/fleet/pull/12786)
-        // (only relevant for paths NOT in the CODEOWNERS file)
-        // (Draft PRs are also skipped)
-        if (!issueOrPr.draft && ['opened','edited'].includes(action)) {
+        // History: https://github.com/fleetdm/fleet/pull/12786)  (only relevant for paths NOT in the CODEOWNERS file)
+        // (Draft PRs are skipped)
+        if (!issueOrPr.draft) {
 
           let reviewers = [];//« GitHub usernames of people to request review from.
 
