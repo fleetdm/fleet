@@ -359,5 +359,5 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
  4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
  -->
  
-<meta name="maintainedBy" value="mikermcneil">
+<meta name="maintainedBy" value="sampfluger888">
 <meta name="title" value="CEO handbook">
