@@ -329,7 +329,7 @@ module.exports = {
             per_page: 100,//eslint-disable-line camelcase
           }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
-          // Check the PR's author versus the intersection of DRIs for all changed files.
+          // For each changed file, decide what reviewer to request, if any…
           for (let changedPath of changedPaths) {
             changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
             // sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
@@ -337,10 +337,12 @@ module.exports = {
             let reviewer = undefined;//« whether to request review for this change
             let exactMatchDri = DRI_BY_PATH[changedPath];
             if (exactMatchDri) {
-              let isAuthorDRI = exactMatchDri === sender.login.toLowerCase();
-              if (isAuthorDRI) {
-                // If you, the author, are the DRI, then do nothing.
-                // No need to request review from yourself.
+              let isAuthorDRI = issueOrPr.user.login;//« See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
+              let isSenderDRI = exactMatchDri === sender.login.toLowerCase();
+              if (isAuthorDRI || isSenderDRI) {
+                // If the original PR author OR you, the sender (current PR author/editor) are the DRI,
+                // then do nothing.  No need to request review from yourself, and you CAN'T request
+                // review from the author (or the GitHub API will respond with an error.)
               } else {
                 // Otherwise, we've found our match.  We'll request review from this person.
                 // (And we'll stop looking.)
@@ -355,8 +357,12 @@ module.exports = {
 
                 let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
 
-                let isAuthorAncestralDRI = nearestAncestralDri === sender.login.toLowerCase();
-                if (!isAuthorAncestralDRI) {
+                let isAuthorAncestralDRI = issueOrPr.user.login;//« See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
+                let isSenderAncestralDRI = nearestAncestralDri === sender.login.toLowerCase();
+                if (isAuthorAncestralDRI || isSenderAncestralDRI) {
+                  // For the same reasons as above, if the original PR author or you (current author/editor)
+                  // are the editor, then we do nothing.
+                } else {// Otherwise, we have our DRI, and we can stop here.
                   reviewer = nearestAncestralDri;
                   break;
                 }
