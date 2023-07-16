@@ -1,6 +1,5 @@
 # Customers
 
-
 ## Contacting Fleet
 
 If you're using a free version of Fleet, you can access free community support by opening an issue in the [Fleet GitHub repository](https://github.com/fleetdm/fleet/).
