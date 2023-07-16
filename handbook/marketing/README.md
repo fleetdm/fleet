@@ -1,5 +1,7 @@
 # Community
 
+
+
 ## Marketing mission
 
 To show organizations how Fleet is the best way to keep their employees and their machines safe and productive. To create demand for the world’s first open-source and cross-platform MDM. 
