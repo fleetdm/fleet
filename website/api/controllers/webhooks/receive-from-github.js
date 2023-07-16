@@ -332,7 +332,7 @@ module.exports = {
           // For each changed file, decide what reviewer to request, if any…
           for (let changedPath of changedPaths) {
             changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
-            // sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
+            sails.log.debug(`…checking DRI of changed path "${changedPath}"`);
 
             let reviewer = undefined;//« whether to request review for this change
             let exactMatchDri = DRI_BY_PATH[changedPath];
@@ -353,7 +353,7 @@ module.exports = {
               let numRemainingPathsToCheck = changedPath.split('/').length;
               while (numRemainingPathsToCheck > 0) {
                 let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
-                // sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
+                sails.log.debug(`…checking DRI of ancestral path "${ancestralPath}" for changed path "${changedPath}"`);
 
                 let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
 
