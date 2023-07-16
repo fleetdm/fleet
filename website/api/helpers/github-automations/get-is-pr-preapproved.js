@@ -28,19 +28,19 @@ module.exports = {
 
   fn: async function ({repo, prNumber, githubUserToCheck, isGithubUserMaintainerOrDoesntMatter}) {
 
-    require('assert')(sails.config.custom.githubRepoDRIByPath);
-    require('assert')(sails.config.custom.confidentialGithubRepoDRIByPath);
-    require('assert')(sails.config.custom.fleetMdmGitopsGithubRepoDRIByPath);
+    require('assert')(sails.config.custom.githubRepoMaintainersByPath);
+    require('assert')(sails.config.custom.confidentialGithubRepoMaintainersByPath);
+    require('assert')(sails.config.custom.fleetMdmGitopsGithubRepoMaintainersByPath);
     require('assert')(sails.config.custom.githubAccessToken);
 
-    let MAINTAINERS_BY_PATH = sails.config.custom.githubRepoDRIByPath;
+    let MAINTAINERS_BY_PATH = sails.config.custom.githubRepoMaintainersByPath;
 
     if (repo === 'confidential') {
-      MAINTAINERS_BY_PATH = sails.config.custom.confidentialGithubRepoDRIByPath;
+      MAINTAINERS_BY_PATH = sails.config.custom.confidentialGithubRepoMaintainersByPath;
     }
 
     if (repo === 'fleet-mdm-gitops') {
-      MAINTAINERS_BY_PATH = sails.config.custom.fleetMdmGitopsGithubRepoDRIByPath;
+      MAINTAINERS_BY_PATH = sails.config.custom.fleetMdmGitopsGithubRepoMaintainersByPath;
     }
 
     let owner = 'fleetdm';
