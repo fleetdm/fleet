@@ -101,7 +101,7 @@ module.exports.custom = {
   * See also the CODEOWNERS file in fleetdm/fleet for more context / links.  *
   *                                                                          *
   ***************************************************************************/
-  githubRepoDriByPath: {// fleetdm/fleet
+  githubRepoDRIByPath: {// fleetdm/fleet
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // FUTURE: To avoid repeating structure and comments, consolidate all these configs w/ something like:
     //    ````

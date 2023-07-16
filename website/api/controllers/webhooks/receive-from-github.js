@@ -311,9 +311,17 @@ module.exports = {
         // Request review from DRI
         // [?] History: https://github.com/fleetdm/fleet/pull/12786)
         // (only relevant for paths NOT in the CODEOWNERS file)
-        if (action === 'opened') {
+        // (Draft PRs are also skipped)
+        if (!issueOrPr.draft && ['opened','edited'].includes(action)) {
 
           let reviewers = [];//« GitHub usernames of people to request review from.
+
+          // Look up already-requested reviewers
+          // (for use in minimizing extra notifications for editing PRs to contain new changes
+          // while also still doing appropriate review requests)
+          // [?] https://developer.github.com/v3/activity/events/types
+          // [?] The "requested_reviewers" key in the pull request object: https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
+          let alreadyRequestedReviewers = _.pluck(issueOrPr.requested_reviewers, 'login');
 
           // Look up paths
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
@@ -356,17 +364,21 @@ module.exports = {
               }//∞
             }
 
-            if (reviewer) {
+            // If review should be requested, do so, but only if review hasn't already
+            // been requested from this person.
+            if (reviewer && !alreadyRequestedReviewers.includes(reviewer)) {
               reviewers.push(reviewer);
+              reviewers = _.uniq(reviewers);// « avoid attempting to request review from the same person twice
             }//ﬁ
 
           }//∞
 
-
-          // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
-          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, {
-            reviewers: reviewers,
-          }, baseHeaders);
+          if (reviewers.length >= 1) {// « avoid attempting to request review from no one
+            // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
+            await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, {
+              reviewers: reviewers,
+            }, baseHeaders);
+          }
 
         }//ﬁ
 
