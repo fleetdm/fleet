@@ -2006,6 +2006,14 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return nil, nil
+	}
+
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return nil, nil
+	}
+
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
 	}
