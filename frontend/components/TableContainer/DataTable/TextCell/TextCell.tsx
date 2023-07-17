@@ -51,7 +51,7 @@ const TextCell = ({
 
   return (
     <span className={`text-cell ${classes} ${greyed && "grey-cell"}`}>
-      {val ? formatter(val) : renderEmptyCell()}
+      {formatter(val) || renderEmptyCell()}
     </span>
   );
 };
