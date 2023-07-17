@@ -8,6 +8,10 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import { IQueryFormData, IQuery } from "interfaces/query";
+import {
+  ICreateQueryRequestBody,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
@@ -19,15 +23,15 @@ interface IQueryEditorProps {
   router: InjectedRouter;
   baseClass: string;
   queryIdForEdit: number | null;
+  teamIdForQuery?: number;
   storedQuery: IQuery | undefined;
   storedQueryError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
   createQuery: UseMutateAsyncFunction<
-    { query: IQuery },
+    ISchedulableQuery,
     unknown,
-    IQueryFormData,
-    unknown
+    ICreateQueryRequestBody
   >;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -39,6 +43,7 @@ const QueryEditor = ({
   router,
   baseClass,
   queryIdForEdit,
+  teamIdForQuery,
   storedQuery,
   storedQueryError,
   showOpenSchemaActionText,
@@ -77,10 +82,10 @@ const QueryEditor = ({
     [key: string]: string;
   }>({});
 
-  const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
+  const saveQuery = debounce(async (formData: ICreateQueryRequestBody) => {
     setIsQuerySaving(true);
     try {
-      const { query }: { query: IQuery } = await createQuery(formData);
+      const query = await createQuery(formData);
       router.push(PATHS.EDIT_QUERY(query));
       renderFlash("success", "Query created!");
       setBackendValidators({});
@@ -149,12 +154,13 @@ const QueryEditor = ({
       </div>
       <QueryForm
         router={router}
-        onCreateQuery={onSaveQueryFormSubmit}
+        saveQuery={saveQuery}
         goToSelectTargets={goToSelectTargets}
         onOsqueryTableSelect={onOsqueryTableSelect}
         onUpdate={onUpdateQuery}
         storedQuery={storedQuery}
         queryIdForEdit={queryIdForEdit}
+        teamIdForQuery={teamIdForQuery}
         isStoredQueryLoading={isStoredQueryLoading}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}

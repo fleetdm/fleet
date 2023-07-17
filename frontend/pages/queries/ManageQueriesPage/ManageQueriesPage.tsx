@@ -150,7 +150,7 @@ const ManageQueriesPage = ({
     }
   }, [location, filteredQueriesPath, setFilteredQueriesPath]);
 
-  const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY);
+  const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY(currentTeamId));
 
   const toggleDeleteQueryModal = useCallback(() => {
     setShowDeleteQueryModal(!showDeleteQueryModal);

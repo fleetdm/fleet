@@ -26,7 +26,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
-import NewQueryModal from "../NewQueryModal";
+import SaveQueryModal from "../SaveQueryModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form";
@@ -34,12 +34,13 @@ const baseClass = "query-form";
 interface IQueryFormProps {
   router: InjectedRouter;
   queryIdForEdit: number | null;
+  teamIdForQuery?: number;
   showOpenSchemaActionText: boolean;
   storedQuery: IQuery | undefined;
   isStoredQueryLoading: boolean;
   isQuerySaving: boolean;
   isQueryUpdating: boolean;
-  onCreateQuery: (formData: IQueryFormData) => void;
+  saveQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onUpdate: (formData: IQueryFormData) => void;
@@ -63,12 +64,13 @@ const validateQuerySQL = (query: string) => {
 const QueryForm = ({
   router,
   queryIdForEdit,
+  teamIdForQuery,
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
   isQuerySaving,
   isQueryUpdating,
-  onCreateQuery,
+  saveQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
   onUpdate,
@@ -104,7 +106,7 @@ const QueryForm = ({
 
   const savedQueryMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [showSaveQueryModal, setShowSaveQueryModal] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
   );
@@ -141,6 +143,10 @@ const QueryForm = ({
       currentUser &&
       storedQuery.author_id === currentUser.id
     : isAnyTeamMaintainerOrTeamAdmin;
+
+  const toggleSaveQueryModal = () => {
+    setShowSaveQueryModal(!showSaveQueryModal);
+  };
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -260,7 +266,7 @@ const QueryForm = ({
 
     if (valid) {
       if (!savedQueryMode) {
-        setIsSaveModalOpen(true);
+        setShowSaveQueryModal(true);
       } else {
         onUpdate({
           name: lastEditedQueryName,
@@ -565,12 +571,12 @@ const QueryForm = ({
           </Button>
         </div>
       </form>
-      {isSaveModalOpen && (
-        <NewQueryModal
-          baseClass={baseClass}
+      {showSaveQueryModal && (
+        <SaveQueryModal
           queryValue={lastEditedQueryBody}
-          onCreateQuery={onCreateQuery}
-          setIsSaveModalOpen={setIsSaveModalOpen}
+          teamIdForQuery={teamIdForQuery}
+          saveQuery={saveQuery}
+          toggleSaveQueryModal={toggleSaveQueryModal}
           backendValidators={backendValidators}
           isLoading={isQuerySaving}
         />

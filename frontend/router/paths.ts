@@ -110,7 +110,8 @@ export default {
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
   NEW_LABEL: `${URL_PREFIX}/labels/new`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
-  NEW_QUERY: `${URL_PREFIX}/queries/new`,
+  NEW_QUERY: (teamId?: number) =>
+    `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
   USER_SETTINGS: `${URL_PREFIX}/profile`,
