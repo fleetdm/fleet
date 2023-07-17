@@ -96,7 +96,7 @@ Operations will review the expense and reach out to the team member if they have
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
 For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
 
-### Taking time off
+#### Taking time off
 When you take any time off, you should follow this process:
 - Let your manager and team know as soon as possible (i.e., post a message in your team's Slack channel with when and how long).
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
@@ -117,6 +117,13 @@ Either way, it's up to you to make sure that your responsibilities are covered, 
 ### New parent leave
 Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
 
+### Retirement contributions
+#### US based team members
+Commencing in August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 1% contribution unless they opt out or change their contribution amount within 30 days of commencement. Fleet currently does not match any contributions made by team members to 401(k) plans.
+
+#### Non-US team members
+Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
+
 ### Relocating
 When Fleeties relocate, there are vendors that need to be notified of the change. 
 
@@ -134,11 +141,6 @@ At Fleet, performance feedback is a continuous process. We give feedback (partic
 Fleet's founders [evaluate and update compensation decisions yearly](#workiversaries), shortly after the anniversary of a team member's start date.
 
 Compensation at Fleet is determined by benchmarking (we use [Pave](https://pave.com)) with role, experience, location, and performance. Annual raises are not guaranteed, particularly when compensation is already strong relative to benchmarks.
-
-## CEO handbook
-The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
-
-
 
 ## Team member onboarding
 

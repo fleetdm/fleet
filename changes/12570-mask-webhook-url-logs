@@ -1,0 +1,1 @@
+- Updated server logging for webhook requests to mask URL query values if the query param name includes "secret", "token", "key", "password".

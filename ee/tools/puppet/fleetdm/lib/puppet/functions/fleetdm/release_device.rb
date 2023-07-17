@@ -29,9 +29,7 @@ Puppet::Functions.create_function(:"fleetdm::release_device") do
       </plist>
     COMMAND_TEMPLATE
 
-    host = call_function('lookup', 'fleetdm::host')
-    token = call_function('lookup', 'fleetdm::token')
-    client = Puppet::Util::FleetClient.new(host, token)
+    client = Puppet::Util::FleetClient.instance
     response = client.send_mdm_command(uuid, command_xml)
 
     if response['error'].empty?

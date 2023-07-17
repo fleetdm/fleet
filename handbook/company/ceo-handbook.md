@@ -15,13 +15,13 @@ The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direc
 
 | Task | Description | Frequency | 
 | ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
-| [CEO e-mail management](https://fleetdm.com/handbook/business-operations/ceo-handbook#ceo-email-management)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| [CEO e-mail management](#ceo-email-management)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | General communications  [slack channel](https://fleetdm.com/handbook/business-operations#slack-channels) | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
-| Schedule internal and external [meetings for the CEO](https://fleetdm.com/handbook/business-operations/ceo-handbook#scheduling-with-the-ceo)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
-| [Preparing agendas and content](https://fleetdm.com/handbook/business-operations/ceo-handbook#document-preparation) for CEO's meetings | Create and edit agenda, provide context, and contact information | PRN                   |
+| Schedule internal and external [meetings for the CEO](#scheduling-with-the-ceo)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| [Preparing agendas and content](#document-preparation) for CEO's meetings | Create and edit agenda, provide context, and contact information | PRN                   |
 | Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
 | [Ad-hoc](https://fleetdm.com/handbook/customers#scheduling-a-customer-call) requests from the CEO | Triage requests, prioritize actions, flag actions for further review | PRN |   
-| Total [travel coordination](https://fleetdm.com/handbook/business-operations/ceo-handbook#travel-preferences) for the CEO | Triage travel request, plan and coordinate flight, stay, and concierge arrangements | PRN                   |
+| Total [travel coordination](#travel-preferences) for the CEO | Triage travel request, plan and coordinate flight, stay, and concierge arrangements | PRN                   |
 | Coordinate the [weekly E-Group calendar](https://fleetdm.com/handbook/business-operations#weekly-updates) events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
 
 ## CEO preferences
@@ -49,7 +49,7 @@ Don't schedule over the Weekly E-group call unless approved by Mike.
 
  Add Meeting agendas by copying and pasting the "🗣️Agenda:[link](link)" in the calendar invite description.
 
-Last-minute changes or cancellations must be communicated to Mike via [direct message (DM) only](https://fleetdm.com/handbook/business-operations/ceo-handbook#why-not-mention-the-ceo-in-slack-threads).
+Last-minute changes or cancellations must be communicated to Mike via [direct message (DM) only](#why-not-mention-the-ceo-in-slack-threads).
  - If there is additional context to share, you can cross-post another Slack message as part of your DM.
 
 ### CEO email management
@@ -57,7 +57,7 @@ Last-minute changes or cancellations must be communicated to Mike via [direct me
 The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for handling all email traffic prior to review. Multiple times daily (minimum 3), The Apprentice will reduce the scope of Mike's inbox to only include necessary and actionable communication.
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
- -  Ensure all calendar invites have [necessary documents](https://fleetdm.com/handbook/business-operations/ceo-handbook#document-preparation) included.
+ -  Ensure all calendar invites have [necessary documents](#document-preparation) included.
 
 ### Travel preferences
 Preferences for flights, in descending order of importance are:

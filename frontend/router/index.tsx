@@ -53,7 +53,8 @@ import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/
 import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
 import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
 import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
-import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage/WindowsMdmPage";
+import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
+import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
 
 import PATHS from "router/paths";
 
@@ -138,6 +139,7 @@ const routes = (
               </Route>
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
+            <Route path="integrations/mdm/apple" component={MacOSMdmPage} />
             <Route path="teams" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
