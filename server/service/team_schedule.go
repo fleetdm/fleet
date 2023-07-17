@@ -114,7 +114,7 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduled
 	}
 	if query.TeamID == nil || *query.TeamID != teamID {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, ctxerr.Wrap(ctx, err, "query must belong to the team")
+		return nil, ctxerr.New(ctx, "query must belong to the team")
 	}
 	query, err = svc.ModifyQuery(ctx, scheduledQuery.QueryID, fleet.ScheduledQueryToQueryPayloadForModifyQuery(scheduledQuery, nil, nil))
 	if err != nil {
