@@ -1,11 +1,12 @@
-# Adding hosts
 
-- [Adding hosts](#adding-hosts)
+# Enroll hosts
+
+- [Enroll hosts](#enroll-hosts)
   - [Introduction](#introduction)
-  - [Add hosts with Orbit](#add-hosts-with-orbit)
+  - [Enroll hosts with Orbit](#enroll-hosts-with-orbit)
     - [Signing installers](#signing-installers)
     - [Including Fleet Desktop](#including-fleet-desktop)
-    - [Adding multiple hosts](#adding-multiple-hosts)
+    - [Enrolling multiple hosts](#adding-multiple-hosts)
     - [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
     - [Configuration options](#configuration-options)
   - [Add hosts with plain osquery](#add-hosts-with-plain-osquery)
@@ -32,7 +33,7 @@ You can also install plain osquery on your hosts and connect to Fleet using osqu
 
 > For ChromeOS hosts, the [fleetd Chrome extension](#add-chromebooks-with-the-fleetd-chrome-extension) is installed instead of osquery.
 
-## Add hosts with Orbit
+## Enroll hosts with Orbit
 
 To create an Orbit installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
 
