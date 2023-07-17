@@ -175,6 +175,9 @@ auditdnetlink.cpp:354 The Audit publisher has throttled reading records from Net
 ```
 Some events might get lost due to system load or low CPU/memory resources.
 
-<meta name="title" value="Querying process_file_events on CentOS 7">
-<meta name="pageOrderInSection" value="1900">
+<meta name="articleTitle" value="Querying process_file_events on CentOS 7">
 <meta name="description" value="Learn how to configure and query the process_file_events table on CentOS 7 with Fleet.">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="lucasmrod">
+<meta name="authorFullName" value="Lucas Rodriguez">
+<meta name="publishedOn" value="2023-07-17">
