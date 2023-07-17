@@ -72,7 +72,7 @@ const UserMenu = ({
   }
 
   return (
-    <div className={baseClass}>
+    <div className={baseClass} data-testid="user-menu">
       <DropdownButton options={dropdownItems}>
         <AvatarTopNav
           className={`${baseClass}__avatar-image`}

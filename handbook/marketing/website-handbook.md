@@ -66,7 +66,7 @@ Quality assurance (QA) checks must be completed before changes to the website ca
 
 ### Manual QA
 
-Before estimating changes to the website, the product manager of the website group is responsible for making sure that manual QA steps have been added to requests.
+The product manager of the website group is responsible for making sure that manual QA steps have been added to requests.
 
 #### Writing QA steps
 

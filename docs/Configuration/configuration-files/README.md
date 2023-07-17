@@ -1358,8 +1358,6 @@ agent_options:
 
 #### Mobile device management (MDM) settings
 
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
-
 The `mdm` section of the configuration YAML lets you control MDM settings in Fleet.
 
 ##### mdm.apple_bm_default_team
@@ -1376,6 +1374,8 @@ Set name of default team to use with Apple Business Manager.
   ```
 
 ##### mdm.windows_enabled_and_configured
+
+> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 Enables or disables Windows MDM support.
 

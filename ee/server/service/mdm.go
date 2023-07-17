@@ -146,6 +146,30 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 	return nil
 }
 
+func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find host to list profiles")
+	}
+
+	var tmID uint
+	if host.TeamID != nil {
+		tmID = *host.TeamID
+	}
+
+	// NOTE: the service method also does all the right authorization checks
+	sums, err := svc.ListMDMAppleConfigProfiles(ctx, tmID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list config profiles")
+	}
+
+	return sums, nil
+}
+
 func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
 	cert, _, _, err := svc.config.MDM.AppleSCEP()
 	if err != nil {
