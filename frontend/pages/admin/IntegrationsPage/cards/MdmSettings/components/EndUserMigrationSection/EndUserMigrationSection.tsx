@@ -139,8 +139,8 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     <div className={baseClass}>
       <h2>End user migration workflow</h2>
       <p>
-        Control the end user migration workflow for hosts that automatically
-        enrolled to your old MDM solution.
+        Control the end user migration workflow for macOS hosts that
+        automatically enrolled to your old MDM solution.
       </p>
 
       <img

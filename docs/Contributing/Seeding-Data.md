@@ -91,4 +91,3 @@ To create a handful of test hosts, you can run containerized `osqueryd` [Docker 
 
 
 <meta name="pageOrderInSection" value="600">
-<meta name="description" value="Learn how to add fake data to your development Fleet instance.">
