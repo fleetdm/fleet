@@ -365,7 +365,7 @@ const labels = {
 };
 
 // "SchedulableQueries" to be used in developing frontend for #7765
-const queries = {
+const globalQueries = {
   queries: [
     {
       created_at: "2022-11-03T17:22:14Z",
@@ -401,7 +401,7 @@ const queries = {
       name: "Test Query 2",
       description: "A second test query",
       query: "SELECT * FROM osquery_info",
-      team_id: 1,
+      team_id: null,
       interval: 3600,
       platform: "linux",
       min_osquery_version: "",
@@ -428,7 +428,7 @@ const queries = {
       name: "Test Query 3",
       description: "A third test query",
       query: "SELECT * FROM osquery_info",
-      team_id: 2,
+      team_id: null,
       interval: 3600,
       platform: "",
       min_osquery_version: "",
@@ -451,16 +451,54 @@ const queries = {
   ],
 };
 
-const query1 = { query: queries.queries[0] };
-const query2 = { query: queries.queries[1] };
-const query3 = { query: queries.queries[2] };
+const teamQueries = {
+  queries: [
+    {
+      created_at: "2023-06-08T15:31:35Z",
+      updated_at: "2023-06-08T15:31:35Z",
+      id: 4,
+      name: "test specific team query",
+      description: "",
+      query: "SELECT * FROM osquery_info;",
+      team_id: 43,
+      platform: "darwin",
+      min_osquery_version: "",
+      automations_enabled: true,
+      logging: "snapshot",
+      saved: true,
+      // interval: 1200,
+      interval: 0,
+      observer_can_run: true,
+      author_id: 1,
+      author_name: "Jacob",
+      author_email: "jacob@fleetdm.com",
+      packs: [],
+      stats: {
+        system_time_p50: 1,
+        // system_time_p95: null,
+        user_time_p50: 1,
+        // user_time_p95: null,
+        total_executions: 1,
+      },
+      performance: "Undetermined",
+      platforms: ["windows", "darwin", "linux"],
+    },
+  ],
+};
+
+const globalQuery1 = { query: globalQueries.queries[0] };
+const globalQuery2 = { query: globalQueries.queries[1] };
+const globalQuery3 = { query: globalQueries.queries[2] };
+const teamQuery1 = { query: teamQueries.queries[0] };
 
 export default {
   count,
   hosts,
   labels,
-  queries,
-  query1,
-  query2,
-  query3,
+  globalQueries,
+  globalQuery1,
+  globalQuery2,
+  globalQuery3,
+  teamQueries,
+  teamQuery1,
 };

@@ -23,10 +23,12 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     // expensive data operations
     "targets?query={*}": RESPONSES.hosts,
     // "SchedulableQueries" to be used in developing frontend for #7765
-    queries: RESPONSES.queries,
-    "queries/1": RESPONSES.query1,
-    "queries/2": RESPONSES.query2,
-    "queries/3": RESPONSES.query3,
+    queries: RESPONSES.globalQueries,
+    "queries/1": RESPONSES.globalQuery1,
+    "queries/2": RESPONSES.globalQuery2,
+    "queries/3": RESPONSES.globalQuery3,
+    "queries/4": RESPONSES.teamQuery1,
+    "queries?team_id=43": RESPONSES.teamQueries,
   },
   POST: {
     // request body is ISelectedTargets

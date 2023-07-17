@@ -39,6 +39,7 @@ interface IQueriesTableProps {
     query?: string;
     order_key?: string;
     order_direction?: "asc" | "desc";
+    team_id?: string;
   };
 }
 
@@ -143,6 +144,7 @@ const QueriesTable = ({
       ) {
         newQueryParams.page = 0;
       }
+      newQueryParams.team_id = queryParams?.team_id;
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
         queryParams: newQueryParams,
