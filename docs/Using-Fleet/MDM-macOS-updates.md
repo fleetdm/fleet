@@ -123,7 +123,7 @@ Request payload:
 </plist>
 ```
 
-2. Copy the `ProductKey` from the command's results. Documentation on how to view a command's is [here](./MDM-commands#step-4-view-the-commands-results).
+2. Copy the `ProductKey` from the command's results. Documentation on how to view a command's results is [here](./MDM-commands#step-4-view-the-commands-results).
 
 Example product key: `MSU_UPDATE_22F770820d_patch_13.4.1_rsr`
 
