@@ -677,3 +677,53 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 	}
 	return buf.Bytes(), nil
 }
+
+// ProfileBimap implements bidirectional mapping for profiles, and utility
+// functions to generate those mappings based on frequently used operations.
+type ProfileBimap struct {
+	additions map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload
+	removals  map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload
+}
+
+// NewProfileBimap retuns a new ProfileBimap
+func NewProfileBimap() *ProfileBimap {
+	return &ProfileBimap{
+		map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload{},
+		map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload{},
+	}
+}
+
+// GetMatchingAddition returns the addition key that matches the given removal
+func (pb *ProfileBimap) GetMatchingAddition(removal *fleet.MDMAppleProfilePayload) (*fleet.MDMAppleProfilePayload, bool) {
+	value, ok := pb.removals[removal]
+	return value, ok
+}
+
+// GetMatchingRemoval returns the removal key that matches the given addition
+func (pb *ProfileBimap) GetMatchingRemoval(addition *fleet.MDMAppleProfilePayload) (*fleet.MDMAppleProfilePayload, bool) {
+	key, ok := pb.additions[addition]
+	return key, ok
+}
+
+// IntersectByIdentifier populates the bimap matching the profiles by Identifier and HostUUID
+func (pb *ProfileBimap) IntersectByIdentifier(profilesToInstall, profilesToRemove []*fleet.MDMAppleProfilePayload) {
+	key := func(p *fleet.MDMAppleProfilePayload) string {
+		return fmt.Sprintf("%s-%s", p.ProfileIdentifier, p.HostUUID)
+	}
+
+	removeProfs := map[string]*fleet.MDMAppleProfilePayload{}
+	for _, p := range profilesToRemove {
+		removeProfs[key(p)] = p
+	}
+
+	for _, p := range profilesToInstall {
+		if pp, ok := removeProfs[key(p)]; ok {
+			pb.add(p, pp)
+		}
+	}
+}
+
+func (pb *ProfileBimap) add(key, value *fleet.MDMAppleProfilePayload) {
+	pb.additions[key] = value
+	pb.removals[value] = key
+}

@@ -782,6 +782,8 @@ type Datastore interface {
 	// to the specified profile id.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
 
+	BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, payload []*MDMAppleProfilePayload) error
+
 	// DeleteMDMAppleConfigProfileByTeamAndIdentifier deletes a configuration
 	// profile using the unique key defined by `team_id` and `identifier`
 	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error
