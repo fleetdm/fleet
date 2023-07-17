@@ -1,26 +1,31 @@
-.windows-mdm-section {
+.mac-os-mdm-card {
   font-size: $x-small;
 
   p {
     margin: 0;
   }
 
-  &__turn-on-windows, &__turn-off-windows {
+  &__turn-on-mac-os,
+  &__turn-off-mac-os {
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
 
-  &__turn-on-windows {
+  &__turn-on-mac-os {
     h3 {
       font-size: $x-small;
       font-weight: $bold;
       margin: 0 0 $pad-xsmall;
     }
+
+    p {
+      max-width: 520px;
+    }
   }
 
-  &__turn-off-windows {
-    > div {
+  &__turn-off-mac-os {
+    >div {
       display: flex;
       align-items: center;
     }
@@ -29,5 +34,4 @@
       margin-left: $pad-small;
     }
   }
-
 }
