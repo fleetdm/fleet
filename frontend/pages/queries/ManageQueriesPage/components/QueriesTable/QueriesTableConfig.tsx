@@ -10,6 +10,11 @@ import permissionsUtils from "utilities/permissions";
 import { IUser } from "interfaces/user";
 import { secondsToDhms } from "utilities/helpers";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
+import {
+  SelectedPlatformString,
+  SupportedPlatform,
+  SUPPORTED_PLATFORMS,
+} from "interfaces/platform";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -19,7 +24,7 @@ import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import StatusIndicator from "components/StatusIndicator";
+import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
 interface IQueryRow {
   id: string;
@@ -66,14 +71,15 @@ interface INumberCellProps extends IRowProps {
 }
 
 interface IStringCellProps extends IRowProps {
-  cell: {
-    value: string;
-  };
+  cell: { value: string };
 }
 
+interface IBoolCellProps extends IRowProps {
+  cell: { value: boolean };
+}
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: string[];
+    value: SupportedPlatform[];
   };
 }
 
@@ -83,7 +89,8 @@ interface IDataColumn {
     | ((props: ICellProps) => JSX.Element)
     | ((props: IPlatformCellProps) => JSX.Element)
     | ((props: IStringCellProps) => JSX.Element)
-    | ((props: INumberCellProps) => JSX.Element);
+    | ((props: INumberCellProps) => JSX.Element)
+    | ((props: IBoolCellProps) => JSX.Element);
   id?: string;
   title?: string;
   accessor?: string;
@@ -158,7 +165,19 @@ const generateTableHeaders = ({
       disableSortBy: true,
       accessor: "platforms",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
-        return <PlatformCell value={cellProps.cell.value} />;
+        // translate the SelectedPlatformString into an array of `SupportedPlatform`s
+        const selectedPlatforms = cellProps.row.original.platform
+          .split(",")
+          .filter((platform) => platform !== "") as SupportedPlatform[];
+
+        const platformIconsToRender: SupportedPlatform[] =
+          selectedPlatforms.length === 0
+            ? // User didn't select any platforms, so we render all compatible
+              cellProps.cell.value
+            : // Render the platforms the user has selected for this query
+              selectedPlatforms;
+
+        return <PlatformCell platforms={platformIconsToRender} />;
       },
     },
     {
@@ -215,31 +234,13 @@ const generateTableHeaders = ({
       Header: "Automations",
       disableSortBy: true,
       accessor: "automations_enabled",
-      Cell: (cellProps: IStringCellProps): JSX.Element => {
-        let status;
-        if (cellProps.cell.value) {
-          if (cellProps.row.original.interval === 0) {
-            status = "paused";
-          } else {
-            status = "on";
-          }
-        } else {
-          status = "off";
-        }
-
-        const tooltip =
-          status === "paused"
-            ? {
-                id: cellProps.row.original.id,
-                tooltipText: (
-                  <>
-                    <strong>Automations</strong> will resume for this query when
-                    a frequency is set.
-                  </>
-                ),
-              }
-            : undefined;
-        return <StatusIndicator value={status} tooltip={tooltip} />;
+      Cell: (cellProps: IBoolCellProps): JSX.Element => {
+        return (
+          <QueryAutomationsStatusIndicator
+            automationsEnabled={cellProps.cell.value}
+            interval={cellProps.row.original.interval}
+          />
+        );
       },
     },
     {

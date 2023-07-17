@@ -70,7 +70,7 @@ const PillCell = ({ value, customIdPrefix }: IPillCellProps): JSX.Element => {
       case "Undetermined":
         return (
           <>
-            To see performance impact, this query must have run with
+            To see performance impact, this query must have run with{" "}
             <b>automations</b> on at least one host.
           </>
         );

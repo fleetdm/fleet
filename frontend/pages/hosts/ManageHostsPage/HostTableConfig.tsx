@@ -260,7 +260,6 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => {
       const value = cellProps.cell.value;
       const tooltip = {
-        id: cellProps.row.original.id,
         tooltipText: getHostStatusTooltipText(value),
       };
       return <StatusIndicator value={value} tooltip={tooltip} />;

@@ -1,5 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import { IOsqueryPlatform } from "interfaces/platform";
+import { OsqueryPlatform } from "interfaces/platform";
 import paths from "router/paths";
 
 const { origin } = global.window.location;
@@ -141,7 +141,7 @@ export const DEFAULT_CAMPAIGN_STATE = {
   campaign: { ...DEFAULT_CAMPAIGN },
 };
 
-export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
+export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
   darwin: "macOS",
   macOS: "macOS",
   windows: "Windows",

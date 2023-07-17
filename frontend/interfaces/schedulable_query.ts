@@ -1,6 +1,6 @@
 import { IFormField } from "./form_field";
 import { IPack } from "./pack";
-import { IPlatformString } from "./platform";
+import { SelectedPlatformString } from "./platform";
 
 // Query itself
 export interface ISchedulableQuery {
@@ -12,7 +12,7 @@ export interface ISchedulableQuery {
   query: string;
   team_id: number | null;
   interval: number;
-  platform: IPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
+  platform: SelectedPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
   min_osquery_version: string;
   automations_enabled: boolean;
   logging: QueryLoggingOption;
@@ -55,7 +55,7 @@ export interface ICreateQueryRequestBody {
   observer_can_run?: boolean;
   team_id?: number; // global query if ommitted
   interval?: number; // default 0 means never run
-  platform?: IPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
+  platform?: SelectedPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
   min_osquery_version?: string; // default all versions if ommitted
   automations_enabled?: boolean; // whether to send data to the configured log destination according to the query's `interval`. Default false if ommitted.
   logging?: QueryLoggingOption;
@@ -100,7 +100,7 @@ export interface IQueryFormFields {
   query: IFormField<string>;
   observer_can_run: IFormField<boolean>;
   frequency: IFormField<number>;
-  platforms: IFormField<IPlatformString>;
+  platforms: IFormField<SelectedPlatformString>;
   min_osquery_version: IFormField<string>;
   logging: IFormField<QueryLoggingOption>;
 }
