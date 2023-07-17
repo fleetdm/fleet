@@ -126,7 +126,7 @@ const MacOSMdmPage = () => {
   );
 
   const toggleRequestCSRModal = () => {
-    setShowRequestCSRModal(!showRequestCSRModal);
+    setShowRequestCSRModal((prevState) => !prevState);
   };
 
   const renderPageContent = () => {

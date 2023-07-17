@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { InjectedRouter } from "react-router";
@@ -11,9 +11,8 @@ import { IMdmApple } from "interfaces/mdm";
 import PATHS from "router/paths";
 
 import Spinner from "components/Spinner";
-import DataError from "components/DataError/DataError";
 import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
-import WindowsMdmSection from "./components/WindowsMdmSection/WindowsMdmSection";
+import WindowsMdmCard from "./components/WindowsMdmCard/WindowsMdmCard";
 import MacOSMdmCard from "./components/MacOSMdmCard/MacOSMdmCard";
 
 const baseClass = "mdm-settings";
@@ -50,24 +49,6 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM_WINDOWS);
   };
 
-  const renderMacOSMdmCard = () => {
-    // The API returns a 404 error if APNS is not configured yet. If there is any
-    // other error we will show the DataError component.
-    const showMdmAppleError = errorMdmApple && errorMdmApple.status !== 404;
-
-    if (showMdmAppleError) {
-      return <DataError />;
-    }
-
-    return (
-      <MacOSMdmCard
-        isEnabled={appleAPNInfo !== undefined}
-        turnOnMacOSMdm={navigateToMacOSMdm}
-        viewDetails={navigateToMacOSMdm}
-      />
-    );
-  };
-
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section ${baseClass}__mdm-section`}>
@@ -76,10 +57,15 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
           <Spinner />
         ) : (
           <>
-            {renderMacOSMdmCard()}
+            <MacOSMdmCard
+              appleAPNInfo={appleAPNInfo}
+              errorData={errorMdmApple}
+              turnOnMacOSMdm={navigateToMacOSMdm}
+              viewDetails={navigateToMacOSMdm}
+            />
             {/* TODO: remove conditional rendering when windows MDM is released. */}
             {config?.mdm_enabled && (
-              <WindowsMdmSection
+              <WindowsMdmCard
                 turnOnWindowsMdm={navigateToWindowsMdm}
                 editWindowsMdm={navigateToWindowsMdm}
               />
