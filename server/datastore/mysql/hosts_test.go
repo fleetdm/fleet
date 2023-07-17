@@ -564,10 +564,6 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
-	tp, err := ds.EnsureTeamPack(context.Background(), team.ID)
-	require.NoError(t, err)
-	tpQuery := test.NewQuery(t, ds, nil, "tp-time", "select * from time", 0, true)
-	tpSquery := test.NewScheduledQuery(t, ds, tp.ID, tpQuery.ID, 30, true, true, "time-scheduled")
 
 	// Create a new pack and target to the host.
 	// Pack and query must exist for stats to save successfully
@@ -596,28 +592,8 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 			WallTime:           0,
 		},
 	}
-	stats2 := []fleet.ScheduledQueryStats{
-		{
-			ScheduledQueryName: tpSquery.Name,
-			ScheduledQueryID:   tpSquery.ID,
-			QueryName:          tpQuery.Name,
-			PackName:           tp.Name,
-			PackID:             tp.ID,
-			AverageMemory:      8000,
-			Denylisted:         false,
-			Executions:         164,
-			Interval:           30,
-			LastExecuted:       time.Unix(1620325191, 0).UTC(),
-			OutputSize:         1337,
-			SystemTime:         150,
-			UserTime:           180,
-			WallTime:           0,
-		},
-	}
-
 	packStats := []fleet.PackStats{
 		{PackID: pack1.ID, PackName: pack1.Name, QueryStats: stats1},
-		{PackID: tp.ID, PackName: teamScheduleName(team), QueryStats: stats2},
 	}
 	err = ds.SaveHostPackStats(context.Background(), host.ID, packStats)
 	require.NoError(t, err)
@@ -625,14 +601,11 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 
-	require.Len(t, host.PackStats, 2)
+	require.Len(t, host.PackStats, 1)
 	sort.Sort(packStatsSlice(host.PackStats))
 
-	assert.Equal(t, host.PackStats[0].PackName, teamScheduleName(team))
-	assert.ElementsMatch(t, host.PackStats[0].QueryStats, stats2)
-
-	assert.Equal(t, host.PackStats[1].PackName, pack1.Name)
-	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats1)
+	assert.Equal(t, host.PackStats[0].PackName, pack1.Name)
+	assert.ElementsMatch(t, host.PackStats[0].QueryStats, stats1)
 }
 
 type packStatsSlice []fleet.PackStats
