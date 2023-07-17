@@ -16,6 +16,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner/Spinner";
 
 import EditTeamModal from "../EditTeamModal";
+import WindowsAutomaticEnrollmentCard from "./components/WindowsAutomaticEnrollmentCard/WindowsAutomaticEnrollmentCard";
 
 const baseClass = "apple-business-manager-section";
 
@@ -219,6 +220,7 @@ const AppleBusinessManagerSection = () => {
     <div className={baseClass}>
       <h2>Apple Business Manager</h2>
       {isLoadingMdmAppleBm ? <Spinner /> : renderAppleBMInfo()}
+      <WindowsAutomaticEnrollmentCard />
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
