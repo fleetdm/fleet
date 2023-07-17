@@ -60,6 +60,13 @@ type STSClaims struct {
 	jwt.RegisteredClaims
 }
 
+type AzureData struct {
+	UPN        string
+	TenantID   string
+	UniqueName string
+	SCP        string
+}
+
 type manager struct {
 	store CertStore
 
@@ -222,6 +229,66 @@ func (m *manager) GetSTSAuthTokenUPNClaim(tokenStr string) (string, error) {
 	}
 
 	return "", errors.New("issue with STS token validation")
+}
+
+// GetAzureAuthTokenClaims validates the given Azure AD token and returns
+// UPN, TenantID, UniqueName, DeviceID
+func GetAzureAuthTokenClaims(tokenStr string) (AzureData, error) {
+	if len(tokenStr) == 0 {
+		return AzureData{}, errors.New("invalid STS token")
+	}
+
+	// Decode base64 token
+	tokenBytes, err := base64.StdEncoding.DecodeString(tokenStr)
+	if err != nil {
+		return AzureData{}, errors.New("invalid Azure JWT token")
+	}
+
+	// Validate token format (header.payload.signature)
+	parts := strings.Split(string(tokenBytes), ".")
+	if len(parts) != 3 {
+		return AzureData{}, errors.New("invalid Azure JWT format")
+	}
+
+	// Parse JWT token
+	token, _, err := new(jwt.Parser).ParseUnverified(string(tokenBytes), jwt.MapClaims{})
+	if err != nil {
+		return AzureData{}, errors.New("parse error Azure JWT content")
+	}
+
+	// Parse JWT token
+	claims := token.Claims.(jwt.MapClaims)
+
+	// Get UPN claim
+	upnClaim, ok := claims["upn"].(string)
+	if !ok || len(upnClaim) == 0 {
+		return AzureData{}, errors.New("invalid UPN claim")
+	}
+
+	// Get TenantID claim
+	tenantIDClaim, ok := claims["tid"].(string)
+	if !ok || len(tenantIDClaim) == 0 {
+		return AzureData{}, errors.New("invalid TenantID claim")
+	}
+
+	// Get UniqueName claim
+	uniqueNameClaim, ok := claims["unique_name"].(string)
+	if !ok {
+		return AzureData{}, errors.New("invalid UniqueName claim")
+	}
+
+	// Get SCP claim
+	azureSCPClaim, ok := claims["scp"].(string)
+	if !ok || azureSCPClaim != "mdm_delegation" {
+		return AzureData{}, errors.New("invalid SCP claim")
+	}
+
+	return AzureData{
+		UPN:        upnClaim,
+		TenantID:   tenantIDClaim,
+		UniqueName: uniqueNameClaim,
+		SCP:        azureSCPClaim,
+	}, nil
 }
 
 func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {

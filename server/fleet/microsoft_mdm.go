@@ -9,6 +9,7 @@ import (
 	"time"
 
 	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,13 +45,25 @@ type SoapRequest struct {
 	Body      BodyRequest   `xml:"Body"`
 }
 
-// GetBinarySecurityToken returns the header BinarySecurityToken if present
-func (req *SoapRequest) GetBinarySecurityToken() (string, error) {
+// GetHeaderBinarySecurityToken returns the header BinarySecurityToken if present
+func (req *SoapRequest) GetHeaderBinarySecurityToken() (*HeaderBinarySecurityToken, error) {
 	if req.Header.Security == nil {
-		return "", errors.New("header BinarySecurityToken is not present")
+		return nil, errors.New("binarySecurityToken is not present")
 	}
 
-	return req.Header.Security.Security.Content, nil
+	if len(req.Header.Security.Security.Content) == 0 {
+		return nil, errors.New("binarySecurityToken is empty")
+	}
+
+	if req.Header.Security.Security.Encoding != mdm.EnrollEncode {
+		return nil, errors.New("binarySecurityToken encoding is invalid")
+	}
+
+	if req.Header.Security.Security.Value != mdm.BinarySecurityTokenDeviceEnroll && req.Header.Security.Security.Value != mdm.BinarySecurityTokenAzureJWTEnroll {
+		return nil, errors.New("binarySecurityToken type is invalid")
+	}
+
+	return &req.Header.Security.Security, nil
 }
 
 // GetMessageID returns the message ID from the header
@@ -328,16 +341,59 @@ type WsSecurity struct {
 }
 
 // Security token container for encoded security sensitive data
-type BinSecurityToken struct {
+type HeaderBinarySecurityToken struct {
 	Content  string `xml:",chardata"`
 	Value    string `xml:"ValueType,attr"`
 	Encoding string `xml:"EncodingType,attr"`
 }
 
+// Get RequestSecurityToken MDM Message from the body
+func (token *HeaderBinarySecurityToken) IsValidToken() error {
+	if token == nil {
+		return errors.New("binary security token is not present")
+	}
+
+	if len(token.Content) == 0 {
+		return errors.New("binary security token is empty")
+	}
+
+	if token.Value != microsoft_mdm.BinarySecurityTokenDeviceEnroll && token.Value != microsoft_mdm.BinarySecurityTokenAzureJWTEnroll {
+		return errors.New("binary security token is invalid")
+	}
+
+	return nil
+}
+
+// Check if input token is a valid Azure JWT token
+func (token *HeaderBinarySecurityToken) IsAzureJWTToken() bool {
+	if token == nil {
+		return false
+	}
+
+	if token.Value == microsoft_mdm.BinarySecurityTokenAzureJWTEnroll {
+		return true
+	}
+
+	return false
+}
+
+// Check if input token is a valid Device Enroll token
+func (token *HeaderBinarySecurityToken) IsDeviceToken() bool {
+	if token == nil {
+		return false
+	}
+
+	if token.Value == microsoft_mdm.BinarySecurityTokenDeviceEnroll {
+		return true
+	}
+
+	return false
+}
+
 // TokenSecurity is the security token container for BinSecurityToken
 type TokenSecurity struct {
-	MustUnderstand string           `xml:"mustUnderstand,attr"`
-	Security       BinSecurityToken `xml:"BinarySecurityToken"`
+	MustUnderstand string                    `xml:"mustUnderstand,attr"`
+	Security       HeaderBinarySecurityToken `xml:"BinarySecurityToken"`
 }
 
 // To target endpoint header field
