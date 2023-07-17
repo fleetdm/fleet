@@ -1019,8 +1019,8 @@ func (a ActivityTypeEnabledWindowsMDM) ActivityName() string {
 }
 
 func (a ActivityTypeEnabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
-	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default.`,
-	        `Generated when a user turns on MDM features for all Windows hosts (servers excluded).`,
+	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
+Generated when a user turns on MDM features for all Windows hosts (servers excluded).`,
 		`This activity does not contain any detail fields.`, ``
 }
 
