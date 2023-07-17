@@ -344,19 +344,33 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 			q.created_at,
 			q.updated_at,
 			COALESCE(u.name, '<deleted>') AS author_name,
-			COALESCE(u.email, '') AS author_email,
-			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
+			COALESCE(u.email, '') AS author_email
+			%s
+		FROM queries q
+		LEFT JOIN users u ON (q.author_id = u.id)
+		%s
+		
+	`
+
+	args := []interface{}{}
+	whereClauses := "WHERE saved = true"
+
+	if !opt.ExcludeStats {
+		projClause := `
+			,JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
 			JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
 			JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
 			JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
 			JSON_EXTRACT(json_value, '$.total_executions') as total_executions
-		FROM queries q
-		LEFT JOIN users u ON (q.author_id = u.id)
-		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
-		WHERE saved = true`
-
-	args := []interface{}{false, aggregatedStatsTypeQuery}
-	whereClauses := ""
+		`
+		joinClause := `
+			LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
+		`
+		sql = fmt.Sprintf(sql, projClause, joinClause)
+		args = []interface{}{false, aggregatedStatsTypeQuery}
+	} else {
+		sql = fmt.Sprintf(sql, "", "")
+	}
 
 	if opt.OnlyObserverCanRun {
 		whereClauses += " AND q.observer_can_run=true"

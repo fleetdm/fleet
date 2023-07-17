@@ -30,8 +30,9 @@ func TestQueries(t *testing.T) {
 		{"DuplicateNew", testQueriesDuplicateNew},
 		{"ListFiltersObservers", testQueriesListFiltersObservers},
 		{"ObserverCanRunQuery", testObserverCanRunQuery},
-		{"ListFiltersByTeamID", testQueriesListFiltersByTeamID},
-		{"ListFiltersByIsScheduled", testQueriesListFiltersByIsScheduled},
+		{"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
+		{"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
+		{"ListQueriesExcludedStats", testListQueriesExcludedStats},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -555,7 +556,7 @@ func testObserverCanRunQuery(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testQueriesListFiltersByTeamID(t *testing.T, ds *Datastore) {
+func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	globalQ1, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:  "query1",
 		Query: "select 1;",
@@ -617,7 +618,7 @@ func testQueriesListFiltersByTeamID(t *testing.T, ds *Datastore) {
 	test.QueryElementsMatch(t, queries, []*fleet.Query{teamQ1, teamQ2, teamQ3})
 }
 
-func testQueriesListFiltersByIsScheduled(t *testing.T, ds *Datastore) {
+func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 	q1, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:             "query1",
 		Query:            "select 1;",
@@ -667,5 +668,58 @@ func testQueriesListFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 		)
 		require.NoError(t, err)
 		test.QueryElementsMatch(t, queries, tCase.expected, i)
+	}
+}
+
+func testListQueriesExcludedStats(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	q1, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:             "query1",
+		Query:            "select 1;",
+		Saved:            true,
+		ScheduleInterval: 0,
+	})
+	require.NoError(t, err)
+
+	_, err = ds.writer(ctx).Exec(
+		`INSERT INTO aggregated_stats(id,global_stats,type,json_value) VALUES (?,?,?,?)`,
+		q1.ID, false, aggregatedStatsTypeQuery, `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
+	)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		opts        fleet.ListQueryOptions
+		expectedNil bool
+	}{
+		{
+			opts:        fleet.ListQueryOptions{},
+			expectedNil: false,
+		},
+		{
+			opts:        fleet.ListQueryOptions{ExcludeStats: false},
+			expectedNil: false,
+		},
+		{
+			opts:        fleet.ListQueryOptions{ExcludeStats: true},
+			expectedNil: true,
+		},
+	}
+
+	for _, tCase := range testCases {
+		queries, err := ds.ListQueries(
+			context.Background(),
+			tCase.opts,
+		)
+
+		require.NoError(t, err)
+		for _, q := range queries {
+
+			require.Equal(t, q.AggregatedStats.SystemTimeP50 == nil, tCase.expectedNil)
+			require.Equal(t, q.AggregatedStats.SystemTimeP95 == nil, tCase.expectedNil)
+			require.Equal(t, q.AggregatedStats.UserTimeP95 == nil, tCase.expectedNil)
+			require.Equal(t, q.AggregatedStats.UserTimeP50 == nil, tCase.expectedNil)
+			require.Equal(t, q.AggregatedStats.TotalExecutions == nil, tCase.expectedNil)
+
+		}
 	}
 }
