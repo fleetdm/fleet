@@ -210,7 +210,7 @@ spec:
 
 Learn more about configuration options for hosts that aren't assigned to a team [here](./configuration-files/README.md#organization-settings).
 
-The `mdm.macos_setup.macos_setup_assistant` key accepts a path to your automatic enrollment profile.
+3. Add an `mdm.macos_setup.macos_setup_assistant` key to your YAML document. This key accepts a path to your automatic enrollment profile.
 
 4. Run the `fleetctl apply -f workstations-canary-config.yml` command to upload the automatic enrollment profile to Fleet.
 
