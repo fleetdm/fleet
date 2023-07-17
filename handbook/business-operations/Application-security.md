@@ -66,5 +66,6 @@ libraries and other vulnerabilities is available in our
 [Dependabot](https://github.com/dependabot) to automatically open PRs to update vulnerable dependencies.
 
 
-<meta name="pageOrderInSection" value="800">
+
 <meta name="description" value="Explore Fleet's application security practices, including secure coding, SQL injection prevention, authentication, data encryption, access controls, and more.">
+<meta name="maintainedBy" value="hollidayn">
