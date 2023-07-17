@@ -295,7 +295,11 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 	return ps, nil
 }
 
-func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.QueryStats, error) {
+func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string, teamID *uint) ([]fleet.QueryStats, error) {
+	var teamID_ uint
+	if teamID != nil {
+		teamID_ = *teamID
+	}
 	ds := dialect.From(goqu.I("queries").As("q")).Select(
 		goqu.I("q.id"),
 		goqu.I("q.name"),
@@ -327,6 +331,10 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 				goqu.L("FIND_IN_SET(?, q.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
 			),
 			goqu.I("q.schedule_interval").Gt(0),
+			goqu.Or(
+				goqu.I("q.team_id").IsNull(),
+				goqu.I("q.team_id").Eq(teamID_),
+			),
 		),
 	)
 	sql, args, err := ds.ToSQL()
@@ -542,12 +550,39 @@ LIMIT
 		return nil, err
 	}
 	host.PackStats = packStats
-
-	queryStats, err := loadHostScheduledQueryStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
+	queriesStats, err := loadHostScheduledQueryStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform, host.TeamID)
 	if err != nil {
 		return nil, err
 	}
-	host.QueryStats = queryStats
+	var (
+		globalQueriesStats   []fleet.QueryStats
+		hostTeamQueriesStats []fleet.QueryStats
+	)
+	for _, queryStats := range queriesStats {
+		if queryStats.TeamID == nil {
+			globalQueriesStats = append(globalQueriesStats, queryStats)
+		} else {
+			hostTeamQueriesStats = append(hostTeamQueriesStats, queryStats)
+		}
+	}
+	if len(globalQueriesStats) > 0 {
+		host.PackStats = append(host.PackStats, fleet.PackStats{
+			PackName:   "Global",
+			Type:       "global",
+			QueryStats: queryStatsToScheduledQueryStats(globalQueriesStats, "Global"),
+		})
+	}
+	if host.TeamID != nil && len(hostTeamQueriesStats) > 0 {
+		team, err := ds.Team(ctx, *host.TeamID)
+		if err != nil {
+			return nil, err
+		}
+		host.PackStats = append(host.PackStats, fleet.PackStats{
+			PackName:   "Team: " + team.Name,
+			Type:       fmt.Sprintf("team-%d", team.ID),
+			QueryStats: queryStatsToScheduledQueryStats(hostTeamQueriesStats, "Team: "+team.Name),
+		})
+	}
 
 	users, err := loadHostUsersDB(ctx, ds.reader(ctx), host.ID)
 	if err != nil {
@@ -556,6 +591,29 @@ LIMIT
 	host.Users = users
 
 	return &host, nil
+}
+
+func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName string) []fleet.ScheduledQueryStats {
+	scheduledQueriesStats := make([]fleet.ScheduledQueryStats, 0, len(queriesStats))
+	for _, queryStats := range queriesStats {
+		scheduledQueriesStats = append(scheduledQueriesStats, fleet.ScheduledQueryStats{
+			ScheduledQueryName: queryStats.Name,
+			ScheduledQueryID:   queryStats.ID,
+			QueryName:          queryStats.Name,
+			Description:        queryStats.Description,
+			PackName:           packName,
+			AverageMemory:      queryStats.AverageMemory,
+			Denylisted:         queryStats.Denylisted,
+			Executions:         queryStats.Executions,
+			Interval:           queryStats.Interval,
+			LastExecuted:       queryStats.LastExecuted,
+			OutputSize:         queryStats.OutputSize,
+			SystemTime:         queryStats.SystemTime,
+			UserTime:           queryStats.UserTime,
+			WallTime:           queryStats.WallTime,
+		})
+	}
+	return scheduledQueriesStats
 }
 
 // hostMDMSelect is the SQL fragment used to construct the JSON object
