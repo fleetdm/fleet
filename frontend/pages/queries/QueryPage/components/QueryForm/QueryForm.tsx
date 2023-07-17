@@ -25,9 +25,8 @@ import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import { IApiError } from "interfaces/errors";
 import {
   ISchedulableQuery,
-  IModifyQueryRequestBody,
-  IGetQueryResponse,
   ICreateQueryRequestBody,
+  QueryLoggingOption,
 } from "interfaces/schedulable_query";
 import queryAPI from "services/entities/queries";
 
@@ -47,6 +46,7 @@ import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveQueryModal from "../SaveQueryModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
+import { IPlatformString } from "interfaces/platform";
 
 const baseClass = "query-form";
 
@@ -114,6 +114,9 @@ const QueryForm = ({
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
     setLastEditedQueryFrequency,
+    setLastEditedQueryPlatforms,
+    setLastEditedQueryLoggingType,
+    setLastEditedQueryMinOsqueryVersion,
   } = useContext(QueryContext);
 
   const {
@@ -137,20 +140,7 @@ const QueryForm = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
-  const [selectedFrequency, setSelectedFrequency] = useState(
-    lastEditedQueryFrequency
-  );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [selectedPlatformOptions, setSelectedPlatformOptions] = useState(
-    lastEditedQueryPlatforms || ""
-  );
-  const [selectedLoggingType, setSelectedLoggingType] = useState(
-    lastEditedQueryLoggingType || "snapshot"
-  );
-  const [
-    selectedMinOsqueryVersionOptions,
-    setSelectedMinOsqueryVersionOptions,
-  ] = useState(lastEditedQueryMinOsqueryVersion || "");
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
@@ -219,10 +209,9 @@ const QueryForm = ({
 
   const onChangeSelectFrequency = useCallback(
     (value: number) => {
-      setSelectedFrequency(value);
       setLastEditedQueryFrequency(value);
     },
-    [setSelectedFrequency]
+    [setLastEditedQueryFrequency]
   );
 
   const toggleAdvancedOptions = () => {
@@ -236,28 +225,30 @@ const QueryForm = ({
       // Remove All if another OS is chosen
       // else if Remove OS if All is chosen
       if (valArray.indexOf("") === 0 && valArray.length > 1) {
-        setSelectedPlatformOptions(pull(valArray, "").join(","));
+        setLastEditedQueryPlatforms(
+          pull(valArray, "").join(",") as IPlatformString
+        );
       } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
-        setSelectedPlatformOptions("");
+        setLastEditedQueryPlatforms("");
       } else {
-        setSelectedPlatformOptions(values);
+        setLastEditedQueryPlatforms(values as IPlatformString);
       }
     },
-    [setSelectedPlatformOptions]
+    [setLastEditedQueryPlatforms]
   );
 
   const onChangeSelectLoggingType = useCallback(
-    (value: string) => {
-      setSelectedLoggingType(value);
+    (value: QueryLoggingOption) => {
+      setLastEditedQueryLoggingType(value);
     },
-    [setSelectedLoggingType]
+    [setLastEditedQueryLoggingType]
   );
 
   const onChangeMinOsqueryVersionOptions = useCallback(
     (value: string) => {
-      setSelectedMinOsqueryVersionOptions(value);
+      setLastEditedQueryMinOsqueryVersion(value);
     },
-    [setSelectedMinOsqueryVersionOptions]
+    [setLastEditedQueryMinOsqueryVersion]
   );
 
   const promptSaveAsNewQuery = () => (
@@ -287,6 +278,9 @@ const QueryForm = ({
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
           interval: lastEditedQueryFrequency,
+          platform: lastEditedQueryPlatforms,
+          min_osquery_version: lastEditedQueryMinOsqueryVersion,
+          logging: lastEditedQueryLoggingType,
         })
         .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
@@ -302,6 +296,9 @@ const QueryForm = ({
                 query: lastEditedQueryBody,
                 observer_can_run: lastEditedQueryObserverCanRun,
                 interval: lastEditedQueryFrequency,
+                platform: lastEditedQueryPlatforms,
+                min_osquery_version: lastEditedQueryMinOsqueryVersion,
+                logging: lastEditedQueryLoggingType,
               })
               .then((response: { query: ISchedulableQuery }) => {
                 setIsSaveAsNewLoading(false);
@@ -356,6 +353,10 @@ const QueryForm = ({
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
+          frequency: lastEditedQueryFrequency,
+          platform: lastEditedQueryPlatforms,
+          min_osquery_version: lastEditedQueryMinOsqueryVersion,
+          logging: lastEditedQueryLoggingType,
         });
       }
     }
@@ -366,12 +367,12 @@ const QueryForm = ({
       <>
         <b>Author</b>
         <div>
-          {/* <Avatar
+          <Avatar
             user={addGravatarUrlToResource({
               email: storedQuery.author_email,
             })}
             size="xsmall"
-          /> */}
+          />
           <span>
             {storedQuery.author_name === currentUser?.name
               ? "You"
@@ -578,7 +579,7 @@ const QueryForm = ({
                 options={FREQUENCY_DROPDOWN_OPTIONS}
                 onChange={onChangeSelectFrequency}
                 placeholder={"Every day"}
-                value={selectedFrequency}
+                value={lastEditedQueryFrequency}
                 label={"Frequency"}
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
               />
@@ -613,7 +614,7 @@ const QueryForm = ({
                   options={LOGGING_TYPE_OPTIONS}
                   onChange={onChangeSelectLoggingType}
                   placeholder="Select"
-                  value={selectedLoggingType}
+                  value={lastEditedQueryLoggingType}
                   label="Logging"
                   wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
                 />
@@ -622,7 +623,7 @@ const QueryForm = ({
                   placeholder="Select"
                   label="Platform"
                   onChange={onChangeSelectPlatformOptions}
-                  value={selectedPlatformOptions}
+                  value={lastEditedQueryPlatforms}
                   multi
                   wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
                 />
@@ -630,7 +631,7 @@ const QueryForm = ({
                   options={MIN_OSQUERY_VERSION_OPTIONS}
                   onChange={onChangeMinOsqueryVersionOptions}
                   placeholder="Select"
-                  value={selectedMinOsqueryVersionOptions}
+                  value={lastEditedQueryMinOsqueryVersion}
                   label="Minimum osquery version"
                   wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
                 />

@@ -66,6 +66,10 @@ const QueryEditor = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
+    lastEditedQueryFrequency,
+    lastEditedQueryLoggingType,
+    lastEditedQueryPlatforms,
+    lastEditedQueryMinOsqueryVersion,
   } = useContext(QueryContext);
 
   const [isQuerySaving, setIsQuerySaving] = useState(false);
@@ -124,6 +128,10 @@ const QueryEditor = ({
       lastEditedQueryDescription,
       lastEditedQueryBody,
       lastEditedQueryObserverCanRun,
+      lastEditedQueryFrequency,
+      lastEditedQueryLoggingType,
+      lastEditedQueryMinOsqueryVersion,
+      lastEditedQueryPlatforms,
     });
 
     try {

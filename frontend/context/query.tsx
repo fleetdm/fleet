@@ -4,6 +4,8 @@ import { find } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_QUERY } from "utilities/constants";
 import { DEFAULT_OSQUERY_TABLE, IOsQueryTable } from "interfaces/osquery_table";
+import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
+import { QueryLoggingOption } from "interfaces/schedulable_query";
 
 type Props = {
   children: ReactNode;
@@ -17,16 +19,16 @@ type InitialStateType = {
   lastEditedQueryBody: string;
   lastEditedQueryObserverCanRun: boolean;
   lastEditedQueryFrequency: number;
-  lastEditedQueryPlatforms: string;
+  lastEditedQueryPlatforms: IPlatformString;
   lastEditedQueryMinOsqueryVersion: string;
-  lastEditedQueryLoggingType: string;
+  lastEditedQueryLoggingType: QueryLoggingOption;
   setLastEditedQueryId: (value: number) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryObserverCanRun: (value: boolean) => void;
   setLastEditedQueryFrequency: (value: number) => void;
-  setLastEditedQueryPlatforms: (value: string) => void;
+  setLastEditedQueryPlatforms: (value: IPlatformString) => void;
   setLastEditedQueryMinOsqueryVersion: (value: string) => void;
   setLastEditedQueryLoggingType: (value: string) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
@@ -40,7 +42,7 @@ const initialState = {
   lastEditedQueryDescription: DEFAULT_QUERY.description,
   lastEditedQueryBody: DEFAULT_QUERY.query,
   lastEditedQueryObserverCanRun: DEFAULT_QUERY.observer_can_run,
-  lastEditedQueryFrequency: DEFAULT_QUERY.frequency,
+  lastEditedQueryFrequency: DEFAULT_QUERY.interval,
   lastEditedQueryPlatforms: DEFAULT_QUERY.platform,
   lastEditedQueryMinOsqueryVersion: DEFAULT_QUERY.min_osquery_version,
   lastEditedQueryLoggingType: DEFAULT_QUERY.logging,

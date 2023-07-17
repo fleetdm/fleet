@@ -1,6 +1,7 @@
 import URL_PREFIX from "router/url_prefix";
 import { OsqueryPlatform } from "interfaces/platform";
 import paths from "router/paths";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -98,7 +99,7 @@ export const QUERIES_PAGE_STEPS = {
   3: "RUN",
 };
 
-export const DEFAULT_QUERY = {
+export const DEFAULT_QUERY: ISchedulableQuery = {
   description: "",
   name: "",
   query: "SELECT * FROM osquery_info;",
@@ -106,7 +107,6 @@ export const DEFAULT_QUERY = {
   interval: 0,
   last_executed: "",
   observer_can_run: false,
-  frequency: 0,
   platform: "",
   min_osquery_version: "",
   automations_enabled: false,
@@ -117,6 +117,9 @@ export const DEFAULT_QUERY = {
   saved: false,
   author_id: 0,
   packs: [],
+  team_id: 0,
+  author_email: "",
+  stats: {},
 };
 
 export const DEFAULT_CAMPAIGN = {

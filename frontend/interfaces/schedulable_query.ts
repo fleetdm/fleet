@@ -14,6 +14,7 @@ export interface ISchedulableQuery {
   interval: number;
   platform: SelectedPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
   min_osquery_version: string;
+  last_executed?: string;
   automations_enabled: boolean;
   logging: QueryLoggingOption;
   saved: boolean;
@@ -73,7 +74,7 @@ export interface IModifyQueryRequestBody
   description?: string;
   observer_can_run?: boolean;
   frequency?: number;
-  platform?: IPlatformString;
+  platform?: SelectedPlatformString;
   min_osquery_version?: string;
 }
 
