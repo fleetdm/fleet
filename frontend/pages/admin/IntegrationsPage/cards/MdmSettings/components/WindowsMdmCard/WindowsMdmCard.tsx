@@ -6,15 +6,16 @@ import Card from "components/Card/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
-const baseClass = "windows-mdm-section";
+const baseClass = "windows-mdm-card";
 
 interface ITurnOnWindowsMdmProps {
   onClickTurnOn: () => void;
 }
+
 const TurnOnWindowsMdm = ({ onClickTurnOn }: ITurnOnWindowsMdmProps) => {
   return (
     <div className={`${baseClass}__turn-on-windows`}>
-      <div className={`${baseClass}__`}>
+      <div>
         <h3>Turn on Windows MDM</h3>
         <p>Turn MDM on for Windows hosts with fleetd.</p>
       </div>
@@ -42,15 +43,15 @@ const TurnOffWindowsMdm = ({ onClickEdit }: ITurnOffWindowsMdmProps) => {
   );
 };
 
-interface IWindowsMdmSectionProps {
+interface IWindowsMdmCardProps {
   turnOnWindowsMdm: () => void;
   editWindowsMdm: () => void;
 }
 
-const WindowsMdmSection = ({
+const WindowsMdmCard = ({
   turnOnWindowsMdm,
   editWindowsMdm,
-}: IWindowsMdmSectionProps) => {
+}: IWindowsMdmCardProps) => {
   const { config } = useContext(AppContext);
 
   const isWindowsMdmEnabled =
@@ -67,4 +68,4 @@ const WindowsMdmSection = ({
   );
 };
 
-export default WindowsMdmSection;
+export default WindowsMdmCard;
