@@ -591,3 +591,94 @@ func TestCachedTeam(t *testing.T) {
 	_, err = ds.Team(ctx, team.ID)
 	require.Error(t, err)
 }
+
+func TestCachedListQueries(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithScheduledQueriesExpiration(10_000*time.Millisecond))
+
+	scheduledQueries := []*fleet.Query{
+		{
+			ID:                 1,
+			Name:               "test",
+			ScheduleInterval:   100,
+			AutomationsEnabled: true,
+		},
+		{
+			ID:                 2,
+			Name:               "test II",
+			ScheduleInterval:   100,
+			AutomationsEnabled: true,
+			TeamID:             ptr.Uint(1),
+		},
+	}
+	nonScheduledQueries := []*fleet.Query{
+		{
+			ID:                 1,
+			Name:               "test III",
+			ScheduleInterval:   0,
+			AutomationsEnabled: false,
+		},
+		{
+			ID:                 1,
+			Name:               "test IV",
+			ScheduleInterval:   0,
+			AutomationsEnabled: false,
+			TeamID:             ptr.Uint(1),
+		},
+	}
+	mockedDS.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		if opt.IsScheduled != nil && *opt.IsScheduled {
+			if opt.TeamID != nil {
+				return []*fleet.Query{scheduledQueries[1]}, nil
+			}
+			return []*fleet.Query{scheduledQueries[0]}, nil
+		}
+		if opt.TeamID != nil {
+			return []*fleet.Query{nonScheduledQueries[1]}, nil
+		}
+		return []*fleet.Query{nonScheduledQueries[0]}, nil
+	}
+
+	// Tests that queries for non-scheduled queries objects always hit the DB
+	opt := fleet.ListQueryOptions{IsScheduled: ptr.Bool(false)}
+	result, err := ds.ListQueries(ctx, opt)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, *nonScheduledQueries[0], *result[0])
+
+	opt = fleet.ListQueryOptions{IsScheduled: ptr.Bool(false), TeamID: ptr.Uint(1)}
+	result, err = ds.ListQueries(ctx, opt)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, *nonScheduledQueries[1], *result[0])
+
+	nonScheduledQueries[1].Name = "Some other name"
+	result, err = ds.ListQueries(ctx, opt)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, *nonScheduledQueries[1], *result[0])
+
+	// Test that queries for scheduled queries objects are cached.
+	opt = fleet.ListQueryOptions{IsScheduled: ptr.Bool(true)}
+	result, err = ds.ListQueries(ctx, opt)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, *scheduledQueries[0], *result[0])
+
+	opt = fleet.ListQueryOptions{IsScheduled: ptr.Bool(true), TeamID: ptr.Uint(1)}
+	result, err = ds.ListQueries(ctx, opt)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, *scheduledQueries[1], *result[0])
+
+	oldName := scheduledQueries[1].Name
+	scheduledQueries[1].Name = "Some change"
+	result, err = ds.ListQueries(ctx, opt)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, oldName, (*result[0]).Name)
+}
