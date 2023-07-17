@@ -86,13 +86,15 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 
 1. In the Fleet UI, head to the **Controls > macOS settings** tab.
 
-2. In the top box, with "Latest," "Pending," and "Failing" statuses, click each status to view a list hosts:
+2. In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list hosts:
 
-* Latest: hosts that applied the latest settings.
+* Verified: hosts that installed all configuration profiles. Fleet verified with osquery.
 
-* Pending: hosts that will apply the latest settings when the hosts come online.
+* Latest: hosts acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery.
 
-* Failing: hosts that are failing to apply the latest settings.
+* Verifying: hosts that will receive MDM commands to install configuration profiles when the hosts come online.
+
+* Failed: hosts that failed to install configuration profiles.
 
 3. In the list of hosts, click on an individual host and click the **macOS settings** item to see the status for a specific setting.
 
