@@ -325,7 +325,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 type deleteQueryRequest struct {
 	Name string `url:"name"`
 	// TeamID if not set is assumed to be 0 (global).
-	TeamID uint `json:"team_id"`
+	TeamID uint `url:"team_id,optional"`
 }
 
 type deleteQueryResponse struct {

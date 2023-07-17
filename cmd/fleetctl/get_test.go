@@ -1007,19 +1007,33 @@ func TestGetQueries(t *testing.T) {
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query1
+  observer_can_run: false
+  platform: ""
   query: select 1;
+  team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc 2
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query2
+  observer_can_run: false
+  platform: ""
   query: select 2;
+  team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -1048,11 +1062,18 @@ func TestGetQuery(t *testing.T) {
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query1
+  observer_can_run: false
+  platform: ""
   query: select 1;
+  team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "query1"}))
@@ -1167,11 +1188,18 @@ func TestGetQueriesAsObserver(t *testing.T) {
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc 2
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query2
+  observer_can_run: true
+  platform: ""
   query: select 2;
+  team: ""
 `
-			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
 `
 
 			assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -1213,27 +1241,48 @@ spec:
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query1
+  observer_can_run: false
+  platform: ""
   query: select 1;
+  team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc 2
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query2
+  observer_can_run: true
+  platform: ""
   query: select 2;
+  team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc 3
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query3
+  observer_can_run: false
+  platform: ""
   query: select 3;
+  team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;"}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))

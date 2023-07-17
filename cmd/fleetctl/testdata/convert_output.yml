@@ -44,35 +44,70 @@ spec:
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: Retrieves the list of application scheme/protocol-based IPC handlers.
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: app_schemes
+  observer_can_run: false
+  platform: ""
   query: select * from app_schemes;
+  team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: Retrieves the current disk encryption status for the target system.
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: disk_encryption
+  observer_can_run: false
+  platform: ""
   query: select * from disk_encryption;
+  team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: Retrieves the current filters and chains per filter in the target system.
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: iptables
+  observer_can_run: false
+  platform: ""
   query: select * from iptables;
+  team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: Retrieves all the daemons that will run in the start of the target
     OSX system.
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: launchd
+  observer_can_run: false
+  platform: ""
   query: select * from launchd;
+  team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: Lists the application bundle that owns a sandbox label.
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: sandboxes
+  observer_can_run: false
+  platform: ""
   query: select * from sandboxes;
+  team: ""

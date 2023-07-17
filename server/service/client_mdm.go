@@ -119,7 +119,7 @@ func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, team
 	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
 		// not found is OK, it means this is our first time uploading a package
-		if !errors.Is(err, notFoundErr{}) {
+		if !errors.As(err, &notFoundErr{}) {
 			return fmt.Errorf("getting bootstrap package metadata: %w", err)
 		}
 		isFirstTime = true
