@@ -17,7 +17,7 @@ import {
   SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
 } from "utilities/constants";
 import RevealButton from "components/buttons/RevealButton";
-import { IPlatformString } from "interfaces/platform";
+import { SelectedPlatformString } from "interfaces/platform";
 import {
   ICreateQueryRequestBody,
   ISchedulableQuery,
@@ -63,7 +63,7 @@ const SaveQueryModal = ({
   const [
     selectedPlatformOptions,
     setSelectedPlatformOptions,
-  ] = useState<IPlatformString>(existingQuery?.platform ?? "");
+  ] = useState<SelectedPlatformString>(existingQuery?.platform ?? "");
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
@@ -128,12 +128,12 @@ const SaveQueryModal = ({
       if (valArray.indexOf("") === 0 && valArray.length > 1) {
         // TODO - inmprove type safety of all 3 options
         setSelectedPlatformOptions(
-          pull(valArray, "").join(",") as IPlatformString
+          pull(valArray, "").join(",") as SelectedPlatformString
         );
       } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
         setSelectedPlatformOptions("");
       } else {
-        setSelectedPlatformOptions(values as IPlatformString);
+        setSelectedPlatformOptions(values as SelectedPlatformString);
       }
     },
     [setSelectedPlatformOptions]
