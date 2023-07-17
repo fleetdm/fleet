@@ -5853,9 +5853,9 @@ func (s *integrationMDMTestSuite) newGetPoliciesMsg(deviceToken bool, encodedBin
 	}
 
 	// JWT token by default
-	tokenType := "urn:ietf:params:oauth:token-type:jwt"
+	tokType := microsoft_mdm.BinarySecurityAzureEnroll
 	if deviceToken {
-		tokenType = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken"
+		tokType = microsoft_mdm.BinarySecurityDeviceEnroll
 	}
 
 	return []byte(`
@@ -5868,7 +5868,7 @@ func (s *integrationMDMTestSuite) newGetPoliciesMsg(deviceToken bool, encodedBin
 				</a:ReplyTo>
 				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>
 				<wsse:Security s:mustUnderstand="1">
-				<wsse:BinarySecurityToken ValueType="` + tokenType + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
+				<wsse:BinarySecurityToken ValueType="` + tokType + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
 				</wsse:Security>
 			</s:Header>
 			<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -5897,9 +5897,9 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 	}
 
 	// JWT token by default
-	tokenType := "urn:ietf:params:oauth:token-type:jwt"
+	tokType := microsoft_mdm.BinarySecurityAzureEnroll
 	if deviceToken {
-		tokenType = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken"
+		tokType = microsoft_mdm.BinarySecurityDeviceEnroll
 	}
 
 	// Preparing the RequestSecurityToken Request message
@@ -5913,7 +5913,7 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 				</a:ReplyTo>
 				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Enrollment.svc</a:To>
 				<wsse:Security s:mustUnderstand="1">
-				<wsse:BinarySecurityToken ValueType="` + tokenType + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
+				<wsse:BinarySecurityToken ValueType="` + tokType + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
 				</wsse:Security>
 			</s:Header>
 			<s:Body>
