@@ -227,19 +227,17 @@ const ManageQueriesPage = ({
       return <TableDataError />;
     }
     return (
-      <div>
-        <QueriesTable
-          queriesList={curTeamEnhancedQueries || []}
-          isLoading={isFetchingCurTeamQueries}
-          onCreateQueryClick={onCreateQueryClick}
-          onDeleteQueryClick={onDeleteQueryClick}
-          isOnlyObserver={isOnlyObserver}
-          isObserverPlus={isObserverPlus}
-          isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
-          router={router}
-          queryParams={queryParams}
-        />
-      </div>
+      <QueriesTable
+        queriesList={curTeamEnhancedQueries || []}
+        isLoading={isFetchingCurTeamQueries}
+        onCreateQueryClick={onCreateQueryClick}
+        onDeleteQueryClick={onDeleteQueryClick}
+        isOnlyObserver={isOnlyObserver}
+        isObserverPlus={isObserverPlus}
+        isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
+        router={router}
+        queryParams={queryParams}
+      />
     );
   };
 
@@ -274,19 +272,18 @@ const ManageQueriesPage = ({
       return <TableDataError />;
     }
     return (
-      <div>
-        <QueriesTable
-          queriesList={globalEnhancedQueries || []}
-          isLoading={isFetchingGlobalQueries}
-          onCreateQueryClick={onCreateQueryClick}
-          onDeleteQueryClick={onDeleteQueryClick}
-          isOnlyObserver={isOnlyObserver}
-          isObserverPlus={isObserverPlus}
-          isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
-          router={router}
-          queryParams={queryParams}
-        />
-      </div>
+      <QueriesTable
+        queriesList={globalEnhancedQueries || []}
+        isLoading={isFetchingGlobalQueries}
+        onCreateQueryClick={onCreateQueryClick}
+        onDeleteQueryClick={onDeleteQueryClick}
+        isOnlyObserver={isOnlyObserver}
+        isObserverPlus={isObserverPlus}
+        isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
+        router={router}
+        queryParams={queryParams}
+        isInherited
+      />
     );
   };
 
