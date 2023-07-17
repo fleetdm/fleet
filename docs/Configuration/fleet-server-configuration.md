@@ -136,7 +136,7 @@ For the address of the MySQL server that Fleet should connect to, include the ho
 - Config file format:
   ```
   mysql:
-  	address: localhost:3306
+    address: localhost:3306
   ```
 
 ##### mysql_database
@@ -148,7 +148,7 @@ This is the name of the MySQL database which Fleet will use.
 - Config file format:
   ```
   mysql:
-  	database: fleet
+    database: fleet
   ```
 
 ##### mysql_username
@@ -160,7 +160,7 @@ The username to use when connecting to the MySQL instance.
 - Config file format:
   ```
   mysql:
-  	username: fleet
+    username: fleet
   ```
 
 ##### mysql_password
@@ -172,7 +172,7 @@ The password to use when connecting to the MySQL instance.
 - Config file format:
   ```
   mysql:
-  	password: fleet
+    password: fleet
   ```
 
 ##### mysql_password_path
@@ -184,7 +184,7 @@ File path to a file that contains the password to use when connecting to the MyS
 - Config file format:
   ```
   mysql:
-  	password_path: '/run/secrets/fleetdm-mysql-password'
+    password_path: '/run/secrets/fleetdm-mysql-password'
   ```
 
 ##### mysql_tls_ca
@@ -196,7 +196,7 @@ The path to a PEM encoded certificate of MYSQL's CA for client certificate authe
 - Config file format:
   ```
   mysql:
-  	tls_ca: /path/to/server-ca.pem
+    tls_ca: /path/to/server-ca.pem
   ```
 
 ##### mysql_tls_cert
@@ -208,7 +208,7 @@ The path to a PEM encoded certificate is used for TLS authentication.
 - Config file format:
   ```
   mysql:
-  	tls_cert: /path/to/certificate.pem
+    tls_cert: /path/to/certificate.pem
   ```
 
 ##### mysql_tls_key
@@ -220,7 +220,7 @@ The path to a PEM encoded private key used for TLS authentication.
 - Config file format:
   ```
   mysql:
-  	tls_key: /path/to/key.pem
+    tls_key: /path/to/key.pem
   ```
 
 ##### mysql_tls_config
@@ -232,7 +232,7 @@ The TLS value in an MYSQL DSN. Can be `true`,`false`,`skip-verify`, or the CN va
 - Config file format:
   ```
   mysql:
-  	tls_config: true
+    tls_config: true
   ```
 
 ##### mysql_tls_server_name
@@ -244,7 +244,7 @@ This is the server name or IP address used by the client certificate.
 - Config file format:
   ```
   mysql:
-  	server_name: 127.0.0.1
+    server_name: 127.0.0.1
   ```
 
 ##### mysql_max_open_conns
@@ -256,7 +256,7 @@ The maximum open connections to the database.
 - Config file format:
   ```
   mysql:
-  	max_open_conns: 50
+    max_open_conns: 50
   ```
 
 ##### mysql_max_idle_conns
@@ -268,7 +268,7 @@ The maximum idle connections to the database. This value should be equal to or l
 - Config file format:
   ```
   mysql:
-  	max_idle_conns: 50
+    max_idle_conns: 50
   ```
 
 ##### mysql_conn_max_lifetime
@@ -280,7 +280,7 @@ The maximum amount of time, in seconds, a connection may be reused.
 - Config file format:
   ```
   mysql:
-  	conn_max_lifetime: 50
+    conn_max_lifetime: 50
   ```
 
 ##### mysql_sql_mode
@@ -293,7 +293,7 @@ This setting should not usually be used.
 - Config file format:
   ```
   mysql:
-  	sql_mode: ANSI
+    sql_mode: ANSI
   ```
 
 ##### Example YAML
@@ -330,7 +330,7 @@ For the address of the Redis server that Fleet should connect to, include the ho
 - Config file format:
   ```
   redis:
-  	address: 127.0.0.1:7369
+    address: 127.0.0.1:7369
   ```
 
 ##### redis_username
@@ -342,7 +342,7 @@ The username to use when connecting to the Redis instance.
 - Config file format:
   ```
   redis:
-  	username: foobar
+    username: foobar
   ```
 
 ##### redis_password
@@ -354,7 +354,7 @@ The password to use when connecting to the Redis instance.
 - Config file format:
   ```
   redis:
-  	password: foobar
+    password: foobar
   ```
 
 ##### redis_database
@@ -469,7 +469,7 @@ This is the path to a PEM-encoded certificate used for TLS authentication.
 - Config file format:
   ```
   redis:
-  	tls_cert: /path/to/certificate.pem
+    tls_cert: /path/to/certificate.pem
   ```
 
 ##### redis_tls_key
@@ -481,7 +481,7 @@ This is the path to a PEM-encoded private key used for TLS authentication.
 - Config file format:
   ```
   redis:
-  	tls_key: /path/to/key.pem
+    tls_key: /path/to/key.pem
   ```
 
 ##### redis_tls_ca
@@ -493,7 +493,7 @@ This is the path to a PEM-encoded certificate of Redis' CA for client certificat
 - Config file format:
   ```
   redis:
-  	tls_ca: /path/to/server-ca.pem
+    tls_ca: /path/to/server-ca.pem
   ```
 
 ##### redis_tls_server_name
@@ -505,7 +505,7 @@ The server name or IP address used by the client certificate.
 - Config file format:
   ```
   redis:
-  	tls_server_name: 127.0.0.1
+    tls_server_name: 127.0.0.1
   ```
 
 ##### redis_tls_handshake_timeout
@@ -517,7 +517,7 @@ The timeout for the Redis TLS handshake part of the connection. A value of 0 mea
 - Config file format:
   ```
   redis:
-  	tls_handshake_timeout: 10s
+    tls_handshake_timeout: 10s
   ```
 
 ##### redis_max_idle_conns
@@ -529,7 +529,7 @@ The maximum idle connections to Redis. This value should be equal to or less tha
 - Config file format:
   ```
   redis:
-  	max_idle_conns: 50
+    max_idle_conns: 50
   ```
 
 ##### redis_max_open_conns
@@ -541,7 +541,7 @@ The maximum open connections to Redis. A value of 0 means no limit.
 - Config file format:
   ```
   redis:
-  	max_open_conns: 100
+    max_open_conns: 100
   ```
 
 ##### redis_conn_max_lifetime
@@ -553,7 +553,7 @@ The maximum time a Redis connection may be reused. A value of 0 means no limit.
 - Config file format:
   ```
   redis:
-  	conn_max_lifetime: 30m
+    conn_max_lifetime: 30m
   ```
 
 ##### redis_idle_timeout
@@ -565,7 +565,7 @@ The maximum time a Redis connection may stay idle. A value of 0 means no limit.
 - Config file format:
   ```
   redis:
-  	idle_timeout: 5m
+    idle_timeout: 5m
   ```
 
 ##### redis_conn_wait_timeout
@@ -579,7 +579,7 @@ running in cluster mode.
 - Config file format:
   ```
   redis:
-  	conn_wait_timeout: 1s
+    conn_wait_timeout: 1s
   ```
 
 ##### redis_read_timeout
@@ -592,7 +592,7 @@ A value of 0 means no timeout.
 - Config file format:
   ```
   redis:
-  	read_timeout: 5s
+    read_timeout: 5s
   ```
 
 ##### redis_write_timeout
@@ -605,7 +605,7 @@ A value of 0 means no timeout.
 - Config file format:
   ```
   redis:
-  	write_timeout: 5s
+    write_timeout: 5s
   ```
 
 ##### Example YAML
@@ -630,7 +630,7 @@ The address to serve the Fleet webserver.
 - Config file format:
   ```
   server:
-  	address: 0.0.0.0:443
+    address: 0.0.0.0:443
   ```
 
 ##### server_cert
@@ -644,7 +644,7 @@ See [TLS certificate considerations](https://fleetdm.com/docs/deploying/introduc
 - Config file format:
   ```
   server:
-  	cert: /tmp/fleet.crt
+    cert: /tmp/fleet.crt
   ```
 
 ##### server_key
@@ -656,7 +656,7 @@ The TLS key to use when terminating TLS.
 - Config file format:
   ```
   server:
-  	key: /tmp/fleet.key
+    key: /tmp/fleet.key
   ```
 
 ##### server_tls
@@ -668,7 +668,7 @@ Whether or not the server should be served over TLS.
 - Config file format:
   ```
   server:
-  	tls: false
+    tls: false
   ```
 
 ##### server_tls_compatibility
@@ -680,7 +680,7 @@ Configures the TLS settings for compatibility with various user agents. Options 
 - Config file format:
   ```
   server:
-  	tls_compatibility: intermediate
+    tls_compatibility: intermediate
   ```
 
 ##### server_url_prefix
@@ -694,7 +694,7 @@ Note that some other configurations may need to be changed when modifying the UR
 - Config file format:
   ```
   server:
-  	url_prefix: /apps/fleet
+    url_prefix: /apps/fleet
   ```
 
 ##### server_keepalive
@@ -708,7 +708,7 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
 - Config file format:
   ```
   server:
-  	keepalive: true
+    keepalive: true
   ```
 
 ##### server_websockets_allow_unsafe_origin
@@ -725,7 +725,7 @@ Setting to true will disable the origin check.
 - Config file format:
   ```
   server:
-  	websockets_allow_unsafe_origin: true
+    websockets_allow_unsafe_origin: true
   ```
 
 ##### Example YAML
@@ -750,7 +750,7 @@ The bcrypt cost to use when hashing user passwords.
 - Config file format:
   ```
   auth:
-  	bcrypt_cost: 14
+    bcrypt_cost: 14
   ```
 
 ##### auth_salt_key_size
@@ -762,7 +762,7 @@ The key size of the salt which is generated when hashing user passwords.
 - Config file format:
   ```
   auth:
-  	salt_key_size: 36
+    salt_key_size: 36
   ```
 
 ##### Example YAML
@@ -784,7 +784,7 @@ Size of generated app tokens.
 - Config file format:
   ```
   app:
-  	token_key_size: 36
+    token_key_size: 36
   ```
 
 ##### app_invite_token_validity_period
@@ -796,7 +796,7 @@ How long invite tokens should be valid for.
 - Config file format:
   ```
   app:
-  	invite_token_validity_period: 1d
+    invite_token_validity_period: 1d
   ```
 
 ##### app_enable_scheduled_query_stats
@@ -808,7 +808,7 @@ Determines whether Fleet gets scheduled query statistics from hosts or not.
 - Config file format:
   ```
   app:
-  	enable_scheduled_query_stats: true
+    enable_scheduled_query_stats: true
   ```
 
 ##### Example YAML
@@ -865,7 +865,7 @@ The size of the session key.
 - Config file format:
   ```
   session:
-  	key_size: 48
+    key_size: 48
   ```
 
 ##### session_duration
@@ -879,7 +879,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```
   session:
-  	duration: 4h
+    duration: 4h
   ```
 
 ##### Example YAML
@@ -900,7 +900,7 @@ The size of the node key which is negotiated with `osqueryd` clients.
 - Config file format:
   ```
   osquery:
-  	node_key_size: 36
+    node_key_size: 36
   ```
 
 ##### osquery_host_identifier
@@ -920,7 +920,7 @@ Users that have duplicate UUIDs in their environment can benefit from setting th
 - Config file format:
   ```
   osquery:
-  	host_identifier: uuid
+    host_identifier: uuid
   ```
 
 ##### osquery_enroll_cooldown
@@ -934,7 +934,7 @@ This flag can be used to control load on the database in scenarios in which many
 - Config file format:
   ```
   osquery:
-  	enroll_cooldown: 1m
+    enroll_cooldown: 1m
   ```
 
 ##### osquery_label_update_interval
@@ -952,7 +952,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```
   osquery:
-  	label_update_interval: 90m
+    label_update_interval: 90m
   ```
 
 ##### osquery_policy_update_interval
@@ -970,7 +970,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```
   osquery:
-  	policy_update_interval: 90m
+    policy_update_interval: 90m
   ```
 
 ##### osquery_detail_update_interval
@@ -988,7 +988,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```
   osquery:
-  	detail_update_interval: 90m
+    detail_update_interval: 90m
   ```
 
 ##### osquery_status_log_plugin
@@ -1003,7 +1003,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 - Config file format:
   ```
   osquery:
-  	status_log_plugin: firehose
+    status_log_plugin: firehose
   ```
 
 ##### osquery_result_log_plugin
@@ -1017,7 +1017,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 - Config file format:
   ```
   osquery:
-  	result_log_plugin: firehose
+    result_log_plugin: firehose
   ```
 
 ##### osquery_max_jitter_percent
@@ -1034,7 +1034,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 - Config file format:
   ```
   osquery:
-  	max_jitter_percent: 10
+    max_jitter_percent: 10
   ```
 
 ##### osquery_enable_async_host_processing
@@ -1055,7 +1055,7 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
 - Config file format:
   ```
   osquery:
-  	enable_async_host_processing: true
+    enable_async_host_processing: true
   ```
 
 ##### osquery_async_host_collect_interval
@@ -1069,7 +1069,7 @@ It can be set to a single duration value (e.g., "30s"), which defines the interv
 - Config file format:
   ```
   osquery:
-  	async_host_collect_interval: 1m
+    async_host_collect_interval: 1m
   ```
 
 ##### osquery_async_host_collect_max_jitter_percent
@@ -1081,7 +1081,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. A number in
 - Config file format:
   ```
   osquery:
-  	async_host_collect_max_jitter_percent: 5
+    async_host_collect_max_jitter_percent: 5
   ```
 
 ##### osquery_async_host_collect_lock_timeout
@@ -1095,7 +1095,7 @@ It can be set to a single duration value (e.g., "1m"), which defines the lock ti
 - Config file format:
   ```
   osquery:
-  	async_host_collect_lock_timeout: 5m
+    async_host_collect_lock_timeout: 5m
   ```
 
 ##### osquery_async_host_collect_log_stats_interval
@@ -1107,7 +1107,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Interval at
 - Config file format:
   ```
   osquery:
-  	async_host_collect_log_stats_interval: 5m
+    async_host_collect_log_stats_interval: 5m
   ```
 
 ##### osquery_async_host_insert_batch
@@ -1119,7 +1119,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Size of the
 - Config file format:
   ```
   osquery:
-  	async_host_insert_batch: 1000
+    async_host_insert_batch: 1000
   ```
 
 ##### osquery_async_host_delete_batch
@@ -1131,7 +1131,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Size of the
 - Config file format:
   ```
   osquery:
-  	async_host_delete_batch: 1000
+    async_host_delete_batch: 1000
   ```
 
 ##### osquery_async_host_update_batch
@@ -1143,7 +1143,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Size of the
 - Config file format:
   ```
   osquery:
-  	async_host_update_batch: 500
+    async_host_update_batch: 500
   ```
 
 ##### osquery_async_host_redis_pop_count
@@ -1155,7 +1155,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Maximum num
 - Config file format:
   ```
   osquery:
-  	async_host_redis_pop_count: 500
+    async_host_redis_pop_count: 500
   ```
 
 ##### osquery_async_host_redis_scan_keys_count
@@ -1167,7 +1167,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Order of ma
 - Config file format:
   ```
   osquery:
-  	async_host_redis_scan_keys_count: 100
+    async_host_redis_scan_keys_count: 100
   ```
 
 ##### osquery_min_software_last_opened_at_diff
@@ -1179,7 +1179,7 @@ The minimum time difference between the software's "last opened at" timestamp re
 - Config file format:
   ```
   osquery:
-  	min_software_last_opened_at_diff: 4h
+    min_software_last_opened_at_diff: 4h
   ```
 
 ##### Example YAML
@@ -1239,7 +1239,7 @@ Whether or not to enable debug logging.
 - Config file format:
   ```
   logging:
-  	debug: true
+    debug: true
   ```
 
 ##### logging_json
@@ -1251,7 +1251,7 @@ Whether or not to log in JSON.
 - Config file format:
   ```
   logging:
-  	json: true
+    json: true
   ```
 
 ##### logging_disable_banner
@@ -1263,7 +1263,7 @@ Whether or not to log the welcome banner.
 - Config file format:
   ```
   logging:
-  	disable_banner: true
+    disable_banner: true
   ```
 
 ##### logging_error_retention_period
@@ -1277,7 +1277,7 @@ and a negative value to disable storage of errors in Redis.
 - Config file format:
   ```
   logging:
-  	error_retention_period: 1h
+    error_retention_period: 1h
   ```
 
 ##### Example YAML
@@ -1301,7 +1301,7 @@ The path which osquery status logs will be logged to.
 - Config file format:
   ```
   filesystem:
-  	status_log_file: /var/log/osquery/status.log
+    status_log_file: /var/log/osquery/status.log
   ```
 
 ##### filesystem_result_log_file
@@ -1315,7 +1315,7 @@ The path which osquery result logs will be logged to.
 - Config file format:
   ```
   filesystem:
-  	result_log_file: /var/log/osquery/result.log
+    result_log_file: /var/log/osquery/result.log
   ```
 
 ##### filesystem_audit_log_file
@@ -1434,7 +1434,7 @@ AWS region to use for Firehose connection.
 - Config file format:
   ```
   firehose:
-  	region: ca-central-1
+    region: ca-central-1
   ```
 
 ##### firehose_access_key_id
@@ -1452,7 +1452,7 @@ AWS access key ID to use for Firehose authentication.
 - Config file format:
   ```
   firehose:
-  	access_key_id: AKIAIOSFODNN7EXAMPLE
+    access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
 ##### firehose_secret_access_key
@@ -1468,7 +1468,7 @@ AWS secret access key to use for Firehose authentication.
 - Config file format:
   ```
   firehose:
-  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
 ##### firehose_sts_assume_role_arn
@@ -1484,7 +1484,7 @@ AWS STS role ARN to use for Firehose authentication.
 - Config file format:
   ```
   firehose:
-  	sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
   ```
 
 ##### firehose_status_stream
@@ -1498,7 +1498,7 @@ Name of the Firehose stream to write osquery status logs received from clients.
 - Config file format:
   ```
   firehose:
-  	status_stream: osquery_status
+    status_stream: osquery_status
   ```
 
 The IAM role used to send to Firehose must allow the following permissions on
@@ -1518,7 +1518,7 @@ Name of the Firehose stream to write osquery result logs received from clients.
 - Config file format:
   ```
   firehose:
-  	result_stream: osquery_result
+    result_stream: osquery_result
   ```
 
 The IAM role used to send to Firehose must allow the following permissions on
@@ -1578,7 +1578,7 @@ AWS region to use for Kinesis connection
 - Config file format:
   ```
   kinesis:
-  	region: ca-central-1
+    region: ca-central-1
   ```
 
 ##### kinesis_access_key_id
@@ -1599,7 +1599,7 @@ AWS access key ID to use for Kinesis authentication.
 - Config file format:
   ```
   kinesis:
-  	access_key_id: AKIAIOSFODNN7EXAMPLE
+    access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
 ##### kinesis_secret_access_key
@@ -1615,7 +1615,7 @@ AWS secret access key to use for Kinesis authentication.
 - Config file format:
   ```
   kinesis:
-  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
 ##### kinesis_sts_assume_role_arn
@@ -1631,7 +1631,7 @@ AWS STS role ARN to use for Kinesis authentication.
 - Config file format:
   ```
   kinesis:
-  	sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
   ```
 
 ##### kinesis_status_stream
@@ -1645,7 +1645,7 @@ Name of the Kinesis stream to write osquery status logs received from clients.
 - Config file format:
   ```
   kinesis:
-  	status_stream: osquery_status
+    status_stream: osquery_status
   ```
 
 The IAM role used to send to Kinesis must allow the following permissions on
@@ -1665,7 +1665,7 @@ Name of the Kinesis stream to write osquery result logs received from clients.
 - Config file format:
   ```
   kinesis:
-  	result_stream: osquery_result
+    result_stream: osquery_result
   ```
 
 The IAM role used to send to Kinesis must allow the following permissions on
@@ -1724,7 +1724,7 @@ AWS region to use for Lambda connection.
 - Config file format:
   ```
   lambda:
-  	region: ca-central-1
+    region: ca-central-1
   ```
 
 ##### lambda_access_key_id
@@ -1745,7 +1745,7 @@ AWS access key ID to use for Lambda authentication.
 - Config file format:
   ```
   lambda:
-  	access_key_id: AKIAIOSFODNN7EXAMPLE
+    access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
 ##### lambda_secret_access_key
@@ -1761,7 +1761,7 @@ AWS secret access key to use for Lambda authentication.
 - Config file format:
   ```
   lambda:
-  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
 ##### lambda_sts_assume_role_arn
@@ -1777,7 +1777,7 @@ AWS STS role ARN to use for Lambda authentication.
 - Config file format:
   ```
   lambda:
-  	sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
   ```
 
 ##### lambda_status_function
@@ -1810,7 +1810,7 @@ Name of the Lambda function to write osquery result logs received from clients.
 - Config file format:
   ```
   lambda:
-  	result_function: resultFunction
+    result_function: resultFunction
   ```
 
 The IAM role used to send to Lambda must allow the following permissions on
@@ -2087,7 +2087,7 @@ AWS region to use for SES connection.
 - Config file format:
   ```yaml
   ses:
-  	region: us-east-2
+    region: us-east-2
   ```
 
 ##### ses_access_key_id
@@ -2106,7 +2106,7 @@ AWS access key ID to use for Lambda authentication.
 - Config file format:
   ```
   ses:
-  	access_key_id: AKIAIOSFODNN7EXAMPLE
+    access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
 ##### ses_secret_access_key
@@ -2125,7 +2125,7 @@ AWS secret access key to use for SES authentication.
 - Config file format:
   ```yaml
   ses:
-  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
 ##### ses_sts_assume_role_arn
@@ -2139,7 +2139,7 @@ AWS STS role ARN to use for SES authentication.
 - Config file format:
   ```yaml
   ses:
-  	sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
 ##### ses_source_arn
@@ -2155,7 +2155,7 @@ for the email address specified in the Source parameter of SendRawEmail.
 - Config file format:
   ```yaml
   ses:
-  	sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
 #### S3 file carving backend
@@ -2169,7 +2169,7 @@ Name of the S3 bucket to use to store file carves.
 - Config file format:
   ```
   s3:
-  	bucket: some-carve-bucket
+    bucket: some-carve-bucket
   ```
 
 ##### s3_prefix
@@ -2183,7 +2183,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
 - Config file format:
   ```
   s3:
-  	prefix: carves-go-here/
+    prefix: carves-go-here/
   ```
 
 ##### s3_access_key_id
@@ -2200,7 +2200,7 @@ The IAM identity used in this context must be allowed to perform the following a
 - Config file format:
   ```
   s3:
-  	access_key_id: AKIAIOSFODNN7EXAMPLE
+    access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
 ##### s3_secret_access_key
@@ -2212,7 +2212,7 @@ AWS secret access key to use for S3 authentication.
 - Config file format:
   ```
   s3:
-  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
 ##### s3_sts_assume_role_arn
@@ -2224,7 +2224,7 @@ AWS STS role ARN to use for S3 authentication.
 - Config file format:
   ```
   s3:
-  	sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
 ##### s3_endpoint_url
@@ -2237,7 +2237,7 @@ or running s3 locally with localstack. Leave this blank to use the default S3 se
 - Config file format:
   ```
   s3:
-  	endpoint_url: http://localhost:9000
+    endpoint_url: http://localhost:9000
   ```
 
 ##### s3_disable_ssl
@@ -2249,7 +2249,7 @@ AWS S3 Disable SSL. Useful for local testing.
 - Config file format:
   ```
   s3:
-  	disable_ssl: false
+    disable_ssl: false
   ```
 
 ##### s3_force_s3_path_style
@@ -2266,7 +2266,7 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 - Config file format:
   ```
   s3:
-  	force_s3_path_style: false
+    force_s3_path_style: false
   ```
 
 ##### s3_region
@@ -2280,7 +2280,7 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 - Config file format:
   ```
   s3:
-  	region: us-east-1
+    region: us-east-1
   ```
 
 ##### Example YAML
@@ -2322,7 +2322,7 @@ When `current_instance_checks` is set to `auto` (the default), Fleet instances w
 - Config file format:
   ```
   vulnerabilities:
-  	databases_path: /some/path
+    databases_path: /some/path
   ```
 
 ##### periodicity
@@ -2334,7 +2334,7 @@ How often vulnerabilities are checked. This is also the interval at which the co
 - Config file format:
   ```
   vulnerabilities:
-  	periodicity: 1h
+    periodicity: 1h
   ```
 
 ##### cpe_database_url
@@ -2349,7 +2349,7 @@ If this value is not defined, Fleet checks for the latest release in Github and 
 - Config file format:
   ```
   vulnerabilities:
-  	cpe_database_url: ""
+    cpe_database_url: ""
   ```
 
 ##### cpe_translations_url
@@ -2365,7 +2365,7 @@ If this value is not defined, Fleet checks for the latest release in Github and 
 - Config file format:
   ```
   vulnerabilities:
-  	cpe_translations_url: ""
+    cpe_translations_url: ""
   ```
 
 ##### cve_feed_prefix_url
@@ -2380,7 +2380,7 @@ When not defined, Fleet downloads from the nvd.nist.gov host.
 - Config file format:
   ```
   vulnerabilities:
-  	cve_feed_prefix_url: ""
+    cve_feed_prefix_url: ""
   ```
 
 ##### current_instance_checks
@@ -2392,7 +2392,7 @@ When running multiple instances of the Fleet server, by default, one of them dyn
 - Config file format:
   ```
   vulnerabilities:
-  	current_instance_checks: yes
+    current_instance_checks: yes
   ```
 
 ##### disable_schedule
@@ -2405,7 +2405,7 @@ tools like crontab.
 - Config file format:
   ```
   vulnerabilities:
-  	disable_schedule: false
+    disable_schedule: false
   ```
 
 ##### disable_data_sync
@@ -2421,7 +2421,7 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
 - Config file format:
   ```
   vulnerabilities:
-  	disable_data_sync: true
+    disable_data_sync: true
   ```
 
 ##### recent_vulnerability_max_age
@@ -2447,7 +2447,7 @@ in your Fleet). Setting this to true will cause Fleet to skip both processes.
 - Config file format:
   ```
   vulnerabilities:
-  	disable_win_os_vulnerabilities: true
+    disable_win_os_vulnerabilities: true
   ```
 
 ##### Example YAML
@@ -3222,5 +3222,5 @@ The HTTP request headers are checked in the following order:
 If the IP retrieved using the above heuristic belongs to a private range, then Fleet will ignore it and will not set the "Public IP address" field for the device.
 
 
-<meta name="pageOrderInSection" value="300">
+<meta name="pageOrderInSection" value="100">
 <meta name="description" value="This page includes resources for configuring the Fleet binary, managing osquery configurations, and running with systemd.">
