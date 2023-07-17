@@ -51,7 +51,7 @@ Step 2 (installing the update) always requires end user action.
 
 Currently, end user macOS update reminders via Nudge don't support RSR versions (ex. "13.4.1 (a)"). 
 
-You can use custom MDM commands in Fleet to trigger built-in macOS update reminders for RSRs. Learn how [here](#end-user macos-update-via-built-in-macos-notifications).
+You can use custom MDM commands in Fleet to trigger built-in macOS update reminders for RSRs. Learn how [here](#end-user-macos-update-via-built-in-macos-notifications).
 
 #### Mac is up to date
 
