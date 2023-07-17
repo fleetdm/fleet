@@ -520,3 +520,4 @@ Below are some projects created by Fleet community members. These projects provi
 
 <meta name="pageOrderInSection" value="200">
 <meta name="description" value="Information on installing and running the Fleet server on various platforms, including CentOS, Kubernetes, and AWS ECS.">
+<meta name="navSection" value="Deployment guides">

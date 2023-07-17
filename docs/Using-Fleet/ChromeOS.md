@@ -23,3 +23,4 @@ To learn how to debug the Fleetd Chrome extension, visit [here](https://fleetdm.
 
 <meta name="title" value="ChromeOS">
 <meta name="pageOrderInSection" value="2000">
+<meta name="navSection" value="Dig deeper">

@@ -1,4 +1,4 @@
-# Teams
+# Segment hosts
 
 `Applies only to Fleet Premium`
 
@@ -132,3 +132,4 @@ To delete a team:
 
 <meta name="pageOrderInSection" value="1000">
 <meta name="description" value="Learn how to group hosts in Fleet to apply specific queries, policies, and agent options using teams.">
+<meta name="navSection" value="The basics">

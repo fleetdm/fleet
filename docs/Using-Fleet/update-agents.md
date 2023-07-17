@@ -162,3 +162,4 @@ After the key(s) have been rotated, publish the repository in the same fashion a
 
 <meta name="pageOrderInSection" value="400">
 <meta name="description" value="Information on how to manage and secure Fleet agent updates.">
+<meta name="navSection" value="Dig deeper">

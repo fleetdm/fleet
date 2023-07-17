@@ -27,3 +27,4 @@ Lastly, we check the state of the watcher process itself. If it is deemed unheal
 
 <meta name="pageOrderInSection" value="700">
 <meta name="description" value="Learn about how osquery process manages child processes and managed extensions in Fleet.">
+<meta name="navSection" value="Osquery management">

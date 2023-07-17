@@ -117,3 +117,4 @@ How to reset a macOS host's password using the disk encryption key:
 <meta name="pageOrderInSection" value="1503">
 <meta name="title" value="MDM disk encryption">
 <meta name="description" value="Learn how to enforce disk encryption on macOS hosts and manage encryption keys with Fleet Premium.">
+<meta name="navSection" value="Device management">

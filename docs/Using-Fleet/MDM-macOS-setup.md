@@ -155,3 +155,4 @@ You should see the URL for your bootstrap package as the value for `mdm.macos_se
 <meta name="pageOrderInSection" value="1505">
 <meta name="title" value="MDM macOS setup">
 <meta name="description" value="Customize your macOS setup experience with Fleet Premium by managing user authentication, Setup Assistant panes, and installing bootstrap packages.">
+<meta name="navSection" value="Device management">

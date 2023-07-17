@@ -76,4 +76,4 @@ Built-in macOS update reminders are available for all Fleet instances. To trigge
 <meta name="pageOrderInSection" value="1502">
 <meta name="title" value="MDM macOS updates">
 <meta name="description" value="Learn how to manage macOS updates and set up end user reminders with Fleet MDM.">
-
+<meta name="navSection" value="Device management">

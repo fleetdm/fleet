@@ -156,3 +156,4 @@ Users that are members of multiple teams can be assigned different roles for eac
 
 <meta name="pageOrderInSection" value="900">
 <meta name="description" value="Learn about the different roles and permissions in Fleet.">
+<meta name="navSection" value="The basics">

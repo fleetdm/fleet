@@ -25,3 +25,4 @@ We test each browser on Windows whenever possible, because our engineering team 
 
 <meta name="pageOrderInSection" value="1200">
 <meta name="description" value="Learn what browser versions are compatible with Fleet.">
+<meta name="navSection" value="The basics">

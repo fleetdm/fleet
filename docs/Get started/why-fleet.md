@@ -60,8 +60,7 @@ Please join us in [MacAdmins Slack](https://www.macadmins.org/) or in [osquery S
 The Fleet community is full of [kind and helpful people](https://fleetdm.com/handbook/company#empathy).  Whether or not you are a paying customer, if you need help, just ask.
 
 
-## Contributing &nbsp; [![Run Tests](https://github.com/fleetdm/fleet/actions/workflows/test.yml/badge.svg)](https://github.com/fleetdm/fleet/actions/workflows/test.yml) &nbsp; [![Go Report Card](https://goreportcard.com/badge/github.com/fleetdm/fleet)](https://goreportcard.com/report/github.com/fleetdm/fleet) &nbsp; [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5537/badge)](https://bestpractices.coreinfrastructure.org/projects/5537) &nbsp; [![Twitter Follow](https://img.shields.io/twitter/follow/fleetctl.svg?style=social&maxAge=3600)](https://twitter.com/fleetctl) &nbsp; 
-
+## Contributing 
 The landscape of cybersecurity and IT is too complex.  Let's open it up.
 
 Contributions are welcome, whether you answer questions on [Slack](#chat) / [GitHub](https://github.com/fleetdm/fleet/issues) / [StackOverflow](https://stackoverflow.com/search?q=osquery) / [LinkedIn](https://linkedin.com/company/fleetdm) / [Twitter](https://twitter.com/fleetctl), improve the documentation or [website](./website), write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).

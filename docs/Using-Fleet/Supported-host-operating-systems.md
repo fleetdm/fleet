@@ -28,3 +28,4 @@ If you aren't sure what version of `glibc` your distribution is using, [DistroWa
 
 <meta name="pageOrderInSection" value="1200">
 <meta name="description" value="This page contains information about operating systems that are compatible with the osquery agent.">
+<meta name="navSection" value="The basics">

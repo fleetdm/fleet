@@ -433,3 +433,4 @@ This will generate a `tar.gz` file with:
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Read about fleetctl, a CLI tool for managing Fleet and osquery configurations, running queries, generating installers, and more.">
+<meta name="navSection" value="The basics">

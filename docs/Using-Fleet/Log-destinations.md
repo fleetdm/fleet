@@ -144,3 +144,4 @@ If `--logger_plugin=tls` is used with osquery clients, the following configurati
 
 <meta name="pageOrderInSection" value="600">
 <meta name="description" value="Learn about supported log destinations in Fleet, including Amazon Kinesis, AWS Lambda Snowflake, Splunk, and more.">
+<meta name="navSection" value="Security compliance">

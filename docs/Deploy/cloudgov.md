@@ -113,3 +113,4 @@ variables](https://fleetdm.com/docs/deploying/configuration#using-only-environme
 <meta name="title" value="Cloud.gov">
 <meta name="pageOrderInSection" value="700">
 <meta name="description" value="A guide for deploying Fleet on Cloud.gov.">
+<meta name="navSection" value="Deployment guides">

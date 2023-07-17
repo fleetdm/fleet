@@ -128,3 +128,4 @@ To disable usage statistics:
 
 <meta name="pageOrderInSection" value="1100">
 <meta name="description" value="Learn about Fleet's usage statistics and what information is collected.">
+<meta name="navSection" value="Dig deeper">
