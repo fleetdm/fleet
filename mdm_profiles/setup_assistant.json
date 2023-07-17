@@ -1,5 +1,5 @@
 {
-	"profile_name": "FleetDM example enrollment profile",
+	"profile_name": "Fleet's example automatic enrollment profile",
 	"allow_pairing": true,
 	"is_mdm_removable": true,
 	"org_magic": "1",
