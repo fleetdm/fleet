@@ -174,9 +174,11 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 ### Step 2: upload the profile to Fleet
 
-Choose which team you want to add the automatic enrollment profile to.
+1. Choose which team you want to add the automatic enrollment profile to.
 
-In this example, we'll add the automatic enrollment profile to the "Workstations (canary)" team. Only hosts that automatically enroll to this team will see the custom macOS Setup Assistant.
+In this example, let's assume you have a "Workstations" team as your [default team](./MDM-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production. 
+
+To do this, we'll create a new "Workstations (canary)" team and add the automatic enrollment profile to it. Only hosts that automatically enroll to this team will see the custom macOS Setup Assistant.
 
 2. Create a `workstations-canary-config.yaml` file:
 
