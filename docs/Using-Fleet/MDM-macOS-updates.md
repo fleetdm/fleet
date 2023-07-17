@@ -158,8 +158,6 @@ Request payload:
 </plist>
 ```
 
-To trigger these reminders, run the ["Schedule an OS update" MDM command](https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update).
-
 <meta name="pageOrderInSection" value="1502">
 <meta name="title" value="MDM macOS updates">
 <meta name="description" value="Learn how to manage macOS updates and set up end user reminders with Fleet MDM.">
