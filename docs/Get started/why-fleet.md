@@ -75,3 +75,5 @@ To see what Fleet can do, head over to [fleetdm.com](https://fleetdm.com) and tr
 
 #### Production deployment
 Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet).  Or you can have us [host it for you](https://fleetdm.com/pricing).  Premium features are [available](https://fleetdm.com/pricing) either way.
+
+<meta name="pageOrderInSection" value="100">
