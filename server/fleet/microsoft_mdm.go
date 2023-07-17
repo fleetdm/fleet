@@ -59,7 +59,7 @@ func (req *SoapRequest) GetHeaderBinarySecurityToken() (*HeaderBinarySecurityTok
 		return nil, errors.New("binarySecurityToken encoding is invalid")
 	}
 
-	if req.Header.Security.Security.Value != mdm.BinarySecurityTokenDeviceEnroll && req.Header.Security.Security.Value != mdm.BinarySecurityTokenAzureJWTEnroll {
+	if req.Header.Security.Security.Value != mdm.BinarySecurityDeviceEnroll && req.Header.Security.Security.Value != mdm.BinarySecurityAzureEnroll {
 		return nil, errors.New("binarySecurityToken type is invalid")
 	}
 
@@ -357,7 +357,7 @@ func (token *HeaderBinarySecurityToken) IsValidToken() error {
 		return errors.New("binary security token is empty")
 	}
 
-	if token.Value != microsoft_mdm.BinarySecurityTokenDeviceEnroll && token.Value != microsoft_mdm.BinarySecurityTokenAzureJWTEnroll {
+	if token.Value != microsoft_mdm.BinarySecurityDeviceEnroll && token.Value != microsoft_mdm.BinarySecurityAzureEnroll {
 		return errors.New("binary security token is invalid")
 	}
 
@@ -370,7 +370,7 @@ func (token *HeaderBinarySecurityToken) IsAzureJWTToken() bool {
 		return false
 	}
 
-	if token.Value == microsoft_mdm.BinarySecurityTokenAzureJWTEnroll {
+	if token.Value == microsoft_mdm.BinarySecurityAzureEnroll {
 		return true
 	}
 
@@ -383,7 +383,7 @@ func (token *HeaderBinarySecurityToken) IsDeviceToken() bool {
 		return false
 	}
 
-	if token.Value == microsoft_mdm.BinarySecurityTokenDeviceEnroll {
+	if token.Value == microsoft_mdm.BinarySecurityDeviceEnroll {
 		return true
 	}
 
