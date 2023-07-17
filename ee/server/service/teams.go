@@ -635,7 +635,7 @@ func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fle
 	for _, spec := range specs {
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
 		if err != nil {
-			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
+			if fleet.IsNotFound(err) {
 				// Can the user create a new team?
 				if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 					return err
@@ -688,7 +688,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		switch {
 		case err == nil:
 			// OK
-		case ctxerr.Cause(err) == sql.ErrNoRows:
+		case fleet.IsNotFound(err):
 			if spec.Name == "" {
 				return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
 			}

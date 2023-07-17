@@ -15,6 +15,9 @@ func TestTeamScheduleAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return nil, nil
+	}
 	ds.EnsureTeamPackFunc = func(ctx context.Context, teamID uint) (*fleet.Pack, error) {
 		return &fleet.Pack{
 			ID:   999,
@@ -25,7 +28,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
-		return &fleet.Query{}, nil
+		return &fleet.Query{TeamID: ptr.Uint(1)}, nil
 	}
 	ds.ScheduledQueryFunc = func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
 		return &fleet.ScheduledQuery{}, nil
@@ -37,6 +40,12 @@ func TestTeamScheduleAuth(t *testing.T) {
 		return sq, nil
 	}
 	ds.DeleteScheduledQueryFunc = func(ctx context.Context, id uint) error {
+		return nil
+	}
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query) error {
+		return nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 
@@ -62,6 +71,18 @@ func TestTeamScheduleAuth(t *testing.T) {
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 			true,
+			false, // global observer can view all queries and scheduled queries.
+		},
+		{
+			"global observer+",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			true,
+			false, // global observer+ can view all queries and scheduled queries.
+		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
 			true,
 		},
 		{
@@ -83,6 +104,18 @@ func TestTeamScheduleAuth(t *testing.T) {
 			false,
 		},
 		{
+			"team observer+, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			true,
+			false,
+		},
+		{
+			"team gitops, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			false,
+			true,
+		},
+		{
 			"team maintainer, DOES NOT belong to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
 			true,
@@ -97,6 +130,18 @@ func TestTeamScheduleAuth(t *testing.T) {
 		{
 			"team observer, DOES NOT belong to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"team observer+, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserverPlus}}},
+			true,
+			true,
+		},
+		{
+			"team gitops, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}}},
 			true,
 			true,
 		},

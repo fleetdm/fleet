@@ -105,12 +105,15 @@ func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fle
 	}, nil
 }
 
+// TODO(lucas): Document new behavior.
 func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	query, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
 	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, ctxerr.Wrap(ctx, err, "get query from id")
 	}
 	if query.TeamID == nil || *query.TeamID != teamID {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, ctxerr.Wrap(ctx, err, "query must belong to the team")
 	}
 	query, err = svc.ModifyQuery(ctx, scheduledQuery.QueryID, fleet.ScheduledQueryToQueryPayloadForModifyQuery(scheduledQuery, nil, nil))

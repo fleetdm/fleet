@@ -52,7 +52,6 @@ func getScheduledQueriesInPackEndpoint(ctx context.Context, request interface{},
 }
 
 func (svc *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	// Scheduled queries are currently authorized the same as packs.
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}

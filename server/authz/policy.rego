@@ -507,13 +507,6 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins, maintainers, observers and observer_plus can read 2017 packs.
-allow {
-  object.type == "pack"
-  subject.global_role == [admin, maintainer, observer, observer_plus][_]
-  action == read
-}
-
 ##
 # File Carves
 ##
