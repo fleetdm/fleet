@@ -166,9 +166,11 @@ const generateTableHeaders = ({
       accessor: "platforms",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
         // translate the SelectedPlatformString into an array of `SupportedPlatform`s
-        const selectedPlatforms = cellProps.row.original.platform
-          .split(",")
-          .filter((platform) => platform !== "") as SupportedPlatform[];
+        const selectedPlatforms =
+          (cellProps.row.original.platform
+            ?.split(",")
+            .filter((platform) => platform !== "") as SupportedPlatform[]) ??
+          [];
 
         const platformIconsToRender: SupportedPlatform[] =
           selectedPlatforms.length === 0
