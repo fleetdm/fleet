@@ -11,11 +11,6 @@ import Icon from "components/Icon/Icon";
 
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 
-// TODO
-interface ISchedulableQueriesScheduled {
-  query_ids: number[];
-}
-
 interface IFrequencyIndicator {
   frequency: number;
   checked: boolean;
@@ -26,7 +21,7 @@ interface IManageAutomationsModalProps {
   onCancel: () => void;
   togglePreviewDataModal: () => void;
   availableQueries?: ISchedulableQuery[];
-  scheduledQueriesConfig: ISchedulableQueriesScheduled;
+  automatedQueryIds: number[];
   logDestination: string;
 }
 
@@ -39,13 +34,13 @@ interface ICheckedQuery {
 
 const useCheckboxListStateManagement = (
   allQueries: ISchedulableQuery[],
-  automatedQueries: number[] | undefined
+  automatedQueryIds: number[] | undefined
 ) => {
   const [queryItems, setQueryItems] = useState<ICheckedQuery[]>(() => {
     return allQueries.map(({ name, id, interval }) => ({
       name,
       id,
-      isChecked: !!automatedQueries?.includes(id),
+      isChecked: !!automatedQueryIds?.includes(id),
       interval,
     }));
   });
@@ -65,7 +60,7 @@ const baseClass = "manage-automations-modal";
 
 const ManageAutomationsModal = ({
   isUpdatingAutomations,
-  scheduledQueriesConfig,
+  automatedQueryIds,
   handleSubmit,
   onCancel,
   togglePreviewDataModal,
@@ -75,22 +70,21 @@ const ManageAutomationsModal = ({
   // TODO: Error handling, if any
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
+  console.log("MANAGEAUTOMATIONSMODAL automatedQueryIds", automatedQueryIds);
   const { queryItems, updateQueryItems } = useCheckboxListStateManagement(
     availableQueries || [],
-    scheduledQueriesConfig?.query_ids || []
+    automatedQueryIds || []
   );
 
   const onSubmit = (evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent) => {
     evt.preventDefault();
 
+    console.log("automatedQueryIds", automatedQueryIds);
     const newQueryIds: number[] = [];
     queryItems?.forEach((p) => p.isChecked && newQueryIds.push(p.id));
 
-    const newErrors = { ...errors };
-
+    console.log("newQueryIds", newQueryIds);
     handleSubmit(newQueryIds);
-
-    setErrors(newErrors);
   };
 
   useEffect(() => {

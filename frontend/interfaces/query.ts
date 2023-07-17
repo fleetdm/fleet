@@ -8,6 +8,7 @@ export interface IQueryFormData {
   name?: string | number | boolean | undefined;
   query?: string | number | boolean | undefined;
   observer_can_run?: string | number | boolean | undefined;
+  automations_enabled?: boolean;
 }
 
 export interface IStoredQueryResponse {

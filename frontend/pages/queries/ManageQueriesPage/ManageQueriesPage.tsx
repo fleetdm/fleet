@@ -119,6 +119,7 @@ const ManageQueriesPage = ({
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [showInheritedQueries, setShowInheritedQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
+  const [automatedQueryIds, setAutomatedQueryIds] = useState<number[]>([]);
 
   const {
     data: curTeamEnhancedQueries,
@@ -132,9 +133,16 @@ const ManageQueriesPage = ({
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
       select: (data) => data.queries.map(enhanceQuery),
+      onSuccess: (data) => {
+        const scheduledQueries = data
+          .filter((query) => query.automations_enabled)
+          .map((query) => query.id);
+        setAutomatedQueryIds(scheduledQueries);
+      },
     }
   );
 
+  console.log("automatedQueryIds", automatedQueryIds);
   // If a team is selected, fetch inherited global queries as well
   const {
     data: globalEnhancedQueries,
@@ -322,32 +330,49 @@ const ManageQueriesPage = ({
     );
   };
 
-  // TODO: Need backend API specs to create correct call
-  const onSaveQueryAutomations = useCallback(async () => {
-    const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
+  const onSaveQueryAutomations = useCallback(
+    async (newAutomatedQueryIds) => {
+      setIsUpdatingAutomations(true);
 
-    setIsUpdatingAutomations(true);
-
-    // TODO: build/format API call to update query automations rather than delete queries
-    const updateAutomatedQueries = selectedQueryIds.map((id) =>
-      queriesAPI.destroy(id)
-    );
-
-    try {
-      await Promise.all(updateAutomatedQueries).then(() => {
-        renderFlash("success", `Successfully updated query automations.`);
-        refetchAllQueries();
-      });
-    } catch (errorResponse) {
-      renderFlash(
-        "error",
-        `There was an error updating your query automations. Please try again later.`
+      // Query ids added to turn on automations
+      const turnOnAutomations = newAutomatedQueryIds.filter(
+        (query: number) => !automatedQueryIds.includes(query)
       );
-    } finally {
-      toggleManageAutomationsModal();
-      setIsUpdatingAutomations(false);
-    }
-  }, [refetchAllQueries, selectedQueryIds, toggleManageAutomationsModal]);
+      // Query ids removed to turn off automations
+      const turnOffAutomations = automatedQueryIds.filter(
+        (query: number) => !newAutomatedQueryIds.includes(query)
+      );
+
+      // Update query automations using queries/{id} manage_automations parameter
+      const updateAutomatedQueries = [];
+      updateAutomatedQueries.push(
+        turnOnAutomations.map((id: number) =>
+          queriesAPI.update(id, { automations_enabled: true })
+        )
+      );
+      updateAutomatedQueries.push(
+        turnOffAutomations.map((id: number) =>
+          queriesAPI.update(id, { automations_enabled: false })
+        )
+      );
+
+      try {
+        await Promise.all(updateAutomatedQueries).then(() => {
+          renderFlash("success", `Successfully updated query automations.`);
+          refetchAllQueries();
+        });
+      } catch (errorResponse) {
+        renderFlash(
+          "error",
+          `There was an error updating your query automations. Please try again later.`
+        );
+      } finally {
+        toggleManageAutomationsModal();
+        setIsUpdatingAutomations(false);
+      }
+    },
+    [refetchAllQueries, automatedQueryIds, toggleManageAutomationsModal]
+  );
 
   // const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
@@ -368,7 +393,7 @@ const ManageQueriesPage = ({
             onCancel={toggleManageAutomationsModal}
             togglePreviewDataModal={togglePreviewDataModal}
             availableQueries={curTeamEnhancedQueries}
-            scheduledQueriesConfig={{ query_ids: [1, 2] }}
+            automatedQueryIds={automatedQueryIds}
             logDestination={config?.logging.result.plugin || ""}
           />
         )}
@@ -391,7 +416,7 @@ const ManageQueriesPage = ({
           <div className={`${baseClass}__action-button-container`}>
             {(isGlobalAdmin || isTeamAdmin) && (
               <Button
-                onClick={toggleManageAutomationsModal}
+                onClick={onManageAutomationsClick}
                 className={`${baseClass}__manage-automations button`}
                 variant="inverse"
               >

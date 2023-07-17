@@ -433,7 +433,7 @@ const globalQueries = {
       interval: 604800, // Weekly
       platform: "",
       min_osquery_version: "",
-      automations_enabled: false,
+      automations_enabled: true,
       logging: "differential",
       saved: false,
       author_id: 2,
@@ -460,7 +460,7 @@ const globalQueries = {
       interval: 0, // Never
       platform: "",
       min_osquery_version: "",
-      automations_enabled: false,
+      automations_enabled: true,
       logging: "differential",
       saved: false,
       author_id: 2,
