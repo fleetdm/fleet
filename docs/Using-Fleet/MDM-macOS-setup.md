@@ -170,6 +170,8 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 4. In your automatic enrollment profile, edit the `skip_setup_items` array so that it includes the panes you want to hide.
 
+> You can modify properties other than `skip_setup_items`. These are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/profile).
+
 ### Step 2: upload the profile to Fleet
 
 Choose which team you want to add the automatic enrollment profile to.
