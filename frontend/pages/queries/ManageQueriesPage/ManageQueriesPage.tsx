@@ -1,10 +1,4 @@
-import React, {
-  useContext,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useContext, useCallback, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { pick } from "lodash";
@@ -13,7 +7,7 @@ import { AppContext } from "context/app";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { performanceIndicator } from "utilities/helpers";
-import { IOsqueryPlatform } from "interfaces/platform";
+import { SupportedPlatform } from "interfaces/platform";
 import {
   IListQueriesResponse,
   ISchedulableQuery,
@@ -52,10 +46,12 @@ interface IManageQueriesPageProps {
 
 interface IEnhancedQuery extends ISchedulableQuery {
   performance: string;
-  platforms: string[];
+  platforms: SupportedPlatform[] | typeof DEFAULT_EMPTY_CELL_VALUE[];
 }
 
-const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
+const getPlatforms = (
+  queryString: string
+): SupportedPlatform[] | typeof DEFAULT_EMPTY_CELL_VALUE[] => {
   const { platforms } = checkPlatformCompatibility(queryString);
 
   return platforms || [DEFAULT_EMPTY_CELL_VALUE];
