@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"math/rand"
+	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -86,13 +89,33 @@ func globalScheduleQueryEndpoint(ctx context.Context, request interface{}, svc f
 	return globalScheduleQueryResponse{Scheduled: scheduled}, nil
 }
 
-// TODO(lucas): Document that the POST now behaves like the PATCH.
-func (svc *Service) GlobalScheduleQuery(ctx context.Context, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	query, err := svc.ModifyQuery(ctx, scheduledQuery.QueryID, fleet.ScheduledQueryToQueryPayloadForModifyQuery(scheduledQuery, nil, nil))
-	if err != nil {
-		return nil, err
+const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func randomString(n int) string {
+	sb := strings.Builder{}
+	sb.Grow(n)
+	for i := 0; i < n; i++ {
+		sb.WriteByte(stringVals[rand.Int63()%int64(len(stringVals))])
 	}
-	return fleet.ScheduledQueryFromQuery(query), nil
+	return sb.String()
+}
+
+func (svc *Service) GlobalScheduleQuery(ctx context.Context, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+	originalQuery, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "create new query")
+	}
+	if originalQuery.TeamID != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.New(ctx, "cannot create a global schedule from a team query")
+	}
+	originalQuery.Name = "Copy of " + originalQuery.Name + " (" + randomString(8) + ")"
+	newQuery, err := svc.NewQuery(ctx, fleet.ScheduledQueryToQueryPayloadForNewQuery(originalQuery, scheduledQuery))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create new query")
+	}
+	return fleet.ScheduledQueryFromQuery(newQuery), nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +148,7 @@ func modifyGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) ModifyGlobalScheduledQueries(ctx context.Context, id uint, scheduledQueryPayload fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	query, err := svc.ModifyQuery(ctx, id, fleet.ScheduledQueryPayloadToQueryPayload(scheduledQueryPayload))
+	query, err := svc.ModifyQuery(ctx, id, fleet.ScheduledQueryPayloadToQueryPayloadForModifyQuery(scheduledQueryPayload))
 	if err != nil {
 		return nil, err
 	}
@@ -158,11 +181,5 @@ func deleteGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 
 // TODO(lucas): Document new behavior.
 func (svc *Service) DeleteGlobalScheduledQueries(ctx context.Context, id uint) error {
-	if _, err := svc.ModifyQuery(ctx, id, fleet.QueryPayload{
-		Interval:           ptr.Uint(0),
-		AutomationsEnabled: ptr.Bool(false),
-	}); err != nil {
-		return err
-	}
-	return nil
+	return svc.DeleteQueryByID(ctx, id)
 }

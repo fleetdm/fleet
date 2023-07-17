@@ -307,6 +307,8 @@ type Host struct {
 	// The boolean is based on information ingested from the Apple DEP API that is stored in the
 	// host_dep_assignments table.
 	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
+
+	QueryStats []QueryStats `json:"query_stats"`
 }
 
 type MDMHostData struct {

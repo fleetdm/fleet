@@ -105,22 +105,23 @@ func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fle
 	}, nil
 }
 
-// TODO(lucas): Document new behavior.
 func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	query, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
+	originalQuery, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, ctxerr.Wrap(ctx, err, "get query from id")
 	}
-	if query.TeamID == nil || *query.TeamID != teamID {
+	if originalQuery.TeamID != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, ctxerr.New(ctx, "query must belong to the team")
+		return nil, ctxerr.New(ctx, "cannot create a team schedule from a team query")
 	}
-	query, err = svc.ModifyQuery(ctx, scheduledQuery.QueryID, fleet.ScheduledQueryToQueryPayloadForModifyQuery(scheduledQuery, nil, nil))
+	originalQuery.Name = "Copy of " + originalQuery.Name + " (" + randomString(16) + ")"
+	originalQuery.TeamID = &teamID
+	newQuery, err := svc.NewQuery(ctx, fleet.ScheduledQueryToQueryPayloadForNewQuery(originalQuery, scheduledQuery))
 	if err != nil {
 		return nil, err
 	}
-	return fleet.ScheduledQueryFromQuery(query), nil
+	return fleet.ScheduledQueryFromQuery(newQuery), nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -156,7 +157,7 @@ func (svc Service) ModifyTeamScheduledQueries(
 	scheduledQueryID uint,
 	scheduledQueryPayload fleet.ScheduledQueryPayload,
 ) (*fleet.ScheduledQuery, error) {
-	query, err := svc.ModifyQuery(ctx, scheduledQueryID, fleet.ScheduledQueryPayloadToQueryPayload(scheduledQueryPayload))
+	query, err := svc.ModifyQuery(ctx, scheduledQueryID, fleet.ScheduledQueryPayloadToQueryPayloadForModifyQuery(scheduledQueryPayload))
 	if err != nil {
 		return nil, err
 	}
@@ -191,11 +192,5 @@ func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 // TODO(lucas): Document new behavior.
 // teamID is not used because of mismatch between old internal representation and API.
 func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint) error {
-	if _, err := svc.ModifyQuery(ctx, scheduledQueryID, fleet.QueryPayload{
-		Interval:           ptr.Uint(0),
-		AutomationsEnabled: ptr.Bool(false),
-	}); err != nil {
-		return err
-	}
-	return nil
+	return svc.DeleteQueryByID(ctx, scheduledQueryID)
 }

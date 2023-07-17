@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -306,4 +307,23 @@ func WriteQueriesToYaml(queries []*Query) (string, error) {
 	}
 
 	return strings.Join(ymlStrings, "---\n"), nil
+}
+
+type QueryStats struct {
+	ID          uint   `json:"id" db:"id"`
+	Name        string `json:"name" db:"name"`
+	Description string `json:"description,omitempty" db:"description"`
+	TeamID      *uint  `json:"team_id" db:"team_id"`
+
+	// From osquery directly
+	AverageMemory int  `json:"average_memory" db:"average_memory"`
+	Denylisted    bool `json:"denylisted" db:"denylisted"`
+	Executions    int  `json:"executions" db:"executions"`
+	// Note schedule_interval is used for DB since "interval" is a reserved word in MySQL
+	Interval     int       `json:"interval" db:"schedule_interval"`
+	LastExecuted time.Time `json:"last_executed" db:"last_executed"`
+	OutputSize   int       `json:"output_size" db:"output_size"`
+	SystemTime   int       `json:"system_time" db:"system_time"`
+	UserTime     int       `json:"user_time" db:"user_time"`
+	WallTime     int       `json:"wall_time" db:"wall_time"`
 }

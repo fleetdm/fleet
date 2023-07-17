@@ -159,8 +159,7 @@ func ScheduledQueryFromQuery(query *Query) *ScheduledQuery {
 	}
 }
 
-// TODO(lucas): Explain only the schedule fields like interval, platform, min_osquery_version, etc. are modified.
-func ScheduledQueryToQueryPayloadForModifyQuery(scheduledQuery *ScheduledQuery, teamID *uint, observersCanRun *bool) QueryPayload {
+func ScheduledQueryToQueryPayloadForNewQuery(originalQuery *Query, scheduledQuery *ScheduledQuery) QueryPayload {
 	var logging *string
 	if scheduledQuery.Snapshot != nil && scheduledQuery.Removed != nil {
 		if *scheduledQuery.Snapshot {
@@ -172,9 +171,12 @@ func ScheduledQueryToQueryPayloadForModifyQuery(scheduledQuery *ScheduledQuery, 
 		}
 	}
 	return QueryPayload{
-		ObserverCanRun:     observersCanRun,
-		TeamID:             teamID,
-		Interval:           ptr.Uint(scheduledQuery.Interval),
+		Name:               &originalQuery.Name,
+		Description:        &originalQuery.Description,
+		Query:              &originalQuery.Query,
+		ObserverCanRun:     &originalQuery.ObserverCanRun,
+		TeamID:             originalQuery.TeamID,
+		Interval:           &scheduledQuery.Interval,
 		Platform:           scheduledQuery.Platform,
 		MinOsqueryVersion:  scheduledQuery.Version,
 		AutomationsEnabled: ptr.Bool(true),
@@ -185,7 +187,7 @@ func ScheduledQueryToQueryPayloadForModifyQuery(scheduledQuery *ScheduledQuery, 
 // NOTE(lucas): payload.Snapshot and payload.Removed must both be set in order to
 // change the logging behavior of a scheduled query.
 // Document this API change.
-func ScheduledQueryPayloadToQueryPayload(payload ScheduledQueryPayload) QueryPayload {
+func ScheduledQueryPayloadToQueryPayloadForModifyQuery(payload ScheduledQueryPayload) QueryPayload {
 	var logging *string
 	if payload.Snapshot != nil && payload.Removed != nil {
 		if *payload.Snapshot {

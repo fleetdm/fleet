@@ -214,7 +214,7 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, hostID uint
 // ScheduledQueryStats.LastExecuted.
 var pastDate = "2000-01-01T00:00:00Z"
 
-// loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
+// loadhostPacksStatsDB will load all the "2017 pack" stats for the given host. The scheduled
 // queries that haven't run yet are returned with zero values.
 func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
 	packs, err := listPacksForHost(ctx, db, hid)
@@ -293,6 +293,51 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 		ps = append(ps, pack)
 	}
 	return ps, nil
+}
+
+func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.QueryStats, error) {
+	ds := dialect.From(goqu.I("queries").As("q")).Select(
+		goqu.I("q.id"),
+		goqu.I("q.name"),
+		goqu.I("q.description"),
+		goqu.I("q.team_id"),
+		goqu.I("q.schedule_interval").As("schedule_interval"),
+		goqu.COALESCE(goqu.I("sqs.average_memory"), 0).As("average_memory"),
+		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
+		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
+		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(?)", pastDate)).As("last_executed"),
+		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
+		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
+		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
+		goqu.COALESCE(goqu.I("sqs.wall_time"), 0).As("wall_time"),
+	).LeftJoin(
+		dialect.From("scheduled_query_stats").As("sqs").Where(
+			goqu.I("host_id").Eq(hid),
+		),
+		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("q.id"))),
+	).Where(
+		goqu.And(
+			goqu.Or(
+				// sq.platform empty or NULL means the scheduled query is set to
+				// run on all hosts.
+				goqu.I("q.platform").Eq(""),
+				goqu.I("q.platform").IsNull(),
+				// scheduled_queries.platform can be a comma-separated list of
+				// platforms, e.g. "darwin,windows".
+				goqu.L("FIND_IN_SET(?, q.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
+			),
+			goqu.I("q.schedule_interval").Gt(0),
+		),
+	)
+	sql, args, err := ds.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sql build")
+	}
+	var stats []fleet.QueryStats
+	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load query stats")
+	}
+	return stats, nil
 }
 
 func getPackTypeFromDBField(t *string) string {
@@ -497,6 +542,12 @@ LIMIT
 		return nil, err
 	}
 	host.PackStats = packStats
+
+	queryStats, err := loadHostScheduledQueryStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
+	if err != nil {
+		return nil, err
+	}
+	host.QueryStats = queryStats
 
 	users, err := loadHostUsersDB(ctx, ds.reader(ctx), host.ID)
 	if err != nil {
