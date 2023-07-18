@@ -742,7 +742,41 @@ func TestAuthorizeQuery(t *testing.T) {
 	}
 	globalAdminQuery := &fleet.Query{ID: 3, AuthorID: ptr.Uint(test.UserAdmin.ID), ObserverCanRun: false}
 	globalGitOpsQuery := &fleet.Query{ID: 4, AuthorID: ptr.Uint(test.UserGitOps.ID), ObserverCanRun: false}
-	teamGitOpsQuery := &fleet.Query{ID: 5, AuthorID: ptr.Uint(teamGitOps.ID), ObserverCanRun: false}
+	teamGitOpsQuery := &fleet.Query{
+		ID: 5, AuthorID: ptr.Uint(teamGitOps.ID),
+		ObserverCanRun: false,
+		TeamID:         ptr.Uint(1),
+	}
+	observerQueryOnTeam3 := &fleet.Query{
+		ID:             6,
+		ObserverCanRun: true,
+		TeamID:         ptr.Uint(3),
+	}
+	observerQueryOnTeam3TargetedToTeam3 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{3}},
+		Query:       observerQueryOnTeam3,
+	}
+	observerQueryOnTeam3TargetedToTeam2 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{2}},
+		Query:       observerQueryOnTeam3,
+	}
+	observerQueryOnTeam3TargetedToTeam1 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1}},
+		Query:       observerQueryOnTeam3,
+	}
+	observerQueryOnTeam1 := &fleet.Query{
+		ID:             7,
+		ObserverCanRun: true,
+		TeamID:         ptr.Uint(1),
+	}
+	observerQueryOnTeam1TargetedToTeam1 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1}},
+		Query:       observerQueryOnTeam1,
+	}
+	observerQueryOnTeam1TargetedToTeam2 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{2}},
+		Query:       observerQueryOnTeam1,
+	}
 
 	runTestCasesGroups(t, []tcGroup{
 		{
@@ -792,6 +826,11 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: test.UserObserver, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},         // can run observer query
 				{user: test.UserObserver, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: true}, // can run observer query
 				{user: test.UserObserver, object: globalObserverQuery, action: runNew, allow: false},
+
+				{user: test.UserObserver, object: observerQueryOnTeam3, action: read, allow: true},
+				{user: test.UserObserver, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
+				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
 			},
 		},
 		{
@@ -809,6 +848,11 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: test.UserObserverPlus, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},         // can run observer query
 				{user: test.UserObserverPlus, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: true}, // can run observer query
 				{user: test.UserObserverPlus, object: globalObserverQuery, action: runNew, allow: true},
+
+				{user: test.UserObserverPlus, object: observerQueryOnTeam3, action: read, allow: true},
+				{user: test.UserObserverPlus, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: test.UserObserverPlus, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
+				{user: test.UserObserverPlus, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
 			},
 		},
 		{
@@ -826,6 +870,11 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: test.UserMaintainer, object: globalObserverQueryEmptyTargets, action: run, allow: true},
 				{user: test.UserMaintainer, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},
 				{user: test.UserMaintainer, object: globalObserverQuery, action: runNew, allow: true},
+
+				{user: test.UserMaintainer, object: observerQueryOnTeam3, action: read, allow: true},
+				{user: test.UserMaintainer, object: observerQueryOnTeam3, action: write, allow: true},
+				{user: test.UserMaintainer, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
+				{user: test.UserMaintainer, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
 			},
 		},
 		{
@@ -843,6 +892,11 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: test.UserAdmin, object: globalObserverQueryEmptyTargets, action: run, allow: true},
 				{user: test.UserAdmin, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},
 				{user: test.UserAdmin, object: globalObserverQuery, action: runNew, allow: true},
+
+				{user: test.UserAdmin, object: observerQueryOnTeam3, action: read, allow: true},
+				{user: test.UserAdmin, object: observerQueryOnTeam3, action: write, allow: true},
+				{user: test.UserAdmin, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
+				{user: test.UserAdmin, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
 			},
 		},
 		{
@@ -878,6 +932,13 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamObserver, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false}, // not filtered only to observed teams
 				{user: teamObserver, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},         // not filtered only to observed teams
 				{user: teamObserver, object: globalObserverQuery, action: runNew, allow: false},
+
+				{user: teamObserver, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamObserver, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamObserver, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamObserver, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamObserver, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamObserver, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
 			},
 		},
 		{
@@ -896,6 +957,13 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamObserverPlus, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false}, // not filtered only to observed teams
 				{user: teamObserverPlus, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},         // not filtered only to observed teams
 				{user: teamObserverPlus, object: globalObserverQuery, action: runNew, allow: true},
+
+				{user: teamObserverPlus, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
 			},
 		},
 		{
@@ -917,6 +985,13 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamMaintainer, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false},
 				{user: teamMaintainer, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},
 				{user: teamMaintainer, object: globalObserverQuery, action: runNew, allow: true},
+
+				{user: teamMaintainer, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
 			},
 		},
 		{
@@ -939,16 +1014,23 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamAdmin, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false},
 				{user: teamAdmin, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},
 				{user: teamAdmin, object: globalObserverQuery, action: runNew, allow: true},
+
+				{user: teamAdmin, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamAdmin, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamAdmin, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamAdmin, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamAdmin, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamAdmin, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
 			},
 		},
 		{
 			name: "Team GitOps cannot read or run any query, but can create new or edit (write) queries authored by it.",
 			testCases: []authTestCase{
 				{user: teamGitOps, object: globalQuery, action: read, allow: false},
-				{user: teamGitOps, object: globalQuery, action: write, allow: true},        // create new
-				{user: teamGitOps, object: teamAdminQuery, action: write, allow: false},    // not the author
-				{user: teamGitOps, object: teamGitOpsQuery, action: write, allow: true},    // author
-				{user: teamGitOps, object: globalGitOpsQuery, action: write, allow: false}, // not the author
+				{user: teamGitOps, object: globalQuery, action: write, allow: false}, // cannot create a global query
+				{user: teamGitOps, object: teamAdminQuery, action: write, allow: true},
+				{user: teamGitOps, object: teamGitOpsQuery, action: write, allow: true},
+				{user: teamGitOps, object: globalGitOpsQuery, action: write, allow: false}, // cannot write a global query
 				{user: teamGitOps, object: globalQueryNoTargets, action: run, allow: false},
 				{user: teamGitOps, object: globalQueryTargetedToTeam1, action: run, allow: false},
 				{user: teamGitOps, object: globalQuery, action: runNew, allow: false},
@@ -957,16 +1039,23 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamGitOps, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false},
 				{user: teamGitOps, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},
 				{user: teamGitOps, object: globalObserverQuery, action: runNew, allow: false},
+
+				{user: teamGitOps, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamGitOps, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamGitOps, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamGitOps, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamGitOps, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamGitOps, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: false},
 			},
 		},
 		{
 			name: "User admin on team 1, observer on team 2",
 			testCases: []authTestCase{
 				{user: twoTeamsAdminObs, object: globalQuery, action: read, allow: true},
-				{user: twoTeamsAdminObs, object: globalQuery, action: write, allow: true},
-				{user: twoTeamsAdminObs, object: teamAdminQuery, action: write, allow: false},
-				{user: twoTeamsAdminObs, object: teamMaintQuery, action: write, allow: false},
-				{user: twoTeamsAdminObs, object: globalAdminQuery, action: write, allow: false},
+				{user: twoTeamsAdminObs, object: globalQuery, action: write, allow: false}, // cannot write a global query
+				{user: twoTeamsAdminObs, object: teamAdminQuery, action: write, allow: true},
+				{user: twoTeamsAdminObs, object: teamMaintQuery, action: write, allow: true},
+				{user: twoTeamsAdminObs, object: globalAdminQuery, action: write, allow: false}, // cannot write a global query
 				{user: twoTeamsAdminObs, object: globalQueryNoTargets, action: run, allow: true},
 				{user: twoTeamsAdminObs, object: globalQueryTargetedToTeam1, action: run, allow: true},
 				{user: twoTeamsAdminObs, object: globalQueryTargetedToTeam1AndTeam2, action: run, allow: false}, // user is only observer on team 2
@@ -974,13 +1063,21 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: twoTeamsAdminObs, object: globalQueryTargetedToTeam1AndTeam2AndTeam3, action: run, allow: false},
 				{user: twoTeamsAdminObs, object: globalQuery, action: runNew, allow: true},
 				{user: twoTeamsAdminObs, object: globalObserverQuery, action: read, allow: true},
-				{user: twoTeamsAdminObs, object: globalObserverQuery, action: write, allow: true},
+				{user: twoTeamsAdminObs, object: globalObserverQuery, action: write, allow: false}, // cannot write a global query
 				{user: twoTeamsAdminObs, object: globalObserverQueryEmptyTargets, action: run, allow: true},
 				{user: twoTeamsAdminObs, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},
 				{user: twoTeamsAdminObs, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: true}, // user is at least observer on both teams
 				{user: twoTeamsAdminObs, object: globalObserverQueryTargetedToTeam2, action: run, allow: true},
 				{user: twoTeamsAdminObs, object: globalObserverQueryTargetedToTeam1AndTeam2AndTeam3, action: run, allow: false}, // not member of team 3
 				{user: twoTeamsAdminObs, object: globalObserverQuery, action: runNew, allow: true},
+
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: true},
 			},
 		},
 	})
@@ -1053,109 +1150,6 @@ func TestAuthorizeUserCreatedPack(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: write, allow: false},
-	})
-}
-
-func TestAuthorizeGlobalPack(t *testing.T) {
-	t.Parallel()
-
-	globalPack := &fleet.Pack{
-		// Type "global" is the type for the one global pack.
-		Type: ptr.String("global"),
-	}
-	runTestCases(t, []authTestCase{
-		{user: nil, object: globalPack, action: read, allow: false},
-		{user: nil, object: globalPack, action: write, allow: false},
-
-		{user: test.UserNoRoles, object: globalPack, action: read, allow: false},
-		{user: test.UserNoRoles, object: globalPack, action: write, allow: false},
-
-		{user: test.UserAdmin, object: globalPack, action: read, allow: true},
-		{user: test.UserAdmin, object: globalPack, action: write, allow: true},
-
-		{user: test.UserMaintainer, object: globalPack, action: read, allow: true},
-		{user: test.UserMaintainer, object: globalPack, action: write, allow: true},
-
-		{user: test.UserObserver, object: globalPack, action: read, allow: true},
-		{user: test.UserObserver, object: globalPack, action: write, allow: false},
-
-		{user: test.UserObserverPlus, object: globalPack, action: read, allow: true},
-		{user: test.UserObserverPlus, object: globalPack, action: write, allow: false},
-
-		// This is one exception to the "write only" nature of gitops. To be able to create
-		// and edit packs currently it needs read access too.
-		{user: test.UserGitOps, object: globalPack, action: read, allow: true},
-		{user: test.UserGitOps, object: globalPack, action: write, allow: true},
-
-		{user: test.UserTeamAdminTeam1, object: globalPack, action: read, allow: true},
-		{user: test.UserTeamAdminTeam1, object: globalPack, action: write, allow: false},
-
-		{user: test.UserTeamMaintainerTeam1, object: globalPack, action: read, allow: true},
-		{user: test.UserTeamMaintainerTeam1, object: globalPack, action: write, allow: false},
-
-		{user: test.UserTeamObserverTeam1, object: globalPack, action: read, allow: true},
-		{user: test.UserTeamObserverTeam1, object: globalPack, action: write, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam1, object: globalPack, action: read, allow: true},
-		{user: test.UserTeamObserverPlusTeam1, object: globalPack, action: write, allow: false},
-
-		{user: test.UserTeamGitOpsTeam1, object: globalPack, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: globalPack, action: write, allow: false},
-	})
-}
-
-func TestAuthorizeTeamPack(t *testing.T) {
-	t.Parallel()
-
-	team1Pack := &fleet.Pack{Type: ptr.String("team-1")}
-	team2Pack := &fleet.Pack{Type: ptr.String("team-2")}
-	runTestCases(t, []authTestCase{
-		{user: test.UserAdmin, object: team1Pack, action: read, allow: true},
-		{user: test.UserAdmin, object: team1Pack, action: write, allow: true},
-
-		{user: test.UserMaintainer, object: team1Pack, action: read, allow: true},
-		{user: test.UserMaintainer, object: team1Pack, action: write, allow: true},
-
-		{user: test.UserObserver, object: team1Pack, action: read, allow: false},
-		{user: test.UserObserver, object: team1Pack, action: write, allow: false},
-
-		{user: test.UserObserverPlus, object: team1Pack, action: read, allow: false},
-		{user: test.UserObserverPlus, object: team1Pack, action: write, allow: false},
-
-		// This is one exception to the "write only" nature of gitops. To be able to create
-		// and edit packs currently it needs read access too.
-		{user: test.UserGitOps, object: team1Pack, action: read, allow: true},
-		{user: test.UserGitOps, object: team1Pack, action: write, allow: true},
-
-		{user: test.UserTeamAdminTeam1, object: team1Pack, action: read, allow: true},
-		{user: test.UserTeamAdminTeam1, object: team1Pack, action: write, allow: true},
-
-		{user: test.UserTeamMaintainerTeam1, object: team1Pack, action: read, allow: true},
-		{user: test.UserTeamMaintainerTeam1, object: team1Pack, action: read, allow: true},
-
-		{user: test.UserTeamObserverTeam1, object: team1Pack, action: read, allow: true},
-		{user: test.UserTeamObserverTeam1, object: team1Pack, action: write, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam1, object: team1Pack, action: read, allow: true},
-		{user: test.UserTeamObserverPlusTeam1, object: team1Pack, action: write, allow: false},
-
-		{user: test.UserTeamGitOpsTeam1, object: team1Pack, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Pack, action: write, allow: true},
-
-		{user: test.UserTeamAdminTeam1, object: team2Pack, action: read, allow: false},
-		{user: test.UserTeamAdminTeam1, object: team2Pack, action: write, allow: false},
-
-		{user: test.UserTeamMaintainerTeam1, object: team2Pack, action: read, allow: false},
-		{user: test.UserTeamMaintainerTeam1, object: team2Pack, action: write, allow: false},
-
-		{user: test.UserTeamObserverTeam1, object: team2Pack, action: read, allow: false},
-		{user: test.UserTeamObserverTeam1, object: team2Pack, action: write, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam1, object: team2Pack, action: read, allow: false},
-		{user: test.UserTeamObserverPlusTeam1, object: team2Pack, action: write, allow: false},
-
-		{user: test.UserTeamGitOpsTeam1, object: team2Pack, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team2Pack, action: write, allow: false},
 	})
 }
 
