@@ -105,7 +105,6 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   query: "SELECT * FROM osquery_info;",
   id: 0,
   interval: 0,
-  last_executed: "",
   observer_can_run: false,
   platform: "",
   min_osquery_version: "",

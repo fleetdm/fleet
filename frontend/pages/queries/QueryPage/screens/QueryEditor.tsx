@@ -129,9 +129,9 @@ const QueryEditor = ({
       lastEditedQueryBody,
       lastEditedQueryObserverCanRun,
       lastEditedQueryFrequency,
+      lastEditedQueryPlatforms,
       lastEditedQueryLoggingType,
       lastEditedQueryMinOsqueryVersion,
-      lastEditedQueryPlatforms,
     });
 
     try {

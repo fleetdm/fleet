@@ -109,9 +109,9 @@ const QueryPage = ({
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
         setLastEditedQueryFrequency(returnedQuery.interval);
+        setLastEditedQueryPlatforms(returnedQuery.platform);
         setLastEditedQueryLoggingType(returnedQuery.logging);
         setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
-        setLastEditedQueryPlatforms(returnedQuery.platform);
       },
       onError: (error) => handlePageError(error),
     }

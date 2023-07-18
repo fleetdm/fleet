@@ -18,8 +18,8 @@ import { addGravatarUrlToResource } from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
-  LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
+  LOGGING_TYPE_OPTIONS,
 } from "utilities/constants";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import { IApiError } from "interfaces/errors";
@@ -107,16 +107,16 @@ const QueryForm = ({
     lastEditedQueryObserverCanRun,
     lastEditedQueryFrequency,
     lastEditedQueryPlatforms,
-    lastEditedQueryLoggingType,
     lastEditedQueryMinOsqueryVersion,
+    lastEditedQueryLoggingType,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
     setLastEditedQueryFrequency,
     setLastEditedQueryPlatforms,
-    setLastEditedQueryLoggingType,
     setLastEditedQueryMinOsqueryVersion,
+    setLastEditedQueryLoggingType,
   } = useContext(QueryContext);
 
   const {
@@ -237,18 +237,18 @@ const QueryForm = ({
     [setLastEditedQueryPlatforms]
   );
 
-  const onChangeSelectLoggingType = useCallback(
-    (value: QueryLoggingOption) => {
-      setLastEditedQueryLoggingType(value);
-    },
-    [setLastEditedQueryLoggingType]
-  );
-
   const onChangeMinOsqueryVersionOptions = useCallback(
     (value: string) => {
       setLastEditedQueryMinOsqueryVersion(value);
     },
     [setLastEditedQueryMinOsqueryVersion]
+  );
+
+  const onChangeSelectLoggingType = useCallback(
+    (value: QueryLoggingOption) => {
+      setLastEditedQueryLoggingType(value);
+    },
+    [setLastEditedQueryLoggingType]
   );
 
   const promptSaveAsNewQuery = () => (
@@ -611,14 +611,6 @@ const QueryForm = ({
             {showAdvancedOptions && (
               <div className={`${baseClass}__advanced-options`}>
                 <Dropdown
-                  options={LOGGING_TYPE_OPTIONS}
-                  onChange={onChangeSelectLoggingType}
-                  placeholder="Select"
-                  value={lastEditedQueryLoggingType}
-                  label="Logging"
-                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
-                />
-                <Dropdown
                   options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
                   placeholder="Select"
                   label="Platform"
@@ -634,6 +626,14 @@ const QueryForm = ({
                   value={lastEditedQueryMinOsqueryVersion}
                   label="Minimum osquery version"
                   wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
+                />
+                <Dropdown
+                  options={LOGGING_TYPE_OPTIONS}
+                  onChange={onChangeSelectLoggingType}
+                  placeholder="Select"
+                  value={lastEditedQueryLoggingType}
+                  label="Logging"
+                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
                 />
               </div>
             )}
