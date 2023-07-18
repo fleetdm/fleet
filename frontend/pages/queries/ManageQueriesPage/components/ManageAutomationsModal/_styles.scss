@@ -1,7 +1,7 @@
 .manage-automations-modal {
-  > div:not(:last-child) {
-    margin-bottom: $pad-xlarge;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: $pad-xlarge;
 
   &__selection {
     margin-bottom: $pad-small;
@@ -44,23 +44,5 @@
     align-items: center;
     align-self: stretch;
     margin-bottom: 0;
-  }
-
-  &__schedule-indicator {
-    width: 100px;
-    display: flex;
-    padding: 8px 12px;
-
-    .icon {
-      padding-right: $pad-small;
-    }
-  }
-
-  .grey {
-    color: $ui-fleet-black-33;
-  }
-
-  &__preview-btn-wrap {
-    margin-top: $pad-medium;
   }
 }

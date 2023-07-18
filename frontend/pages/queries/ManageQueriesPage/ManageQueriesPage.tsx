@@ -142,7 +142,6 @@ const ManageQueriesPage = ({
     }
   );
 
-  console.log("automatedQueryIds", automatedQueryIds);
   // If a team is selected, fetch inherited global queries as well
   const {
     data: globalEnhancedQueries,
