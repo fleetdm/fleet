@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -18,34 +17,32 @@ func TestTeamScheduleAuth(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
 		return nil, nil
 	}
-	ds.EnsureTeamPackFunc = func(ctx context.Context, teamID uint) (*fleet.Pack, error) {
-		return &fleet.Pack{
-			ID:   999,
-			Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
-		}, nil
-	}
-	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-		return nil, nil
-	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
-		return &fleet.Query{TeamID: ptr.Uint(1)}, nil
-	}
-	ds.ScheduledQueryFunc = func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
-		return &fleet.ScheduledQuery{}, nil
-	}
-	ds.NewScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-		return sq, nil
-	}
-	ds.SaveScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-		return sq, nil
-	}
-	ds.DeleteScheduledQueryFunc = func(ctx context.Context, id uint) error {
-		return nil
+		if id == 99 { // for testing modify and delete of a schedule
+			return &fleet.Query{
+				Name:   "foobar",
+				Query:  "SELECT 1;",
+				TeamID: ptr.Uint(1),
+			}, nil
+		}
+		return &fleet.Query{ // for testing creation of a schedule
+			Name:  "foobar",
+			Query: "SELECT 1;",
+			// TeamID is set to nil because a query must be global to be able to be
+			// scheduled on a team by the deprecated APIs.
+			TeamID: nil,
+		}, nil
 	}
 	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query) error {
 		return nil
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return &fleet.Query{}, nil
+	}
+	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 
@@ -57,7 +54,9 @@ func TestTeamScheduleAuth(t *testing.T) {
 	}{
 		{
 			"global admin",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			&fleet.User{
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			},
 			false,
 			false,
 		},
@@ -87,7 +86,12 @@ func TestTeamScheduleAuth(t *testing.T) {
 		},
 		{
 			"team admin, belongs to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			&fleet.User{
+				Teams: []fleet.UserTeam{{
+					Team: fleet.Team{ID: 1},
+					Role: fleet.RoleAdmin,
+				}},
+			},
 			false,
 			false,
 		},
@@ -159,7 +163,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 			_, err = svc.ModifyTeamScheduledQueries(ctx, 1, 99, fleet.ScheduledQueryPayload{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			err = svc.DeleteTeamScheduledQueries(ctx, 1, 1)
+			err = svc.DeleteTeamScheduledQueries(ctx, 1, 99)
 			checkAuthErr(t, tt.shouldFailWrite, err)
 		})
 	}

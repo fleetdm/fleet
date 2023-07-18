@@ -552,7 +552,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
 	assert.Equal(t, uint(42), gs.GlobalSchedule[0].Interval)
-	assert.Equal(t, "TestQuery1", gs.GlobalSchedule[0].Name)
+	assert.Contains(t, gs.GlobalSchedule[0].Name, "Copy of TestQuery1 (")
 	id := gs.GlobalSchedule[0].ID
 
 	// list page 2, should be empty

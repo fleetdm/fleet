@@ -478,7 +478,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 			Query:          "select * from osquery;",
 			ObserverCanRun: true,
 			Saved:          true,
-			TeamID:         &team1.ID,
 		},
 	)
 	require.NoError(t, err)
@@ -494,8 +493,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
-	assert.Equal(t, "TestQueryTeamPolicy", ts.Scheduled[0].Name)
-	assert.Equal(t, qr.ID, ts.Scheduled[0].QueryID)
+	assert.Contains(t, ts.Scheduled[0].Name, "Copy of TestQueryTeamPolicy")
+	assert.NotEqual(t, qr.ID, ts.Scheduled[0].QueryID) // it creates a new query (copy)
 	id := ts.Scheduled[0].ID
 
 	modifyResp := modifyTeamScheduleResponse{}
@@ -3472,9 +3471,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 	}, http.StatusOK, &cqrt1)
 	ttsqr := teamScheduleQueryResponse{}
+	// Add a schedule with the deprecated APIs (by referencing a global query).
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), teamScheduleQueryRequest{
 		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
-			QueryID:  ptr.Uint(cqrt1.Query.ID),
+			QueryID:  ptr.Uint(q1.ID),
 			Interval: ptr.Uint(60),
 		},
 	}, http.StatusOK, &ttsqr)

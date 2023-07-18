@@ -107,7 +107,7 @@ func (svc *Service) GlobalScheduleQuery(ctx context.Context, scheduledQuery *fle
 	originalQuery, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, ctxerr.Wrap(ctx, err, "create new query")
+		return nil, ctxerr.Wrap(ctx, err, "get query")
 	}
 	if originalQuery.TeamID != nil {
 		setAuthCheckedOnPreAuthErr(ctx)

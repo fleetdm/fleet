@@ -14,8 +14,15 @@ func TestGlobalScheduleAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	//
+	// All global schedule query methods use queries datastore methods.
+	//
+
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
-		return &fleet.Query{}, nil
+		return &fleet.Query{
+			Name:  "foobar",
+			Query: "SELECT 1;",
+		}, nil
 	}
 	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query) error {
 		return nil
@@ -26,22 +33,10 @@ func TestGlobalScheduleAuth(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
 		return nil, nil
 	}
-	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-		return nil, nil
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return &fleet.Query{}, nil
 	}
-	ds.EnsureGlobalPackFunc = func(ctx context.Context) (*fleet.Pack, error) {
-		return &fleet.Pack{}, nil
-	}
-	ds.NewScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-		return sq, nil
-	}
-	ds.ScheduledQueryFunc = func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
-		return &fleet.ScheduledQuery{}, nil
-	}
-	ds.SaveScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-		return sq, nil
-	}
-	ds.DeleteScheduledQueryFunc = func(ctx context.Context, id uint) error {
+	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 
@@ -95,7 +90,11 @@ func TestGlobalScheduleAuth(t *testing.T) {
 			_, err := svc.GetGlobalScheduledQueries(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{Name: "query", QueryName: "query", Interval: 10})
+			_, err = svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{
+				Name:      "query",
+				QueryName: "query",
+				Interval:  10,
+			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.ModifyGlobalScheduledQueries(ctx, 1, fleet.ScheduledQueryPayload{})
