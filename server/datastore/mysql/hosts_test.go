@@ -564,10 +564,7 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
-	tp, err := ds.EnsureTeamPack(context.Background(), team.ID)
-	require.NoError(t, err)
-	tpQuery := test.NewQuery(t, ds, nil, "tp-time", "select * from time", 0, true)
-	tpSquery := test.NewScheduledQuery(t, ds, tp.ID, tpQuery.ID, 30, true, true, "time-scheduled")
+	tpQuery := test.NewQueryWithSchedule(t, ds, &team.ID, "tp-time", "select * from time", 0, true, 30, true)
 
 	// Create a new pack and target to the host.
 	// Pack and query must exist for stats to save successfully
@@ -598,11 +595,11 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 	}
 	stats2 := []fleet.ScheduledQueryStats{
 		{
-			ScheduledQueryName: tpSquery.Name,
-			ScheduledQueryID:   tpSquery.ID,
+			ScheduledQueryName: tpQuery.Name,
+			ScheduledQueryID:   tpQuery.ID,
 			QueryName:          tpQuery.Name,
-			PackName:           tp.Name,
-			PackID:             tp.ID,
+			PackName:           "Team: " + team.Name,
+			PackID:             0, // pack_id will be 0 for stats of queries not in packs.
 			AverageMemory:      8000,
 			Denylisted:         false,
 			Executions:         164,
@@ -617,7 +614,7 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 
 	packStats := []fleet.PackStats{
 		{PackID: pack1.ID, PackName: pack1.Name, QueryStats: stats1},
-		{PackID: tp.ID, PackName: teamScheduleName(team), QueryStats: stats2},
+		{PackID: 0, PackName: teamScheduleName(team), QueryStats: stats2},
 	}
 	err = ds.SaveHostPackStats(context.Background(), host.ID, packStats)
 	require.NoError(t, err)
