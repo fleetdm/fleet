@@ -3,9 +3,9 @@
 Following are the steps to load test osquery on macOS.
 The purpose is to know the impact of Fleet provided queries on real devices.
 
-> At the time of writing the changes to add watchdog logging needed for this script
-> are under review: https://github.com/osquery/osquery/pull/8070.
-> You will have to download and extract the osqueryd executable: https://github.com/osquery/osquery/suites/14033523376/artifacts/783724086
+> At the time of writing, the changes that add watchdog logging needed for this script are
+> merged but not released yet (https://github.com/osquery/osquery/pull/8070).
+> You will have to download and extract the osqueryd executable from the PR: https://github.com/osquery/osquery/suites/14033523376/artifacts/783724086
 
 ## Requirements
 
@@ -61,7 +61,7 @@ sudo ENROLL_SECRET=<...> ./osquery/osqueryd \
     --carver_start_endpoint=/api/v1/osquery/carve/begin \
     --carver_continue_endpoint=/api/v1/osquery/carve/block \
     --carver_block_size=2000000 \
-    --extensions_autoload=/tmp/extensions.load
+    --extensions_autoload=/tmp/extensions.load \
     --allow_unsafe \
     --enable_watchdog_debug \
     --distributed_denylist_duration 0 \
