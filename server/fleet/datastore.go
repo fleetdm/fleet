@@ -82,6 +82,9 @@ type Datastore interface {
 	// ListQueries returns a list of queries with the provided sorting and paging options. Associated packs should also
 	// be loaded.
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
+	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
+	// given teamID. If teamID is nil, then all scheduled queries for the 'global' team are returned.
+	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*Query, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string, opts ...OptionalArg) (*Query, error)

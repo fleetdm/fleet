@@ -26,7 +26,7 @@ const (
 	teamMDMConfigKey                  = "TeamMDMConfig:team:%d"
 	defaultTeamMDMConfigExpiration    = 1 * time.Minute
 	teamByIdKey                       = "Team:team:%d"
-	scheduledQueriesForTeamKey        = "Queries:team:%d"
+	scheduledQueriesForAgentsKey      = "ScheduledQueriesAgents:team:%d"
 )
 
 // cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
@@ -343,26 +343,20 @@ func (ds *cachedMysql) Team(ctx context.Context, teamID uint) (*fleet.Team, erro
 	return team, nil
 }
 
-func (ds *cachedMysql) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-	// We only cache scheduled queries
-	if opt.IsScheduled == nil || !*opt.IsScheduled {
-		return ds.Datastore.ListQueries(ctx, opt)
+func (ds *cachedMysql) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+	var teamIDVal uint
+	if teamID != nil {
+		teamIDVal = *teamID
 	}
 
-	// For global scheduled queries, assume teamID = 0
-	var teamID uint
-	if opt.TeamID != nil {
-		teamID = *opt.TeamID
-	}
-
-	key := fmt.Sprintf(scheduledQueriesForTeamKey, teamID)
+	key := fmt.Sprintf(scheduledQueriesForAgentsKey, teamIDVal)
 	if x, found := ds.c.Get(key); found {
 		if queries, ok := x.([]*fleet.Query); ok {
 			return queries, nil
 		}
 	}
 
-	queries, err := ds.Datastore.ListQueries(ctx, opt)
+	queries, err := ds.Datastore.ListScheduledQueriesForAgents(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}

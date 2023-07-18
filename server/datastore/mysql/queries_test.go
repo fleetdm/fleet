@@ -32,7 +32,7 @@ func TestQueries(t *testing.T) {
 		{"ObserverCanRunQuery", testObserverCanRunQuery},
 		{"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
 		{"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
-		{"ListQueriesExcludedStats", testListQueriesExcludedStats},
+		{"ListScheduledQueriesForAgents", testListScheduledQueriesForAgents},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -671,55 +671,58 @@ func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testListQueriesExcludedStats(t *testing.T, ds *Datastore) {
+func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	q1, err := ds.NewQuery(ctx, &fleet.Query{
-		Name:             "query1",
-		Query:            "select 1;",
-		Saved:            true,
-		ScheduleInterval: 0,
+
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "Team 1",
+		Description: "Team 1",
 	})
 	require.NoError(t, err)
 
-	_, err = ds.writer(ctx).Exec(
-		`INSERT INTO aggregated_stats(id,global_stats,type,json_value) VALUES (?,?,?,?)`,
-		q1.ID, false, aggregatedStatsTypeQuery, `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
-	)
-	require.NoError(t, err)
-
-	testCases := []struct {
-		opts        fleet.ListQueryOptions
-		expectedNil bool
-	}{
-		{
-			opts:        fleet.ListQueryOptions{},
-			expectedNil: false,
-		},
-		{
-			opts:        fleet.ListQueryOptions{ExcludeStats: false},
-			expectedNil: false,
-		},
-		{
-			opts:        fleet.ListQueryOptions{ExcludeStats: true},
-			expectedNil: true,
-		},
-	}
-
-	for _, tCase := range testCases {
-		queries, err := ds.ListQueries(
-			context.Background(),
-			tCase.opts,
-		)
-
-		require.NoError(t, err)
-		for _, q := range queries {
-
-			require.Equal(t, q.AggregatedStats.SystemTimeP50 == nil, tCase.expectedNil)
-			require.Equal(t, q.AggregatedStats.SystemTimeP95 == nil, tCase.expectedNil)
-			require.Equal(t, q.AggregatedStats.UserTimeP95 == nil, tCase.expectedNil)
-			require.Equal(t, q.AggregatedStats.UserTimeP50 == nil, tCase.expectedNil)
-			require.Equal(t, q.AggregatedStats.TotalExecutions == nil, tCase.expectedNil)
-
+	for i, teamID := range []*uint{nil, &team.ID} {
+		var teamIDStr string
+		if teamID != nil {
+			teamIDStr = fmt.Sprintf("%d", *teamID)
 		}
+		_, err := ds.NewQuery(context.Background(), &fleet.Query{
+			Name:             fmt.Sprintf("%s query1", teamIDStr),
+			Query:            "select 1;",
+			Saved:            true,
+			ScheduleInterval: 0,
+			TeamID:           teamID,
+		})
+		require.NoError(t, err)
+		_, err = ds.NewQuery(context.Background(), &fleet.Query{
+			Name:               fmt.Sprintf("%s query2", teamIDStr),
+			Query:              "select 1;",
+			Saved:              false,
+			ScheduleInterval:   10,
+			AutomationsEnabled: false,
+			TeamID:             teamID,
+		})
+		require.NoError(t, err)
+		q3, err := ds.NewQuery(context.Background(), &fleet.Query{
+			Name:               fmt.Sprintf("%s query3", teamIDStr),
+			Query:              "select 1;",
+			Saved:              true,
+			ScheduleInterval:   20,
+			AutomationsEnabled: true,
+			TeamID:             teamID,
+		})
+		require.NoError(t, err)
+		_, err = ds.NewQuery(context.Background(), &fleet.Query{
+			Name:               fmt.Sprintf("%s query4", teamIDStr),
+			Query:              "select 1;",
+			Saved:              true,
+			ScheduleInterval:   0,
+			AutomationsEnabled: true,
+			TeamID:             teamID,
+		})
+		require.NoError(t, err)
+
+		result, err := ds.ListScheduledQueriesForAgents(ctx, teamID)
+		require.NoError(t, err)
+		test.QueryElementsMatch(t, result, []*fleet.Query{q3}, i)
 	}
 }

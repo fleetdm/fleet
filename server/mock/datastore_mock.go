@@ -70,6 +70,8 @@ type QueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
 type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error)
 
+type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint) ([]*fleet.Query, error)
+
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
 type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
@@ -738,6 +740,9 @@ type DataStore struct {
 
 	ListQueriesFunc        ListQueriesFunc
 	ListQueriesFuncInvoked bool
+
+	ListScheduledQueriesForAgentsFunc        ListScheduledQueriesForAgentsFunc
+	ListScheduledQueriesForAgentsFuncInvoked bool
 
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
@@ -1807,6 +1812,13 @@ func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 	s.ListQueriesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListQueriesFunc(ctx, opt)
+}
+
+func (s *DataStore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+	s.mu.Lock()
+	s.ListScheduledQueriesForAgentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListScheduledQueriesForAgentsFunc(ctx, teamID)
 }
 
 func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {

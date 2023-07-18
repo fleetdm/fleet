@@ -767,8 +767,6 @@ type ListQueryOptions struct {
 	// IsScheduled filters queries that are meant to run at a set interval.
 	IsScheduled        *bool
 	OnlyObserverCanRun bool
-	// ExcludeStats whehter aggregated_stats should be excluded or not.
-	ExcludeStats bool
 }
 
 type ListActivitiesOptions struct {

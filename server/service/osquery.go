@@ -347,8 +347,7 @@ func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (fleet.Queries, error) {
-	opts := fleet.ListQueryOptions{IsScheduled: ptr.Bool(true), TeamID: teamID}
-	queries, err := svc.ds.ListQueries(ctx, opts)
+	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
