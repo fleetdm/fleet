@@ -9,7 +9,7 @@ import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 
 const baseClass = "forgot-password-form";
 const fieldNames = ["email"];
-const { validate } = helpers;
+import validate from "./validate";
 
 class ForgotPasswordForm extends Component {
   static propTypes = {
@@ -26,7 +26,12 @@ class ForgotPasswordForm extends Component {
     return (
       <form onSubmit={handleSubmit} className={baseClass} autoComplete="off">
         {baseError && <div className="form__base-error">{baseError}</div>}
-        <InputFieldWithIcon {...fields.email} autofocus placeholder="Email" />
+        <InputFieldWithIcon
+          {...fields.email}
+          autofocus
+          label="Email"
+          placeholder="Email"
+        />
         <div className={`${baseClass}__button-wrap`}>
           <Button
             className={`${baseClass}__submit-btn`}
