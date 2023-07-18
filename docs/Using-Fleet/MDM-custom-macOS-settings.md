@@ -86,7 +86,7 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 
 1. In the Fleet UI, head to the **Controls > macOS settings** tab.
 
-2. In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list hosts:
+2. In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts:
 
 * Verified: hosts that installed all configuration profiles. Fleet verified with osquery.
 
