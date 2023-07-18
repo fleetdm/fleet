@@ -77,6 +77,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
       },
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
       name: "Policies",
