@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"math/big"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -89,20 +87,6 @@ func globalScheduleQueryEndpoint(ctx context.Context, request interface{}, svc f
 	return globalScheduleQueryResponse{Scheduled: scheduled}, nil
 }
 
-func randomString(n int) string {
-	const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	res := make([]byte, n)
-	for i := 0; i < n; i++ {
-		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(stringVals))))
-		if err != nil {
-			panic(err)
-		}
-		res[i] = stringVals[num.Int64()]
-	}
-
-	return string(res)
-}
-
 func (svc *Service) GlobalScheduleQuery(ctx context.Context, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	originalQuery, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
 	if err != nil {
@@ -113,7 +97,7 @@ func (svc *Service) GlobalScheduleQuery(ctx context.Context, scheduledQuery *fle
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, ctxerr.New(ctx, "cannot create a global schedule from a team query")
 	}
-	originalQuery.Name = "Copy of " + originalQuery.Name + " (" + randomString(8) + ")"
+	originalQuery.Name = nameForCopiedQuery(originalQuery.Name)
 	newQuery, err := svc.NewQuery(ctx, fleet.ScheduledQueryToQueryPayloadForNewQuery(originalQuery, scheduledQuery))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create new query")

@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -105,6 +107,10 @@ func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fle
 	}, nil
 }
 
+func nameForCopiedQuery(originalName string) string {
+	return "Copy of " + originalName + " (" + fmt.Sprintf("%d", time.Now().Unix()) + ")"
+}
+
 func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	originalQuery, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
 	if err != nil {
@@ -115,7 +121,7 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduled
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, ctxerr.New(ctx, "cannot create a team schedule from a team query")
 	}
-	originalQuery.Name = "Copy of " + originalQuery.Name + " (" + randomString(16) + ")"
+	originalQuery.Name = nameForCopiedQuery(originalQuery.Name)
 	originalQuery.TeamID = &teamID
 	newQuery, err := svc.NewQuery(ctx, fleet.ScheduledQueryToQueryPayloadForNewQuery(originalQuery, scheduledQuery))
 	if err != nil {
