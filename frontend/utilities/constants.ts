@@ -1,6 +1,7 @@
 import URL_PREFIX from "router/url_prefix";
 import { OsqueryPlatform } from "interfaces/platform";
 import paths from "router/paths";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -51,6 +52,10 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.8.2 +", value: "5.8.2" },
+  { label: "5.8.1 +", value: "5.8.1" },
+  { label: "5.7.0 +", value: "5.7.0" },
+  { label: "5.6.0 +", value: "5.6.0" },
   { label: "5.4.0 +", value: "5.4.0" },
   { label: "5.3.0 +", value: "5.3.0" },
   { label: "5.2.3 +", value: "5.2.4" },
@@ -94,20 +99,26 @@ export const QUERIES_PAGE_STEPS = {
   3: "RUN",
 };
 
-export const DEFAULT_QUERY = {
+export const DEFAULT_QUERY: ISchedulableQuery = {
   description: "",
   name: "",
   query: "SELECT * FROM osquery_info;",
   id: 0,
   interval: 0,
-  last_excuted: "",
   observer_can_run: false,
+  platform: "",
+  min_osquery_version: "",
+  automations_enabled: false,
+  logging: "snapshot",
   author_name: "",
   updated_at: "",
   created_at: "",
   saved: false,
   author_id: 0,
   packs: [],
+  team_id: 0,
+  author_email: "",
+  stats: {},
 };
 
 export const DEFAULT_CAMPAIGN = {

@@ -67,9 +67,14 @@ export interface ICreateQueryRequestBody {
 /** PATCH /api/v1/fleet/queries/{id} */
 export interface IModifyQueryRequestBody
   extends Omit<ICreateQueryRequestBody, "name" | "query"> {
-  id: number;
+  id?: number;
   name?: string;
   query?: string;
+  description?: string;
+  observer_can_run?: boolean;
+  frequency?: number;
+  platform?: SelectedPlatformString;
+  min_osquery_version?: string;
 }
 
 // response is ISchedulableQuery // better way to indicate this?

@@ -153,7 +153,7 @@ const generateTableHeaders = ({
                 )}
               </>
             }
-            path={PATHS.EDIT_QUERY(cellProps.row.original)}
+            path={PATHS.EDIT_QUERY(cellProps.row.original.id)}
           />
         );
       },

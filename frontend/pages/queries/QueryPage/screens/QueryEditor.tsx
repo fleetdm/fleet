@@ -7,7 +7,6 @@ import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
-import { IQueryFormData, IQuery } from "interfaces/query";
 import {
   ICreateQueryRequestBody,
   ISchedulableQuery,
@@ -27,7 +26,7 @@ interface IQueryEditorProps {
     name: string;
     id: number;
   };
-  storedQuery: IQuery | undefined;
+  storedQuery: ISchedulableQuery | undefined;
   storedQueryError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
@@ -67,6 +66,10 @@ const QueryEditor = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
+    lastEditedQueryFrequency,
+    lastEditedQueryLoggingType,
+    lastEditedQueryPlatforms,
+    lastEditedQueryMinOsqueryVersion,
   } = useContext(QueryContext);
 
   const [isQuerySaving, setIsQuerySaving] = useState(false);
@@ -89,7 +92,7 @@ const QueryEditor = ({
     setIsQuerySaving(true);
     try {
       const query = await createQuery(formData);
-      router.push(PATHS.EDIT_QUERY(query));
+      router.push(PATHS.EDIT_QUERY(query.id));
       renderFlash("success", "Query created!");
       setBackendValidators({});
     } catch (createError: any) {
@@ -106,13 +109,14 @@ const QueryEditor = ({
           "error",
           "Something went wrong creating your query. Please try again."
         );
+        setBackendValidators({});
       }
     } finally {
       setIsQuerySaving(false);
     }
   });
 
-  const onUpdateQuery = async (formData: IQueryFormData) => {
+  const onUpdateQuery = async (formData: ICreateQueryRequestBody) => {
     if (!queryIdForEdit) {
       return false;
     }
@@ -124,6 +128,10 @@ const QueryEditor = ({
       lastEditedQueryDescription,
       lastEditedQueryBody,
       lastEditedQueryObserverCanRun,
+      lastEditedQueryFrequency,
+      lastEditedQueryPlatforms,
+      lastEditedQueryLoggingType,
+      lastEditedQueryMinOsqueryVersion,
     });
 
     try {

@@ -70,6 +70,10 @@ const QueryPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
+    setLastEditedQueryFrequency,
+    setLastEditedQueryLoggingType,
+    setLastEditedQueryMinOsqueryVersion,
+    setLastEditedQueryPlatforms,
   } = useContext(QueryContext);
 
   const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
@@ -104,6 +108,10 @@ const QueryPage = ({
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
+        setLastEditedQueryFrequency(returnedQuery.interval);
+        setLastEditedQueryPlatforms(returnedQuery.platform);
+        setLastEditedQueryLoggingType(returnedQuery.logging);
+        setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
       },
       onError: (error) => handlePageError(error),
     }
@@ -146,12 +154,18 @@ const QueryPage = ({
 
   useEffect(() => {
     detectIsFleetQueryRunnable();
-    setLastEditedQueryId(DEFAULT_QUERY.id);
-    setLastEditedQueryName(DEFAULT_QUERY.name);
-    setLastEditedQueryDescription(DEFAULT_QUERY.description);
-    setLastEditedQueryBody(DEFAULT_QUERY.query);
-    setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
-  }, []);
+    if (!queryId) {
+      setLastEditedQueryId(DEFAULT_QUERY.id);
+      setLastEditedQueryName(DEFAULT_QUERY.name);
+      setLastEditedQueryDescription(DEFAULT_QUERY.description);
+      setLastEditedQueryBody(DEFAULT_QUERY.query);
+      setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
+      setLastEditedQueryFrequency(DEFAULT_QUERY.interval);
+      setLastEditedQueryLoggingType(DEFAULT_QUERY.logging);
+      setLastEditedQueryMinOsqueryVersion(DEFAULT_QUERY.min_osquery_version);
+      setLastEditedQueryPlatforms(DEFAULT_QUERY.platform);
+    }
+  }, [queryId]);
 
   useEffect(() => {
     setShowOpenSchemaActionText(!isSidebarOpen);
