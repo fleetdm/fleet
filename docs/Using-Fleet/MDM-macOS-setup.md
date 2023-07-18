@@ -196,7 +196,7 @@ spec:
 
 Learn more about team configurations options [here](./configuration-files/README.md#teams).
 
-If you want to customize the macOS Setup Assistant for hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
+If you want to customize the macOS Setup Assistant for hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
 
 ```yaml
 apiVersion: v1
