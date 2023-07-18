@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useContext } from "react";
 
 import { filter, includes } from "lodash";
-import { IQuery } from "interfaces/query";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
@@ -17,7 +16,7 @@ export interface ISelectQueryModalProps {
   onCancel: () => void;
   onQueryHostCustom: () => void;
   onQueryHostSaved: (selectedQuery: ISchedulableQuery) => void;
-  queries: IQuery[] | [];
+  queries: ISchedulableQuery[] | [];
   queryErrors: Error | null;
   isOnlyObserver?: boolean;
   hostsTeamId: number | null;
