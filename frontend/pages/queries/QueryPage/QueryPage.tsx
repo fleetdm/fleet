@@ -47,7 +47,7 @@ const QueryPage = ({
   location,
 }: IQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
-  const { teamIdForApi: teamIdForQuery } = useTeamIdParam({
+  const { currentTeamSummary: teamForQuery } = useTeamIdParam({
     location,
     router,
     includeAllTeams: true,
@@ -198,7 +198,7 @@ const QueryPage = ({
       router,
       baseClass,
       queryIdForEdit: queryId,
-      teamIdForQuery,
+      teamForQuery,
       showOpenSchemaActionText,
       storedQuery,
       isStoredQueryLoading,
