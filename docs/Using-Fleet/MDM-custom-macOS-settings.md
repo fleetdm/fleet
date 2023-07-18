@@ -90,7 +90,7 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 
 * Verified: hosts that installed all configuration profiles. Fleet has verified with osquery.
 
-* Latest: hosts acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery.
+* Latest: hosts that have acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery.
 
 * Verifying: hosts that will receive MDM commands to install configuration profiles when the hosts come online.
 
