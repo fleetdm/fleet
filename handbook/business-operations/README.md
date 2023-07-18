@@ -519,15 +519,14 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
      > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
 2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
-3. **Schedule CEO interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
-   - At Fleet, the CEO interviews every new team member at least once before Fleet extends an offer.  (We plan to continue this practice until headcount reaches 100.)
-     - No need to check with the CEO first.  You can just book the meeting on their calendar.
-     - Schedule the meeting directly on the CEO's calendar during a time they and the candidate are both explicitly available according to that calendar.  Available means whitespace.
-     - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
-   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, include Zach in this final interview.)
+3. **Schedule CEO interview:** Book a [quick chat](https://fleetdm.com/handbook/business-operations#internal-meeting-scheduling) so our CEO can get to know the future Fleetie.
+   - **Note:** _If this is an engineering position_, before the CEO interview, please ensure the candidate has already been interviewed by Zach Wasserman.  (If not, include Zach in this final interview.)
+   - The CEO interviews every new team member at least once before Fleet extends an offer.  (We plan to continue this practice until headcount reaches 100.)
+     - No need to check with the CEO first, offer the CEO's "quick chat" 30m Calendly link. 
    - The personal email the candidate uses for this calendar event is where they will receive their offer or rejection email.
-   - Make sure that the agenda doc for the 30m final interview with CEO is in an outline format, located in the "Meeting notes" folder, and contains a discussion point about asking the candidate to verify that 2FA is enabled in their GitHub account.
-4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
+   - Using Google Calendar, make sure that the existing meeting notes are replaced with this [agenda doc](https://docs.google.com/document/d/1dzeMMOLeu-CTyM60FDalGBJsNSO35WjnMOZvrUdmsD0/edit) for the final interview in the description of the calendar event.
+   - **Note:** Please DM the [Apprentice to the CEO](https://fleetdm.com/handbook/company/ceo-handbook#the-ceo-support-team) with any questions about scheduling this meeting. 
+5. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
    - _Share_ this single document with the Head of Business Operations via email.
      - Share only _one, single Google Doc, please_; with a short, formulaic name that's easy to understand in an instant from just an email subject line.  For example, you could title it:
