@@ -7,13 +7,18 @@ import ReactTooltip from "react-tooltip";
 interface IPillCellProps {
   value: { indicator: string; id: number };
   customIdPrefix?: string;
+  hostDetails?: boolean;
 }
 
 const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const PillCell = ({ value, customIdPrefix }: IPillCellProps): JSX.Element => {
+const PillCell = ({
+  value,
+  customIdPrefix,
+  hostDetails,
+}: IPillCellProps): JSX.Element => {
   const { indicator, id } = value;
   const pillClassName = classnames(
     "data-table__pill",
@@ -71,7 +76,7 @@ const PillCell = ({ value, customIdPrefix }: IPillCellProps): JSX.Element => {
         return (
           <>
             To see performance impact, this query must have run with{" "}
-            <b>automations</b> on at least one host.
+            <b>automations</b> on {hostDetails ? "this" : "at least one"} host.
           </>
         );
       default:
