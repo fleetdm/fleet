@@ -79,7 +79,7 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return listQueriesResponse{Err: err}, nil
 	}
 
-	var respQueries []fleet.Query
+	respQueries := make([]fleet.Query, 0, len(queries))
 	for _, query := range queries {
 		respQueries = append(respQueries, *query)
 	}
@@ -598,16 +598,7 @@ func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.QuerySpec, error) {
-	// Check the user is allowed to get all the queries of the requested team.
-	if err := svc.authz.Authorize(ctx, &fleet.Query{
-		TeamID: teamID,
-	}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
-		TeamID: teamID,
-	})
+	queries, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting queries")
 	}

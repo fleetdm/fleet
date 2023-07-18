@@ -452,7 +452,7 @@ func getPacksCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  withQueriesFlagName,
-				Usage: "Output queries included in pack(s) too",
+				Usage: "Output queries included in pack(s) too, when used alongside --yaml or --json",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -483,8 +483,7 @@ func getPacksCommand() *cli.Command {
 					return nil
 				}
 
-				// teamID nil defaults to the global team (2017 packs use
-				// global queries).
+				// Get global queries (teamID==nil), because 2017 packs reference global queries.
 				queries, err := client.GetQueries(nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
