@@ -48,6 +48,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       name: "New query name",
       observer_can_run: false,
       query: "SELECT * FROM osquery_info;",
+      id: 1,
       team_id: null,
       platform: "linux",
     },

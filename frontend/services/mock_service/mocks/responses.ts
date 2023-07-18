@@ -371,11 +371,12 @@ const globalQueries = {
       created_at: "2022-11-03T17:22:14Z",
       updated_at: "2022-11-03T17:22:14Z",
       id: 1,
-      name: "Test Query",
+      name:
+        "Test Query (every hour, 3 platforms, snapshot, no observer run, no min osversion)",
       description: "A test query",
-      query: "SELECT * FROM users",
+      query: "SELECT * FROM users;",
       team_id: null,
-      interval: 3600,
+      interval: 3600, // Every hour
       platform: "darwin,windows,linux",
       min_osquery_version: "",
       automations_enabled: true,
@@ -399,13 +400,13 @@ const globalQueries = {
       updated_at: "2022-11-03T17:22:14Z",
       id: 2,
       name:
-        "Test Query 2 has a really long name that is wider than a modal allows without truncating",
+        "Test Query 2 (every 12 hours, no platforms, observers can run, min version 5.8.1, differential)",
       description: "A second test query",
       query: "SELECT * FROM osquery_info",
       team_id: null,
-      interval: 86400, // Daily
-      platform: "linux",
-      min_osquery_version: "",
+      interval: 43200, // Every 12 hours
+      platform: "",
+      min_osquery_version: "5.8.1",
       automations_enabled: false,
       logging: "differential",
       saved: false,
@@ -427,8 +428,8 @@ const globalQueries = {
       updated_at: "2022-11-03T17:22:14Z",
       id: 3,
       name: "Test Query 3",
-      description: "A third test query",
-      query: "SELECT * FROM osquery_info",
+      description: "A third test query (Select all from windows_crashes",
+      query: "SELECT * FROM windows_crashes",
       team_id: null,
       interval: 604800, // Weekly
       platform: "",
@@ -484,8 +485,8 @@ const globalQueries = {
       description: "A fifth test query",
       query: "SELECT * FROM osquery_info",
       team_id: 2,
-      interval: 300, // 5 minutes
-      platform: "",
+      interval: 604800, // Every week
+      platform: "Windows",
       min_osquery_version: "",
       automations_enabled: false,
       logging: "differential",

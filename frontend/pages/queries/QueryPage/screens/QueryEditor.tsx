@@ -7,7 +7,10 @@ import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
-import { IQueryFormData, IQuery } from "interfaces/query";
+import {
+  ICreateQueryRequestBody,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
@@ -19,15 +22,18 @@ interface IQueryEditorProps {
   router: InjectedRouter;
   baseClass: string;
   queryIdForEdit: number | null;
-  storedQuery: IQuery | undefined;
+  teamForQuery?: {
+    name: string;
+    id: number;
+  };
+  storedQuery: ISchedulableQuery | undefined;
   storedQueryError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
   createQuery: UseMutateAsyncFunction<
-    { query: IQuery },
+    ISchedulableQuery,
     unknown,
-    IQueryFormData,
-    unknown
+    ICreateQueryRequestBody
   >;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -39,6 +45,7 @@ const QueryEditor = ({
   router,
   baseClass,
   queryIdForEdit,
+  teamForQuery,
   storedQuery,
   storedQueryError,
   showOpenSchemaActionText,
@@ -59,6 +66,10 @@ const QueryEditor = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
+    lastEditedQueryFrequency,
+    lastEditedQueryLoggingType,
+    lastEditedQueryPlatforms,
+    lastEditedQueryMinOsqueryVersion,
   } = useContext(QueryContext);
 
   const [isQuerySaving, setIsQuerySaving] = useState(false);
@@ -77,29 +88,35 @@ const QueryEditor = ({
     [key: string]: string;
   }>({});
 
-  const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
+  const saveQuery = debounce(async (formData: ICreateQueryRequestBody) => {
     setIsQuerySaving(true);
     try {
-      const { query }: { query: IQuery } = await createQuery(formData);
-      router.push(PATHS.EDIT_QUERY(query));
+      const query = await createQuery(formData);
+      router.push(PATHS.EDIT_QUERY(query.id));
       renderFlash("success", "Query created!");
       setBackendValidators({});
     } catch (createError: any) {
-      console.error(createError);
       if (createError.data.errors[0].reason.includes("already exists")) {
-        setBackendValidators({ name: "A query with this name already exists" });
+        const teamErrorText =
+          teamForQuery && teamForQuery?.id !== -1
+            ? `the ${teamForQuery.name} team`
+            : "all teams";
+        setBackendValidators({
+          name: `A query with that name already exists for ${teamErrorText}.`,
+        });
       } else {
         renderFlash(
           "error",
           "Something went wrong creating your query. Please try again."
         );
+        setBackendValidators({});
       }
     } finally {
       setIsQuerySaving(false);
     }
   });
 
-  const onUpdateQuery = async (formData: IQueryFormData) => {
+  const onUpdateQuery = async (formData: ICreateQueryRequestBody) => {
     if (!queryIdForEdit) {
       return false;
     }
@@ -111,6 +128,10 @@ const QueryEditor = ({
       lastEditedQueryDescription,
       lastEditedQueryBody,
       lastEditedQueryObserverCanRun,
+      lastEditedQueryFrequency,
+      lastEditedQueryPlatforms,
+      lastEditedQueryLoggingType,
+      lastEditedQueryMinOsqueryVersion,
     });
 
     try {
@@ -149,12 +170,13 @@ const QueryEditor = ({
       </div>
       <QueryForm
         router={router}
-        onCreateQuery={onSaveQueryFormSubmit}
+        saveQuery={saveQuery}
         goToSelectTargets={goToSelectTargets}
         onOsqueryTableSelect={onOsqueryTableSelect}
         onUpdate={onUpdateQuery}
         storedQuery={storedQuery}
         queryIdForEdit={queryIdForEdit}
+        teamIdForQuery={teamForQuery?.id}
         isStoredQueryLoading={isStoredQueryLoading}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}

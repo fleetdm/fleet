@@ -3,9 +3,10 @@ import sqliteParser from "sqlite-parser";
 import { intersection, isPlainObject } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import {
-  IOsqueryPlatform,
+  OsqueryPlatform,
   MACADMINS_EXTENSION_TABLES,
   SUPPORTED_PLATFORMS,
+  SupportedPlatform,
 } from "interfaces/platform";
 
 type IAstNode = Record<string | number | symbol, unknown>;
@@ -24,10 +25,10 @@ interface ISqlCteNode {
 // TODO: Is it ever possible that osquery_tables.json would be missing name or platforms?
 interface IOsqueryTable {
   name: string;
-  platforms: IOsqueryPlatform[];
+  platforms: OsqueryPlatform[];
 }
 
-type IPlatformDictionay = Record<string, IOsqueryPlatform[]>;
+type IPlatformDictionay = Record<string, OsqueryPlatform[]>;
 
 const platformsByTableDictionary: IPlatformDictionay = (osqueryTables as IOsqueryTable[]).reduce(
   (dictionary: IPlatformDictionay, osqueryTable) => {
@@ -64,7 +65,9 @@ const _visit = (
   }
 };
 
-const filterCompatiblePlatforms = (sqlTables: string[]): IOsqueryPlatform[] => {
+const filterCompatiblePlatforms = (
+  sqlTables: string[]
+): SupportedPlatform[] => {
   if (!sqlTables.length) {
     return [...SUPPORTED_PLATFORMS]; // if a query has no tables but is still syntatically valid sql, it is treated as compatible with all platforms
   }
@@ -122,7 +125,7 @@ const parseSqlTables = (
 const checkPlatformCompatibility = (
   sqlString: string,
   includeCteTables = false
-): { platforms: IOsqueryPlatform[] | null; error: Error | null } => {
+): { platforms: SupportedPlatform[] | null; error: Error | null } => {
   let sqlTables: string[] | undefined;
   try {
     sqlTables = parseSqlTables(sqlString, includeCteTables);

@@ -39,13 +39,10 @@ const REGEX_DETAIL_PAGES = {
   PACK_NEW: /\/packs\/new/i,
   POLICY_EDIT: /\/policies\/\d+/i,
   POLICY_NEW: /\/policies\/new/i,
-  QUERY_EDIT: /\/queries\/\d+/i,
-  QUERY_NEW: /\/queries\/new/i,
   SOFTWARE_DETAILS: /\/software\/\d+/i,
 };
 
 const REGEX_GLOBAL_PAGES = {
-  MANAGE_QUERIES: /\/queries\/manage/i,
   MANAGE_PACKS: /\/packs\/manage/i,
   ORGANIZATION: /\/settings\/organization/i,
   USERS: /\/settings\/users/i,
