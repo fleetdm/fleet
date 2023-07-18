@@ -109,7 +109,7 @@ A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security
 When Kolide's attention shifted away from Fleet, and towards their separate, user-focused SaaS offering, the Fleet community took over maintenance of the open source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
 
 ### 2020: Fleet was incorporated
-Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
+Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/company/ceo-handbook), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
 ### 2022: Millions of hosts
 Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
@@ -125,14 +125,12 @@ Above and beyond the organizational chart, Fleet organizes cross-functional grou
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
-[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Jack Naglieri](https://councils.forbes.com/profile/Jack-Naglieri-Founder-CEO-Panther/a5f3a285-e983-4f4c-9f9d-2f0d4335f00d) _(Panther Labs)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  (Just ask.)
+[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/ceo-handbook).)
 
 ## Strategy
 
 You can read about the [company's positioning ("👑 Crown jewels")](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#) and [vulnerability management positioning ("👑 Crown jewels pt. 2"](https://docs.google.com/document/d/1VXnZo5EQeircKvUPYai69GPW8QnECamCE5CU1vjLMPU/edit), or review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide ["All hands" meetings](https://fleetdm.com/handbook/business-operations#all-hands).
 
-## CEO handbook
-The [CEO handbook](https://fleetdm.com/handbook/company/ceo-handbook) details processes specific to Mike McNeil, CEO of Fleet.
 
 ## Slack channels
 
@@ -164,6 +162,10 @@ Please see [📖Business Operations#tools-we-use](https://fleetdm.com/handbook/b
 ##### Positioning
 
 Please see [📖Company#strategy](#strategy).
+
+##### CEO handbook
+
+Please see [📖Company#CEO](https://fleetdm.com/handbook/company/ceo-handbook).
 
 
 <meta name="maintainedBy" value="mikermcneil">
