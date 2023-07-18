@@ -41,6 +41,7 @@ interface IQueriesTableProps {
     order_direction?: "asc" | "desc";
     team_id?: string;
   };
+  isInherited?: boolean;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -89,8 +90,9 @@ const QueriesTable = ({
   isOnlyObserver,
   isObserverPlus,
   isAnyTeamObserverPlus,
-  queryParams,
   router,
+  queryParams,
+  isInherited = false,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
 
@@ -239,11 +241,13 @@ const QueriesTable = ({
     [currentUser]
   );
 
-  const searchable = !(queriesList?.length === 0 && searchQuery === "");
+  const searchable =
+    !(queriesList?.length === 0 && searchQuery === "") && !isInherited;
 
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
+        disableCount={isInherited}
         resultsTitle="queries"
         columns={tableHeaders}
         data={queriesList}
@@ -269,7 +273,9 @@ const QueriesTable = ({
         isAllPagesSelected={false}
         searchable={searchable}
         searchQueryColumn="name"
-        customControl={searchable ? renderPlatformDropdown : undefined}
+        customControl={
+          searchable && !isInherited ? renderPlatformDropdown : undefined
+        }
         isClientSidePagination
         onClientSidePaginationChange={onClientSidePaginationChange}
         isClientSideFilter

@@ -23,7 +23,10 @@ interface IQueryEditorProps {
   router: InjectedRouter;
   baseClass: string;
   queryIdForEdit: number | null;
-  teamIdForQuery?: number;
+  teamForQuery?: {
+    name: string;
+    id: number;
+  };
   storedQuery: IQuery | undefined;
   storedQueryError: Error | null;
   showOpenSchemaActionText: boolean;
@@ -43,7 +46,7 @@ const QueryEditor = ({
   router,
   baseClass,
   queryIdForEdit,
-  teamIdForQuery,
+  teamForQuery,
   storedQuery,
   storedQueryError,
   showOpenSchemaActionText,
@@ -90,9 +93,14 @@ const QueryEditor = ({
       renderFlash("success", "Query created!");
       setBackendValidators({});
     } catch (createError: any) {
-      console.error(createError);
       if (createError.data.errors[0].reason.includes("already exists")) {
-        setBackendValidators({ name: "A query with this name already exists" });
+        const teamErrorText =
+          teamForQuery && teamForQuery?.id !== -1
+            ? `the ${teamForQuery.name} team`
+            : "all teams";
+        setBackendValidators({
+          name: `A query with that name already exists for ${teamErrorText}.`,
+        });
       } else {
         renderFlash(
           "error",
@@ -160,7 +168,7 @@ const QueryEditor = ({
         onUpdate={onUpdateQuery}
         storedQuery={storedQuery}
         queryIdForEdit={queryIdForEdit}
-        teamIdForQuery={teamIdForQuery}
+        teamIdForQuery={teamForQuery?.id}
         isStoredQueryLoading={isStoredQueryLoading}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}

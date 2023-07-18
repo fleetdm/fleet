@@ -59,11 +59,14 @@
     gap: $pad-small;
   }
 
-  form-field--dropdown {
-    margin: 0;
-  }
-
   .queries-table {
+    .controls {
+      .form-field {
+        &--dropdown {
+          margin: 0;
+        }
+      }
+    }
     &__platform-dropdown {
       width: 159px;
 
