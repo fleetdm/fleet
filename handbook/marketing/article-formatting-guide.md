@@ -1,5 +1,9 @@
 # Article formatting guide
 
+
+
+
+
 > Before creating a pull request for an article, please submit a Google Doc draft (see [How to submit an article](./how-to-submit-and-publish-an-article.md#how-to-submit-an-article)). If you need help with Fleet-flavored Markdown, please read our handy [Markdown guide](./markdown-guide).
 
 ## Layout
