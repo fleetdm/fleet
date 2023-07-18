@@ -10,7 +10,7 @@ import { performanceIndicator } from "utilities/helpers";
 import { SupportedPlatform } from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import {
-  IListQueriesResponse,
+  IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import queriesAPI from "services/entities/queries";
@@ -113,11 +113,6 @@ const ManageQueriesPage = ({
   );
   const [showInheritedQueries, setShowInheritedQueries] = useState(false);
 
-  interface IQueryKeyQueriesLoadAll {
-    scope: "enhancedQueries";
-    teamId: number | undefined;
-  }
-
   const {
     data: curTeamEnhancedQueries,
     error: curTeamQueriesError,
@@ -129,7 +124,7 @@ const ManageQueriesPage = ({
     IEnhancedQuery[],
     IQueryKeyQueriesLoadAll[]
   >(
-    [{ scope: "enhancedQueries", teamId: teamIdForApi }],
+    [{ scope: "queries", teamId: teamIdForApi }],
     ({ queryKey: [{ teamId }] }) =>
       queriesAPI.loadAll(teamId).then(({ queries }) => {
         return queries.map(enhanceQuery);
@@ -153,7 +148,7 @@ const ManageQueriesPage = ({
     IEnhancedQuery[],
     IQueryKeyQueriesLoadAll[]
   >(
-    [{ scope: "enhancedQueries", teamId: API_ALL_TEAMS_ID }],
+    [{ scope: "queries", teamId: API_ALL_TEAMS_ID }],
     ({ queryKey: [{ teamId }] }) =>
       queriesAPI.loadAll(teamId).then(({ queries }) => {
         return queries.map(enhanceQuery);

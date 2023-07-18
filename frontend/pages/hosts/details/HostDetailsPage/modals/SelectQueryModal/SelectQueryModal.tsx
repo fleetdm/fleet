@@ -11,11 +11,12 @@ import InputField from "components/forms/fields/InputField";
 
 import DataError from "components/DataError";
 import permissions from "utilities/permissions";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
 
 export interface ISelectQueryModalProps {
   onCancel: () => void;
   onQueryHostCustom: () => void;
-  onQueryHostSaved: (selectedQuery: IQuery) => void;
+  onQueryHostSaved: (selectedQuery: ISchedulableQuery) => void;
   queries: IQuery[] | [];
   queryErrors: Error | null;
   isOnlyObserver?: boolean;
