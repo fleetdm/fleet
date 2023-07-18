@@ -20,6 +20,7 @@ import {
   IMacadminsResponse,
   IHostResponse,
   IHostMdmData,
+  IPackStats,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
@@ -30,6 +31,7 @@ import {
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { IQueryStats } from "interfaces/query_stats";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -48,8 +50,6 @@ import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
 import ScheduleCard from "../cards/Schedule";
-import PacksCard from "../cards/Packs";
-import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -151,7 +151,6 @@ const HostDetailsPage = ({
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [packsState, setPacksState] = useState<IPackStats[]>();
   const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
@@ -313,7 +312,6 @@ const HostDetailsPage = ({
             },
             { packs: [], schedule: [] }
           );
-          setPacksState(packStatsByType.packs);
           setSchedule(packStatsByType.schedule);
         }
       },
@@ -728,9 +726,6 @@ const HostDetailsPage = ({
                 schedule={schedule}
                 isLoading={isLoadingHost}
               />
-              {canViewPacks && (
-                <PacksCard packsState={packsState} isLoading={isLoadingHost} />
-              )}
             </TabPanel>
             <TabPanel>
               <PoliciesCard
