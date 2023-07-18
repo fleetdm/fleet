@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"math/rand"
-	"strings"
+	"crypto/rand"
+	"math/big"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -89,15 +89,18 @@ func globalScheduleQueryEndpoint(ctx context.Context, request interface{}, svc f
 	return globalScheduleQueryResponse{Scheduled: scheduled}, nil
 }
 
-const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
 func randomString(n int) string {
-	sb := strings.Builder{}
-	sb.Grow(n)
+	const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	res := make([]byte, n)
 	for i := 0; i < n; i++ {
-		sb.WriteByte(stringVals[rand.Int63()%int64(len(stringVals))])
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(stringVals))))
+		if err != nil {
+			panic(err)
+		}
+		res[i] = stringVals[num.Int64()]
 	}
-	return sb.String()
+
+	return string(res)
 }
 
 func (svc *Service) GlobalScheduleQuery(ctx context.Context, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
