@@ -451,7 +451,7 @@ const QueryForm = ({
             variant="blue-green"
             onClick={goToSelectTargets}
           >
-            Run query
+            Live query
           </Button>
         </div>
       )}
@@ -567,7 +567,7 @@ const QueryForm = ({
             variant="blue-green"
             onClick={goToSelectTargets}
           >
-            Run query
+            Live query
           </Button>
         </div>
       </form>
