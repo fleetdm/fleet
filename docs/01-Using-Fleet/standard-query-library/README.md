@@ -46,3 +46,5 @@ Listed below are great resources that contain additional queries.
 
 - Osquery (https://github.com/osquery/osquery/tree/master/packs)
 - Palantir osquery configuration (https://github.com/palantir/osquery-configuration/tree/master/Fleet)
+
+<meta name="navSection" value="The basics">
