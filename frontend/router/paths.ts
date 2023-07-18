@@ -18,6 +18,8 @@ export default {
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
   DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
+
+  // Admin pages
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
@@ -25,6 +27,7 @@ export default {
   ADMIN_INTEGRATIONS_MDM_MAC: `${URL_PREFIX}/settings/integrations/mdm/apple`,
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT: `${URL_PREFIX}/settings/integrations/automatic-enrollment`,
+  ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_SETTINGS_INFO: `${URL_PREFIX}/settings/organization/info`,
@@ -36,6 +39,7 @@ export default {
   ADMIN_SETTINGS_STATISTICS: `${URL_PREFIX}/settings/organization/statistics`,
   ADMIN_SETTINGS_ADVANCED: `${URL_PREFIX}/settings/organization/advanced`,
   ADMIN_SETTINGS_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
+
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
   },

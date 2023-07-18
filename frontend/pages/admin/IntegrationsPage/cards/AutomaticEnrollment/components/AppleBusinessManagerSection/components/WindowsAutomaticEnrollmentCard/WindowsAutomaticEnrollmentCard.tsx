@@ -1,4 +1,5 @@
 import React from "react";
+import { noop } from "lodash";
 
 import Card from "components/Card";
 import Button from "components/buttons/Button";
@@ -6,18 +7,25 @@ import Icon from "components/Icon/Icon";
 
 const baseClass = "windows-automatic-enrollment-card";
 
-interface IWindowsAutomaticEnrollmentCardProps {}
+interface IWindowsAutomaticEnrollmentCardProps {
+  viewDetails: () => void;
+}
 
-const WindowsAutomaticEnrollmentCard = ({}: IWindowsAutomaticEnrollmentCardProps) => {
+const WindowsAutomaticEnrollmentCard = ({
+  viewDetails,
+}: IWindowsAutomaticEnrollmentCardProps) => {
   return (
     <Card className={baseClass} color="gray">
-      <h3>WIndows automatic enrollment</h3>
-      <p>
-        To use automatic enrollment for Windows hosts and Windows Autopilot you
-        need to connect Fleet to Azure AD first.
-      </p>
-      <Button>
-        Details <Icon name="chevron" direction="right" />
+      <div>
+        <h3>Windows automatic enrollment</h3>
+        <p>
+          To use automatic enrollment for Windows hosts and Windows Autopilot
+          you need to connect Fleet to Azure AD first.
+        </p>
+      </div>
+      <Button onClick={viewDetails} variant="text-icon">
+        Details{" "}
+        <Icon name="chevron" direction="right" color="core-fleet-blue" />
       </Button>
     </Card>
   );

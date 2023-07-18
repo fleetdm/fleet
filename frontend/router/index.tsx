@@ -55,6 +55,7 @@ import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
 import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
+import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
 
 import PATHS from "router/paths";
 
@@ -140,6 +141,10 @@ const routes = (
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="integrations/mdm/apple" component={MacOSMdmPage} />
+            <Route
+              path="integrations/automatic-enrollment/windows"
+              component={WindowsAutomaticEnrollmentPage}
+            />
             <Route path="teams" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
