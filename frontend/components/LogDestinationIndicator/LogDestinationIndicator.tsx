@@ -3,7 +3,7 @@ import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-interface IStatusIndicatorProps {
+interface ILogDestinationIndicatorProps {
   logDestination: string;
 }
 
@@ -16,7 +16,7 @@ const generateClassTag = (rawValue: string): string => {
 
 const LogDestinationIndicator = ({
   logDestination,
-}: IStatusIndicatorProps): JSX.Element => {
+}: ILogDestinationIndicatorProps): JSX.Element => {
   const classTag = generateClassTag(logDestination);
   const statusClassName = classnames(
     "log-destination-indicator",
