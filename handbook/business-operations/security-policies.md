@@ -373,6 +373,12 @@ Encryption and key management for local disk encryption of end-user devices foll
 
 4. Transmission encryption keys are limited to use for one year and then must be regenerated.
 
+### Authorized Sub-Processors for Fleet Cloud services
+
+| Sub-processor Name | Purpose | Location |
+| ------------------ | ------- | -------- |
+| Amazon Web Services, Inc. and sub-processors located at https://aws.amazon.com/compliance/sub-processors/ | Database hosting platform | USA |
+
 ## Human resources security policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
