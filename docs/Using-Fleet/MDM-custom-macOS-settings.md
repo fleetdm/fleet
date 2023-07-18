@@ -88,7 +88,7 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 
 2. In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts:
 
-* Verified: hosts that installed all configuration profiles. Fleet verified with osquery.
+* Verified: hosts that installed all configuration profiles. Fleet has verified with osquery.
 
 * Latest: hosts acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery.
 
