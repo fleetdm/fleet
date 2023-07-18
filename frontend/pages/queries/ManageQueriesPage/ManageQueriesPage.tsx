@@ -124,7 +124,7 @@ const ManageQueriesPage = ({
     isFetching: isFetchingCurTeamQueries,
     refetch: refetchCurTeamQueries,
   } = useQuery<
-    IListQueriesResponse,
+    IEnhancedQuery[],
     Error,
     IEnhancedQuery[],
     IQueryKeyQueriesLoadAll[]
@@ -148,7 +148,7 @@ const ManageQueriesPage = ({
     isFetching: isFetchingGlobalQueries,
     refetch: refetchGlobalQueries,
   } = useQuery<
-    IListQueriesResponse,
+    IEnhancedQuery[],
     Error,
     IEnhancedQuery[],
     IQueryKeyQueriesLoadAll[]
