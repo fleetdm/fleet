@@ -28,6 +28,7 @@ import {
   ICreateQueryRequestBody,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
+import { SelectedPlatformString } from "interfaces/platform";
 import queryAPI from "services/entities/queries";
 
 import { IAceEditor } from "react-ace/lib/types";
@@ -46,7 +47,6 @@ import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveQueryModal from "../SaveQueryModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import { IPlatformString } from "interfaces/platform";
 
 const baseClass = "query-form";
 
@@ -226,12 +226,12 @@ const QueryForm = ({
       // else if Remove OS if All is chosen
       if (valArray.indexOf("") === 0 && valArray.length > 1) {
         setLastEditedQueryPlatforms(
-          pull(valArray, "").join(",") as IPlatformString
+          pull(valArray, "").join(",") as SelectedPlatformString
         );
       } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
         setLastEditedQueryPlatforms("");
       } else {
-        setLastEditedQueryPlatforms(values as IPlatformString);
+        setLastEditedQueryPlatforms(values as SelectedPlatformString);
       }
     },
     [setLastEditedQueryPlatforms]
@@ -353,7 +353,7 @@ const QueryForm = ({
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
-          frequency: lastEditedQueryFrequency,
+          interval: lastEditedQueryFrequency,
           platform: lastEditedQueryPlatforms,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
