@@ -1,5 +1,7 @@
 ## Hello! Welcome to Fleet's osquery tables documentation.
 
+
+
 This folder contains additional documentation that we add on top of the existing documentation for osquery to make the documentation of each table more useful for Fleet users.
 
 Fleet's schema tables live in the `tables/` folder. Each osquery table with Fleet overrides has a corresponding YAML file that will override information in the osquery schema documentation.
