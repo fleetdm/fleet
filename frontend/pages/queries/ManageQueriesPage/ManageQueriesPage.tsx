@@ -119,7 +119,6 @@ const ManageQueriesPage = ({
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [showInheritedQueries, setShowInheritedQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
-  const [automatedQueryIds, setAutomatedQueryIds] = useState<number[]>([]);
 
   const {
     data: curTeamEnhancedQueries,
@@ -133,12 +132,6 @@ const ManageQueriesPage = ({
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
       select: (data) => data.queries.map(enhanceQuery),
-      onSuccess: (data) => {
-        const scheduledQueries = data
-          .filter((query) => query.automations_enabled)
-          .map((query) => query.id);
-        setAutomatedQueryIds(scheduledQueries);
-      },
     }
   );
 
@@ -157,6 +150,14 @@ const ManageQueriesPage = ({
       select: (data) => data.queries.map(enhanceQuery),
     }
   );
+
+  const automatedQueryIds = useMemo(() => {
+    return curTeamEnhancedQueries
+      ? curTeamEnhancedQueries
+          .filter((query) => query.automations_enabled)
+          .map((query) => query.id)
+      : [];
+  }, [curTeamEnhancedQueries]);
 
   useEffect(() => {
     const path = location.pathname + location.search;

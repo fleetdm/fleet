@@ -49,17 +49,16 @@ const QueryFrequencyIndicator = ({
   };
 
   const frequencyIcon = () => {
-    switch (frequency) {
-      case 0:
-        return checked ? (
-          <Icon size="small" name="warning" />
-        ) : (
-          <Icon size="small" name="clock" color="ui-fleet-black-33" />
-        );
-      default:
-        return <Icon size="small" name="clock" />;
+    if (frequency === 0) {
+      return checked ? (
+        <Icon size="small" name="warning" />
+      ) : (
+        <Icon size="small" name="clock" color="ui-fleet-black-33" />
+      );
     }
+    return <Icon size="small" name="clock" />;
   };
+
   return (
     <div
       className={`${frequencyClassName}
