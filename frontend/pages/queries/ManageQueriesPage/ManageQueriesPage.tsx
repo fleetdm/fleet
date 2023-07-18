@@ -8,6 +8,7 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { performanceIndicator } from "utilities/helpers";
 import { SupportedPlatform } from "interfaces/platform";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 import {
   IListQueriesResponse,
   ISchedulableQuery,
@@ -112,34 +113,55 @@ const ManageQueriesPage = ({
   );
   const [showInheritedQueries, setShowInheritedQueries] = useState(false);
 
+  interface IQueryKeyQueriesLoadAll {
+    scope: "enhancedQueries";
+    teamId: number | undefined;
+  }
+
   const {
     data: curTeamEnhancedQueries,
     error: curTeamQueriesError,
     isFetching: isFetchingCurTeamQueries,
     refetch: refetchCurTeamQueries,
-  } = useQuery<IListQueriesResponse, Error, IEnhancedQuery[]>(
-    [{ scope: "queries", teamId: teamIdForApi }],
-    () => queriesAPI.loadAll(teamIdForApi),
+  } = useQuery<
+    IEnhancedQuery[],
+    Error,
+    IEnhancedQuery[],
+    IQueryKeyQueriesLoadAll[]
+  >(
+    [{ scope: "enhancedQueries", teamId: teamIdForApi }],
+    ({ queryKey: [{ teamId }] }) =>
+      queriesAPI.loadAll(teamId).then(({ queries }) => {
+        return queries.map(enhanceQuery);
+      }),
     {
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
-      select: (data) => data.queries.map(enhanceQuery),
+      staleTime: 5000,
     }
   );
 
-  // If a team is selected, fetch inherited global queries as well
+  // If a team is selected, inherit global queries
   const {
     data: globalEnhancedQueries,
     error: globalQueriesError,
     isFetching: isFetchingGlobalQueries,
     refetch: refetchGlobalQueries,
-  } = useQuery<IListQueriesResponse, Error, IEnhancedQuery[]>(
-    [{ scope: "queries", teamId: -1 }],
-    () => queriesAPI.loadAll(),
+  } = useQuery<
+    IEnhancedQuery[],
+    Error,
+    IEnhancedQuery[],
+    IQueryKeyQueriesLoadAll[]
+  >(
+    [{ scope: "enhancedQueries", teamId: API_ALL_TEAMS_ID }],
+    ({ queryKey: [{ teamId }] }) =>
+      queriesAPI.loadAll(teamId).then(({ queries }) => {
+        return queries.map(enhanceQuery);
+      }),
     {
       refetchOnWindowFocus: false,
       enabled: isRouteOk && isAnyTeamSelected,
-      select: (data) => data.queries.map(enhanceQuery),
+      staleTime: 5000,
     }
   );
 
@@ -227,19 +249,17 @@ const ManageQueriesPage = ({
       return <TableDataError />;
     }
     return (
-      <div>
-        <QueriesTable
-          queriesList={curTeamEnhancedQueries || []}
-          isLoading={isFetchingCurTeamQueries}
-          onCreateQueryClick={onCreateQueryClick}
-          onDeleteQueryClick={onDeleteQueryClick}
-          isOnlyObserver={isOnlyObserver}
-          isObserverPlus={isObserverPlus}
-          isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
-          router={router}
-          queryParams={queryParams}
-        />
-      </div>
+      <QueriesTable
+        queriesList={curTeamEnhancedQueries || []}
+        isLoading={isFetchingCurTeamQueries}
+        onCreateQueryClick={onCreateQueryClick}
+        onDeleteQueryClick={onDeleteQueryClick}
+        isOnlyObserver={isOnlyObserver}
+        isObserverPlus={isObserverPlus}
+        isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
+        router={router}
+        queryParams={queryParams}
+      />
     );
   };
 
@@ -274,19 +294,18 @@ const ManageQueriesPage = ({
       return <TableDataError />;
     }
     return (
-      <div>
-        <QueriesTable
-          queriesList={globalEnhancedQueries || []}
-          isLoading={isFetchingGlobalQueries}
-          onCreateQueryClick={onCreateQueryClick}
-          onDeleteQueryClick={onDeleteQueryClick}
-          isOnlyObserver={isOnlyObserver}
-          isObserverPlus={isObserverPlus}
-          isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
-          router={router}
-          queryParams={queryParams}
-        />
-      </div>
+      <QueriesTable
+        queriesList={globalEnhancedQueries || []}
+        isLoading={isFetchingGlobalQueries}
+        onCreateQueryClick={onCreateQueryClick}
+        onDeleteQueryClick={onDeleteQueryClick}
+        isOnlyObserver={isOnlyObserver}
+        isObserverPlus={isObserverPlus}
+        isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
+        router={router}
+        queryParams={queryParams}
+        isInherited
+      />
     );
   };
 

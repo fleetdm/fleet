@@ -166,22 +166,20 @@ const SaveQueryModal = ({
             type="textarea"
             placeholder="What information does your query reveal? (optional)"
           />
-          <div>
-            <Dropdown
-              searchable={false}
-              options={FREQUENCY_DROPDOWN_OPTIONS}
-              onChange={(value: number) => {
-                setSelectedFrequency(value);
-              }}
-              placeholder={"Every hour"}
-              value={selectedFrequency}
-              label="Frequency"
-              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-            />
-            <p className="help-text">
-              If automations are on, this is how often your query collects data.
-            </p>
-          </div>
+          <Dropdown
+            searchable={false}
+            options={FREQUENCY_DROPDOWN_OPTIONS}
+            onChange={(value: number) => {
+              setSelectedFrequency(value);
+            }}
+            placeholder={"Every hour"}
+            value={selectedFrequency}
+            label="Frequency"
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+          />
+          <p className="help-text">
+            If automations are on, this is how often your query collects data.
+          </p>
           <Checkbox
             name="observerCanRun"
             onChange={setObserverCanRun}
