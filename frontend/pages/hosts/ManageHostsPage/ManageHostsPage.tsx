@@ -100,6 +100,7 @@ import DeleteLabelModal from "./components/DeleteLabelModal";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
+import { usePermissions } from "utilities/roleBaseAccessControls/roleBaseAccessControls";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -248,8 +249,44 @@ const ManageHostsPage = ({
   }, [activeLabel, labelID]);
 
   // ========= derived permissions
-  const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const { hasPermission } = usePermissions(permissionConfig);
+
+  // obj returned
+  const userPermissions = permissions(currentUser)
+  if (userPermissions.canEnrollHosts) {
+
+  }
+
+  // obj returned
+  const userPermissions = permissions(currentUser)
+  if (userPermissions.enrolls.hosts) {
+
+  }
+
+  const { canEnrollHosts } = usePermissions(permissionConfig, currentUser)
+
+  const { enrolls: {hosts: canEnrollHosts} } = usePermissions(permissionConfig, currentUser)
+
+  // boolean returned
+  const canEnrollHosts = hasPermission("hosts.edit");
+  const canEnrollHosts = hasPermission("hosts.edit");
+
+
+  // const canEnrollHosts =
+  //   isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+
+
+
+  import hostPermissionConfig from "host/permissions";
+
+  const {
+    create: ['admin', 'maintainer'],
+  }
+
+  const { currentUser, currentTeam } = useContext(AppContext);
+
+  hasPermission(permissionConfig, currentUser, currentTeam);
+
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
