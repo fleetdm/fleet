@@ -386,3 +386,4 @@ Run the [cleanup script](https://github.com/fleetdm/fleet/tree/main/orbit/tools/
 [Create an issue](https://github.com/fleetdm/fleet/issues) to report a bug or request a feature.
 
 <meta name="pageOrderInSection" value="600">
+<meta name="navSection" value="The basics">
