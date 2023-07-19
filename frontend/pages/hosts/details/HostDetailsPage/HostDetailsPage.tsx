@@ -485,7 +485,7 @@ const HostDetailsPage = ({
 
   const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
     router.push(
-      PATHS.EDIT_QUERY(selectedQuery) +
+      PATHS.EDIT_QUERY(selectedQuery.id) +
         TAGGED_TEMPLATES.queryByHostRoute(host?.id)
     );
   };

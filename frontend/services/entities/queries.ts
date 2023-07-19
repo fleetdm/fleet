@@ -3,7 +3,10 @@ import sendRequest, { getError } from "services";
 import endpoints from "utilities/endpoints";
 import { ISelectedTargets } from "interfaces/target";
 import { AxiosResponse } from "axios";
-import { ICreateQueryRequestBody } from "interfaces/schedulable_query";
+import {
+  ICreateQueryRequestBody,
+  IModifyQueryRequestBody,
+} from "interfaces/schedulable_query";
 import { buildQueryStringFromParams } from "utilities/url";
 
 // Mock API requests to be used in developing FE for #7765 in parallel with BE development
@@ -71,7 +74,7 @@ export default {
       throw new Error(getError(response as AxiosResponse));
     }
   },
-  update: (id: number, updateParams: ICreateQueryRequestBody) => {
+  update: (id: number, updateParams: IModifyQueryRequestBody) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 
