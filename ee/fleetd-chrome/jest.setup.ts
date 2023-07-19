@@ -2,9 +2,6 @@ import { jest } from "@jest/globals";
 
 import { server } from "./src/mocks/server.js";
 
-// Setting up Chrome environment for the tests
-Object.assign(global, chrome);
-
 // Establish API mocking before all tests.
 beforeAll(() => {
   server.listen();
