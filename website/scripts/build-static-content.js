@@ -414,6 +414,7 @@ module.exports = {
 
               // If the page has a pageOrderInSection meta tag, we'll use that to sort pages in their bottom level sections.
               let pageOrderInSection;
+              let navSection;
               if(sectionRepoPath === 'docs/') {
                 // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
                 // READMEs in subfolders and FAQ pages don't have pageOrderInSection values, they are always sorted at the end of sections.
@@ -432,6 +433,11 @@ module.exports = {
                 } else if(!embeddedMetadata.pageOrderInSection && !isPageAReadmeOrFAQ){
                   // If the page is not a Readme or a FAQ, we'll throw an error if its missing a pageOrderInSection meta tag.
                   throw new Error(`Failed compiling markdown content: A Non FAQ or README Documentation page is missing a pageOrderInSection meta tag (<meta name="pageOrderInSection" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with a number higher than 0.`);
+                }
+                if(embeddedMetadata.navSection){
+                  navSection = embeddedMetadata.navSection;
+                } else {
+                  navSection = 'Uncategorized';
                 }
               }
 
@@ -545,6 +551,7 @@ module.exports = {
                 lastModifiedAt: lastModifiedAt,
                 htmlId: htmlId,
                 pageOrderInSectionPath: pageOrderInSection,
+                navSection: navSection ? navSection : undefined,
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
                 meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection']),
                 linksForHandbookIndex: linksForHandbookIndex.length > 0 ? linksForHandbookIndex : undefined,
