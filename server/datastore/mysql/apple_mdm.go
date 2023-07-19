@@ -917,11 +917,11 @@ func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid str
 			return ctxerr.Wrap(ctx, err, "getting host id from UUID")
 		}
 
+		// NOTE: set installed_from_dep = 0 so DEP host will not be counted as pending after it unrolls
 		_, err = tx.ExecContext(ctx, `
-			DELETE FROM host_mdm
-			WHERE host_id = ?`, hostID)
+			UPDATE host_mdm SET enrolled = 0, installed_from_dep = 0, server_url = '', mdm_id = NULL WHERE host_id = ?`, hostID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "removing host_mdm rows for host")
+			return ctxerr.Wrap(ctx, err, "clearing host_mdm for host")
 		}
 
 		// Since the host is unenrolled, delete all profiles assigned to the
@@ -2162,6 +2162,12 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
+	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
+	// manually enroll or re-enroll are included in the results so long as they are not unassigned
+	// in Apple Business Manager. The problem with using host_dep_assignments is that a host can be
+	// assigned to Fleet in ABM but still manually enroll. We should probably keep using host_mdm,
+	// but be better at updating the table with the right values when a host enrolls (perhaps adding
+	// a query param to the enroll endpoint).
 	stmt := `
           SELECT
               COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
@@ -2193,6 +2199,12 @@ func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID
 }
 
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
+	// manually enroll or re-enroll are included in the results so long as they are not unassigned
+	// in Apple Business Manager. The problem with using host_dep_assignments is that a host can be
+	// assigned to Fleet in ABM but still manually enroll. We should probably keep using host_mdm,
+	// but be better at updating the table with the right values when a host enrolls (perhaps adding
+	// a query param to the enroll endpoint).
 	stmt := `
 SELECT
     CASE
