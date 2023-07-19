@@ -760,13 +760,16 @@ type Service interface {
 	// Windows MDM
 
 	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
-	GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*DiscoverResponse, error)
+	GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*DiscoverResponse, error)
+
+	// GetMDMMicrosoftSTSAuthResponse returns a valid STS auth page
+	GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error)
 
 	// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
-	GetMDMWindowsPolicyResponse(ctx context.Context, authToken string) (*GetPoliciesResponse, error)
+	GetMDMWindowsPolicyResponse(ctx context.Context, authToken *HeaderBinarySecurityToken) (*GetPoliciesResponse, error)
 
 	// GetMDMWindowsEnrollResponse returns a valid RequestSecurityTokenResponseCollection message
-	GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg *RequestSecurityToken, authToken string) (*RequestSecurityTokenResponseCollection, error)
+	GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg *RequestSecurityToken, authToken *HeaderBinarySecurityToken) (*RequestSecurityTokenResponseCollection, error)
 
 	// GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
 	GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *SoapFault
