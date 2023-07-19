@@ -468,6 +468,10 @@ For each bug found, please use the [bug report template](https://github.com/flee
 
 For unreleased bugs in an active sprint, a new bug is created with the `~unreleased bug` label. The `:release` label and associated product group label is added, and the engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
 
+### Debugging 
+
+You can read our guide to diagnosing issues in Fleet on the [debugging page](https://fleetdm.com/handbook/engineering/debugging).
+
 ## Bug process
 
 - [Bug states](#bug-states)
