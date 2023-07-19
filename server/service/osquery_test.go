@@ -71,8 +71,8 @@ func TestGetClientConfig(t *testing.T) {
 			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		if opt.TeamID == nil {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+		if teamID == nil {
 			return nil, nil
 		}
 		return []*fleet.Query{
