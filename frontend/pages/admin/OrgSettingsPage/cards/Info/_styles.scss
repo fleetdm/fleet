@@ -10,10 +10,10 @@
 
   &__icon-preview {
     border-radius: $border-radius;
-    height: 82px;
-    max-width: 150px;
+    max-height: 82px;
+    min-width: 82px;
     border: 1px solid $ui-fleet-black-10;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
   }
