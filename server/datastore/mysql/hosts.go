@@ -2920,7 +2920,12 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 	// be set to false for DEP-assigned host (e.g., ds.UpdateHostTablesOnMDMUnenroll), which may
 	// lead to unexpected results in certain edge cases where HostMDMCheckinInfo is used to
 	// determine like bootstrap package installation
-
+	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
+	// manually enroll or re-enroll are included in the results so long as they are not unassigned
+	// in Apple Business Manager. The problem with using host_dep_assignments is that a host can be
+	// assigned to Fleet in ABM but still manually enroll. We should probably keep using host_mdm,
+	// but be better at updating the table with the right values when a host enrolls (perhaps adding
+	// a query param to the enroll endpoint).
 	var hmdm fleet.HostMDMCheckinInfo
 
 	// use writer as it is used just after creation in some cases
