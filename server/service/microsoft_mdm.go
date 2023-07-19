@@ -1226,7 +1226,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.
 	replacer := strings.NewReplacer("\n", "", "\t", "")
 
 	// Use the replacer on the string representation of xmlContent
-	responseRaw := replacer.Replace(string(response))
+	responseRaw := replacer.Replace(response)
 
 	return &responseRaw, nil
 }
