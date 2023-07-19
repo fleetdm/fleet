@@ -917,6 +917,9 @@ func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru st
 				performPost();
 				</script>
 				`)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "STS content template")
+	}
 
 	var htmlBuf bytes.Buffer
 	err = tmpl.Execute(&htmlBuf, map[string][]byte{"ActionURL": []byte(appru), "Token": []byte(encodedBST)})
