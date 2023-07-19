@@ -127,13 +127,16 @@
           <ul class="p-0 pb-2 m-0 left-nav">
             <li v-for="page in findPagesByUrl()" :key="page.title">
               <a :href="page.url" class="font-weight-bold pb-3">{{page.title}}</a>
-              <div class="pt-2" v-if="isCurrentSection(page)">
-                <ul class="p-0 mb-2">
-                  <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
-                    <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                      {{subpage.title}}
-                    </a>
-                  </li>
+              <div purpose="expanded-nav" class="pt-2" v-if="isCurrentSection(page)">
+                <ul class="p-0 pl-2 mb-2">
+                  <div purpose="nav-section" v-for="(section, sectionName) of findNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
+                    <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
+                    <li v-for="subpage in section" :key="subpage.title">
+                      <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                        {{subpage.title}}
+                      </a>
+                    </li>
+                  </div>
                 </ul>
               </div>
             </li>

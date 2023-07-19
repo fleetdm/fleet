@@ -335,6 +335,24 @@
         }
 
       }
+      [purpose='expanded-nav'] {
+
+      [purpose='nav-section']:not(:last-of-type) {
+        border-bottom: 1px solid #E2E4EA;
+      }
+      [purpose='nav-section'] {
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+        [purpose='nav-section-title']{
+          font-size: 13px;
+          font-weight: 500;
+          line-height: 18px;
+          text-transform: uppercase;
+          margin-bottom: 12px;
+          margin-top: 8px;
+        }
+      }
+      }
 
     }
     [purpose='left-sidebar']::-webkit-scrollbar, [purpose='right-sidebar']::-webkit-scrollbar, [purpose='subtopics']::-webkit-scrollbar {
