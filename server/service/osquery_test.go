@@ -2004,11 +2004,11 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.GetTeamNameFunc = func(ctx context.Context, tid uint) (*string, error) {
 		return nil, nil
 	}
 
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
 		return nil, nil
 	}
 
