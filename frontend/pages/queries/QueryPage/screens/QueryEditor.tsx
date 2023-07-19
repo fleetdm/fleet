@@ -98,7 +98,7 @@ const QueryEditor = ({
     } catch (createError: any) {
       if (createError.data.errors[0].reason.includes("already exists")) {
         const teamErrorText =
-          teamForQuery && teamForQuery?.id !== -1
+          teamForQuery && teamForQuery?.id !== 0
             ? `the ${teamForQuery.name} team`
             : "all teams";
         setBackendValidators({
