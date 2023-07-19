@@ -169,6 +169,7 @@ const routes = (
               <Route path=":host_id" component={HostDetailsPage}>
                 <Route path="software" component={HostDetailsPage} />
                 <Route path="policies" component={HostDetailsPage} />
+                <Route path="schedule" component={HostDetailsPage} />
               </Route>
             </Route>
           </Route>

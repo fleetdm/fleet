@@ -9,6 +9,7 @@ import { pick } from "lodash";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
+import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -19,11 +20,18 @@ import {
   IMacadminsResponse,
   IHostResponse,
   IHostMdmData,
+  IPackStats,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
+import {
+  IListQueriesResponse,
+  IQueryKeyQueriesLoadAll,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
+import { IQueryStats } from "interfaces/query_stats";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -41,6 +49,7 @@ import MunkiIssuesCard from "../cards/MunkiIssues";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
+import ScheduleCard from "../cards/Schedule";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -53,6 +62,7 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
+import SelectQueryModal from "./modals/SelectQueryModal";
 
 const baseClass = "host-details";
 
@@ -87,6 +97,12 @@ interface IHostDetailsSubNavItem {
   pathname: string;
 }
 
+const TAGGED_TEMPLATES = {
+  queryByHostRoute: (hostId: number | undefined | null) => {
+    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  },
+};
+
 const HostDetailsPage = ({
   route,
   router,
@@ -119,6 +135,7 @@ const HostDetailsPage = ({
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
+  const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
@@ -134,10 +151,25 @@ const HostDetailsPage = ({
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
+  const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
+
+  const { data: fleetQueries, error: fleetQueriesError } = useQuery<
+    IListQueriesResponse,
+    Error,
+    ISchedulableQuery[],
+    IQueryKeyQueriesLoadAll[]
+  >([{ scope: "queries", teamId: undefined }], () => queryAPI.loadAll(), {
+    enabled: !!hostIdFromURL,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+    retry: false,
+    select: (data: IListQueriesResponse) => data.queries,
+  });
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -262,6 +294,26 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
+        if (returnedHost.pack_stats) {
+          const packStatsByType = returnedHost.pack_stats.reduce(
+            (
+              dictionary: {
+                packs: IPackStats[];
+                schedule: IQueryStats[];
+              },
+              pack: IPackStats
+            ) => {
+              if (pack.type === "pack") {
+                dictionary.packs.push(pack);
+              } else {
+                dictionary.schedule.push(...pack.query_stats);
+              }
+              return dictionary;
+            },
+            { packs: [], schedule: [] }
+          );
+          setSchedule(packStatsByType.schedule);
+        }
       },
       onError: (error) => handlePageError(error),
     }
@@ -427,6 +479,17 @@ const HostDetailsPage = ({
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
+  const onQueryHostCustom = () => {
+    router.push(PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host?.id));
+  };
+
+  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
+    router.push(
+      PATHS.EDIT_QUERY(selectedQuery.id) +
+        TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+    );
+  };
+
   const onTransferHostSubmit = async (team: ITeam) => {
     setIsUpdatingHost(true);
 
@@ -463,6 +526,9 @@ const HostDetailsPage = ({
     switch (action) {
       case "transfer":
         setShowTransferHostModal(true);
+        break;
+      case "query":
+        setShowSelectQueryModal(true);
         break;
       case "diskEncryption":
         setShowDiskEncryptionModal(true);
@@ -508,6 +574,11 @@ const HostDetailsPage = ({
       name: "Software",
       title: "software",
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
+    },
+    {
+      name: "Schedule",
+      title: "schedule",
+      pathname: PATHS.HOST_SCHEDULE(hostIdFromURL),
     },
     {
       name: (
@@ -650,6 +721,13 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
+              <ScheduleCard
+                isChromeOSHost={host?.platform === "chrome"}
+                schedule={schedule}
+                isLoading={isLoadingHost}
+              />
+            </TabPanel>
+            <TabPanel>
               <PoliciesCard
                 policies={host?.policies || []}
                 isLoading={isLoadingHost}
@@ -664,6 +742,17 @@ const HostDetailsPage = ({
             onSubmit={onDestroyHost}
             hostName={host?.display_name}
             isUpdating={isUpdatingHost}
+          />
+        )}
+        {showSelectQueryModal && host && (
+          <SelectQueryModal
+            onCancel={() => setShowSelectQueryModal(false)}
+            queries={fleetQueries || []}
+            queryErrors={fleetQueriesError}
+            isOnlyObserver={isOnlyObserver}
+            onQueryHostCustom={onQueryHostCustom}
+            onQueryHostSaved={onQueryHostSaved}
+            hostsTeamId={host?.team_id}
           />
         )}
         {!!host && showTransferHostModal && (

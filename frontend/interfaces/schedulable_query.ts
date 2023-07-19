@@ -46,6 +46,10 @@ export interface IListQueriesResponse {
   queries: ISchedulableQuery[];
 }
 
+export interface IQueryKeyQueriesLoadAll {
+  scope: "queries";
+  teamId: number | undefined;
+}
 // Create a new query
 /** POST /api/v1/fleet/queries */
 export interface ICreateQueryRequestBody {
