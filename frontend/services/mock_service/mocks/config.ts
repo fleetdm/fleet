@@ -28,7 +28,11 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     "queries/2": RESPONSES.globalQuery2,
     "queries/3": RESPONSES.globalQuery3,
     "queries/4": RESPONSES.teamQuery1,
-    "queries?team_id=43": RESPONSES.teamQueries,
+    "queries/5": RESPONSES.globalQuery4,
+    "queries/6": RESPONSES.globalQuery5,
+    "queries/7": RESPONSES.globalQuery6,
+    "queries/8": RESPONSES.teamQuery2,
+    "queries?team_id=13": RESPONSES.teamQueries,
   },
   POST: {
     // request body is ISelectedTargets
@@ -44,6 +48,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       name: "New query name",
       observer_can_run: false,
       query: "SELECT * FROM osquery_info;",
+      id: 1,
       team_id: null,
       platform: "linux",
     },

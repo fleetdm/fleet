@@ -1,4 +1,3 @@
-import { IQuery } from "../interfaces/query";
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
@@ -44,8 +43,8 @@ export default {
   EDIT_LABEL: (labelId: number): string => {
     return `${URL_PREFIX}/labels/${labelId}`;
   },
-  EDIT_QUERY: (query: IQuery): string => {
-    return `${URL_PREFIX}/queries/${query.id}`;
+  EDIT_QUERY: (queryId: number): string => {
+    return `${URL_PREFIX}/queries/${queryId}`;
   },
   EDIT_POLICY: (policy: IPolicy): string => {
     return `${URL_PREFIX}/policies/${policy.id}${
