@@ -74,7 +74,7 @@ For external contributors: please consider opening an issue with reference scree
 #### Estimating
 
 Once the draft has been approved: 
-* move it to the "Designed" column in the drafting board
+* move it to the "Designed" column in the drafting board and assign it to the appropriate engineering manager.
 * make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
