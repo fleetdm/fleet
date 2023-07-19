@@ -777,4 +777,7 @@ type Service interface {
 	// SignMDMMicrosoftClientCSR returns a signed certificate from the client certificate signing request and the
 	// certificate fingerprint. The certificate common name should be passed in the subject parameter.
 	SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error)
+
+	// GetMDMWindowsManagementResponse returns a valid SyncML response message
+	GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *SyncMLMessage) (*string, error)
 }

@@ -6170,6 +6170,36 @@ func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
 	require.Contains(t, resContent, "forbidden")
 }
 
+func (s *integrationMDMTestSuite) TestValidSyncMLRequestNoAuth() {
+	t := s.T()
+
+	// Target Endpoint URL for the management endpoint
+	targetEndpointURL := microsoft_mdm.MDE2ManagementPath
+
+	// Preparing the SyncML request
+	requestBytes, err := s.newSyncMLSessionMsg(targetEndpointURL)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
+
+	// Checking if SyncML response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid RequestSecurityTokenResponseCollection message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("SyncHdr", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("SyncBody", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("Exec", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("Add", resSoapMsg))
+}
+
 // ///////////////////////////////////////////////////////////////////////////
 // Common helpers
 
@@ -6355,4 +6385,77 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 		`)
 
 	return requestBytes, nil
+}
+
+// TODO: Add support to add custom DeviceID when DeviceAuth is in place
+func (s *integrationMDMTestSuite) newSyncMLSessionMsg(managementUrl string) ([]byte, error) {
+	if len(managementUrl) == 0 {
+		return nil, errors.New("managementUrl is empty")
+	}
+
+	return []byte(`
+			 <SyncML xmlns="SYNCML:SYNCML1.2">
+			<SyncHdr>
+				<VerDTD>1.2</VerDTD>
+				<VerProto>DM/1.2</VerProto>
+				<SessionID>1</SessionID>
+				<MsgID>1</MsgID>
+				<Target>
+				<LocURI>` + managementUrl + `</LocURI>
+				</Target>
+				<Source>
+				<LocURI>DB257C3A08778F4FB61E2749066C1F27</LocURI>
+				</Source>
+			</SyncHdr>
+			<SyncBody>
+				<Alert>
+				<CmdID>2</CmdID>
+				<Data>1201</Data>
+				</Alert>
+				<Alert>
+				<CmdID>3</CmdID>
+				<Data>1224</Data>
+				<Item>
+					<Meta>
+					<Type xmlns="syncml:metinf">com.microsoft/MDM/LoginStatus</Type>
+					</Meta>
+					<Data>user</Data>
+				</Item>
+				</Alert>
+				<Replace>
+				<CmdID>4</CmdID>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/DevId</LocURI>
+					</Source>
+					<Data>DB257C3A08778F4FB61E2749066C1F27</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/Man</LocURI>
+					</Source>
+					<Data>VMware, Inc.</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/Mod</LocURI>
+					</Source>
+					<Data>VMware7,1</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/DmV</LocURI>
+					</Source>
+					<Data>1.3</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/Lang</LocURI>
+					</Source>
+					<Data>en-US</Data>
+				</Item>
+				</Replace>
+				<Final/>
+			</SyncBody>
+			</SyncML>`), nil
 }
