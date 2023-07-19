@@ -47,12 +47,20 @@ const QueryPage = ({
   location,
 }: IQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
-  const { currentTeamSummary: teamForQuery } = useTeamIdParam({
+  const {
+    currentTeamName: teamName,
+    teamIdForApi: apiTeamIdForQuery,
+  } = useTeamIdParam({
     location,
     router,
     includeAllTeams: true,
     includeNoTeam: false,
   });
+
+  const teamForQuery =
+    apiTeamIdForQuery && teamName
+      ? { id: apiTeamIdForQuery, name: teamName }
+      : undefined;
 
   const handlePageError = useErrorHandler();
   const {
