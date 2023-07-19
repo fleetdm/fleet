@@ -5739,54 +5739,6 @@ func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
 	require.Contains(t, resContent, "forbidden")
 }
 
-func (s *integrationMDMTestSuite) TestValidFederatedAuthPolicyRequest() {
-	t := s.T()
-
-	// Target Endpoint url with query params
-	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel&login_hint=demo%40mdmwindows.com"
-	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Contains(t, resp.Header["Content-Type"], "text/html; charset=UTF-8")
-	require.NotEmpty(t, resBytes)
-
-	// Checking response content
-	resContent := string(resBytes)
-	require.Contains(t, resContent, "inputToken.name = 'wresult'")
-	require.Contains(t, resContent, "form.action = \"ms-app://windows.immersivecontrolpanel\"")
-	require.Contains(t, resContent, "performPost()")
-
-	// Getting token content
-	encodedToken := s.getRawTokenValue(resContent)
-	require.NotEmpty(t, encodedToken)
-
-	// Preparing the GetPolicies Request message
-	requestBytes, err := s.newGetPoliciesMsg(true, encodedToken)
-	require.NoError(t, err)
-
-	resp = s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
-
-	resBytes, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
-
-	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
-
-	// Checking if SOAP response contains a valid GetPoliciesResponse message
-	resSoapMsg := string(resBytes)
-	require.True(t, s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
-	require.True(t, s.isXMLTagPresent("policyOIDReference", resSoapMsg))
-	require.True(t, s.isXMLTagPresent("oIDReferenceID", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("validityPeriodSeconds", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("renewalPeriodSeconds", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
-}
-
 // ///////////////////////////////////////////////////////////////////////////
 // Common helpers
 

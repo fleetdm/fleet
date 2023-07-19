@@ -1,6 +1,7 @@
 package microsoft_mdm
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -245,7 +246,7 @@ func GetAzureAuthTokenClaims(tokenStr string) (AzureData, error) {
 	}
 
 	// Validate token format (header.payload.signature)
-	parts := strings.Split(string(tokenBytes), ".")
+	parts := bytes.Split(tokenBytes, []byte("."))
 	if len(parts) != 3 {
 		return AzureData{}, errors.New("invalid Azure JWT format")
 	}

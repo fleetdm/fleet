@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
@@ -8,6 +9,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"net/url"
@@ -41,9 +43,9 @@ func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u 
 	req.Params = u
 
 	// Handle empty body scenario
-	if len(reqBytes) == 0 {
-		req.Data = &fleet.SoapRequest{}
-	} else {
+	req.Data = &fleet.SoapRequest{}
+
+	if len(reqBytes) != 0 {
 		// Unmarshal the XML data from the request into the SoapRequest struct
 		err = xml.Unmarshal(reqBytes, &req.Data)
 		if err != nil {
@@ -61,7 +63,7 @@ type SoapResponseContainer struct {
 
 func (r SoapResponseContainer) error() error { return r.Err }
 
-// hijackRender writes the response header and the RAW XML output
+// hijackRender writes the response header and the RAW HTML output
 func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	xmlRes, err := xml.MarshalIndent(r.Data, "", "\t")
 	if err != nil {
@@ -291,7 +293,7 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 	}
 }
 
-// getSTSAuthContent Retuns an auth error
+// getSTSAuthContent Retuns STS auth content
 func getSTSAuthContent(data string) errorer {
 	return MDMAuthContainer{
 		Data: &data,
@@ -879,16 +881,12 @@ func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru st
 	// skipauth: This endpoint does not use authentication
 	svc.authz.SkipAuthorization(ctx)
 
-	// Create a new JWT token with the UPN claim
-	authToken, err := svc.wstepCertManager.NewSTSAuthToken(loginHint)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "creation of STS JWT Auth token")
-	}
-
-	encodedBST, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMAutomaticEnrollmentType, authToken)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "creation of STS binary security token")
-	}
+	// Dummy data will be returned as part of the token as user-driven enrollment is not supported yet
+	// In the future, the following calls would have to be made to support user-driven enrollment
+	// encodedBST will carry the token to return
+	// authToken, err := svc.wstepCertManager.NewSTSAuthToken(loginHint)
+	// encodedBST, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMAutomaticEnrollmentType, authToken)
+	encodedBST := "user_driven_enrollment_not_implemented"
 
 	// STS Auth Endpoint returns HTML content that gets render in a webview container
 	// The webview container expect a POST request to the appru URL with the wresult parameter set to the auth token
@@ -896,7 +894,7 @@ func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru st
 	// This string is opaque to the enrollment client; the client does not interpret the string.
 	// The returned HTML content contains a JS script that will perform a POST request to the appru URL automatically
 	// This will set the wresult parameter to the value of auth token
-	resData := []byte(`
+	tmpl, err := template.New("").Parse(`
 				<script>
 				function performPost() {
 				  // Dinamically create a form element to submit the request
@@ -920,9 +918,13 @@ func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru st
 				</script>
 				`)
 
-	htmlContent := string(resData)
+	var htmlBuf bytes.Buffer
+	err = tmpl.Execute(&htmlBuf, map[string][]byte{"ActionURL": []byte(appru), "Token": []byte(encodedBST)})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creation of STS content")
+	}
 
-	return htmlContent, nil
+	return htmlBuf.String(), nil
 }
 
 // GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
