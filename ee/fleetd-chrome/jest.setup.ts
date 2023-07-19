@@ -1,5 +1,4 @@
 import { jest } from "@jest/globals";
-import chrome from "jest-chrome";
 
 import { server } from "./src/mocks/server.js";
 
