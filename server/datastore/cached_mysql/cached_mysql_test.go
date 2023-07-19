@@ -571,7 +571,7 @@ func TestCachedGetTeamName(t *testing.T) {
 	// updating updates the cache
 	result, err := ds.GetTeamName(ctx, 1)
 	require.NoError(t, err)
-	require.Equal(t, team, *result)
+	require.Equal(t, team.Name, *result)
 
 	updatedTeam := &fleet.Team{
 		ID:        team.ID,
@@ -583,7 +583,7 @@ func TestCachedGetTeamName(t *testing.T) {
 
 	result, err = ds.GetTeamName(ctx, team.ID)
 	require.NoError(t, err)
-	require.Equal(t, *updatedTeam, *result)
+	require.Equal(t, updatedTeam.Name, *result)
 
 	// deleting updates the cache
 	err = ds.DeleteTeam(ctx, team.ID)
