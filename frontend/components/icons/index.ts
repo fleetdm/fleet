@@ -24,6 +24,7 @@ import More from "./More";
 import Plus from "./Plus";
 import PremiumFeature from "./PremiumFeature";
 import Query from "./Query";
+import Search from "./Search";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
@@ -100,6 +101,7 @@ export const ICON_MAP = {
   copy: Copy,
   eye: Eye,
   pencil: Pencil,
+  search: Search,
   transfer: Transfer,
   trash: TrashCan,
   success: Success,
