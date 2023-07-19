@@ -11,6 +11,11 @@ const DEFAULT_OPTIONS: IDropdownOption[] = [
     premiumOnly: true,
   },
   {
+    label: "Query",
+    value: "query",
+    disabled: false,
+  },
+  {
     label: "Show disk encryption key",
     value: "diskEncryption",
     disabled: false,
@@ -117,7 +122,9 @@ const setOptionsAsDisabled = (
   let optionsToDisable: IDropdownOption[] = [];
   if (!isHostOnline) {
     optionsToDisable = optionsToDisable.concat(
-      options.filter((option) => option.value === "mdmOff")
+      options.filter(
+        (option) => option.value === "query" || option.value === "mdmOff"
+      )
     );
   }
   if (isSandboxMode) {
