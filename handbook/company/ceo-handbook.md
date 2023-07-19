@@ -1,30 +1,28 @@
 # CEO handbook
 
-This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. This [living draft](https://handbook.gitlab.com/handbook/values/#everything-is-in-draft) aspires to sustain the highest [clarity](https://fleetdm.com/handbook/company#purpose)🪟 between Fleet's CEO and contributors, as well as foster [openness](https://fleetdm.com/handbook/company#openness)🟣 and understanding of the human being held responsible for the role, Mike McNeil. If at any point you find yourself this draft has   
+This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. 
 
 ## Responsibilities
 The CEO is the [directly responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company. 
 - **Note** When the CEO is out of office, these responsibilities should be delegated so they can be handled promptly.  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 
+### CEO support staff
 
  Sam Pfluger | Apprentice to the CEO 
 
-
-
+The Apprentice to the CEO is directly responsible for daily [rituals]() 
 
 ## Scheduling with the CEO
 
-
-
-- Reach out to the Apprentice to the CEO in `#-meetings` with the required details to book a meeting with the CEO. 
-All [meetings](https://fleetdm.com/handbook/business-operations#internal-meeting-scheduling) on Mike's calendar should be scheduled and vetted by the Apprentice to the CEO. 
- Please do not directly schedule a meeting onto Mike's calendar without confirming with the Apprentice to the CEO in advance or unless requested directly from Mike.
+- Reach out to the Apprentice in `#-meetings` with the required details to book a meeting with the CEO. 
+All [meetings](https://fleetdm.com/handbook/business-operations#internal-meeting-scheduling) on Mike's calendar should be scheduled and vetted by the Apprentice. 
+ Please do not directly schedule a meeting onto Mike's calendar without confirming with the Apprentice in advance or unless requested directly from Mike.
  The CEO requires meetings to originate from his calendar and on his Zoom account.
  All items on Mike's calendar require justification and are subject to change by the CEO to better serve the company.
 
-Meetings before 9 am and after 6 pm Central require Mike's approval before scheduling. Please reach out to the Apprentice to the CEO with your rationale for an exception. 
- - If Mike agrees to a meeting at 9 am or earlier, please schedule a block on his calendar on the previous day reminding him that he has a meeting before 9 am Central the following day.
+Meetings before 9 am and after 6 pm Central require Mike's approval before scheduling. Please reach out to the Apprentice with your rationale for an exception. 
+ - If Mike agrees to a meeting at 9 am or earlier, the Apprentice will schedule a "DOTO: Mike" on his calendar the night before reminding him that he has a meeting before 9 am Central the following day.
 
 Morning times should be held for team members and external folks whose time zones make it harder for them to meet later in the day.
  - The Apprentice to the CEO will confirm that recipients have accepted invites. 
