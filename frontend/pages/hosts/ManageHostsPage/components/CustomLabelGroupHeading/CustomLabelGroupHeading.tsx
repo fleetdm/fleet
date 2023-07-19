@@ -61,6 +61,7 @@ const CustomLabelGroupHeading = (
         </div>
       </div>
       <div className={`${baseClass}__field`}>
+        <Icon name="search" />
         <input
           className={`${baseClass}__input`}
           ref={inputRef}
