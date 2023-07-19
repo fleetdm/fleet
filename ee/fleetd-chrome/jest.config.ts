@@ -39,6 +39,7 @@ export default {
       runtime: {},
       privacy: { network: {}, services: {}, websites: {} },
       idle: {},
+      system: { storage: {} },
     },
   },
 };
