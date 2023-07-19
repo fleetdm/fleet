@@ -40,11 +40,9 @@ import (
 
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return &fleet.Team{
-			Name: "Alamo",
-			ID:   1,
-		}, nil
+	ds.GetTeamNameFunc = func(ctx context.Context, tid uint) (*string, error) {
+		teamName := "Alamo"
+		return &teamName, nil
 	}
 
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {

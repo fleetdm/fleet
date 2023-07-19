@@ -539,7 +539,7 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestCachedTeam(t *testing.T) {
+func TestCachedGetTeamName(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -554,11 +554,11 @@ func TestCachedTeam(t *testing.T) {
 	}
 
 	deleted := false
-	mockedDS.TeamFunc = func(ctx context.Context, teamID uint) (*fleet.Team, error) {
+	mockedDS.GetTeamNameFunc = func(ctx context.Context, teamID uint) (*string, error) {
 		if deleted {
 			return nil, errors.New("not found")
 		}
-		return &team, nil
+		return &team.Name, nil
 	}
 	mockedDS.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return team, nil
@@ -569,7 +569,7 @@ func TestCachedTeam(t *testing.T) {
 	}
 
 	// updating updates the cache
-	result, err := ds.Team(ctx, 1)
+	result, err := ds.GetTeamName(ctx, 1)
 	require.NoError(t, err)
 	require.Equal(t, team, *result)
 
@@ -581,7 +581,7 @@ func TestCachedTeam(t *testing.T) {
 	_, err = ds.SaveTeam(ctx, updatedTeam)
 	require.NoError(t, err)
 
-	result, err = ds.Team(ctx, team.ID)
+	result, err = ds.GetTeamName(ctx, team.ID)
 	require.NoError(t, err)
 	require.Equal(t, *updatedTeam, *result)
 
@@ -589,7 +589,7 @@ func TestCachedTeam(t *testing.T) {
 	err = ds.DeleteTeam(ctx, team.ID)
 	require.NoError(t, err)
 
-	_, err = ds.Team(ctx, team.ID)
+	_, err = ds.GetTeamName(ctx, team.ID)
 	require.Error(t, err)
 }
 

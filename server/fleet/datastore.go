@@ -400,6 +400,8 @@ type Datastore interface {
 	SaveTeam(ctx context.Context, team *Team) (*Team, error)
 	// Team retrieves the Team by ID.
 	Team(ctx context.Context, tid uint) (*Team, error)
+	// GetTeamName retrieves the team name by their ID.
+	GetTeamName(ctx context.Context, teamID uint) (*string, error)
 	// Team deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name.

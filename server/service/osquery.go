@@ -443,18 +443,18 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	}
 
 	if host.TeamID != nil {
-		team, err := svc.ds.Team(ctx, *host.TeamID)
+		teamName, err := svc.ds.GetTeamName(ctx, *host.TeamID)
 		if err != nil {
 			return nil, newOsqueryError("database error: " + err.Error())
 		}
 
-		if team != nil {
+		if teamName != nil {
 			teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
 			if err != nil {
 				return nil, newOsqueryError("database error: " + err.Error())
 			}
 			if len(teamQueries) > 0 {
-				packName := fmt.Sprintf("Team: %s", team.Name)
+				packName := fmt.Sprintf("Team: %s", *teamName)
 				packConfig[packName] = fleet.PackContent{
 					Queries: teamQueries,
 				}

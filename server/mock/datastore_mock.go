@@ -302,6 +302,8 @@ type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, erro
 
 type TeamFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
+type GetTeamNameFunc func(ctx context.Context, teamID uint) (*string, error)
+
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
@@ -1088,6 +1090,9 @@ type DataStore struct {
 
 	TeamFunc        TeamFunc
 	TeamFuncInvoked bool
+
+	GetTeamNameFunc        GetTeamNameFunc
+	GetTeamNameFuncInvoked bool
 
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
@@ -2624,6 +2629,13 @@ func (s *DataStore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.TeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.TeamFunc(ctx, tid)
+}
+
+func (s *DataStore) GetTeamName(ctx context.Context, teamID uint) (*string, error) {
+	s.mu.Lock()
+	s.GetTeamNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetTeamNameFunc(ctx, teamID)
 }
 
 func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
