@@ -823,3 +823,79 @@ type MDMWindowsEnrolledDevice struct {
 func (e MDMWindowsEnrolledDevice) AuthzType() string {
 	return "mdm_windows"
 }
+
+///////////////////////////////////////////////////////////////
+/// Microsoft MS-MDM message
+
+type SyncMLMessage struct {
+	XMLinfo string       `xml:"xmlns,attr"`
+	Header  SyncMLHeader `xml:"SyncHdr"`
+	Body    SyncMLBody   `xml:"SyncBody"`
+}
+
+// SyncML XML Parsing Types - This needs to be improved
+type SyncMLHeader struct {
+	DTD        string `xml:"VerDTD"`
+	Version    string `xml:"VerProto"`
+	SessionID  int    `xml:"SessionID"`
+	MsgID      int    `xml:"MsgID"`
+	Target     string `xml:"Target>LocURI"`
+	Source     string `xml:"Source>LocURI"`
+	MaxMsgSize int    `xml:"Meta>A:MaxMsgSize"`
+}
+
+type SyncMLCommandMeta struct {
+	XMLinfo string `xml:"xmlns,attr"`
+	Type    string `xml:"Type"`
+}
+
+type SyncMLCommandItem struct {
+	Meta   SyncMLCommandMeta `xml:"Meta"`
+	Source string            `xml:"Source>LocURI"`
+	Data   string            `xml:"Data"`
+}
+
+type SyncMLCommand struct {
+	XMLName xml.Name
+	CmdID   int                 `xml:",omitempty"`
+	MsgRef  string              `xml:",omitempty"`
+	CmdRef  string              `xml:",omitempty"`
+	Cmd     string              `xml:",omitempty"`
+	Target  string              `xml:"Target>LocURI"`
+	Source  string              `xml:"Source>LocURI"`
+	Data    string              `xml:",omitempty"`
+	Item    []SyncMLCommandItem `xml:",any"`
+}
+
+type SyncMLBody struct {
+	Item []SyncMLCommand `xml:",any"`
+}
+
+// IsValidSyncMLMsg checks for required fields in the SyncML message
+func (req *SyncMLMessage) IsValidSyncMLMsg() error {
+	if req == nil {
+		return errors.New("invalid SyncML message: nil")
+	}
+
+	if len(req.Header.Version) == 0 {
+		return errors.New("invalid SyncML message: Version")
+	}
+
+	if len(req.Header.Target) == 0 {
+		return errors.New("invalid SyncML message: Target")
+	}
+
+	if req.Header.SessionID == 0 {
+		return errors.New("invalid SyncML message: SessionID")
+	}
+
+	if req.Header.MsgID == 0 {
+		return errors.New("invalid SyncML message: SessionID")
+	}
+
+	if len(req.Body.Item) == 0 {
+		return errors.New("invalid SyncML message: Item")
+	}
+
+	return nil
+}

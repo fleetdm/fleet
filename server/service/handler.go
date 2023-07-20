@@ -610,6 +610,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// This endpoint is authenticated using the BinarySecurityToken header field
 	neWindowsMDM.POST(microsoft_mdm.MDE2EnrollPath, mdmMicrosoftEnrollEndpoint, SoapRequestContainer{})
 
+	// This endpoint is unauthenticated for now
+	// It should be authenticated through TLS headers once proper implementation is in place
+	neWindowsMDM.POST(microsoft_mdm.MDE2ManagementPath, mdmMicrosoftManagementEndpoint, SyncMLReqMsgContainer{})
+
 	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, EnrollOrbitRequest{})
 
 	// For some reason osquery does not provide a node key with the block data.
