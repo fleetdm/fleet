@@ -10,12 +10,12 @@ Users with the admin role receive all permissions.
 
 ### Maintainer
 
-Maintainers can manage most entities in Fleet, like queries, policies, labels and schedules.
+Maintainers can manage most entities in Fleet, like queries, policies, and labels.
 Unlike admins, maintainers cannot edit higher level settings like application configuration, teams or users.
 
 ### Observer
 
-The Observer role is a read-only role. It can access most entities in Fleet, like queries, policies, labels, schedules, application configuration, teams, etc.
+The Observer role is a read-only role. It can access most entities in Fleet, like queries, policies, labels, application configuration, teams, etc.
 They can also run queries configured with the `observer_can_run` flag set to `true`.
 
 ### Observer+
@@ -51,7 +51,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete queries                                                                                                           |          |            | ✅         | ✅    | ✅      |
 | View all queries\**                                                                                                                        | ✅       | ✅         | ✅         | ✅    |         |
-| Add, edit, and remove queries from all schedules                                                                                           |          |            | ✅         | ✅    | ✅      |
+| Manage query automations                                                                                                                   |          |            |           | ✅    |       |
 | Create, edit, view, and delete packs                                                                                                       |          |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
@@ -100,7 +100,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 Users in Fleet either have team access or global access.
 
-Users with team access only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [schedules](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query) , and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
+Users with team access only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
 their team.
 
 Users with global access have access to all
@@ -124,7 +124,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
 | View all queries\**                                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
-| Add, edit, and remove queries from the schedule                                                                                  |               |                | ✅              | ✅         | ✅          |
+| Manage query automations                                                                                                         |               |                |                | ✅         |            |
 | View policies                                                                                                                    | ✅            | ✅             | ✅              | ✅         |             |
 | View global (inherited) policies                                                                                                 | ✅            | ✅             | ✅              | ✅         |             |
 | Run global (inherited) policies as a live policy                                                                                 |               |                | ✅              | ✅         |             |
