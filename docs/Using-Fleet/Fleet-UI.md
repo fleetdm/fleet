@@ -76,7 +76,7 @@ With Fleet Premium, you can schedule queries for groups of hosts using [the team
 
 3. In the **Teams** dropdown below the top navigation, select the team you want to manage automation for.
 
-   > Note: Only queries that are availible for the selected team will be listed. When configuring automations for all hosts, only queries that belong to all teams is listed.
+   > Note: Only queries that are availible for the selected team will be listed. When configuring query automations for all hosts, only queries that belong to all teams will be listed.
 
 4. Select **Manage automations**
 
