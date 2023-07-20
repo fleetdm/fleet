@@ -13,7 +13,6 @@ import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import {
-  ICreateQueryRequestBody,
   IGetQueryResponse,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
@@ -143,12 +142,6 @@ const QueryPage = ({
     }
   );
 
-  const {
-    mutateAsync: createQuery,
-  } = useMutation((formData: ICreateQueryRequestBody) =>
-    queryAPI.create(formData)
-  );
-
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
@@ -221,7 +214,6 @@ const QueryPage = ({
       storedQuery,
       isStoredQueryLoading,
       storedQueryError,
-      createQuery,
       onOsqueryTableSelect,
       goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
       onOpenSchemaSidebar,
