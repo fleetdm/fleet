@@ -670,43 +670,14 @@ const QueryForm = ({
                 </Button>
               )}
               <div className="query-form__button-wrap--save-query-button">
-                <div
-                  data-tip
-                  data-for="save-query-button"
-                  data-tip-disable={
-                    !(
-                      isAnyTeamMaintainerOrTeamAdmin &&
-                      !hasTeamMaintainerPermissions
-                    )
-                  }
+                <Button
+                  className="save-loading"
+                  variant="brand"
+                  onClick={promptSaveQuery()}
+                  isLoading={isQueryUpdating}
                 >
-                  <Button
-                    className="save-loading"
-                    variant="brand"
-                    onClick={promptSaveQuery()}
-                    disabled={
-                      isAnyTeamMaintainerOrTeamAdmin &&
-                      !hasTeamMaintainerPermissions
-                    }
-                    isLoading={isQueryUpdating}
-                  >
-                    Save
-                  </Button>
-                </div>{" "}
-                <ReactTooltip
-                  className={`save-query-button-tooltip`}
-                  place="bottom"
-                  effect="solid"
-                  backgroundColor="#3e4771"
-                  id="save-query-button"
-                  data-html
-                >
-                  <>
-                    You can only save
-                    <br /> changes to a query if you
-                    <br /> are the author.
-                  </>
-                </ReactTooltip>
+                  Save
+                </Button>
               </div>
             </>
           )}
