@@ -237,8 +237,8 @@ const QueriesTable = ({
   };
 
   const tableHeaders = useMemo(
-    () => currentUser && generateTableHeaders({ currentUser }),
-    [currentUser]
+    () => currentUser && generateTableHeaders({ currentUser, isInherited }),
+    [currentUser, isInherited]
   );
 
   const searchable =
