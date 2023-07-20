@@ -100,11 +100,11 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 Users in Fleet either have team access or global access.
 
-Users with team access only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
+Users with team access only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [schedules](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query),  and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
 their team.
 
 Users with global access have access to all
-[hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [queries](https://fleetdm.com/docs/using-fleet/rest-api#queries), [schedules](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query) , and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies). Check out [the user permissions
+[hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [queries](https://fleetdm.com/docs/using-fleet/rest-api#queries), [schedules](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies). Check out [the user permissions
 table](#user-permissions) above for global user permissions.
 
 Users can be a member of multiple teams in Fleet.
