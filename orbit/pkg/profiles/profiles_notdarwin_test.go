@@ -15,7 +15,7 @@ func TestGetFleetdConfig(t *testing.T) {
 }
 
 func TestIsEnrolledIntoMatchingURL(t *testing.T) {
-	enrolled, err := IsEnrolledIntoMatchingURL()
+	enrolled, err := IsEnrolledIntoMatchingURL("https://test.example.com")
 	require.ErrorIs(t, ErrNotImplemented, err)
 	require.False(t, enrolled)
 }
