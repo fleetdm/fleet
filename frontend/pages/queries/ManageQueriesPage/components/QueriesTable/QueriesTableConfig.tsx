@@ -165,18 +165,11 @@ const generateTableHeaders = ({
       accessor: "platforms",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
         // translate the SelectedPlatformString into an array of `SupportedPlatform`s
-        const selectedPlatforms =
-          (cellProps.row.original.platform
-            ?.split(",")
-            .filter((platform) => platform !== "") as SupportedPlatform[]) ??
-          [];
-
-        const platformIconsToRender: SupportedPlatform[] =
-          selectedPlatforms.length === 0
-            ? // User didn't select any platforms, so we render all compatible
-              cellProps.cell.value
-            : // Render the platforms the user has selected for this query
-              selectedPlatforms;
+        const platformIconsToRender = (cellProps.row.original.platform === ""
+          ? ["darwin", "windows", "linux", "chrome"]
+          : cellProps.row.original.platform
+              ?.split(",")
+              .filter((platform) => platform !== "")) as SupportedPlatform[];
 
         return <PlatformCell platforms={platformIconsToRender} />;
       },
