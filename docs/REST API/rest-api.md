@@ -3122,6 +3122,46 @@ Retrieves the disk encryption key for a host.
 }
 ```
 
+### Get configuration profiles assigned to a host 
+
+Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
+
+Retrieves a list of the configuration profiles assigned to a host.
+
+`GET /api/v1/fleet/mdm/hosts/:id/profiles`
+
+#### Parameters
+
+| Name | Type    | In   | Description                      |
+| ---- | ------- | ---- | -------------------------------- |
+| id   | integer | path | **Required**. The ID of the host  |
+
+
+#### Example
+
+`GET /api/v1/fleet/mdm/hosts/8/profiles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 8,
+  "profiles": [
+    {
+      "profile_id": 1337,
+      "team_id": 0,
+      "name": "Example profile",
+      "identifier": "com.example.profile",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo="
+    }
+  ]
+}
+```
+
 ---
 
 
@@ -3638,18 +3678,18 @@ Content-Type: application/octet-stream
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>PayloadContent</key>
-    <array/>
-    <key>PayloadDisplayName</key>
-    <string>Example profile</string>
-    <key>PayloadIdentifier</key>
-    <string>com.example.profile</string>
-    <key>PayloadType</key>
-    <string>Configuration</string>
-    <key>PayloadUUID</key>
-    <string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
-    <key>PayloadVersion</key>
-    <integer>1</integer>
+  <key>PayloadContent</key>
+  <array/>
+  <key>PayloadDisplayName</key>
+  <string>Example profile</string>
+  <key>PayloadIdentifier</key>
+  <string>com.example.profile</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
 </dict>
 </plist>
 --------------------------f02md47480und42y--
@@ -3701,12 +3741,13 @@ List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are
 {
   "profiles": [
     {
-        "profile_id": 1337,
-        "team_id": 0,
-        "name": "Example profile",
-        "identifier": "com.example.profile",
-        "created_at": "2023-03-31T00:00:00Z",
-        "updated_at": "2023-03-31T00:00:00Z"
+      "profile_id": 1337,
+      "team_id": 0,
+      "name": "Example profile",
+      "identifier": "com.example.profile",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo="
     }
   ]
 }
@@ -3737,9 +3778,9 @@ solely on the response status code returned by this endpoint.
 ##### Example response headers
 
 ```
-    Content-Length: 542
-    Content-Type: application/octet-stream
-    Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+  Content-Length: 542
+  Content-Type: application/octet-stream
+  Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
 ```
 
 ###### Example response body
@@ -3748,18 +3789,18 @@ solely on the response status code returned by this endpoint.
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>PayloadContent</key>
-    <array/>
-    <key>PayloadDisplayName</key>
-    <string>Example profile</string>
-    <key>PayloadIdentifier</key>
-    <string>com.example.profile</string>
-    <key>PayloadType</key>
-    <string>Configuration</string>
-    <key>PayloadUUID</key>
-    <string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
-    <key>PayloadVersion</key>
-    <integer>1</integer>
+  <key>PayloadContent</key>
+  <array/>
+  <key>PayloadDisplayName</key>
+  <string>Example profile</string>
+  <key>PayloadIdentifier</key>
+  <string>com.example.profile</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
 </dict>
 </plist>
 ```
@@ -6132,7 +6173,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "id": 3,
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
-          "policy_updated_at": "2023-06-26T18:33:15Z",
+        "policy_updated_at": "2023-06-26T18:33:15Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
         "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
