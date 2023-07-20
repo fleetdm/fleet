@@ -380,7 +380,6 @@ module.exports.routes = {
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
   'GET /docs/rest-api': '/docs/rest-api/rest-api',
-  'GET /docs/configuration': '/docs/configuration/fleet-server-configuration',
   'GET /docs/using-fleet/faq': '/docs/get-started/faq',
   'GET /docs/using-fleet/monitoring-fleet': '/docs/deploy/monitoring-fleet',
   'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts',
