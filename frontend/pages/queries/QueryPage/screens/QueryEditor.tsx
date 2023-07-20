@@ -28,11 +28,6 @@ interface IQueryEditorProps {
   storedQueryError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
-  createQuery: UseMutateAsyncFunction<
-    ISchedulableQuery,
-    unknown,
-    ICreateQueryRequestBody
-  >;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onOpenSchemaSidebar: () => void;
@@ -49,7 +44,6 @@ const QueryEditor = ({
   storedQueryError,
   showOpenSchemaActionText,
   isStoredQueryLoading,
-  createQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
   onOpenSchemaSidebar,
@@ -90,7 +84,7 @@ const QueryEditor = ({
   const saveQuery = debounce(async (formData: ICreateQueryRequestBody) => {
     setIsQuerySaving(true);
     try {
-      const query = await createQuery(formData);
+      const { query } = await queryAPI.create(formData);
       router.push(PATHS.EDIT_QUERY(query.id));
       renderFlash("success", "Query created!");
       setBackendValidators({});
