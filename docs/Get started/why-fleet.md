@@ -63,7 +63,7 @@ The Fleet community is full of [kind and helpful people](https://fleetdm.com/han
 ## Contributing 
 The landscape of cybersecurity and IT is too complex.  Let's open it up.
 
-Contributions are welcome, whether you answer questions on [Slack](#chat) / [GitHub](https://github.com/fleetdm/fleet/issues) / [StackOverflow](https://stackoverflow.com/search?q=osquery) / [LinkedIn](https://linkedin.com/company/fleetdm) / [Twitter](https://twitter.com/fleetctl), improve the documentation or [website](./website), write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
+Contributions are welcome, whether you answer questions on [Slack](#chat) / [GitHub](https://github.com/fleetdm/fleet/issues) / [StackOverflow](https://stackoverflow.com/search?q=osquery) / [LinkedIn](https://linkedin.com/company/fleetdm) / [Twitter](https://twitter.com/fleetctl), improve the documentation or [website](https://github.com/fleetdm/fleet/tree/main/website), write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
 
 <!-- - Great contributions are motivated by real-world use cases or learning.
 - Some of the most valuable contributions might not touch any code at all.

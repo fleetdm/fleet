@@ -1,5 +1,5 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
-# Audit activities
+# Audit logs
 
 Fleet logs the following information for administrative actions (in JSON):
 
@@ -839,6 +839,7 @@ Windows MDM features are not ready for production and are currently in developme
 This activity does not contain any detail fields.
 
 
-
+<meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
 <meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">
+<meta name="navSection" value="Dig deeper">

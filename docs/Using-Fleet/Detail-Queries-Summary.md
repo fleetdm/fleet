@@ -730,5 +730,6 @@ SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'
 ```
 
 
-
+<meta name="title" value="Understanding host vitals">
 <meta name="pageOrderInSection" value="1600">
+<meta name="navSection" value="Dig deeper">

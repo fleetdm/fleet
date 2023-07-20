@@ -6,16 +6,17 @@ Provides an introduction to Fleet and its requirements and dependencies.
 ### [Server installation](./Server-Installation.md) 
 Includes deployment walkthroughs for Fleet on CentOS, Kubernetes, and AWS ECS.
 
-### [Configuration](./Configuration.md) 
-Includes resources for configuring the Fleet binary, managing osquery configurations, and running with systemd
-
 ### [Upgrading Fleet](./Upgrading-Fleet.md) 
 Includes a guide for how to update and run new versions of Fleet.
 
-### [Debugging](./Debugging.md)
-Information to gather as part of debugging an issue with a deployment.
+### [Reference architecture](./reference-architectures.md)
+An opinionated view of running Fleet in a production environment, and configuration strategies to enable high availability.
 
-### [FAQ](./FAQ.md) 
-Includes commonly asked questions and answers about deployment from the Fleet community.
+### [Monitoring Fleet](./monitoring-fleet.md)
+Learn about monitoring and scaling Fleet servers with health checks, metrics, and alerting
+
+### [Deploying to Cloud.gov](./cloudgov.md)
+A guide for deploying Fleet on Cloud.gov.
+
 
 <meta name="description" value="An overview of the deployment documentation for Fleet.">

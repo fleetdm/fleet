@@ -2745,7 +2745,7 @@ packaging:
 
 ## Mobile device management (MDM)
 
-> MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
+> MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](https://fleetdm.com/docs/get-started/faq#what-api-endpoints-should-i-expose-to-the-public-internet)
 
 This section is a reference for the configuration required to turn on MDM features in production.
 

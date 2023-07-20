@@ -425,7 +425,7 @@ This is the callback endpoint that the identity provider will use to send securi
 ### List activities
 
 Returns a list of the activities that have been performed in Fleet as well as additional meta data
-for pagination. For a comprehensive list of activity types and detailed information, please see [Audit activities](https://fleetdm.com/docs/using-fleet/audit-activities) page.
+for pagination. For a comprehensive list of activity types and detailed information, please see the [Audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
 
 `GET /api/v1/fleet/activities`
 
@@ -3091,7 +3091,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 Requires the [macadmins osquery extension](https://github.com/macadmins/osquery-extension) which comes bundled
 in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
-Requires Fleet's MDM properly [enabled and configured](./Mobile-device-management.md).
+Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 Retrieves the disk encryption key for a host.
 
@@ -3567,7 +3567,7 @@ Deletes the label specified by ID.
 
 ## Mobile device management (MDM)
 
-These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](./Mobile-device-management.md).
+These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 - [Add custom macOS setting (configuration profile)](#add-custom-macos-setting-configuration-profile)
 - [List custom macOS settings (configuration profiles)](#list-custom-macos-settings-configuration-profiles)
@@ -6977,8 +6977,8 @@ Creates a user account after an invited user provides registration information a
 | name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                      |
 | password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                       |
 | password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                         |
-| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](./Permissions.md).                                                                                                                                                                        |
-| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](./Permissions.md). |
+| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
+| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
 
 #### Example
 
@@ -7094,9 +7094,9 @@ By default, the user will be forced to reset its password upon first login.
 | password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
-| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](./Permissions.md).                                                                                                                                                                        |
+| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
-| teams                          | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](./Permissions.md). |
+| teams                          | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
 
 #### Example
 
