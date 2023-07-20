@@ -30,6 +30,7 @@ import {
 } from "interfaces/schedulable_query";
 import { SelectedPlatformString } from "interfaces/platform";
 import queryAPI from "services/entities/queries";
+import { COLORS } from "styles/var/colors";
 
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
@@ -670,14 +671,40 @@ const QueryForm = ({
                 </Button>
               )}
               <div className="query-form__button-wrap--save-query-button">
-                <Button
-                  className="save-loading"
-                  variant="brand"
-                  onClick={promptSaveQuery()}
-                  isLoading={isQueryUpdating}
+                <div
+                  data-tip
+                  data-for="save-query-button"
+                  // Tooltip shows for team maintainer/admins viewing global queries
+                  data-tip-disable={
+                    !(isAnyTeamMaintainerOrTeamAdmin && !storedQuery?.team_id)
+                  }
                 >
-                  Save
-                </Button>
+                  <Button
+                    className="save-loading"
+                    variant="brand"
+                    onClick={promptSaveQuery()}
+                    // Button disabled for team maintainer/admins viewing global queries
+                    disabled={
+                      isAnyTeamMaintainerOrTeamAdmin && !storedQuery?.team_id
+                    }
+                    isLoading={isQueryUpdating}
+                  >
+                    Save
+                  </Button>
+                </div>{" "}
+                <ReactTooltip
+                  className={`save-query-button-tooltip`}
+                  place="bottom"
+                  effect="solid"
+                  backgroundColor={COLORS["tooltip-bg"]}
+                  id="save-query-button"
+                  data-html
+                >
+                  <>
+                    You can only save changes
+                    <br /> to a team level query.
+                  </>
+                </ReactTooltip>
               </div>
             </>
           )}
