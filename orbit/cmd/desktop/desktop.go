@@ -237,6 +237,7 @@ func main() {
 			)
 			mdmMigrator = useraction.NewMDMMigrator(
 				swiftDialogPath,
+				fleetURL,
 				15*time.Minute,
 				&mdmMigrationHandler{
 					client:      client,
