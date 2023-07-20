@@ -70,6 +70,8 @@ type QueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
 type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error)
 
+type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint) ([]*fleet.Query, error)
+
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
 type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
@@ -299,6 +301,8 @@ type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type TeamFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
+
+type GetTeamNameFunc func(ctx context.Context, teamID uint) (*string, error)
 
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
@@ -739,6 +743,9 @@ type DataStore struct {
 	ListQueriesFunc        ListQueriesFunc
 	ListQueriesFuncInvoked bool
 
+	ListScheduledQueriesForAgentsFunc        ListScheduledQueriesForAgentsFunc
+	ListScheduledQueriesForAgentsFuncInvoked bool
+
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
 
@@ -1083,6 +1090,9 @@ type DataStore struct {
 
 	TeamFunc        TeamFunc
 	TeamFuncInvoked bool
+
+	GetTeamNameFunc        GetTeamNameFunc
+	GetTeamNameFuncInvoked bool
 
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
@@ -1807,6 +1817,13 @@ func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 	s.ListQueriesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListQueriesFunc(ctx, opt)
+}
+
+func (s *DataStore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+	s.mu.Lock()
+	s.ListScheduledQueriesForAgentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListScheduledQueriesForAgentsFunc(ctx, teamID)
 }
 
 func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
@@ -2612,6 +2629,13 @@ func (s *DataStore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.TeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.TeamFunc(ctx, tid)
+}
+
+func (s *DataStore) GetTeamName(ctx context.Context, teamID uint) (*string, error) {
+	s.mu.Lock()
+	s.GetTeamNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetTeamNameFunc(ctx, teamID)
 }
 
 func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {

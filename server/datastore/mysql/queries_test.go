@@ -30,8 +30,9 @@ func TestQueries(t *testing.T) {
 		{"DuplicateNew", testQueriesDuplicateNew},
 		{"ListFiltersObservers", testQueriesListFiltersObservers},
 		{"ObserverCanRunQuery", testObserverCanRunQuery},
-		{"ListFiltersByTeamID", testQueriesListFiltersByTeamID},
-		{"ListFiltersByIsScheduled", testQueriesListFiltersByIsScheduled},
+		{"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
+		{"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
+		{"ListScheduledQueriesForAgents", testListScheduledQueriesForAgents},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -555,7 +556,7 @@ func testObserverCanRunQuery(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testQueriesListFiltersByTeamID(t *testing.T, ds *Datastore) {
+func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	globalQ1, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:  "query1",
 		Query: "select 1;",
@@ -617,7 +618,7 @@ func testQueriesListFiltersByTeamID(t *testing.T, ds *Datastore) {
 	test.QueryElementsMatch(t, queries, []*fleet.Query{teamQ1, teamQ2, teamQ3})
 }
 
-func testQueriesListFiltersByIsScheduled(t *testing.T, ds *Datastore) {
+func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 	q1, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:             "query1",
 		Query:            "select 1;",
@@ -667,5 +668,61 @@ func testQueriesListFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 		)
 		require.NoError(t, err)
 		test.QueryElementsMatch(t, queries, tCase.expected, i)
+	}
+}
+
+func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "Team 1",
+		Description: "Team 1",
+	})
+	require.NoError(t, err)
+
+	for i, teamID := range []*uint{nil, &team.ID} {
+		var teamIDStr string
+		if teamID != nil {
+			teamIDStr = fmt.Sprintf("%d", *teamID)
+		}
+		_, err := ds.NewQuery(context.Background(), &fleet.Query{
+			Name:             fmt.Sprintf("%s query1", teamIDStr),
+			Query:            "select 1;",
+			Saved:            true,
+			ScheduleInterval: 0,
+			TeamID:           teamID,
+		})
+		require.NoError(t, err)
+		_, err = ds.NewQuery(context.Background(), &fleet.Query{
+			Name:               fmt.Sprintf("%s query2", teamIDStr),
+			Query:              "select 1;",
+			Saved:              false,
+			ScheduleInterval:   10,
+			AutomationsEnabled: false,
+			TeamID:             teamID,
+		})
+		require.NoError(t, err)
+		q3, err := ds.NewQuery(context.Background(), &fleet.Query{
+			Name:               fmt.Sprintf("%s query3", teamIDStr),
+			Query:              "select 1;",
+			Saved:              true,
+			ScheduleInterval:   20,
+			AutomationsEnabled: true,
+			TeamID:             teamID,
+		})
+		require.NoError(t, err)
+		_, err = ds.NewQuery(context.Background(), &fleet.Query{
+			Name:               fmt.Sprintf("%s query4", teamIDStr),
+			Query:              "select 1;",
+			Saved:              true,
+			ScheduleInterval:   0,
+			AutomationsEnabled: true,
+			TeamID:             teamID,
+		})
+		require.NoError(t, err)
+
+		result, err := ds.ListScheduledQueriesForAgents(ctx, teamID)
+		require.NoError(t, err)
+		test.QueryElementsMatch(t, result, []*fleet.Query{q3}, i)
 	}
 }
