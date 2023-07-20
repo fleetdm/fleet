@@ -42,7 +42,7 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 > Fleet's query response time is inherently variable because of osquery's heartbeat response time. This helps prevent performance issues on hosts.
 
-## Schedule queries
+## Schedule a query
 
 *In Fleet 4.35.0, the "Schedule" page was removed, and query automations are now configured on the "Queries" page. Instructions for scheduling queries in earlier versions of Fleet can be found [here](https://github.com/fleetdm/fleet/blob/ac797c8f81ede770853c25fd04102da9f5e109bf/docs/Using-Fleet/Fleet-UI.md#schedule-a-query).*
 
