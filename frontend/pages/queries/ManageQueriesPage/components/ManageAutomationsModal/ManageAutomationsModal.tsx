@@ -11,10 +11,6 @@ import LogDestinationIndicator from "components/LogDestinationIndicator/LogDesti
 
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 
-interface IFrequencyIndicator {
-  frequency: number;
-  checked: boolean;
-}
 interface IManageAutomationsModalProps {
   isUpdatingAutomations: boolean;
   handleSubmit: (formData: any) => void; // TODO
@@ -163,14 +159,15 @@ const ManageAutomationsModal = ({
           </div>
         </div>
         <InfoBanner className={`${baseClass}__supported-platforms`}>
-          Automations currently run on macOS, Windows, and Linux hosts.
-          <br />
-          Interested in query automations for your Chromebooks? &nbsp;
-          <CustomLink
-            url="https://fleetdm.com/contact"
-            text="Let us know"
-            newTab
-          />
+          <p>Automations currently run on macOS, Windows, and Linux hosts.</p>
+          <p>
+            Interested in query automations for your Chromebooks? &nbsp;
+            <CustomLink
+              url="https://fleetdm.com/contact"
+              text="Let us know"
+              newTab
+            />
+          </p>
         </InfoBanner>
         <div className={`${baseClass}__btn-wrap`}>
           <div className={`${baseClass}__preview-btn-wrap`}>
