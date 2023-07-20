@@ -144,11 +144,6 @@ module.exports.custom = {
     'README.md': 'mikermcneil',// « GitHub brandfront
     'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
 
-    // Config as code for infrastructure, internal security and IT use cases, and more.
-    'infrastructure': 'lukeheath',//« infrastructure and related terraform configuration files
-    'charts': 'lukeheath',
-    'terraform': 'lukeheath',
-
     // Repo automation and change control settings
     'CODEOWNERS': 'mikermcneil',
 
