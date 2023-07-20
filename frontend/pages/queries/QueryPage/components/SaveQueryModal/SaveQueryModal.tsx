@@ -27,7 +27,7 @@ import {
 const baseClass = "save-query-modal";
 export interface ISaveQueryModalProps {
   queryValue: string;
-  teamIdForQuery?: number; // query will be global if omitted
+  apiTeamIdForQuery?: number; // query will be global if omitted
   isLoading: boolean;
   saveQuery: (formData: ICreateQueryRequestBody) => void;
   toggleSaveQueryModal: () => void;
@@ -48,7 +48,7 @@ const validateQueryName = (name: string) => {
 
 const SaveQueryModal = ({
   queryValue,
-  teamIdForQuery,
+  apiTeamIdForQuery,
   isLoading,
   saveQuery,
   toggleSaveQueryModal,
@@ -114,7 +114,7 @@ const SaveQueryModal = ({
         // from previous New query page
         query: queryValue,
         // from doubly previous ManageQueriesPage
-        team_id: teamIdForQuery,
+        team_id: apiTeamIdForQuery,
       });
     }
   };
