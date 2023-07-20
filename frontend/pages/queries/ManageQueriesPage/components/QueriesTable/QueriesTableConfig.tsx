@@ -265,56 +265,15 @@ const generateTableHeaders = ({
       Header: (cellProps: IHeaderProps): JSX.Element => {
         const {
           getToggleAllRowsSelectedProps,
-          rows,
-          selectedFlatRows,
           toggleAllRowsSelected,
-          toggleRowSelected,
         } = cellProps;
         const { checked, indeterminate } = getToggleAllRowsSelectedProps();
-
-        const disableToggleAllRowsSelected = () => {
-          /* Team admin or team maintainer can only delete queries they authored
-          If team admin or team maintainer authored 0 queries, disable select all queries for deletion */
-          if (isAnyTeamMaintainerOrTeamAdmin) {
-            return (
-              rows.filter(
-                (r: IQueryRow) => r.original.author_id === currentUser.id
-              ).length === 0
-            );
-          }
-          return false;
-        };
 
         const checkboxProps = {
           value: checked,
           indeterminate,
-          disabled: disableToggleAllRowsSelected(), // Disable select all if all rows are disabled
           onChange: () => {
-            if (!isAnyTeamMaintainerOrTeamAdmin) {
-              toggleAllRowsSelected();
-            } else {
-              // Team maintainers may only delete the queries that they have authored
-              // so we need to do some filtering and then modify the toggle select all
-              // behavior for the header checkbox
-              const userAuthoredQueries = rows.filter(
-                (r: IQueryRow) => r.original.author_id === currentUser.id
-              );
-              if (
-                selectedFlatRows.length &&
-                selectedFlatRows.length !== userAuthoredQueries.length
-              ) {
-                // If some but not all of the user authored queries are already selected,
-                // we toggle all of the user's unselected queries to true
-                userAuthoredQueries.forEach((r: IQueryRow) =>
-                  toggleRowSelected(r.id, true)
-                );
-              } else {
-                // Otherwise, we toggle all of the user's queries to the opposite of their current state
-                userAuthoredQueries.forEach((r: IQueryRow) =>
-                  toggleRowSelected(r.id)
-                );
-              }
-            }
+            toggleAllRowsSelected();
           },
         };
         return <Checkbox {...checkboxProps} />;
@@ -325,44 +284,9 @@ const generateTableHeaders = ({
         const checkboxProps = {
           value: checked,
           onChange: () => row.toggleRowSelected(),
-          disabled:
-            isAnyTeamMaintainerOrTeamAdmin &&
-            row.original.author_id !== currentUser.id,
         };
-        // If the user is a team maintainer, we only enable checkboxes for queries
-        // that they authored and we include a tooltip to explain disabled checkboxes
-        return (
-          <>
-            <div
-              data-tip
-              data-for={`${"select-checkbox"}__${row.original.id}`}
-              data-tip-disable={
-                !isAnyTeamMaintainerOrTeamAdmin ||
-                row.original.author_id === currentUser.id
-              }
-              className={`${
-                !(
-                  !isAnyTeamMaintainerOrTeamAdmin ||
-                  row.original.author_id === currentUser.id
-                ) && "tooltip"
-              }`}
-            >
-              <Checkbox {...checkboxProps} />
-            </div>{" "}
-            <ReactTooltip
-              className="select-checkbox-tooltip"
-              place="bottom"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id={`${"select-checkbox"}__${row.original.id}`}
-              data-html
-            >
-              <>
-                You can only delete a<br /> query if you are the author.
-              </>
-            </ReactTooltip>
-          </>
-        );
+        // v4.35.0 Any team admin or maintainer now can add, edit, delete their team's queries
+        return <Checkbox {...checkboxProps} />;
       },
       disableHidden: true,
     });
