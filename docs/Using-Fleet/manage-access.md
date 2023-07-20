@@ -1,4 +1,4 @@
-# Permissions
+# Manage access
 
 Users have different abilities depending on the access level they have.
 
