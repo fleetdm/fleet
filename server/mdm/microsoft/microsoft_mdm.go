@@ -135,6 +135,9 @@ const (
 	// HTTP Content Type for SOAP responses
 	SoapContentType = "application/soap+xml; charset=utf-8"
 
+	// HTTP Content Type for SyncML MDM responses
+	SyncMLContentType = "application/vnd.syncml.dm+xml"
+
 	// Minimal Key Length for SHA1WithRSA encryption
 	PolicyMinKeyLength = "2048"
 
@@ -228,6 +231,10 @@ const (
 
 	// Login related query param expected by STS Auth endpoint
 	STSLoginHint = "login_hint"
+
+	// Alert Command IDs
+	DeviceUnenrollmentID = "1226"
+	HostInitMessageID    = "1201"
 )
 
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
