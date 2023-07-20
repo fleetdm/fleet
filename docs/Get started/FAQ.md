@@ -1,6 +1,6 @@
 # FAQ
 
-### Using Fleet 
+## Using Fleet 
 
 ### How can I switch to Fleet from Kolide Fleet?
 
@@ -566,7 +566,7 @@ Fleet is tested with Redis 5.0.14 and 6.2.7. Any version Redis after version 5 w
 
 ### Will my older version of Fleet work with Redis 6?
 
-Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups. 
+Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups.
 
 
-<meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community."
+<meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community.">
