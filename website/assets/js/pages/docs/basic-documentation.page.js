@@ -18,7 +18,6 @@ parasails.registerPage('basic-documentation', {
     relatedTopics: [],
     scrollDistance: 0,
     navSectionsByDocsSectionSlug: {},
-    expandedDocsNavSection: {},
 
   },
 
@@ -42,7 +41,7 @@ parasails.registerPage('basic-documentation', {
 
     this.pages = this.pages.filter((page)=>{
       return _.startsWith(page.url, '/docs');
-    })
+    });
     this.pagesBySectionSlug = (() => {
       const DOCS_SLUGS = ['get-started', 'using-fleet', 'deploy', 'configuration', 'rest-api'];
       let sectionSlugs = _.uniq(this.pages.map((page) => page.url.split(/\//).slice(-2)[0]));
@@ -242,19 +241,14 @@ parasails.registerPage('basic-documentation', {
       let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
         'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
         'deploy':['Uncategorized','TBD','Deployment guides'],
-      }
-      let slug;
-      // if no url is passed, use the base url as the slug (e.g., 'docs' or 'handbook')
-      if (!url) {
-        slug = _.trim(this.thisPage.url, /\//).split(/\//)[0];
-      } else {
-        slug = _.last(url.split(/\//));
-      }
+      };
+      let slug = _.last(url.split(/\//));
+      //
       if(NAV_SECTION_ORDER_BY_DOCS_SLUG[slug]) {
         let orderForThisSection = NAV_SECTION_ORDER_BY_DOCS_SLUG[slug];
-        let sortedSection = {}
+        let sortedSection = {};
         orderForThisSection.map((section)=>{
-          sortedSection[section] = this.navSectionsByDocsSectionSlug[slug][section]
+          sortedSection[section] = this.navSectionsByDocsSectionSlug[slug][section];
         });
         this.navSectionsByDocsSectionSlug[slug] = sortedSection;
       }
