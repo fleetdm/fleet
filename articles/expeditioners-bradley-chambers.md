@@ -28,6 +28,6 @@ In today’s episode of the ExpedITioners Podcast, we are joined by Bradley Cham
 <meta name="category" value="podcasts">
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="authorFullName" value="Zach Wasserman">
-<meta name="publishedOn" value="2022-07-20">
+<meta name="publishedOn" value="2023-07-20">
 <meta name="articleTitle" value="ExpedITioners podcast with Bradley Chambers">
 <meta name="articleImageUrl" value="../website/assets/images/articles/expeditioners-podcast-ep1-1600x900@2x.png">
