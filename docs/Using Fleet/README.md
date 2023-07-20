@@ -6,7 +6,7 @@ Provides documentation about running and scheduling queries from within the Flee
 ### [fleetctl CLI](./fleetctl-CLI.md) 
 Includes resources for setting up and configuring Fleet via the fleetctl CLI
 
-### [Adding hosts](./Adding-hosts.md)
+### [Enroll hosts](./enroll-hosts.md)
 Provides resources for enrolling your hosts to Fleet
 
 ### [Log destinations](./Log-destinations.md) 
