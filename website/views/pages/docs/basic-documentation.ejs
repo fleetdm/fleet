@@ -98,13 +98,18 @@
                   <a :href="page.url" class="font-weight-bold">
                     {{page.title}}
                   </a>
-                  <ul class="px-0 pt-3 mb-0" v-if="!_.isEmpty(findPagesByUrl(page.url))">
-                    <li class="px-0 mb-2" v-for="subpage in findPagesByUrl(page.url)">
-                      <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                        {{subpage.title}}
-                      </a>
-                    </li>
-                  </ul>
+                  <div purpose="expanded-nav" class="pt-3" v-if="isCurrentSection(page)">
+                    <ul class="p-0 pl-2 mb-2" v-if="!_.isEmpty(findPagesByUrl(page.url))">
+                      <div purpose="nav-section" v-for="(section, sectionName) of findAndSortNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
+                        <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
+                        <li v-for="subpage in section" :key="subpage.title">
+                          <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                            {{subpage.title}}
+                          </a>
+                        </li>
+                      </div>
+                    </ul>
+                  </div>
                 </li>
               </ul>
             </div>
@@ -129,7 +134,7 @@
               <a :href="page.url" class="font-weight-bold pb-3">{{page.title}}</a>
               <div purpose="expanded-nav" class="pt-3" v-if="isCurrentSection(page)">
                 <ul class="p-0 pl-2 mb-2">
-                  <div purpose="nav-section" v-for="(section, sectionName) of findNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
+                  <div purpose="nav-section" v-for="(section, sectionName) of findAndSortNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
                     <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
                     <li v-for="subpage in section" :key="subpage.title">
                       <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
