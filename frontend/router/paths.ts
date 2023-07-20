@@ -43,8 +43,10 @@ export default {
   EDIT_LABEL: (labelId: number): string => {
     return `${URL_PREFIX}/labels/${labelId}`;
   },
-  EDIT_QUERY: (queryId: number): string => {
-    return `${URL_PREFIX}/queries/${queryId}`;
+  EDIT_QUERY: (queryId: number, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId}${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
   },
   EDIT_POLICY: (policy: IPolicy): string => {
     return `${URL_PREFIX}/policies/${policy.id}${

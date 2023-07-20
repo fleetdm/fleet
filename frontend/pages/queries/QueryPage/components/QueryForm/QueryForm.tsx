@@ -53,7 +53,8 @@ const baseClass = "query-form";
 interface IQueryFormProps {
   router: InjectedRouter;
   queryIdForEdit: number | null;
-  teamIdForQuery?: number;
+  apiTeamIdForQuery?: number;
+  teamNameForQuery?: string;
   showOpenSchemaActionText: boolean;
   storedQuery: ISchedulableQuery | undefined;
   isStoredQueryLoading: boolean;
@@ -83,7 +84,8 @@ const validateQuerySQL = (query: string) => {
 const QueryForm = ({
   router,
   queryIdForEdit,
-  teamIdForQuery,
+  apiTeamIdForQuery,
+  teamNameForQuery,
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
@@ -270,12 +272,12 @@ const QueryForm = ({
 
     if (valid) {
       setIsSaveAsNewLoading(true);
-
       queryAPI
         .create({
           name: lastEditedQueryName,
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
+          team_id: apiTeamIdForQuery,
           observer_can_run: lastEditedQueryObserverCanRun,
           interval: lastEditedQueryFrequency,
           platform: lastEditedQueryPlatforms,
@@ -294,6 +296,7 @@ const QueryForm = ({
                 name: `Copy of ${lastEditedQueryName}`,
                 description: lastEditedQueryDescription,
                 query: lastEditedQueryBody,
+                team_id: apiTeamIdForQuery,
                 observer_can_run: lastEditedQueryObserverCanRun,
                 interval: lastEditedQueryFrequency,
                 platform: lastEditedQueryPlatforms,
@@ -314,9 +317,19 @@ const QueryForm = ({
                     "already exists"
                   )
                 ) {
+                  let teamErrorText;
+                  if (apiTeamIdForQuery !== 0) {
+                    if (teamNameForQuery) {
+                      teamErrorText = `the ${teamNameForQuery} team`;
+                    } else {
+                      teamErrorText = "this team";
+                    }
+                  } else {
+                    teamErrorText = "all teams";
+                  }
                   renderFlash(
                     "error",
-                    `"Copy of ${lastEditedQueryName}" already exists. Please rename your query and try again.`
+                    `A query called "Copy of ${lastEditedQueryName}" already exists for ${teamErrorText}.`
                   );
                 }
                 setIsSaveAsNewLoading(false);
@@ -709,7 +722,7 @@ const QueryForm = ({
       {showSaveQueryModal && (
         <SaveQueryModal
           queryValue={lastEditedQueryBody}
-          teamIdForQuery={teamIdForQuery}
+          apiTeamIdForQuery={apiTeamIdForQuery}
           saveQuery={saveQuery}
           toggleSaveQueryModal={toggleSaveQueryModal}
           backendValidators={backendValidators}

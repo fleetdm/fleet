@@ -10,11 +10,7 @@ import permissionsUtils from "utilities/permissions";
 import { IUser } from "interfaces/user";
 import { secondsToDhms } from "utilities/helpers";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import {
-  SelectedPlatformString,
-  SupportedPlatform,
-  SUPPORTED_PLATFORMS,
-} from "interfaces/platform";
+import { SupportedPlatform } from "interfaces/platform";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -153,7 +149,10 @@ const generateTableHeaders = ({
                 )}
               </>
             }
-            path={PATHS.EDIT_QUERY(cellProps.row.original.id)}
+            path={PATHS.EDIT_QUERY(
+              cellProps.row.original.id,
+              cellProps.row.original.team_id ?? undefined
+            )}
           />
         );
       },
