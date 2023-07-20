@@ -10,11 +10,7 @@ import permissionsUtils from "utilities/permissions";
 import { IUser } from "interfaces/user";
 import { secondsToDhms } from "utilities/helpers";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import {
-  SelectedPlatformString,
-  SupportedPlatform,
-  SUPPORTED_PLATFORMS,
-} from "interfaces/platform";
+import { SupportedPlatform } from "interfaces/platform";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -166,18 +162,11 @@ const generateTableHeaders = ({
       accessor: "platforms",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
         // translate the SelectedPlatformString into an array of `SupportedPlatform`s
-        const selectedPlatforms =
-          (cellProps.row.original.platform
-            ?.split(",")
-            .filter((platform) => platform !== "") as SupportedPlatform[]) ??
-          [];
-
-        const platformIconsToRender: SupportedPlatform[] =
-          selectedPlatforms.length === 0
-            ? // User didn't select any platforms, so we render all compatible
-              cellProps.cell.value
-            : // Render the platforms the user has selected for this query
-              selectedPlatforms;
+        const platformIconsToRender = (cellProps.row.original.platform === ""
+          ? ["darwin", "windows", "linux", "chrome"]
+          : cellProps.row.original.platform
+              ?.split(",")
+              .filter((platform) => platform !== "")) as SupportedPlatform[];
 
         return <PlatformCell platforms={platformIconsToRender} />;
       },

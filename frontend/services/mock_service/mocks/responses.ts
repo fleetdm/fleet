@@ -486,7 +486,7 @@ const globalQueries = {
       query: "SELECT * FROM osquery_info",
       team_id: 2,
       interval: 604800, // Every week
-      platform: "Windows",
+      platform: "windows",
       min_osquery_version: "",
       automations_enabled: false,
       logging: "differential",
@@ -563,7 +563,6 @@ const teamQueries = {
         total_executions: 1,
       },
       performance: "Undetermined",
-      platforms: ["windows"],
     },
     {
       created_at: "2023-06-08T15:31:35Z",
