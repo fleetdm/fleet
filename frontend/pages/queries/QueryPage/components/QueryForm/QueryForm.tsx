@@ -165,7 +165,7 @@ const QueryForm = ({
     }
 
     debounceSQL(lastEditedQueryBody);
-  }, [lastEditedQueryBody, lastEditedQueryId]);
+  }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
 
   const hasTeamMaintainerPermissions = savedQueryMode
     ? isAnyTeamMaintainerOrTeamAdmin &&
