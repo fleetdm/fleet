@@ -201,8 +201,8 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
 
 interface IPlatformDropdownOptions {
   label: "All" | "Windows" | "Linux" | "macOS" | "ChromeOS";
-  value: "all" | "windows" | "linux" | "darwin" | "chrome";
-  path: string;
+  value: "all" | "windows" | "linux" | "darwin" | "chrome" | "";
+  path?: string;
 }
 export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "All", value: "all", path: paths.DASHBOARD },
@@ -213,10 +213,12 @@ export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
 ];
 
 // Schedules does not support ChromeOS
-export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = PLATFORM_DROPDOWN_OPTIONS.slice(
-  0,
-  -1
-);
+export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
+  { label: "All", value: "" }, // API empty string runs on all platforms
+  { label: "macOS", value: "darwin" },
+  { label: "Windows", value: "windows" },
+  { label: "Linux", value: "linux" },
+];
 
 export const PLATFORM_NAME_TO_LABEL_NAME = {
   all: "",
