@@ -232,20 +232,12 @@ WHERE
 		if err := saveUsersForTeamDB(ctx, tx, team); err != nil {
 			return err
 		}
-
-		return updateTeamScheduleDB(ctx, tx, team)
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	return team, nil
-}
-
-func updateTeamScheduleDB(ctx context.Context, exec sqlx.ExecerContext, team *fleet.Team) error {
-	_, err := exec.ExecContext(ctx,
-		`UPDATE packs SET name = ? WHERE pack_type = ?`, teamScheduleName(team), teamSchedulePackType(team),
-	)
-	return ctxerr.Wrap(ctx, err, "update packs")
 }
 
 // ListTeams lists all teams with limit, sort and offset passed in with
@@ -430,18 +422,4 @@ func (ds *Datastore) DeleteIntegrationsFromTeams(ctx context.Context, deletedInt
 		}
 	}
 	return rows.Err()
-}
-
-func (ds *Datastore) GetTeamName(ctx context.Context, teamID uint) (*string, error) {
-	stmt := `SELECT name FROM teams WHERE id = ?`
-	var teamName string
-
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &teamName, stmt, teamID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Team").WithID(teamID))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "select team")
-	}
-
-	return &teamName, nil
 }

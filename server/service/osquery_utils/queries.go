@@ -1151,7 +1151,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			},
 		)
 	}
-	if err := task.RecordScheduledQueryStats(ctx, host.ID, packStats, time.Now()); err != nil {
+	if err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, packStats, time.Now()); err != nil {
 		return ctxerr.Wrap(ctx, err, "record host pack stats")
 	}
 

@@ -400,8 +400,6 @@ type Datastore interface {
 	SaveTeam(ctx context.Context, team *Team) (*Team, error)
 	// Team retrieves the Team by ID.
 	Team(ctx context.Context, tid uint) (*Team, error)
-	// GetTeamName retrieves the team name by their ID.
-	GetTeamName(ctx context.Context, teamID uint) (*string, error)
 	// Team deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name.
@@ -592,7 +590,6 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Aggregated Stats
 
-	UpdateScheduledQueryAggregatedStats(ctx context.Context) error
 	UpdateQueryAggregatedStats(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -631,7 +628,7 @@ type Datastore interface {
 	TeamMDMConfig(ctx context.Context, teamID uint) (*TeamMDM, error)
 
 	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
-	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
+	SaveHostPackStats(ctx context.Context, teamID *uint, hostID uint, stats []PackStats) error
 	// AsyncBatchSaveHostsScheduledQueryStats efficiently saves a batch of hosts'
 	// pack stats of scheduled queries. It is the async and batch version of
 	// SaveHostPackStats. It returns the number of INSERT-ON DUPLICATE UPDATE

@@ -270,6 +270,7 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, batchSize int,
 	return result, nil
 }
 
+// TODO(lucas): FIX THIS TO USE query_stats too!
 func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
 	// NOTE: this implementation must be kept in sync with the non-async version
 	// in SaveHostPackStats (in hosts.go) - that is, the behaviour per host must

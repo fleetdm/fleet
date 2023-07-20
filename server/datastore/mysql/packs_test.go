@@ -33,7 +33,6 @@ func TestPacks(t *testing.T) {
 		{"ListForHost", testPacksListForHost},
 		{"EnsureGlobal", testPacksEnsureGlobal},
 		{"EnsureTeam", testPacksEnsureTeam},
-		{"TeamNameChangesTeamSchedule", testPacksTeamNameChangesTeamSchedule},
 		{"TeamScheduleNamesMigrateToNewFormat", testPacksTeamScheduleNamesMigrateToNewFormat},
 		{"ApplySpecFailsOnTargetIDNull", testPacksApplySpecFailsOnTargetIDNull},
 		{"ApplyStatsNotLocking", testPacksApplyStatsNotLocking},
@@ -498,25 +497,6 @@ func testPacksEnsureTeam(t *testing.T, ds *Datastore) {
 	assert.Equal(t, []uint{team2.ID}, tp2.TeamIDs)
 }
 
-func testPacksTeamNameChangesTeamSchedule(t *testing.T, ds *Datastore) {
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-
-	tp, err := ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-	firstName := teamScheduleName(team1)
-	assert.Equal(t, firstName, tp.Name)
-
-	team1.Name = "new name!!"
-	team1, err = ds.SaveTeam(context.Background(), team1)
-	require.NoError(t, err)
-
-	tp, err = ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-	assert.NotEqual(t, firstName, tp.Name)
-	assert.Equal(t, teamScheduleName(team1), tp.Name)
-}
-
 func testPacksTeamScheduleNamesMigrateToNewFormat(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -622,7 +602,7 @@ func testPacksApplyStatsNotLocking(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 
 				amount := rand.Intn(5000)
-				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
+				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.TeamID, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
 			}
 		}
 	}()
@@ -674,7 +654,7 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 					require.NoError(t, err)
 
 					amount := rand.Intn(5000)
-					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
+					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.TeamID, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
 				}
 			}
 		}()

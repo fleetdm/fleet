@@ -40,10 +40,6 @@ import (
 
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
-	ds.GetTeamNameFunc = func(ctx context.Context, tid uint) (*string, error) {
-		teamName := "Alamo"
-		return &teamName, nil
-	}
 
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 		return nil, nil
@@ -193,7 +189,7 @@ func TestGetClientConfig(t *testing.T) {
 				"froobing":{"query":"select 'guacamole'","interval":60,"snapshot":true}
 			}
 		},
-		"Team: Alamo": {
+		"team-1": {
 			"queries": {
 				"Some strings carry more weight than others": {
 					"query": "SELECT 1 FROM table_1",
@@ -2003,10 +1999,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 	ds := new(mock.Store)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
-
-	ds.GetTeamNameFunc = func(ctx context.Context, tid uint) (*string, error) {
-		return nil, nil
-	}
 
 	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
 		return nil, nil

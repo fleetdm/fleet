@@ -35,7 +35,6 @@ func TestTeams(t *testing.T) {
 		{"DeleteIntegrationsFromTeams", testTeamsDeleteIntegrationsFromTeams},
 		{"TeamsFeatures", testTeamsFeatures},
 		{"TeamsMDMConfig", testTeamsMDMConfig},
-		{"GetTeamByName", testGetTeamByName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -623,26 +622,5 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				MacOSSetupAssistant: optjson.SetString("assistant"),
 			},
 		}, mdm)
-	})
-}
-
-func testGetTeamByName(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	t.Run("team does not exists", func(t *testing.T) {
-		r, err := ds.GetTeamName(ctx, 123)
-		require.Nil(t, r)
-		require.Error(t, err)
-	})
-
-	t.Run("returns the team name", func(t *testing.T) {
-		team, err := ds.NewTeam(ctx, &fleet.Team{
-			Name: "team1",
-		})
-		require.NoError(t, err)
-
-		result, err := ds.GetTeamName(ctx, team.ID)
-		require.NoError(t, err)
-		require.Equal(t, team.Name, *result)
 	})
 }

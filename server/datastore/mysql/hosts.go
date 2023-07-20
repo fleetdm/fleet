@@ -136,44 +136,77 @@ func (ds *Datastore) SerialUpdateHost(ctx context.Context, host *fleet.Host) err
 	}
 }
 
-func (ds *Datastore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
-	return saveHostPackStatsDB(ctx, ds.writer(ctx), hostID, stats)
+func (ds *Datastore) SaveHostPackStats(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
+	return saveHostPackStatsDB(ctx, ds.writer(ctx), teamID, hostID, stats)
 }
 
-func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, hostID uint, stats []fleet.PackStats) error {
+func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID uint, stats []fleet.PackStats) error {
 	// NOTE: this implementation must be kept in sync with the async/batch version
 	// in AsyncBatchSaveHostsScheduledQueryStats (in scheduled_queries.go) - that is,
 	// the behaviour per host must be the same.
 
-	var args []interface{}
-	queryCount := 0
+	var (
+		userPacksArgs              []interface{}
+		userPacksQueryCount        = 0
+		scheduledQueriesArgs       []interface{}
+		scheduledQueriesQueryCount = 0
+	)
 	for _, pack := range stats {
-		for _, query := range pack.QueryStats {
-			queryCount++
+		if pack.PackName == "Global" || (teamID != nil && pack.PackName == fmt.Sprintf("team-%d", *teamID)) {
+			for _, query := range pack.QueryStats {
+				scheduledQueriesQueryCount++
 
-			args = append(args,
-				query.PackName,
-				query.ScheduledQueryName,
-				hostID,
-				query.AverageMemory,
-				query.Denylisted,
-				query.Executions,
-				query.Interval,
-				query.LastExecuted,
-				query.OutputSize,
-				query.SystemTime,
-				query.UserTime,
-				query.WallTime,
-			)
+				teamIDArg := uint(0)
+				if pack.PackName != "Global" {
+					teamIDArg = *teamID
+				}
+				scheduledQueriesArgs = append(scheduledQueriesArgs,
+					teamIDArg,
+					query.ScheduledQueryName,
+
+					hostID,
+					query.AverageMemory,
+					query.Denylisted,
+					query.Executions,
+					query.Interval,
+					query.LastExecuted,
+					query.OutputSize,
+					query.SystemTime,
+					query.UserTime,
+					query.WallTime,
+				)
+			}
+		} else { // User 2017 packs
+			for _, query := range pack.QueryStats {
+				userPacksQueryCount++
+
+				userPacksArgs = append(userPacksArgs,
+					query.PackName,
+					query.ScheduledQueryName,
+
+					hostID,
+					query.AverageMemory,
+					query.Denylisted,
+					query.Executions,
+					query.Interval,
+					query.LastExecuted,
+					query.OutputSize,
+					query.SystemTime,
+					query.UserTime,
+					query.WallTime,
+				)
+			}
 		}
 	}
 
-	if queryCount == 0 {
+	if userPacksQueryCount == 0 && scheduledQueriesQueryCount == 0 {
 		return nil
 	}
 
-	values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
-	sql := fmt.Sprintf(`
+	if scheduledQueriesQueryCount > 0 {
+		// This query will import stats for queries (new format).
+		values := strings.TrimSuffix(strings.Repeat("((SELECT q.id FROM queries q WHERE COALESCE(q.team_id, 0) = ? AND q.name = ?),?,?,?,?,?,?,?,?,?,?),", scheduledQueriesQueryCount), ",")
+		sql := fmt.Sprintf(`
 			INSERT IGNORE INTO scheduled_query_stats (
 				scheduled_query_id,
 				host_id,
@@ -200,9 +233,47 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, hostID uint
 				user_time = VALUES(user_time),
 				wall_time = VALUES(wall_time)
 		`, values)
-	if _, err := db.ExecContext(ctx, sql, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert pack stats")
+		if _, err := db.ExecContext(ctx, sql, scheduledQueriesArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert query schedule stats")
+		}
 	}
+
+	if userPacksQueryCount > 0 {
+		// This query will import stats for 2017 packs.
+		// NOTE(lucas): If more than one scheduled query reference the same query then only one of the stats will be written.
+		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.query_id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.pack_type IS NULL AND p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", userPacksQueryCount), ",")
+		sql := fmt.Sprintf(`
+				INSERT IGNORE INTO scheduled_query_stats (
+					scheduled_query_id,
+					host_id,
+					average_memory,
+					denylisted,
+					executions,
+					schedule_interval,
+					last_executed,
+					output_size,
+					system_time,
+					user_time,
+					wall_time
+				)
+				VALUES %s ON DUPLICATE KEY UPDATE
+					scheduled_query_id = VALUES(scheduled_query_id),
+					host_id = VALUES(host_id),
+					average_memory = VALUES(average_memory),
+					denylisted = VALUES(denylisted),
+					executions = VALUES(executions),
+					schedule_interval = VALUES(schedule_interval),
+					last_executed = VALUES(last_executed),
+					output_size = VALUES(output_size),
+					system_time = VALUES(system_time),
+					user_time = VALUES(user_time),
+					wall_time = VALUES(wall_time)
+			`, values)
+		if _, err := db.ExecContext(ctx, sql, userPacksArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert pack stats")
+		}
+	}
+
 	return nil
 }
 
@@ -254,12 +325,12 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 		goqu.On(goqu.I("sq.pack_id").Eq(goqu.I("p.id"))),
 	).Join(
 		goqu.I("queries").As("q"),
-		goqu.On(goqu.I("sq.query_name").Eq(goqu.I("q.name"))),
+		goqu.On(goqu.I("sq.query_id").Eq(goqu.I("q.id"))),
 	).LeftJoin(
 		dialect.From("scheduled_query_stats").As("sqs").Where(
 			goqu.I("host_id").Eq(hid),
 		),
-		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.id"))),
+		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.query_id"))),
 	).Where(
 		goqu.Or(
 			// sq.platform empty or NULL means the scheduled query is set to
@@ -331,6 +402,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 				goqu.L("FIND_IN_SET(?, q.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
 			),
 			goqu.I("q.schedule_interval").Gt(0),
+			goqu.I("q.automations_enabled").IsTrue(),
 			goqu.Or(
 				goqu.I("q.team_id").IsNull(),
 				goqu.I("q.team_id").Eq(teamID_),

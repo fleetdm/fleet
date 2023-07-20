@@ -316,7 +316,7 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 		WHERE q.id = ?
 	`
 	query := &fleet.Query{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, false, aggregatedStatsTypeQuery, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, false, aggregatedStatsTypeScheduledQuery, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
 		}
@@ -362,7 +362,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
 	`
 
-	args := []interface{}{false, aggregatedStatsTypeQuery}
+	args := []interface{}{false, aggregatedStatsTypeScheduledQuery}
 	whereClauses := "WHERE saved = true"
 
 	if opt.OnlyObserverCanRun {
