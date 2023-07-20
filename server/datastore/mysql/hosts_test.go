@@ -627,7 +627,6 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 
 	assert.Equal(t, host.PackStats[0].PackName, teamScheduleName(team))
 	assert.ElementsMatch(t, host.PackStats[0].QueryStats, stats2)
-
 	assert.Equal(t, host.PackStats[1].PackName, pack1.Name)
 	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats1)
 }

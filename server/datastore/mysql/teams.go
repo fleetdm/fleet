@@ -431,3 +431,17 @@ func (ds *Datastore) DeleteIntegrationsFromTeams(ctx context.Context, deletedInt
 	}
 	return rows.Err()
 }
+
+func (ds *Datastore) GetTeamName(ctx context.Context, teamID uint) (*string, error) {
+	stmt := `SELECT name FROM teams WHERE id = ?`
+	var teamName string
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &teamName, stmt, teamID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Team").WithID(teamID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select team")
+	}
+
+	return &teamName, nil
+}

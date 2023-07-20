@@ -40,11 +40,9 @@ import (
 
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return &fleet.Team{
-			Name: "Alamo",
-			ID:   1,
-		}, nil
+	ds.GetTeamNameFunc = func(ctx context.Context, tid uint) (*string, error) {
+		teamName := "Alamo"
+		return &teamName, nil
 	}
 
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
@@ -71,8 +69,8 @@ func TestGetClientConfig(t *testing.T) {
 			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		if opt.TeamID == nil {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+		if teamID == nil {
 			return nil, nil
 		}
 		return []*fleet.Query{
@@ -2005,6 +2003,14 @@ func TestUpdateHostIntervals(t *testing.T) {
 	ds := new(mock.Store)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.GetTeamNameFunc = func(ctx context.Context, tid uint) (*string, error) {
+		return nil, nil
+	}
+
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+		return nil, nil
+	}
 
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil

@@ -360,10 +360,10 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		FROM queries q
 		LEFT JOIN users u ON (q.author_id = u.id)
 		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
-		WHERE saved = true`
+	`
 
 	args := []interface{}{false, aggregatedStatsTypeQuery}
-	whereClauses := ""
+	whereClauses := "WHERE saved = true"
 
 	if opt.OnlyObserverCanRun {
 		whereClauses += " AND q.observer_can_run=true"
@@ -460,4 +460,36 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 	}
 
 	return observerCanRun, nil
+}
+
+func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+	sql := `
+		SELECT
+			q.name,
+			q.query,
+			q.team_id,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type
+		FROM queries q
+		WHERE q.saved = true 
+			AND (q.schedule_interval > 0 AND q.automations_enabled = 1)
+	`
+
+	args := []interface{}{}
+	if teamID != nil {
+		args = append(args, *teamID)
+		sql += " AND team_id = ?"
+	} else {
+		sql += " AND team_id IS NULL"
+	}
+
+	results := []*fleet.Query{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list scheduled queries for agents")
+	}
+
+	return results, nil
 }

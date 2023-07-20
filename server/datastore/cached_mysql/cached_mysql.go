@@ -25,6 +25,8 @@ const (
 	defaultTeamFeaturesExpiration     = 1 * time.Minute
 	teamMDMConfigKey                  = "TeamMDMConfig:team:%d"
 	defaultTeamMDMConfigExpiration    = 1 * time.Minute
+	teamNameByIdKey                   = "TeamName:team:%d"
+	scheduledQueriesForAgentsKey      = "ScheduledQueriesAgents:team:%d"
 )
 
 // cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
@@ -296,10 +298,12 @@ func (ds *cachedMysql) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.T
 	agentOptionsKey := fmt.Sprintf(teamAgentOptionsKey, team.ID)
 	featuresKey := fmt.Sprintf(teamFeaturesKey, team.ID)
 	mdmConfigKey := fmt.Sprintf(teamMDMConfigKey, team.ID)
+	teamNameKey := fmt.Sprintf(teamNameByIdKey, team.ID)
 
 	ds.c.Set(agentOptionsKey, team.Config.AgentOptions, ds.teamAgentOptionsExp)
 	ds.c.Set(featuresKey, &team.Config.Features, ds.teamFeaturesExp)
 	ds.c.Set(mdmConfigKey, &team.Config.MDM, ds.teamMDMConfigExp)
+	ds.c.Set(teamNameKey, &team.Name, ds.scheduledQueriesExp)
 
 	return team, nil
 }
@@ -313,10 +317,49 @@ func (ds *cachedMysql) DeleteTeam(ctx context.Context, teamID uint) error {
 	agentOptionsKey := fmt.Sprintf(teamAgentOptionsKey, teamID)
 	featuresKey := fmt.Sprintf(teamFeaturesKey, teamID)
 	mdmConfigKey := fmt.Sprintf(teamMDMConfigKey, teamID)
+	teamNameKey := fmt.Sprintf(teamNameByIdKey, teamID)
 
 	ds.c.Delete(agentOptionsKey)
 	ds.c.Delete(featuresKey)
 	ds.c.Delete(mdmConfigKey)
+	ds.c.Delete(teamNameKey)
 
 	return nil
+}
+
+func (ds *cachedMysql) GetTeamName(ctx context.Context, teamID uint) (*string, error) {
+	key := fmt.Sprintf(teamNameByIdKey, teamID)
+	if x, found := ds.c.Get(key); found {
+		if teamName, ok := x.(*string); ok {
+			return teamName, nil
+		}
+	}
+
+	teamName, err := ds.Datastore.GetTeamName(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	ds.c.Set(key, teamName, ds.scheduledQueriesExp)
+	return teamName, nil
+}
+
+func (ds *cachedMysql) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+	var teamIDVal uint
+	if teamID != nil {
+		teamIDVal = *teamID
+	}
+
+	key := fmt.Sprintf(scheduledQueriesForAgentsKey, teamIDVal)
+	if x, found := ds.c.Get(key); found {
+		if queries, ok := x.([]*fleet.Query); ok {
+			return queries, nil
+		}
+	}
+
+	queries, err := ds.Datastore.ListScheduledQueriesForAgents(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	ds.c.Set(key, queries, ds.scheduledQueriesExp)
+	return queries, nil
 }
