@@ -35,9 +35,6 @@ A query in Fleet refers to an osquery query. Osquery uses basic SQL commands to 
 ## Policy
 A policy is a specific “yes” or “no” query. Use policies to manage security compliance in your organization.
 
-## Schedule
-TODO.
-
 ## Host vitals
 TODO.
 
