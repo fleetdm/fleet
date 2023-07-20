@@ -48,6 +48,9 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 					cmdGotCalled = true
 					return c.cmdErr
 				},
+				checkEnrollmentFn: func(url string) (bool, error) {
+					return false, nil
+				},
 			}
 
 			cfg, err := renewFetcher.GetConfig()
@@ -72,14 +75,18 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 	}
 
 	var cmdCallCount int
+	isEnrolled := false
 	chProceed := make(chan struct{})
 	renewFetcher := &renewEnrollmentProfileConfigFetcher{
 		Fetcher:   fetcher,
 		Frequency: 2 * time.Second, // just to be safe with slow environments (CI)
 		runCmdFn: func() error {
-			<-chProceed    // will be unblocked only when allowed
 			cmdCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
 			return nil
+		},
+		checkEnrollmentFn: func(url string) (bool, error) {
+			<-chProceed // will be unblocked only when allowed
+			return isEnrolled, nil
 		},
 	}
 
@@ -117,6 +124,15 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 	time.Sleep(renewFetcher.Frequency)
 
 	// this call executes the command
+	cfg, err = renewFetcher.GetConfig()
+	assertResult(cfg, err)
+
+	// wait for the fetcher's frequency to pass
+	time.Sleep(renewFetcher.Frequency)
+
+	// this call doesn't execute the command since the host is already
+	// enrolled
+	isEnrolled = true
 	cfg, err = renewFetcher.GetConfig()
 	assertResult(cfg, err)
 
