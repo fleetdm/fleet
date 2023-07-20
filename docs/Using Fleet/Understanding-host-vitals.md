@@ -1,5 +1,5 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
-# Detail Queries Summary
+# Understanding host vitals
 
 Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
 
@@ -730,6 +730,7 @@ SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'
 ```
 
 
+		
 <meta name="title" value="Understanding host vitals">
-<meta name="pageOrderInSection" value="1600">
 <meta name="navSection" value="Dig deeper">
+<meta name="pageOrderInSection" value="1600">

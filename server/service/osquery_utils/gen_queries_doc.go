@@ -65,8 +65,6 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 	}
 
 	b.WriteString(`
-		
-<meta name="title" value="Understanding host vitals">
 <meta name="navSection" value="Dig deeper">
 <meta name="pageOrderInSection" value="1600">`)
 
