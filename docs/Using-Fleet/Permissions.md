@@ -51,7 +51,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete queries                                                                                                           |          |            | ✅         | ✅    | ✅      |
 | View all queries\**                                                                                                                        | ✅       | ✅         | ✅         | ✅    |         |
-| Manage query automations                                                                                                                   |          |            |           | ✅    |       |
+| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                 |          |            |           | ✅    |       |
 | Create, edit, view, and delete packs                                                                                                       |          |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
@@ -124,7 +124,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
 | View all queries\**                                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
-| Manage query automations                                                                                                         |               |                |                | ✅         |            |
+| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                 |                 | ✅         |             |
 | View policies                                                                                                                    | ✅            | ✅             | ✅              | ✅         |             |
 | View global (inherited) policies                                                                                                 | ✅            | ✅             | ✅              | ✅         |             |
 | Run global (inherited) policies as a live policy                                                                                 |               |                | ✅              | ✅         |             |
