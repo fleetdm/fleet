@@ -9,6 +9,7 @@ import (
 	"time"
 
 	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,13 +45,25 @@ type SoapRequest struct {
 	Body      BodyRequest   `xml:"Body"`
 }
 
-// GetBinarySecurityToken returns the header BinarySecurityToken if present
-func (req *SoapRequest) GetBinarySecurityToken() (string, error) {
+// GetHeaderBinarySecurityToken returns the header BinarySecurityToken if present
+func (req *SoapRequest) GetHeaderBinarySecurityToken() (*HeaderBinarySecurityToken, error) {
 	if req.Header.Security == nil {
-		return "", errors.New("header BinarySecurityToken is not present")
+		return nil, errors.New("binarySecurityToken is not present")
 	}
 
-	return req.Header.Security.Security.Content, nil
+	if len(req.Header.Security.Security.Content) == 0 {
+		return nil, errors.New("binarySecurityToken is empty")
+	}
+
+	if req.Header.Security.Security.Encoding != mdm.EnrollEncode {
+		return nil, errors.New("binarySecurityToken encoding is invalid")
+	}
+
+	if req.Header.Security.Security.Value != mdm.BinarySecurityDeviceEnroll && req.Header.Security.Security.Value != mdm.BinarySecurityAzureEnroll {
+		return nil, errors.New("binarySecurityToken type is invalid")
+	}
+
+	return &req.Header.Security.Security, nil
 }
 
 // GetMessageID returns the message ID from the header
@@ -328,16 +341,59 @@ type WsSecurity struct {
 }
 
 // Security token container for encoded security sensitive data
-type BinSecurityToken struct {
+type HeaderBinarySecurityToken struct {
 	Content  string `xml:",chardata"`
 	Value    string `xml:"ValueType,attr"`
 	Encoding string `xml:"EncodingType,attr"`
 }
 
+// Get RequestSecurityToken MDM Message from the body
+func (token *HeaderBinarySecurityToken) IsValidToken() error {
+	if token == nil {
+		return errors.New("binary security token is not present")
+	}
+
+	if len(token.Content) == 0 {
+		return errors.New("binary security token is empty")
+	}
+
+	if token.Value != microsoft_mdm.BinarySecurityDeviceEnroll && token.Value != microsoft_mdm.BinarySecurityAzureEnroll {
+		return errors.New("binary security token is invalid")
+	}
+
+	return nil
+}
+
+// Check if input token is a valid Azure JWT token
+func (token *HeaderBinarySecurityToken) IsAzureJWTToken() bool {
+	if token == nil {
+		return false
+	}
+
+	if token.Value == microsoft_mdm.BinarySecurityAzureEnroll {
+		return true
+	}
+
+	return false
+}
+
+// Check if input token is a valid Device Enroll token
+func (token *HeaderBinarySecurityToken) IsDeviceToken() bool {
+	if token == nil {
+		return false
+	}
+
+	if token.Value == microsoft_mdm.BinarySecurityDeviceEnroll {
+		return true
+	}
+
+	return false
+}
+
 // TokenSecurity is the security token container for BinSecurityToken
 type TokenSecurity struct {
-	MustUnderstand string           `xml:"mustUnderstand,attr"`
-	Security       BinSecurityToken `xml:"BinarySecurityToken"`
+	MustUnderstand string                    `xml:"mustUnderstand,attr"`
+	Security       HeaderBinarySecurityToken `xml:"BinarySecurityToken"`
 }
 
 // To target endpoint header field
@@ -486,10 +542,11 @@ type DiscoverResponse struct {
 }
 
 type DiscoverResult struct {
-	AuthPolicy                 string `xml:"AuthPolicy"`
-	EnrollmentVersion          string `xml:"EnrollmentVersion"`
-	EnrollmentPolicyServiceUrl string `xml:"EnrollmentPolicyServiceUrl"`
-	EnrollmentServiceUrl       string `xml:"EnrollmentServiceUrl"`
+	AuthPolicy                 string  `xml:"AuthPolicy"`
+	EnrollmentVersion          string  `xml:"EnrollmentVersion"`
+	EnrollmentPolicyServiceUrl string  `xml:"EnrollmentPolicyServiceUrl"`
+	EnrollmentServiceUrl       string  `xml:"EnrollmentServiceUrl"`
+	AuthServiceUrl             *string `xml:"AuthenticationServiceUrl"`
 }
 
 ///////////////////////////////////////////////////////////////
@@ -651,7 +708,8 @@ type WindowsMDMAccessTokenPayload struct {
 	// Type is the enrollment type, such as "programmatic".
 	Type    WindowsMDMEnrollmentType `json:"type"`
 	Payload struct {
-		HostUUID string `json:"host_uuid"`
+		HostUUID  string `json:"host_uuid"`
+		AuthToken string `json:"auth_token"`
 	} `json:"payload"`
 }
 
@@ -661,16 +719,21 @@ type WindowsMDMEnrollmentType int
 
 const (
 	WindowsMDMProgrammaticEnrollmentType WindowsMDMEnrollmentType = 1
+	WindowsMDMAutomaticEnrollmentType    WindowsMDMEnrollmentType = 2
 )
 
 func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
 	// Only BSProgrammaticEnrollment are supported for now
-	if t.Type != WindowsMDMProgrammaticEnrollmentType {
+	if t.Type != WindowsMDMProgrammaticEnrollmentType && t.Type != WindowsMDMAutomaticEnrollmentType {
 		return errors.New("invalid binary security payload type")
 	}
 
-	if len(t.Payload.HostUUID) == 0 {
+	if t.Type == WindowsMDMProgrammaticEnrollmentType && len(t.Payload.HostUUID) == 0 {
 		return errors.New("invalid binary security payload content")
+	}
+
+	if t.Type == WindowsMDMAutomaticEnrollmentType && len(t.Payload.AuthToken) == 0 {
+		return errors.New("invalid STS auth token payload content")
 	}
 
 	return nil

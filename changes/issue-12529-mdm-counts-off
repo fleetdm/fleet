@@ -1,0 +1,1 @@
+- Updated ingestion of host detail queries for MDM so hosts that report empty results are counted as "Off".
