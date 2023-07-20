@@ -46,7 +46,7 @@ Fleetd is the bundle of agents that includes:
 - [Orbit](#orbit)
 - [Fleet Desktop](./fleet-desktop.md)
 
-### Components
+## Components
 
 ```mermaid
 graph LR;
