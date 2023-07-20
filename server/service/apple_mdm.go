@@ -2518,7 +2518,7 @@ func ReconcileProfiles(
 	// with the new status, operation_type, etc.
 	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(toInstall)+len(toRemove))
 
-	// keptProfiles tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
+	// profileIntersection tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
 	//
 	// - Sending a RemoveProfile followed by an InstallProfile for a
 	// profile with an identifier that's already installed, which can cause
@@ -2526,13 +2526,13 @@ func ReconcileProfiles(
 	// - Sending a InstallProfile command for a profile that's exactly the
 	// same as the one installed. Customers have reported that sending the
 	// command causes unwanted behavior.
-	keptProfiles := apple_mdm.NewProfileBimap()
-	keptProfiles.IntersectByIdentifier(toInstall, toRemove)
+	profileIntersection := apple_mdm.NewProfileBimap()
+	profileIntersection.IntersectByIdentifierAndHostUUID(toInstall, toRemove)
 
-	// toImmediatelyRemove is used to track profiles that should be removed
+	// hostProfilesToCleanup is used to track profiles that should be removed
 	// from the database directly without having to issue a RemoveProfile
 	// command.
-	toImmediatelyRemove := []*fleet.MDMAppleProfilePayload{}
+	hostProfilesToCleanup := []*fleet.MDMAppleProfilePayload{}
 
 	// install/removeTargets are maps from profileID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
@@ -2545,7 +2545,7 @@ func ReconcileProfiles(
 	}
 	installTargets, removeTargets := make(map[uint]*cmdTarget), make(map[uint]*cmdTarget)
 	for _, p := range toInstall {
-		if pp, ok := keptProfiles.GetMatchingRemoval(p); ok {
+		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
 			// if the profile was in any other status than `failed`
 			// and the checksums match (the profiles are exactly
 			// the same) we don't send another InstallProfile
@@ -2590,8 +2590,8 @@ func ReconcileProfiles(
 	}
 
 	for _, p := range toRemove {
-		if _, ok := keptProfiles.GetMatchingAddition(p); ok {
-			toImmediatelyRemove = append(toImmediatelyRemove, p)
+		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
 		}
 
@@ -2622,7 +2622,7 @@ func ReconcileProfiles(
 	// `InstallProfile` for the same identifier, which can cause race
 	// conditions. It's better to "update" the profile by sending a single
 	// `InstallProfile` command.
-	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, toImmediatelyRemove); err != nil {
+	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 

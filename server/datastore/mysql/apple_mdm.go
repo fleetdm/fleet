@@ -1217,7 +1217,7 @@ WHERE
 			return nil
 		}
 
-		const profilesToInstallStmt = `
+		const desiredStateStmt = `
 		SELECT
 			ds.profile_id as profile_id,
 			ds.host_uuid as host_uuid,
@@ -1246,18 +1246,18 @@ WHERE
 		-- profiles in A and B but with operation type "remove"
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )`
 
-		stmt, args, err := sqlx.In(profilesToInstallStmt, uuids, fleet.MDMAppleOperationTypeRemove)
+		stmt, args, err := sqlx.In(desiredStateStmt, uuids, fleet.MDMAppleOperationTypeRemove)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building profiles to install statement")
 		}
 
-		var profilesToInstall []*fleet.MDMAppleProfilePayload
-		err = sqlx.SelectContext(ctx, tx, &profilesToInstall, stmt, args...)
+		var wantedProfiles []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &wantedProfiles, stmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
 		}
 
-		const profilesToRemoveStmt = `
+		const currentStateStmt = `
 		SELECT
 			hmap.profile_id as profile_id,
 			hmap.host_uuid as host_uuid,
@@ -1286,28 +1286,28 @@ WHERE
 		AND ( hmap.operation_type IS NULL OR hmap.operation_type != ? )
 		`
 
-		stmt, args, err = sqlx.In(profilesToRemoveStmt, uuids, uuids, fleet.MDMAppleOperationTypeRemove)
+		stmt, args, err = sqlx.In(currentStateStmt, uuids, uuids, fleet.MDMAppleOperationTypeRemove)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
 		}
-		var profilesToRemove []*fleet.MDMAppleProfilePayload
-		err = sqlx.SelectContext(ctx, tx, &profilesToRemove, stmt, args...)
+		var currentProfiles []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
 		}
 
-		if len(profilesToInstall) == 0 && len(profilesToRemove) == 0 {
+		if len(wantedProfiles) == 0 && len(currentProfiles) == 0 {
 			return nil
 		}
 
 		// delete all host profiles to start from a clean slate, new entries will be added next
 		// TODO(roberto): is this really necessary? this was pre-existing
 		// behavior but I think it can be refactored. For now leaving it as-is.
-		if err := bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, profilesToInstall); err != nil {
+		if err := bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
 			return err
 		}
 
-		// keptProfiles tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
+		// profileIntersection tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
 		//
 		// - Sending a RemoveProfile followed by an InstallProfile for a
 		// profile with an identifier that's already installed, which can cause
@@ -1315,13 +1315,13 @@ WHERE
 		// - Sending a InstallProfile command for a profile that's exactly the
 		// same as the one installed. Customers have reported that sending the
 		// command causes unwanted behavior.
-		keptProfiles := apple_mdm.NewProfileBimap()
-		keptProfiles.IntersectByIdentifier(profilesToInstall, profilesToRemove)
+		profileIntersection := apple_mdm.NewProfileBimap()
+		profileIntersection.IntersectByIdentifierAndHostUUID(wantedProfiles, currentProfiles)
 
 		var pargs []any
 		var psb strings.Builder
-		for _, p := range profilesToInstall {
-			if pp, ok := keptProfiles.GetMatchingRemoval(p); ok {
+		for _, p := range wantedProfiles {
+			if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
 				if pp.Status != &fleet.MDMAppleDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
 					pargs = append(pargs, p.ProfileID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
 						pp.OperationType, pp.Status, pp.CommandUUID, pp.Detail)
@@ -1335,10 +1335,10 @@ WHERE
 			psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
 		}
 
-		toImmediatelyRemove := []*fleet.MDMAppleProfilePayload{}
-		for _, p := range profilesToRemove {
-			if _, ok := keptProfiles.GetMatchingAddition(p); ok {
-				toImmediatelyRemove = append(toImmediatelyRemove, p)
+		hostProfilesToClean := []*fleet.MDMAppleProfilePayload{}
+		for _, p := range currentProfiles {
+			if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+				hostProfilesToClean = append(hostProfilesToClean, p)
 				continue
 			}
 			pargs = append(pargs, p.ProfileID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
@@ -1346,7 +1346,7 @@ WHERE
 			psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
 		}
 
-		if err := bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, toImmediatelyRemove); err != nil {
+		if err := bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, hostProfilesToClean); err != nil {
 			return err
 		}
 
