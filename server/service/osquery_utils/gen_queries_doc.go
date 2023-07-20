@@ -30,7 +30,7 @@ func main() {
 	var b strings.Builder
 
 	b.WriteString(`<!-- DO NOT EDIT. This document is automatically generated. -->
-# Detail Queries Summary
+# Understanding host vitals
 
 Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
 
@@ -65,7 +65,9 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 	}
 
 	b.WriteString(`
-
+		
+<meta name="title" value="Understanding host vitals">
+<meta name="navSection" value="Dig deeper">
 <meta name="pageOrderInSection" value="1600">`)
 
 	if err := os.WriteFile(os.Args[1], []byte(b.String()), 0600); err != nil {
