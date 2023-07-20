@@ -1,96 +1,70 @@
-# Go engineers are automatically added as reviewers when changes are made to go
-# files or related backend files.
+##############################################################################################
+#   ██████╗ ██████╗ ██████╗ ███████╗ ██████╗ ██╗    ██╗███╗   ██╗███████╗██████╗ ███████╗
+#  ██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔═══██╗██║    ██║████╗  ██║██╔════╝██╔══██╗██╔════╝
+#  ██║     ██║   ██║██║  ██║█████╗  ██║   ██║██║ █╗ ██║██╔██╗ ██║█████╗  ██████╔╝███████╗
+#  ██║     ██║   ██║██║  ██║██╔══╝  ██║   ██║██║███╗██║██║╚██╗██║██╔══╝  ██╔══██╗╚════██║
+#  ╚██████╗╚██████╔╝██████╔╝███████╗╚██████╔╝╚███╔███╔╝██║ ╚████║███████╗██║  ██║███████║
+#   ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚══════╝
+##############################################################################################
+# ⛔ This file indicates REQUIRED reviewers for changes to certain file paths in this repo.
+#
+# > How? This "requiredness" is provided natively by GitHub.  If a team is specified, then
+# > the logic behaves slightly differently.  See GitHub's latest documentation on CODEOWNERS
+# > for more information.
+#
+# ⚠️ For file paths not listed, the DRI is indicated elsewhere (website/config/custom.js).
+# (In either case, the DRI is automatically requested for review when changes are proposed.)
+#
+# ✅ Some paths also have multiple individuals who are allowed to make changes without review,
+# even though they are not the DRI.  These are called "maintainers".
+#
+# For more information on how this works, see:
+# - What is a DRI and how is this configured? https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility
+# - Historical context: https://github.com/fleetdm/fleet/pull/12786
+##############################################################################################
+
+
+##############################################################################################
+# Golang files and other files related to the core product backend.
+# (1 or more Golang-literate engineers is required to review changes.)
+# FUTURE: Look for a way to not have this notify every single person in this "github team".
+##############################################################################################
 *.go @fleetdm/go
 go.sum @fleetdm/go
 go.mod @fleetdm/go
 /server/ @fleetdm/go
 /cmd/ @fleetdm/go
 
-# Compliance
-/ee/cis/ @sharon-fdm @lucasmrod @marcosd4h @rachelElysia
-
-# MDM
-/ee/tools/puppet @roperzh @gillespi314 @mna @georgekarrv
-
-# React engineers are automatically added as reviewers when changes are made to react files
+##############################################################################################
+# React files and other files related to the core product frontend.
+# (1 or more React-literate engineers is required to review changes.)
+# FUTURE: Look for a way to not have this notify every single person in this "github team".
+##############################################################################################
 /frontend/ @fleetdm/frontend
 
-# Infra/terraform
-*.tf @edwardsb @zwinnerman-fleetdm @rfairburn
-/infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
-/charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
-/terraform @zwinnerman-fleetdm @edwardsb @rfairburn
+##############################################################################################
+# Config as code for infrastructure, internal security and IT use cases, and more.
+# (1 or more infra-literate engineers is required to review changes.)
+# FUTURE: Look for a way to not have this notify every single person in this "github team".
+##############################################################################################
+/infrastructure/ @fleetdm/infra
+/charts/ @fleetdm/infra
+/terraform/ @fleetdm/infra
 
-# GitHub issue templates
-/.github/ISSUE_TEMPLATE @mikermcneil
-
-# Codeowners file
-/CODEOWNERS @mikermcneil
-
-# Changelog
-/CHANGELOG.md @lukeheath
-
-# Fleet documentation (who is auto-requested as reviewer for changes to docs?)
+##############################################################################################
+# Key handbook pages w/ required reviewers
+#
+# (Especially useful for paths that tend to end up in PRs with lots of other reviewers)
+##############################################################################################
+/handbook/company/development-groups.md @mikermcneil
+/handbook/company/why-this-way.md @mikermcneil
+/handbook/company/README.md @mikermcneil
+/handbook/business-operations/README.md @mikermcneil
 /docs/ @rachaelshaw
+/schema/ @rachaelshaw #« Data tables (osquery/fleetd schema) documentation
+CHANGELOG.md @lukeheath
 
-# REST API reference documentation
-/docs/Using-Fleet/REST-API.md @rachaelshaw
-/docs/Contributing/API-for-contributors.md @rachaelshaw
 
-# Standard query library YAML
-/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @zwass
 
-# Expanded table documentation
-/schema @eashaw
-/schema/tables @rachaelshaw
-
-# Articles
-/articles @jarodreyes
-
-# Website
-/website/ @eashaw
-/website/views/ @eashaw
-/website/assets/ @eashaw
-
-# Features table
-# - CEO is DRI for pricing
-# - Mo is DRI for features table
-# - Eric is DRI for website frontend code
-/website/views/pages/pricing.ejs @mikermcneil
-/handbook/product/pricing-features-table.yml @mikermcneil
-
-# Website redirects and URLs
-/website/config/routes.js @mikermcneil @eashaw
-
-# Website backend, scripts, deps
-/website/api/ @mikermcneil @eashaw
-/website/config/ @mikermcneil @eashaw
-/website/scripts/ @mikermcneil @eashaw
-/website/package.json @mikermcneil @eashaw
-
-# GitHub brandfront
-/README.md @mikermcneil
-
-# NPM brandfront (npmjs.com/package/fleetctl)
-/tools/fleetctl-npm/README.md @mikermcneil
-
-# Handbook
-/handbook/company @mikermcneil
-/handbook/company/* @mikermcneil
-/handbook/business-operations @mikermcneil
-/handbook/business-operations/* @mikermcneil
-/handbook/engineering @lukeheath
-/handbook/engineering/* @lukeheath
-/handbook/product @zhumo
-/handbook/product/* @zhumo
-/handbook/customers @alexmitchelliii
-/handbook/customers/* @alexmitchelliii
-/handbook/marketing @jarodreyes
-/handbook/marketing/* @jarodreyes
-/handbook/README.md @mikermcneil # « This is the "Table of contents"
-
-#
-# For configuration that determines auto-approval + auto-unfreezing, so that contributors
-# can merge their own PRs without additional approval, please see the latest version of:
-# https://github.com/fleetdm/fleet/blob/74f65447b718663bd04df31ea1da28915d98792c/website/config/custom.js#L88-L128
-#
+# ℹ️ But wait, there's more!
+# See the comments up top to learn where else DRIs and maintainers are configured.

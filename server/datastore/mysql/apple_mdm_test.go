@@ -148,7 +148,7 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	cps, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
-	checkConfigProfile(t, *expectedTeam0[0], *cps[0])
+	checkConfigProfileWithChecksum(t, *expectedTeam0[0], *cps[0])
 
 	// add fleet-managed profiles for the team and globally
 	for idf := range mobileconfig.FleetPayloadIdentifiers() {
@@ -166,7 +166,7 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	cps, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(1))
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
-	checkConfigProfile(t, *expectedTeam1[0], *cps[0])
+	checkConfigProfileWithChecksum(t, *expectedTeam1[0], *cps[0])
 
 	// add another profile with team id 1
 	cp, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("another_name1", "another_identifier1", 1))
@@ -179,9 +179,9 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	for _, cp := range cps {
 		switch cp.Name {
 		case "name1":
-			checkConfigProfile(t, *expectedTeam1[0], *cp)
+			checkConfigProfileWithChecksum(t, *expectedTeam1[0], *cp)
 		case "another_name1":
-			checkConfigProfile(t, *expectedTeam1[1], *cp)
+			checkConfigProfileWithChecksum(t, *expectedTeam1[1], *cp)
 		default:
 			t.FailNow()
 		}
@@ -242,10 +242,15 @@ func storeDummyConfigProfileForTest(t *testing.T, ds *Datastore) *fleet.MDMApple
 	return storedCP
 }
 
-func checkConfigProfile(t *testing.T, expected fleet.MDMAppleConfigProfile, actual fleet.MDMAppleConfigProfile) {
+func checkConfigProfile(t *testing.T, expected, actual fleet.MDMAppleConfigProfile) {
 	require.Equal(t, expected.Name, actual.Name)
 	require.Equal(t, expected.Identifier, actual.Identifier)
 	require.Equal(t, expected.Mobileconfig, actual.Mobileconfig)
+}
+
+func checkConfigProfileWithChecksum(t *testing.T, expected, actual fleet.MDMAppleConfigProfile) {
+	checkConfigProfile(t, expected, actual)
+	require.ElementsMatch(t, md5.Sum(expected.Mobileconfig), actual.Checksum) // nolint:gosec // used only to hash for efficient comparisons
 }
 
 func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
@@ -1265,9 +1270,33 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	toRemove, err = ds.ListMDMAppleProfilesToRemove(ctx)
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileID: globalPfs[0].ProfileID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: globalPfs[1].ProfileID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: globalPfs[2].ProfileID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1"},
+		{
+			ProfileID:         globalPfs[0].ProfileID,
+			ProfileIdentifier: globalPfs[0].Identifier,
+			ProfileName:       globalPfs[0].Name,
+			Status:            &fleet.MDMAppleDeliveryVerified,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			HostUUID:          "test-uuid-1",
+			CommandUUID:       "command-uuid",
+		},
+		{
+			ProfileID:         globalPfs[1].ProfileID,
+			ProfileIdentifier: globalPfs[1].Identifier,
+			ProfileName:       globalPfs[1].Name,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryVerified,
+			HostUUID:          "test-uuid-1",
+			CommandUUID:       "command-uuid",
+		},
+		{
+			ProfileID:         globalPfs[2].ProfileID,
+			ProfileIdentifier: globalPfs[2].Identifier,
+			ProfileName:       globalPfs[2].Name,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryVerified,
+			HostUUID:          "test-uuid-1",
+			CommandUUID:       "command-uuid",
+		},
 	}, toRemove)
 }
 
@@ -3447,7 +3476,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
-
 }
 
 func testMDMAppleEULA(t *testing.T, ds *Datastore) {
@@ -4107,13 +4135,14 @@ func TestHostDEPAssignments(t *testing.T) {
 		// simulate MDM unenroll
 		require.NoError(t, ds.UpdateHostTablesOnMDMUnenroll(ctx, depUUID))
 
-		// host MDM row is deleted on unenrollment
+		// host MDM row is set to defaults on unenrollment
 		getHostResp, err = ds.Host(ctx, testHost.ID)
 		require.NoError(t, err)
 		require.NotNil(t, getHostResp)
 		require.Equal(t, testHost.ID, getHostResp.ID)
-		require.Nil(t, getHostResp.MDM.EnrollmentStatus)
-		require.Nil(t, getHostResp.MDM.ServerURL)
+		require.NotNil(t, getHostResp.MDM.EnrollmentStatus)
+		require.Equal(t, "Off", *getHostResp.MDM.EnrollmentStatus)
+		require.Empty(t, getHostResp.MDM.ServerURL)
 		require.Empty(t, getHostResp.MDM.Name)
 		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
@@ -4151,13 +4180,14 @@ func TestHostDEPAssignments(t *testing.T) {
 		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "")
 		require.NoError(t, err)
 
-		// host MDM row is deleted when osquery reports MDM detail query with empty server URL
+		// host MDM row is reset to defaults when osquery reports MDM detail query with empty server URL
 		getHostResp, err = ds.Host(ctx, testHost.ID)
 		require.NoError(t, err)
 		require.NotNil(t, getHostResp)
 		require.Equal(t, testHost.ID, getHostResp.ID)
-		require.Nil(t, getHostResp.MDM.EnrollmentStatus)
-		require.Nil(t, getHostResp.MDM.ServerURL)
+		require.NotNil(t, getHostResp.MDM.EnrollmentStatus)
+		require.Equal(t, "Off", *getHostResp.MDM.EnrollmentStatus)
+		require.Empty(t, getHostResp.MDM.ServerURL)
 		require.Empty(t, getHostResp.MDM.Name)
 		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
@@ -4354,6 +4384,13 @@ func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
+	require.NoError(t, err)
+	// add a record of the host DEP assignment
+	_, err = ds.writer(ctx).Exec(`
+		INSERT INTO host_dep_assignments (host_id)
+		VALUES (?)
+		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL
+	`, host.ID)
 	require.NoError(t, err)
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "")
 	require.NoError(t, err)

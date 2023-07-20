@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -180,7 +181,7 @@ type applyTeamSpecsRequest struct {
 	Specs  []*fleet.TeamSpec `json:"specs"`
 }
 
-func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader) error {
+func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
 	if err := fleet.JSONStrictDecode(r, req); err != nil {
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		if !req.Force || !fleet.IsJSONUnknownFieldError(err) {

@@ -14,7 +14,7 @@ We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we cre
 We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
 
 #### Internal meeting scheduling
-Use the Google Calendar "[Find a meeting time](https://support.google.com/calendar/answer/37161?hl=en&co=GENIE.Platform%3DDesktop#zippy=%2Cfind-a-meeting-time)" feature to coordinate meetings with Fleet team members. Enter the `@fleetdm.com` emails for each
+Use the Google Calendar "[Find a meeting time](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar)" feature to coordinate meetings with Fleet team members. Enter the `@fleetdm.com` emails for each
 participant into the "Meet with..." box in Google Calendar, and the calendar availability for each
 participant will appear in your view. Then, when you select a meeting time, those participants will
 automatically be invited, and a video conference will be attached to the invite.
@@ -96,7 +96,7 @@ Operations will review the expense and reach out to the team member if they have
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
 For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
 
-### Taking time off
+#### Taking time off
 When you take any time off, you should follow this process:
 - Let your manager and team know as soon as possible (i.e., post a message in your team's Slack channel with when and how long).
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
@@ -116,6 +116,13 @@ Either way, it's up to you to make sure that your responsibilities are covered, 
 
 ### New parent leave
 Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
+
+### Retirement contributions
+#### US based team members
+Commencing in August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 1% contribution unless they opt out or change their contribution amount within 30 days of commencement. Fleet currently does not match any contributions made by team members to 401(k) plans.
+
+#### Non-US team members
+Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
 
 ### Relocating
 When Fleeties relocate, there are vendors that need to be notified of the change. 
@@ -512,14 +519,10 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
      > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
 2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
-3. **Schedule CEO interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
-   - At Fleet, the CEO interviews every new team member at least once before Fleet extends an offer.  (We plan to continue this practice until headcount reaches 100.)
-     - No need to check with the CEO first.  You can just book the meeting on their calendar.
-     - Schedule the meeting directly on the CEO's calendar during a time they and the candidate are both explicitly available according to that calendar.  Available means whitespace.
-     - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
-   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, include Zach in this final interview.)
-   - The personal email the candidate uses for this calendar event is where they will receive their offer or rejection email.
-   - Make sure that the agenda doc for the 30m final interview with CEO is in an outline format, located in the "Meeting notes" folder, and contains a discussion point about asking the candidate to verify that 2FA is enabled in their GitHub account.
+3. **Schedule CEO interview:** Book a quick chat so our CEO can get to know the future Fleetie.
+   - No need to check with the CEO first.  You can [book the meeting directly](https://fleetdm.com/handbook/business-operations#internal-meeting-scheduling) on the CEO's calendar during a time they and the candidate are both available.
+   - Set the Google Calendar description of the calendar event to: `Agenda: https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/edit`.
+   - The personal email you use for the candidate in this calendar event is where they will receive their offer or rejection email.
 4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
    - _Share_ this single document with the Head of Business Operations via email.
@@ -852,7 +855,7 @@ The steps for doing this are highlighted in this loom, TODO.
 
 ## Legal
 
-Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook>/business-operations#intake).
+Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook/business-operations#intake).
 > **Note:** Escalate first-of-its-kind agreements to the CEO. Mike will review business terms and consult with lawyers as necessary.
 
 

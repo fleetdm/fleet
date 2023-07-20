@@ -71,25 +71,15 @@ Here are a few examples of how Fleet prioritizes training:
 ## Why direct responsibility?
 Like Apple and GitLab, Fleet uses the concept of [directly responsible individuals (DRIs)](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/) to know who is responsible for what. 
 
-A DRI is a person who is singularly responsble for a given aspect of the open-source project, the product, or the company.  A DRI is responsible for making decisions, accomplishing goals, and getting any resources necessary to make a given area of Fleet successful.
-
-For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals"). Changes are always approved by the DRI [first, before they become real](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
-
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.  This saves time by eliminating a requirement for consensus decisions or political presenteeism, enables faster decision-making, and ensures a single individual is aware of what to do next.
 
-### Reporting structure
-In addition to Fleet's [organizational chart](https://fleetdm.com/handbook/company#org-chart), the company also organizes [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups) to allow for faster collaboration and fewer roundtrips.
+- **What is a DRI?**: A DRI is a person who is singularly responsible for a given aspect of the open-source project, the product, or the company.  A DRI is responsible for making decisions, accomplishing goals, and getting any resources necessary to make a given area of Fleet successful.  For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals").
+- **Change control**: In keeping with Fleet's handbook-first philosophy and value of writing things down, changes are always approved by the DRI [first, before they become real](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Fleet aims to make picking the right reviewer for your change as easy and automatic as possible. 
+- **Picking a reviewer**: In most cases, you won't need to select a particular reviewer for your pull request.  (It will just happen automatically.)  Automatic PR review requests are driven by a combination of [custom repo automation](https://github.com/fleetdm/fleet/pull/12786) and [CODEOWNERS files](https://github.com/search?q=org%3Afleetdm+path%3ACODEOWNERS&type=code).  When in doubt, refer to the roles in the company's [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups), and (to a lesser degree) the job titles and reporting structure indicated by the [company's organizational chart](https://fleetdm.com/handbook/company#org-chart).
+- **"Maintained by" photo**: For [handbook pages](https://github.com/fleetdm/fleet/tree/main/handbook) and [articles](https://github.com/fleetdm/fleet/tree/main/articles), the "Maintained by" photo displayed on the website corresponds with the `name="maintainedBy"` tags at the very bottom of the raw markdown source for each page.  This photo should match the DRI who is auto-requested to approve changes.  (It is determined by the person's GitHub profile picture.)
+- **Multiple maintainers**: In some cases, multiple subject-matter experts called "maintainers" can merge changes to certain file paths, even though there is already a dedicated DRI configured as the "CODEOWNER".  For examples of this, see the auto-approval flows configured as `sails.config.custom.githubRepoMaintainersByPath` and related configuration in [`website/config/custom.js`](https://github.com/fleetdm/fleet/blob/main/website/config/custom.js).
 
 
-### Reviewers
-Fleet aims to make picking the right reviewer for your change as easy and automatic as possible.  In many cases, you won't need to select a particular reviewer for your pull request.  (It will just happen automatically.)
-
-To check out the right person to review a given piece of content or source code path, consider:
-1. The [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) files of the fleetdm/fleet and fleetdm/confidential repositories.
-2. The  `name="maintainedBy"` tags at the very bottom of the raw markdown source for [every handbook page](https://github.com/fleetdm/fleet/tree/main/handbook) and [individual article](https://github.com/fleetdm/fleet/tree/main/articles).
-3. The job titles and reporting structure indicated by the [company's organizational chart](https://fleetdm.com/handbook/company#org-chart) and the roles in our [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups).
-
-> In some cases, multiple subject-matter experts can merge changes to files even though there is a dedicated DRI configured as the "CODEOWNER".  For examples of this, see the auto-approval flows configured as `sails.config.custom.githubRepoDRIByPath` and `sails.config.custom.confidentialGithubRepoDRIByPath` in [`website/config/custom.js`](https://github.com/fleetdm/fleet/blob/main/website/config/custom.js).
 
 
 ## Why do we use a wireframe-first approach?
@@ -286,6 +276,19 @@ Fleet also has MDM features that allow IT admins to enforce OS settings, OS upda
 Workspace ONE and other MDM solutions use "enroll" to mean both telemetry is being collecting and enforcement features are activated.
 
 Since Fleet is more than MDM, you can collect telemetry on your Windows servers and you can enforce OS settings on your Macs. Or you can collect telemetry for both without enforcing OS settings.
+
+
+
+
+#### Stubs
+The following stubs are included only so that old links continue to work (for backwards compatibility.)
+
+##### Reporting structure
+Please see [handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
+
+##### Reviewers
+Please see [handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
+
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">

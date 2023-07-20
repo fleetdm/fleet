@@ -35,6 +35,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 When starting a new draft:
 
 - Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project).
+- Right-click on the duplicated file, select "Share", and ensure **anyone with the link** can view the file.
 - Rename each Figma file to include the number and name of the corresponding issue on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). (e.g. # 11766 Instructions for Autopilot enrollment).
 -  The starter file includes 3 predefined pages: Cover, Ready, and Scratchpad.
     -  **Cover.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
@@ -73,7 +74,7 @@ For external contributors: please consider opening an issue with reference scree
 #### Estimating
 
 Once the draft has been approved: 
-* move it to the "Designed" column in the drafting board
+* move it to the "Designed" column in the drafting board and assign it to the appropriate engineering manager.
 * make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
@@ -136,6 +137,28 @@ Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-wa
 Sprints are numbered according to the release version. For example, for the sprint ending on June 30th, 2023, on which date we expect to release Fleet v4.34, the sprint is called the 4.34 sprint. 
 
 ### Product design conventions
+
+#### MDM behind-the-frame
+
+Behind every MDM [wireframe at Fleet](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach), there are 3 foundational design principles:  
+
+- **Use-case first.** Taking advantage of top-level features vs. per-platform options allows us to take advantage of similarities and avoid having two different ways to configure the same thing.
+Start off cross-platform for every option, setting, and feature. If we **prove** it's impossible, _then_ work backward making it platform-specific.
+
+- **Bridge the Mac and Windows gap.** Implement enough help text, links, guides, gifs, etc that a reasonably persistent human being can figure it out just by trying to use the UI.
+   Even if that means we have fewer features or slightly lower granularity (we can iterate and add more granularity later), Make it easy enough to understand. Whether they're experienced Mac admins people or career Windows folks (even if someone has never used a Windows tool) they should _"get it"_. 
+
+- **Control the noise.** Bring the needs surface level, tuck away things you don't need by default (when possible, given time). For example, hide Windows controls if there are no Windows devices (based on number of Windows hosts).
+
+##### Wireframes 
+
+- Showing these principles and ideas, to help remember the pros and cons and conceptualize the above visually.
+
+   - Figma:
+https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?type=design&node-id=17819%3A222919&t=kBHyWO7TXGpkylzS-1 
+
+
+
 
 We have certain design conventions that we include in Fleet. We will document more of these over time.
 

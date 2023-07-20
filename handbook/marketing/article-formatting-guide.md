@@ -80,7 +80,7 @@ Use the following code snippet to include an inline CTA (call to action) in your
 ```
 <call-to-action 
   title="All the data you need, without the performance hit."
-  text="Fleet is the lightweight telemetry platform for servers and workstations."
+  text="Fleet is the lightweight management platform for laptops and servers."
   primary-button-text="Try Fleet Free" 
   primary-button-href="/get-started?try-it-now" 
   secondary-button-text="Schedule a demo"

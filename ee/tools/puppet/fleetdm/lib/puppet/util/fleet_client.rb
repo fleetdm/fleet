@@ -7,9 +7,33 @@ require 'hiera_puppet'
 module Puppet::Util
   # FleetClient provides an interface for making HTTP requests to a Fleet server.
   class FleetClient
-    def initialize(host, token)
-      @host = host
-      @token = token
+    include Singleton
+
+    # NOTE: the Puppet server supports [multithread mode][1], but it's a beta
+    # feature subject to change. Still adding a mutex to control instances and
+    # the cache just in case.
+    #
+    # [1]: https://www.puppet.com/docs/puppet/8/server/config_file_puppetserver.html
+    @instance_mutex = Mutex.new
+
+    def self.instance
+      return @instance if @instance
+      @instance_mutex.synchronize do
+        @instance ||= new
+      end
+      @instance
+    end
+
+    def initialize
+      node_name = Puppet[:node_name_value]
+      node = Puppet::Node.new(node_name)
+      compiler = Puppet::Parser::Compiler.new(node)
+      scope = Puppet::Parser::Scope.new(compiler)
+      lookup_invocation = Puppet::Pops::Lookup::Invocation.new(scope, {}, {}, nil)
+      @host = Puppet::Pops::Lookup.lookup('fleetdm::host', nil, '', false, nil, lookup_invocation)
+      @token = Puppet::Pops::Lookup.lookup('fleetdm::token', nil, '', false, nil, lookup_invocation)
+      @cache = {}
+      @cache_mutex = Mutex.new
     end
 
     # Pre-assigns a profile to a host. Note that the profile assignment is not
@@ -21,9 +45,10 @@ module Puppet::Util
     # @param group [String] Used to construct a team name.
     # @return [Hash] The response status code, headers, and body.
     def preassign_profile(run_identifier, uuid, profile_xml, group, ensure_profile)
-      post(
-        '/api/latest/fleet/mdm/apple/profiles/preassign',
-        {
+      req(
+        method: :post,
+        path: '/api/latest/fleet/mdm/apple/profiles/preassign',
+        body: {
           'external_host_identifier' => run_identifier,
           'host_uuid' => uuid,
           'profile' => Base64.strict_encode64(profile_xml),
@@ -43,10 +68,11 @@ module Puppet::Util
     # pre-assigned profiles.
     # @return [Hash] The response status code, headers, and body.
     def match_profiles(run_identifier)
-      post('/api/latest/fleet/mdm/apple/profiles/match',
-  {
-    'external_host_identifier' => run_identifier,
-  })
+      req(
+        method: :post,
+        path: '/api/latest/fleet/mdm/apple/profiles/match',
+        body: { 'external_host_identifier' => run_identifier },
+      )
     end
 
     # Sends an MDM command to the host with the specified UUID.
@@ -55,8 +81,8 @@ module Puppet::Util
     # @param command_xml [String] Raw XML with the MDM command.
     # @return [Hash] The response status code, headers, and body.
     def send_mdm_command(uuid, command_xml)
-      post('/api/latest/fleet/mdm/apple/enqueue',
-      {
+      req(method: :post, path: '/api/latest/fleet/mdm/apple/enqueue',
+      body: {
         # For some reason, the enqueue function expects the command to be
         # base64 encoded using _raw encoding_ (without padding, as defined in RFC
         # 4648 section 3.2)
@@ -68,20 +94,50 @@ module Puppet::Util
       })
     end
 
-    # Sends an HTTP POST request to the specified path.
+    # Get profiles assigned to the host.
     #
-    # @param path [String] The path of the resource to post to.
-    # @param body [Object] (optional) The request body to send.
-    # @param headers [Hash] (optional) Additional headers to include in the request.
+    # @param host_id [Number] Fleet's internal host id.
     # @return [Hash] The response status code, headers, and body.
-    def post(path, body = nil, headers = {})
+    def get_host_profiles(host_id)
+      req(method: :get, path: "/api/latest/fleet/mdm/hosts/#{host_id}/profiles", cached: false)
+    end
+
+    # Gets host details by host identifier.
+    #
+    # @param identifier [String] The host identifier, can be
+    # osquery_host_identifier, node_key, UUID, or hostname.
+    # @return [Hash] The response status code, headers, and body.
+    def get_host_by_identifier(identifier)
+      req(method: :get, path: "/api/latest/fleet/hosts/identifier/#{identifier}", cached: true)
+    end
+
+    private
+
+    def req(method: :get, path: '', body: nil, headers: {}, cached: false)
+      if cached
+        @cache_mutex.synchronize do
+          unless @cache[path].nil?
+            return @cache[path]
+          end
+        end
+      end
+
       out = { 'error' => '' }
       uri = URI.parse("#{@host}#{path}")
+      uri.path.squeeze! '/'
+      uri.path.chomp! '/'
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true if uri.scheme == 'https'
 
-      request = Net::HTTP::Post.new(uri.request_uri)
+      case method
+      when :get
+        request = Net::HTTP::Get.new(uri.request_uri)
+      when :post
+        request = Net::HTTP::Post.new(uri.request_uri)
+      else
+        throw "HTTP method #{method} not implemented"
+      end
 
       headers['Authorization'] = "Bearer #{@token}"
       headers.each { |key, value| request[key] = value }
@@ -90,6 +146,12 @@ module Puppet::Util
       begin
         response = http.request(request)
         out = parse_response(response)
+
+        if cached && out['error'].empty?
+          @cache_mutex.synchronize do
+            @cache[path] = out
+          end
+        end
       rescue => e
         out['error'] = e
       end
@@ -97,13 +159,16 @@ module Puppet::Util
       out
     end
 
-    private
-
     def parse_response(response)
       out = {
         'status' => response.code.to_i,
-        'error' => ''
+        'error' => '',
+        'body' => {}
       }
+
+      if response.body
+        out['body'] = JSON.parse(response.body)
+      end
 
       if (400...600).cover?(response.code.to_i)
         message = 'server returned a non-ok status code without an error'
@@ -114,7 +179,7 @@ module Puppet::Util
 
           unless body['errors'].nil?
             error_messages = body['errors'].map { |e| "#{e['name']} #{e['reason']}" }
-            message = [message, *error_messages].join(': ')
+            message = [message, *error_messages].join(' : ').delete_prefix(' : ')
           end
         end
 

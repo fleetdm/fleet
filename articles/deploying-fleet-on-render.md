@@ -19,8 +19,12 @@ First let’s get these dependencies up and running on Render.
 
 Fleet uses MySQL as the datastore to organize host enrollment and other metadata around serving Fleet. Start by forking [https://github.com/edwardsb/render-mysql](https://github.com/edwardsb/render-mysql), then create a new private service within Render. When prompted for the repository — enter your fork’s URL here.
 
-![Private Service component in Render](../website/assets/images/articles/deploying-fleet-on-render-2-216x163@2x.png)
+![Private Service component in Render](../website/assets/images/articles/deploying-fleet-on-render-1-216x165@2x.png)
 *Private Service component in Render*
+
+Your private service should look like this:
+![Private Service settings in Render](../website/assets/images/articles/deploying-fleet-on-render-5-450x286@2x.png)
+*Private Service settings in Render*
 
 This private service will run MySQL, our database, so let’s give it a fitting name, something like “fleet-mysql”.
 
@@ -38,6 +42,10 @@ We’re also going to need to set up some environment variables and a disk to mo
 - Name: `mysql`
 - Mount Path: `/var/lib/mysql`
 - Size: `50GB`
+
+Once you've setup your mysql service on Render we will need to copy the address. You can find that here:
+![mysql address on render](../website/assets/images/articles/deploying-fleet-on-render-6-666x416@2x.png)
+*mysql address on Render*
 
 ---
 
@@ -73,7 +81,7 @@ Give it the following environment variables:
 
 Additionally we’ll configure the following so Render knows how to build our app and make sure its healthy:
 
-![Additional component details](../website/assets/images/articles/deploying-fleet-on-render-3-512x213@2x.png)
+![Additional component details](../website/assets/images/articles/deploying-fleet-on-render-7-627x416@2x.png)
 
 - Health Check Path: `/healthz`
 - Docker Build Context Directory: `.`
@@ -97,7 +105,9 @@ Fleet is up and running, head to your public URL.
 
 You should be prompted with a setup page, where you can enter your name, email, and password. Run through those steps and you should have an empty hosts page waiting for you.
 
-You’ll find the enroll-secret after clicking “Add New Hosts”. This is a special secret the host will need to register to your Fleet instance. Once you have the enroll-secret you can use `fleetctl` to create Orbit installers, which makes installing and updating osquery super simple. [Download fleetctl](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.3.0) and try the following command (Docker require) on your terminal:
+You’ll find the enroll-secret after clicking “Add hosts”. This is a special secret the host will need to register to your Fleet instance. Once you have the enroll-secret you can use `fleetctl` to generate installers, which makes installing and updating osquery super simple.
+
+To install `fleetctl`, which is the command line interface (CLI) used to communicate between your computer and Fleet, you either run `npm install -g fleetctl` or [download fleetctl](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.3.0) from Github. Once it's installed try the following command (Docker require) on your terminal:
 
 ```
 fleetctl package --type=msi --enroll-secret <secret> --fleet-url https://<your-unique-service-name>.onrender.com

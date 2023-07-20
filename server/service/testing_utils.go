@@ -604,6 +604,7 @@ func mdmAppleConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll", false, false},
 		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key", false, false},
+		{"GET", "/api/latest/fleet/mdm/hosts/1/profiles", false, true},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/lock", false, false},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/apple/settings", false, false},
