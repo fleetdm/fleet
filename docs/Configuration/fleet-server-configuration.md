@@ -1,4 +1,4 @@
-# Configuration
+# Fleet server configuration
 
 ## Configuring the Fleet binary
 
