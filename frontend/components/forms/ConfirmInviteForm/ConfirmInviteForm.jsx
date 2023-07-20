@@ -32,6 +32,8 @@ class ConfirmInviteForm extends Component {
           <InputFieldWithIcon
             {...fields.name}
             autofocus
+            role="textbox"
+            label="Full name"
             placeholder="Full name"
             inputOptions={{
               maxLength: "80",
@@ -39,6 +41,7 @@ class ConfirmInviteForm extends Component {
           />
           <InputFieldWithIcon
             {...fields.password}
+            label="Password"
             placeholder="Password"
             type="password"
             hint={[
@@ -47,6 +50,7 @@ class ConfirmInviteForm extends Component {
           />
           <InputFieldWithIcon
             {...fields.password_confirmation}
+            label="Confirm password"
             placeholder="Confirm password"
             type="password"
           />

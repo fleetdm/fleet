@@ -1,5 +1,5 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
-# Audit Activities
+# Audit activities
 
 Fleet logs the following information for administrative actions (in JSON):
 
@@ -828,13 +828,13 @@ This activity contains the following fields:
 
 ### Type `enabled_windows_mdm`
 
-Generated when a user turns on MDM features for all Windows hosts (servers excluded).
+Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns on MDM features for all Windows hosts (servers excluded).
 
 This activity does not contain any detail fields.
 
 ### Type `disabled_windows_mdm`
 
-Generated when a user turns off MDM features for all Windows hosts.
+Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
 

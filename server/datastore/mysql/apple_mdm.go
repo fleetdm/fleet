@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -917,11 +918,11 @@ func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid str
 			return ctxerr.Wrap(ctx, err, "getting host id from UUID")
 		}
 
+		// NOTE: set installed_from_dep = 0 so DEP host will not be counted as pending after it unrolls
 		_, err = tx.ExecContext(ctx, `
-			DELETE FROM host_mdm
-			WHERE host_id = ?`, hostID)
+			UPDATE host_mdm SET enrolled = 0, installed_from_dep = 0, server_url = '', mdm_id = NULL WHERE host_id = ?`, hostID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "removing host_mdm rows for host")
+			return ctxerr.Wrap(ctx, err, "clearing host_mdm for host")
 		}
 
 		// Since the host is unenrolled, delete all profiles assigned to the
@@ -1110,6 +1111,31 @@ ON DUPLICATE KEY UPDATE
 	})
 }
 
+func (ds *Datastore) BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, profs []*fleet.MDMAppleProfilePayload) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, profs)
+	})
+}
+
+func bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMAppleProfilePayload) error {
+	if len(profs) == 0 {
+		return nil
+	}
+
+	var args []any
+	var argStr strings.Builder
+	for _, p := range profs {
+		args = append(args, p.ProfileIdentifier, p.HostUUID)
+		argStr.WriteString("(?, ?),")
+	}
+
+	stmt := fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (profile_identifier, host_uuid) IN (%s)`, strings.Trim(argStr.String(), ","))
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "error executing query")
+	}
+	return nil
+}
+
 // Note that team ID 0 is used for profiles that apply to hosts in no team
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
 // slice arguments can have values.
@@ -1191,7 +1217,7 @@ WHERE
 			return nil
 		}
 
-		const profilesToInstallStmt = `
+		const desiredStateStmt = `
 		SELECT
 			ds.profile_id as profile_id,
 			ds.host_uuid as host_uuid,
@@ -1220,35 +1246,28 @@ WHERE
 		-- profiles in A and B but with operation type "remove"
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )`
 
-		stmt, args, err := sqlx.In(profilesToInstallStmt,
-			uuids, fleet.MDMAppleOperationTypeRemove,
-		)
+		stmt, args, err := sqlx.In(desiredStateStmt, uuids, fleet.MDMAppleOperationTypeRemove)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building profiles to install statement")
 		}
 
-		var profilesToInstall []*fleet.MDMAppleProfilePayload
-		err = sqlx.SelectContext(ctx, tx, &profilesToInstall, stmt, args...)
+		var wantedProfiles []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &wantedProfiles, stmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
 		}
-		installIdentifiers := []string{}
-		identifierToHosts := map[string][]string{}
-		for _, p := range profilesToInstall {
-			installIdentifiers = append(installIdentifiers, p.ProfileIdentifier)
-			if _, ok := identifierToHosts[p.ProfileIdentifier]; !ok {
-				identifierToHosts[p.ProfileIdentifier] = []string{}
-			}
-			identifierToHosts[p.ProfileIdentifier] = append(identifierToHosts[p.ProfileIdentifier], p.HostUUID)
-		}
 
-		profilesToRemoveStmt := `
+		const currentStateStmt = `
 		SELECT
 			hmap.profile_id as profile_id,
 			hmap.host_uuid as host_uuid,
 			hmap.profile_identifier as profile_identifier,
 			hmap.profile_name as profile_name,
-			hmap.checksum as checksum
+			hmap.checksum as checksum,
+			hmap.status as status,
+			hmap.operation_type as operation_type,
+			hmap.detail as detail,
+			hmap.command_uuid as command_uuid
 		FROM (
 			SELECT
 				h.uuid, macp.profile_id
@@ -1265,79 +1284,92 @@ WHERE
 		AND ds.profile_id IS NULL AND ds.uuid IS NULL
 		-- except "remove" operations in any state
 		AND ( hmap.operation_type IS NULL OR hmap.operation_type != ? )
-		-- profiles that are being installed
-	`
+		`
 
-		inArgs := []any{uuids, uuids, fleet.MDMAppleOperationTypeRemove}
-		if len(installIdentifiers) > 0 {
-			profilesToRemoveStmt += `AND hmap.profile_identifier NOT IN (?)`
-			inArgs = append(inArgs, installIdentifiers)
-
-		}
-
-		stmt, args, err = sqlx.In(profilesToRemoveStmt, inArgs...)
+		stmt, args, err = sqlx.In(currentStateStmt, uuids, uuids, fleet.MDMAppleOperationTypeRemove)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
 		}
-		var profilesToRemove []*fleet.MDMAppleProfilePayload
-		err = sqlx.SelectContext(ctx, tx, &profilesToRemove, stmt, args...)
+		var currentProfiles []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
+			return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
 		}
 
-		if len(profilesToInstall) == 0 && len(profilesToRemove) == 0 {
+		if len(wantedProfiles) == 0 && len(currentProfiles) == 0 {
 			return nil
 		}
 
-		// before doing the inserts, remove profiles with identifiers that will be re-sent
-		if len(profilesToInstall) > 0 {
-			var dargs []any
-			var dsb strings.Builder
-			for identifier, hostUUIDs := range identifierToHosts {
-				for _, hostUUID := range hostUUIDs {
-					dargs = append(dargs, hostUUID, identifier)
-					dsb.WriteString("(?,?),")
-				}
-			}
-			stmt = fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (host_uuid, profile_identifier) IN(%s)`, strings.TrimSuffix(dsb.String(), ","))
-			_, err = tx.ExecContext(ctx, stmt, dargs...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
-			}
+		// delete all host profiles to start from a clean slate, new entries will be added next
+		// TODO(roberto): is this really necessary? this was pre-existing
+		// behavior but I think it can be refactored. For now leaving it as-is.
+		if err := bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
+			return err
 		}
+
+		// profileIntersection tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
+		//
+		// - Sending a RemoveProfile followed by an InstallProfile for a
+		// profile with an identifier that's already installed, which can cause
+		// racy behaviors.
+		// - Sending a InstallProfile command for a profile that's exactly the
+		// same as the one installed. Customers have reported that sending the
+		// command causes unwanted behavior.
+		profileIntersection := apple_mdm.NewProfileBimap()
+		profileIntersection.IntersectByIdentifierAndHostUUID(wantedProfiles, currentProfiles)
 
 		var pargs []any
 		var psb strings.Builder
-		for _, p := range profilesToInstall {
-			pargs = append(pargs, p.ProfileID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, fleet.MDMAppleOperationTypeInstall, nil, "")
-			psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?),")
+		for _, p := range wantedProfiles {
+			if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
+				if pp.Status != &fleet.MDMAppleDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
+					pargs = append(pargs, p.ProfileID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
+						pp.OperationType, pp.Status, pp.CommandUUID, pp.Detail)
+					psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
+					continue
+				}
+			}
 
+			pargs = append(pargs, p.ProfileID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
+				fleet.MDMAppleOperationTypeInstall, nil, "", "")
+			psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
 		}
-		for _, p := range profilesToRemove {
-			pargs = append(pargs, p.ProfileID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, fleet.MDMAppleOperationTypeRemove, nil, "")
-			psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?),")
 
+		hostProfilesToClean := []*fleet.MDMAppleProfilePayload{}
+		for _, p := range currentProfiles {
+			if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+				hostProfilesToClean = append(hostProfilesToClean, p)
+				continue
+			}
+			pargs = append(pargs, p.ProfileID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
+				fleet.MDMAppleOperationTypeRemove, nil, "", "")
+			psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
+		}
+
+		if err := bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, hostProfilesToClean); err != nil {
+			return err
 		}
 
 		baseStmt := fmt.Sprintf(`
-INSERT INTO host_mdm_apple_profiles (
-	profile_id,
-	host_uuid,
-	profile_identifier,
-	profile_name,
-	checksum,
-	operation_type,
-	status,
-	command_uuid
-)
-VALUES %s
-ON DUPLICATE KEY UPDATE
-	operation_type = VALUES(operation_type),
-	status = VALUES(status),
-	command_uuid = VALUES(command_uuid),
-	checksum = VALUES(checksum),
-	detail = ''
-`, strings.TrimSuffix(psb.String(), ","))
+			INSERT INTO host_mdm_apple_profiles (
+				profile_id,
+				host_uuid,
+				profile_identifier,
+				profile_name,
+				checksum,
+				operation_type,
+				status,
+				command_uuid,
+				detail
+			)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				operation_type = VALUES(operation_type),
+				status = VALUES(status),
+				command_uuid = VALUES(command_uuid),
+				checksum = VALUES(checksum),
+				detail = VALUES(detail)
+			`, strings.TrimSuffix(psb.String(), ","))
 
 		_, err = tx.ExecContext(ctx, baseStmt, pargs...)
 		return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
@@ -1375,7 +1407,12 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	//   state (failed or verified). If the profile's content is edited, all relevant hosts will
 	//   be marked as status NULL so that it gets re-installed.
 	query := `
-          SELECT ds.profile_id, ds.host_uuid, ds.profile_identifier, ds.profile_name, ds.checksum
+          SELECT
+	    ds.profile_id,
+	    ds.host_uuid,
+	    ds.profile_identifier,
+	    ds.profile_name,
+	    ds.checksum
           FROM (
             SELECT
               macp.profile_id,
@@ -1425,7 +1462,16 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	// processed by the ListMDMAppleProfilesToInstall method (since they are in
 	// both, their desired state is necessarily to be installed).
 	query := `
-          SELECT hmap.profile_id, hmap.profile_identifier, hmap.profile_name, hmap.host_uuid, hmap.checksum
+          SELECT
+	    hmap.profile_id,
+	    hmap.profile_identifier,
+	    hmap.profile_name,
+	    hmap.host_uuid,
+	    hmap.checksum,
+	    hmap.operation_type,
+	    hmap.detail,
+	    hmap.status,
+	    hmap.command_uuid
           FROM (
             SELECT h.uuid, macp.profile_id
             FROM mdm_apple_configuration_profiles macp
@@ -2162,6 +2208,12 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
+	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
+	// manually enroll or re-enroll are included in the results so long as they are not unassigned
+	// in Apple Business Manager. The problem with using host_dep_assignments is that a host can be
+	// assigned to Fleet in ABM but still manually enroll. We should probably keep using host_mdm,
+	// but be better at updating the table with the right values when a host enrolls (perhaps adding
+	// a query param to the enroll endpoint).
 	stmt := `
           SELECT
               COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
@@ -2193,6 +2245,12 @@ func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID
 }
 
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
+	// manually enroll or re-enroll are included in the results so long as they are not unassigned
+	// in Apple Business Manager. The problem with using host_dep_assignments is that a host can be
+	// assigned to Fleet in ABM but still manually enroll. We should probably keep using host_mdm,
+	// but be better at updating the table with the right values when a host enrolls (perhaps adding
+	// a query param to the enroll endpoint).
 	stmt := `
 SELECT
     CASE
