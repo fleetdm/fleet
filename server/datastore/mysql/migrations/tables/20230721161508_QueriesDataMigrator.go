@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230719152138, Down_20230719152138)
+	MigrationClient.AddMigration(Up_20230721161508, Down_20230721161508)
 }
 
 func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
@@ -353,7 +353,7 @@ func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 	return nil
 }
 
-func Up_20230719152138(tx *sql.Tx) error {
+func Up_20230721161508(tx *sql.Tx) error {
 	// Remove query stats
 	_, err := tx.Exec(`TRUNCATE scheduled_query_stats`)
 	if err != nil {
@@ -405,10 +405,9 @@ func Up_20230719152138(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("error deleting packs: %s", err)
 	}
-
 	return nil
 }
 
-func Down_20230719152138(tx *sql.Tx) error {
+func Down_20230721161508(tx *sql.Tx) error {
 	return nil
 }
