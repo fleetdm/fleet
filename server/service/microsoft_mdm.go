@@ -157,11 +157,11 @@ func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.V
 	return nil
 }
 
-func (r MDMWebContainer) error() error { return r.Err }
+func (req MDMWebContainer) error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW HTML output
-func (r MDMWebContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	resData := []byte(*r.Data + "\n")
+func (req MDMWebContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	resData := []byte(*req.Data + "\n")
 
 	w.Header().Set("Content-Type", mdm.WebContainerContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
