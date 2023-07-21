@@ -2749,7 +2749,7 @@ packaging:
 
 This section is a reference for the configuration required to turn on MDM features in production.
 
-If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](../Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
+If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
 
 ##### mdm.apple_apns_cert_bytes
 

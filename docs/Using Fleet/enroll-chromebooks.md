@@ -22,7 +22,7 @@ By default, the hostname for a Chromebook host will be blank. The hostname can b
   - `usb_devices`: https://github.com/fleetdm/fleet/issues/12780
 
 ## Debugging ChromeOS
-To learn how to debug the Fleetd Chrome extension, visit [here](https://fleetdm.com/docs/contributing/testing-and-local-development#fleetd-chrome-extension).
+To learn how to debug the Fleetd Chrome extension, visit [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#fleetd-chrome-extension).
 
 
 <meta name="title" value="Enroll Chromebooks">

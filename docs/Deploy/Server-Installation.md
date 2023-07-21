@@ -25,7 +25,7 @@
     - [Deploying the load balancer](#deploying-the-load-balancer)
     - [Configure DNS](#configure-dns)
 - [Fleet on AWS ECS](#deploying-fleet-on-aws-ecs)
-- [Building Fleet from Source](https://fleetdm.com/docs/contributing/building-fleet)
+- [Building Fleet from Source](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md)
 - [Community projects](#community-projects)
 
 ## Fleet on CentOS
