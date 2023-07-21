@@ -200,7 +200,7 @@ func getUtcTime(minutes int) string {
 }
 
 // NewDiscoverResponse creates a new DiscoverResponse struct based on the auth policy, policy url, and enrollment url
-func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl string, authUrl *string) (mdm_types.DiscoverResponse, error) {
+func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl string) (mdm_types.DiscoverResponse, error) {
 	if (len(authPolicy) == 0) || (len(policyUrl) == 0) || (len(enrollmentUrl) == 0) {
 		return mdm_types.DiscoverResponse{}, errors.New("invalid parameters")
 	}
@@ -212,7 +212,6 @@ func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl stri
 			EnrollmentVersion:          mdm.EnrollmentVersionV4,
 			EnrollmentPolicyServiceUrl: policyUrl,
 			EnrollmentServiceUrl:       enrollmentUrl,
-			AuthServiceUrl:             authUrl,
 		},
 	}, nil
 }
@@ -999,18 +998,7 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
-	// Only adding STS Auth endpoint if the UPN email is provided
-	var urlSTSAuthEndpoint *string
-	if len(upnEmail) > 0 {
-		workUrlSTSAuthEndpoint, err := mdm.ResolveWindowsMDMAuth(appCfg.ServerSettings.ServerURL)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
-		}
-
-		urlSTSAuthEndpoint = &workUrlSTSAuthEndpoint
-	}
-
-	discoveryMsg, err := NewDiscoverResponse(mdm.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint, urlSTSAuthEndpoint)
+	discoveryMsg, err := NewDiscoverResponse(mdm.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
 	}
@@ -1480,7 +1468,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	// Getting the Enroll RequestVersion context information from the RequestSecurityToken msg
 	reqEnrollVersion, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemRequestVersion)
 	if err != nil {
-		return fmt.Errorf("%s %v", error_tag, err)
+		reqEnrollVersion = "request_version_not_present"
 	}
 
 	// Getting the RequestVersion context information from the RequestSecurityToken msg
@@ -1566,10 +1554,6 @@ func (svc *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject strin
 }
 
 func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *int) string {
-	// fleetctl package
-	// --fleet-url=https://dashboard.fleetdm.ngrok.dev
-	// --enroll-secret=6EM269jFhXlEcWn9nr/kCQGNa5sIh3GM
-
 	// Getting the management URL
 	appCfg, _ := svc.ds.AppConfig(ctx)
 	fleetEnrollUrl := appCfg.ServerSettings.ServerURL
