@@ -10,12 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"html/template"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -127,6 +127,43 @@ func (r SyncMLResponseMsgContainer) hijackRender(ctx context.Context, w http.Res
 	resData := []byte(*r.Data + "\n")
 
 	w.Header().Set("Content-Type", mdm.SyncMLContentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
+	w.WriteHeader(http.StatusOK)
+	if n, err := w.Write(resData); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+type MDMWebContainer struct {
+	Data   *string
+	Params url.Values
+	Err    error
+}
+
+// MDM SOAP request decoder
+func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+	reqBytes, err := io.ReadAll(r)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading Webcontainer HTML message request")
+	}
+
+	// Set the request parameters
+	req.Params = u
+
+	// Get req data
+	content := string(reqBytes)
+	req.Data = &content
+
+	return nil
+}
+
+func (r MDMWebContainer) error() error { return r.Err }
+
+// hijackRender writes the response header and the RAW HTML output
+func (r MDMWebContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	resData := []byte(*r.Data + "\n")
+
+	w.Header().Set("Content-Type", mdm.WebContainerContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
 	w.WriteHeader(http.StatusOK)
 	if n, err := w.Write(resData); err != nil {
@@ -843,6 +880,32 @@ func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, sv
 	}, nil
 }
 
+// mdmMicrosoftTOSEndpoint handles the TOS content for the incoming MDM enrollment request
+func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	params := request.(*MDMWebContainer).Params
+
+	// Sanity check on the expected query params
+	if !params.Has(mdm.TOCRedirectURI) || !params.Has(mdm.TOCReqID) {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, errors.New("invalid params"))
+		return getSoapResponseFault(mdm.SoapErrorInternalServiceFault, soapFault), nil
+	}
+
+	redirectURI := params.Get(mdm.TOCRedirectURI)
+	reqID := params.Get(mdm.TOCReqID)
+
+	// Getting the TOS content message
+	resTOCData, err := svc.GetMDMWindowsTOSContent(ctx, redirectURI, reqID)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(mdm.SoapErrorInternalServiceFault, soapFault), nil
+	}
+
+	return MDMWebContainer{
+		Data: &resTOCData,
+		Err:  nil,
+	}, nil
+}
+
 // authBinarySecurityToken checks if the provided token is valid
 func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (string, error) {
 	if authToken == nil {
@@ -979,12 +1042,12 @@ func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru st
 				  // Dinamically create a form element to submit the request
 				  var form = document.createElement('form');
 				  form.method = 'POST';
-				  form.action = "` + appru + `"
+				  form.action = "{{.ActionURL}}"
 
 				  var inputToken = document.createElement('input');
 				  inputToken.type = 'hidden';
 				  inputToken.name = 'wresult';
-				  inputToken.value = '` + encodedBST + `';
+				  inputToken.value = '{{.Token}}';
 				  form.appendChild(inputToken);
 
 				  // Submit the form
@@ -1001,7 +1064,7 @@ func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru st
 	}
 
 	var htmlBuf bytes.Buffer
-	err = tmpl.Execute(&htmlBuf, map[string][]byte{"ActionURL": []byte(appru), "Token": []byte(encodedBST)})
+	err = tmpl.Execute(&htmlBuf, map[string]string{"ActionURL": appru, "Token": encodedBST})
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "creation of STS content")
 	}
@@ -1110,6 +1173,52 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 	svc.authz.SkipAuthorization(ctx)
 
 	return resSyncMLmsg, nil
+}
+
+// GetMDMWindowsTOSContent returns valid TOC content
+func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
+	tmpl, err := template.New("").Parse(`
+	<html>
+	<head>
+	<style>
+	  button {
+		background-color: #008CBA;
+		color: white;
+		padding: 10px 60px;
+		border: none;
+		cursor: pointer;
+	  }
+	</style>
+	</head>
+	<body>
+	  <center>
+		<img src="https://fleetdm.com/images/logo-blue-162x92@2x.png">
+		<br>
+		<h2>Terms and conditions</h2>
+		<br> Terms and Conditions PDF content should go here <center>
+		  <br>
+		  <button type="button" onClick="acceptBtn()">Accept</button>
+		  <script>
+			function acceptBtn() {
+			  window.location = "{{.RedirectURL}}" + "?IsAccepted=true&OpaqueBlob={{.ClientData}}";
+			}
+		  </script>
+	</body>
+	</html>`)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
+	}
+
+	var htmlBuf bytes.Buffer
+	err = tmpl.Execute(&htmlBuf, map[string]string{"RedirectURL": redirectUri, "ClientData": reqID})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "executing TOS template content")
+	}
+
+	// skipauth: This endpoint does not use authentication
+	svc.authz.SkipAuthorization(ctx)
+
+	return htmlBuf.String(), nil
 }
 
 func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.SyncMLMessage) (*string, error) {

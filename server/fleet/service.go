@@ -780,4 +780,7 @@ type Service interface {
 
 	// GetMDMWindowsManagementResponse returns a valid SyncML response message
 	GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *SyncMLMessage) (*string, error)
+
+	// GetMDMWindowsTOSContent returns TOS content
+	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
 }
