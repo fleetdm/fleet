@@ -9,6 +9,7 @@ import { InjectedRouter } from "react-router";
 import { pull, size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
+import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -30,7 +31,6 @@ import {
 } from "interfaces/schedulable_query";
 import { SelectedPlatformString } from "interfaces/platform";
 import queryAPI from "services/entities/queries";
-import { COLORS } from "styles/var/colors";
 
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
@@ -676,7 +676,11 @@ const QueryForm = ({
                   data-for="save-query-button"
                   // Tooltip shows for team maintainer/admins viewing global queries
                   data-tip-disable={
-                    !(isAnyTeamMaintainerOrTeamAdmin && !storedQuery?.team_id)
+                    !(
+                      isAnyTeamMaintainerOrTeamAdmin &&
+                      !storedQuery?.team_id &&
+                      !!queryIdForEdit
+                    )
                   }
                 >
                   <Button
@@ -685,7 +689,9 @@ const QueryForm = ({
                     onClick={promptSaveQuery()}
                     // Button disabled for team maintainer/admins viewing global queries
                     disabled={
-                      isAnyTeamMaintainerOrTeamAdmin && !storedQuery?.team_id
+                      isAnyTeamMaintainerOrTeamAdmin &&
+                      !storedQuery?.team_id &&
+                      !!queryIdForEdit
                     }
                     isLoading={isQueryUpdating}
                   >
