@@ -373,20 +373,20 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
-	var fleetdProfile bytes.Buffer
+	var globalFleetdProfile bytes.Buffer
 	params := mobileconfig.FleetdProfileOptions{
 		EnrollSecret: t.Name(),
 		ServerURL:    s.server.URL,
 		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
 	}
-	err = mobileconfig.FleetdProfileTemplate.Execute(&fleetdProfile, params)
+	err = mobileconfig.FleetdProfileTemplate.Execute(&globalFleetdProfile, params)
 	require.NoError(t, err)
 
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 	}
-	wantGlobalProfiles := append(globalProfiles, fleetdProfile.Bytes())
+	wantGlobalProfiles := append(globalProfiles, globalFleetdProfile.Bytes())
 
 	// add global profiles
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
@@ -395,10 +395,21 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
 	require.NoError(t, err)
 
+	// add an enroll secret so the fleetd profiles differ
+	var teamResp teamEnrollSecretsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", tm.ID),
+		modifyTeamEnrollSecretsRequest{
+			Secrets: []fleet.EnrollSecret{{Secret: "team1_enroll_sec"}},
+		}, http.StatusOK, &teamResp)
+
 	teamProfiles := [][]byte{
 		mobileconfigForTest("N3", "I3"),
 	}
-	wantTeamProfiles := append(teamProfiles, fleetdProfile.Bytes())
+	var teamFleetdProfile bytes.Buffer
+	params.EnrollSecret = "team1_enroll_sec"
+	err = mobileconfig.FleetdProfileTemplate.Execute(&teamFleetdProfile, params)
+	require.NoError(t, err)
+	wantTeamProfiles := append(teamProfiles, teamFleetdProfile.Bytes())
 	// add profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 
@@ -506,7 +517,7 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	// verify that we should install the team profile
 	require.ElementsMatch(t, wantTeamProfiles, installs)
 	// verify that we should delete both profiles
-	require.ElementsMatch(t, []string{"I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier}, removes)
+	require.ElementsMatch(t, []string{"I1", "I2"}, removes)
 
 	// set new team profiles (delete + addition)
 	teamProfiles = [][]byte{
@@ -3025,7 +3036,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
 		},
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
@@ -3279,14 +3290,14 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
 		},
 		h3: {
 			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeRemove, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
 		},
 	})
 
@@ -6170,6 +6181,36 @@ func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
 	require.Contains(t, resContent, "forbidden")
 }
 
+func (s *integrationMDMTestSuite) TestValidSyncMLRequestNoAuth() {
+	t := s.T()
+
+	// Target Endpoint URL for the management endpoint
+	targetEndpointURL := microsoft_mdm.MDE2ManagementPath
+
+	// Preparing the SyncML request
+	requestBytes, err := s.newSyncMLSessionMsg(targetEndpointURL)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
+
+	// Checking if SyncML response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid RequestSecurityTokenResponseCollection message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("SyncHdr", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("SyncBody", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("Exec", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("Add", resSoapMsg))
+}
+
 // ///////////////////////////////////////////////////////////////////////////
 // Common helpers
 
@@ -6355,4 +6396,77 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 		`)
 
 	return requestBytes, nil
+}
+
+// TODO: Add support to add custom DeviceID when DeviceAuth is in place
+func (s *integrationMDMTestSuite) newSyncMLSessionMsg(managementUrl string) ([]byte, error) {
+	if len(managementUrl) == 0 {
+		return nil, errors.New("managementUrl is empty")
+	}
+
+	return []byte(`
+			 <SyncML xmlns="SYNCML:SYNCML1.2">
+			<SyncHdr>
+				<VerDTD>1.2</VerDTD>
+				<VerProto>DM/1.2</VerProto>
+				<SessionID>1</SessionID>
+				<MsgID>1</MsgID>
+				<Target>
+				<LocURI>` + managementUrl + `</LocURI>
+				</Target>
+				<Source>
+				<LocURI>DB257C3A08778F4FB61E2749066C1F27</LocURI>
+				</Source>
+			</SyncHdr>
+			<SyncBody>
+				<Alert>
+				<CmdID>2</CmdID>
+				<Data>1201</Data>
+				</Alert>
+				<Alert>
+				<CmdID>3</CmdID>
+				<Data>1224</Data>
+				<Item>
+					<Meta>
+					<Type xmlns="syncml:metinf">com.microsoft/MDM/LoginStatus</Type>
+					</Meta>
+					<Data>user</Data>
+				</Item>
+				</Alert>
+				<Replace>
+				<CmdID>4</CmdID>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/DevId</LocURI>
+					</Source>
+					<Data>DB257C3A08778F4FB61E2749066C1F27</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/Man</LocURI>
+					</Source>
+					<Data>VMware, Inc.</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/Mod</LocURI>
+					</Source>
+					<Data>VMware7,1</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/DmV</LocURI>
+					</Source>
+					<Data>1.3</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/Lang</LocURI>
+					</Source>
+					<Data>en-US</Data>
+				</Item>
+				</Replace>
+				<Final/>
+			</SyncBody>
+			</SyncML>`), nil
 }
