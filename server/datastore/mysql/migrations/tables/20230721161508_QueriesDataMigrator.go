@@ -77,13 +77,14 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 		if query.ScheduledQSnapshot != nil && *query.ScheduledQSnapshot {
 			loggingType = "snapshot"
 		}
-		if query.ScheduledQRemoved != nil {
+		if loggingType == "" && query.ScheduledQRemoved != nil {
 			if *query.ScheduledQRemoved {
 				loggingType = "differential"
 			} else {
 				loggingType = "differential_ignore_removals"
 			}
 		}
+
 		args = append(args,
 			fmt.Sprintf("%s - %d", query.Name, query.ScheduledQID),
 			query.Description,
@@ -95,6 +96,7 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 			query.ScheduledQueryVersion,
 			query.ScheduledQueryInterval,
 			loggingType,
+			true,
 		)
 	}
 	if err := rows.Err(); err != nil {
@@ -123,7 +125,7 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 			automations_enabled 
 		) VALUES %s`
 
-	placeHolders := strings.TrimSuffix(strings.Repeat("( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1 ),", nRows), ",")
+	placeHolders := strings.TrimSuffix(strings.Repeat("( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ),", nRows), ",")
 	if _, err = tx.Exec(fmt.Sprintf(insertStmt, placeHolders), args...); err != nil {
 		return fmt.Errorf("error executing 'Exec' for scheduled queries from global packs: %s", err)
 	}
@@ -223,6 +225,7 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 			query.ScheduledQueryVersion,
 			query.ScheduledQueryInterval,
 			loggingType,
+			true,
 		)
 	}
 	if err := rows.Err(); err != nil {
@@ -253,7 +256,7 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 			automations_enabled 
 		) VALUES %s`
 
-	placeHolders := strings.TrimSuffix(strings.Repeat("( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1 ),", nRows), ",")
+	placeHolders := strings.TrimSuffix(strings.Repeat("( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ),", nRows), ",")
 	if _, err = tx.Exec(fmt.Sprintf(insertStmt, placeHolders), args...); err != nil {
 		return fmt.Errorf("error executing 'Exec' for scheduled queries from team packs: %s", err)
 	}
@@ -291,7 +294,6 @@ func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 	var nRows int
 
 	for rows.Next() {
-
 		query := QueryWithTeamIDs{}
 		if err := rows.Scan(
 			&query.Name,
