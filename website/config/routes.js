@@ -382,6 +382,7 @@ module.exports.routes = {
   'GET /docs/rest-api': '/docs/rest-api/rest-api',
   'GET /docs/using-fleet': '/docs/using-fleet/fleet-ui',
   'GET /docs/configuration': '/docs/configuration/fleet-server-configuration',
+  'GET /docs/contributing': 'https://github.com/fleetdm/fleet/tree/main/docs/Contributing',
   'GET /docs/deploy': '/docs/deploy/introduction',
   'GET /docs/using-fleet/faq': '/docs/get-started/faq',
   'GET /docs/using-fleet/monitoring-fleet': '/docs/deploy/monitoring-fleet',
