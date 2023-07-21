@@ -253,6 +253,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
+		Platform:        "darwin",
 	})
 	require.Nil(t, err)
 
@@ -265,6 +266,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
+		Platform:        "darwin",
 	})
 	require.Nil(t, err)
 
@@ -277,6 +279,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("3"),
 		UUID:            "3",
 		Hostname:        "baz.local",
+		Platform:        "darwin",
 	})
 	require.Nil(t, err)
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5))

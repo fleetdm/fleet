@@ -3,9 +3,9 @@
 Following are the steps to load test osquery on macOS.
 The purpose is to know the impact of Fleet provided queries on real devices.
 
-> At the time of writing the changes to add watchog logging needed for this script
-> are under review: https://github.com/osquery/osquery/pull/8070.
-> You will have to build osqueryd from source code.
+> At the time of writing, the changes that add watchdog logging needed for this script are
+> merged but not released yet (https://github.com/osquery/osquery/pull/8070).
+> You will have to download and extract the osqueryd executable from the PR: https://github.com/osquery/osquery/suites/14033523376/artifacts/783724086
 
 ## Requirements
 
@@ -30,6 +30,10 @@ echo "/usr/local/osquery_extensions/fleetd_tables.ext" > /tmp/extensions.load
 > The following assumes a Fleet server instance running and listening at `localhost:8080`.
 
 ```sh
+mkdir -p /Users/luk/osqueryd/osquery_log
+```
+
+```sh
 sudo ENROLL_SECRET=<...> ./osquery/osqueryd \
     --verbose=true \
     --tls_dump=true \
@@ -37,6 +41,7 @@ sudo ENROLL_SECRET=<...> ./osquery/osqueryd \
     --database_path=/Users/luk/osqueryd/osquery.db \
     --logger_path=/Users/luk/osqueryd/osquery_log \
     --host_identifier=instance \
+    # /Users/luk/fleetdm/git/fleet is the location of the Fleet mono repository.
     --tls_server_certs=/Users/luk/fleetdm/git/fleet/tools/osquery/fleet.crt \
     --enroll_secret_env=ENROLL_SECRET \
     --tls_hostname=localhost:8080 \
@@ -56,14 +61,24 @@ sudo ENROLL_SECRET=<...> ./osquery/osqueryd \
     --carver_start_endpoint=/api/v1/osquery/carve/begin \
     --carver_continue_endpoint=/api/v1/osquery/carve/block \
     --carver_block_size=2000000 \
-    --extensions_autoload=/tmp/extensions.load
+    --extensions_autoload=/tmp/extensions.load \
     --allow_unsafe \
     --enable_watchdog_debug \
     --distributed_denylist_duration 0 \
     --enable_extensions_watchdog 2>&1 | tee /tmp/osqueryd.log
 ```
 
+## Check that the watchdog didn't trigger a worker kill
+
+The following commands should return no output:
+```sh
+rg "utilization limit" /tmp/osqueryd.log
+rg "Memory limit" /tmp/osqueryd.log
+```
+
 ## Render CPU and memory usage
+
+(Nice to have.)
 
 ```sh
 ./tools/loadtest/osquery/macos/gnuplot_osqueryd_cpu_memory.sh

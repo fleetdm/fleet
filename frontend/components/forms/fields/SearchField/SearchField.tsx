@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 // @ts-ignore
-import InputField from "../InputField";
+import InputFieldWithIcon from "../InputFieldWithIcon";
 
 const baseClass = "search-field";
 
@@ -28,11 +28,14 @@ const SearchField = ({
   };
 
   return (
-    <InputField
+    <InputFieldWithIcon
+      name="search"
       placeholder={placeholder}
       value={searchQueryInput}
-      inputWrapperClass={`${baseClass}__input-wrapper`}
+      // inputWrapperClass={`${baseClass}__input-wrapper`}
       onChange={onInputChange}
+      iconPosition="start"
+      iconSvg="search"
     />
   );
 };

@@ -24,9 +24,8 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
       if host_profiles['error'].empty?
         Puppet.info("successfully pre-set profile #{profile_identifier} as #{ensure_profile}")
 
-        # if this profile is not in the list of profiles assigned to the host,
-        # signal that the resource has changed.
-        unless host_profiles['body']['profiles'].any? { |p| p['checksum'] == base64_checksum }
+        has_profile = host_profiles['body']['profiles'].any? { |p| p['checksum'] == base64_checksum }
+        if (has_profile && ensure_profile == 'absent') || (!has_profile && ensure_profile == 'present')
           response['resource_changed'] = true
         end
       end

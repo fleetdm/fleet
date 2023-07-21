@@ -99,7 +99,7 @@ module Puppet::Util
     # @param host_id [Number] Fleet's internal host id.
     # @return [Hash] The response status code, headers, and body.
     def get_host_profiles(host_id)
-      req(method: :get, path: "/api/latest/fleet/mdm/hosts/#{host_id}/profiles", cached: true)
+      req(method: :get, path: "/api/latest/fleet/mdm/hosts/#{host_id}/profiles", cached: false)
     end
 
     # Gets host details by host identifier.

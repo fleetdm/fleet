@@ -1945,6 +1945,11 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 		}, nil
 	}
 
+	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
+		require.Empty(t, payload)
+		return nil
+	}
+
 	var enqueueFailForOp fleet.MDMAppleOperationType
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 		require.NotNil(t, cmd)
