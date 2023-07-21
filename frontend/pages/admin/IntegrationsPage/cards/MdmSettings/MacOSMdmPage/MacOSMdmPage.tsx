@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
@@ -6,6 +6,7 @@ import PATHS from "router/paths";
 import mdmAppleAPI from "services/entities/mdm_apple";
 import { IMdmApple } from "interfaces/mdm";
 import { readableDate } from "utilities/helpers";
+import { AppContext } from "context/app";
 
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
@@ -112,6 +113,7 @@ const ApplePushCertificatePortalSetupInfo = ({
 };
 
 const MacOSMdmPage = () => {
+  const { config } = useContext(AppContext);
   const [showRequestCSRModal, setShowRequestCSRModal] = useState(false);
 
   // Currently the status of this API call is what determines various UI states on
@@ -121,8 +123,14 @@ const MacOSMdmPage = () => {
     data: appleAPNInfo,
     isLoading: isLoadingMdmApple,
     error: errorMdmApple,
-  } = useQuery<IMdmApple, AxiosError, IMdmApple>(["appleAPNInfo"], () =>
-    mdmAppleAPI.getAppleAPNInfo()
+  } = useQuery<IMdmApple, AxiosError, IMdmApple>(
+    ["appleAPNInfo"],
+    () => mdmAppleAPI.getAppleAPNInfo(),
+    {
+      retry: (tries, error) => error.status !== 404 && tries <= 3,
+      enabled: config?.mdm.enabled_and_configured,
+      staleTime: 5000,
+    }
   );
 
   const toggleRequestCSRModal = () => {
