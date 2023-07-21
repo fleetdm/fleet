@@ -420,9 +420,6 @@ There are some defaults that we use for these agreements:
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#help-classified` channel.
 
-
-
-
 ### Creating a new position
 
 Want to hire?  Here's how to open up a new position on the core team:
@@ -623,23 +620,21 @@ Windows and Linux devices are available upon request for team members in product
 #### Buying other new equipment
 At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), the reason for the request, and a timeline for when the device is needed. 
 
-> As a guide for when a new device may need to be purchased, first check your device status in Fleet. If the "Device health" is less than 
-
 #### Tracking equipment
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
 
 When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
 #### Returning equipment
-Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with Luke Heath. 
+Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Business Operations. 
 
 #### Reprovisioning equipment
 Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers.
 
 #### Equipment retention and replacement
-Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare Protection Plan (or another warranty plan) and are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs). The old equipment should be evaluated for return or retention as a test environment.
+Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
-
+> If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
 
 ## Equity grants
 Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/business-operations#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
