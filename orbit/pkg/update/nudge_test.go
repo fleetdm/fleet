@@ -201,7 +201,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	// nudge launches successfully
 	time.Sleep(1 * time.Second)
 	execCmd = mockExecCommand(t, "mock stdout", "", wantCmd, wantArgs...)
-	gotCfg, err = f.GetConfig()
+	_, err = f.GetConfig()
 	require.NoError(t, err)
 	require.Equal(t, "mock stdout", execOut)
 	require.True(t, runNudgeFnInvoked)
@@ -213,7 +213,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	execCmd = func(command string, args ...string) *exec.Cmd {
 		return exec.Command("non-existent-command")
 	}
-	gotCfg, err = f.GetConfig()
+	_, err = f.GetConfig()
 	require.ErrorContains(t, err, "exec: \"non-existent-command\": executable file not found in")
 	require.Empty(t, execOut)
 	require.True(t, runNudgeFnInvoked)
@@ -222,7 +222,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	// nudge launches successfully
 	time.Sleep(1 * time.Second)
 	execCmd = mockExecCommand(t, "mock stdout", "", wantCmd, wantArgs...)
-	gotCfg, err = f.GetConfig()
+	_, err = f.GetConfig()
 	require.NoError(t, err)
 	require.Equal(t, "mock stdout", execOut)
 	require.True(t, runNudgeFnInvoked)
@@ -232,7 +232,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	// nudge fails to launch, stderr is captured and logged
 	time.Sleep(1 * time.Second)
 	execCmd = mockExecCommand(t, "", "mock stderr", wantCmd, wantArgs...)
-	gotCfg, err = f.GetConfig()
+	_, err = f.GetConfig()
 	require.ErrorContains(t, err, "exit status 1: mock stderr")
 	require.Empty(t, execOut)
 	require.True(t, runNudgeFnInvoked)
@@ -240,17 +240,17 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 
 	// after launch error, nudge will not launch again
 	time.Sleep(1 * time.Second)
-	gotCfg, err = f.GetConfig()
+	_, err = f.GetConfig()
 	require.NoError(t, err)
 	require.Empty(t, execOut)
 	require.False(t, runNudgeFnInvoked)
 	time.Sleep(1 * time.Second)
-	gotCfg, err = f.GetConfig()
+	_, err = f.GetConfig()
 	require.NoError(t, err)
 	require.Empty(t, execOut)
 	require.False(t, runNudgeFnInvoked)
 	time.Sleep(1 * time.Second)
-	gotCfg, err = f.GetConfig()
+	_, err = f.GetConfig()
 	require.NoError(t, err)
 	require.NoError(t, err)
 	require.Empty(t, execOut)
@@ -282,8 +282,8 @@ func TestHelperProcess(t *testing.T) {
 		return
 	}
 	wantArgs := os.Getenv("GO_WANT_HELPER_PROCESS_ARGS")
-	if gotArgs := os.Args[4]; gotArgs != string(wantArgs) {
-		fmt.Fprint(os.Stderr, fmt.Sprintf("expected arg %s but got %s", string(wantArgs), gotArgs))
+	if gotArgs := os.Args[4]; gotArgs != wantArgs {
+		fmt.Fprint(os.Stderr, fmt.Sprintf("expected arg %s but got %s", wantArgs, gotArgs))
 		os.Exit(1)
 		return
 	}
@@ -306,7 +306,7 @@ func mockExecCommand(t *testing.T, mockStdout string, mockStderr string, wantCom
 		cs := []string{"-test.run=TestHelperProcess", "--", command}
 		cs = append(cs, args...)
 
-		cmd := exec.Command(os.Args[0], cs...)
+		cmd := exec.Command(os.Args[0], cs...) //nolint:gosec // this is a test helper
 		cmd.Env = []string{
 			"GO_WANT_HELPER_PROCESS=1",
 			fmt.Sprintf("GO_WANT_HELPER_PROCESS_COMMAND=%s", wantCommand),
