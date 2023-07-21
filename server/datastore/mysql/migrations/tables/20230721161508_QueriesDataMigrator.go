@@ -205,13 +205,14 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 		if query.ScheduledQSnapshot != nil && *query.ScheduledQSnapshot {
 			loggingType = "snapshot"
 		}
-		if query.ScheduledQRemoved != nil {
+		if loggingType == "" && query.ScheduledQRemoved != nil {
 			if *query.ScheduledQRemoved {
 				loggingType = "differential"
 			} else {
 				loggingType = "differential_ignore_removals"
 			}
 		}
+
 		args = append(args,
 			teamID,
 			teamIDParts[1],
@@ -401,6 +402,8 @@ func Up_20230721161508(tx *sql.Tx) error {
 	if err := _20230719152138_migrate_team_packs(tx); err != nil {
 		return err
 	}
+
+	// TODO: Clean up queries that only belong to 'global' and 'team' packs
 
 	// Remove 'global' and 'team' packs
 	_, err = tx.Exec(`DELETE FROM packs WHERE pack_type = 'global' OR pack_type LIKE 'team-%'`)

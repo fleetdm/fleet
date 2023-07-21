@@ -37,30 +37,30 @@ func TestUp_20230721161508(t *testing.T) {
 			(3,'2023-07-21 20:34:34','2023-07-21 20:34:34',1,'runtime_perf','Track the amount of CPU time used by osquery.','SELECT ov.version AS os_version, ov.platform AS os_platform, ov.codename AS os_codename, i.*, p.resident_size, p.user_time, p.system_time, time.minutes AS counter, db.db_size_mb AS database_size FROM osquery_info i, os_version ov, processes p, time, (SELECT (sum(size) / 1024) / 1024.0 AS db_size_mb FROM (SELECT value FROM osquery_flags WHERE name = \'database_path\' LIMIT 1) flags, file WHERE path LIKE flags.value || \'%%\' AND type = \'regular\') db WHERE p.pid = i.pid;',1,0,NULL,'','','',0,0,''),
 			(4,'2023-07-21 20:34:34','2023-07-21 20:34:34',1,'endpoint_security_tool_perf','Track the percentage of total CPU time utilized by $endpoint_security_tool','SELECT ((tool_time*100)/(SUM(system_time) + SUM(user_time))) AS pct FROM processes, (SELECT (SUM(processes.system_time)+SUM(processes.user_time)) AS tool_time FROM processes WHERE name=\'endpoint_security_tool\');',1,0,NULL,'','','',0,0,''),
 			(5,'2023-07-21 20:34:34','2023-07-21 20:34:34',1,'backup_tool_perf','Track the percentage of total CPU time utilized by $backup_tool','SELECT ((backuptool_time*100)/(SUM(system_time) + SUM(user_time))) AS pct FROM processes, (SELECT (SUM(processes.system_time)+SUM(processes.user_time)) AS backuptool_time FROM processes WHERE name=\'backup_tool\');',1,0,NULL,'','','',0,0,''),
-			(6,'2023-07-21 20:35:37','2023-07-21 20:35:37',1,'User 1 Query','','SELECT * FROM osquery_info;',2,0,NULL,'','','',0,0,''),
+			(6,'2023-07-21 20:35:37','2023-07-21 20:35:37',1,'User 1 Query','User 1 Query Desc','SELECT * FROM osquery_info;',2,0,NULL,'','','',0,0,''),
 			(7,'2023-07-21 20:36:02','2023-07-21 20:36:02',1,'User 1 Query 2','','SELECT * FROM osquery_info;',2,1,NULL,'','','',0,0,''),
 			(8,'2023-07-21 20:37:01','2023-07-21 20:37:01',1,'User 2 Query','Some desc','SELECT * FROM osquery_info;',3,1,NULL,'','','',0,0,'');
 
 		INSERT INTO scheduled_queries VALUES 
 			-- Global pack
 			(1,'2023-07-21 20:33:54','2023-07-21 20:33:54',1,1,86400,1,0,'','',NULL,'Admin Global Query','Admin Global Query','',NULL,''),
-			-- Global pack
 			(2,'2023-07-21 20:34:00','2023-07-21 20:34:00',1,1,3600,1,0,'','',NULL,'Admin Global Query','Admin Global Query-1','',NULL,''),
 
+			-- 2017 pack
 			(3,'2023-07-21 20:34:34','2023-07-21 20:34:34',2,NULL,1800,1,NULL,NULL,NULL,NULL,'per_query_perf','per_query_perf','Records the CPU time and memory usage for each individual query. Helpful for identifying queries that may impact performance.',NULL,''),
 			(4,'2023-07-21 20:34:34','2023-07-21 20:34:34',2,NULL,1800,1,NULL,NULL,NULL,NULL,'runtime_perf','runtime_perf','Track the amount of CPU time used by osquery.',NULL,''),
 			(5,'2023-07-21 20:34:34','2023-07-21 20:34:34',2,NULL,1800,1,NULL,NULL,NULL,NULL,'endpoint_security_tool_perf','endpoint_security_tool_perf','Track the percentage of total CPU time utilized by $endpoint_security_tool',NULL,''),
 			(6,'2023-07-21 20:34:34','2023-07-21 20:34:34',2,NULL,1800,1,NULL,NULL,NULL,NULL,'backup_tool_perf','backup_tool_perf','Track the percentage of total CPU time utilized by $backup_tool',NULL,''),
+
 			-- Global pack
 			(7,'2023-07-21 20:34:46','2023-07-21 20:34:46',1,2,86400,1,0,'','',NULL,'per_query_perf','per_query_perf','',NULL,''),
-			-- Global pack
 			(8,'2023-07-21 20:34:51','2023-07-21 20:34:51',1,2,86400,1,0,'','',NULL,'per_query_perf','per_query_perf-1','',NULL,''),
+
 			-- Team-1 pack
 			(9,'2023-07-21 20:36:08','2023-07-21 20:36:08',3,6,86400,1,0,'','',NULL,'User 1 Query','User 1 Query','',NULL,''),
-			-- Team-1 pack
 			(10,'2023-07-21 20:36:13','2023-07-21 20:36:13',3,6,86400,1,0,'','',NULL,'User 1 Query','User 1 Query-1','',NULL,''),
-			-- Team-1 pack
 			(11,'2023-07-21 20:36:25','2023-07-21 20:36:25',3,2,86400,1,0,'','',NULL,'per_query_perf','per_query_perf','',NULL,''),
+
 			-- Team-2 pack
 			(12,'2023-07-21 20:36:50','2023-07-21 20:36:50',4,5,86400,1,0,'','',NULL,'backup_tool_perf','backup_tool_perf','',NULL,'');
 	`
@@ -78,6 +78,9 @@ func TestUp_20230721161508(t *testing.T) {
 	defer rows.Close()
 
 	var nRows int
+	var teamIDs []uint
+	var teamIDStrs []string
+
 	for rows.Next() {
 		nRows += 1
 		var teamIDStr string
@@ -97,17 +100,22 @@ func TestUp_20230721161508(t *testing.T) {
 		require.Equal(t, *query.AuthorID, uint(3))
 		require.Equal(t, query.Saved, true)
 		require.Equal(t, query.ObserverCanRun, true)
-		require.True(t, query.TeamID == nil || *query.TeamID == uint(2))
-		require.True(t, teamIDStr == "" || teamIDStr == "2")
+
+		teamIDStrs = append(teamIDStrs, teamIDStr)
+		if query.TeamID != nil {
+			teamIDs = append(teamIDs, *query.TeamID)
+		}
 	}
+	require.ElementsMatch(t, teamIDStrs, []string{"", "2"})
+	require.Contains(t, teamIDs, uint(2))
 	require.Equal(t, nRows, 2)
 
 	// The global pack has 4 different schedules two targeting 'Admin Global Query' and the other
 	// two targeting 'performance-metrics' so I expect to see 6 queries here:
-	// 'Admin Global Query' <- Original
+	// 'Admin Global Query' <- Original (TODO: to be removed later)
 	// 'Admin Global Query - 1' <- For schedule with id 1
 	// 'Admin Global Query - 2' <- For schedule with id 2
-	// 'performance-metrics' <- Original
+	// 'performance-metrics' <- Original (kept because is referenced by an 2017 pack)
 	// 'performance-metrics - 7' <- For schedule with id 7
 	// 'performance-metrics - 8' <- For schedule with id 8
 	stmt = `SELECT 
@@ -214,4 +222,72 @@ func TestUp_20230721161508(t *testing.T) {
 	require.ElementsMatch(t, automationsEnabled, []bool{false, true, true})
 	require.ElementsMatch(t, loggingTypes, []string{"", "snapshot", "snapshot"})
 	require.Equal(t, nRows, 3)
+
+	// We have two team packs (Team-1, Team-2)
+	// For Team-1, we have three schedules, two of them reference 'User 1 Query', the last one
+	// 'per_query_perf', so I expect to see five different queries on team#1:
+	//   - 'User 1 Query - 9' for schedule#9
+	//   - 'User 1 Query - 10' for schedule#10
+	//   - 'per_query_perf - 11' for schedule#11
+	// For Team-2, we only have one schedule on 'backup_tool_perf', so I expect to see on team#2:
+	// 	 - 'backup_tool_perf - 12'
+	stmt = `SELECT 
+		name, 
+		description, 
+		query, 
+		author_id, 
+		saved, 
+		observer_can_run, 
+		platform, 
+		min_osquery_version, 
+		schedule_interval, 
+		logging_type, 
+		automations_enabled 
+	FROM queries 
+	WHERE name LIKE ? AND team_id = ? AND name <> 'User 1 Query 2'`
+
+	rows, err = db.Query(stmt, "per_query_perf%", 1)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	nRows = 0
+	names = []string{}
+	scheduleIntervals = []uint{}
+	automationsEnabled = []bool{}
+	loggingTypes = []string{}
+
+	for rows.Next() {
+		nRows += 1
+		query := fleet.Query{}
+		err := rows.Scan(
+			&query.Name,
+			&query.Description,
+			&query.Query,
+			&query.AuthorID,
+			&query.Saved,
+			&query.ObserverCanRun,
+			&query.Platform,
+			&query.MinOsqueryVersion,
+			&query.ScheduleInterval,
+			&query.LoggingType,
+			&query.AutomationsEnabled,
+		)
+		require.NoError(t, err)
+
+		names = append(names, query.Name)
+		scheduleIntervals = append(scheduleIntervals, query.ScheduleInterval)
+		automationsEnabled = append(automationsEnabled, query.AutomationsEnabled)
+		loggingTypes = append(loggingTypes, query.LoggingType)
+
+		require.Equal(t, query.Description, "Records the CPU time and memory usage for each individual query. Helpful for identifying queries that may impact performance.")
+		require.Equal(t, query.Query, "SELECT name, interval, executions, output_size, wall_time, (user_time/executions) AS avg_user_time, (system_time/executions) AS avg_system_time, average_memory FROM osquery_schedule;")
+		require.Equal(t, *query.AuthorID, uint(1))
+		require.Equal(t, query.Saved, true)
+		require.Equal(t, query.ObserverCanRun, false)
+	}
+	require.ElementsMatch(t, names, []string{"per_query_perf - 11"})
+	require.ElementsMatch(t, scheduleIntervals, []uint{86400})
+	require.ElementsMatch(t, automationsEnabled, []bool{true})
+	require.ElementsMatch(t, loggingTypes, []string{"snapshot"})
+	require.Equal(t, nRows, 1)
 }
