@@ -1,0 +1,4 @@
+- Addressed issue where Orbit repeatedly tries to launch Nudge in the event of a launch error, which
+  causes Nudge to steal focus from the user's current application. Instead, Nudge will now be disabled
+  if it encounters a launch error. It will remain disabled until Orbit is restarted or the Nudge app
+  is updated.
