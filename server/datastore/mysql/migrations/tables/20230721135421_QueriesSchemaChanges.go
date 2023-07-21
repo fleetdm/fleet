@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230706141219, Down_20230706141219)
+	MigrationClient.AddMigration(Up_20230721135421, Down_20230721135421)
 }
 
-func Up_20230706141219(tx *sql.Tx) error {
+func Up_20230721135421(tx *sql.Tx) error {
 	// Drop FK constraint based on queries (name) - since the uniqueness constraint on the queries
 	// table changed.
 	if _, err := tx.Exec(`
@@ -53,6 +53,6 @@ func Up_20230706141219(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230706141219(tx *sql.Tx) error {
+func Down_20230721135421(tx *sql.Tx) error {
 	return nil
 }
