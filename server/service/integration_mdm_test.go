@@ -6181,6 +6181,22 @@ func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
 	require.Contains(t, resContent, "forbidden")
 }
 
+func (s *integrationMDMTestSuite) TestValidGetTOC() {
+	t := s.T()
+
+	resp := s.DoRaw("GET", microsoft_mdm.MDE2TOSPath+"?api-version=1.0&redirect_uri=ms-appx-web%3a%2f%2fMicrosoft.AAD.BrokerPlugin&client-request-id=f2cf3127-1e80-4d73-965d-42a3b84bdb40", nil, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.WebContainerContentType)
+
+	resTOCcontent := string(resBytes)
+	require.Contains(t, resTOCcontent, "Microsoft.AAD.BrokerPlugin")
+	require.Contains(t, resTOCcontent, "IsAccepted=true")
+	require.Contains(t, resTOCcontent, "OpaqueBlob=")
+}
+
 func (s *integrationMDMTestSuite) TestValidSyncMLRequestNoAuth() {
 	t := s.T()
 

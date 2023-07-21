@@ -10,12 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"html/template"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -134,6 +134,43 @@ func (r SyncMLResponseMsgContainer) hijackRender(ctx context.Context, w http.Res
 	}
 }
 
+type MDMWebContainer struct {
+	Data   *string
+	Params url.Values
+	Err    error
+}
+
+// MDM SOAP request decoder
+func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+	reqBytes, err := io.ReadAll(r)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading Webcontainer HTML message request")
+	}
+
+	// Set the request parameters
+	req.Params = u
+
+	// Get req data
+	content := string(reqBytes)
+	req.Data = &content
+
+	return nil
+}
+
+func (req MDMWebContainer) error() error { return req.Err }
+
+// hijackRender writes the response header and the RAW HTML output
+func (req MDMWebContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	resData := []byte(*req.Data + "\n")
+
+	w.Header().Set("Content-Type", mdm.WebContainerContentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
+	w.WriteHeader(http.StatusOK)
+	if n, err := w.Write(resData); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
 type MDMAuthContainer struct {
 	Data *string
 	Err  error
@@ -163,7 +200,7 @@ func getUtcTime(minutes int) string {
 }
 
 // NewDiscoverResponse creates a new DiscoverResponse struct based on the auth policy, policy url, and enrollment url
-func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl string, authUrl *string) (mdm_types.DiscoverResponse, error) {
+func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl string) (mdm_types.DiscoverResponse, error) {
 	if (len(authPolicy) == 0) || (len(policyUrl) == 0) || (len(enrollmentUrl) == 0) {
 		return mdm_types.DiscoverResponse{}, errors.New("invalid parameters")
 	}
@@ -175,7 +212,6 @@ func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl stri
 			EnrollmentVersion:          mdm.EnrollmentVersionV4,
 			EnrollmentPolicyServiceUrl: policyUrl,
 			EnrollmentServiceUrl:       enrollmentUrl,
-			AuthServiceUrl:             authUrl,
 		},
 	}, nil
 }
@@ -843,6 +879,32 @@ func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, sv
 	}, nil
 }
 
+// mdmMicrosoftTOSEndpoint handles the TOS content for the incoming MDM enrollment request
+func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	params := request.(*MDMWebContainer).Params
+
+	// Sanity check on the expected query params
+	if !params.Has(mdm.TOCRedirectURI) || !params.Has(mdm.TOCReqID) {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, errors.New("invalid params"))
+		return getSoapResponseFault(mdm.SoapErrorInternalServiceFault, soapFault), nil
+	}
+
+	redirectURI := params.Get(mdm.TOCRedirectURI)
+	reqID := params.Get(mdm.TOCReqID)
+
+	// Getting the TOS content message
+	resTOCData, err := svc.GetMDMWindowsTOSContent(ctx, redirectURI, reqID)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(mdm.SoapErrorInternalServiceFault, soapFault), nil
+	}
+
+	return MDMWebContainer{
+		Data: &resTOCData,
+		Err:  nil,
+	}, nil
+}
+
 // authBinarySecurityToken checks if the provided token is valid
 func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (string, error) {
 	if authToken == nil {
@@ -936,18 +998,7 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
-	// Only adding STS Auth endpoint if the UPN email is provided
-	var urlSTSAuthEndpoint *string
-	if len(upnEmail) > 0 {
-		workUrlSTSAuthEndpoint, err := mdm.ResolveWindowsMDMAuth(appCfg.ServerSettings.ServerURL)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
-		}
-
-		urlSTSAuthEndpoint = &workUrlSTSAuthEndpoint
-	}
-
-	discoveryMsg, err := NewDiscoverResponse(mdm.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint, urlSTSAuthEndpoint)
+	discoveryMsg, err := NewDiscoverResponse(mdm.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
 	}
@@ -979,12 +1030,12 @@ func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru st
 				  // Dinamically create a form element to submit the request
 				  var form = document.createElement('form');
 				  form.method = 'POST';
-				  form.action = "` + appru + `"
+				  form.action = "{{.ActionURL}}"
 
 				  var inputToken = document.createElement('input');
 				  inputToken.type = 'hidden';
 				  inputToken.name = 'wresult';
-				  inputToken.value = '` + encodedBST + `';
+				  inputToken.value = '{{.Token}}';
 				  form.appendChild(inputToken);
 
 				  // Submit the form
@@ -1001,7 +1052,7 @@ func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru st
 	}
 
 	var htmlBuf bytes.Buffer
-	err = tmpl.Execute(&htmlBuf, map[string][]byte{"ActionURL": []byte(appru), "Token": []byte(encodedBST)})
+	err = tmpl.Execute(&htmlBuf, map[string]string{"ActionURL": appru, "Token": encodedBST})
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "creation of STS content")
 	}
@@ -1110,6 +1161,52 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 	svc.authz.SkipAuthorization(ctx)
 
 	return resSyncMLmsg, nil
+}
+
+// GetMDMWindowsTOSContent returns valid TOC content
+func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
+	tmpl, err := template.New("").Parse(`
+	<html>
+	<head>
+	<style>
+	  button {
+		background-color: #008CBA;
+		color: white;
+		padding: 10px 60px;
+		border: none;
+		cursor: pointer;
+	  }
+	</style>
+	</head>
+	<body>
+	  <center>
+		<img src="https://fleetdm.com/images/logo-blue-162x92@2x.png">
+		<br>
+		<h2>Terms and conditions</h2>
+		<br> Terms and Conditions PDF content should go here <center>
+		  <br>
+		  <button type="button" onClick="acceptBtn()">Accept</button>
+		  <script>
+			function acceptBtn() {
+			  window.location = "{{.RedirectURL}}" + "?IsAccepted=true&OpaqueBlob={{.ClientData}}";
+			}
+		  </script>
+	</body>
+	</html>`)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
+	}
+
+	var htmlBuf bytes.Buffer
+	err = tmpl.Execute(&htmlBuf, map[string]string{"RedirectURL": redirectUri, "ClientData": reqID})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "executing TOS template content")
+	}
+
+	// skipauth: This endpoint does not use authentication
+	svc.authz.SkipAuthorization(ctx)
+
+	return htmlBuf.String(), nil
 }
 
 func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.SyncMLMessage) (*string, error) {
@@ -1371,7 +1468,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	// Getting the Enroll RequestVersion context information from the RequestSecurityToken msg
 	reqEnrollVersion, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemRequestVersion)
 	if err != nil {
-		return fmt.Errorf("%s %v", error_tag, err)
+		reqEnrollVersion = "request_version_not_present"
 	}
 
 	// Getting the RequestVersion context information from the RequestSecurityToken msg
@@ -1457,10 +1554,6 @@ func (svc *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject strin
 }
 
 func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *int) string {
-	// fleetctl package
-	// --fleet-url=https://dashboard.fleetdm.ngrok.dev
-	// --enroll-secret=6EM269jFhXlEcWn9nr/kCQGNa5sIh3GM
-
 	// Getting the management URL
 	appCfg, _ := svc.ds.AppConfig(ctx)
 	fleetEnrollUrl := appCfg.ServerSettings.ServerURL
