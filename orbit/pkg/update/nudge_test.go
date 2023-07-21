@@ -208,12 +208,33 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	runNudgeFnInvoked = false
 	execOut = ""
 
+	// nudge isn't disabled if error is not an ExitError
+	time.Sleep(1 * time.Second)
+	execCmd = func(command string, args ...string) *exec.Cmd {
+		return exec.Command("non-existent-command")
+	}
+	gotCfg, err = f.GetConfig()
+	require.ErrorContains(t, err, "exec: \"non-existent-command\": executable file not found in")
+	require.Empty(t, execOut)
+	require.True(t, runNudgeFnInvoked)
+	runNudgeFnInvoked = false
+
+	// nudge launches successfully
+	time.Sleep(1 * time.Second)
+	execCmd = mockExecCommand(t, "mock stdout", "", wantCmd, wantArgs...)
+	gotCfg, err = f.GetConfig()
+	require.NoError(t, err)
+	require.Equal(t, "mock stdout", execOut)
+	require.True(t, runNudgeFnInvoked)
+	runNudgeFnInvoked = false
+	execOut = ""
+
 	// nudge fails to launch, stderr is captured and logged
 	time.Sleep(1 * time.Second)
 	execCmd = mockExecCommand(t, "", "mock stderr", wantCmd, wantArgs...)
 	gotCfg, err = f.GetConfig()
 	require.ErrorContains(t, err, "exit status 1: mock stderr")
-	require.Equal(t, "", execOut)
+	require.Empty(t, execOut)
 	require.True(t, runNudgeFnInvoked)
 	runNudgeFnInvoked = false
 
@@ -221,18 +242,18 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	time.Sleep(1 * time.Second)
 	gotCfg, err = f.GetConfig()
 	require.NoError(t, err)
-	require.Equal(t, "", execOut)
+	require.Empty(t, execOut)
 	require.False(t, runNudgeFnInvoked)
 	time.Sleep(1 * time.Second)
 	gotCfg, err = f.GetConfig()
 	require.NoError(t, err)
-	require.Equal(t, "", execOut)
+	require.Empty(t, execOut)
 	require.False(t, runNudgeFnInvoked)
 	time.Sleep(1 * time.Second)
 	gotCfg, err = f.GetConfig()
 	require.NoError(t, err)
 	require.NoError(t, err)
-	require.Equal(t, "", execOut)
+	require.Empty(t, execOut)
 	require.False(t, runNudgeFnInvoked)
 
 	// nudge is removed from targets when the config is not present
@@ -245,29 +266,6 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	ti, ok = targets["nudge"]
 	require.False(t, ok)
 	require.Empty(t, ti)
-}
-
-// mockExecCommand returns a function that can be used to mock exec.Command using TestHelperProcess.
-func mockExecCommand(t *testing.T, mockStdout string, mockStderr string, wantCommand string, wantArgs ...string) func(command string, args ...string) *exec.Cmd {
-	return func(command string, args ...string) *exec.Cmd {
-		cs := []string{"-test.run=TestHelperProcess", "--", command}
-		cs = append(cs, args...)
-
-		cmd := exec.Command(os.Args[0], cs...)
-		cmd.Env = []string{
-			"GO_WANT_HELPER_PROCESS=1",
-			fmt.Sprintf("GO_WANT_HELPER_PROCESS_COMMAND=%s", wantCommand),
-			fmt.Sprintf("GO_WANT_HELPER_PROCESS_ARGS=%s", strings.Join(wantArgs, " ")),
-		}
-		if mockStdout != "" {
-			cmd.Env = append(cmd.Env, fmt.Sprintf("GO_WANT_HELPER_PROCESS_STDOUT=%s", mockStdout))
-		}
-		if mockStderr != "" {
-			cmd.Env = append(cmd.Env, fmt.Sprintf("GO_WANT_HELPER_PROCESS_STDERR=%s", mockStderr))
-		}
-
-		return cmd
-	}
 }
 
 // TestHelperProcess is a helper process used for tests that mock exec.Command
@@ -300,4 +298,27 @@ func TestHelperProcess(t *testing.T) {
 	os.Exit(0)
 
 	return
+}
+
+// mockExecCommand returns a function that can be used to mock exec.Command using TestHelperProcess.
+func mockExecCommand(t *testing.T, mockStdout string, mockStderr string, wantCommand string, wantArgs ...string) func(command string, args ...string) *exec.Cmd {
+	return func(command string, args ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcess", "--", command}
+		cs = append(cs, args...)
+
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{
+			"GO_WANT_HELPER_PROCESS=1",
+			fmt.Sprintf("GO_WANT_HELPER_PROCESS_COMMAND=%s", wantCommand),
+			fmt.Sprintf("GO_WANT_HELPER_PROCESS_ARGS=%s", strings.Join(wantArgs, " ")),
+		}
+		if mockStdout != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("GO_WANT_HELPER_PROCESS_STDOUT=%s", mockStdout))
+		}
+		if mockStderr != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("GO_WANT_HELPER_PROCESS_STDERR=%s", mockStderr))
+		}
+
+		return cmd
+	}
 }
