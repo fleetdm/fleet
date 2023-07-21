@@ -1607,6 +1607,7 @@ func preassignMDMAppleProfileEndpoint(ctx context.Context, request interface{}, 
 	if err := svc.MDMApplePreassignProfile(ctx, req.MDMApplePreassignProfilePayload); err != nil {
 		return preassignMDMAppleProfileResponse{Err: err}, nil
 	}
+	logging.WithExtras(ctx, "host_external_identifier", req.ExternalHostIdentifier, "msg", "successfully preassigned profiles")
 	return preassignMDMAppleProfileResponse{}, nil
 }
 
@@ -1639,6 +1640,8 @@ func matchMDMApplePreassignmentEndpoint(ctx context.Context, request interface{}
 	if err := svc.MDMAppleMatchPreassignment(ctx, req.ExternalHostIdentifier); err != nil {
 		return matchMDMApplePreassignmentResponse{Err: err}, nil
 	}
+
+	logging.WithExtras(ctx, "host_external_identifier", req.ExternalHostIdentifier, "msg", "successfully matched profiles")
 	return matchMDMApplePreassignmentResponse{}, nil
 }
 

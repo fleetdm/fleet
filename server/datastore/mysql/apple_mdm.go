@@ -1266,7 +1266,7 @@ WHERE
 			hmap.checksum as checksum,
 			hmap.status as status,
 			hmap.operation_type as operation_type,
-			hmap.detail as detail,
+			COALESCE(hmap.detail, '') as detail,
 			hmap.command_uuid as command_uuid
 		FROM (
 			SELECT
@@ -1293,7 +1293,7 @@ WHERE
 		var profilesToRemove []*fleet.MDMAppleProfilePayload
 		err = sqlx.SelectContext(ctx, tx, &profilesToRemove, stmt, args...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
+			return ctxerr.Wrap(ctx, err, "fetching current profiles")
 		}
 
 		if len(profilesToInstall) == 0 && len(profilesToRemove) == 0 {
@@ -1469,7 +1469,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	    hmap.host_uuid,
 	    hmap.checksum,
 	    hmap.operation_type,
-	    hmap.detail,
+	    COALESCE(hmap.detail, ''),
 	    hmap.status,
 	    hmap.command_uuid
           FROM (
