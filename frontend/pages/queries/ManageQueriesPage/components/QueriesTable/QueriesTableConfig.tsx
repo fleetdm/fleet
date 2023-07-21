@@ -20,6 +20,7 @@ import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import { COLORS } from "styles/var/colors";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
 interface IQueryRow {
@@ -124,7 +125,7 @@ const generateTableHeaders = ({
       Cell: (cellProps: ICellProps): JSX.Element => {
         return (
           <LinkCell
-            classes="w400"
+            classes="w400 query-name-cell"
             value={
               <>
                 <div className="query-name-text">{cellProps.cell.value}</div>
@@ -143,7 +144,7 @@ const generateTableHeaders = ({
                       type="dark"
                       effect="solid"
                       id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
-                      backgroundColor="#3e4771"
+                      backgroundColor={COLORS["tooltip-bg"]}
                     >
                       Observers can run this query.
                     </ReactTooltip>

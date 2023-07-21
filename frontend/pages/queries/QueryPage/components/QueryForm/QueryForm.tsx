@@ -30,7 +30,6 @@ import {
 } from "interfaces/schedulable_query";
 import { SelectedPlatformString } from "interfaces/platform";
 import queryAPI from "services/entities/queries";
-import { COLORS } from "styles/var/colors";
 
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
@@ -694,7 +693,7 @@ const QueryForm = ({
                 </div>{" "}
                 <ReactTooltip
                   className={`save-query-button-tooltip`}
-                  place="bottom"
+                  place="top"
                   effect="solid"
                   backgroundColor={COLORS["tooltip-bg"]}
                   id="save-query-button"

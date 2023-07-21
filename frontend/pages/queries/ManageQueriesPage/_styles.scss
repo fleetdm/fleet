@@ -179,6 +179,14 @@
       }
     }
 
+    .query-name-cell {
+      .children-wrapper {
+        .query-name-text {
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+      }
+    }
     .query-icon {
       position: relative;
       top: 2px;

@@ -26,8 +26,25 @@
     }
   }
 
+  &__configure {
+    color: $ui-fleet-black-75;
+  }
+
+  .info-banner {
+    &__info {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      p {
+        margin: 0;
+      }
+    }
+  }
+
   .fleet-checkbox {
     height: 20px;
+    display: flex;
+    align-items: center;
 
     &__label {
       width: 490px;
