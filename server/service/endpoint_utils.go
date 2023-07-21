@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -83,10 +84,9 @@ type requestDecoder interface {
 }
 
 // A value that implements bodyDecoder takes control of decoding the request
-// body. Other fields such as url and query parameters are decoded prior to
-// calling DecodeBody with the request's body as an io.Reader.
+// body.
 type bodyDecoder interface {
-	DecodeBody(ctx context.Context, r io.Reader) error
+	DecodeBody(ctx context.Context, r io.Reader, u url.Values) error
 }
 
 // makeDecoder creates a decoder for the type for the struct passed on. If the
@@ -304,7 +304,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 
 		if isBodyDecoder {
 			bd := v.Interface().(bodyDecoder)
-			if err := bd.DecodeBody(ctx, body); err != nil {
+			if err := bd.DecodeBody(ctx, body, r.URL.Query()); err != nil {
 				return nil, err
 			}
 		}

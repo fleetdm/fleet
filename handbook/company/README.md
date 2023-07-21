@@ -6,15 +6,15 @@ Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbo
 
 We are dedicated to:
 
-- 🧑‍🚀 automating IT and security with a living, breathing API.
-- 🪟 privacy, transparency, and trust through open-source software.
-- 💻 a better way to manage computers.
+- 🔌 making security and IT interoperable and easy to automate
+- 🚪 an inviting (outsider-friendly) way to manage computers
+- 🪟 clarity and trust through open-source software
 
 
 ## Culture
 
 ### All remote
-Fleet Device Management Inc. is an all-remote company with 30+ team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
+Fleet Device Management Inc. is an all-remote company with 40+ team members spread across four continents and nine time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 ### Open source
 The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
@@ -27,16 +27,18 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 
 Fleet is currently hiring for the following positions:
 
-- 🚀 Senior Software Engineer (Golang)
 - [🐋 Head of Public Sector](https://fleetdm.com/handbook/company/head-of-public-sector)
 - [🐋 Solutions Consultant](https://fleetdm.com/handbook/company/solutions-consultant)
+- [🐋 Customer Support Engineer](https://fleetdm.com/handbook/company/customer-support-engineer)
+- [🐋 Account Executive](https://fleetdm.com/handbook/company/account-executive)
+- [🚀 Software Engineer](https://fleetdm.com/handbook/company/software-engineer)
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
 ### Is it any good?
 
 Here are a few reasons to work at Fleet:
-- Work from anywhere with good internet. (We're 100% remote. No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.  Organize your workday to fit your lifestyle.  Take breaks.  Go to the dentist.
+- Work from anywhere with good internet. ([We're 100% remote](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/), No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.  Organize your workday to fit your lifestyle.  Take breaks.  Go to the dentist.
 - Fleet can offer you a competitive salary, significant equity, and an independent, outsider-friendly culture. Work with helpful, kind, and motivated people who know what they're doing.
 - At Fleet, we value focus, iteration, and meaningful results – not [60 hour work weeks](https://fleetdm.com/handbook/company#results). We are non-judgmental and laser-focused on growing the company.
 - Work closely with experienced, well-funded founders and a great team, including the people who created osquery and Sails. We care about openness and transparency.
@@ -59,39 +61,39 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 
 - **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and [assume](https://about.gitlab.com/handbook/values/#assume-positive-intent) others are doing the same.
 - **Be a helper.** Take care of customers first. But give hospitality and [service with a smile](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy) to everyone you can.
-- **Roleplay.** Read what you write.  [Again.](http://www.paulgraham.com/useful.html)  Use your imagination to see situations from different perspectives.
-- **Get curious.**  Genuinely wonder. Ask questions. Listen closely to the answers.
+- **Read what you write.**  [Shorten](http://www.paulgraham.com/writing44.html) it. [Repeat](http://www.paulgraham.com/useful.html).
+- **Get curious.**  Wonder about things. Ask people genuine questions, and listen closely. <!-- Roleplay. Use your imagination to see situations from different perspectives. -->
 
 ### 🟠 Ownership
 It takes a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
 
-- **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Especially GitHub, Slack, and emails.
-- **Assume responsibility.** Own up to mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).  Follow through on commitments quickly.
-- **No one is coming.** Take initiative. Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. Understand [Fleet's goals](https://fleetdm.com/handbook/company#strategy) yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
-- **Think long term.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals.
+- **Be reliable.**  Reply quickly to email, Slack, and GitHub mentions.  Arrive in meetings on time.  <!-- even if you can't take immediate action. -->
+- **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
+- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
+- **Think long term.** Understand [Fleet's priorities](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit), beyond your department's goals. Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose). <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy).  -->
 
 ### 🟢 Results
 We work to get results. How we work determines what we get.  Aim to deliver results daily.
 
-- **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always be cutting scope.  But finish what you bite off.
-- **Move quickly.** Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) and [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
-- **Keep things simple.** Focus on fewer tasks. Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Use [fewer words](http://www.paulgraham.com/writing44.html). Avoid preemptive structure.
-- **Be realistic.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge.  Practice self-care.
+- **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always publish.
+- **Start quickly.** Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) -->
+- **Keep it simple.** Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). <!-- Practicality over sophistication. -->
+- **Be realistic.** Focus on one or two tasks at a time.  When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity
 To reach our goals, we need to [see reality clearly](https://en.wikipedia.org/wiki/Intellectual_honesty).
 
-- **Be humble.** You might be wrong.  When something isn't working, stop assuming.  Experiment with one variable at a time. <!-- Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research) and [first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering). -->
-- **Seek the truth.** [Change your mind](https://about.gitlab.com/handbook/values/#articulate-when-you-change-your-mind) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
+- **Assume nothing.** When something isn't working, change only one variable at a time. Find [the bottleneck](https://en.wikipedia.org/wiki/Theory_of_constraints). <!-- Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research). -->
+- **Change your mind.**  [Be willing to reconsider](https://about.gitlab.com/handbook/values/#articulate-when-you-change-your-mind) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
 - **Interrogate luck.** A lucky fix can do more harm than good.  Understand why it's broken first. <!--  Don't say "just do XYZ". The road to failure is paved with ["happy paths"](https://en.wikipedia.org/wiki/Happy_path). -->
-- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.
+- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.  <!-- Use first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering) -->
 
 ### 🟣 Openness
 Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
 
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
-- **Everyone can contribute.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain.
-- **Be transparent.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
+- **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
+- **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
 - **[Commit](https://www.audible.com/pd/The-15-Commitments-of-Conscious-Leadership-Audiobook/B00SKV11H2) to candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).  Interrupt and be interrupted.
 
 
@@ -107,10 +109,11 @@ A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security
 When Kolide's attention shifted away from Fleet, and towards their separate, user-focused SaaS offering, the Fleet community took over maintenance of the open source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
 
 ### 2020: Fleet was incorporated
-Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
+Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/company/ceo-handbook), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
 ### 2022: Millions of hosts
 Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
+
 
 > Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/feed/update/urn:li:activity:7045068060168220672/) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1).
 
@@ -122,11 +125,12 @@ Above and beyond the organizational chart, Fleet organizes cross-functional grou
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
-[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Jack Naglieri](https://councils.forbes.com/profile/Jack-Naglieri-Founder-CEO-Panther/a5f3a285-e983-4f4c-9f9d-2f0d4335f00d) _(Panther Labs)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  (Just ask.)
+[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/ceo-handbook).)
 
 ## Strategy
 
 You can read about the [company's positioning ("👑 Crown jewels")](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#) and [vulnerability management positioning ("👑 Crown jewels pt. 2"](https://docs.google.com/document/d/1VXnZo5EQeircKvUPYai69GPW8QnECamCE5CU1vjLMPU/edit), or review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide ["All hands" meetings](https://fleetdm.com/handbook/business-operations#all-hands).
+
 
 ## Slack channels
 
@@ -158,6 +162,10 @@ Please see [📖Business Operations#tools-we-use](https://fleetdm.com/handbook/b
 ##### Positioning
 
 Please see [📖Company#strategy](#strategy).
+
+##### CEO handbook
+
+Please see [📖Company#CEO](https://fleetdm.com/handbook/company/ceo-handbook).
 
 
 <meta name="maintainedBy" value="mikermcneil">

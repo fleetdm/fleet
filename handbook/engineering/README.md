@@ -417,14 +417,16 @@ When merging a pull request from a community contributor:
 ## Changes to tables' schema
 
 Whenever a PR is proposed for making changes to our [tables' schema](https://fleetdm.com/tables/screenlock)(e.g. to schema/tables/screenlock.yml), it also has to be reflected in our osquery_fleet_schema.json file.
-It should be done by running these commands:
+
+The website team will [periodically](https://fleetdm.com/handbook/marketing/website-handbook#rituals) update the json file with the latest changes. If the changes should be deployed sooner, you can generate the new json file yourself by running these commands:
 ```
 cd website
 ./node_modules/sails/bin/sails.js run generate-merged-schema
 ```
+
 > When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
 
-> If a table is added to our ChromeOS extension but it does not exist in osquery, add a note that mentions it. As in this [example](https://github.com/fleetdm/fleet/blob/e95e075e77b683167e86d50960e3dc17045e3c44/schema/tables/mdm.yml#L2).
+> If a table is added to our ChromeOS extension but it does not exist in osquery or if it is a table added by fleetd, add a note that mentions it. As in this [example](https://github.com/fleetdm/fleet/blob/e95e075e77b683167e86d50960e3dc17045e3c44/schema/tables/mdm.yml#L2).
 
 ## Quality
 
@@ -488,7 +490,7 @@ When a new bug is created using the [bug report form](https://github.com/fleetdm
 
 At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance. QA has one week to move the bug to the next step (reproduced).
 
-For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters have six weeks to provide follow-up information for each report. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but reporters are welcome to re-open and provide context.
+For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters are encouraged to provide timely follow-up information for each report. At two weeks since last communication QA will ping the reporter for more information on the status of the issue. After four weeks of stale communication QA will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
 Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state. If QA or the engineering manager feels the bug report may be expected behavior, or if clarity is required on the intended behavior, it is assigned to the group's product manager. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Acreated-asc+).
 
@@ -589,9 +591,28 @@ In the above process, any reference to "QA" refers to: Reed Haynes, Product Qual
 
 ## Infrastructure
 
+- [Infrastructure links](#infrastructure-links)
+- [Best practices](#best-practices)
 - [24/7 on-call](#24-7-on-call)
 
 The [infrastructure product group](https://fleetdm.com/handbook/company/development-groups#infrastructure-group) is responsible for deploying, supporting, and maintaining all Fleet-managed cloud deployments.
+
+### Infrastructure links
+
+The following are quick links to infrastructure-related README files in both public and private repos that can be used as a quick reference for infrastructure-related code:
+
+- [Sandbox](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md)
+- [Terraform Module](https://github.com/fleetdm/fleet/blob/main/terraform/README.md)
+- [Loadtesting](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/readme.md)
+- [Cloud](https://github.com/fleetdm/confidential/blob/main/infrastructure/cloud/template/README.md)
+- [SSO](https://github.com/fleetdm/confidential/blob/main/infrastructure/sso/README.md)
+- [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
+
+### Best practices
+
+The infrastructure team follows industry best practices when designing and deploying infrastructure. For containerized infrastructure, Google has created a [reference document](https://cloud.google.com/architecture/best-practices-for-operating-containers) as an ideal reference for these practices.
+
+Many of these practices must be implemented in Fleet directly, and engineering will work to ensure that feature implementation follows these practices. The infrastructure team will make itself available to provide guidance as needed. If a feature is not compatible with these practices, an issue will be created with a request to correct the implementation.
 
 ### 24/7 on-call
 The 24/7 on-call (aka infrastructure on-call) is responsible for alarms related to fleetdm.com, Fleet sandbox, Fleet managed cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility happens in shifts of one week. The people involved in them will be:

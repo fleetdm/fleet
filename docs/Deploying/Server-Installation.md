@@ -34,7 +34,9 @@ In this guide, we're going to install Fleet and all of its application dependenc
 
 ### Setting up a host
 
-Acquiring a CentOS host to use for this guide is largely an exercise for the reader. If you don't have a CentOS host readily available, feel free to use [Vagrant](https://www.vagrantup.com/). In a clean, temporary directory, you can run the following to create a vagrant box, start it, and log into it:
+If you don't have a CentOS host readily available, Fleet recommends using [Vagrant](https://www.vagrantup.com/) for this guide. You can find installation instructions on Vagrant's [downloads page](https://developer.hashicorp.com/vagrant/downloads).
+
+Once you have installed Vagrant, run the following to create a Vagrant box, start it, and log into it:
 
 ```
 echo 'Vagrant.configure("2") do |config|
@@ -519,3 +521,4 @@ Below are some projects created by Fleet community members. These projects provi
 - [CptOfEvilMinions/FleetDM-Automation](https://github.com/CptOfEvilMinions/FleetDM-Automation) - Ansible and Docker code to set up Fleet
 
 <meta name="pageOrderInSection" value="200">
+<meta name="description" value="Information on installing and running the Fleet server on various platforms, including CentOS, Kubernetes, and AWS ECS.">

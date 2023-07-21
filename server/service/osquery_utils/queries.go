@@ -1281,6 +1281,8 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 
 func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
+		logger.Log("component", "service", "method", "ingestMDM", "warn",
+			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 		// assume the extension is not there
 		return nil
 	}

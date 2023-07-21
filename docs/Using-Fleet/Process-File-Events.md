@@ -177,3 +177,4 @@ Some events might get lost due to system load or low CPU/memory resources.
 
 <meta name="title" value="Querying process_file_events on CentOS 7">
 <meta name="pageOrderInSection" value="1900">
+<meta name="description" value="Learn how to configure and query the process_file_events table on CentOS 7 with Fleet.">

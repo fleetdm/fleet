@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -123,6 +124,9 @@ func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, 
 	team := &fleet.Team{}
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("Team").WithName(name))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 

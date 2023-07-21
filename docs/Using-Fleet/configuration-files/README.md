@@ -290,11 +290,9 @@ integrations
 webhook_settings
 ```
 
-You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
+You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will apply the changes without validation and should be used with caution.
 
 ### Mobile device management (MDM) settings for teams
-
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
 
@@ -1360,8 +1358,6 @@ agent_options:
 
 #### Mobile device management (MDM) settings
 
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
-
 The `mdm` section of the configuration YAML lets you control MDM settings in Fleet.
 
 ##### mdm.apple_bm_default_team
@@ -1378,6 +1374,8 @@ Set name of default team to use with Apple Business Manager.
   ```
 
 ##### mdm.windows_enabled_and_configured
+
+> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 Enables or disables Windows MDM support.
 
@@ -1467,3 +1465,5 @@ If you're using Fleet Premium, this enforces disk encryption on all hosts assign
 #### Advanced configuration
 
 > **Note:** More settings are included in the [contributor documentation](https://fleetdm.com/docs/contributing/configuration-for-contributors). It's possible, although not recommended, to configure these settings in the YAML configuration file.
+
+<meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure Fleet.">

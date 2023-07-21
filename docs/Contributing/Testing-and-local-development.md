@@ -673,3 +673,4 @@ The `pkg` file needs to be a signed "distribution package", you can find a dummy
 The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo.png`. To verify if the package was installed, you can open that folder and verify that the logo is there.
 
 <meta name="pageOrderInSection" value="1500">
+<meta name="description" value="An overview of Fleet's full test suite and integration tests.">

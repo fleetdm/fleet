@@ -160,16 +160,25 @@ variable "fleet_config" {
       }), {
       name = "fleet"
     })
-    database = object({
+    database = optional(object({
       password_secret_arn = string
       user                = string
       database            = string
       address             = string
       rr_address          = optional(string, null)
+      }), {
+      password_secret_arn = null
+      user                = null
+      database            = null
+      address             = null
+      rr_address          = null
     })
-    redis = object({
+    redis = optional(object({
       address = string
       use_tls = optional(bool, true)
+      }), {
+      address = null
+      use_tls = true
     })
     awslogs = optional(object({
       name      = optional(string, null)
@@ -183,12 +192,17 @@ variable "fleet_config" {
       prefix    = "fleet"
       retention = 5
     })
-    loadbalancer = object({
+    loadbalancer = optional(object({
       arn = string
+      }), {
+      arn = null
     })
-    networking = object({
+    networking = optional(object({
       subnets         = list(string)
       security_groups = optional(list(string), null)
+      }), {
+      subnets         = null
+      security_groups = null
     })
     autoscaling = optional(object({
       max_capacity                 = optional(number, 5)

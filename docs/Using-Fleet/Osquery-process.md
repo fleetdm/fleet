@@ -26,3 +26,4 @@ If the managed extension is `Non-existent` (either because it was `Non-existent`
 Lastly, we check the state of the watcher process itself. If it is deemed unhealthy because of resource contention, then the osquery process is shut down.
 
 <meta name="pageOrderInSection" value="700">
+<meta name="description" value="Learn about how osquery process manages child processes and managed extensions in Fleet.">
