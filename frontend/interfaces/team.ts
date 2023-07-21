@@ -1,4 +1,7 @@
 import PropTypes from "prop-types";
+
+import { TeamRole } from "utilities/roleBaseAccessControls/roleBaseAccessControls";
+
 import { IConfigFeatures, IWebhookSettings } from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { IIntegrations } from "./integration";
@@ -42,7 +45,7 @@ export interface ITeam extends ITeamSummary {
   user_count?: number;
   host_count?: number;
   secrets?: IEnrollSecret[];
-  role?: UserRole; // role value is included when the team is in the context of a user
+  role?: TeamRole; // role value is included when the team is in the context of a user
   mdm?: {
     macos_updates: {
       minimum_version: string;

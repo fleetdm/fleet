@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import FileSaver from "file-saver";
 import classNames from "classnames";
 
+import { usePermissions } from "utilities/roleBaseAccessControls/roleBaseAccessControls";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
@@ -84,7 +85,6 @@ import {
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
-  ManageHostsPageQueryParams,
 } from "./HostsPageConfig";
 import { isAcceptableStatus } from "./helpers";
 
@@ -100,7 +100,6 @@ import DeleteLabelModal from "./components/DeleteLabelModal";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
-import { usePermissions } from "utilities/roleBaseAccessControls/roleBaseAccessControls";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -135,8 +134,9 @@ const ManageHostsPage = ({
     setFilteredHostsPath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
-
   const { setResetSelectedRows } = useContext(TableContext);
+
+  const { hasPermission } = usePermissions();
 
   const {
     currentTeamId,
@@ -249,43 +249,10 @@ const ManageHostsPage = ({
   }, [activeLabel, labelID]);
 
   // ========= derived permissions
-  const { hasPermission } = usePermissions(permissionConfig);
-
-  // obj returned
-  const userPermissions = permissions(currentUser)
-  if (userPermissions.canEnrollHosts) {
-
-  }
-
-  // obj returned
-  const userPermissions = permissions(currentUser)
-  if (userPermissions.enrolls.hosts) {
-
-  }
-
-  const { canEnrollHosts } = usePermissions(permissionConfig, currentUser)
-
-  const { enrolls: {hosts: canEnrollHosts} } = usePermissions(permissionConfig, currentUser)
-
-  // boolean returned
-  const canEnrollHosts = hasPermission("hosts.edit");
-  const canEnrollHosts = hasPermission("hosts.edit");
-
+  const canEnrollHosts = hasPermission("hosts.create");
 
   // const canEnrollHosts =
   //   isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-
-
-
-  import hostPermissionConfig from "host/permissions";
-
-  const {
-    create: ['admin', 'maintainer'],
-  }
-
-  const { currentUser, currentTeam } = useContext(AppContext);
-
-  hasPermission(permissionConfig, currentUser, currentTeam);
 
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
