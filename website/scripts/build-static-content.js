@@ -193,7 +193,7 @@ module.exports = {
             let pageUnextensionedLowercasedRelPath = (
               pageRelSourcePath
               .replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2')
-              .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s/, '-')).join('/')
+              .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/')
             );
             let RX_README_FILENAME = /\/?readme\.?m?d?$/i;// « for matching `readme` or `readme.md` (case-insensitive) at the end of a file path
 
@@ -220,7 +220,7 @@ module.exports = {
                 SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
                 '/' + (
                   pageUnextensionedLowercasedRelPath
-                  .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\s/, '-'))).join('/')// « Get URL-friendly by encoding characters and stripping off ordering prefixes (like the "1-" in "1-Using-Fleet") for all folder and file names in the path.
+                  .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\s+/g, '-'))).join('/')// « Get URL-friendly by encoding characters and stripping off ordering prefixes (like the "1-" in "1-Using-Fleet") for all folder and file names in the path.
                 )
               ).replace(RX_README_FILENAME, '')// « Interpret README files as special and map it to the URL representing its containing folder.
             );
@@ -294,7 +294,7 @@ module.exports = {
                 let possibleReferencedUrlHash = oldRelPath.match(/(\.md#)([^/]*$)/) ? oldRelPath.match(/(\.md#)([^/]*$)/)[2] : false;
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
                   (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/'))
-                  .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\s/, '-'))).join('/')
+                  .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\s+/g, '-'))).join('/')
                 ).replace(RX_README_FILENAME, '');
                 if(possibleReferencedUrlHash) {
                   referencedPageNewUrl = referencedPageNewUrl + '#' + encodeURIComponent(possibleReferencedUrlHash);
