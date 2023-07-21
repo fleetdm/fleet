@@ -249,13 +249,10 @@ const ManageHostsPage = ({
   }, [activeLabel, labelID]);
 
   // ========= derived permissions
-  const canEnrollHosts = hasPermission("hosts.create");
-
-  // const canEnrollHosts =
-  //   isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollHosts = hasPermission("host.create");
+  const canAddNewLabels = hasPermission("label.create");
 
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
   const { data: labels, refetch: refetchLabels } = useQuery<
     ILabelsResponse,

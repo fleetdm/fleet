@@ -1,6 +1,9 @@
+import { useContext } from "react";
+
 import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
-import { useContext } from "react";
+
+import { Permission, permissions } from "./permissions";
 
 /** global roles as they come back from the API. */
 export type GlobalRole =
@@ -46,19 +49,6 @@ const ApiToClientTeamRoleMap: Record<TeamRole, PermissionRole> = {
   gitops: "team-gitops",
 };
 
-// This is a mapping of the application actions to the roles that have
-// permission to perform them.
-export const permissions = {
-  "hosts.create": [
-    "global-admin",
-    "global-maintainer",
-    "team-admin",
-    "team-maintainer",
-  ],
-};
-
-export type Permission = keyof typeof permissions;
-
 const getCurrentTeamRole = (
   currentUserTeams?: ITeam[],
   currentTeamId?: number
@@ -85,14 +75,16 @@ export const usePermissions = () => {
 
   const hasGlobalPermission = (permissionName: Permission) => {
     return (
-      globalRole &&
+      globalRole !== null &&
+      globalRole !== undefined &&
       permissions[permissionName].includes(ApiToClientGlobalRoleMap[globalRole])
     );
   };
 
   const hasTeamPermission = (permissionName: Permission) => {
     return (
-      currentTeamRole &&
+      currentTeamRole !== null &&
+      currentTeamRole !== undefined &&
       permissions[permissionName].includes(
         ApiToClientTeamRoleMap[currentTeamRole]
       )
@@ -100,46 +92,10 @@ export const usePermissions = () => {
   };
 
   const hasPermission = (permissionName: Permission) => {
-    if (
-      hasGlobalPermission(permissionName) ||
-      hasTeamPermission(permissionName)
-    ) {
-      console.log("has permission");
-      console.log("global Role", globalRole);
-      console.log("currentTeamRole", currentTeamRole);
-    }
-
-    return false;
+    return (
+      hasGlobalPermission(permissionName) || hasTeamPermission(permissionName)
+    );
   };
 
   return { hasPermission };
 };
-
-// };
-
-// const hasPermission = (scope, team?) => {};
-
-// API
-// const canEditQuery = hasPermission("quieries.edit");
-
-/**
- * Test APIS
-
-  const { hasPermission } = usePermissions(permissionConfig);
-
-  // obj returned
-  const userPermissions = permissions(currentUser);
-  if (userPermissions.canEnrollHosts) {
-  }
-
-  // obj returned
-  const userPermissions = permissions(currentUser);
-  if (userPermissions.enrolls.hosts) {
-  }
-
-  const { canEnrollHosts } = usePermissions(permissionConfig, currentUser);
-
-  // boolean returned
-  const canEnrollHosts = hasPermission("hosts.edit");
-
- */
