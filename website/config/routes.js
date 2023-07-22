@@ -1,5 +1,5 @@
 /**
- * Route Mappings
+ * TEST TEST TEST
  * (sails.config.routes)
  *
  * Your routes tell Sails what to do each time it receives a request.
