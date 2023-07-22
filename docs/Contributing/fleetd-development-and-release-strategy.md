@@ -7,7 +7,7 @@ Goal: Define strategy that Fleetd developers must follow when introducing new fe
 Fleetd and Fleet use different release strategies. Fleetd components are updated via "automatic updates" by continuously polling https://tuf.fleetctl.com/ for new versions, whereas on-premises Fleet servers are updated manually by administrators.
 For this reason we need a good release strategy to not break on-premise deployments when we release new versions of Fleetd components.
 
-## Must Rule
+## Must rule
 
 "New Fleetd versions always support communication + operation with older Fleet servers."
 
