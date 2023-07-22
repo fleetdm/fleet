@@ -43,6 +43,15 @@ go.mod @fleetdm/go
 /frontend/ @fleetdm/frontend
 
 ##############################################################################################
+# Config as code for infrastructure, internal security and IT use cases, and more.
+# (1 or more infra-literate engineers is required to review changes.)
+# FUTURE: Look for a way to not have this notify every single person in this "github team".
+##############################################################################################
+/infrastructure/ @fleetdm/infra
+/charts/ @fleetdm/infra
+/terraform/ @fleetdm/infra
+
+##############################################################################################
 # Key handbook pages w/ required reviewers
 #
 # (Especially useful for paths that tend to end up in PRs with lots of other reviewers)

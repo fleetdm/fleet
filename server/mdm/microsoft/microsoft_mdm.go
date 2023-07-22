@@ -42,6 +42,9 @@ const (
 	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/5b02c625-ced2-4a01-a8e1-da0ae84f5bb7
 	MDE2ManagementPath = MDMPath + "/management"
 
+	// MDE2TOSPath is the HTTP endpoint path that delivers Terms of Service Content
+	MDE2TOSPath = MDMPath + "/tos"
+
 	// These are the entry points for the Microsoft Device Enrollment (MS-MDE) and Microsoft Device Enrollment v2 (MS-MDE2) protocols.
 	// These are required to be implemented by the MDM server to support user-driven enrollments
 	MSEnrollEntryPoint = "/EnrollmentServer/Discovery.svc"
@@ -134,6 +137,12 @@ const (
 
 	// HTTP Content Type for SOAP responses
 	SoapContentType = "application/soap+xml; charset=utf-8"
+
+	// HTTP Content Type for SyncML MDM responses
+	SyncMLContentType = "application/vnd.syncml.dm+xml"
+
+	// HTTP Content Type for Webcontainer responses
+	WebContainerContentType = "text/html; charset=UTF-8"
 
 	// Minimal Key Length for SHA1WithRSA encryption
 	PolicyMinKeyLength = "2048"
@@ -228,6 +237,16 @@ const (
 
 	// Login related query param expected by STS Auth endpoint
 	STSLoginHint = "login_hint"
+
+	// redirect_uri query param expected by TOS endpoint
+	TOCRedirectURI = "redirect_uri"
+
+	// client-request-id query param expected by TOS endpoint
+	TOCReqID = "client-request-id"
+
+	// Alert Command IDs
+	DeviceUnenrollmentID = "1226"
+	HostInitMessageID    = "1201"
 )
 
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
