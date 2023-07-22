@@ -322,7 +322,7 @@ module.exports = {
         //   - https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
         //   - https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
         let alreadyRequestedReviewers = _.isArray(issueOrPr.requested_reviewers) ? _.pluck(issueOrPr.requested_reviewers, 'login') : [];
-        alreadyRequestedReviewers.map((username) => username.toLowerCase());// « make sure they are all lowercased
+        alreadyRequestedReviewers = alreadyRequestedReviewers.map((username) => username.toLowerCase());// « make sure they are all lowercased
 
         let expectedReviewers = [];//« GitHub usernames of people who we expect reviews from.
         // Determine DRIs to request review from, then do it.
@@ -338,45 +338,25 @@ module.exports = {
           // For each changed file, decide what reviewer to request, if any…
           for (let changedPath of changedPaths) {
             changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
-            sails.log.debug(`…checking DRI of changed path "${changedPath}"`);
+            sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
 
             let reviewer = undefined;//« whether to request review for this change
             let exactMatchDri = DRI_BY_PATH[changedPath];
-            if (exactMatchDri) {
-              let isAuthorDRI = exactMatchDri === issueOrPr.user.login.toLowerCase();//« See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
-              let isSenderDRI = exactMatchDri === sender.login.toLowerCase();
-              if (isAuthorDRI || isSenderDRI) {
-                // If the original PR author OR you, the sender (current PR author/editor) are the DRI,
-                // then do nothing.  No need to request review from yourself, and you CAN'T request
-                // review from the author (or the GitHub API will respond with an error.)
-              } else {
-                // Otherwise, we've found our match.  We'll request review from this person.
-                // (And we'll stop looking.)
-                reviewer = exactMatchDri;
-              }
+            if (exactMatchDri) {// « If we've found our DRI, then we'll stop looking (for *this* changed path, anyway)
+              reviewer = exactMatchDri;
             } else {// If there's no DRI for this *exact* file path, then check ancestral paths for the nearest DRI
-
               let numRemainingPathsToCheck = changedPath.split('/').length - 1;
               while (numRemainingPathsToCheck > 0) {
                 let ancestralPath = changedPath.split('/').slice(0, numRemainingPathsToCheck).join('/');
-                sails.log.debug(`…checking DRI of ancestral path "${ancestralPath}" for changed path "${changedPath}"`);
-
+                sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path "${changedPath}"`);
                 let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
-
-                let isAuthorAncestralDRI = nearestAncestralDri === issueOrPr.user.login.toLowerCase();//« See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
-                let isSenderAncestralDRI = nearestAncestralDri === sender.login.toLowerCase();
-                if (isAuthorAncestralDRI || isSenderAncestralDRI) {
-                  // For the same reasons as above, if the original PR author or you (current author/editor)
-                  // are the editor, then we do nothing.
-                  break;
-                } else if (nearestAncestralDri) {// Otherwise, if we have our DRI, we can stop here.
+                if (nearestAncestralDri) {// Otherwise, if we have our DRI, we can stop here.
                   reviewer = nearestAncestralDri;
                   break;
-                }
+                }//ﬁ
                 numRemainingPathsToCheck--;
               }//∞
             }
-
 
             if (reviewer) {
               expectedReviewers.push(reviewer);
@@ -386,15 +366,22 @@ module.exports = {
           }//∞
 
 
-          // If review should be requested, do so, but only for people whose review hasn't already been requested.
-          let newReviewers = _.difference(expectedReviewers, alreadyRequestedReviewers);
+          // Now, if reviews should be requested for this PR, do so.
+          //
+          // > Note: Should we automatically remove reviewers?  Nah, we excluded this on purpose, to avoid removing deliberate
+          // > custom review requests sent by real humans humans.
+          let newReviewers;
+          newReviewers = _.difference(expectedReviewers, alreadyRequestedReviewers);// « Don't request review from people whose review has already been requested.
+          newReviewers = _.difference(newReviewers, [// « If the original PR author OR you, the sender (current PR author/editor) are the DRI, then don't request review.  No need to request review from yourself, and you CAN'T request review from the author (or the GitHub API will respond with an error.)
+            issueOrPr.user.login.toLowerCase(),//« author (the original PR opener)  --  See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
+            sender.login.toLowerCase(),//« sender (*you*, the current PR opener/editor)
+          ]);
           if (newReviewers.length >= 1) {// « don't attempt to request review from no one
-
             // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
             await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, {
               reviewers: newReviewers,
             }, baseHeaders);
-          }
+          }//ﬁ
 
         }//ﬁ
 
