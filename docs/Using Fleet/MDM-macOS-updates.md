@@ -27,7 +27,7 @@ To set the macOS updates settings via CLI, use the configurations listed [here](
 
 ### Requirements
 - Fleet Premium or Ultimate
-- [Fleetd](https://fleetdm.com/docs/using-fleet/orbit) with Fleet Desktop enabled
+- [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd) with Fleet Desktop enabled
 
 ### End user experience
 

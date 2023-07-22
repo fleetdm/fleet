@@ -3,7 +3,7 @@
 
 - [Enroll hosts](#enroll-hosts)
   - [Introduction](#introduction)
-  - [Enroll hosts with Orbit](#enroll-hosts-with-orbit)
+  - [Add hosts with Fleetd](#add-hosts-with-fleetd)
     - [Signing installers](#signing-installers)
     - [Including Fleet Desktop](#including-fleet-desktop)
     - [Enrolling multiple hosts](#adding-multiple-hosts)
@@ -27,30 +27,31 @@
 
 ## Introduction
 
-Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recomended way to install osquery is using [Orbit](https://fleetdm.com/docs/using-fleet/orbit), Fleet's lightweight osquery runtime and autoupdater. 
+Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recommended way to install osquery is using Fleetd, which includes [Orbit](https://fleetdm.com/docs/using-fleet/fleetd), Fleet's lightweight osquery runtime and auto-updater.
 
 You can also install plain osquery on your hosts and connect to Fleet using osquery's `TLS API` plugins.
 
 > For ChromeOS hosts, the [fleetd Chrome extension](#add-chromebooks-with-the-fleetd-chrome-extension) is installed instead of osquery.
 
-## Enroll hosts with Orbit
 
-To create an Orbit installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
+## Enroll hosts with Fleetd
 
-The `fleetctl package` can create an Orbit installer, which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
+To create a Fleet installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
 
-The following command creates an Orbit installer, `.pkg` file, which adds macOS hosts to Fleet. Locate this osquery installer in the folder where the `fleetctl package` command is run.
+The `fleetctl package` can create a Fleetd installer, which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
+
+The following command creates a Fleetd installer, `.pkg` file, which adds macOS hosts to Fleet. Locate this osquery installer in the folder where the `fleetctl package` command is run.
 
 ```sh
 fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
   >**Note:** The only configuration option required to create an installer is `--type`, but to communicate with a Fleet instance, you'll need to specify a `--fleet-url` and `--enroll-secret`
 
-When you install the generated Orbit installer on a host, this host will automatically enroll in the specified Fleet instance.
+When you install the generated Fleetd installer on a host, this host will automatically enroll in the specified Fleet instance.
 
 ### Signing installers
 
-  >**Note:** Currently, the `fleetctl package` does not provide support for signing Windows Orbit installers. Windows installers can be signed after building.
+  >**Note:** Currently, the `fleetctl package` does not provide support for signing Windows Fleetd installers. Windows installers can be signed after building.
 
 The `fleetctl package` provides support for signing and notarizing macOS osquery installers via the
 `--sign-identity` and `--notarize` flags.
@@ -61,7 +62,7 @@ Check out the example below:
   AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
 
-The above command should be run on a macOS device, as the notarizing and signing of macOS Orbit installers can only be done on macOS devices.
+The above command should be run on a macOS device, as the notarizing and signing of macOS Fleetd installers can only be done on macOS devices.
 
 Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively. Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID."
 
@@ -85,14 +86,14 @@ Alternatively, you can generate an installer that includes Fleet Desktop in `fle
 > and versions [here
 > on GitHub](https://github.com/fleetdm/fleet/issues/5684#issuecomment-1123906753). 
 
-Once installed on the target host, Fleet Desktop will be managed by Orbit. To learn more about Orbit updates, see [here](https://fleetdm.com/docs/deploying/fleetctl-agent-updates).
+Once installed on the target host, Fleet Desktop will be managed by Fleetd. To learn more about Fleetd updates, see [here](https://fleetdm.com/docs/deploying/fleetctl-agent-updates).
 To prevent this auto-update behavior, you can turn off auto-updates via the `--disable-updates` flag or you can set a specific channel using the `--desktop-channel` flag.
 
 ### Adding multiple hosts
 
 If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts.
 
-You can distribute your Orbit installer and add all your hosts to Fleet using your software management tool of choice.
+You can distribute your Fleetd installer and add all your hosts to Fleet using your software management tool of choice.
 
 ### Automatically adding hosts to a team
 
@@ -302,7 +303,7 @@ Under "Installation Policy", select "Force install". Under "Update URL", select 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which
 is required to deploy these profiles, you
-can deploy a "Privacy Preferences Policy Control" policy to grant Orbit or osquery that level of
+can deploy a "Privacy Preferences Policy Control" policy to grant Fleetd or osquery that level of
 access. This is necessary to query for files located in protected paths as well as to use event
 tables that require access to the [EndpointSecurity
 API](https://developer.apple.com/documentation/endpointsecurity#overview), such as *es_process_events*.
@@ -311,8 +312,8 @@ API](https://developer.apple.com/documentation/endpointsecurity#overview), such 
 #### Obtaining identifiers
 If you use plain osquery, instructions are [available here](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/).
 
-On a system with osquery installed via the Fleet osquery installer (Orbit), obtain the
-`CodeRequirement` of Orbit by running:
+On a system with osquery installed via the Fleet osquery installer (Fleetd), obtain the
+`CodeRequirement` of Fleetd by running:
 
 ```
 codesign -dr - /opt/orbit/bin/orbit/macos/stable/orbit
@@ -326,7 +327,7 @@ designated => identifier "com.fleetdm.orbit" and anchor apple generic and certif
 ```
 
 > **NOTE:** Depending on the version of `fleetctl` used to package and install Orbit, as well as the update channel you've specified, the executable path may differ.
-> Fleetctl versions <= 4.13.2 would install orbit to `/var/lib/orbit` instead of `/opt/orbit`.
+> Fleetctl versions <= 4.13.2 would install Orbit to `/var/lib/orbit` instead of `/opt/orbit`.
 
 Note down the **executable path** and the entire **identifier**.
 

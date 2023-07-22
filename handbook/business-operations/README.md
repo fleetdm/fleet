@@ -674,18 +674,6 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 
 
 ## Celebrations
-
-### Weekly updates
-We like to open about milestones and announcements.
-  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
-  - Friday nights, Mike McNeil will post a short update in #general including:
-    - a link to view KPIs
-    - who was on-call that week
-    - fleeties who are currently onboarding
-    - planned hires who haven't started yet
-    - fleeties who had their lady day that week
-  - The weekly update uses the format of the previous week's update, which is in the KPIs spreadsheet.  The best way to start is by copying and pasting the previous week's upfate and modifying it.
-  - After posting to #general, the weekly update is also saved in thr KPI spreadsheet.
  
 ### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
@@ -1000,6 +988,10 @@ The following stubs are included only to make links backward compatible.
 ##### Open positions
 
 Please see [handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
+
+##### Weekly updates
+
+Please see [handbook/company/ceo-handbook#weekly-updates](https://fleetdm.com/handbook/company/ceo-handbook#weekly-updates)
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🔦 Business Operations">
