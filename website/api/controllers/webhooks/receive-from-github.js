@@ -324,12 +324,10 @@ module.exports = {
         let alreadyRequestedReviewers = _.isArray(issueOrPr.requested_reviewers) ? _.pluck(issueOrPr.requested_reviewers, 'login') : [];
         alreadyRequestedReviewers.map((username) => username.toLowerCase());// « make sure they are all lowercased
 
-        // Request review from DRI
-        // History: https://github.com/fleetdm/fleet/pull/12786)  (only relevant for paths NOT in the CODEOWNERS file)
-        // (Draft PRs are skipped)
-        if (!issueOrPr.draft) {
-
-          let reviewers = [];//« GitHub usernames of people to request review from.
+        let expectedReviewers = [];//« GitHub usernames of people who we expect reviews from.
+        // Determine DRIs to request review from, then do it.
+        //   > History: https://github.com/fleetdm/fleet/pull/12786)
+        if (!issueOrPr.draft) {// « (Draft PRs are skipped)
 
           // Look up paths
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
@@ -379,20 +377,22 @@ module.exports = {
               }//∞
             }
 
-            // If review should be requested, do so, but only if review hasn't already
-            // been requested from this person.
-            if (reviewer && !alreadyRequestedReviewers.includes(reviewer)) {
-              reviewers.push(reviewer);
-              reviewers = _.uniq(reviewers);// « avoid attempting to request review from the same person twice
+
+            if (reviewer) {
+              expectedReviewers.push(reviewer);
+              expectedReviewers = _.uniq(expectedReviewers);// « avoid attempting to request review from the same person twice
             }//ﬁ
 
           }//∞
 
-          if (reviewers.length >= 1) {// « don't attempt to request review from no one
+
+          // If review should be requested, do so, but only for people whose review hasn't already been requested.
+          let newReviewers = _.difference(expectedReviewers, alreadyRequestedReviewers);
+          if (newReviewers.length >= 1) {// « don't attempt to request review from no one
 
             // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
             await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, {
-              reviewers: reviewers,
+              reviewers: newReviewers,
             }, baseHeaders);
           }
 
@@ -415,25 +415,25 @@ module.exports = {
         if(repo === 'fleet'){
           isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
         }//ﬁ
-        if(isHandbookPR) {
+        if(isHandbookPR && !existingLabels.includes('#handbook')) {
           // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
             labels: ['#handbook']
           }, baseHeaders);
-        } else if (existingLabels.includes('#handbook')) {
+        } else if (!isHandbookPR && existingLabels.includes('#handbook')) {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#handbook')}`, {}, baseHeaders);
         }//ﬁ
 
         // Add the appropriate label to PRs awaiting review from the CEO so that these PRs show up in kanban.
         // [?] https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
-        let isAwaitingCeoReview = alreadyRequestedReviewers.includes('mikermcneil');
-        if (isAwaitingCeoReview) {
+        let isPRStillDependentOnCeoReview = expectedReviewers.includes('mikermcneil');
+        if (isPRStillDependentOnCeoReview && !existingLabels.includes('#g-ceo')) {
           // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
             labels: ['#g-ceo']
           }, baseHeaders);
-        } else if (existingLabels.includes('#g-ceo')) {
+        } else if (!isPRStillDependentOnCeoReview && existingLabels.includes('#g-ceo')) {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#handbook')}`, {}, baseHeaders);
         }//ﬁ
