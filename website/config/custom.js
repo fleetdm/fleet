@@ -137,8 +137,8 @@ module.exports.custom = {
     'website/package.json': 'eashaw',
 
     // 🫧 Pricing and features
-    'website/views/pages/pricing.ejs': 'mikermcneil',//« CEO is DRI for pricing
-    'handbook/product/pricing-features-table.yml': 'mikermcneil',//« CEO is current DRI for product marketing (e.g. features table)
+    // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
+    // 'handbook/product/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
