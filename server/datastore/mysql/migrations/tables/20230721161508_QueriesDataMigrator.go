@@ -266,9 +266,11 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 }
 
 func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
+	// If the query is not scheduled, then it stays global except if it was created by a team user,
+	// in which case the query is duplicated as a team query iff the user is a mantainer of the team.
 	type QueryWithTeamIDs struct {
 		fleet.Query
-		TeamIDs string
+		TeamRoles string
 	}
 
 	selectStmt := `
@@ -278,7 +280,7 @@ func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 						q.author_id,
 						q.saved,
 						q.observer_can_run,
-						GROUP_CONCAT(ut.team_id) AS team_ids
+						GROUP_CONCAT(CONCAT(ut.team_id, ':', ut.role)) AS team_roles
 		FROM queries q
 				LEFT JOIN scheduled_queries sq ON q.team_id IS NULL AND q.name = sq.query_name
 				INNER JOIN user_teams ut on q.author_id = ut.user_id
@@ -303,14 +305,20 @@ func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 			&query.AuthorID,
 			&query.Saved,
 			&query.ObserverCanRun,
-			&query.TeamIDs,
+			&query.TeamRoles,
 		); err != nil {
 			return fmt.Errorf("error executing 'Scan' for non-scheduled queries: %s", err)
 		}
-		teamIDs := strings.Split(query.TeamIDs, ",")
-		for _, teamIDStr := range teamIDs {
+		teamRoles := strings.Split(query.TeamRoles, ",")
+		for _, teamRole := range teamRoles {
+			teamRoleParts := strings.Split(teamRole, ":")
+
+			role := teamRoleParts[1]
+			if role == "observer" || role == "observer_plus" {
+				continue
+			}
 			nRows += 1
-			teamID, err := strconv.Atoi(teamIDStr)
+			teamID, err := strconv.Atoi(teamRoleParts[0])
 			if err != nil {
 				return fmt.Errorf("error parsing team ID on non-scheduled queries: %s", err)
 			}
@@ -322,7 +330,7 @@ func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 				query.Saved,
 				query.ObserverCanRun,
 				teamID,
-				teamIDStr,
+				teamRoleParts[0],
 			)
 		}
 	}
@@ -356,17 +364,48 @@ func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 	return nil
 }
 
-func Up_20230721161508(tx *sql.Tx) error {
+func _20230719152138_clean_up(tx *sql.Tx) error {
 	// Remove query stats
-	_, err := tx.Exec(`TRUNCATE scheduled_query_stats`)
-	if err != nil {
+	if _, err := tx.Exec(`TRUNCATE scheduled_query_stats`); err != nil {
 		return fmt.Errorf("error truncating 'scheduled_query_stats': %s", err)
 	}
-	_, err = tx.Exec(`DELETE FROM aggregated_stats WHERE type = 'query' OR type = 'scheduled_query'`)
-	if err != nil {
+	if _, err := tx.Exec(`DELETE FROM aggregated_stats WHERE type = 'query' OR type = 'scheduled_query'`); err != nil {
 		return fmt.Errorf("error removing aggregated_stats: %s", err)
 	}
 
+	// Delete queries that only belong to 'global' and 'team' packs
+	if _, err := tx.Exec(`
+DELETE
+FROM queries
+WHERE name IN (SELECT query_name
+               FROM (SELECT query_name
+                     FROM scheduled_queries
+                              INNER JOIN packs p on scheduled_queries.pack_id = p.id
+                     WHERE p.pack_type = 'global'
+                     UNION
+                     SELECT query_name
+                     FROM scheduled_queries
+                              INNER JOIN packs p on scheduled_queries.pack_id = p.id
+                     WHERE p.pack_type LIKE 'team-%') r
+               WHERE query_name NOT IN (SELECT query_name
+                                        FROM scheduled_queries
+                                                 INNER JOIN packs p on scheduled_queries.pack_id = p.id
+                                        WHERE p.pack_type IS NULL))	
+	
+	`); err != nil {
+		return fmt.Errorf("error deleting queries that belong only to global / team packs: %s", err)
+	}
+
+	// Remove 'global' and 'team' packs ... relevant rows in the 'scheduled_queries' table should be
+	// deleted because of the on cascade delete on the pack_id FK.
+	if _, err := tx.Exec(`DELETE FROM packs WHERE pack_type = 'global' OR pack_type LIKE 'team-%'`); err != nil {
+		return fmt.Errorf("error deleting packs: %s", err)
+	}
+
+	return nil
+}
+
+func Up_20230721161508(tx *sql.Tx) error {
 	// Migrates 'old' scheduled queries to the 'new' query schema.
 	// Queries can either be:
 	// 	1 - Scheduled, which can either belong to:
@@ -403,13 +442,14 @@ func Up_20230721161508(tx *sql.Tx) error {
 		return err
 	}
 
-	// TODO: Clean up queries that only belong to 'global' and 'team' packs
-
-	// Remove 'global' and 'team' packs
-	_, err = tx.Exec(`DELETE FROM packs WHERE pack_type = 'global' OR pack_type LIKE 'team-%'`)
-	if err != nil {
-		return fmt.Errorf("error deleting packs: %s", err)
+	//-------------------------------------------------------
+	// Remove stats, global packs and team packs and queries
+	// that are only used in global/team packs.
+	//-------------------------------------------------------
+	if err := _20230719152138_clean_up(tx); err != nil {
+		return err
 	}
+
 	return nil
 }
 

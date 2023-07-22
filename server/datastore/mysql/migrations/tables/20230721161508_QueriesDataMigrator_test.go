@@ -23,7 +23,8 @@ func TestUp_20230721161508(t *testing.T) {
 		INSERT INTO user_teams (user_id, team_id, role) VALUES 
 			(2,1,'admin'),
 			(2,2,'admin'),
-			(3,2,'admin');
+			(3,2,'admin'),
+			(3,1,'observer');
 
 		INSERT INTO packs (id, created_at, updated_at, disabled, name, description, platform, pack_type) VALUES 
 			(1,'2023-07-21 20:33:49','2023-07-21 20:33:49',0,'Global','Global pack','','global'),
@@ -39,7 +40,8 @@ func TestUp_20230721161508(t *testing.T) {
 			(5,'2023-07-21 20:34:34','2023-07-21 20:34:34',1,'backup_tool_perf','Track the percentage of total CPU time utilized by $backup_tool','SELECT ((backuptool_time*100)/(SUM(system_time) + SUM(user_time))) AS pct FROM processes, (SELECT (SUM(processes.system_time)+SUM(processes.user_time)) AS backuptool_time FROM processes WHERE name=\'backup_tool\');',1,0,NULL,'','','',0,0,''),
 			(6,'2023-07-21 20:35:37','2023-07-21 20:35:37',1,'User 1 Query','User 1 Query Desc','SELECT * FROM osquery_info;',2,0,NULL,'','','',0,0,''),
 			(7,'2023-07-21 20:36:02','2023-07-21 20:36:02',1,'User 1 Query 2','','SELECT * FROM osquery_info;',2,1,NULL,'','','',0,0,''),
-			(8,'2023-07-21 20:37:01','2023-07-21 20:37:01',1,'User 2 Query','Some desc','SELECT * FROM osquery_info;',3,1,NULL,'','','',0,0,'');
+			(8,'2023-07-21 20:37:01','2023-07-21 20:37:01',1,'User 2 Query','Some desc','SELECT * FROM osquery_info;',3,1,NULL,'','','',0,0,''),
+			(9,'2023-07-21 20:37:01','2023-07-21 20:37:01',1,'User 2 Query 2','Some desc','SELECT * FROM osquery_info;',3,1,NULL,'','','',0,0,'');
 
 		INSERT INTO scheduled_queries VALUES 
 			-- Global pack
@@ -106,13 +108,12 @@ func TestUp_20230721161508(t *testing.T) {
 			teamIDs = append(teamIDs, *query.TeamID)
 		}
 	}
+	require.Equal(t, nRows, 2)
 	require.ElementsMatch(t, teamIDStrs, []string{"", "2"})
 	require.Contains(t, teamIDs, uint(2))
-	require.Equal(t, nRows, 2)
 
 	// The global pack has 4 different schedules two targeting 'Admin Global Query' and the other
 	// two targeting 'performance-metrics' so I expect to see 6 queries here:
-	// 'Admin Global Query' <- Original (TODO: to be removed later)
 	// 'Admin Global Query - 1' <- For schedule with id 1
 	// 'Admin Global Query - 2' <- For schedule with id 2
 	// 'performance-metrics' <- Original (kept because is referenced by an 2017 pack)
@@ -172,11 +173,11 @@ func TestUp_20230721161508(t *testing.T) {
 		require.Equal(t, query.Saved, true)
 		require.Equal(t, query.ObserverCanRun, true)
 	}
-	require.ElementsMatch(t, names, []string{"Admin Global Query", "Admin Global Query - 1", "Admin Global Query - 2"})
-	require.ElementsMatch(t, scheduleIntervals, []uint{0, 3600, 86400})
-	require.ElementsMatch(t, automationsEnabled, []bool{false, true, true})
-	require.ElementsMatch(t, loggingTypes, []string{"", "snapshot", "snapshot"})
-	require.Equal(t, nRows, 3)
+	require.ElementsMatch(t, names, []string{"Admin Global Query - 1", "Admin Global Query - 2"})
+	require.ElementsMatch(t, scheduleIntervals, []uint{3600, 86400})
+	require.ElementsMatch(t, automationsEnabled, []bool{true, true})
+	require.ElementsMatch(t, loggingTypes, []string{"snapshot", "snapshot"})
+	require.Equal(t, nRows, 2)
 
 	rows, err = db.Query(stmt, "per_query_perf%")
 	require.NoError(t, err)
