@@ -302,6 +302,9 @@ module.exports = {
 
         require('assert')(sender.login !== undefined);
 
+        //  ┌─┐┌─┐┌┬┐   ┬   ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐  ┌─┐─┐ ┬┌─┐┌─┐┌─┐┌┬┐┌─┐┌┬┐  ┬─┐┌─┐┬  ┬┬┌─┐┬ ┬┌─┐┬─┐┌─┐
+        //  │ ┬├┤  │   ┌┼─  │││├─┤│││├─┤│ ┬├┤   ├┤ ┌┴┬┘├─┘├┤ │   │ ├┤  ││  ├┬┘├┤ └┐┌┘│├┤ │││├┤ ├┬┘└─┐
+        //  └─┘└─┘ ┴   └┘   ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘  └─┘┴ └─┴  └─┘└─┘ ┴ └─┘─┴┘  ┴└─└─┘ └┘ ┴└─┘└┴┘└─┘┴└─└─┘
         let DRI_BY_PATH = {};
         if (repo === 'fleet') {
           DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
@@ -310,24 +313,23 @@ module.exports = {
           // FUTURE: Configure it for them
         }
 
-        let existingLabels = _.isArray(issueOrPr.labels) ? _.pluck(issueOrPr.labels, 'name') : [];
-
-        // Look up already-requested reviewers
-        // (for use later in minimizing extra notifications for editing PRs to contain new changes
-        // while also still doing appropriate review requests.  Also for determining whether
-        // to apply the #g-ceo label)
-        //
-        // The "requested_reviewers" key in the pull request object:
-        //   - https://developer.github.com/v3/activity/events/types
-        //   - https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
-        //   - https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
-        let alreadyRequestedReviewers = _.isArray(issueOrPr.requested_reviewers) ? _.pluck(issueOrPr.requested_reviewers, 'login') : [];
-        alreadyRequestedReviewers = alreadyRequestedReviewers.map((username) => username.toLowerCase());// « make sure they are all lowercased
-
-        let expectedReviewers = [];//« GitHub usernames of people who we expect reviews from.
-        // Determine DRIs to request review from, then do it.
+        // Determine DRIs to request review from.
         //   > History: https://github.com/fleetdm/fleet/pull/12786)
+        let expectedReviewers = [];//« GitHub usernames of people who we expect reviews from.
+
         if (!issueOrPr.draft) {// « (Draft PRs are skipped)
+
+          // Look up already-requested reviewers
+          // (for use later in minimizing extra notifications for editing PRs to contain new changes
+          // while also still doing appropriate review requests.  Also for determining whether
+          // to apply the #g-ceo label)
+          //
+          // The "requested_reviewers" key in the pull request object:
+          //   - https://developer.github.com/v3/activity/events/types
+          //   - https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
+          //   - https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
+          let alreadyRequestedReviewers = _.isArray(issueOrPr.requested_reviewers) ? _.pluck(issueOrPr.requested_reviewers, 'login') : [];
+          alreadyRequestedReviewers = alreadyRequestedReviewers.map((username) => username.toLowerCase());// « make sure they are all lowercased
 
           // Look up paths
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
@@ -365,7 +367,6 @@ module.exports = {
 
           }//∞
 
-
           // Now, if reviews should be requested for this PR, do so.
           //
           // > Note: Should we automatically remove reviewers?  Nah, we excluded this on purpose, to avoid removing deliberate
@@ -385,16 +386,11 @@ module.exports = {
 
         }//ﬁ
 
-        // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
-        // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
-        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
-        .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
-          // If the MergeFreeze API returns a non 200 response, log a warning and continue under the assumption that the main branch is not frozen.
-          sails.log.warn('When sending a request to the MergeFreeze API to get the status of the main branch, MergeFreeze did not respond with a 2xx status code.  (Error details forthcoming in just a sec.)  First, how to remediate: If the main branch is frozen, it will need to be manually unfrozen before PR #'+prNumber+' can be merged. Raw underlying error from MergeFreeze: '+err.stack);
-          return { frozen: false };
-        });
-        sails.log.verbose('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
-        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen;
+        //  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐  ┬  ┌─┐┌┐ ┌─┐┬  ┌─┐
+        //  │││├─┤│││├─┤│ ┬├┤   │  ├─┤├┴┐├┤ │  └─┐
+        //  ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘  ┴─┘┴ ┴└─┘└─┘┴─┘└─┘
+        // Now manage automatic labeling.
+        let existingLabels = _.isArray(issueOrPr.labels) ? _.pluck(issueOrPr.labels, 'name') : [];
 
         // Add the #handbook label to PRs that only make changes to the handbook,
         // and remove it from PRs that NO LONGER ONLY contain changes to the handbook.
@@ -425,14 +421,27 @@ module.exports = {
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#handbook')}`, {}, baseHeaders);
         }//ﬁ
 
+        //  ┌─┐┬ ┬┌┬┐┌─┐   ┌─┐┌─┐┌─┐┬─┐┌─┐┬  ┬┌─┐   ┬   ┬ ┬┌┐┌┌─┐┬─┐┌─┐┌─┐┌─┐┌─┐
+        //  ├─┤│ │ │ │ │───├─┤├─┘├─┘├┬┘│ │└┐┌┘├┤   ┌┼─  │ ││││├┤ ├┬┘├┤ ├┤ ┌─┘├┤
+        //  ┴ ┴└─┘ ┴ └─┘   ┴ ┴┴  ┴  ┴└─└─┘ └┘ └─┘  └┘   └─┘┘└┘└  ┴└─└─┘└─┘└─┘└─┘
         // Now, if appropriate, auto-approve the change.
-        let isAutoApproved = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
+        let isAutoApprovalExpected = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
           repo: repo,
           prNumber: prNumber,
           githubUserToCheck: sender.login,
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
-        if (isAutoApproved) {
+        // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
+        // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
+        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
+        .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+          // If the MergeFreeze API returns a non 200 response, log a warning and continue under the assumption that the main branch is not frozen.
+          sails.log.warn('When sending a request to the MergeFreeze API to get the status of the main branch, MergeFreeze did not respond with a 2xx status code.  (Error details forthcoming in just a sec.)  First, how to remediate: If the main branch is frozen, it will need to be manually unfrozen before PR #'+prNumber+' can be merged. Raw underlying error from MergeFreeze: '+err.stack);
+          return { frozen: false };
+        });
+        sails.log.verbose('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
+        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen;
+        if (isAutoApprovalExpected) {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
