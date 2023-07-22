@@ -107,7 +107,7 @@ module.exports = {
     let issueOrPr = (pr || issue || undefined);
 
     let ghNoun = this.req.get('X-GitHub-Event');// See https://developer.github.com/v3/activity/events/types/
-    // sails.log(ghNoun, action, {sender, repository, issue, comment, pr, label});
+    sails.log('Received GitHub webhook request:', ghNoun, action, {sender, repository, comment, label, issueOrPr});
     if (
       (ghNoun === 'issues' &&        ['opened','reopened'].includes(action))
     ) {
@@ -379,7 +379,8 @@ module.exports = {
 
           }//∞
 
-          if (reviewers.length >= 1) {// « avoid attempting to request review from no one
+          if (reviewers.length >= 1) {// « don't attempt to request review from no one
+
             // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
             await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, {
               reviewers: reviewers,
@@ -409,7 +410,7 @@ module.exports = {
           sails.log.warn('When sending a request to the MergeFreeze API to get the status of the main branch, MergeFreeze did not respond with a 2xx status code.  (Error details forthcoming in just a sec.)  First, how to remediate: If the main branch is frozen, it will need to be manually unfrozen before PR #'+prNumber+' can be merged. Raw underlying error from MergeFreeze: '+err.stack);
           return { frozen: false };
         });
-        sails.log('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
+        sails.log.verbose('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
         let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen;
 
         // Add the #handbook label to PRs that only make changes to the handbook.
@@ -443,7 +444,7 @@ module.exports = {
           if (isMainBranchFrozen && repo === 'fleet') {
 
             sails.pocketOfPrNumbersUnfrozen = _.union(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
-            sails.log('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
+            sails.log.info('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
 
             // [?] See May 6th, 2022 changelog, which includes this code sample:
             // (https://www.mergefreeze.com/news)
@@ -468,7 +469,7 @@ module.exports = {
           if (isMainBranchFrozen && repo === 'fleet') {
 
             sails.pocketOfPrNumbersUnfrozen = _.difference(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
-            sails.log('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
+            sails.log.info('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
 
             // [?] See explanation above.
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
