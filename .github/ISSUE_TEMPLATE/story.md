@@ -51,7 +51,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 
 ### Risk assessment
 
-- Requires load testing TODO <!-- User story has performance implications that require load testing. Otherwise, remove this item. -->
+- Requires load testing: TODO <!-- User story has performance implications that require load testing. Otherwise, remove this item. -->
 - Risk level: Low / High TODO <!-- Choose one. -->
 - Risk description: TODO <!-- If risk level is high, explain why. If low, remove. -->
 
