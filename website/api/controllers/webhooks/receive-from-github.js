@@ -107,7 +107,8 @@ module.exports = {
     let issueOrPr = (pr || issue || undefined);
 
     let ghNoun = this.req.get('X-GitHub-Event');// See https://developer.github.com/v3/activity/events/types/
-    sails.log('Received GitHub webhook request:', ghNoun, action, {sender, repository, comment, label, issueOrPr});
+    sails.log(`Received GitHub webhook request: ${ghNoun} :: ${action}: ${require('util').inspect({sender, repository, comment, label, issueOrPr}, {depth:null})}`);
+
     if (
       (ghNoun === 'issues' &&        ['opened','reopened'].includes(action))
     ) {
