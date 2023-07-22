@@ -6,10 +6,14 @@ The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direc
 
 > When the CEO is out of office, these responsibilities should be delegated so they can be handled promptly.  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
-## The CEO support team
+## Team
 
+The "🦿 Remote" department (also known as the "CEO support team"), is made up of these people:
 
- Sam Pfluger | Apprentice to the CEO 
+| Contributor                                    | Role
+|:-----------------------------------------------|:----------------------------------------------------------------------|
+| Mike McNeil ([@mikermcneil](https://github.com/mikermcneil))  | [CEO](https://www.linkedin.com/in/mikermcneil/)
+| Sam Pfluger ([@sampfluger88](https://github.com/sampfluger88)) | [Apprentice to the CEO](https://www.linkedin.com/in/sampfluger88/)
 
 ## Rituals
 
