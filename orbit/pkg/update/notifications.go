@@ -5,11 +5,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
 
 type runCmdFunc func() error
+
+type checkEnrollmentFunc func(url string) (bool, error)
 
 // renewEnrollmentProfileConfigFetcher is a kind of middleware that wraps an
 // OrbitConfigFetcher and detects if the fleet server sent a notification to
@@ -31,13 +34,19 @@ type renewEnrollmentProfileConfigFetcher struct {
 	// runRenewEnrollmentProfile.
 	runCmdFn runCmdFunc
 
+	// for tests, to be able to mock the function that checks for Fleet
+	// enrollment
+	checkEnrollmentFn checkEnrollmentFunc
+
 	// ensures only one command runs at a time, protects access to lastRun
 	cmdMu   sync.Mutex
 	lastRun time.Time
+
+	fleetURL string
 }
 
-func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration) OrbitConfigFetcher {
-	return &renewEnrollmentProfileConfigFetcher{Fetcher: fetcher, Frequency: frequency}
+func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration, fleetURL string) OrbitConfigFetcher {
+	return &renewEnrollmentProfileConfigFetcher{Fetcher: fetcher, Frequency: frequency, fleetURL: fleetURL}
 }
 
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
@@ -45,17 +54,6 @@ func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetch
 // to renew the enrollment profile.
 func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := h.Fetcher.GetConfig()
-
-	// TODO: download and use swiftDialog following the same patterns we
-	// use for Nudge.
-	//
-	// updaterHasTarget := h.UpdateRunner.HasRunnerOptTarget("swiftDialog")
-	// runnerHasLocalHash := h.UpdateRunner.HasLocalHash("swiftDialog")
-	// if !updaterHasTarget || !runnerHasLocalHash {
-	//         log.Info().Msg("refreshing the update runner config with swiftDialog targets and hashes")
-	//         log.Debug().Msgf("updater has target: %t, runner has local hash: %t", updaterHasTarget, runnerHasLocalHash)
-	//         return cfg, h.setTargetsAndHashes()
-	// }
 
 	if err == nil && cfg.Notifications.RenewEnrollmentProfile {
 		if h.cmdMu.TryLock() {
@@ -67,6 +65,24 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 			// updated mdm enrollment).
 			// See https://github.com/fleetdm/fleet/pull/9409#discussion_r1084382455
 			if time.Since(h.lastRun) > h.Frequency {
+				// we perform this check locally on the client too to avoid showing the
+				// dialog if the client has already migrated but the Fleet server
+				// doesn't know about this state yet.
+				enrollFn := h.checkEnrollmentFn
+				if enrollFn == nil {
+					enrollFn = profiles.IsEnrolledIntoMatchingURL
+				}
+				enrolled, err := enrollFn(h.fleetURL)
+				if err != nil {
+					log.Error().Err(err).Msg("fetching enrollment status")
+					return cfg, nil
+				}
+				if enrolled {
+					log.Info().Msg("a request to renew the enrollment profile was processed but not executed because the host is already enrolled into Fleet.")
+					h.lastRun = time.Now()
+					return cfg, nil
+				}
+
 				fn := h.runCmdFn
 				if fn == nil {
 					fn = runRenewEnrollmentProfile
