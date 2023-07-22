@@ -321,6 +321,7 @@ module.exports = {
         //   - https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
         //   - https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
         let alreadyRequestedReviewers = _.isArray(issueOrPr.requested_reviewers) ? _.pluck(issueOrPr.requested_reviewers, 'login') : [];
+        alreadyRequestedReviewers.map((username) => username.toLowerCase());// « make sure they are all lowercased
 
         // Request review from DRI
         // History: https://github.com/fleetdm/fleet/pull/12786)  (only relevant for paths NOT in the CODEOWNERS file)
