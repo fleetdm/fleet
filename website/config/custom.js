@@ -211,6 +211,11 @@ module.exports.custom = {
     'README.md': ['mikermcneil', 'jarodreyes', 'mike-j-thomas', 'zwass'],//« github brandfront (github.com/fleetdm/fleet)
     'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm (npmjs.com/package/fleetctl)
 
+    // Config as code for infrastructure, internal security and IT use cases, and more.
+    //'infrastructure': [],// Decided against in https://github.com/fleetdm/fleet/pull/12890
+    //'charts': [], //Decided against in https://github.com/fleetdm/fleet/pull/12890
+    //'terraform': [],//Decided against in https://github.com/fleetdm/fleet/pull/12890
+
     // Github workflows
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],//« website CI test script
