@@ -1,6 +1,32 @@
 # CEO handbook
-
 This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. 
+
+Need quick Answers?
+* [How can I...(#Intake)](#Intake)
+* [How to...(#Tasks)](#Tasks)
+* [Who will...(#Rituals)](#Rituals)
+
+
+
+## Pointers
+
+What about [Mike](https://youtu.be/_T-UR9mU4-o?t=2563)?
+
+- "[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc. 
+
+
+- **Character**  
+TODO
+
+
+
+
+
+### Writing style
+
+Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. Don’t sound formal, sound welcoming so that anyone can understand. Translate "puffery" into "ease of use" or "readability".  Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). Create heading(s) that make good permalinks, use links and add missing links. Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”). Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. A big goal is to be able to link directly to this stuff when something comes up as a gentle way to remind and train using the foundation we've already built. Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere). Read your PRs, check it carefully with each change and edit until the diff looks good. Check preview mode in GitHub to make sure the format renders correctly. If you look at your diff and notice unintentional changes, remove them.
+
+
 
 ## Responsibilities
 The CEO is the [directly responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company. 
@@ -19,7 +45,12 @@ The 🦿 Remote department (also known as the "CEO support team"), is made up of
 | Mike McNeil ([@mikermcneil](https://github.com/mikermcneil))  | [CEO](https://www.linkedin.com/in/mikermcneil/)
 | Sam Pfluger ([@sampfluger88](https://github.com/sampfluger88)) | [Apprentice to the CEO](https://www.linkedin.com/in/sampfluger88/)
 
-The Apprentice to the CEO is directly responsible for daily [rituals]() 
+
+
+## How can I...(#Intake)
+
+
+
 
 ## Scheduling with the CEO
 
@@ -65,12 +96,14 @@ Preferences for flights, in descending order of importance are:
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
 
-## Contacting the CEO
+## Contact the CEO
+
+If urgent, send a Slack direct message (DM) right away. 
 
 If you mention the CEO from within a Slack thread, he will not read your message.
 
 Please find a different way to get in touch:
-- If urgent, send a Slack direct message (DM) right away.
+
 - If it can wait, add your message to the "CEO office minutes" agenda (see "Office hours" calendar)
 - Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO?
 - Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.)
@@ -105,22 +138,12 @@ This channel is for the CEO to drop ideas and tasks when on the go.
  - Mark requests with 👀 (emoji reaction) to indicate that you are working on the task
  - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task
 
+
+## How to...
+
+
 ## Prep work
 
-### Writing style
-
-- Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write.
-- Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing.
-- Don’t sound formal, sound welcoming so that anyone can understand.
-- Translate "puffery" into "ease of use" or "readability". 
-- Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays).
-- Create heading(s) that make good permalinks, use links and add missing links.
-- Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”).
-- Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward.
-- A big goal is to be able to link directly to this stuff when something comes up as a gentle way to remind and train using the foundation we've already built.
-- Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere).
-- Read your PRs, check it carefully with each change and edit until the diff looks good. Check preview mode in GitHub to make sure the format renders correctly.
-- If you look at your diff and notice unintentional changes, remove them.
 
 ### All Hands prep
 
@@ -241,6 +264,7 @@ How to file videos from Gong recordings (**marking as "private" in Gong is not a
 | [Ad-hoc](https://fleetdm.com/handbook/customers#scheduling-a-customer-call) requests from the CEO | Triage requests, prioritize actions, flag actions for further review | PRN |   
 | Total [travel coordination](#travel-preferences) for the CEO | Triage travel request, plan and coordinate flight, stay, and concierge arrangements | PRN                   |
 | Coordinate the [weekly E-Group calendar](https://fleetdm.com/handbook/business-operations#weekly-updates) events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
+| Equipment warehouse management | Process inventory & transfer of all equipment Fleet IT warehouse | PRN | 
 
 
 ## Kanban
@@ -376,5 +400,5 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
  4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
  -->
  
-<meta name="maintainedBy" value="mikermcneil">
+<meta name="maintainedBy" value="sampfluger888">
 <meta name="title" value="CEO handbook">
