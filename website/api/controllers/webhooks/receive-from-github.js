@@ -361,6 +361,7 @@ module.exports = {
                 if (isAuthorAncestralDRI || isSenderAncestralDRI) {
                   // For the same reasons as above, if the original PR author or you (current author/editor)
                   // are the editor, then we do nothing.
+                  break;
                 } else if (nearestAncestralDri) {// Otherwise, if we have our DRI, we can stop here.
                   reviewer = nearestAncestralDri;
                   break;
