@@ -1,6 +1,6 @@
 # Self-managed agent updates 
 
-[Orbit](https://github.com/fleetdm/fleet/tree/main/orbit) will periodically check the public Fleet update repository and update itself, Fleet Desktop, and/or osquery 
+[Fleetd](https://fleetdm.com/docs/using-fleet/fleetd) will periodically check the public Fleet update repository and update Orbit, Fleet Desktop, and/or osquery 
 if it detects a later version.
 
 To override this behavior, users can set a channel for each component or disable updates altogether. Visit [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop) to learn more.
@@ -8,7 +8,7 @@ Alternatively, users with a Fleet Premium subscription can self-manage an update
 
 ## Securing updates
 
-Orbit utilizes [The Update Framework](https://theupdateframework.io/) to secure the update system. The TUF specification provides a robust framework for establishing trust over the content of updates. See [TUF's security documentation](https://theupdateframework.io/security/) for more details.
+Fleetd utilizes [The Update Framework](https://theupdateframework.io/) to secure the update system. The TUF specification provides a robust framework for establishing trust over the content of updates. See [TUF's security documentation](https://theupdateframework.io/security/) for more details.
 
 Fleet's usage of TUF allows the keys most critical to the security of the system to be stored offline, and provides a simple deployment model for update metadata and content.
 
@@ -64,7 +64,7 @@ Updates are deployed first by staging the contents and metadata, then publishing
  
 _Staging targets requires access to the `target`, `snapshot`, and `timestamp` keys. Best practice is to connect the drive containing the keys while staging updates and leave the keys offline at other times._
 
-Use `fleetctl updates add` to stage updates. Orbit updates the `osqueryd` binary, as well as the `orbit` binary itself. Updates are staged for each of these separately using the `--name` flag. It is not necessary to update both at the same time.
+Use `fleetctl updates add` to stage updates. Fleetd updates the `osqueryd` binary, as well as the `orbit` binary. Updates are staged for each of these separately using the `--name` flag. It is not necessary to update both at the same time.
 
 The following commands will prompt for key passphrases if not specified in the environment.
 
@@ -108,7 +108,7 @@ Run this to host the repository at http://localhost:8000.
 
 #### Update timestamp
 
-Orbit verifies freshness of the update metadata using the signed [timestamp file](https://theupdateframework.io/metadata/#timestamp-metadata-timestampjson). _This file must be re-signed every two weeks_ (this interval will be made configurable soon).
+Fleetd verifies freshness of the update metadata using the signed [timestamp file](https://theupdateframework.io/metadata/#timestamp-metadata-timestampjson). _This file must be re-signed every two weeks_ (this interval will be made configurable soon).
 
 To update the timestamp metadata:
 
@@ -128,13 +128,13 @@ Record the root key metadata with a copy of the repository:
 fleetctl updates roots
 ```
 
-This output is _not sensitive_ and will be shared in agent deployments to verify the contents of updates and metadata. Provide the JSON output in the `--update-roots` flag of the [Orbit packager](https://github.com/fleetdm/orbit#packaging):
+This output is _not sensitive_ and will be shared in agent deployments to verify the contents of updates and metadata. Provide the JSON output in the `--update-roots` flag of the [Fleetd packager](https://fleetdm.com/docs/using-fleet/fleetd):
 
-### Packaging with Orbit
+### Packaging with Fleetd
 
-See the [Orbit docs](https://fleetdm.com/docs/using-fleet/orbit) for more details
+See the [Fleetd docs](https://fleetdm.com/docs/using-fleet/fleetd) for more details
 
-You can use `fleetctl package` to generate installer packages of Orbit (a bootstrapped OSQuery wrapper) to integrate with your Fleet instance.
+You can use `fleetctl package` to generate installer packages of Fleetd (Fleet's bundle of agents that includes a bootstrapped osquery wrapper) to integrate with your Fleet instance.
 
 For example running `fleetctl package --type deb --fleet-url=<fleet url> --enroll-secret=<enroll secret>` will build a `.deb` installer with everything needed
 to communicate with your fleet instance.
