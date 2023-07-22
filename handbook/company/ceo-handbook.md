@@ -8,7 +8,7 @@ The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direc
 
 ## Team
 
-The "🦿 Remote" department (also known as the "CEO support team"), is made up of these people:
+The 🦿 Remote department (also known as the "CEO support team"), is made up of these people:
 
 | Contributor                                    | Role
 |:-----------------------------------------------|:----------------------------------------------------------------------|
