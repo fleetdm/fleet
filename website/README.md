@@ -27,7 +27,7 @@ To deploy changes to the website to production, merge changes to the `main` bran
 
 
 ### Changing the database schema
-To deploy new code to production that relies on changes to the database schema or other external systems (e.g. Stripe), first put the website in "maintenance mode" in Heroku.  Then, make your changes in the database schema.   Next, if you have a script to fix/migrate existing data, go ahead and run it now.  (e.g. `sails run fix-or-migrate-existing-data`).  Then, merge your changes and wait for the deploy to finish.  Finally, switch off "maintenance mode" in Heroku.
+To deploy new code to production that relies on changes to the database schema or other external systems (e.g. Stripe), first put the website in "maintenance mode" in Heroku.  Then, make your changes in the database schema.   Next, if you have a script to fix/migrate existing data, go ahead and run it now.  (e.g. `sails run fix-or-migrate-existing-data`).  Then, merge your changes and wait for the deploy to finish.  Finally, switch off "maintenance mode" in Heroku.
 
 Note that entering maintenance mode prevents visitors from using the website, so it should be used sparingly, and ideally at low-traffic times of day.
 
