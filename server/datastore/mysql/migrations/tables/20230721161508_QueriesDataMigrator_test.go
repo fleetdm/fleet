@@ -3,7 +3,6 @@ package tables
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -86,7 +85,7 @@ func TestUp_20230721161508(t *testing.T) {
 	for rows.Next() {
 		nRows += 1
 		var teamIDStr string
-		query := fleet.Query{}
+		query := _20230719152138_Query{}
 		err := rows.Scan(
 			&query.Description,
 			&query.Query,
@@ -146,7 +145,7 @@ func TestUp_20230721161508(t *testing.T) {
 
 	for rows.Next() {
 		nRows += 1
-		query := fleet.Query{}
+		query := _20230719152138_Query{}
 		err := rows.Scan(
 			&query.Name,
 			&query.Description,
@@ -191,7 +190,7 @@ func TestUp_20230721161508(t *testing.T) {
 
 	for rows.Next() {
 		nRows += 1
-		query := fleet.Query{}
+		query := _20230719152138_Query{}
 		err := rows.Scan(
 			&query.Name,
 			&query.Description,
@@ -259,7 +258,7 @@ func TestUp_20230721161508(t *testing.T) {
 
 	for rows.Next() {
 		nRows += 1
-		query := fleet.Query{}
+		query := _20230719152138_Query{}
 		err := rows.Scan(
 			&query.Name,
 			&query.Description,

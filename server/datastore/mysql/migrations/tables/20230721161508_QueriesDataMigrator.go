@@ -5,26 +5,38 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func init() {
 	MigrationClient.AddMigration(Up_20230721161508, Down_20230721161508)
 }
 
-func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
-	type QueryWithScheduledFields struct {
-		fleet.Query
-		ScheduledQID           uint
-		ScheduledQueryInterval uint
-		ScheduledQSnapshot     *bool
-		ScheduledQRemoved      *bool
-		ScheduledQueryPlatform string
-		ScheduledQueryVersion  string
-		PackType               string
-	}
+// This is meant to future-proof this migration, this type is based on the fleet.Query type.
+type _20230719152138_Query struct {
+	TeamID                 *uint
+	TeamIDChar             string
+	ObserverCanRun         bool
+	ScheduleInterval       uint
+	Platform               string
+	MinOsqueryVersion      string
+	AutomationsEnabled     bool
+	LoggingType            string
+	Name                   string
+	Description            string
+	Query                  string
+	Saved                  bool
+	AuthorID               *uint
+	ScheduledQID           uint
+	ScheduledQueryInterval uint
+	ScheduledQSnapshot     *bool
+	ScheduledQRemoved      *bool
+	ScheduledQueryPlatform string
+	ScheduledQueryVersion  string
+	PackType               string
+	TeamRoles              string
+}
 
+func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 	selectStmt := `
 		SELECT DISTINCT q.name,
 						q.description,
@@ -54,11 +66,11 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 
 	for rows.Next() {
 		nRows += 1
-		query := QueryWithScheduledFields{}
+		query := _20230719152138_Query{}
 		if err := rows.Scan(
 			&query.Name,
 			&query.Description,
-			&query.Query.Query,
+			&query.Query,
 			&query.AuthorID,
 			&query.Saved,
 			&query.ObserverCanRun,
@@ -88,7 +100,7 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 		args = append(args,
 			fmt.Sprintf("%s - %d", query.Name, query.ScheduledQID),
 			query.Description,
-			query.Query.Query,
+			query.Query,
 			query.AuthorID,
 			query.Saved,
 			query.ObserverCanRun,
@@ -134,17 +146,6 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 }
 
 func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
-	type QueryWithScheduledFields struct {
-		fleet.Query
-		ScheduledQID           uint
-		ScheduledQueryInterval uint
-		ScheduledQSnapshot     *bool
-		ScheduledQRemoved      *bool
-		ScheduledQueryPlatform string
-		ScheduledQueryVersion  string
-		PackType               string
-	}
-
 	selectStmt := `
 		SELECT DISTINCT q.name,
 						q.description,
@@ -176,11 +177,11 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 
 	for rows.Next() {
 		nRows += 1
-		var query QueryWithScheduledFields
+		var query _20230719152138_Query
 		if err := rows.Scan(
 			&query.Name,
 			&query.Description,
-			&query.Query.Query,
+			&query.Query,
 			&query.AuthorID,
 			&query.Saved,
 			&query.ObserverCanRun,
@@ -218,7 +219,7 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 			teamIDParts[1],
 			fmt.Sprintf("%s - %d", query.Name, query.ScheduledQID),
 			query.Description,
-			query.Query.Query,
+			query.Query,
 			query.AuthorID,
 			query.Saved,
 			query.ObserverCanRun,
@@ -268,11 +269,6 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 	// If the query is not scheduled, then it stays global except if it was created by a team user,
 	// in which case the query is duplicated as a team query iff the user is a mantainer of the team.
-	type QueryWithTeamIDs struct {
-		fleet.Query
-		TeamRoles string
-	}
-
 	selectStmt := `
 		SELECT DISTINCT q.name,
 						q.description,
@@ -297,11 +293,11 @@ func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 	var nRows int
 
 	for rows.Next() {
-		query := QueryWithTeamIDs{}
+		query := _20230719152138_Query{}
 		if err := rows.Scan(
 			&query.Name,
 			&query.Description,
-			&query.Query.Query,
+			&query.Query,
 			&query.AuthorID,
 			&query.Saved,
 			&query.ObserverCanRun,
@@ -325,7 +321,7 @@ func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 			args = append(args,
 				query.Name,
 				query.Description,
-				query.Query.Query,
+				query.Query,
 				query.AuthorID,
 				query.Saved,
 				query.ObserverCanRun,
