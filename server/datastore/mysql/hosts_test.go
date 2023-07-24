@@ -1089,13 +1089,17 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 	require.Equal(t, 2, solutions[0].HostsCount)
 
 	// Host `h` unenrolls from MDM, so MDM query returns empty server_url.
-	err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "", true, "")
+	err = ds.SetOrUpdateMDMData(ctx, h.ID, false, false, "", false, "")
 	require.NoError(t, err)
 
-	// host_mdm entry should not exist anymore.
-	_, err = ds.GetHostMDM(ctx, h.ID)
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
+	// host_mdm entry should still exist with empty values.
+	hmdm, err = ds.GetHostMDM(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, hmdm.HostID)
+	require.False(t, hmdm.Enrolled)
+	require.False(t, hmdm.InstalledFromDep)
+	require.Nil(t, hmdm.MDMID)
+	require.Empty(t, hmdm.ServerURL)
 
 	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
 	require.NoError(t, err)
@@ -1106,13 +1110,21 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, solutions[0].HostsCount)
 
 	// Host `h2` unenrolls from MDM, so MDM query returns empty server_url.
-	err = ds.SetOrUpdateMDMData(ctx, h2.ID, false, true, "", true, "")
+	err = ds.SetOrUpdateMDMData(ctx, h2.ID, false, false, "", false, "")
 	require.NoError(t, err)
 
 	// host_mdm entry should not exist anymore.
-	_, err = ds.GetHostMDM(ctx, h2.ID)
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
+	hmdm, err = ds.GetHostMDM(ctx, h2.ID)
+	require.NoError(t, err)
+
+	// host_mdm entry should still exist with empty values.
+	hmdm, err = ds.GetHostMDM(ctx, h2.ID)
+	require.NoError(t, err)
+	require.Equal(t, h2.ID, hmdm.HostID)
+	require.False(t, hmdm.Enrolled)
+	require.False(t, hmdm.InstalledFromDep)
+	require.Nil(t, hmdm.MDMID)
+	require.Empty(t, hmdm.ServerURL)
 
 	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
 	require.NoError(t, err)
@@ -1137,6 +1149,7 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
+			Platform:        "darwin",
 		})
 		require.NoError(t, err)
 		hostIDs = append(hostIDs, h.ID)

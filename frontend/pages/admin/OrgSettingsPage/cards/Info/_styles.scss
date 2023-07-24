@@ -1,0 +1,34 @@
+.org-info {
+
+  &__logo-field {
+    margin-bottom: $pad-icon;
+  }
+
+  &__logo-field-set {
+    margin-bottom: $pad-large;
+  }
+
+  &__icon-preview {
+    border-radius: $border-radius;
+    max-height: 82px;
+    min-width: 82px;
+    border: 1px solid $ui-fleet-black-10;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__icon-img {
+    max-width: 150px;
+    padding: $small;
+    transform: initial;
+  }
+
+  &__dark-background {
+    background-color: $ui-fleet-black-75;
+  }
+
+  &__light-background {
+    background-color: $ui-light-grey;
+  }
+}

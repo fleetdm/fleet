@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+const (
+	MDMPlatformApple     = "apple"
+	MDMPlatformMicrosoft = "microsoft"
+)
+
 type AppleMDM struct {
 	CommonName   string    `json:"common_name"`
 	SerialNumber string    `json:"serial_number"`

@@ -1413,6 +1413,43 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Get profiles assigned to a host
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostProfilesRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostProfilesResponse struct {
+	HostID   uint                           `json:"host_id"`
+	Profiles []*fleet.MDMAppleConfigProfile `json:"profiles"`
+	Err      error                          `json:"error,omitempty"`
+}
+
+func (r getHostProfilesResponse) error() error { return r.Err }
+
+func getHostProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostProfilesRequest)
+	sums, err := svc.MDMListHostConfigurationProfiles(ctx, req.ID)
+	if err != nil {
+		return getHostProfilesResponse{Err: err}, nil
+	}
+	res := getHostProfilesResponse{Profiles: sums, HostID: req.ID}
+	if res.Profiles == nil {
+		res.Profiles = []*fleet.MDMAppleConfigProfile{} // return empty json array instead of json null
+	}
+	return res, nil
+}
+
+func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Batch Replace MDM Apple Profiles
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -2211,6 +2248,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		HostSerial:       info.HardwareSerial,
 		HostDisplayName:  info.DisplayName,
 		InstalledFromDEP: info.InstalledFromDEP,
+		MDMPlatform:      fleet.MDMPlatformApple,
 	})
 }
 
@@ -2480,6 +2518,22 @@ func ReconcileProfiles(
 	// with the new status, operation_type, etc.
 	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(toInstall)+len(toRemove))
 
+	// profileIntersection tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
+	//
+	// - Sending a RemoveProfile followed by an InstallProfile for a
+	// profile with an identifier that's already installed, which can cause
+	// racy behaviors.
+	// - Sending a InstallProfile command for a profile that's exactly the
+	// same as the one installed. Customers have reported that sending the
+	// command causes unwanted behavior.
+	profileIntersection := apple_mdm.NewProfileBimap()
+	profileIntersection.IntersectByIdentifierAndHostUUID(toInstall, toRemove)
+
+	// hostProfilesToCleanup is used to track profiles that should be removed
+	// from the database directly without having to issue a RemoveProfile
+	// command.
+	hostProfilesToCleanup := []*fleet.MDMAppleProfilePayload{}
+
 	// install/removeTargets are maps from profileID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
 	// multiple hosts at the same time. Note that the same command uuid is used
@@ -2491,6 +2545,26 @@ func ReconcileProfiles(
 	}
 	installTargets, removeTargets := make(map[uint]*cmdTarget), make(map[uint]*cmdTarget)
 	for _, p := range toInstall {
+		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
+			// if the profile was in any other status than `failed`
+			// and the checksums match (the profiles are exactly
+			// the same) we don't send another InstallProfile
+			// command.
+			if pp.Status != &fleet.MDMAppleDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
+				hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
+					ProfileID:         p.ProfileID,
+					HostUUID:          p.HostUUID,
+					ProfileIdentifier: p.ProfileIdentifier,
+					ProfileName:       p.ProfileName,
+					Checksum:          p.Checksum,
+					OperationType:     pp.OperationType,
+					Status:            pp.Status,
+					CommandUUID:       pp.CommandUUID,
+					Detail:            pp.Detail,
+				})
+				continue
+			}
+		}
 		toGetContents[p.ProfileID] = true
 
 		target := installTargets[p.ProfileID]
@@ -2516,6 +2590,11 @@ func ReconcileProfiles(
 	}
 
 	for _, p := range toRemove {
+		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+			continue
+		}
+
 		target := removeTargets[p.ProfileID]
 		if target == nil {
 			target = &cmdTarget{
@@ -2536,6 +2615,15 @@ func ReconcileProfiles(
 			ProfileName:       p.ProfileName,
 			Checksum:          p.Checksum,
 		})
+	}
+
+	// delete all profiles that have a matching identifier to be installed.
+	// This is to prevent sending both a `RemoveProfile` and an
+	// `InstallProfile` for the same identifier, which can cause race
+	// conditions. It's better to "update" the profile by sending a single
+	// `InstallProfile` command.
+	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
 	// First update all the profiles in the database before sending the

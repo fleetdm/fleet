@@ -10,7 +10,7 @@ describe 'fleetdm::release_device' do
   before(:each) do
     fleet_client_class = class_spy('Puppet::Util::FleetClient')
     stub_const('Puppet::Util::FleetClient', fleet_client_class)
-    allow(fleet_client_class).to receive(:new).with('https://example.com', 'test_token') { fleet_client_mock }
+    allow(fleet_client_class).to receive(:instance) { fleet_client_mock }
   end
 
   it { is_expected.to run.with_params(nil).and_raise_error(StandardError) }

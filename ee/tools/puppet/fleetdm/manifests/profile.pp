@@ -17,12 +17,18 @@
 #   Fleet keeps track of each time this resource is
 #   declared with a group name, the final team name
 #   will be a concatenation of all unique group names.
+# @param ensure
+#   Whether the profile should be present or not.
+#   Set to `absent` along with a distinct `group`
+#   name to create a new team that doesn't have the
+#   configuration profile. 
 #
 # @example
 #   fleetdm::profile { 'identifier': }
 define fleetdm::profile (
   String $template,
   String $group = 'default',
+  Enum['absent', 'present'] $ensure = 'present',
 ) {
   if $facts["clientnoop"] {
     notice('noop mode: skipping profile definition in the Fleet server')
@@ -36,15 +42,18 @@ define fleetdm::profile (
     }
 
     $host_uuid = $facts['system_profiler']['hardware_uuid']
-    $response = fleetdm::preassign_profile($name, $host_uuid, $template, $group)
+    $response = fleetdm::preassign_profile($name, $host_uuid, $template, $group, $ensure)
     $err = $response['error']
+    $changed = $response['resource_changed']
 
     if $err != '' {
-      notify { "error pre-assigning profile ${$name}: ${$err}":
+      notify { "error pre-setting profile ${name} as ${ensure}: ${err}":
         loglevel => 'err',
       }
-    } else {
-      notify { "successfully pre-assigned profile ${$name}": }
+    } elsif $changed {
+      # NOTE: sending a notification also marks the
+      # 'fleetdm::profile' as changed in the reports.
+      notify { "successfully pre-set profile ${name} as ${ensure}": }
     }
   }
 }

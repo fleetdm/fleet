@@ -3,9 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -605,14 +603,6 @@ func (svc *Service) teamByIDOrName(ctx context.Context, id *uint, name *string) 
 	} else if name != nil {
 		tm, err = svc.ds.TeamByName(ctx, *name)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// this should really be handled in TeamByName so that it returns a
-				// notFound error as is usually the case for this scenario, but
-				// changing it causes a number of test failures that indicates this
-				// might be tricky and even maybe a breaking change in some places. For
-				// now, handling it here.
-				return nil, notFoundError{}
-			}
 			return nil, err
 		}
 	}

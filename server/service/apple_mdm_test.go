@@ -972,6 +972,7 @@ func TestMDMAuthenticate(t *testing.T) {
 		require.Equal(t, serial, a.HostSerial)
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.False(t, a.InstalledFromDEP)
+		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
 		return nil
 	}
 
@@ -1942,6 +1943,11 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 			2: contents2,
 			4: contents4,
 		}, nil
+	}
+
+	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
+		require.Empty(t, payload)
+		return nil
 	}
 
 	var enqueueFailForOp fleet.MDMAppleOperationType

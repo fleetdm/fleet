@@ -24,6 +24,7 @@ import More from "./More";
 import Plus from "./Plus";
 import PremiumFeature from "./PremiumFeature";
 import Query from "./Query";
+import Search from "./Search";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
@@ -50,6 +51,8 @@ import Pending from "./Pending";
 import PendingPartial from "./PendingPartial";
 import ErrorOutline from "./ErrorOutline";
 import Error from "./Error";
+import Warning from "./Warning";
+import Clock from "./Clock";
 
 import Copy from "./Copy";
 import Eye from "./Eye";
@@ -100,6 +103,7 @@ export const ICON_MAP = {
   copy: Copy,
   eye: Eye,
   pencil: Pencil,
+  search: Search,
   transfer: Transfer,
   trash: TrashCan,
   success: Success,
@@ -108,6 +112,8 @@ export const ICON_MAP = {
   "pending-partial": PendingPartial,
   error: Error,
   "error-outline": ErrorOutline,
+  warning: Warning,
+  clock: Clock,
   darwin: Apple,
   macOS: Apple,
   windows: Windows,

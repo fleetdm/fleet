@@ -35,9 +35,8 @@
     }
   }
 
-
   &__has-value {
-    color: $core-vibrant-blue
+    color: $core-vibrant-blue;
   }
 
   &__script-actions {
@@ -57,7 +56,7 @@
     margin-right: $pad-medium;
   }
 
-  @media (max-width: $break-990) {
+  @media (max-width: $break-md) {
     &__script-statuses {
       justify-content: flex-end;
     }

@@ -45,7 +45,15 @@ On Intel Macs, Fleet triggers step 1 (downloading the macOS update) programmatic
 
 Step 2 (installing the update) always requires end user action.
 
-### Known issue
+### Known issues
+
+#### Apple Rapid Security Responses (RSRs)
+
+Currently, end user macOS update reminders via Nudge don't support RSR versions (ex. "13.4.1 (a)"). 
+
+You can use custom MDM commands in Fleet to trigger built-in macOS update reminders for RSRs. Learn how [here](#end-user-macos-update-via-built-in-macos-notifications).
+
+#### Mac is up to date
 
 Sometimes after the end user clicks "update" on the Nudge window, the end user's Mac will say that macOS is up to date when it isn't. This known issue can create a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
 
@@ -63,7 +71,94 @@ Sometimes after the end user clicks "update" on the Nudge window, the end user's
 
 ## End user macOS update via built-in macOS notifications
 
-Built-in macOS update reminders are available for all Fleet instances. To trigger these reminders, run the ["Schedule an OS update" MDM command](https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update).
+Built-in macOS update reminders are available in Fleet Free and Fleet Premium. 
+
+To trigger these reminders, we will do the following steps:
+
+1. Force a macOS update scan
+
+2. List available macOS updates
+
+3. Trigger macOS update reminder
+
+### Step 1: force a macOS update scan
+
+Use the request payload below when running a custom MDM command with Fleet. Documentation on how to run a custom command is [here](./MDM-commands#custom-commands).
+
+Request payload:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ForceUpdateScan</key>
+        <true/>
+        <key>RequestType</key>
+        <string>ScheduleOSUpdateScan</string>
+    </dict>
+</dict>
+</plist>
+```
+
+### Step 2: list available macOS updates
+
+1. Run another custom MDM command using the request payload below.
+
+Request payload:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>AvailableOSUpdates</string>
+    </dict>
+</dict>
+</plist>
+```
+
+2. Copy the `ProductKey` from the command's results. Documentation on how to view a command's results is [here](./MDM-commands#step-4-view-the-commands-results).
+
+Example product key: `MSU_UPDATE_22F770820d_patch_13.4.1_rsr`
+
+### Step 3: trigger macOS update reminder
+
+Run another custom MDM command using the request payload below. Replace the product key with your product key.
+
+> This payload will trigger the "Install ASAP" behavior which displays a macOS notification with a 60 seconds timer before the Mac automatically restarts. The end user can dismiss the timer. To trigger different behavior, update the `InstallAction`. Options are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/scheduleosupdatecommand/command/updatesitem).
+
+Request payload:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>ScheduleOSUpdate</string>
+        <key>Updates</key>
+        <array>
+            <dict>
+                <key>InstallAction</key>
+                <string>InstallASAP</string>
+                <key>ProductKey</key>
+                <string>MSU_UPDATE_22F770820d_patch_13.4.1_rsr</string>
+            </dict>
+        </array>
+    </dict>
+</dict>
+</plist>
+```
 
 <meta name="pageOrderInSection" value="1502">
 <meta name="title" value="MDM macOS updates">
+<meta name="description" value="Learn how to manage macOS updates and set up end user reminders with Fleet MDM.">
+

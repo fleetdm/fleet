@@ -153,3 +153,4 @@ Users that are members of multiple teams can be assigned different roles for eac
 \** Team observers can view all queries but the UI and fleetctl only list the ones they can run (**observer can run**).
 
 <meta name="pageOrderInSection" value="900">
+<meta name="description" value="Learn about the different roles and permissions in Fleet.">
