@@ -110,8 +110,6 @@ type PackByNameFunc func(ctx context.Context, name string, opts ...fleet.Optiona
 
 type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error)
 
-type EnsureTeamPackFunc func(ctx context.Context, teamID uint) (*fleet.Pack, error)
-
 type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
 type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
@@ -796,9 +794,6 @@ type DataStore struct {
 
 	ListPacksForHostFunc        ListPacksForHostFunc
 	ListPacksForHostFuncInvoked bool
-
-	EnsureTeamPackFunc        EnsureTeamPackFunc
-	EnsureTeamPackFuncInvoked bool
 
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
@@ -1942,13 +1937,6 @@ func (s *DataStore) ListPacksForHost(ctx context.Context, hid uint) (packs []*fl
 	s.ListPacksForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPacksForHostFunc(ctx, hid)
-}
-
-func (s *DataStore) EnsureTeamPack(ctx context.Context, teamID uint) (*fleet.Pack, error) {
-	s.mu.Lock()
-	s.EnsureTeamPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnsureTeamPackFunc(ctx, teamID)
 }
 
 func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {

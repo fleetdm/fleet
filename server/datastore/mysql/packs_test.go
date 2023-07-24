@@ -30,7 +30,6 @@ func TestPacks(t *testing.T) {
 		{"ApplySpecMissingQueries", testPacksApplySpecMissingQueries},
 		{"ApplySpecMissingName", testPacksApplySpecMissingName},
 		{"ListForHost", testPacksListForHost},
-		{"TeamScheduleNamesMigrateToNewFormat", testPacksTeamScheduleNamesMigrateToNewFormat},
 		{"ApplySpecFailsOnTargetIDNull", testPacksApplySpecFailsOnTargetIDNull},
 		{"ApplyStatsNotLocking", testPacksApplyStatsNotLocking},
 		{"ApplyStatsNotLockingTryTwo", testPacksApplyStatsNotLockingTryTwo},
@@ -415,29 +414,6 @@ func testPacksListForHost(t *testing.T, ds *Datastore) {
 	if assert.Len(t, packs, 1) {
 		assert.Equal(t, "foo_pack", packs[0].Name)
 	}
-}
-
-func testPacksTeamScheduleNamesMigrateToNewFormat(t *testing.T, ds *Datastore) {
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-
-	// insert team pack by hand with the old naming scheme
-	_, err = ds.writer(context.Background()).Exec(
-		"INSERT INTO packs(name, description, platform, disabled, pack_type) VALUES (?, ?, ?, ?, ?)",
-		teamSchedulePackType(team1), "desc", "windows", false, teamSchedulePackType(team1),
-	)
-	require.NoError(t, err)
-
-	tp, err := ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-	require.Equal(t, teamSchedulePackType(team1), tp.Name)
-
-	require.NoError(t, ds.MigrateData(context.Background()))
-
-	tp, err = ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-	require.NotEqual(t, teamSchedulePackType(team1), tp.Name)
-	require.Equal(t, teamScheduleName(team1), tp.Name)
 }
 
 func testPacksApplySpecFailsOnTargetIDNull(t *testing.T, ds *Datastore) {
