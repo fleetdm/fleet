@@ -3,7 +3,7 @@ import PATHS from "router/paths";
 
 import labelsAPI from "services/entities/labels";
 import DataError from "components/DataError";
-import { ISelectedPlatform } from "interfaces/platform";
+import { SelectedPlatform } from "interfaces/platform";
 import { useQuery } from "react-query";
 import { ILabelSpecResponse } from "interfaces/label";
 
@@ -20,7 +20,7 @@ interface IHostSummaryProps {
   isLoadingHostsSummary: boolean;
   showHostsUI: boolean;
   errorHosts: boolean;
-  selectedPlatform?: ISelectedPlatform;
+  selectedPlatform?: SelectedPlatform;
 }
 
 const HostsSummary = ({

@@ -1,0 +1,14 @@
+.query-frequency-indicator {
+  width: 100px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+
+  .icon {
+    padding-right: $pad-small;
+  }
+}
+
+.grey {
+  color: $ui-fleet-black-33;
+}

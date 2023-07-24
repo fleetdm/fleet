@@ -1,4 +1,4 @@
-export type IOsqueryPlatform =
+export type OsqueryPlatform =
   | "darwin"
   | "macOS"
   | "windows"
@@ -8,14 +8,17 @@ export type IOsqueryPlatform =
   | "chrome"
   | "ChromeOS";
 
-export type ISelectedPlatform =
-  | "all"
-  | "darwin"
-  | "windows"
-  | "linux"
-  | "chrome";
+export type SupportedPlatform = "darwin" | "windows" | "linux" | "chrome";
 
-export type IPlatformString =
+export const SUPPORTED_PLATFORMS: SupportedPlatform[] = [
+  "darwin",
+  "windows",
+  "linux",
+  "chrome",
+];
+export type SelectedPlatform = SupportedPlatform | "all";
+
+export type SelectedPlatformString =
   | ""
   | "darwin"
   | "windows"
@@ -33,15 +36,8 @@ export type IPlatformString =
   | "windows,chrome"
   | "linux,chrome";
 
-export const SUPPORTED_PLATFORMS = [
-  "darwin",
-  "windows",
-  "linux",
-  "chrome",
-] as const;
-
 // TODO: revisit this approach pending resolution of https://github.com/fleetdm/fleet/issues/3555.
-export const MACADMINS_EXTENSION_TABLES: Record<string, IOsqueryPlatform[]> = {
+export const MACADMINS_EXTENSION_TABLES: Record<string, OsqueryPlatform[]> = {
   file_lines: ["darwin", "linux", "windows"],
   filevault_users: ["darwin"],
   google_chrome_profiles: ["darwin", "linux", "windows"],
