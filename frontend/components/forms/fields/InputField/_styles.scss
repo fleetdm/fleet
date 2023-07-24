@@ -80,6 +80,12 @@
       font-family: "SourceCodePro", $monospace;
     }
   }
+
+  &__input-container.copy-enabled {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
 }
 
 // Removes arrows on Firefox number fields

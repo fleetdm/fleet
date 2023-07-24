@@ -2,21 +2,21 @@ import React from "react";
 
 import PATHS from "router/paths";
 
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink/CustomLink";
 
 const baseClass = "windows-automatic-enrollment-page";
 
-interface IWindowsAutomaticEnrollmentPageProps {}
-
-const WindowsAutomaticEnrollmentPage = ({}: IWindowsAutomaticEnrollmentPageProps) => {
+const WindowsAutomaticEnrollmentPage = () => {
   return (
     <MainContent className={baseClass}>
       <>
         <BackLink
           text="Back to automatic enrollment"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
+          path={PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT}
           className={`${baseClass}__back-to-automatic-enrollment`}
         />
         <h1>Azure Active Directory</h1>
@@ -60,6 +60,26 @@ const WindowsAutomaticEnrollmentPage = ({}: IWindowsAutomaticEnrollmentPageProps
           <li>
             Set MDM user scope to <b>All</b>, then copy the URLs below, paste
             them in Azure AD, and select <b>Save</b>.
+            <div className={`${baseClass}__url-inputs-wrapper`}>
+              <InputField
+                inputWrapperClass={`${baseClass}__url-input`}
+                label="MDM terms of use URL"
+                name="mdmTermsOfUseUrl"
+                tooltip="The terms of use API is used to display the terms of service to end users
+                before turning on MDM their host. The terms of use text informs users about
+                policies that will be enforced on the host."
+                value="https://dogfood.fleetdm.com/api/v1/fleet/mdm/microsoft/terms_of_use"
+                enableCopy
+              />
+              <InputField
+                inputWrapperClass={`${baseClass}__url-input`}
+                label="MDM discovery URL"
+                name="mdmDiscoveryUrl"
+                tooltip="The enrollment API is used to connect hosts with the MDM service."
+                value="https://dogfood.fleetdm.com/api/v1/fleet/mdm/microsoft/discovery"
+                enableCopy
+              />
+            </div>
           </li>
           <li>
             Go back to <b>Mobility (MDM and MAM)</b>, refresh the page, then
@@ -86,7 +106,7 @@ const WindowsAutomaticEnrollmentPage = ({}: IWindowsAutomaticEnrollmentPageProps
           </li>
           <li>
             Select <b>Application permissions</b>, then select following:
-            <ul>
+            <ul className={`${baseClass}__permissions-list`}>
               <li>Device.Read.All</li>
               <li>Device &gt; Device.ReadWrite.All</li>
               <li>Directory &gt; Directory.Read.All</li>

@@ -20,6 +20,26 @@
     gap: $pad-large;
     padding: 0;
     margin: 0;
+    max-width: 660px;
     list-style-position: inside;
+  }
+
+  &__url-inputs-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-icon;
+    margin-top: $pad-large;
+  }
+
+  &__url-input {
+    margin-bottom: 0;
+  }
+
+  &__permissions-list {
+    margin-top: $pad-large;
+    list-style: disc;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
   }
 }
