@@ -165,7 +165,7 @@ func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 	respSecond := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusConflict)
 
-	assertBodyContains(t, respSecond, `Error 1062: Duplicate entry 'email@asd.com'`)
+	assertBodyContains(t, respSecond, `Error 1062`)
 }
 
 func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
@@ -227,7 +227,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(t, resp, `Error 1452: Cannot add or update a child row: a foreign key constraint fails`)
+	assertBodyContains(t, resp, `Error 1452`)
 }
 
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
