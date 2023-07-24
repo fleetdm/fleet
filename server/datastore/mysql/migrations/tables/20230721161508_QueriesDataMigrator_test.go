@@ -172,7 +172,7 @@ func TestUp_20230721161508(t *testing.T) {
 		require.Equal(t, query.Saved, true)
 		require.Equal(t, query.ObserverCanRun, true)
 	}
-	require.ElementsMatch(t, names, []string{"Admin Global Query - 1", "Admin Global Query - 2"})
+	require.ElementsMatch(t, names, []string{"Admin Global Query - 1 - Jul 21 20:33:54.000", "Admin Global Query - 2 - Jul 21 20:34:00.000"})
 	require.ElementsMatch(t, scheduleIntervals, []uint{3600, 86400})
 	require.ElementsMatch(t, automationsEnabled, []bool{true, true})
 	require.ElementsMatch(t, loggingTypes, []string{"snapshot", "snapshot"})
@@ -217,7 +217,7 @@ func TestUp_20230721161508(t *testing.T) {
 		require.Equal(t, query.Saved, true)
 		require.Equal(t, query.ObserverCanRun, false)
 	}
-	require.ElementsMatch(t, names, []string{"per_query_perf", "per_query_perf - 7", "per_query_perf - 8"})
+	require.ElementsMatch(t, names, []string{"per_query_perf", "per_query_perf - 7 - Jul 21 20:34:46.000", "per_query_perf - 8 - Jul 21 20:34:51.000"})
 	require.ElementsMatch(t, scheduleIntervals, []uint{0, 86400, 86400})
 	require.ElementsMatch(t, automationsEnabled, []bool{false, true, true})
 	require.ElementsMatch(t, loggingTypes, []string{"", "snapshot", "snapshot"})
@@ -285,7 +285,7 @@ func TestUp_20230721161508(t *testing.T) {
 		require.Equal(t, query.Saved, true)
 		require.Equal(t, query.ObserverCanRun, false)
 	}
-	require.ElementsMatch(t, names, []string{"per_query_perf - 11"})
+	require.ElementsMatch(t, names, []string{"per_query_perf - 11 - Jul 21 20:36:25.000"})
 	require.ElementsMatch(t, scheduleIntervals, []uint{86400})
 	require.ElementsMatch(t, automationsEnabled, []bool{true})
 	require.ElementsMatch(t, loggingTypes, []string{"snapshot"})

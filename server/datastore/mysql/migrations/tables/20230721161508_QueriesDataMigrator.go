@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func init() {
@@ -13,27 +14,32 @@ func init() {
 
 // This is meant to future-proof this migration, this type is based on the fleet.Query type.
 type _20230719152138_Query struct {
-	TeamID                 *uint
-	TeamIDChar             string
-	ObserverCanRun         bool
-	ScheduleInterval       uint
-	Platform               string
-	MinOsqueryVersion      string
-	AutomationsEnabled     bool
-	LoggingType            string
-	Name                   string
-	Description            string
-	Query                  string
-	Saved                  bool
-	AuthorID               *uint
-	ScheduledQID           uint
-	ScheduledQueryInterval uint
-	ScheduledQSnapshot     *bool
-	ScheduledQRemoved      *bool
-	ScheduledQueryPlatform string
-	ScheduledQueryVersion  string
-	PackType               string
-	TeamRoles              string
+	TeamID                  *uint
+	TeamIDChar              string
+	ObserverCanRun          bool
+	ScheduleInterval        uint
+	Platform                string
+	MinOsqueryVersion       string
+	AutomationsEnabled      bool
+	LoggingType             string
+	Name                    string
+	Description             string
+	Query                   string
+	Saved                   bool
+	AuthorID                *uint
+	ScheduledQID            uint
+	ScheduledQueryInterval  uint
+	ScheduledQSnapshot      *bool
+	ScheduledQRemoved       *bool
+	ScheduledQueryPlatform  string
+	ScheduledQueryVersion   string
+	ScheduledQueryTimestamp time.Time
+	PackType                string
+	TeamRoles               string
+}
+
+func _20230719152138_QueryName(q _20230719152138_Query) string {
+	return fmt.Sprintf("%s - %d - %s", q.Name, q.ScheduledQID, q.ScheduledQueryTimestamp.Format("Jan _2 15:04:05.000"))
 }
 
 func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
@@ -50,6 +56,7 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 						sq.removed  AS scheduled_query_removed,
 						sq.platform AS scheduled_query_platform,
 						sq.version  AS scheduled_query_version,
+						sq.created_at AS scheduled_created_at,
 						p.pack_type AS pack_type
 		FROM queries q
 				INNER JOIN scheduled_queries sq ON q.name = sq.query_name
@@ -80,6 +87,7 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 			&query.ScheduledQRemoved,
 			&query.ScheduledQueryPlatform,
 			&query.ScheduledQueryVersion,
+			&query.ScheduledQueryTimestamp,
 			&query.PackType,
 		); err != nil {
 			return fmt.Errorf("error executing 'Scan' for scheduled queries from global packs: %s", err)
@@ -98,7 +106,7 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 		}
 
 		args = append(args,
-			fmt.Sprintf("%s - %d", query.Name, query.ScheduledQID),
+			_20230719152138_QueryName(query),
 			query.Description,
 			query.Query,
 			query.AuthorID,
@@ -159,6 +167,7 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 						sq.removed    AS scheduled_query_removed,
 						sq.platform   AS scheduled_query_platform,
 						sq.version    AS scheduled_query_version,
+						sq.created_at AS scheduled_created_at,
 						p.pack_type   AS pack_type
 		FROM queries q
 				INNER JOIN scheduled_queries sq ON q.team_id IS NULL AND q.name = sq.query_name
@@ -191,6 +200,7 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 			&query.ScheduledQRemoved,
 			&query.ScheduledQueryPlatform,
 			&query.ScheduledQueryVersion,
+			&query.ScheduledQueryTimestamp,
 			&query.PackType,
 		); err != nil {
 			return fmt.Errorf("error executing 'Scan' for scheduled queries from team packs: %s", err)
@@ -220,7 +230,7 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 		args = append(args,
 			teamID,
 			teamIDParts[1],
-			fmt.Sprintf("%s - %d", query.Name, query.ScheduledQID),
+			_20230719152138_QueryName(query),
 			query.Description,
 			query.Query,
 			query.AuthorID,
