@@ -52,9 +52,9 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 						sq.version  AS scheduled_query_version,
 						p.pack_type AS pack_type
 		FROM queries q
-				INNER JOIN scheduled_queries sq ON q.team_id IS NULL AND q.name = sq.query_name
+				INNER JOIN scheduled_queries sq ON q.name = sq.query_name
 				INNER JOIN packs p ON sq.pack_id = p.id
-		WHERE p.pack_type = 'global'`
+		WHERE p.pack_type = 'global' AND q.team_id IS NULL`
 	rows, err := tx.Query(selectStmt)
 	if err != nil {
 		return fmt.Errorf("error executing 'Query' for scheduled queries from global packs: %s", err)
