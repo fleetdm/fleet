@@ -1,6 +1,9 @@
 package fleet
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -126,6 +129,24 @@ type ScheduledQueryStats struct {
 	SystemTime   int       `json:"system_time" db:"system_time"`
 	UserTime     int       `json:"user_time" db:"user_time"`
 	WallTime     int       `json:"wall_time" db:"wall_time"`
+}
+
+// TeamID returns the team id if the stat is for a team query stat result
+func (sqs *ScheduledQueryStats) TeamID() (*int, error) {
+	if strings.HasPrefix(sqs.PackName, "team-") {
+		teamIDParts := strings.Split(sqs.PackName, "-")
+		if len(teamIDParts) != 2 {
+			return nil, fmt.Errorf("invalid pack name: %s", sqs.PackName)
+		}
+
+		if teamID, err := strconv.Atoi(teamIDParts[1]); err != nil {
+			return nil, err
+		} else {
+			return &teamID, nil
+		}
+	}
+
+	return nil, nil
 }
 
 func ScheduledQueryFromQuery(query *Query) *ScheduledQuery {

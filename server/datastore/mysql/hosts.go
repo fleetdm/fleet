@@ -151,6 +151,7 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 		scheduledQueriesArgs       []interface{}
 		scheduledQueriesQueryCount = 0
 	)
+
 	for _, pack := range stats {
 		if pack.PackName == "Global" || (teamID != nil && pack.PackName == fmt.Sprintf("team-%d", *teamID)) {
 			for _, query := range pack.QueryStats {
@@ -162,7 +163,7 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 				}
 				scheduledQueriesArgs = append(scheduledQueriesArgs,
 					teamIDArg,
-					query.ScheduledQueryName,
+					query.QueryName,
 
 					hostID,
 					query.AverageMemory,
