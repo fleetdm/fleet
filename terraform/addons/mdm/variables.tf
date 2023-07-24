@@ -24,5 +24,5 @@ variable "public_domain_name" {
 variable "enable_windows_mdm" {
   default  = false
   nullable = false
-  type     = boolean
+  type     = bool
 }
