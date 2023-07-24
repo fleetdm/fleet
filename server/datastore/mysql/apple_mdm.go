@@ -1469,7 +1469,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	    hmap.host_uuid,
 	    hmap.checksum,
 	    hmap.operation_type,
-	    COALESCE(hmap.detail, ''),
+	    COALESCE(hmap.detail, '') as detail,
 	    hmap.status,
 	    hmap.command_uuid
           FROM (
