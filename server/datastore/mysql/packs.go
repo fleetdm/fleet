@@ -465,36 +465,6 @@ func insertNewGlobalPackDB(ctx context.Context, q sqlx.ExtContext) (*fleet.Pack,
 	return packDB(ctx, q, packID)
 }
 
-func (ds *Datastore) EnsureTeamPack(ctx context.Context, teamID uint) (*fleet.Pack, error) {
-	pack := &fleet.Pack{}
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		t, err := teamDB(ctx, tx, teamID)
-		if err != nil || t == nil {
-			return ctxerr.Wrap(ctx, err, "Error finding team")
-		}
-
-		teamType := fmt.Sprintf("team-%d", teamID)
-		// read from primary as we will create the team pack if it doesn't exist
-		err = sqlx.GetContext(ctx, tx, pack, `SELECT * FROM packs WHERE pack_type = ?`, teamType)
-		if err == sql.ErrNoRows {
-			pack, err = insertNewTeamPackDB(ctx, tx, t)
-			return err
-		} else if err != nil {
-			return ctxerr.Wrap(ctx, err, "get pack")
-		}
-
-		if err := loadPackTargetsDB(ctx, tx, pack); err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return pack, nil
-}
-
 func teamScheduleName(team *fleet.Team) string {
 	return fmt.Sprintf("Team: %s", team.Name)
 }
