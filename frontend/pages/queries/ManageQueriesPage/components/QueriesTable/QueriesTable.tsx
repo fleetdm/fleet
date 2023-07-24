@@ -44,8 +44,8 @@ interface IQueriesTableProps {
   isInherited?: boolean;
 }
 
-const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_SORT_HEADER = "updated_at";
+const DEFAULT_SORT_DIRECTION = "asc";
+const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PLATFORM = "all";
 
@@ -99,8 +99,7 @@ const QueriesTable = ({
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();
   const initialSortHeader = (() =>
-    (queryParams?.order_key as "updated_at" | "name" | "author") ??
-    "updated_at")();
+    (queryParams?.order_key as "name" | "updated_at" | "author") ?? "name")();
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
   const initialPlatform = (() =>
