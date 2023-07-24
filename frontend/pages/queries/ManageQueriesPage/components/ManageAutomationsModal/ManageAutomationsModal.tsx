@@ -66,8 +66,14 @@ const ManageAutomationsModal = ({
   // TODO: Error handling, if any
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
+  // Client side sort queries alphabetically
+  const sortedAvailableQueries =
+    availableQueries?.sort((a, b) =>
+      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    ) || [];
+
   const { queryItems, updateQueryItems } = useCheckboxListStateManagement(
-    availableQueries || [],
+    sortedAvailableQueries,
     automatedQueryIds || []
   );
 
