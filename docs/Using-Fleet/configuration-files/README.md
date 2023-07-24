@@ -290,11 +290,9 @@ integrations
 webhook_settings
 ```
 
-You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
+You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will apply the changes without validation and should be used with caution.
 
 ### Mobile device management (MDM) settings for teams
-
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
 
@@ -1009,9 +1007,9 @@ Existing options will be overwritten by the application of this file.
 
 ##### `command_line_flags` option
 
-> This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager).
+> This feature requires [Fleetd, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager).
 
-The `command_line_flags` key inside of `agent_options` allows you to remotely manage the osquery command line flags. These command line flags are options that typically require osquery to restart for them to take effect. But with Orbit, you can use the `command_line_flags` key to take care of that. Orbit will write these to the flagfile on the host and pass it to osquery.
+The `command_line_flags` key inside of `agent_options` allows you to remotely manage the osquery command line flags. These command line flags are options that typically require osquery to restart for them to take effect. But with Fleetd, you can use the `command_line_flags` key to take care of that. Fleetd will write these to the flagfile on the host and pass it to osquery.
 
 To see the full list of these osquery command line flags, please run `osquery` with the `--help` switch.
 
@@ -1036,7 +1034,7 @@ Note that the `command_line_flags` key does not support the `overrides` key, whi
 
 You can verify that these flags have taken effect on the hosts by running a query against the `osquery_flags` table.
 
-> If you revoked an old enroll secret, this feature won't update for hosts that were added to Fleet using this old enroll secret. This is because Orbit uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
+> If you revoked an old enroll secret, this feature won't update for hosts that were added to Fleet using this old enroll secret. This is because Fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
 For further documentation on how to rotate enroll secrets, please see [this guide](#rotating-enroll-secrets).
 
@@ -1044,7 +1042,7 @@ If you prefer to deploy a new package with the updated enroll secret:
 
 1. Check which hosts need a new enroll secret by running the following query: `SELECT * FROM orbit_info WHERE enrolled = false`.
 
-> The hosts that don't have Orbit installed will return an error because the `orbit_info` table doesn't exist. You can safely ignore these errors.
+> The hosts that don't have Fleetd installed will return an error because the `orbit_info` table doesn't exist. You can safely ignore these errors.
 
 2. In Fleet, head to the Hosts page and select **Add hosts** to find the fleetctl package command with an active enroll secret.
 
@@ -1054,7 +1052,7 @@ If you prefer to deploy a new package with the updated enroll secret:
 
 
 
-> In order for these options to be applied to your hosts, the `osquery` agent must be configured to use the `tls` config plugin and pointed to the correct endpoint. If you are using Orbit to enroll your hosts, this is done automatically.
+> In order for these options to be applied to your hosts, the `osquery` agent must be configured to use the `tls` config plugin and pointed to the correct endpoint. If you are using Fleetd to enroll your hosts, this is done automatically.
 
 ```
 "--config_plugin=tls",
@@ -1070,7 +1068,7 @@ spec:
 
 ##### `extensions` option
 
-> This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server.
+> This feature requires [Fleetd, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server.
 
 The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
 
@@ -1102,9 +1100,9 @@ If you are using `fleetctl` to manage your TUF server, these same conventions ap
 fleetctl updates add --path /path/to/local/TUF/repo --target /path/to/extensions/binary/hello_world.ext --name extensions/hello_world --platform macos --version 0.1
 ```
 
-After successfully configuring the agent options, and pushing the extension as a target on your TUF server, Orbit will periodically check with the TUF server for updates to these extensions.
+After successfully configuring the agent options, and pushing the extension as a target on your TUF server, Fleetd will periodically check with the TUF server for updates to these extensions.
 
-If you are using a self-hosted TUF server, you must also manage all of Orbit's versions, including osquery, Fleet Desktop and osquery extensions.
+If you are using a self-hosted TUF server, you must also manage all of Fleetd's versions, including osquery, Fleet Desktop and osquery extensions.
 
 Fleet recommends deploying extensions created with osquery-go or natively with C++, instead of Python. Extensions written in Python require the user to compile it into a single packaged binary along with all the dependencies.
 
@@ -1360,8 +1358,6 @@ agent_options:
 
 #### Mobile device management (MDM) settings
 
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
-
 The `mdm` section of the configuration YAML lets you control MDM settings in Fleet.
 
 ##### mdm.apple_bm_default_team
@@ -1378,6 +1374,8 @@ Set name of default team to use with Apple Business Manager.
   ```
 
 ##### mdm.windows_enabled_and_configured
+
+> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 Enables or disables Windows MDM support.
 
@@ -1467,3 +1465,5 @@ If you're using Fleet Premium, this enforces disk encryption on all hosts assign
 #### Advanced configuration
 
 > **Note:** More settings are included in the [contributor documentation](https://fleetdm.com/docs/contributing/configuration-for-contributors). It's possible, although not recommended, to configure these settings in the YAML configuration file.
+
+<meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure Fleet.">

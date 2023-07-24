@@ -44,3 +44,4 @@ curl -s -XPOST -d '{"type" : "latency", "attributes" : {"latency" : 1000, "jitte
 ```
 
 <meta name="pageOrderInSection" value="1400">
+<meta name="description" value="A guide for simulating slow connections from a local Fleet server to a Redis or MySQL database">

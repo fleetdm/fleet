@@ -2687,7 +2687,7 @@ Request (`filters` is specified):
 
 Retrieves a host's Google Chrome profile information which can be used to link a host to a specific user by email.
 
-Requires [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 `GET /api/v1/fleet/hosts/{id}/device_mapping`
 
@@ -3119,6 +3119,46 @@ Retrieves the disk encryption key for a host.
     "key": "5ADZ-HTZ8-LJJ4-B2F8-JWH3-YPBT",
     "updated_at": "2022-12-01T05:31:43Z"
   }
+}
+```
+
+### Get configuration profiles assigned to a host 
+
+Requires Fleet's MDM properly [enabled and configured](./Mobile-device-management.md).
+
+Retrieves a list of the configuration profiles assigned to a host.
+
+`GET /api/v1/fleet/mdm/hosts/:id/profiles`
+
+#### Parameters
+
+| Name | Type    | In   | Description                      |
+| ---- | ------- | ---- | -------------------------------- |
+| id   | integer | path | **Required**. The ID of the host  |
+
+
+#### Example
+
+`GET /api/v1/fleet/mdm/hosts/8/profiles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 8,
+  "profiles": [
+    {
+      "profile_id": 1337,
+      "team_id": 0,
+      "name": "Example profile",
+      "identifier": "com.example.profile",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo="
+    }
+  ]
 }
 ```
 
@@ -3701,12 +3741,13 @@ List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are
 {
   "profiles": [
     {
-        "profile_id": 1337,
-        "team_id": 0,
-        "name": "Example profile",
-        "identifier": "com.example.profile",
-        "created_at": "2023-03-31T00:00:00Z",
-        "updated_at": "2023-03-31T00:00:00Z"
+      "profile_id": 1337,
+      "team_id": 0,
+      "name": "Example profile",
+      "identifier": "com.example.profile",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo="
     }
   ]
 }
@@ -7572,3 +7613,4 @@ Response:
 
 ---
 <meta name="pageOrderInSection" value="400">
+<meta name="description" value="Documentation for Fleet's REST API. See example requests and responses for each API endpoint.">

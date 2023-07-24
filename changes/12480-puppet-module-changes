@@ -1,0 +1,1 @@
+* Improve the reporting of the puppet module to only report as changed profiles that actually changed during a run.

@@ -679,6 +679,9 @@ type Service interface {
 	// MMDAppleEraseDevice erases a host
 	MDMAppleEraseDevice(ctx context.Context, hostID uint) error
 
+	// MDMListHostConfigurationProfiles returns configuration profiles for a given host
+	MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*MDMAppleConfigProfile, error)
+
 	// MDMAppleEnableFileVaultAndEscrow adds a configuration profile for the
 	// given team that enables FileVault with a config that allows Fleet to
 	// escrow the recovery key.
@@ -757,13 +760,16 @@ type Service interface {
 	// Windows MDM
 
 	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
-	GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*DiscoverResponse, error)
+	GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*DiscoverResponse, error)
+
+	// GetMDMMicrosoftSTSAuthResponse returns a valid STS auth page
+	GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error)
 
 	// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
-	GetMDMWindowsPolicyResponse(ctx context.Context, authToken string) (*GetPoliciesResponse, error)
+	GetMDMWindowsPolicyResponse(ctx context.Context, authToken *HeaderBinarySecurityToken) (*GetPoliciesResponse, error)
 
 	// GetMDMWindowsEnrollResponse returns a valid RequestSecurityTokenResponseCollection message
-	GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg *RequestSecurityToken, authToken string) (*RequestSecurityTokenResponseCollection, error)
+	GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg *RequestSecurityToken, authToken *HeaderBinarySecurityToken) (*RequestSecurityTokenResponseCollection, error)
 
 	// GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
 	GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *SoapFault
@@ -771,4 +777,10 @@ type Service interface {
 	// SignMDMMicrosoftClientCSR returns a signed certificate from the client certificate signing request and the
 	// certificate fingerprint. The certificate common name should be passed in the subject parameter.
 	SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error)
+
+	// GetMDMWindowsManagementResponse returns a valid SyncML response message
+	GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *SyncMLMessage) (*string, error)
+
+	// GetMDMWindowsTOSContent returns TOS content
+	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
 }

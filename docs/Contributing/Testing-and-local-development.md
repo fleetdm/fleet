@@ -636,7 +636,7 @@ The next time you go through the DEP flow, you should be prompted to authenticat
 
 ### Nudge
 
-We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Orbit:
+We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Fleetd:
 
 1. When Orbit pings the server for a config (every 30 seconds,) we send the corresponding Nudge configuration for the host. Orbit then saves this config at `<ORBIT_ROOT_DIR>/nudge-config.json`
 2. If Orbit gets a Nudge config, it downloads Nudge from TUF.
@@ -673,3 +673,4 @@ The `pkg` file needs to be a signed "distribution package", you can find a dummy
 The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo.png`. To verify if the package was installed, you can open that folder and verify that the logo is there.
 
 <meta name="pageOrderInSection" value="1500">
+<meta name="description" value="An overview of Fleet's full test suite and integration tests.">

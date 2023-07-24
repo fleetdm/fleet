@@ -4,9 +4,9 @@ _Available in Fleet Premium_
 
 In Fleet, you can customize the out-of-the-box macOS setup experience for your end users:
 
-* Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac
+* Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
 
-* Customize the macOS Setup Assistant by choosing to show or hide specific panes
+* Customize the macOS Setup Assistant by choosing to show or hide specific panes.
 
 * Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scrips, and more.
 
@@ -150,7 +150,84 @@ You should see the URL for your bootstrap package as the value for `mdm.macos_se
 
 ## macOS Setup Assistant
 
-> This feature is currently in development.
+When an end user unboxes their new Mac, or starts up a freshly wiped Mac, they're presented with the macOS Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
+
+In Fleet, you can customize the macOS Setup Assistant by using an automatic enrollment profile.
+
+To customize the macOS Setup Assistant, we will do the following steps:
+
+1. Create an automatic enrollment profile
+2. Upload the profile to Fleet
+3. Test the custom macOS Setup Assistant
+
+### Step 1: create an automatic enrollment profile
+
+1. Download Fleet's example automatic enrollment profile by navigating to the example [here on GitHub](https://github.com/fleetdm/fleet/blob/main/mdm_profiles/setup_assistant.json) and clicking the download icon.
+
+2. Open the automatic enrollment profile and replace the `profile_name` key with your organization's name.
+
+3. View the the list of macOS Setup Assistant properties (panes) [here in Apple's Device Management documentation](https://developer.apple.com/documentation/devicemanagement/skipkeys) and choose which panes to hide from your end users.
+
+4. In your automatic enrollment profile, edit the `skip_setup_items` array so that it includes the panes you want to hide.
+
+> You can modify properties other than `skip_setup_items`. These are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/profile).
+
+### Step 2: upload the profile to Fleet
+
+1. Choose which team you want to add the automatic enrollment profile to.
+
+In this example, let's assume you have a "Workstations" team as your [default team](./MDM-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production. 
+
+To do this, we'll create a new "Workstations (canary)" team and add the automatic enrollment profile to it. Only hosts that automatically enroll to this team will see the custom macOS Setup Assistant.
+
+2. Create a `workstations-canary-config.yaml` file:
+
+```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Workstations (canary)
+    mdm:
+      macos_setup:
+        macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
+    ...
+```
+
+Learn more about team configurations options [here](./configuration-files/README.md#teams).
+
+If you want to customize the macOS Setup Assistant for hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_setup:
+      macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
+  ...
+```
+
+Learn more about configuration options for hosts that aren't assigned to a team [here](./configuration-files/README.md#organization-settings).
+
+3. Add an `mdm.macos_setup.macos_setup_assistant` key to your YAML document. This key accepts a path to your automatic enrollment profile.
+
+4. Run the `fleetctl apply -f workstations-canary-config.yml` command to upload the automatic enrollment profile to Fleet.
+
+### Step 3: test the custom macOS Setup Assistant
+
+Testing requires a test Mac that is present in your Apple Business Manager (ABM) account. We will wipe this Mac and use it to test the custom macOS Setup Assistant.
+
+1. Wipe the test Mac by selecting the Apple icon in top left corner of the screen, selecting **System Settings** or **System Preference**, and searching for "Erase all content and settings." Select **Erase All Content and Settings**.
+
+2. In Fleet, navigate to the Hosts page and find your Mac. Make sure that the host's **MDM status** is set to "Pending."
+
+> New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." Learn more about these hosts [here](./MDM-setup.md#pending-hosts).
+
+3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
+
+4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
 
 <meta name="pageOrderInSection" value="1505">
 <meta name="title" value="MDM macOS setup">
+<meta name="description" value="Customize your macOS setup experience with Fleet Premium by managing user authentication, Setup Assistant panes, and installing bootstrap packages.">

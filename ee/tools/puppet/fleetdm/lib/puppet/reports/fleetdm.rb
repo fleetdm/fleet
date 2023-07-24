@@ -8,15 +8,8 @@ Puppet::Reports.register_report(:fleetdm) do
 
   def process
     return if noop
+    client = Puppet::Util::FleetClient.instance
     node_name = Puppet[:node_name_value]
-    node = Puppet::Node.new(node_name)
-    compiler = Puppet::Parser::Compiler.new(node)
-    scope = Puppet::Parser::Scope.new(compiler)
-    lookup_invocation = Puppet::Pops::Lookup::Invocation.new(scope, {}, {}, nil)
-    host = Puppet::Pops::Lookup.lookup('fleetdm::host', nil, '', false, nil, lookup_invocation)
-    token = Puppet::Pops::Lookup.lookup('fleetdm::token', nil, '', false, nil, lookup_invocation)
-
-    client = Puppet::Util::FleetClient.new(host, token)
     run_identifier = "#{catalog_uuid}-#{node_name}"
     response = client.match_profiles(run_identifier)
 

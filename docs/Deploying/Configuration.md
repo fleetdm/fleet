@@ -2517,7 +2517,6 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
     dsn: "https://somedsnprovidedby.sentry.com/"
   ```
 
-<meta name="pageOrderInSection" value="300">
 
 #### Prometheus
 
@@ -2602,7 +2601,7 @@ stored in your database.
 
 ##### packaging_s3_bucket
 
-This is the name of the S3 bucket to store pre-built Orbit installers.
+This is the name of the S3 bucket to store pre-built Fleetd installers.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_BUCKET`
@@ -3221,3 +3220,7 @@ The HTTP request headers are checked in the following order:
 4. If none of the above headers are present in the HTTP request then Fleet will attempt to use the remote address of the TCP connection (note that on deployments with ingress proxies the remote address seen by Fleet is the IP of the ingress proxy).
 
 If the IP retrieved using the above heuristic belongs to a private range, then Fleet will ignore it and will not set the "Public IP address" field for the device.
+
+
+<meta name="pageOrderInSection" value="300">
+<meta name="description" value="This page includes resources for configuring the Fleet binary, managing osquery configurations, and running with systemd.">

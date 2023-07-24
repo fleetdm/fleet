@@ -290,7 +290,7 @@ type MDMAppleConfigProfile struct {
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
 	// Checksum is an MD5 hash of the Mobileconfig bytes
-	Checksum  []byte    `db:"checksum" json:"-"`
+	Checksum  []byte    `db:"checksum" json:"checksum,omitempty"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
@@ -377,11 +377,15 @@ func (d HostMDMProfileDetail) Message() string {
 }
 
 type MDMAppleProfilePayload struct {
-	ProfileID         uint   `db:"profile_id"`
-	ProfileIdentifier string `db:"profile_identifier"`
-	ProfileName       string `db:"profile_name"`
-	HostUUID          string `db:"host_uuid"`
-	Checksum          []byte `db:"checksum"`
+	ProfileID         uint                    `db:"profile_id"`
+	ProfileIdentifier string                  `db:"profile_identifier"`
+	ProfileName       string                  `db:"profile_name"`
+	HostUUID          string                  `db:"host_uuid"`
+	Checksum          []byte                  `db:"checksum"`
+	Status            *MDMAppleDeliveryStatus `db:"status" json:"status"`
+	OperationType     MDMAppleOperationType   `db:"operation_type"`
+	Detail            string                  `db:"detail"`
+	CommandUUID       string                  `db:"command_uuid"`
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
@@ -459,6 +463,7 @@ type MDMApplePreassignProfilePayload struct {
 	HostUUID               string `json:"host_uuid"`
 	Profile                []byte `json:"profile"`
 	Group                  string `json:"group"`
+	Exclude                bool   `json:"exclude"`
 }
 
 // HexMD5Hash returns the hex-encoded MD5 hash of the profile. Note that MD5 is
@@ -484,6 +489,7 @@ type MDMApplePreassignProfile struct {
 	Profile    []byte
 	Group      string
 	HexMD5Hash string
+	Exclude    bool
 }
 
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to

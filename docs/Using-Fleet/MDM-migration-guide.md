@@ -117,3 +117,4 @@ Want to know what your organization can see? Read about [transparency](https://f
 
 <meta name="pageOrderInSection" value="1501">
 <meta name="title" value="MDM migration guide">
+<meta name="description" value="Instructions for migrating hosts away from an old MDM solution to Fleet.">

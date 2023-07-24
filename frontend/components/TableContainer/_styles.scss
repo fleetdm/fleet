@@ -15,12 +15,12 @@
       flex-direction: column-reverse;
       align-items: start;
 
-      @media (min-width: $break-768) {
+      @media (min-width: $break-xs) {
         flex-direction: row;
         align-items: end;
         justify-content: space-between;
       }
-      @media (min-width: $break-990) {
+      @media (min-width: $break-md) {
         align-items: center;
       }
     }
@@ -36,7 +36,7 @@
       flex-direction: column-reverse;
       align-items: start;
 
-      @media (min-width: $break-990) {
+      @media (min-width: $break-md) {
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
@@ -66,7 +66,7 @@
     &.stack-table-controls {
       padding-top: $pad-large;
 
-      @media (min-width: $break-990) {
+      @media (min-width: $break-md) {
         padding-top: 0;
       }
     }
@@ -87,10 +87,10 @@
     .search-field__input-wrapper {
       width: 250px;
       margin-bottom: 0;
-      @media (min-width: $break-768) {
+      @media (min-width: $break-xs) {
         width: 300px;
       }
-      @media (min-width: $break-990) {
+      @media (min-width: $break-md) {
         width: 344px;
       }
     }
@@ -99,21 +99,10 @@
       padding-bottom: $pad-large;
       margin-left: 0;
 
-      @media (min-width: $break-768) {
+      @media (min-width: $break-xs) {
         margin-left: $pad-medium;
         padding-bottom: 0;
       }
-    }
-
-    &::before {
-      display: inline-block;
-      position: absolute;
-      padding: 5px 0 0 0; // centers spin
-      content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
-      transform: scale(0.5);
-      height: 20px;
-      top: 3px;
-      left: 8px;
     }
 
     .input-field {

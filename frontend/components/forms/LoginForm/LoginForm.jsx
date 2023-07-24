@@ -85,9 +85,15 @@ class LoginForm extends Component {
       <form onSubmit={handleSubmit} className={loginFormClass}>
         <div className={`${baseClass}__container`}>
           {baseError && <div className="form__base-error">{baseError}</div>}
-          <InputFieldWithIcon {...fields.email} autofocus placeholder="Email" />
+          <InputFieldWithIcon
+            {...fields.email}
+            autofocus
+            label="Email"
+            placeholder="Email"
+          />
           <InputFieldWithIcon
             {...fields.password}
+            label="Password"
             placeholder="Password"
             type="password"
           />
