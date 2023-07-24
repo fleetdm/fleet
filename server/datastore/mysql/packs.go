@@ -442,63 +442,8 @@ func packDB(ctx context.Context, q sqlx.QueryerContext, pid uint) (*fleet.Pack, 
 	return pack, nil
 }
 
-func insertNewGlobalPackDB(ctx context.Context, q sqlx.ExtContext) (*fleet.Pack, error) {
-	var packID uint
-	res, err := q.ExecContext(ctx,
-		`INSERT INTO packs (name, description, platform, pack_type) VALUES ('Global', 'Global pack', '','global')`,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "insert pack")
-	}
-	packId, err := res.LastInsertId()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "last insert id")
-	}
-	packID = uint(packId)
-	if _, err := q.ExecContext(ctx,
-		`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))`,
-		packID, fleet.TargetLabel, "All Hosts",
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "adding label to pack")
-	}
-
-	return packDB(ctx, q, packID)
-}
-
 func teamScheduleName(team *fleet.Team) string {
 	return fmt.Sprintf("Team: %s", team.Name)
-}
-
-func teamSchedulePackType(team *fleet.Team) string {
-	return teamSchedulePackTypeByID(team.ID)
-}
-
-func teamSchedulePackTypeByID(teamID uint) string {
-	return fmt.Sprintf("team-%d", teamID)
-}
-
-func insertNewTeamPackDB(ctx context.Context, q sqlx.ExtContext, team *fleet.Team) (*fleet.Pack, error) {
-	var packID uint
-	res, err := q.ExecContext(ctx,
-		`INSERT INTO packs (name, description, platform, pack_type)
-                   VALUES (?, 'Schedule additional queries for all hosts assigned to this team.', '',?)`,
-		teamScheduleName(team), teamSchedulePackType(team),
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "insert team pack")
-	}
-	packId, err := res.LastInsertId()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "last insert id")
-	}
-	packID = uint(packId)
-	if _, err := q.ExecContext(ctx,
-		`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, ?)`,
-		packID, fleet.TargetTeam, team.ID,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "adding team id target to pack")
-	}
-	return packDB(ctx, q, packID)
 }
 
 // ListPacks returns all fleet.Pack records limited and sorted by fleet.ListOptions
