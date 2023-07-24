@@ -112,12 +112,12 @@ func TestUp_20230721161508(t *testing.T) {
 	require.Contains(t, teamIDs, uint(2))
 
 	// The global pack has 4 different schedules two targeting 'Admin Global Query' and the other
-	// two targeting 'performance-metrics' so I expect to see 6 queries here:
-	// 'Admin Global Query - 1' <- For schedule with id 1
-	// 'Admin Global Query - 2' <- For schedule with id 2
-	// 'performance-metrics' <- Original (kept because is referenced by an 2017 pack)
-	// 'performance-metrics - 7' <- For schedule with id 7
-	// 'performance-metrics - 8' <- For schedule with id 8
+	// two targeting 'per_query_perf' so I expect to see 6 queries here:
+	// 'Admin Global Query - 1 - $timestamp' <- For schedule with id 1
+	// 'Admin Global Query - 2 - $timestamp' <- For schedule with id 2
+	// 'per_query_perf' <- Original (kept because is referenced by an 2017 pack)
+	// 'per_query_perf - 7 - $timestamp' <- For schedule with id 7
+	// 'per_query_perf - 8 - $timestamp' <- For schedule with id 8
 	stmt = `SELECT 
 				name, 
 				description, 
@@ -226,11 +226,11 @@ func TestUp_20230721161508(t *testing.T) {
 	// We have two team packs (Team-1, Team-2)
 	// For Team-1, we have three schedules, two of them reference 'User 1 Query', the last one
 	// 'per_query_perf', so I expect to see five different queries on team#1:
-	//   - 'User 1 Query - 9' for schedule#9
-	//   - 'User 1 Query - 10' for schedule#10
-	//   - 'per_query_perf - 11' for schedule#11
+	//   - 'User 1 Query - 9 - $timestamp' for schedule#9
+	//   - 'User 1 Query - 10 - $timestamp' for schedule#10
+	//   - 'per_query_perf - 11 - $timestamp' for schedule#11
 	// For Team-2, we only have one schedule on 'backup_tool_perf', so I expect to see on team#2:
-	// 	 - 'backup_tool_perf - 12'
+	// 	 - 'backup_tool_perf - 12 - $timestamp'
 	stmt = `SELECT 
 		name, 
 		description, 
