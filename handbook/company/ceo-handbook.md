@@ -1,40 +1,67 @@
 # CEO handbook
-This page details processes specific to Mike McNeil, CEO of Fleet.  
+This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. 
+
+Need quick Answers?
+* [How can I...(#Intake)](#Intake)
+* [How to...(#Tasks)](#Tasks)
+* [Who will...(#Rituals)](#Rituals)
+
+
+
+## Pointers
+
+What about [Mike](https://youtu.be/_T-UR9mU4-o?t=2563)?
+
+- "[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc. 
+
+
+- **Character**  
+TODO
+
+
+
+
+
+### Writing style
+
+Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. Don’t sound formal, sound welcoming so that anyone can understand. Translate "puffery" into "ease of use" or "readability".  Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). Create heading(s) that make good permalinks, use links and add missing links. Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”). Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. A big goal is to be able to link directly to this stuff when something comes up as a gentle way to remind and train using the foundation we've already built. Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere). Read your PRs, check it carefully with each change and edit until the diff looks good. Check preview mode in GitHub to make sure the format renders correctly. If you look at your diff and notice unintentional changes, remove them.
+
+
 
 ## Responsibilities
-The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company.
-
-> When the CEO is out of office, these responsibilities should be delegated so they can be handled promptly.  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
-
-## The CEO support team
+The CEO is the [directly responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company. 
+- **Note** When the CEO is out of office, these responsibilities should be delegated so they can be handled promptly.  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 
- Sam Pfluger | Apprentice to the CEO 
+## Team
 
-## Rituals
+The 🦿 Remote department (also known as the "CEO support team"), is made up of these people:
 
-| Task | Description | Frequency | 
-| ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
-| [CEO e-mail management](#ceo-email-management)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
-| General communications  [slack channel](https://fleetdm.com/handbook/business-operations#slack-channels) | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
-| Schedule internal and external [meetings for the CEO](#scheduling-with-the-ceo)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
-| [Preparing agendas and content](#document-preparation) for CEO's meetings | Create and edit agenda, provide context, and contact information | PRN                   |
-| Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
-| [Ad-hoc](https://fleetdm.com/handbook/customers#scheduling-a-customer-call) requests from the CEO | Triage requests, prioritize actions, flag actions for further review | PRN |   
-| Total [travel coordination](#travel-preferences) for the CEO | Triage travel request, plan and coordinate flight, stay, and concierge arrangements | PRN                   |
-| Coordinate the [weekly E-Group calendar](https://fleetdm.com/handbook/business-operations#weekly-updates) events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
 
-## CEO preferences
 
-### Scheduling with the CEO
->Reach out to the Apprentice to the CEO in `#-meetings` with the required details to book a meeting with the CEO. 
->All [meetings](https://fleetdm.com/handbook/business-operations#internal-meeting-scheduling) on Mike's calendar should be scheduled and vetted by the Apprentice to the CEO. 
->- Please do not directly schedule a meeting onto Mike's calendar without confirming with the Apprentice to the CEO in advance or unless requested directly from Mike.
->- The CEO requires meetings to originate from his calendar and on his Zoom account.
->- All items on Mike's calendar require justification and are subject to change by the CEO to better serve the company.
 
-Meetings before 9 am and after 6 pm Central require Mike's approval before scheduling. Please reach out to the Apprentice to the CEO with your rationale for an exception. 
- - If Mike agrees to a meeting at 9 am or earlier, please schedule a block on his calendar on the previous day reminding him that he has a meeting before 9 am Central the following day.
+| Contributor                                    | Role
+|:-----------------------------------------------|:----------------------------------------------------------------------|
+| Mike McNeil ([@mikermcneil](https://github.com/mikermcneil))  | [CEO](https://www.linkedin.com/in/mikermcneil/)
+| Sam Pfluger ([@sampfluger88](https://github.com/sampfluger88)) | [Apprentice to the CEO](https://www.linkedin.com/in/sampfluger88/)
+
+
+
+## How can I...(#Intake)
+
+
+
+
+## Scheduling with the CEO
+
+- Reach out to the Apprentice in `#-meetings` with the required details to book a meeting with the CEO. 
+All [meetings](https://fleetdm.com/handbook/business-operations#internal-meeting-scheduling) on Mike's calendar should be scheduled and vetted by the Apprentice. 
+ Please do not directly schedule a meeting onto Mike's calendar without confirming with the Apprentice in advance or unless requested directly from Mike.
+ The CEO requires meetings to originate from his calendar and on his Zoom account.
+ All items on Mike's calendar require justification and are subject to change by the CEO to better serve the company.
+
+Meetings before 9 am and after 6 pm Central require Mike's approval before scheduling. Please reach out to the Apprentice with your rationale for an exception. 
+ - If Mike agrees to a meeting at 9 am or earlier, the Apprentice will schedule a "DOTO: Mike" on his calendar the night before reminding him that he has a meeting before 9 am Central the following day.
 
 Morning times should be held for team members and external folks whose time zones make it harder for them to meet later in the day.
  - The Apprentice to the CEO will confirm that recipients have accepted invites. 
@@ -69,12 +96,14 @@ Preferences for flights, in descending order of importance are:
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
 
-## Contacting the CEO
+## Contact the CEO
+
+If urgent, send a Slack direct message (DM) right away. 
 
 If you mention the CEO from within a Slack thread, he will not read your message.
 
 Please find a different way to get in touch:
-- If urgent, send a Slack direct message (DM) right away.
+
 - If it can wait, add your message to the "CEO office minutes" agenda (see "Office hours" calendar)
 - Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO?
 - Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.)
@@ -109,26 +138,16 @@ This channel is for the CEO to drop ideas and tasks when on the go.
  - Mark requests with 👀 (emoji reaction) to indicate that you are working on the task
  - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task
 
+
+## How to...
+
+
 ## Prep work
 
-### Writing preferences
-
-- Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write.
-- Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing.
-- Don’t sound formal, sound welcoming so that anyone can understand.
-- Translate "puffery" into "ease of use" or "readability". 
-- Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays).
-- Create heading(s) that make good permalinks, use links and add missing links.
-- Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”).
-- Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward.
-- A big goal is to be able to link directly to this stuff when something comes up as a gentle way to remind and train using the foundation we've already built.
-- Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere).
-- Read your PRs, check it carefully with each change and edit until the diff looks good. Check preview mode in GitHub to make sure the format renders correctly.
-- If you look at your diff and notice unintentional changes, remove them.
 
 ### All Hands prep
 
-> DISCUSS -mike, 2023-03
+- **DISCUSS - Mike, 2023-03**
 
 Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
@@ -180,15 +199,15 @@ In the notes document include:
   3. Context that helps the CEO to understand the purpose of meeting at a glance
   4. Share the document with meeting participants
 
-Multiple times daily (minimum 4), The Apprentice will correct any double booking in the CEO's calendar. Prioritzing in order of importance:
+Multiple times daily (minimum 4), The Apprentice will correct any double booking in the CEO's calendar. Prioritizing in order of importance:
  - External meetings
  - Travel and personal commitments
  - Sales meetings
  - Investor meetings (eg Sid)
 
-**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  _Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved._  To schedule, mention @Charlie in the `#-meetings` channel.**
+**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  _Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved._  To schedule, mention @(Apprentice) in the `#-meetings` channel.**
 
-**The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Charlie in the `#-meetings` channel in Slack.**
+**The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @(Apprentice) in the `#-meetings` channel in Slack.**
 
 ### 💻 Sid : Mike
 Every two weeks, our CEO Mike has a 1:1 meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
@@ -204,15 +223,12 @@ We like to regularly share updates about how Fleet is growing with our investors
 ### Document preparation 
 At Fleet, document prep steps are determined by the type of meeting. 
 
-| Meeting type | Description | Automation enabled? | Meeting note preference |
-| ------------ | -------------------------------------------------------------| ------------------ | ------------- |
-| "One-off"    | A non-recurring meeting that has a separate doc per meeting. | Most likely Zapier | Note template |
+| Meeting type  | Description | Automation enabled? | Meeting note preference |
+| ------------  | -------------------------------------------------------------| ------------------ | ------------- |
+| "One-off"     | A non-recurring meeting that has a separate doc per meeting. | Most likely Zapier | Note template |
 | External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journal template |
-| 1:1 | A recurring meeting that direct managers and direct reports use for performance management and is emptied after every call. | Most likely Reclaim | Agenda template |
-| Office hours | A recurring meeting that is emptied after call used for group meetings of Fleet team members. | Google calendar | Office hour agenda template |
-
->Journals are good when the primary goal is understanding status, asking questions.  (e.g. a key review, a demo session, customer voice, prospect voice, community voice)  There might be action items that come out of it, but they aren't the goal of the meeting.  TODOs in journals are suspect and often overlooked.
-Whereas agendas are good when it's all about action items / decisions / discussing a topic.  Like the whole reason a bullet is there is to make someone aware, to get feedback, to make a decision, or because it's an important TODO for someone on that call.  TODOs in agendas are very easy to keep track of and can be trusted more.
+| 1:1           | A recurring meeting that direct managers and direct reports use for performance management and is emptied after every call. | Most likely Reclaim | Agenda template |
+| Office hours  | A recurring meeting that is emptied after call used for group meetings of Fleet team members. | Google calendar | Office hour agenda template |
 
 
 ## Tasks as assigned
@@ -235,6 +251,31 @@ How to file videos from Gong recordings (**marking as "private" in Gong is not a
     - If appropriate, make this doc "¶¶," plus fleeties who were on the call.
     - Include in the doc "link to video:"
     - Include in the doc "link to transcript:"
+     
+## Rituals
+
+| Task | Description | Frequency | 
+| ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
+| [CEO e-mail management](#ceo-email-management)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| General communications  [slack channel](https://fleetdm.com/handbook/business-operations#slack-channels) | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| Schedule internal and external [meetings for the CEO](#scheduling-with-the-ceo)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| [Preparing agendas and content](#document-preparation) for CEO's meetings | Create and edit agenda, provide context, and contact information | PRN                   |
+| Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
+| [Ad-hoc](https://fleetdm.com/handbook/customers#scheduling-a-customer-call) requests from the CEO | Triage requests, prioritize actions, flag actions for further review | PRN |   
+| Total [travel coordination](#travel-preferences) for the CEO | Triage travel request, plan and coordinate flight, stay, and concierge arrangements | PRN                   |
+| Coordinate the [weekly E-Group calendar](https://fleetdm.com/handbook/business-operations#weekly-updates) events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
+| Equipment warehouse management | Process inventory & transfer of all equipment Fleet IT warehouse | PRN | 
+
+
+## Kanban
+
+Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this department, including pending tasks in the active sprint and any new or pending requests.
+
+
+
+## Intake
+To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
+
 
 
 
@@ -359,5 +400,5 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
  4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
  -->
  
-<meta name="maintainedBy" value="mikermcneil">
+<meta name="maintainedBy" value="sampfluger888">
 <meta name="title" value="CEO handbook">

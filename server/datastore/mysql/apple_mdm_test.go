@@ -2885,6 +2885,15 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 		linuxHost:      {},
 	})
 
+	// simulate an entry with some values set to NULL
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET detail = NULL WHERE profile_id = ?`, globalProfiles[2].ProfileID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
 	// do a final sync of all hosts, should not change anything
 	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(append(enrolledHosts, unenrolledHost, linuxHost)...), nil, nil, nil)
 	require.NoError(t, err)
