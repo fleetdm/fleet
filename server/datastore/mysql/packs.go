@@ -442,27 +442,6 @@ func packDB(ctx context.Context, q sqlx.QueryerContext, pid uint) (*fleet.Pack, 
 	return pack, nil
 }
 
-// EnsureGlobalPack gets or inserts a pack with type global
-func (ds *Datastore) EnsureGlobalPack(ctx context.Context) (*fleet.Pack, error) {
-	pack := &fleet.Pack{}
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// read from primary as we will create the pack if it doesn't exist
-		err := sqlx.GetContext(ctx, tx, pack, `SELECT * FROM packs WHERE pack_type = 'global'`)
-		if err == sql.ErrNoRows {
-			pack, err = insertNewGlobalPackDB(ctx, tx)
-			return err
-		} else if err != nil {
-			return ctxerr.Wrap(ctx, err, "get pack")
-		}
-
-		return loadPackTargetsDB(ctx, tx, pack)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return pack, nil
-}
-
 func insertNewGlobalPackDB(ctx context.Context, q sqlx.ExtContext) (*fleet.Pack, error) {
 	var packID uint
 	res, err := q.ExecContext(ctx,

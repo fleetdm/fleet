@@ -146,9 +146,6 @@ type Datastore interface {
 	// ListPacksForHost lists the "user packs" that a host should execute.
 	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
 
-	// EnsureGlobalPack gets or inserts a pack with type global
-	EnsureGlobalPack(ctx context.Context) (*Pack, error)
-
 	// EnsureTeamPack gets or inserts a pack with type global
 	EnsureTeamPack(ctx context.Context, teamID uint) (*Pack, error)
 
