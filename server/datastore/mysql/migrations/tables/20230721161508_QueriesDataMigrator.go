@@ -271,7 +271,7 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 
 func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 	// If the query is not scheduled, then it stays global except if it was created by a team user,
-	// in which case the query is duplicated as a team query iff the user is a mantainer of the team.
+	// in which case the query is duplicated as a team query iff the user is an admin or mantainer of the team.
 	selectStmt := `
 		SELECT DISTINCT q.name,
 						q.description,
