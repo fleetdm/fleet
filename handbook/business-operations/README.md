@@ -420,9 +420,6 @@ There are some defaults that we use for these agreements:
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#help-classified` channel.
 
-
-
-
 ### Creating a new position
 
 Want to hire?  Here's how to open up a new position on the core team:
@@ -599,13 +596,11 @@ Now what happens?  Business Operations will then follow the steps in the "Hiring
 ### Purchasing a company-issued device
 Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their laptop purchased and shipped to them on time.
 
-Apple computers shipping to the United States, Canada, and countries Apple does business with are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
+Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
 
 When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
 
-> The Apple Store business team will need Fleet's customer number (located in 1Password) to place an order. This will ensure the computer is automatically added to Fleet's Apple Business Manager, and will automatically configure using Automated Device Enrollment (ADE) (aka DEP).
-
-Apple computers for Fleeties in countries Apple does not operate cannot be enrolled in ADE and should be purchased through a participating authorized reseller. The Brex card limit will be temporarily increased to accommodate the purchase. 
+Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
 
 #### Selecting a laptop
 Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
@@ -614,11 +609,11 @@ When selecting a new laptop for a team member, optimize their configuration to:
 1. Have a reasonably large storage (at least 512GB of storage, and if there's any concern go bigger)
 2. Look for pre-configured models with the desired memory and storage requirements. These tend to be available for delivery or pickup as quickly as possible and before the start date.
 
-> Play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
+> If delivery timelines are a concern with no devices in stock, play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
 
 For example, someone in sales, marketing, or business operations might like to use a 14-inch Macbook Air, whereas someone in an engineering, product, or design role might use a 16-inch MacBook Pro.  **Default to a 16-inch MacBook Pro.**
 
-> A 3-year AppleCare+ Protection Plan (APP) should be considered for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
+> A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 
@@ -631,15 +626,15 @@ When a device has been purchased, it's added to the [spreadsheet of company equi
 When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
 #### Returning equipment
-Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with Luke Heath. 
+Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Business Operations. 
 
 #### Reprovisioning equipment
 Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers.
 
 #### Equipment retention and replacement
-Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare Protection Plan (or another warranty plan) and are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs). The old equipment should be evaluated for return or retention as a test environment.
+Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
-
+> If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
 
 ## Equity grants
 Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/business-operations#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
@@ -726,7 +721,7 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 ### Communicating departures
 Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
 1. **Departing team member's manager:** Before speaking further with the team member, inform business operations about the departure via direct message in Slack to the acting Head of People (`@mikermcneil`), who will coordinate the team member's last day, offboarding, and exit meeting.
-2. **Business Operations**: Create and begin completing [offboarding issue](https://github.com/fleetdm/confidential/issues/new/choose).
+2. **Business Operations**: Create and begin completing [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md).
    > After finding out at the next standup (or sooner), Business Operations will post in `#g-e` to inform the E-group of the team member's departure and ask E-group members will inform any other managers on their teams.
 3. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
@@ -993,5 +988,5 @@ Please see [handbook/company#open-positions](https://fleetdm.com/handbook/compan
 
 Please see [handbook/company/ceo-handbook#weekly-updates](https://fleetdm.com/handbook/company/ceo-handbook#weekly-updates)
 
-<meta name="maintainedBy" value="mikermcneil">
+<meta name="maintainedBy" value="jostableford">
 <meta name="title" value="🔦 Business Operations">
