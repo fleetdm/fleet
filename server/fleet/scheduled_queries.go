@@ -139,11 +139,11 @@ func (sqs *ScheduledQueryStats) TeamID() (*int, error) {
 			return nil, fmt.Errorf("invalid pack name: %s", sqs.PackName)
 		}
 
-		if teamID, err := strconv.Atoi(teamIDParts[1]); err != nil {
+		teamID, err := strconv.Atoi(teamIDParts[1])
+		if err != nil {
 			return nil, err
-		} else {
-			return &teamID, nil
 		}
+		return &teamID, nil
 	}
 
 	return nil, nil
