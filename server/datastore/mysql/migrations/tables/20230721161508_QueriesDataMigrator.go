@@ -197,6 +197,9 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 		}
 
 		teamIDParts := strings.Split(query.PackType, "-")
+		if len(teamIDParts) != 2 {
+			return fmt.Errorf("invalid pack_type value %s", query.PackType)
+		}
 		teamID, err := strconv.Atoi(teamIDParts[1])
 		if err != nil {
 			return fmt.Errorf("error parsing TeamID for scheduled queries from team packs: %s", err)
