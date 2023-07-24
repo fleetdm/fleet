@@ -398,6 +398,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/process-file-events': '/guides/querying-process-file-events-table-on-centos-7',
   'GET /docs/using-fleet/audit-activities': '/docs/using-fleet/audit-logs',
   'GET /docs/using-fleet/detail-queries-summary': '/docs/using-fleet/understanding-host-vitals',
+  'GET /docs/using-fleet/orbit': '/docs/using-fleet/fleetd',
   'GET /docs/deploying': '/docs/deploy',
   'GET /docs/deploying/faq': '/docs/get-started/faq',
   'GET /docs/deploying/introduction': '/docs/deploy/introduction',
@@ -410,7 +411,6 @@ module.exports.routes = {
   'GET /docs/deploying/debugging': '/handbook/engineering/debugging',
   'GET /docs/deploying/load-testing': '/handbook/engineering/load-testing',
   'GET /docs/contributing/configuration': '/docs/configuration/configuration-files',
-  'GET /docs/using-fleet/orbit': '/docs/using-fleet/fleetd',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
