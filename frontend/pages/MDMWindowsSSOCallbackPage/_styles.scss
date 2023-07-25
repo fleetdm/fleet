@@ -1,0 +1,20 @@
+.mdm-windows-sso-callback-page {
+  height: 100vh; // expend height to make entire viewport a white background
+  background-color: $core-white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &__eula-wrapper {
+    width: 80vw;
+    text-align: center;
+
+    iframe {
+      height: 65vh;
+    }
+  }
+
+  &__agree-btn {
+    width: 80%;
+  }
+}
