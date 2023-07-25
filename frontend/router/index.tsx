@@ -56,6 +56,7 @@ import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
+import MDMWindowsTermsAndConditionsPage from "pages/MDMWindowsTermsAndConditionsPage/MDMWindowsTermsAndConditionsPage";
 
 import PATHS from "router/paths";
 
@@ -103,6 +104,10 @@ const routes = (
           <Route path="login/forgot" component={ForgotPasswordPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
           <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
+          <Route
+            path="mdm/windows/terms-and-conditions"
+            component={MDMWindowsTermsAndConditionsPage}
+          />
           <Route path="mdm/sso" component={MDMAppleSSOPage} />
         </Route>
       </Route>
