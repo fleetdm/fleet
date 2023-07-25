@@ -1,10 +1,14 @@
-import React, { useState } from "react";
+import React, { FormEvent, useState } from "react";
+import { size } from "lodash";
 
 import { IResetPasswordFormErrors } from "interfaces/user";
 
 import Button from "components/buttons/Button";
-import InputFieldWithIconStories from "../fields/InputFieldWithIcon/InputFieldWithIcon.stories";
-import validate from "components/forms/ResetPasswordForm/validate";
+// @ts-ignore
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import validatePresence from "components/forms/validators/validate_presence";
+import validatePassword from "components/forms/validators/valid_password";
+import validateEquality from "components/forms/validators/validate_equality";
 
 const baseClass = "reset-password-form";
 
@@ -16,27 +20,74 @@ export interface IFormData {
 interface IResetPasswordFormProps {
   serverErrors: string;
   handleSubmit: (formData: IFormData) => void;
-  onChangeFunction: () => void;
-  editPasswordErrors: IResetPasswordFormErrors;
 }
 const ResetPasswordForm = ({
   serverErrors,
   handleSubmit,
-  onChangeFunction,
-  editPasswordErrors,
 }: IResetPasswordFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<any>(editPasswordErrors);
+  const [errors, setErrors] = useState<IResetPasswordFormErrors>({});
   const [formData, setFormData] = useState<any>({
     new_password: "",
     new_password_confirmation: "",
   });
 
-  const onInputChange = (formField: string): ((value: string) => void) => {
-    return (value: string) => {
+  const validate = (): boolean => {
+    const {
+      new_password: newPassword,
+      new_password_confirmation: newPasswordConfirmation,
+    } = formData;
+
+    const noMatch =
+      newPassword &&
+      newPasswordConfirmation &&
+      !validateEquality(newPassword, newPasswordConfirmation);
+
+    if (!validatePassword(newPassword)) {
       setErrors({
         ...errors,
-        [formField]: null,
+        new_password: "Password must meet the criteria below",
       });
+    }
+
+    if (!validatePresence(newPasswordConfirmation)) {
+      setErrors({
+        ...errors,
+        new_password_confirmation:
+          "New password confirmation field must be completed",
+      });
+    }
+
+    if (!validatePresence(newPassword)) {
+      setErrors({
+        ...errors,
+        new_password: "New password field must be completed",
+      });
+    }
+
+    if (noMatch) {
+      setErrors({
+        ...errors,
+        new_password_confirmation: "Passwords do not match",
+      });
+    }
+
+    const valid = !size(errors);
+
+    return valid;
+  };
+
+  const onFormSubmit = (evt: FormEvent): void => {
+    evt.preventDefault();
+    const valid = validate();
+    console.log("valid", valid);
+    if (valid) {
+      return handleSubmit(formData);
+    }
+  };
+
+  const onInputChange = (formField: string): ((value: string) => void) => {
+    return (value: string) => {
+      setErrors({});
       setFormData({
         ...formData,
         [formField]: value,
@@ -44,6 +95,7 @@ const ResetPasswordForm = ({
     };
   };
 
+  console.log("errors", errors);
   return (
     <form className={baseClass}>
       <InputFieldWithIcon
@@ -60,7 +112,7 @@ const ResetPasswordForm = ({
         ]}
       />
       <InputFieldWithIcon
-        error={errors.name}
+        error={errors.new_password_confirmation}
         label="Confirm password"
         placeholder="Confirm password"
         onChange={onInputChange("new_password_confirmation")}
@@ -70,10 +122,10 @@ const ResetPasswordForm = ({
       />
       <div className={`${baseClass}__button-wrap`}>
         <Button
-          variant="brand"
-          onClick={handleSubmit}
-          className={`${baseClass}__btn`}
           type="submit"
+          variant="brand"
+          onClick={onFormSubmit}
+          className={`${baseClass}__btn`}
         >
           Reset password
         </Button>
