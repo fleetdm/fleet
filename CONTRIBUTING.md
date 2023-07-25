@@ -9,8 +9,6 @@ For a simple local environment setup where your computer acts as the server and 
 
 If you also want to emulate a real-world environment, you'll need to [set up a Puppet server](#set-up-a-puppet-server).
 
-> Note: `pupperware` doesn't work on macOS with ARM processors.
-
 ## How the module works
 
 ```mermaid
@@ -48,6 +46,8 @@ Once the run is complete, the server collects all pre-assigned profiles from Red
 ## Set up a Puppet server
 
 The easiest way to set-up a local instance is by using [`puppetlabs/pupperware`](https://github.com/puppetlabs/pupperware). Follow the instructions on their README to get a server running.
+
+> Note: `pupperware` doesn't work on macOS with ARM processors.
 
 After the server is running, edit your hosts file (in macOS `/etc/hosts`,) to resove the `puppet` hostname to the IP of your Puppet server, for example:
 
