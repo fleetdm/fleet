@@ -29,7 +29,7 @@ Fleet is currently hiring for the following positions:
 
 - [🐋 Head of Public Sector](https://fleetdm.com/handbook/company/head-of-public-sector)
 - [🐋 Solutions Consultant](https://fleetdm.com/handbook/company/solutions-consultant)
-- [🐋 Customer Support Engineer]
+- [🐋 Customer Support Engineer](https://fleetdm.com/handbook/company/customer-support-engineer)
 - [🐋 Account Executive](https://fleetdm.com/handbook/company/account-executive)
 - [🚀 Software Engineer](https://fleetdm.com/handbook/company/software-engineer)
 
