@@ -58,7 +58,7 @@ parasails.registerPage('basic-documentation', {
             return page.pageOrderInSectionPath;
           }
         });
-        this.navSectionsByDocsSectionSlug[sectionSlug] = _.groupBy(pagesBySectionSlug[sectionSlug], 'navSection');
+        this.navSectionsByDocsSectionSlug[sectionSlug] = _.groupBy(pagesBySectionSlug[sectionSlug], 'docNavCategory');
       }
       // We need to re-sort the top-level sections because their htmlIds do not reflect the correct order
       pagesBySectionSlug['docs'] = DOCS_SLUGS.map((slug) => {
