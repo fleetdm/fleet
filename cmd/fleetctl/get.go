@@ -371,7 +371,7 @@ func getQueriesCommand() *cli.Command {
 				}
 
 				if len(queries) == 0 {
-					fmt.Println("No queries found")
+					fmt.Println("No global queries found")
 					return nil
 				}
 
