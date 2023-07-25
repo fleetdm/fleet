@@ -7,7 +7,7 @@ import { AppContext } from "context/app";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 
 import DataError from "components/DataError";
 import permissions from "utilities/permissions";
@@ -135,12 +135,14 @@ const SelectQueryModal = ({
         <div>
           <div className={`${baseClass}__filter-create-wrapper`}>
             <div className={`${baseClass}__filter-queries`}>
-              <InputField
+              <InputFieldWithIcon
                 name="query-filter"
                 onChange={onFilterQueries}
                 placeholder="Filter queries"
                 value={queriesFilter}
                 autofocus
+                iconSvg="search"
+                iconPosition="start"
               />
             </div>
             {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (
@@ -160,12 +162,14 @@ const SelectQueryModal = ({
         <div>
           <div className={`${baseClass}__filter-create-wrapper`}>
             <div className={`${baseClass}__filter-queries`}>
-              <InputField
+              <InputFieldWithIcon
                 name="query-filter"
                 onChange={onFilterQueries}
                 placeholder="Filter queries"
                 value={queriesFilter}
                 autofocus
+                iconSvg="search"
+                iconPosition="start"
               />
             </div>
             {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (

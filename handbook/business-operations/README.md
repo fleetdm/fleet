@@ -14,7 +14,7 @@ We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we cre
 We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
 
 #### Internal meeting scheduling
-Use the Google Calendar "[Find a meeting time](https://support.google.com/calendar/answer/37161?hl=en&co=GENIE.Platform%3DDesktop#zippy=%2Cfind-a-meeting-time)" feature to coordinate meetings with Fleet team members. Enter the `@fleetdm.com` emails for each
+Use the Google Calendar "[Find a meeting time](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar)" feature to coordinate meetings with Fleet team members. Enter the `@fleetdm.com` emails for each
 participant into the "Meet with..." box in Google Calendar, and the calendar availability for each
 participant will appear in your view. Then, when you select a meeting time, those participants will
 automatically be invited, and a video conference will be attached to the invite.
@@ -420,9 +420,6 @@ There are some defaults that we use for these agreements:
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#help-classified` channel.
 
-
-
-
 ### Creating a new position
 
 Want to hire?  Here's how to open up a new position on the core team:
@@ -519,14 +516,10 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
      > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
 2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
-3. **Schedule CEO interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
-   - At Fleet, the CEO interviews every new team member at least once before Fleet extends an offer.  (We plan to continue this practice until headcount reaches 100.)
-     - No need to check with the CEO first.  You can just book the meeting on their calendar.
-     - Schedule the meeting directly on the CEO's calendar during a time they and the candidate are both explicitly available according to that calendar.  Available means whitespace.
-     - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
-   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, include Zach in this final interview.)
-   - The personal email the candidate uses for this calendar event is where they will receive their offer or rejection email.
-   - Make sure that the agenda doc for the 30m final interview with CEO is in an outline format, located in the "Meeting notes" folder, and contains a discussion point about asking the candidate to verify that 2FA is enabled in their GitHub account.
+3. **Schedule CEO interview:** Book a quick chat so our CEO can get to know the future Fleetie.
+   - No need to check with the CEO first.  You can [book the meeting directly](https://fleetdm.com/handbook/business-operations#internal-meeting-scheduling) on the CEO's calendar during a time they and the candidate are both available.
+   - Set the Google Calendar description of the calendar event to: `Agenda: https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/edit`.
+   - The personal email you use for the candidate in this calendar event is where they will receive their offer or rejection email.
 4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
    - _Share_ this single document with the Head of Business Operations via email.
@@ -603,13 +596,11 @@ Now what happens?  Business Operations will then follow the steps in the "Hiring
 ### Purchasing a company-issued device
 Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their laptop purchased and shipped to them on time.
 
-Apple computers shipping to the United States, Canada, and countries Apple does business with are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
+Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
 
 When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
 
-> The Apple Store business team will need Fleet's customer number (located in 1Password) to place an order. This will ensure the computer is automatically added to Fleet's Apple Business Manager, and will automatically configure using Automated Device Enrollment (ADE) (aka DEP).
-
-Apple computers for Fleeties in countries Apple does not operate cannot be enrolled in ADE and should be purchased through a participating authorized reseller. The Brex card limit will be temporarily increased to accommodate the purchase. 
+Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
 
 #### Selecting a laptop
 Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
@@ -618,11 +609,11 @@ When selecting a new laptop for a team member, optimize their configuration to:
 1. Have a reasonably large storage (at least 512GB of storage, and if there's any concern go bigger)
 2. Look for pre-configured models with the desired memory and storage requirements. These tend to be available for delivery or pickup as quickly as possible and before the start date.
 
-> Play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
+> If delivery timelines are a concern with no devices in stock, play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
 
 For example, someone in sales, marketing, or business operations might like to use a 14-inch Macbook Air, whereas someone in an engineering, product, or design role might use a 16-inch MacBook Pro.  **Default to a 16-inch MacBook Pro.**
 
-> A 3-year AppleCare+ Protection Plan (APP) should be considered for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
+> A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 
@@ -635,15 +626,15 @@ When a device has been purchased, it's added to the [spreadsheet of company equi
 When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
 #### Returning equipment
-Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with Luke Heath. 
+Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Business Operations. 
 
 #### Reprovisioning equipment
 Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers.
 
 #### Equipment retention and replacement
-Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare Protection Plan (or another warranty plan) and are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs). The old equipment should be evaluated for return or retention as a test environment.
+Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
-
+> If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
 
 ## Equity grants
 Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/business-operations#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
@@ -678,18 +669,6 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 
 
 ## Celebrations
-
-### Weekly updates
-We like to open about milestones and announcements.
-  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
-  - Friday nights, Mike McNeil will post a short update in #general including:
-    - a link to view KPIs
-    - who was on-call that week
-    - fleeties who are currently onboarding
-    - planned hires who haven't started yet
-    - fleeties who had their lady day that week
-  - The weekly update uses the format of the previous week's update, which is in the KPIs spreadsheet.  The best way to start is by copying and pasting the previous week's upfate and modifying it.
-  - After posting to #general, the weekly update is also saved in thr KPI spreadsheet.
  
 ### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
@@ -742,7 +721,7 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 ### Communicating departures
 Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
 1. **Departing team member's manager:** Before speaking further with the team member, inform business operations about the departure via direct message in Slack to the acting Head of People (`@mikermcneil`), who will coordinate the team member's last day, offboarding, and exit meeting.
-2. **Business Operations**: Create and begin completing [offboarding issue](https://github.com/fleetdm/confidential/issues/new/choose).
+2. **Business Operations**: Create and begin completing [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md).
    > After finding out at the next standup (or sooner), Business Operations will post in `#g-e` to inform the E-group of the team member's departure and ask E-group members will inform any other managers on their teams.
 3. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
@@ -859,7 +838,7 @@ The steps for doing this are highlighted in this loom, TODO.
 
 ## Legal
 
-Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook>/business-operations#intake).
+Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook/business-operations#intake).
 > **Note:** Escalate first-of-its-kind agreements to the CEO. Mike will review business terms and consult with lawyers as necessary.
 
 
@@ -1005,5 +984,9 @@ The following stubs are included only to make links backward compatible.
 
 Please see [handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
 
-<meta name="maintainedBy" value="mikermcneil">
+##### Weekly updates
+
+Please see [handbook/company/ceo-handbook#weekly-updates](https://fleetdm.com/handbook/company/ceo-handbook#weekly-updates)
+
+<meta name="maintainedBy" value="jostableford">
 <meta name="title" value="🔦 Business Operations">

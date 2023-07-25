@@ -13,3 +13,9 @@ func TestGetFleetdConfig(t *testing.T) {
 	require.ErrorIs(t, ErrNotImplemented, err)
 	require.Nil(t, config)
 }
+
+func TestIsEnrolledIntoMatchingURL(t *testing.T) {
+	enrolled, err := IsEnrolledIntoMatchingURL("https://test.example.com")
+	require.ErrorIs(t, ErrNotImplemented, err)
+	require.False(t, enrolled)
+}

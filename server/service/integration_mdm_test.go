@@ -373,20 +373,20 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
-	var fleetdProfile bytes.Buffer
+	var globalFleetdProfile bytes.Buffer
 	params := mobileconfig.FleetdProfileOptions{
 		EnrollSecret: t.Name(),
 		ServerURL:    s.server.URL,
 		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
 	}
-	err = mobileconfig.FleetdProfileTemplate.Execute(&fleetdProfile, params)
+	err = mobileconfig.FleetdProfileTemplate.Execute(&globalFleetdProfile, params)
 	require.NoError(t, err)
 
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 	}
-	wantGlobalProfiles := append(globalProfiles, fleetdProfile.Bytes())
+	wantGlobalProfiles := append(globalProfiles, globalFleetdProfile.Bytes())
 
 	// add global profiles
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
@@ -395,10 +395,21 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
 	require.NoError(t, err)
 
+	// add an enroll secret so the fleetd profiles differ
+	var teamResp teamEnrollSecretsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", tm.ID),
+		modifyTeamEnrollSecretsRequest{
+			Secrets: []fleet.EnrollSecret{{Secret: "team1_enroll_sec"}},
+		}, http.StatusOK, &teamResp)
+
 	teamProfiles := [][]byte{
 		mobileconfigForTest("N3", "I3"),
 	}
-	wantTeamProfiles := append(teamProfiles, fleetdProfile.Bytes())
+	var teamFleetdProfile bytes.Buffer
+	params.EnrollSecret = "team1_enroll_sec"
+	err = mobileconfig.FleetdProfileTemplate.Execute(&teamFleetdProfile, params)
+	require.NoError(t, err)
+	wantTeamProfiles := append(teamProfiles, teamFleetdProfile.Bytes())
 	// add profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 
@@ -506,7 +517,7 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	// verify that we should install the team profile
 	require.ElementsMatch(t, wantTeamProfiles, installs)
 	// verify that we should delete both profiles
-	require.ElementsMatch(t, []string{"I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier}, removes)
+	require.ElementsMatch(t, []string{"I1", "I2"}, removes)
 
 	// set new team profiles (delete + addition)
 	teamProfiles = [][]byte{
@@ -3025,7 +3036,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
 		},
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
@@ -3279,14 +3290,14 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
 		},
 		h3: {
 			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeRemove, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryPending},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
 		},
 	})
 
@@ -5574,331 +5585,6 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 }
 
-func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
-	t := s.T()
-
-	// Preparing the Discovery Request message
-	requestBytes := []byte(`
-		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
-		   <s:Header>
-		     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
-		     <a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
-		     <a:ReplyTo>
-		       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
-		     </a:ReplyTo>
-		     <a:To s:mustUnderstand="1">https://mdmwindows.com:443/EnrollmentServer/Discovery.svc</a:To>
-		   </s:Header>
-		   <s:Body>
-		     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
-		       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
-		         <EmailAddress>demo@mdmwindows.com</EmailAddress>
-		         <RequestVersion>5.0</RequestVersion>
-		         <DeviceType>CIMClient_Windows</DeviceType>
-		         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
-		         <OSEdition>48</OSEdition>
-		         <AuthPolicies>
-		           <AuthPolicy>OnPremise</AuthPolicy>
-		           <AuthPolicy>Federated</AuthPolicy>
-		         </AuthPolicies>
-		       </request>
-		     </Discover>
-		   </s:Body>
-		 </s:Envelope>`)
-
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
-
-	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
-
-	// Checking if SOAP response contains a valid DiscoveryResponse message
-	resSoapMsg := string(resBytes)
-	require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
-}
-
-func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
-	t := s.T()
-
-	// Preparing the Discovery Request message
-	requestBytes := []byte(`
-		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
-		   <s:Header>
-		     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
-		     <a:ReplyTo>
-		       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
-		     </a:ReplyTo>
-		     <a:To s:mustUnderstand="1">https://mdmwindows.com:443/EnrollmentServer/Discovery.svc</a:To>
-		   </s:Header>
-		   <s:Body>
-		     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
-		       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
-		         <EmailAddress>demo@mdmwindows.com</EmailAddress>
-		         <RequestVersion>5.0</RequestVersion>
-		         <DeviceType>CIMClient_Windows</DeviceType>
-		         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
-		         <OSEdition>48</OSEdition>
-		         <AuthPolicies>
-		           <AuthPolicy>OnPremise</AuthPolicy>
-		           <AuthPolicy>Federated</AuthPolicy>
-		         </AuthPolicies>
-		       </request>
-		     </Discover>
-		   </s:Body>
-		 </s:Envelope>`)
-
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
-
-	// Checking if response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
-
-	// Checking if SOAP response contains a valid SoapFault message
-	resSoapMsg := string(resBytes)
-
-	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
-	require.True(t, s.checkIfXMLTagContains("s:text", "invalid SOAP header: Header.MessageID", resSoapMsg))
-}
-
-func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
-	t := s.T()
-
-	// create a new Host to get the UUID on the DB
-	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		ID:            1,
-		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
-		NodeKey:       ptr.String("Desktop-ABCQWE"),
-		UUID:          uuid.New().String(),
-		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
-
-	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
-	require.NoError(t, err)
-
-	requestBytes, err := s.newGetPoliciesMsg(encodedBinToken)
-	require.NoError(t, err)
-
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
-
-	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
-
-	// Checking if SOAP response contains a valid GetPoliciesResponse message
-	resSoapMsg := string(resBytes)
-	require.True(t, s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
-	require.True(t, s.isXMLTagPresent("policyOIDReference", resSoapMsg))
-	require.True(t, s.isXMLTagPresent("oIDReferenceID", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("validityPeriodSeconds", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("renewalPeriodSeconds", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
-}
-
-func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
-	t := s.T()
-
-	// create a new Host to get the UUID on the DB
-	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		ID:            1,
-		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
-		NodeKey:       ptr.String("Desktop-ABCQWE"),
-		UUID:          uuid.New().String(),
-		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
-
-	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(1, "not_exists")
-	require.NoError(t, err)
-
-	requestBytes, err := s.newGetPoliciesMsg(encodedBinToken)
-	require.NoError(t, err)
-
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
-
-	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
-
-	// Checking if SOAP response contains a valid SoapFault message
-	resSoapMsg := string(resBytes)
-	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
-	require.True(t, s.checkIfXMLTagContains("s:text", "binarySecurityTokenValidation: host data cannot be found", resSoapMsg))
-}
-
-func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
-	t := s.T()
-
-	// create a new Host to get the UUID on the DB
-	linuxHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		ID:            1,
-		OsqueryHostID: ptr.String("Ubuntu01"),
-		NodeKey:       ptr.String("Ubuntu01"),
-		UUID:          uuid.New().String(),
-		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "linux",
-	})
-	require.NoError(t, err)
-
-	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(1, linuxHost.UUID)
-	require.NoError(t, err)
-
-	requestBytes, err := s.newGetPoliciesMsg(encodedBinToken)
-	require.NoError(t, err)
-
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
-
-	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
-
-	// Checking if SOAP response contains a valid SoapFault message
-	resSoapMsg := string(resBytes)
-	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
-	require.True(t, s.checkIfXMLTagContains("s:text", "host is not elegible for Windows MDM enrollment", resSoapMsg))
-}
-
-func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequest() {
-	t := s.T()
-
-	// create a new Host to get the UUID on the DB
-	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		ID:            1,
-		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
-		NodeKey:       ptr.String("Desktop-ABCQWE"),
-		UUID:          uuid.New().String(),
-		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
-
-	// Delete the host from the list of MDM enrolled devices if present
-	_ = s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
-
-	// Preparing the RequestSecurityToken Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
-	require.NoError(t, err)
-
-	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true)
-	require.NoError(t, err)
-
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
-
-	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
-
-	// Checking if SOAP response contains a valid RequestSecurityTokenResponseCollection message
-	resSoapMsg := string(resBytes)
-	require.True(t, s.isXMLTagPresent("RequestSecurityTokenResponseCollection", resSoapMsg))
-	require.True(t, s.isXMLTagPresent("DispositionMessage", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("TokenType", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("RequestID", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("BinarySecurityToken", resSoapMsg))
-
-	// Checking if an activity was created for the enrollment
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		`{
-			"mdm_platform": "microsoft",
-			"host_serial": "",
-			"installed_from_dep": false,
-			"host_display_name": "DESKTOP-0C89RC0"
-		 }`,
-		0)
-}
-
-func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMissingAdditionalContext() {
-	t := s.T()
-
-	// create a new Host to get the UUID on the DB
-	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		ID:            1,
-		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
-		NodeKey:       ptr.String("Desktop-ABCQWE"),
-		UUID:          uuid.New().String(),
-		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
-
-	// Preparing the RequestSecurityToken Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
-	require.NoError(t, err)
-
-	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, false)
-	require.NoError(t, err)
-
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
-
-	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
-
-	// Checking if SOAP response contains a valid SoapFault message
-	resSoapMsg := string(resBytes)
-	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
-	require.True(t, s.checkIfXMLTagContains("s:text", "ContextItem item DeviceType is not present", resSoapMsg))
-}
-
 func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	t := s.T()
 
@@ -6009,6 +5695,538 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
 }
 
+func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
+	t := s.T()
+
+	// Preparing the Discovery Request message
+	requestBytes := []byte(`
+		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+		   <s:Header>
+		     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
+		     <a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+		     <a:ReplyTo>
+		       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+		     </a:ReplyTo>
+		     <a:To s:mustUnderstand="1">https://mdmwindows.com:443/EnrollmentServer/Discovery.svc</a:To>
+		   </s:Header>
+		   <s:Body>
+		     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
+		       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+		         <EmailAddress>demo@mdmwindows.com</EmailAddress>
+		         <RequestVersion>5.0</RequestVersion>
+		         <DeviceType>CIMClient_Windows</DeviceType>
+		         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
+		         <OSEdition>48</OSEdition>
+		         <AuthPolicies>
+		           <AuthPolicy>OnPremise</AuthPolicy>
+		           <AuthPolicy>Federated</AuthPolicy>
+		         </AuthPolicies>
+		       </request>
+		     </Discover>
+		   </s:Body>
+		 </s:Envelope>`)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid DiscoveryResponse message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
+	t := s.T()
+
+	// Preparing the Discovery Request message
+	requestBytes := []byte(`
+		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+		   <s:Header>
+		     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
+		     <a:ReplyTo>
+		       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+		     </a:ReplyTo>
+		     <a:To s:mustUnderstand="1">https://mdmwindows.com:443/EnrollmentServer/Discovery.svc</a:To>
+		   </s:Header>
+		   <s:Body>
+		     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
+		       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+		         <EmailAddress>demo@mdmwindows.com</EmailAddress>
+		         <RequestVersion>5.0</RequestVersion>
+		         <DeviceType>CIMClient_Windows</DeviceType>
+		         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
+		         <OSEdition>48</OSEdition>
+		         <AuthPolicies>
+		           <AuthPolicy>OnPremise</AuthPolicy>
+		           <AuthPolicy>Federated</AuthPolicy>
+		         </AuthPolicies>
+		       </request>
+		     </Discover>
+		   </s:Body>
+		 </s:Envelope>`)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid SoapFault message
+	resSoapMsg := string(resBytes)
+
+	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "invalid SOAP header: Header.MessageID", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestNoEmailDiscoveryRequest() {
+	t := s.T()
+
+	// Preparing the Discovery Request message
+	requestBytes := []byte(`
+		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+		   <s:Header>
+		     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
+		     <a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+		     <a:ReplyTo>
+		       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+		     </a:ReplyTo>
+		     <a:To s:mustUnderstand="1">https://mdmwindows.com:443/EnrollmentServer/Discovery.svc</a:To>
+		   </s:Header>
+		   <s:Body>
+		     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
+		       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+		         <EmailAddress></EmailAddress>
+		         <RequestVersion>5.0</RequestVersion>
+		         <DeviceType>CIMClient_Windows</DeviceType>
+		         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
+		         <OSEdition>48</OSEdition>
+		         <AuthPolicies>
+		           <AuthPolicy>OnPremise</AuthPolicy>
+		           <AuthPolicy>Federated</AuthPolicy>
+		         </AuthPolicies>
+		       </request>
+		     </Discover>
+		   </s:Body>
+		 </s:Envelope>`)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid DiscoveryResponse message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
+	require.True(t, !s.isXMLTagContentPresent("AuthenticationServiceUrl", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithDeviceToken() {
+	t := s.T()
+
+	// create a new Host to get the UUID on the DB
+	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
+		NodeKey:       ptr.String("Desktop-ABCQWE"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// Preparing the GetPolicies Request message
+	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, windowsHost.UUID)
+	require.NoError(t, err)
+
+	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid GetPoliciesResponse message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("policyOIDReference", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("oIDReferenceID", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("validityPeriodSeconds", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("renewalPeriodSeconds", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithAzureToken() {
+	t := s.T()
+
+	// Preparing the GetPolicies Request message with Azure JWT token
+	azureADTok := "ZXlKMGVYQWlPaUpLVjFRaUxDSmhiR2NpT2lKU1V6STFOaUlzSW5nMWRDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUlzSW10cFpDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUo5LmV5SmhkV1FpT2lKb2RIUndjem92TDIxaGNtTnZjMnhoWW5NdWIzSm5MeUlzSW1semN5STZJbWgwZEhCek9pOHZjM1J6TG5kcGJtUnZkM011Ym1WMEwyWmhaVFZqTkdZekxXWXpNVGd0TkRRNE15MWlZelptTFRjMU9UVTFaalJoTUdFM01pOGlMQ0pwWVhRaU9qRTJPRGt4TnpBNE5UZ3NJbTVpWmlJNk1UWTRPVEUzTURnMU9Dd2laWGh3SWpveE5qZzVNVGMxTmpZeExDSmhZM0lpT2lJeElpd2lZV2x2SWpvaVFWUlJRWGt2T0ZSQlFVRkJOV2gwUTNFMGRERjNjbHBwUTIxQmVEQlpWaTloZGpGTVMwRkRPRXM1Vm10SGVtNUdXVGxzTUZoYWVrZHVha2N6VVRaMWVIUldNR3QxT1hCeFJXdFRZeUlzSW1GdGNpSTZXeUp3ZDJRaUxDSnljMkVpWFN3aVlYQndhV1FpT2lJeU9XUTVaV1E1T0MxaE5EWTVMVFExTXpZdFlXUmxNaTFtT1RneFltTXhaRFl3TldVaUxDSmhjSEJwWkdGamNpSTZJakFpTENKa1pYWnBZMlZwWkNJNkltRXhNMlkzWVdVd0xURXpPR0V0TkdKaU1pMDVNalF5TFRka09USXlaVGRqTkdGak15SXNJbWx3WVdSa2NpSTZJakU0Tmk0eE1pNHhPRGN1TWpZaUxDSnVZVzFsSWpvaVZHVnpkRTFoY21OdmMweGhZbk1pTENKdmFXUWlPaUpsTTJNMU5XVmtZeTFqTXpRNExUUTBNVFl0T0dZd05TMHlOVFJtWmpNd05qVmpOV1VpTENKd2QyUmZkWEpzSWpvaWFIUjBjSE02THk5d2IzSjBZV3d1YldsamNtOXpiMlowYjI1c2FXNWxMbU52YlM5RGFHRnVaMlZRWVhOemQyOXlaQzVoYzNCNElpd2ljbWdpT2lJd0xrRldTVUU0T0ZSc0xXaHFlbWN3VXpoaU0xZFdXREJ2UzJOdFZGRXpTbHB1ZUUxa1QzQTNUbVZVVm5OV2FYVkhOa0ZRYnk0aUxDSnpZM0FpT2lKdFpHMWZaR1ZzWldkaGRHbHZiaUlzSW5OMVlpSTZJa1pTUTJ4RldURk9ObXR2ZEdWblMzcFplV0pFTjJkdFdGbGxhVTVIUkZrd05FSjJOV3R6ZDJGeGJVRWlMQ0owYVdRaU9pSm1ZV1UxWXpSbU15MW1NekU0TFRRME9ETXRZbU0yWmkwM05UazFOV1kwWVRCaE56SWlMQ0oxYm1seGRXVmZibUZ0WlNJNkluUmxjM1JBYldGeVkyOXpiR0ZpY3k1dmNtY2lMQ0oxY0c0aU9pSjBaWE4wUUcxaGNtTnZjMnhoWW5NdWIzSm5JaXdpZFhScElqb2lNVGg2WkVWSU5UZFRSWFZyYWpseGJqRm9aMlJCUVNJc0luWmxjaUk2SWpFdU1DSjkuVG1FUlRsZktBdWo5bTVvQUc2UTBRblV4VEFEaTNFamtlNHZ3VXo3UTdqUUFVZVZGZzl1U0pzUXNjU2hFTXVxUmQzN1R2VlpQanljdEVoRFgwLVpQcEVVYUlSempuRVEyTWxvc21SZURYZzhrYkhNZVliWi1jb0ZucDEyQkVpQnpJWFBGZnBpaU1GRnNZZ0hSSF9tSWxwYlBlRzJuQ2p0LTZSOHgzYVA5QS1tM0J3eV91dnV0WDFNVEVZRmFsekhGa04wNWkzbjZRcjhURnlJQ1ZUYW5OanlkMjBBZFRMbHJpTVk0RVBmZzRaLThVVTctZkcteElycWVPUmVWTnYwOUFHV192MDd6UkVaNmgxVk9tNl9nelRGcElVVURuZFdabnFLTHlySDlkdkF3WnFFSG1HUmlTNElNWnRFdDJNTkVZSnhDWHhlSi1VbWZJdV9tUVhKMW9R"
+	requestBytes, err := s.newGetPoliciesMsg(false, azureADTok)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid GetPoliciesResponse message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("policyOIDReference", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("oIDReferenceID", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("validityPeriodSeconds", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("renewalPeriodSeconds", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
+	t := s.T()
+
+	// create a new Host to get the UUID on the DB
+	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
+		NodeKey:       ptr.String("Desktop-ABCQWE"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// Preparing the GetPolicies Request message
+	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, "not_exists")
+	require.NoError(t, err)
+
+	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid SoapFault message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "host data cannot be found", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
+	t := s.T()
+
+	// create a new Host to get the UUID on the DB
+	linuxHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("Ubuntu01"),
+		NodeKey:       ptr.String("Ubuntu01"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
+		Platform:      "linux",
+	})
+	require.NoError(t, err)
+
+	// Preparing the GetPolicies Request message
+	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, linuxHost.UUID)
+	require.NoError(t, err)
+
+	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid SoapFault message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "host is not elegible for Windows MDM enrollment", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDeviceToken() {
+	t := s.T()
+
+	// create a new Host to get the UUID on the DB
+	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
+		NodeKey:       ptr.String("Desktop-ABCQWE"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// Delete the host from the list of MDM enrolled devices if present
+	_ = s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
+
+	// Preparing the RequestSecurityToken Request message
+	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, windowsHost.UUID)
+	require.NoError(t, err)
+
+	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid RequestSecurityTokenResponseCollection message
+	resSoapMsg := string(resBytes)
+
+	require.True(t, s.isXMLTagPresent("RequestSecurityTokenResponseCollection", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("DispositionMessage", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("TokenType", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("RequestID", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("BinarySecurityToken", resSoapMsg))
+
+	// Checking if an activity was created for the enrollment
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
+		`{
+			"mdm_platform": "microsoft",
+			"host_serial": "",
+			"installed_from_dep": false,
+			"host_display_name": "DESKTOP-0C89RC0"
+		 }`,
+		0)
+}
+
+func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureToken() {
+	t := s.T()
+
+	// Preparing the SecurityToken Request message with Azure JWT token
+	azureADTok := "ZXlKMGVYQWlPaUpLVjFRaUxDSmhiR2NpT2lKU1V6STFOaUlzSW5nMWRDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUlzSW10cFpDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUo5LmV5SmhkV1FpT2lKb2RIUndjem92TDIxaGNtTnZjMnhoWW5NdWIzSm5MeUlzSW1semN5STZJbWgwZEhCek9pOHZjM1J6TG5kcGJtUnZkM011Ym1WMEwyWmhaVFZqTkdZekxXWXpNVGd0TkRRNE15MWlZelptTFRjMU9UVTFaalJoTUdFM01pOGlMQ0pwWVhRaU9qRTJPRGt4TnpBNE5UZ3NJbTVpWmlJNk1UWTRPVEUzTURnMU9Dd2laWGh3SWpveE5qZzVNVGMxTmpZeExDSmhZM0lpT2lJeElpd2lZV2x2SWpvaVFWUlJRWGt2T0ZSQlFVRkJOV2gwUTNFMGRERjNjbHBwUTIxQmVEQlpWaTloZGpGTVMwRkRPRXM1Vm10SGVtNUdXVGxzTUZoYWVrZHVha2N6VVRaMWVIUldNR3QxT1hCeFJXdFRZeUlzSW1GdGNpSTZXeUp3ZDJRaUxDSnljMkVpWFN3aVlYQndhV1FpT2lJeU9XUTVaV1E1T0MxaE5EWTVMVFExTXpZdFlXUmxNaTFtT1RneFltTXhaRFl3TldVaUxDSmhjSEJwWkdGamNpSTZJakFpTENKa1pYWnBZMlZwWkNJNkltRXhNMlkzWVdVd0xURXpPR0V0TkdKaU1pMDVNalF5TFRka09USXlaVGRqTkdGak15SXNJbWx3WVdSa2NpSTZJakU0Tmk0eE1pNHhPRGN1TWpZaUxDSnVZVzFsSWpvaVZHVnpkRTFoY21OdmMweGhZbk1pTENKdmFXUWlPaUpsTTJNMU5XVmtZeTFqTXpRNExUUTBNVFl0T0dZd05TMHlOVFJtWmpNd05qVmpOV1VpTENKd2QyUmZkWEpzSWpvaWFIUjBjSE02THk5d2IzSjBZV3d1YldsamNtOXpiMlowYjI1c2FXNWxMbU52YlM5RGFHRnVaMlZRWVhOemQyOXlaQzVoYzNCNElpd2ljbWdpT2lJd0xrRldTVUU0T0ZSc0xXaHFlbWN3VXpoaU0xZFdXREJ2UzJOdFZGRXpTbHB1ZUUxa1QzQTNUbVZVVm5OV2FYVkhOa0ZRYnk0aUxDSnpZM0FpT2lKdFpHMWZaR1ZzWldkaGRHbHZiaUlzSW5OMVlpSTZJa1pTUTJ4RldURk9ObXR2ZEdWblMzcFplV0pFTjJkdFdGbGxhVTVIUkZrd05FSjJOV3R6ZDJGeGJVRWlMQ0owYVdRaU9pSm1ZV1UxWXpSbU15MW1NekU0TFRRME9ETXRZbU0yWmkwM05UazFOV1kwWVRCaE56SWlMQ0oxYm1seGRXVmZibUZ0WlNJNkluUmxjM1JBYldGeVkyOXpiR0ZpY3k1dmNtY2lMQ0oxY0c0aU9pSjBaWE4wUUcxaGNtTnZjMnhoWW5NdWIzSm5JaXdpZFhScElqb2lNVGg2WkVWSU5UZFRSWFZyYWpseGJqRm9aMlJCUVNJc0luWmxjaUk2SWpFdU1DSjkuVG1FUlRsZktBdWo5bTVvQUc2UTBRblV4VEFEaTNFamtlNHZ3VXo3UTdqUUFVZVZGZzl1U0pzUXNjU2hFTXVxUmQzN1R2VlpQanljdEVoRFgwLVpQcEVVYUlSempuRVEyTWxvc21SZURYZzhrYkhNZVliWi1jb0ZucDEyQkVpQnpJWFBGZnBpaU1GRnNZZ0hSSF9tSWxwYlBlRzJuQ2p0LTZSOHgzYVA5QS1tM0J3eV91dnV0WDFNVEVZRmFsekhGa04wNWkzbjZRcjhURnlJQ1ZUYW5OanlkMjBBZFRMbHJpTVk0RVBmZzRaLThVVTctZkcteElycWVPUmVWTnYwOUFHV192MDd6UkVaNmgxVk9tNl9nelRGcElVVURuZFdabnFLTHlySDlkdkF3WnFFSG1HUmlTNElNWnRFdDJNTkVZSnhDWHhlSi1VbWZJdV9tUVhKMW9R"
+	requestBytes, err := s.newSecurityTokenMsg(azureADTok, false, false)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid RequestSecurityTokenResponseCollection message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("RequestSecurityTokenResponseCollection", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("DispositionMessage", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("TokenType", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("RequestID", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("BinarySecurityToken", resSoapMsg))
+
+	// Checking if an activity was created for the enrollment
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
+		`{
+			"mdm_platform": "microsoft",
+			"host_serial": "",
+			"installed_from_dep": false,
+			"host_display_name": "DESKTOP-0C89RC0"
+		 }`,
+		0)
+}
+
+func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMissingAdditionalContext() {
+	t := s.T()
+
+	// create a new Host to get the UUID on the DB
+	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
+		NodeKey:       ptr.String("Desktop-ABCQWE"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// Preparing the RequestSecurityToken Request message
+	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, windowsHost.UUID)
+	require.NoError(t, err)
+
+	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, true)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid SoapFault message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "ContextItem item DeviceType is not present", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
+	t := s.T()
+
+	// Target Endpoint url with query params
+	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel&login_hint=demo%40mdmwindows.com"
+	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Contains(t, resp.Header["Content-Type"], "text/html; charset=UTF-8")
+	require.NotEmpty(t, resBytes)
+
+	// Checking response content
+	resContent := string(resBytes)
+	require.Contains(t, resContent, "inputToken.name = 'wresult'")
+	require.Contains(t, resContent, "form.action = \"ms-app://windows.immersivecontrolpanel\"")
+	require.Contains(t, resContent, "performPost()")
+
+	// Getting token content
+	encodedToken := s.getRawTokenValue(resContent)
+	require.NotEmpty(t, encodedToken)
+}
+
+func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
+	t := s.T()
+
+	// Target Endpoint url with no login_hit query param
+	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel"
+	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	resContent := string(resBytes)
+	require.NoError(t, err)
+	require.NotEmpty(t, resBytes)
+	require.Contains(t, resContent, "forbidden")
+}
+
+func (s *integrationMDMTestSuite) TestValidGetTOC() {
+	t := s.T()
+
+	resp := s.DoRaw("GET", microsoft_mdm.MDE2TOSPath+"?api-version=1.0&redirect_uri=ms-appx-web%3a%2f%2fMicrosoft.AAD.BrokerPlugin&client-request-id=f2cf3127-1e80-4d73-965d-42a3b84bdb40", nil, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.WebContainerContentType)
+
+	resTOCcontent := string(resBytes)
+	require.Contains(t, resTOCcontent, "Microsoft.AAD.BrokerPlugin")
+	require.Contains(t, resTOCcontent, "IsAccepted=true")
+	require.Contains(t, resTOCcontent, "OpaqueBlob=")
+}
+
+func (s *integrationMDMTestSuite) TestValidSyncMLRequestNoAuth() {
+	t := s.T()
+
+	// Target Endpoint URL for the management endpoint
+	targetEndpointURL := microsoft_mdm.MDE2ManagementPath
+
+	// Preparing the SyncML request
+	requestBytes, err := s.newSyncMLSessionMsg(targetEndpointURL)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
+
+	// Checking if SyncML response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid RequestSecurityTokenResponseCollection message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("SyncHdr", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("SyncBody", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("Exec", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("Add", resSoapMsg))
+}
+
 // ///////////////////////////////////////////////////////////////////////////
 // Common helpers
 
@@ -6018,6 +6236,24 @@ func (s *integrationMDMTestSuite) runWorker() {
 	pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
 	require.NoError(s.T(), err)
 	require.Empty(s.T(), pending)
+}
+
+func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {
+	// Create a regex object with the defined pattern
+	pattern := `inputToken.value\s*=\s*'([^']*)'`
+	regex := regexp.MustCompile(pattern)
+
+	// Find the submatch using the regex pattern
+	submatches := regex.FindStringSubmatch(content)
+
+	if len(submatches) >= 2 {
+		// Extract the content from the submatch
+		encodedToken := submatches[1]
+
+		return encodedToken
+	}
+
+	return ""
 }
 
 func (s *integrationMDMTestSuite) isXMLTagPresent(xmlTag string, payload string) bool {
@@ -6051,9 +6287,15 @@ func (s *integrationMDMTestSuite) checkIfXMLTagContains(xmlTag string, xmlConten
 	return true
 }
 
-func (s *integrationMDMTestSuite) newGetPoliciesMsg(encodedBinToken string) ([]byte, error) {
+func (s *integrationMDMTestSuite) newGetPoliciesMsg(deviceToken bool, encodedBinToken string) ([]byte, error) {
 	if len(encodedBinToken) == 0 {
 		return nil, errors.New("encodedBinToken is empty")
+	}
+
+	// JWT token by default
+	tokType := microsoft_mdm.BinarySecurityAzureEnroll
+	if deviceToken {
+		tokType = microsoft_mdm.BinarySecurityDeviceEnroll
 	}
 
 	return []byte(`
@@ -6066,7 +6308,7 @@ func (s *integrationMDMTestSuite) newGetPoliciesMsg(encodedBinToken string) ([]b
 				</a:ReplyTo>
 				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>
 				<wsse:Security s:mustUnderstand="1">
-				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
+				<wsse:BinarySecurityToken ValueType="` + tokType + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
 				</wsse:Security>
 			</s:Header>
 			<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -6081,17 +6323,23 @@ func (s *integrationMDMTestSuite) newGetPoliciesMsg(encodedBinToken string) ([]b
 			</s:Envelope>`), nil
 }
 
-func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, missingContextItem bool) ([]byte, error) {
+func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, deviceToken bool, missingContextItem bool) ([]byte, error) {
 	if len(encodedBinToken) == 0 {
 		return nil, errors.New("encodedBinToken is empty")
 	}
 
 	var reqSecTokenContextItemDeviceType []byte
-	if missingContextItem {
+	if !missingContextItem {
 		reqSecTokenContextItemDeviceType = []byte(
 			`<ac:ContextItem Name="DeviceType">
 			 <ac:Value>CIMClient_Windows</ac:Value>
 			 </ac:ContextItem>`)
+	}
+
+	// JWT token by default
+	tokType := microsoft_mdm.BinarySecurityAzureEnroll
+	if deviceToken {
+		tokType = microsoft_mdm.BinarySecurityDeviceEnroll
 	}
 
 	// Preparing the RequestSecurityToken Request message
@@ -6105,7 +6353,7 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, mi
 				</a:ReplyTo>
 				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Enrollment.svc</a:To>
 				<wsse:Security s:mustUnderstand="1">
-				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
+				<wsse:BinarySecurityToken ValueType="` + tokType + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
 				</wsse:Security>
 			</s:Header>
 			<s:Body>
@@ -6164,4 +6412,77 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, mi
 		`)
 
 	return requestBytes, nil
+}
+
+// TODO: Add support to add custom DeviceID when DeviceAuth is in place
+func (s *integrationMDMTestSuite) newSyncMLSessionMsg(managementUrl string) ([]byte, error) {
+	if len(managementUrl) == 0 {
+		return nil, errors.New("managementUrl is empty")
+	}
+
+	return []byte(`
+			 <SyncML xmlns="SYNCML:SYNCML1.2">
+			<SyncHdr>
+				<VerDTD>1.2</VerDTD>
+				<VerProto>DM/1.2</VerProto>
+				<SessionID>1</SessionID>
+				<MsgID>1</MsgID>
+				<Target>
+				<LocURI>` + managementUrl + `</LocURI>
+				</Target>
+				<Source>
+				<LocURI>DB257C3A08778F4FB61E2749066C1F27</LocURI>
+				</Source>
+			</SyncHdr>
+			<SyncBody>
+				<Alert>
+				<CmdID>2</CmdID>
+				<Data>1201</Data>
+				</Alert>
+				<Alert>
+				<CmdID>3</CmdID>
+				<Data>1224</Data>
+				<Item>
+					<Meta>
+					<Type xmlns="syncml:metinf">com.microsoft/MDM/LoginStatus</Type>
+					</Meta>
+					<Data>user</Data>
+				</Item>
+				</Alert>
+				<Replace>
+				<CmdID>4</CmdID>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/DevId</LocURI>
+					</Source>
+					<Data>DB257C3A08778F4FB61E2749066C1F27</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/Man</LocURI>
+					</Source>
+					<Data>VMware, Inc.</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/Mod</LocURI>
+					</Source>
+					<Data>VMware7,1</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/DmV</LocURI>
+					</Source>
+					<Data>1.3</Data>
+				</Item>
+				<Item>
+					<Source>
+					<LocURI>./DevInfo/Lang</LocURI>
+					</Source>
+					<Data>en-US</Data>
+				</Item>
+				</Replace>
+				<Final/>
+			</SyncBody>
+			</SyncML>`), nil
 }
