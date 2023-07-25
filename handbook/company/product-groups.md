@@ -3,8 +3,6 @@
 ## Background
 When creating software, handoffs between teams or contributors are one of the most common sources of miscommunication and waste.  Like [GitLab](https://docs.google.com/document/d/1RxqS2nR5K0vN6DbgaBw7SEgpPLi0Kr9jXNGzpORT-OY/edit#heading=h.7sfw1n9c1i2t), Fleet uses product groups to minimize handoffs and maximize iteration and efficiency in the way we build the product.
 
-> Product groups were formerly known as "development groups" at Fleet.  The term "product group" is more common across the industry, so in January 2023, Fleet switched to using it.
-
 ## What are product groups?
 Fleet organizes product development efforts into separate, cross-functional product groups that include members from Design, Engineering, Quality, and Product.  These product groups are organized by business goal, and designed to operate in parallel.
 
@@ -32,9 +30,9 @@ The goal of the MDM group is to reach [product maturity](https://drive.google.co
 |:----------------------------------|:--------------------------|
 | Designer                          | Marko Lisica
 | Engineering manager               | George Karr
-| Quality assurance                 | Reed Haynes, Sabrina Coy
+| Quality assurance                 | Sabrina Coy
 | Product manager                   | Noah Talerman
-| Software engineers (developers)   | Gabe Hernandez, Martin Angers*, Roberto Dip, Sarah Gillespie, Marcos Oviedo
+| Software engineers (developers)   | Gabe Hernandez, Roberto Dip, Sarah Gillespie, Marcos Oviedo
 
 > The Slack channel, kanban release board, and label for this product group is `#g-mdm`.
 
@@ -52,7 +50,7 @@ The goal of the customer experience (CX) group is to make users and customers ha
 | Engineering manager               | Sharon Katz
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Mo Zhu
-| Software engineers (developers)   | Jacob Shandling, Juan Fernandez*, Lucas Rodriguez, Rachel Perkins, Eric Shaw
+| Software engineers (developers)   | Jacob Shandling, Juan Fernandez, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Martin Angers
 
 > The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 

@@ -1266,7 +1266,7 @@ WHERE
 			hmap.checksum as checksum,
 			hmap.status as status,
 			hmap.operation_type as operation_type,
-			hmap.detail as detail,
+			COALESCE(hmap.detail, '') as detail,
 			hmap.command_uuid as command_uuid
 		FROM (
 			SELECT
@@ -1469,7 +1469,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	    hmap.host_uuid,
 	    hmap.checksum,
 	    hmap.operation_type,
-	    hmap.detail,
+	    COALESCE(hmap.detail, '') as detail,
 	    hmap.status,
 	    hmap.command_uuid
           FROM (

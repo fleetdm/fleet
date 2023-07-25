@@ -313,6 +313,13 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Simplify vulnerability management with Fleet, an open-source platform with superior visibility.',
     }
   },
+  'GET /imagine/defcon-31': {
+    action: 'imagine/view-defcon-31',
+    locals: {
+      pageTitleForMeta: 'Fleet at DefCon 31',
+      pageDescriptionForMeta: 'Find Fleet at DefCon and get a custom tee shirt.',
+    }
+  },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
