@@ -677,3 +677,53 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 	}
 	return buf.Bytes(), nil
 }
+
+// ProfileBimap implements bidirectional mapping for profiles, and utility
+// functions to generate those mappings based on frequently used operations.
+type ProfileBimap struct {
+	wantedState  map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload
+	currentState map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload
+}
+
+// NewProfileBimap retuns a new ProfileBimap
+func NewProfileBimap() *ProfileBimap {
+	return &ProfileBimap{
+		map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload{},
+		map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload{},
+	}
+}
+
+// GetMatchingProfileInDesiredState returns the addition key that matches the given removal
+func (pb *ProfileBimap) GetMatchingProfileInDesiredState(removal *fleet.MDMAppleProfilePayload) (*fleet.MDMAppleProfilePayload, bool) {
+	value, ok := pb.currentState[removal]
+	return value, ok
+}
+
+// GetMatchingProfileInCurrentState returns the removal key that matches the given addition
+func (pb *ProfileBimap) GetMatchingProfileInCurrentState(addition *fleet.MDMAppleProfilePayload) (*fleet.MDMAppleProfilePayload, bool) {
+	key, ok := pb.wantedState[addition]
+	return key, ok
+}
+
+// IntersectByIdentifierAndHostUUID populates the bimap matching the profiles by Identifier and HostUUID
+func (pb *ProfileBimap) IntersectByIdentifierAndHostUUID(wantedProfiles, currentProfiles []*fleet.MDMAppleProfilePayload) {
+	key := func(p *fleet.MDMAppleProfilePayload) string {
+		return fmt.Sprintf("%s-%s", p.ProfileIdentifier, p.HostUUID)
+	}
+
+	removeProfs := map[string]*fleet.MDMAppleProfilePayload{}
+	for _, p := range currentProfiles {
+		removeProfs[key(p)] = p
+	}
+
+	for _, p := range wantedProfiles {
+		if pp, ok := removeProfs[key(p)]; ok {
+			pb.add(p, pp)
+		}
+	}
+}
+
+func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfilePayload) {
+	pb.wantedState[wantedProfile] = currentProfile
+	pb.currentState[currentProfile] = wantedProfile
+}
