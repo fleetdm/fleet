@@ -110,10 +110,6 @@ type PackByNameFunc func(ctx context.Context, name string, opts ...fleet.Optiona
 
 type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error)
 
-type EnsureGlobalPackFunc func(ctx context.Context) (*fleet.Pack, error)
-
-type EnsureTeamPackFunc func(ctx context.Context, teamID uint) (*fleet.Pack, error)
-
 type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
 type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
@@ -302,8 +298,6 @@ type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, erro
 
 type TeamFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
-type GetTeamNameFunc func(ctx context.Context, teamID uint) (*string, error)
-
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
@@ -432,8 +426,6 @@ type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string
 
 type CleanupCronStatsFunc func(ctx context.Context) error
 
-type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
-
 type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
@@ -450,7 +442,7 @@ type TeamFeaturesFunc func(ctx context.Context, teamID uint) (*fleet.Features, e
 
 type TeamMDMConfigFunc func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error)
 
-type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
+type SaveHostPackStatsFunc func(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error
 
 type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error)
 
@@ -803,12 +795,6 @@ type DataStore struct {
 	ListPacksForHostFunc        ListPacksForHostFunc
 	ListPacksForHostFuncInvoked bool
 
-	EnsureGlobalPackFunc        EnsureGlobalPackFunc
-	EnsureGlobalPackFuncInvoked bool
-
-	EnsureTeamPackFunc        EnsureTeamPackFunc
-	EnsureTeamPackFuncInvoked bool
-
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
 
@@ -1091,9 +1077,6 @@ type DataStore struct {
 	TeamFunc        TeamFunc
 	TeamFuncInvoked bool
 
-	GetTeamNameFunc        GetTeamNameFunc
-	GetTeamNameFuncInvoked bool
-
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
 
@@ -1285,9 +1268,6 @@ type DataStore struct {
 
 	CleanupCronStatsFunc        CleanupCronStatsFunc
 	CleanupCronStatsFuncInvoked bool
-
-	UpdateScheduledQueryAggregatedStatsFunc        UpdateScheduledQueryAggregatedStatsFunc
-	UpdateScheduledQueryAggregatedStatsFuncInvoked bool
 
 	UpdateQueryAggregatedStatsFunc        UpdateQueryAggregatedStatsFunc
 	UpdateQueryAggregatedStatsFuncInvoked bool
@@ -1959,20 +1939,6 @@ func (s *DataStore) ListPacksForHost(ctx context.Context, hid uint) (packs []*fl
 	return s.ListPacksForHostFunc(ctx, hid)
 }
 
-func (s *DataStore) EnsureGlobalPack(ctx context.Context) (*fleet.Pack, error) {
-	s.mu.Lock()
-	s.EnsureGlobalPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnsureGlobalPackFunc(ctx)
-}
-
-func (s *DataStore) EnsureTeamPack(ctx context.Context, teamID uint) (*fleet.Pack, error) {
-	s.mu.Lock()
-	s.EnsureTeamPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnsureTeamPackFunc(ctx, teamID)
-}
-
 func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
 	s.mu.Lock()
 	s.ApplyLabelSpecsFuncInvoked = true
@@ -2631,13 +2597,6 @@ func (s *DataStore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 	return s.TeamFunc(ctx, tid)
 }
 
-func (s *DataStore) GetTeamName(ctx context.Context, teamID uint) (*string, error) {
-	s.mu.Lock()
-	s.GetTeamNameFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetTeamNameFunc(ctx, teamID)
-}
-
 func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
 	s.mu.Lock()
 	s.DeleteTeamFuncInvoked = true
@@ -3086,13 +3045,6 @@ func (s *DataStore) CleanupCronStats(ctx context.Context) error {
 	return s.CleanupCronStatsFunc(ctx)
 }
 
-func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
-	s.mu.Lock()
-	s.UpdateScheduledQueryAggregatedStatsFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateScheduledQueryAggregatedStatsFunc(ctx)
-}
-
 func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	s.mu.Lock()
 	s.UpdateQueryAggregatedStatsFuncInvoked = true
@@ -3149,11 +3101,11 @@ func (s *DataStore) TeamMDMConfig(ctx context.Context, teamID uint) (*fleet.Team
 	return s.TeamMDMConfigFunc(ctx, teamID)
 }
 
-func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
+func (s *DataStore) SaveHostPackStats(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
 	s.mu.Lock()
 	s.SaveHostPackStatsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveHostPackStatsFunc(ctx, hostID, stats)
+	return s.SaveHostPackStatsFunc(ctx, teamID, hostID, stats)
 }
 
 func (s *DataStore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {

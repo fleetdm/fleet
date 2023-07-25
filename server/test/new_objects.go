@@ -12,17 +12,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NewQuery(t *testing.T, ds fleet.Datastore, teamID *uint, name, q string, authorID uint, saved bool) *fleet.Query {
+func NewQueryWithSchedule(t *testing.T, ds fleet.Datastore, teamID *uint, name, q string, authorID uint, saved bool, interval uint, automationsEnabled bool) *fleet.Query {
 	authorPtr := &authorID
 	if authorID == 0 {
 		authorPtr = nil
 	}
 	query, err := ds.NewQuery(context.Background(), &fleet.Query{
-		Name:     name,
-		Query:    q,
-		AuthorID: authorPtr,
-		Saved:    saved,
-		TeamID:   teamID,
+		Name:               name,
+		Query:              q,
+		AuthorID:           authorPtr,
+		Saved:              saved,
+		TeamID:             teamID,
+		Interval:           interval,
+		AutomationsEnabled: automationsEnabled,
 	})
 	require.NoError(t, err)
 
@@ -31,6 +33,10 @@ func NewQuery(t *testing.T, ds fleet.Datastore, teamID *uint, name, q string, au
 	require.NoError(t, err)
 
 	return query
+}
+
+func NewQuery(t *testing.T, ds fleet.Datastore, teamID *uint, name, q string, authorID uint, saved bool) *fleet.Query {
+	return NewQueryWithSchedule(t, ds, teamID, name, q, authorID, saved, 0, false)
 }
 
 func NewPack(t *testing.T, ds fleet.Datastore, name string) *fleet.Pack {

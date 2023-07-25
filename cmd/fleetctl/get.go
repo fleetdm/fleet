@@ -102,7 +102,7 @@ func printLabel(c *cli.Context, label *fleet.LabelSpec) error {
 	return printSpec(c, spec)
 }
 
-func printQuery(c *cli.Context, query *fleet.QuerySpec) error {
+func printQuerySpec(c *cli.Context, query *fleet.QuerySpec) error {
 	spec := specGeneric{
 		Kind:    fleet.QueryKind,
 		Version: fleet.ApiVersion,
@@ -304,6 +304,10 @@ func getQueriesCommand() *cli.Command {
 		Aliases: []string{"query", "q"},
 		Usage:   "List information about one or more queries",
 		Flags: []cli.Flag{
+			&cli.UintFlag{
+				Name:  teamFlagName,
+				Usage: "filter queries by team_id (0 means global)",
+			},
 			jsonFlag(),
 			yamlFlag(),
 			configFlag(),
@@ -318,9 +322,14 @@ func getQueriesCommand() *cli.Command {
 
 			name := c.Args().First()
 
+			var teamID *uint
+			if tid := c.Uint(teamFlagName); tid != 0 {
+				teamID = &tid
+			}
+
 			// if name wasn't provided, list all queries
 			if name == "" {
-				queries, err := client.GetQueries()
+				queries, err := client.GetQueries(teamID)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -354,12 +363,29 @@ func getQueriesCommand() *cli.Command {
 					return nil
 				}
 
+				var teamName string
+				if teamID != nil {
+					team, err := client.GetTeam(*teamID)
+					if err != nil {
+						return fmt.Errorf("get team: %w", err)
+					}
+					teamName = team.Name
+				}
+
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
-						if err := printQuery(c, &fleet.QuerySpec{
+						if err := printQuerySpec(c, &fleet.QuerySpec{
 							Name:        query.Name,
 							Description: query.Description,
 							Query:       query.Query,
+
+							TeamName:           teamName,
+							Interval:           query.Interval,
+							ObserverCanRun:     query.ObserverCanRun,
+							Platform:           query.Platform,
+							MinOsqueryVersion:  query.MinOsqueryVersion,
+							AutomationsEnabled: query.AutomationsEnabled,
+							Logging:            query.Logging,
 						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
@@ -382,12 +408,12 @@ func getQueriesCommand() *cli.Command {
 				return nil
 			}
 
-			query, err := client.GetQuery(name)
+			query, err := client.GetQuerySpec(teamID, name)
 			if err != nil {
 				return err
 			}
 
-			if err := printQuery(c, query); err != nil {
+			if err := printQuerySpec(c, query); err != nil {
 				return fmt.Errorf("unable to print query: %w", err)
 			}
 
@@ -426,7 +452,7 @@ func getPacksCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  withQueriesFlagName,
-				Usage: "Output queries included in pack(s) too",
+				Usage: "Output queries included in pack(s) too, when used alongside --yaml or --json",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -457,7 +483,8 @@ func getPacksCommand() *cli.Command {
 					return nil
 				}
 
-				queries, err := client.GetQueries()
+				// Get global queries (teamID==nil), because 2017 packs reference global queries.
+				queries, err := client.GetQueries(nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -469,7 +496,7 @@ func getPacksCommand() *cli.Command {
 						continue
 					}
 
-					if err := printQuery(c, &fleet.QuerySpec{
+					if err := printQuerySpec(c, &fleet.QuerySpec{
 						Name:        query.Name,
 						Description: query.Description,
 						Query:       query.Query,

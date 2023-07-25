@@ -54,11 +54,11 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			Description:        "get the foos",
 			Query:              "select * from foo",
 			ObserverCanRun:     true,
-			ScheduleInterval:   10,
+			Interval:           10,
 			Platform:           "macos",
 			MinOsqueryVersion:  "5.2.1",
 			AutomationsEnabled: true,
-			LoggingType:        "differential",
+			Logging:            "differential",
 		},
 		{
 			Name:        "bar",
@@ -254,11 +254,11 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.Query = "baz"
 	query.ObserverCanRun = true
 	query.TeamID = &team.ID
-	query.ScheduleInterval = 10
+	query.Interval = 10
 	query.Platform = "macos"
 	query.MinOsqueryVersion = "5.2.1"
 	query.AutomationsEnabled = true
-	query.LoggingType = "differential"
+	query.Logging = "differential"
 
 	err = ds.SaveQuery(context.Background(), query)
 	require.NoError(t, err)
@@ -307,7 +307,7 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 
 	_, err = ds.writer(context.Background()).Exec(
 		`INSERT INTO aggregated_stats(id,global_stats,type,json_value) VALUES (?,?,?,?)`,
-		idWithAgg, false, aggregatedStatsTypeQuery, `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
+		idWithAgg, false, aggregatedStatsTypeScheduledQuery, `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
 	)
 	require.NoError(t, err)
 
@@ -620,17 +620,17 @@ func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 
 func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 	q1, err := ds.NewQuery(context.Background(), &fleet.Query{
-		Name:             "query1",
-		Query:            "select 1;",
-		Saved:            true,
-		ScheduleInterval: 0,
+		Name:     "query1",
+		Query:    "select 1;",
+		Saved:    true,
+		Interval: 0,
 	})
 	require.NoError(t, err)
 	q2, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:               "query2",
 		Query:              "select 1;",
 		Saved:              true,
-		ScheduleInterval:   10,
+		Interval:           10,
 		AutomationsEnabled: false,
 	})
 	require.NoError(t, err)
@@ -638,7 +638,7 @@ func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 		Name:               "query3",
 		Query:              "select 1;",
 		Saved:              true,
-		ScheduleInterval:   20,
+		Interval:           20,
 		AutomationsEnabled: true,
 	})
 	require.NoError(t, err)
@@ -686,18 +686,18 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 			teamIDStr = fmt.Sprintf("%d", *teamID)
 		}
 		_, err := ds.NewQuery(context.Background(), &fleet.Query{
-			Name:             fmt.Sprintf("%s query1", teamIDStr),
-			Query:            "select 1;",
-			Saved:            true,
-			ScheduleInterval: 0,
-			TeamID:           teamID,
+			Name:     fmt.Sprintf("%s query1", teamIDStr),
+			Query:    "select 1;",
+			Saved:    true,
+			Interval: 0,
+			TeamID:   teamID,
 		})
 		require.NoError(t, err)
 		_, err = ds.NewQuery(context.Background(), &fleet.Query{
 			Name:               fmt.Sprintf("%s query2", teamIDStr),
 			Query:              "select 1;",
 			Saved:              false,
-			ScheduleInterval:   10,
+			Interval:           10,
 			AutomationsEnabled: false,
 			TeamID:             teamID,
 		})
@@ -706,7 +706,7 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 			Name:               fmt.Sprintf("%s query3", teamIDStr),
 			Query:              "select 1;",
 			Saved:              true,
-			ScheduleInterval:   20,
+			Interval:           20,
 			AutomationsEnabled: true,
 			TeamID:             teamID,
 		})
@@ -715,7 +715,7 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 			Name:               fmt.Sprintf("%s query4", teamIDStr),
 			Query:              "select 1;",
 			Saved:              true,
-			ScheduleInterval:   0,
+			Interval:           0,
 			AutomationsEnabled: true,
 			TeamID:             teamID,
 		})

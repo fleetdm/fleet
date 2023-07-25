@@ -31,11 +31,9 @@ func TestTeams(t *testing.T) {
 		{"Search", testTeamsSearch},
 		{"EnrollSecrets", testTeamsEnrollSecrets},
 		{"TeamAgentOptions", testTeamsAgentOptions},
-		{"TeamsDeleteRename", testTeamsDeleteRename},
 		{"DeleteIntegrationsFromTeams", testTeamsDeleteIntegrationsFromTeams},
 		{"TeamsFeatures", testTeamsFeatures},
 		{"TeamsMDMConfig", testTeamsMDMConfig},
-		{"GetTeamByName", testGetTeamByName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -105,35 +103,6 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 		})
 	}
-}
-
-func testTeamsDeleteRename(t *testing.T, ds *Datastore) {
-	team, err := ds.NewTeam(context.Background(), &fleet.Team{
-		Name:        t.Name(),
-		Description: t.Name() + "desc",
-	})
-	require.NoError(t, err)
-	assert.NotZero(t, team.ID)
-
-	team2, err := ds.NewTeam(context.Background(), &fleet.Team{
-		Name:        t.Name() + "2",
-		Description: t.Name() + "desc 2",
-	})
-	require.NoError(t, err)
-	assert.NotZero(t, team2.ID)
-
-	_, err = ds.EnsureTeamPack(context.Background(), team.ID)
-	require.NoError(t, err)
-
-	err = ds.DeleteTeam(context.Background(), team.ID)
-	require.NoError(t, err)
-
-	team2.Name = t.Name()
-	_, err = ds.SaveTeam(context.Background(), team2)
-	require.NoError(t, err)
-
-	_, err = ds.EnsureTeamPack(context.Background(), team2.ID)
-	require.NoError(t, err)
 }
 
 func testTeamsUsers(t *testing.T, ds *Datastore) {
@@ -623,26 +592,5 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				MacOSSetupAssistant: optjson.SetString("assistant"),
 			},
 		}, mdm)
-	})
-}
-
-func testGetTeamByName(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	t.Run("team does not exists", func(t *testing.T) {
-		r, err := ds.GetTeamName(ctx, 123)
-		require.Nil(t, r)
-		require.Error(t, err)
-	})
-
-	t.Run("returns the team name", func(t *testing.T) {
-		team, err := ds.NewTeam(ctx, &fleet.Team{
-			Name: "team1",
-		})
-		require.NoError(t, err)
-
-		result, err := ds.GetTeamName(ctx, team.ID)
-		require.NoError(t, err)
-		require.Equal(t, team.Name, *result)
 	})
 }

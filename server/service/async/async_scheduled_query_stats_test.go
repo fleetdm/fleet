@@ -125,7 +125,7 @@ func testCollectScheduledQueryStats(t *testing.T, ds *mysql.Datastore, pool flee
 	setupTest := func(t *testing.T, task *Task, data map[uint][]fleet.PackStats) collectorExecStats {
 		var wantStats collectorExecStats
 		for hid, stats := range data {
-			err := task.RecordScheduledQueryStats(ctx, hid, stats, time.Now())
+			err := task.RecordScheduledQueryStats(ctx, nil, hid, stats, time.Now())
 			require.NoError(t, err)
 		}
 		wantStats.Keys = len(data)
@@ -177,7 +177,7 @@ func testRecordScheduledQueryStatsSync(t *testing.T, ds *mock.Store, pool fleet.
 
 	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{})
 
-	err := task.RecordScheduledQueryStats(ctx, host.ID, stats, now)
+	err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, stats, now)
 	require.NoError(t, err)
 	require.True(t, ds.SaveHostPackStatsFuncInvoked)
 	ds.SaveHostPackStatsFuncInvoked = false
@@ -222,7 +222,7 @@ func testRecordScheduledQueryStatsAsync(t *testing.T, ds *mock.Store, pool fleet
 		AsyncHostRedisScanKeysCount: 10,
 	})
 
-	err := task.RecordScheduledQueryStats(ctx, host.ID, stats, now)
+	err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, stats, now)
 	require.NoError(t, err)
 	require.False(t, ds.SaveHostPackStatsFuncInvoked)
 
@@ -269,7 +269,7 @@ func testRecordScheduledQueryStatsAsync(t *testing.T, ds *mock.Store, pool fleet
 			PackName: "p1", QueryStats: []fleet.ScheduledQueryStats{},
 		},
 	}
-	err = task.RecordScheduledQueryStats(ctx, host.ID, stats, now)
+	err = task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, stats, now)
 	require.NoError(t, err)
 	require.False(t, ds.SaveHostPackStatsFuncInvoked)
 
