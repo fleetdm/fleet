@@ -154,10 +154,6 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
     accessor: "display_name",
     Cell: (cellProps: ICellProps) => {
-      console.log(
-        cellProps.cell.value,
-        cellProps.row.original.mdm.enrollment_status
-      );
       if (
         // if the host is pending, we want to disable the link to host details
         cellProps.row.original.mdm.enrollment_status === "Pending" &&

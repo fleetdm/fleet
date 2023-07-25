@@ -447,7 +447,9 @@ var extraDetailQueries = map[string]DetailQuery{
 			)
 			UNION ALL
 			SELECT * FROM (
-				SELECT "is_federated" AS "key", data as "value" FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
+				SELECT "is_federated" AS "key", data as "value" FROM registry 
+				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
+				LIMIT 1
 			)
 			UNION ALL
 			SELECT * FROM (

@@ -647,7 +647,6 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, c.data)
 		require.NoError(t, err)
 		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
-		require.NoError(t, err)
 		ds.SetOrUpdateMDMDataFuncInvoked = false
 	}
 }
