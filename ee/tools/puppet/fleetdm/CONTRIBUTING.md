@@ -69,6 +69,14 @@ The only thing left to do is to add the `fleetdm/fleetdm` module to your server.
 
 > **Important** if you make changes to the `utils` folder of the module, you need to run `puppetserver reload` in your Puppet server afterwards, files in that folder are not autoloaded.
 
+## Releasing
+
+1. Bump the module version in the [metadata.json](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/metadata.json) file.
+2. From the `ee/tools/puppet/fleetdm` directory, run `pdk build`. This will generate a `tar.gz` file in the `ee/tools/puppet/fleetdm/pkg/` directory.
+3. Login into the [Puppet Forge](https://forge.puppet.com/), credentials are in 1Password.
+4. Visit the [upload page](https://forge.puppet.com/upload) and upload the `tar.gz` file you generated.
+
+
 ## Development cheatsheet
 
 To trigger a puppet run using the same machine as the server and client:
