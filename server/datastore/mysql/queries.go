@@ -81,9 +81,9 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			q.TeamIDStr(),
 			q.Platform,
 			q.MinOsqueryVersion,
-			q.ScheduleInterval,
+			q.Interval,
 			q.AutomationsEnabled,
-			q.LoggingType,
+			q.Logging,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec ApplyQueries insert")
@@ -180,9 +180,9 @@ func (ds *Datastore) NewQuery(
 		query.TeamIDStr(),
 		query.Platform,
 		query.MinOsqueryVersion,
-		query.ScheduleInterval,
+		query.Interval,
 		query.AutomationsEnabled,
-		query.LoggingType,
+		query.Logging,
 	)
 
 	if err != nil && isDuplicate(err) {
@@ -229,9 +229,9 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 		q.TeamIDStr(),
 		q.Platform,
 		q.MinOsqueryVersion,
-		q.ScheduleInterval,
+		q.Interval,
 		q.AutomationsEnabled,
-		q.LoggingType,
+		q.Logging,
 		q.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating query")
@@ -302,14 +302,21 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 			q.created_at,
 			q.updated_at,
 			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, 
-			COALESCE(u.email, '') AS author_email
+			COALESCE(u.email, '') AS author_email,
+			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
+			JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
+			JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
+			JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
+			JSON_EXTRACT(json_value, '$.total_executions') as total_executions
 		FROM queries q
 		LEFT JOIN users u
 			ON q.author_id = u.id
+		LEFT JOIN aggregated_stats ag
+			ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
 		WHERE q.id = ?
 	`
 	query := &fleet.Query{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, false, aggregatedStatsTypeScheduledQuery, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
 		}
@@ -355,7 +362,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
 	`
 
-	args := []interface{}{false, aggregatedStatsTypeQuery}
+	args := []interface{}{false, aggregatedStatsTypeScheduledQuery}
 	whereClauses := "WHERE saved = true"
 
 	if opt.OnlyObserverCanRun {
@@ -392,18 +399,19 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	return results, nil
 }
 
-// loadPacksForQueries loads the packs associated with the provided queries
+// loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.
 func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Query) error {
 	if len(queries) == 0 {
 		return nil
 	}
 
+	// packs.pack_type is NULL for user created packs (aka 2017 packs).
 	sql := `
 		SELECT p.*, sq.query_name AS query_name
 		FROM packs p
 		JOIN scheduled_queries sq
 			ON p.id = sq.pack_id
-		WHERE query_name IN (?)
+		WHERE query_name IN (?) AND p.pack_type IS NULL
 	`
 
 	// Used to map the results

@@ -529,7 +529,13 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 	// single host, single stat
 	m := map[uint][]fleet.ScheduledQueryStats{
 		h1.ID: {
-			{ScheduledQueryID: sq1.ID, Executions: 1, LastExecuted: lastExec},
+			{
+				ScheduledQueryID:   sq1.ID,
+				Executions:         1,
+				LastExecuted:       lastExec,
+				PackName:           p1.Name,
+				ScheduledQueryName: sq1.Name,
+			},
 		},
 	}
 	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
@@ -540,8 +546,20 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 	// single host, stats == batch size
 	m = map[uint][]fleet.ScheduledQueryStats{
 		h1.ID: {
-			{ScheduledQueryID: sq1.ID, Executions: 2, LastExecuted: lastExec},
-			{ScheduledQueryID: sq2.ID, Executions: 3, LastExecuted: lastExec},
+			{
+				ScheduledQueryID:   sq1.ID,
+				Executions:         2,
+				LastExecuted:       lastExec,
+				PackName:           p1.Name,
+				ScheduledQueryName: sq1.Name,
+			},
+			{
+				ScheduledQueryID:   sq2.ID,
+				Executions:         3,
+				LastExecuted:       lastExec,
+				PackName:           p2.Name,
+				ScheduledQueryName: sq2.Name,
+			},
 		},
 	}
 	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
@@ -552,9 +570,27 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 	// single host, stats > batch size
 	m = map[uint][]fleet.ScheduledQueryStats{
 		h1.ID: {
-			{ScheduledQueryID: sq1.ID, Executions: 4, LastExecuted: lastExec},
-			{ScheduledQueryID: sq2.ID, Executions: 5, LastExecuted: lastExec},
-			{ScheduledQueryID: sq3.ID, Executions: 6, LastExecuted: lastExec},
+			{
+				ScheduledQueryID:   sq1.ID,
+				Executions:         4,
+				LastExecuted:       lastExec,
+				PackName:           p1.Name,
+				ScheduledQueryName: sq1.Name,
+			},
+			{
+				ScheduledQueryID:   sq2.ID,
+				Executions:         5,
+				LastExecuted:       lastExec,
+				PackName:           p2.Name,
+				ScheduledQueryName: sq2.Name,
+			},
+			{
+				ScheduledQueryID:   sq3.ID,
+				Executions:         6,
+				LastExecuted:       lastExec,
+				PackName:           p3.Name,
+				ScheduledQueryName: sq3.Name,
+			},
 		},
 	}
 	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
@@ -565,10 +601,22 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 	// multi host, stats == batch size
 	m = map[uint][]fleet.ScheduledQueryStats{
 		h1.ID: {
-			{ScheduledQueryID: sq1.ID, Executions: 7, LastExecuted: lastExec},
+			{
+				ScheduledQueryID:   sq1.ID,
+				Executions:         7,
+				LastExecuted:       lastExec,
+				PackName:           p1.Name,
+				ScheduledQueryName: sq1.Name,
+			},
 		},
 		h2.ID: {
-			{ScheduledQueryID: sq2.ID, Executions: 8, LastExecuted: lastExec},
+			{
+				ScheduledQueryID:   sq2.ID,
+				Executions:         8,
+				LastExecuted:       lastExec,
+				PackName:           p2.Name,
+				ScheduledQueryName: sq2.Name,
+			},
 		},
 	}
 	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
@@ -579,11 +627,29 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 	// multi host, stats > batch size
 	m = map[uint][]fleet.ScheduledQueryStats{
 		h1.ID: {
-			{ScheduledQueryID: sq1.ID, Executions: 9, LastExecuted: lastExec},
+			{
+				ScheduledQueryID:   sq1.ID,
+				Executions:         9,
+				LastExecuted:       lastExec,
+				PackName:           p1.Name,
+				ScheduledQueryName: sq1.Name,
+			},
 		},
 		h2.ID: {
-			{ScheduledQueryID: sq2.ID, Executions: 10, LastExecuted: lastExec},
-			{ScheduledQueryID: sq3.ID, Executions: 11, LastExecuted: lastExec},
+			{
+				ScheduledQueryID:   sq2.ID,
+				Executions:         10,
+				LastExecuted:       lastExec,
+				PackName:           p2.Name,
+				ScheduledQueryName: sq2.Name,
+			},
+			{
+				ScheduledQueryID:   sq3.ID,
+				Executions:         11,
+				LastExecuted:       lastExec,
+				PackName:           p3.Name,
+				ScheduledQueryName: sq3.Name,
+			},
 		},
 	}
 	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
@@ -594,17 +660,59 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 	// multi host, stats > (N * batch size)
 	m = map[uint][]fleet.ScheduledQueryStats{
 		h1.ID: {
-			{ScheduledQueryID: sq1.ID, Executions: 12, LastExecuted: lastExec},
-			{ScheduledQueryID: sq2.ID, Executions: 13, LastExecuted: lastExec},
+			{
+				ScheduledQueryID:   sq1.ID,
+				Executions:         12,
+				LastExecuted:       lastExec,
+				PackName:           p1.Name,
+				ScheduledQueryName: sq1.Name,
+			},
+			{
+				ScheduledQueryID:   sq2.ID,
+				Executions:         13,
+				LastExecuted:       lastExec,
+				PackName:           p2.Name,
+				ScheduledQueryName: sq2.Name,
+			},
 		},
 		h2.ID: {
-			{ScheduledQueryID: sq2.ID, Executions: 14, LastExecuted: lastExec},
-			{ScheduledQueryID: sq4.ID, Executions: 15, LastExecuted: lastExec},
+			{
+				ScheduledQueryID:   sq2.ID,
+				Executions:         14,
+				LastExecuted:       lastExec,
+				PackName:           p2.Name,
+				ScheduledQueryName: sq2.Name,
+			},
+			{
+				ScheduledQueryID:   sq4.ID,
+				Executions:         15,
+				LastExecuted:       lastExec,
+				PackName:           p3.Name,
+				ScheduledQueryName: sq4.Name,
+			},
 		},
 		h3.ID: {
-			{ScheduledQueryID: sq1.ID, Executions: 16, LastExecuted: lastExec},
-			{ScheduledQueryID: sq2.ID, Executions: 17, LastExecuted: lastExec},
-			{ScheduledQueryID: sq3.ID, Executions: 18, LastExecuted: lastExec},
+			{
+				ScheduledQueryID:   sq1.ID,
+				Executions:         16,
+				LastExecuted:       lastExec,
+				PackName:           p1.Name,
+				ScheduledQueryName: sq1.Name,
+			},
+			{
+				ScheduledQueryID:   sq2.ID,
+				Executions:         17,
+				LastExecuted:       lastExec,
+				PackName:           p2.Name,
+				ScheduledQueryName: sq2.Name,
+			},
+			{
+				ScheduledQueryID:   sq3.ID,
+				Executions:         18,
+				LastExecuted:       lastExec,
+				PackName:           p3.Name,
+				ScheduledQueryName: sq3.Name,
+			},
 		},
 	}
 	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)

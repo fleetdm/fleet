@@ -539,60 +539,6 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestCachedGetTeamName(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-
-	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithScheduledQueriesExpiration(100*time.Millisecond))
-
-	team := fleet.Team{
-		ID:        1,
-		CreatedAt: time.Now(),
-		Name:      "test",
-	}
-
-	deleted := false
-	mockedDS.GetTeamNameFunc = func(ctx context.Context, teamID uint) (*string, error) {
-		if deleted {
-			return nil, errors.New("not found")
-		}
-		return &team.Name, nil
-	}
-	mockedDS.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-		return team, nil
-	}
-	mockedDS.DeleteTeamFunc = func(ctx context.Context, teamID uint) error {
-		deleted = true
-		return nil
-	}
-
-	// updating updates the cache
-	result, err := ds.GetTeamName(ctx, 1)
-	require.NoError(t, err)
-	require.Equal(t, team.Name, *result)
-
-	updatedTeam := &fleet.Team{
-		ID:        team.ID,
-		CreatedAt: team.CreatedAt,
-		Name:      "test II",
-	}
-	_, err = ds.SaveTeam(ctx, updatedTeam)
-	require.NoError(t, err)
-
-	result, err = ds.GetTeamName(ctx, team.ID)
-	require.NoError(t, err)
-	require.Equal(t, updatedTeam.Name, *result)
-
-	// deleting updates the cache
-	err = ds.DeleteTeam(ctx, team.ID)
-	require.NoError(t, err)
-
-	_, err = ds.GetTeamName(ctx, team.ID)
-	require.Error(t, err)
-}
-
 func TestCachedListScheduledQueriesForAgents(t *testing.T) {
 	t.Parallel()
 
@@ -606,14 +552,14 @@ func TestCachedListScheduledQueriesForAgents(t *testing.T) {
 		{
 			ID:                 1,
 			Name:               "test",
-			ScheduleInterval:   100,
+			Interval:           100,
 			AutomationsEnabled: true,
 			TeamID:             teamID,
 		},
 		{
 			ID:                 2,
 			Name:               "test II",
-			ScheduleInterval:   100,
+			Interval:           100,
 			AutomationsEnabled: true,
 			TeamID:             teamID,
 		},
