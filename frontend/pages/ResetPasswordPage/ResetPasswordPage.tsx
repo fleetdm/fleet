@@ -41,13 +41,11 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     } catch (response: any) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
-      console.log("errorObject", errorObject);
       if (
         response.data.message.includes(
           "either global role or team role needs to be defined"
         )
       ) {
-        console.log("hitting the right error");
         setErrors({ no_access: "No global role or team role" });
       }
       return false;
@@ -59,14 +57,10 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
       return continueWithLoggedInUser(formData);
     }
 
-    console.log("currentUser", currentUser);
-
     const resetPasswordData = {
       ...formData,
       password_reset_token: token,
     };
-
-    console.log("resetPasswordData", resetPasswordData);
 
     try {
       await usersAPI.resetPassword(resetPasswordData);

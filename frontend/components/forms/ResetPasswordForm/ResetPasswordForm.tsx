@@ -79,7 +79,7 @@ const ResetPasswordForm = ({
   const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
     const valid = validate();
-    console.log("valid", valid);
+
     if (valid) {
       return handleSubmit(formData);
     }
@@ -95,7 +95,6 @@ const ResetPasswordForm = ({
     };
   };
 
-  console.log("errors", errors);
   return (
     <form className={baseClass}>
       <InputFieldWithIcon
