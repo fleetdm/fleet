@@ -85,18 +85,9 @@ const ResetPasswordForm = ({
     }
   };
 
-  const onInputChange = (formField: string): ((value: string) => void) => {
-    return (value: string) => {
-      setErrors({});
-      setFormData({
-        ...formData,
-        [formField]: value,
-      });
-    };
-  };
-
   return (
     <form className={baseClass}>
+      {serverErrors && <div className="form__base-error">{serverErrors}</div>}
       <InputFieldWithIcon
         error={errors.new_password}
         autofocus

@@ -119,7 +119,4 @@ class LoginForm extends Component {
   }
 }
 
-export default Form(LoginForm, {
-  fields: formFields,
-  validate,
-});
+export default LoginForm;
