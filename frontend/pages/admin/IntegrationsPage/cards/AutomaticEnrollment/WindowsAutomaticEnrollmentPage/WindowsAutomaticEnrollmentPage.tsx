@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 
 import PATHS from "router/paths";
+import { AppContext } from "context/app";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -8,9 +9,19 @@ import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink/CustomLink";
 
+const generateMdmTermsOfUseUrl = (domain: string) => {
+  return `${domain}/api/v1/fleet/mdm/microsoft/terms_of_use`;
+};
+
+const generateMdmDiscoveryUrl = (domain: string) => {
+  return `${domain}/api/v1/fleet/mdm/microsoft/discovery`;
+};
+
 const baseClass = "windows-automatic-enrollment-page";
 
 const WindowsAutomaticEnrollmentPage = () => {
+  const { config } = useContext(AppContext);
+
   return (
     <MainContent className={baseClass}>
       <>
@@ -68,7 +79,9 @@ const WindowsAutomaticEnrollmentPage = () => {
                 tooltip="The terms of use API is used to display the terms of service to end users
                 before turning on MDM their host. The terms of use text informs users about
                 policies that will be enforced on the host."
-                value="https://dogfood.fleetdm.com/api/v1/fleet/mdm/microsoft/terms_of_use"
+                value={generateMdmTermsOfUseUrl(
+                  config?.server_settings.server_url || ""
+                )}
                 enableCopy
               />
               <InputField
@@ -76,7 +89,9 @@ const WindowsAutomaticEnrollmentPage = () => {
                 label="MDM discovery URL"
                 name="mdmDiscoveryUrl"
                 tooltip="The enrollment API is used to connect hosts with the MDM service."
-                value="https://dogfood.fleetdm.com/api/v1/fleet/mdm/microsoft/discovery"
+                value={generateMdmDiscoveryUrl(
+                  config?.server_settings.server_url || ""
+                )}
                 enableCopy
               />
             </div>
