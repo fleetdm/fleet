@@ -287,8 +287,9 @@ const HostsFilterBlock = ({
           MDM was turned on <br />
           automatically using Apple <br />
           Automated Device <br />
-          Enrollment (DEP) or <br />
-          Windows Autopilot. <br />
+          Enrollment (DEP), <br />
+          Windows Autopilot, or <br />
+          Windows Azure AD Join. <br />
           Administrators can block <br />
           device users from turning
           <br /> MDM off.
