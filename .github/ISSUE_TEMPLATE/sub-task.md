@@ -1,6 +1,6 @@
 ---
 name: 🧩 Sub-task
-about: "Specify an sub-task. (Avoid comments.  Use only as prescribed.)"
+about: "Specify a sub-task. (Avoid comments.  Use only as prescribed.)"
 title: ''
 labels: '~sub-task'
 assignees: ''
@@ -10,7 +10,7 @@ assignees: ''
 ## Related user story
 
 TODO
-<!-- An sub-task always belongs to exactly one story.  The parent user story for this technical sub-task is linked here.  Comment on the parent story, not on this sub-task. -->
+<!-- A sub-task always belongs to exactly one story.  The parent user story for this technical sub-task is linked here.  Comment on the parent story, not on this sub-task. -->
 
 ## Task
 
