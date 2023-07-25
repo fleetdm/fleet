@@ -363,7 +363,7 @@ func getQueriesCommand() *cli.Command {
 					return nil
 				}
 
-				var teamName string
+				teamName := "All teams"
 				if teamID != nil {
 					team, err := client.GetTeam(*teamID)
 					if err != nil {
@@ -395,14 +395,34 @@ func getQueriesCommand() *cli.Command {
 					data := [][]string{}
 
 					for _, query := range queries {
+						platform := "all"
+						if query.Platform != "" {
+							platform = query.Platform
+						}
+
+						minOsqueryVersion := "all"
+						if query.MinOsqueryVersion != "" {
+							minOsqueryVersion = query.MinOsqueryVersion
+						}
+
+						scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s",
+							query.Interval,
+							platform,
+							minOsqueryVersion,
+							query.AutomationsEnabled,
+							query.Logging,
+						)
+
 						data = append(data, []string{
 							query.Name,
 							query.Description,
 							query.Query,
+							teamName,
+							scheduleInfo,
 						})
 					}
 
-					columns := []string{"name", "description", "query"}
+					columns := []string{"name", "description", "query", "team", "schedule"}
 					printTable(c, columns, data)
 				}
 				return nil
