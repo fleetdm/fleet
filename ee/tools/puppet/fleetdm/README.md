@@ -145,22 +145,6 @@ At the moment, this module only works for macOS devices.
 
 ## Development
 
-To trigger a puppet run locally:
-
-```
-puppet apply --debug --test --modulepath="$(pwd)/.." --reports=fleetdm  --hiera_config hiera.yaml examples/multiple-teams.pp
-```
-
-To lint/fix Puppet (`.pp`) files, use:
-
-```
-pdk bundle exec puppet-lint --fix .
-```
-
-To lint/fix Ruby (`.rb`) files, use:
-
-```
-pdk bundle exec rubocop -A
-```
+Information about how to contribute can be found in the [`CONTRIBUTING.md` file](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/CONTRIBUTING.md).
 
 [1]: https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user
