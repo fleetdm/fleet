@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -323,8 +324,19 @@ func getQueriesCommand() *cli.Command {
 			name := c.Args().First()
 
 			var teamID *uint
+			teamName := "All teams"
+
 			if tid := c.Uint(teamFlagName); tid != 0 {
 				teamID = &tid
+				team, err := client.GetTeam(*teamID)
+				if err != nil {
+					if strings.Contains(err.Error(), "Resource Not Found") {
+						fmt.Println("Team not found")
+						return nil
+					}
+					return fmt.Errorf("get team: %w", err)
+				}
+				teamName = team.Name
 			}
 
 			// if name wasn't provided, list all queries
@@ -361,15 +373,6 @@ func getQueriesCommand() *cli.Command {
 				if len(queries) == 0 {
 					fmt.Println("No queries found")
 					return nil
-				}
-
-				teamName := "All teams"
-				if teamID != nil {
-					team, err := client.GetTeam(*teamID)
-					if err != nil {
-						return fmt.Errorf("get team: %w", err)
-					}
-					teamName = team.Name
 				}
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
