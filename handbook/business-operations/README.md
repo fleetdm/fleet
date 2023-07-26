@@ -950,7 +950,7 @@ The following stubs are included only to make links backward compatible.
 ##### Modifying an event organized by someone else
 ##### External meeting scheduling
 
-Please see [handbook/company/communication.md](handbook/company/communication.md) for all meetings sections
+Please see [handbook/company/communication.md]( https://fleetdm.com/handbook/company/communication.md) for all meetings sections
 
 ##### Open positions
 
