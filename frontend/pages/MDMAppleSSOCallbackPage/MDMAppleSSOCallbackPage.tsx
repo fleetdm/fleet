@@ -18,16 +18,18 @@ interface IEnrollmentGateProps {
   profileToken?: string;
   eulaToken?: string;
   enrollmentReference?: string;
+  error?: boolean;
 }
 
 const EnrollmentGate = ({
   profileToken,
   eulaToken,
   enrollmentReference,
+  error,
 }: IEnrollmentGateProps) => {
   const [showEULA, setShowEULA] = useState(Boolean(eulaToken));
 
-  if (!profileToken) {
+  if (!profileToken || error) {
     return <SSOError />;
   }
 
@@ -65,6 +67,7 @@ interface IMDMSSOCallbackQuery {
   eula_token?: string;
   profile_token?: string;
   enrollment_reference?: string;
+  error?: boolean;
 }
 
 const MDMAppleSSOCallbackPage = (
@@ -74,6 +77,7 @@ const MDMAppleSSOCallbackPage = (
     eula_token,
     profile_token,
     enrollment_reference,
+    error,
   } = props.location.query;
   return (
     <div className={baseClass}>
@@ -81,6 +85,7 @@ const MDMAppleSSOCallbackPage = (
         eulaToken={eula_token}
         profileToken={profile_token}
         enrollmentReference={enrollment_reference}
+        error={error}
       />
     </div>
   );

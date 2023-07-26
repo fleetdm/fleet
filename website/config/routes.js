@@ -379,9 +379,9 @@ module.exports.routes = {
   'GET /handbook/security': '/handbook/business-operations/security',
   'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
   'GET /handbook/handbook': '/handbook/company/handbook',
-  'GET /handbook/company/product-groups': '/handbook/company/development-groups',
+  'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
-  'GET /platform': (req,res)=> {return res.redirect(302, '/');},// FUTURE: change this to a 301 (permanent) redirect once we are sure what the page that replaces this is.
+  'GET /platform': '/',
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
   'GET /handbook/business-operations/ceo-handbook': '/handbook/company/ceo-handbook',
 
