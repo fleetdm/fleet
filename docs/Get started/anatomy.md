@@ -36,9 +36,9 @@ A query in Fleet refers to an osquery query. Osquery uses basic SQL commands to 
 A policy is a specific “yes” or “no” query. Use policies to manage security compliance in your organization.
 
 ## Host vitals
-TODO.
+Host vitals are the hard-coded queries Fleet uses to populate device details.
 
 ## Software library 
-TODO.
+An inventory of each host’s installed software, including information about detected vulnerabilities (CVEs).
 
 <meta name="pageOrderInSection" value="200">
