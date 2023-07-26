@@ -110,7 +110,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 > Struggling with this? It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Many contributors have given the feedback that this opinionated solution is a huge relief once you build the habit of using sentence case capitalization, since it frees up mental capacity in every copywriting situation. You don't have to think as hard, nor choose between flouting and laboriously adhering to the (likely somewhat complex and out of date) styleguide.
 
-You can read about why we use sentence case in ["📖Company/Why this way?"](https://fleetdm.com/handbook/company/why-this-way.md#why-does-fleet-use-sentence-case).
+You can read about why we use sentence case in ["📖Company/Why this way?"](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case).
 
 ### Contractions
 They’re great! Don’t be afraid to use them. They’ll help your writing sound more approachable.
