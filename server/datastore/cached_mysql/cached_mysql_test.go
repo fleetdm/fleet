@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -537,38 +536,4 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 
 	_, err = ds.TeamMDMConfig(context.Background(), testTeam.ID)
 	require.Error(t, err)
-}
-
-func TestCachedListScheduledQueriesForAgents(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-
-	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithScheduledQueriesExpiration(100*time.Millisecond))
-
-	teamID := ptr.Uint(1)
-	scheduledQueries := []*fleet.Query{
-		{
-			ID:                 1,
-			Name:               "test",
-			Interval:           100,
-			AutomationsEnabled: true,
-			TeamID:             teamID,
-		},
-		{
-			ID:                 2,
-			Name:               "test II",
-			Interval:           100,
-			AutomationsEnabled: true,
-			TeamID:             teamID,
-		},
-	}
-	mockedDS.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
-		return scheduledQueries, nil
-	}
-
-	result, err := ds.ListScheduledQueriesForAgents(ctx, teamID)
-	require.NoError(t, err)
-	test.QueryElementsMatch(t, result, scheduledQueries)
 }
