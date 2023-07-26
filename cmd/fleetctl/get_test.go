@@ -1184,7 +1184,12 @@ spec:
 }
 
 func TestGetQuery(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
 
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == 1 {
