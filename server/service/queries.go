@@ -97,7 +97,7 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 	}
 
 	user := authz.UserFromContext(ctx)
-	onlyShowObserverCanRun := onlyShowObserverCanRunQueries(user)
+	onlyShowObserverCanRun := onlyShowObserverCanRunQueries(user, teamID)
 
 	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
 		ListOptions:        opt,
@@ -112,20 +112,14 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 	return queries, nil
 }
 
-func onlyShowObserverCanRunQueries(user *fleet.User) bool {
+func onlyShowObserverCanRunQueries(user *fleet.User, teamID *uint) bool {
 	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleObserver {
 		return true
-	} else if len(user.Teams) > 0 {
-		allObserver := true
-		for _, team := range user.Teams {
-			if team.Role != fleet.RoleObserver {
-				allObserver = false
-				break
-			}
-		}
-		return allObserver
 	}
-	return false
+
+	return teamID != nil && user.TeamMembership(func(ut fleet.UserTeam) bool {
+		return ut.Role == fleet.RoleObserver
+	})[*teamID]
 }
 
 ////////////////////////////////////////////////////////////////////////////////
