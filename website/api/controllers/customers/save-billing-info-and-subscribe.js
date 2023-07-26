@@ -108,6 +108,7 @@ module.exports = {
     });
 
     // Create the subscription for this order in Stripe
+    // [?]: https://stripe.com/docs/api/subscriptions/create?lang=node
     const subscription = await stripe.subscriptions.create({
       customer: this.req.me.stripeCustomerId,
       items: [
@@ -122,7 +123,7 @@ module.exports = {
     let latestInvoiceIdForThisSubscription = subscription.latest_invoice;
 
     // Get the invoice from Stripe.
-    const invoice = await stripe.invoices.retrieve(latestInvoiceIdForThisSubscription);
+    const invoice = await stripe.invoices.retrieve(latestInvoiceIdForThisSubscription);// [?]: https://stripe.com/docs/api/invoices/retrieve?lang=node
 
     if(!invoice.paid) {
       // If the invoice is not paid, we will throw an error, and ask the customer to contact support.
