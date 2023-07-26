@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 
 import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { AppContext } from "context/app";
+import { usePermissions } from "utilities/roleBaseAccessControls/roleBaseAccessControls";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -34,7 +35,18 @@ const HostActionsDropdown = ({
     isSandboxMode = false,
   } = useContext(AppContext);
 
+  const { hasPermission } = usePermissions();
+
+  const canTransferHost = hasPermission("host.transfer");
+  const canDeleteHost = hasPermission("host.delete");
+
+  console.log("canTransferHost", canTransferHost);
+
   const options = generateHostActionOptions({
+    // new
+    canTransferHost: hasPermission("host.transfer"),
+
+    // old way
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,

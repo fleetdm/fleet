@@ -4,7 +4,12 @@ import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
 import { Role } from "interfaces/role";
 
-import { Permission, permissions } from "./permissions";
+import {
+  FreePermissions,
+  PremiumPermissions,
+  freePermissions,
+  premiumPermissions,
+} from "./permissions";
 
 /** role names as they are used to check permissions in the UI */
 export type PermissionRole =
@@ -36,8 +41,8 @@ const ApiToClientTeamRoleMap: Record<Role, PermissionRole> = {
 };
 
 const getCurrentTeamRole = (
-  currentUserTeams?: ITeam[],
-  currentTeamId?: number
+  currentUserTeams: ITeam[],
+  currentTeamId: number
 ) => {
   if (!currentUserTeams || !currentTeamId) {
     return undefined;
@@ -50,34 +55,49 @@ const getCurrentTeamRole = (
   return currentTeam?.role;
 };
 
+const getTierPermissionMap = (isPremiumTier: boolean): any => {
+  return isPremiumTier ? premiumPermissions : freePermissions;
+};
+
 export const usePermissions = () => {
-  const { currentUser, currentTeam } = useContext(AppContext);
+  const { currentUser, currentTeam, isPremiumTier } = useContext(AppContext);
 
-  const globalRole = currentUser?.global_role;
-  const currentTeamRole = getCurrentTeamRole(
-    currentUser?.teams,
-    currentTeam?.id
-  );
+  // Quick exit if we don't have the data we need to check permissions.
+  if (!currentUser || !currentTeam || !isPremiumTier)
+    return { hasPermission: () => false };
 
-  const hasGlobalPermission = (permissionName: Permission) => {
+  const globalRole = currentUser.global_role;
+  const currentTeamRole = getCurrentTeamRole(currentUser.teams, currentTeam.id);
+
+  const userTierPermissionMap = getTierPermissionMap(isPremiumTier);
+
+  const hasGlobalPermission = (
+    permissionName: FreePermissions | PremiumPermissions
+  ) => {
     return (
       globalRole !== null &&
       globalRole !== undefined &&
-      permissions[permissionName].includes(ApiToClientGlobalRoleMap[globalRole])
+      userTierPermissionMap[permissionName].includes(
+        ApiToClientGlobalRoleMap[globalRole]
+      )
     );
   };
 
-  const hasTeamPermission = (permissionName: Permission) => {
+  const hasTeamPermission = (
+    permissionName: FreePermissions | PremiumPermissions
+  ) => {
     return (
       currentTeamRole !== null &&
       currentTeamRole !== undefined &&
-      permissions[permissionName].includes(
+      userTierPermissionMap[permissionName].includes(
         ApiToClientTeamRoleMap[currentTeamRole]
       )
     );
   };
 
-  const hasPermission = (permissionName: Permission) => {
+  const hasPermission = (
+    permissionName: FreePermissions | PremiumPermissions
+  ) => {
     return (
       hasGlobalPermission(permissionName) || hasTeamPermission(permissionName)
     );
