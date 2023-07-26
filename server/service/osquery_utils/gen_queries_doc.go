@@ -59,9 +59,9 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 		}
 		fmt.Fprintf(&b, "- Platforms: %s\n\n", platforms)
 		if q.detailQuery.Discovery != "" {
-			fmt.Fprintf(&b, "- Discovery query:\n\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Discovery))
+			fmt.Fprintf(&b, "- Discovery query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Discovery))
 		}
-		fmt.Fprintf(&b, "- Query:\n\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Query))
+		fmt.Fprintf(&b, "- Query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Query))
 	}
 
 	b.WriteString(`
