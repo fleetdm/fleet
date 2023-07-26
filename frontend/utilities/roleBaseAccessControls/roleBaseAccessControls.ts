@@ -2,23 +2,9 @@ import { useContext } from "react";
 
 import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
+import { Role } from "interfaces/role";
 
 import { Permission, permissions } from "./permissions";
-
-/** global roles as they come back from the API. */
-export type GlobalRole =
-  | "admin"
-  | "maintainer"
-  | "observer"
-  | "observer_plus"
-  | "gitops";
-/** team roles as they come back from the API. */
-export type TeamRole =
-  | "admin"
-  | "maintainer"
-  | "observer"
-  | "observer_plus"
-  | "gitops";
 
 /** role names as they are used to check permissions in the UI */
 export type PermissionRole =
@@ -34,14 +20,14 @@ export type PermissionRole =
   | "team-gitops";
 
 // These are mappings of the API role names to the role names used to check
-const ApiToClientGlobalRoleMap: Record<GlobalRole, PermissionRole> = {
+const ApiToClientGlobalRoleMap: Record<Role, PermissionRole> = {
   admin: "global-admin",
   maintainer: "global-maintainer",
   observer: "global-observer",
   observer_plus: "global-observer-plus",
   gitops: "global-gitops",
 };
-const ApiToClientTeamRoleMap: Record<TeamRole, PermissionRole> = {
+const ApiToClientTeamRoleMap: Record<Role, PermissionRole> = {
   admin: "team-admin",
   maintainer: "team-maintainer",
   observer: "team-observer",

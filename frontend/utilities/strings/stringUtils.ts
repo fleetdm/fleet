@@ -1,4 +1,4 @@
-import { UserRole } from "interfaces/user";
+import { Role, RoleDisplay } from "interfaces/role";
 
 /**
  * Capitalizes the words of the string passed in.
@@ -8,14 +8,14 @@ const capitalize = (str: string): string => {
   return str.replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
 
-const capitalizeRole = (str: UserRole): UserRole => {
+const capitalizeRole = (str: Role): RoleDisplay => {
   if (str === "observer_plus") {
     return "Observer+";
   }
   if (str === "gitops") {
     return "GitOps";
   }
-  return str.replace(/\b\w/g, (letter) => letter.toUpperCase()) as UserRole;
+  return str.replace(/\b\w/g, (letter) => letter.toUpperCase()) as RoleDisplay;
 };
 
 export const STYLIZATIONS_AND_ACRONYMS = [

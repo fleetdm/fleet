@@ -249,7 +249,6 @@ describe("SiteTopNav - component", () => {
       <SiteTopNav
         config={createMockConfig()}
         currentUser={createMockUser({
-          global_role: "",
           teams: [createMockTeam({ role: "admin" })],
         })}
         location={urlLocation}
@@ -288,7 +287,6 @@ describe("SiteTopNav - component", () => {
         config={createMockConfig()}
         currentUser={createMockUser({
           role: "maintainer",
-          global_role: "",
         })}
         location={urlLocation}
         onLogoutUser={noop}
@@ -325,7 +323,6 @@ describe("SiteTopNav - component", () => {
         config={createMockConfig()}
         currentUser={createMockUser({
           role: "observer",
-          global_role: "",
         })}
         location={urlLocation}
         onLogoutUser={noop}

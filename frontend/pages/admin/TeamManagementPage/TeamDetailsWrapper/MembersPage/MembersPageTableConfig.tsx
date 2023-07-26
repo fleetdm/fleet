@@ -8,6 +8,7 @@ import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import stringUtils from "utilities/strings";
 import TooltipWrapper from "components/TooltipWrapper";
+import { RoleDisplay } from "interfaces/role";
 
 interface IHeaderProps {
   column: {
@@ -143,7 +144,7 @@ const generateTableHeaders = (
               tipContent={`
             Users with the Observer+ role have access to all of<br/>
             the same functions as an Observer, with the added<br/>
-            ability to run any live query against all hosts. 
+            ability to run any live query against all hosts.
           `}
             >
               {cellProps.cell.value}
@@ -194,9 +195,9 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
     },
   ];
 };
-const generateRole = (teamId: number, teams: ITeam[]): UserRole => {
+const generateRole = (teamId: number, teams: ITeam[]) => {
   const role = teams.find((team) => teamId === team.id)?.role ?? "Unassigned";
-  return stringUtils.capitalizeRole(role);
+  return role === "Unassigned" ? role : stringUtils.capitalizeRole(role);
 };
 
 const enhanceMembersData = (

@@ -47,6 +47,7 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
+import { Role, RoleDisplay } from "interfaces/role";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -489,17 +490,19 @@ export const formatPackForClient = (pack: IPack): IPack => {
 
 export const generateRole = (
   teams: ITeam[],
-  globalRole: UserRole | null
-): UserRole => {
+  globalRole: Role | null
+): RoleDisplay => {
   if (globalRole === null) {
-    const listOfRoles = teams.map<UserRole | undefined>((team) => team.role);
+    const listOfRoles = teams.map<Role | undefined | null>((team) => team.role);
 
     if (teams.length === 0) {
       // no global role and no teams
       return "Unassigned";
     } else if (teams.length === 1) {
       // no global role and only one team
-      return stringUtils.capitalizeRole(teams[0].role || "Unassigned");
+      return teams[0].role
+        ? stringUtils.capitalizeRole(teams[0].role)
+        : "Unassigned";
     } else if (listOfRoles.every((role): boolean => role === "maintainer")) {
       // only team maintainers
       return "Maintainer";

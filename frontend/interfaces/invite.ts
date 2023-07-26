@@ -1,3 +1,4 @@
+import { Role } from "./role";
 import { ITeam } from "./team";
 import { UserRole } from "./user";
 
@@ -9,7 +10,7 @@ export interface IInvite {
   email: string;
   name: string;
   sso_enabled: boolean;
-  global_role: UserRole | null;
+  global_role: Role | null;
   teams: ITeam[];
   api_only?: boolean;
 }

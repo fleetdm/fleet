@@ -2,7 +2,7 @@ import { isEqual } from "lodash";
 
 import { IInvite } from "interfaces/invite";
 import { IUser, IUserUpdateBody, IUpdateUserFormData } from "interfaces/user";
-import { IRole } from "interfaces/role";
+import { Role } from "interfaces/role";
 import { IFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
@@ -55,11 +55,18 @@ const generateUpdateData = (
   );
 };
 
+interface IRoleOptions {
+  disabled: boolean;
+  label: string;
+  value: Role;
+  helpText?: string;
+}
+
 export const roleOptions = ({
   isPremiumTier,
   isApiOnly,
-}: IRoleOptionsParams): IRole[] => {
-  const roles: IRole[] = [
+}: IRoleOptionsParams): IRoleOptions[] => {
+  const roles: IRoleOptions[] = [
     {
       disabled: false,
       label: "Observer",
