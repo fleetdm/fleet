@@ -25,13 +25,6 @@ module Puppet::Util
     end
 
     def initialize
-      node_name = Puppet[:node_name_value]
-      node = Puppet::Node.new(node_name)
-      compiler = Puppet::Parser::Compiler.new(node)
-      scope = Puppet::Parser::Scope.new(compiler)
-      lookup_invocation = Puppet::Pops::Lookup::Invocation.new(scope, {}, {}, nil)
-      @host = Puppet::Pops::Lookup.lookup('fleetdm::host', nil, '', false, nil, lookup_invocation)
-      @token = Puppet::Pops::Lookup.lookup('fleetdm::token', nil, '', false, nil, lookup_invocation)
       @cache = {}
       @cache_mutex = Mutex.new
     end
@@ -114,6 +107,15 @@ module Puppet::Util
     private
 
     def req(method: :get, path: '', body: nil, headers: {}, cached: false)
+      node_name = Puppet[:node_name_value]
+      node = Puppet::Node.new(node_name)
+      node.environment = Puppet.lookup(:current_environment).name.to_s
+      compiler = Puppet::Parser::Compiler.new(node)
+      scope = Puppet::Parser::Scope.new(compiler)
+      lookup_invocation = Puppet::Pops::Lookup::Invocation.new(scope, {}, {}, nil)
+      host = Puppet::Pops::Lookup.lookup('fleetdm::host', nil, '', false, nil, lookup_invocation)
+      token = Puppet::Pops::Lookup.lookup('fleetdm::token', nil, '', false, nil, lookup_invocation)
+
       if cached
         @cache_mutex.synchronize do
           unless @cache[path].nil?
@@ -123,7 +125,7 @@ module Puppet::Util
       end
 
       out = { 'error' => '' }
-      uri = URI.parse("#{@host}#{path}")
+      uri = URI.parse("#{host}#{path}")
       uri.path.squeeze! '/'
       uri.path.chomp! '/'
 
@@ -139,7 +141,7 @@ module Puppet::Util
         throw "HTTP method #{method} not implemented"
       end
 
-      headers['Authorization'] = "Bearer #{@token}"
+      headers['Authorization'] = "Bearer #{token}"
       headers.each { |key, value| request[key] = value }
       request.body = body.to_json if body
 
