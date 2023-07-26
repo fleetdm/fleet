@@ -37,7 +37,7 @@ module Puppet::Util
     # @param profile_xml [String] Raw XML with the configuration profile.
     # @param group [String] Used to construct a team name.
     # @return [Hash] The response status code, headers, and body.
-    def preassign_profile(run_identifier, uuid, profile_xml, group, ensure_profile)
+    def preassign_profile(run_identifier, uuid, profile_xml, group, ensure_profile, environment)
       req(
         method: :post,
         path: '/api/latest/fleet/mdm/apple/profiles/preassign',
@@ -48,6 +48,7 @@ module Puppet::Util
           'group' => group,
           'exclude' => ensure_profile == 'absent',
         },
+        environment: environment,
       )
     end
 
@@ -60,11 +61,12 @@ module Puppet::Util
     # @param run_identifier [String] Used to identify this run to match
     # pre-assigned profiles.
     # @return [Hash] The response status code, headers, and body.
-    def match_profiles(run_identifier)
+    def match_profiles(run_identifier, environment)
       req(
         method: :post,
         path: '/api/latest/fleet/mdm/apple/profiles/match',
         body: { 'external_host_identifier' => run_identifier },
+        environment: environment,
       )
     end
 
@@ -73,7 +75,7 @@ module Puppet::Util
     # @param uuid [String] The host uuid.
     # @param command_xml [String] Raw XML with the MDM command.
     # @return [Hash] The response status code, headers, and body.
-    def send_mdm_command(uuid, command_xml)
+    def send_mdm_command(uuid, command_xml, environment)
       req(method: :post, path: '/api/latest/fleet/mdm/apple/enqueue',
       body: {
         # For some reason, the enqueue function expects the command to be
@@ -84,15 +86,21 @@ module Puppet::Util
         # removing the padding manually instead.
         'command' => Base64.strict_encode64(command_xml).gsub(%r{[\n=]}, ''),
         'device_ids' => [uuid],
-      })
+      },
+      environment: environment)
     end
 
     # Get profiles assigned to the host.
     #
     # @param host_id [Number] Fleet's internal host id.
     # @return [Hash] The response status code, headers, and body.
-    def get_host_profiles(host_id)
-      req(method: :get, path: "/api/latest/fleet/mdm/hosts/#{host_id}/profiles", cached: false)
+    def get_host_profiles(host_id, environment)
+      req(
+        method: :get,
+        path: "/api/latest/fleet/mdm/hosts/#{host_id}/profiles",
+        cached: false,
+      environment: environment,
+      )
     end
 
     # Gets host details by host identifier.
@@ -100,16 +108,21 @@ module Puppet::Util
     # @param identifier [String] The host identifier, can be
     # osquery_host_identifier, node_key, UUID, or hostname.
     # @return [Hash] The response status code, headers, and body.
-    def get_host_by_identifier(identifier)
-      req(method: :get, path: "/api/latest/fleet/hosts/identifier/#{identifier}", cached: true)
+    def get_host_by_identifier(identifier, environment)
+      req(
+        method: :get,
+        path: "/api/latest/fleet/hosts/identifier/#{identifier}",
+        cached: true,
+      environment: environment,
+      )
     end
 
     private
 
-    def req(method: :get, path: '', body: nil, headers: {}, cached: false)
+    def req(method: :get, path: '', body: nil, headers: {}, cached: false, environment: 'production')
       node_name = Puppet[:node_name_value]
       node = Puppet::Node.new(node_name)
-      node.environment = Puppet.lookup(:current_environment).name.to_s
+      node.environment = environment
       compiler = Puppet::Parser::Compiler.new(node)
       scope = Puppet::Parser::Scope.new(compiler)
       lookup_invocation = Puppet::Pops::Lookup::Invocation.new(scope, {}, {}, nil)
