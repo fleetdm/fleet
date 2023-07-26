@@ -2,6 +2,7 @@ import React, { FormEvent, useState } from "react";
 import { Link } from "react-router";
 import { size } from "lodash";
 import classnames from "classnames";
+import { ILoginUserData } from "interfaces/user";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -15,19 +16,26 @@ const baseClass = "login-form";
 
 interface ILoginFormProps {
   baseError?: string;
-  handleSubmit: () => void;
-  isHidden: boolean;
-  ssoSettings: ISSOSettings;
-  handleSSOSignOn: () => void;
+  handleSubmit: (formData: ILoginUserData) => Promise<false | void>;
+  ssoSettings?: ISSOSettings;
+  handleSSOSignOn?: () => void;
+  serverErrors?: Record<string, string>;
 }
 
 const LoginForm = ({
   baseError,
   handleSubmit,
-  isHidden,
   ssoSettings,
   handleSSOSignOn,
 }: ILoginFormProps): JSX.Element => {
+  const {
+    idp_name: idpName,
+    idp_image_url: imageURL,
+    sso_enabled: ssoEnabled,
+  } = ssoSettings || {};
+
+  const loginFormClass = classnames(baseClass);
+
   const [errors, setErrors] = useState<any>({}); // TODO
   const [formData, setFormData] = useState<any>({
     email: "",
@@ -53,15 +61,16 @@ const LoginForm = ({
     return { valid, errors };
   };
 
-  const onFormSubmit = (evt: FormEvent): void => {
+  const onFormSubmit = (evt: FormEvent): Promise<false | void> | boolean => {
     evt.preventDefault();
     const valid = validate();
     if (valid) {
-      return handleSubmit();
+      return handleSubmit(formData);
     }
+    return false;
   };
 
-  const showLegendWithImage = (image: string, idpName: string) => {
+  const showLegendWithImage = () => {
     let legend = "Single sign-on";
     if (idpName !== "") {
       legend = `Sign on with ${idpName}`;
@@ -69,21 +78,23 @@ const LoginForm = ({
 
     return (
       <div>
-        <img src={image} alt={idpName} className={`${baseClass}__sso-image`} />
+        <img
+          src={imageURL}
+          alt={idpName}
+          className={`${baseClass}__sso-image`}
+        />
         <span className={`${baseClass}__sso-legend`}>{legend}</span>
       </div>
     );
   };
 
   const renderSingleSignOnButton = () => {
-    const { idp_name: idpName, idp_image_url: imageURL } = ssoSettings;
-
     let legend: string | JSX.Element = "Single sign-on";
     if (idpName !== "") {
       legend = `Sign on with ${idpName}`;
     }
     if (imageURL !== "") {
-      legend = showLegendWithImage(imageURL, idpName);
+      legend = showLegendWithImage();
     }
 
     return (
@@ -99,12 +110,6 @@ const LoginForm = ({
     );
   };
 
-  const { sso_enabled: ssoEnabled } = ssoSettings || {};
-
-  const loginFormClass = classnames(baseClass, {
-    [`${baseClass}--hidden`]: isHidden,
-  });
-
   const onInputChange = (formField: string): ((value: string) => void) => {
     return (value: string) => {
       setErrors({});
@@ -114,6 +119,7 @@ const LoginForm = ({
       });
     };
   };
+  console.log("baseError", baseError);
   return (
     <form onSubmit={onFormSubmit} className={loginFormClass}>
       <div className={`${baseClass}__container`}>
@@ -123,7 +129,7 @@ const LoginForm = ({
           autofocus
           label="Email"
           placeholder="Email"
-          value={formData.email || ""}
+          value={formData.email}
           onChange={onInputChange("email")}
         />
         <InputFieldWithIcon
@@ -131,7 +137,7 @@ const LoginForm = ({
           label="Password"
           placeholder="Password"
           type="password"
-          value={formData.password || ""}
+          value={formData.password}
           onChange={onInputChange("password")}
         />
         <div className={`${baseClass}__forgot-wrap`}>

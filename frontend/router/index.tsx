@@ -34,6 +34,7 @@ import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
+import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PolicyPage from "pages/policies/PolicyPage";
 import QueryPage from "pages/queries/QueryPage";
@@ -101,6 +102,7 @@ const routes = (
           />
           <Route path="login/forgot" component={ForgotPasswordPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
+          <Route path="login/denied" component={NoAccessPage} />
           <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
           <Route path="mdm/sso" component={MDMAppleSSOPage} />
         </Route>

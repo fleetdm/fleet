@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 
@@ -16,6 +16,26 @@ interface INoAccessPageProps {
 }
 
 const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
+  const onBackToLogin = () => {
+    router.push(PATHS.LOGIN);
+  };
+
+  useEffect(() => {
+    if (onBackToLogin) {
+      const closeOrSaveWithEnterKey = (event: KeyboardEvent) => {
+        if (event.code === "Enter" || event.code === "NumpadEnter") {
+          event.preventDefault();
+          onBackToLogin();
+        }
+      };
+
+      document.addEventListener("keydown", closeOrSaveWithEnterKey);
+      return () => {
+        document.removeEventListener("keydown", closeOrSaveWithEnterKey);
+      };
+    }
+  }, [onBackToLogin]);
+
   return (
     <AuthenticationFormWrapper>
       <StackedWhiteBoxes headerText="This account does not currently have access to Fleet.">
@@ -30,9 +50,7 @@ const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
           </p>
           <Button
             variant="brand"
-            onClick={() => {
-              router.push(PATHS.LOGIN);
-            }}
+            onClick={onBackToLogin}
             className={`${baseClass}__btn`}
           >
             Back to login
