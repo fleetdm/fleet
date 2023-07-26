@@ -195,7 +195,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "crons.vulnerabilities"
-    value = "${random_integer.cron_offset.result}\\,${random_integer.cron_offset.result + 15}\\,${random_integer.cron_offset.result + 30}\\,${random_integer.cron_offset.result + 45} * * * *"
+    value = "${random_integer.cron_offset.result}\\,${random_integer.cron_offset.result + 15}\\,${random_integer.cron_offset.result + 30}\\,${random_integer.cron_offset.result + 45} 13-0 * * *"
   }
 
   set {
