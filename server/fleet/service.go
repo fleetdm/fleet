@@ -170,9 +170,10 @@ type Service interface {
 	// are valid
 	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
 
-	// InitSSOCallback handles the IDP response and ensures the credentials
-	// are valid, then responds with an enrollment profile.
-	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) (string, error)
+	// InitiateMDMAppleSSOCallback handles the IDP response and ensures the
+	// credentials are valid, then responds with an URL to the Fleet UI to
+	// handle next steps based on the query parameters provided.
+	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) string
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
