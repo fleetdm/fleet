@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -19,6 +18,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
@@ -42,6 +42,7 @@ type specGeneric struct {
 func defaultTable(writer io.Writer) *tablewriter.Table {
 	table := tablewriter.NewWriter(writer)
 	table.SetRowLine(true)
+	table.SetReflowDuringAutoWrap(false)
 	return table
 }
 
@@ -299,6 +300,50 @@ func getCommand() *cli.Command {
 	}
 }
 
+func queryToTableRow(query fleet.Query, teamName string) []string {
+	platform := "all"
+	if query.Platform != "" {
+		platform = query.Platform
+	}
+
+	minOsqueryVersion := "all"
+	if query.MinOsqueryVersion != "" {
+		minOsqueryVersion = query.MinOsqueryVersion
+	}
+
+	scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s",
+		query.Interval,
+		platform,
+		minOsqueryVersion,
+		query.AutomationsEnabled,
+		query.Logging,
+	)
+
+	teamNameOut := teamName
+	if teamName == "" {
+		teamNameOut = "All teams"
+	}
+
+	return []string{
+		query.Name,
+		query.Description,
+		query.Query,
+		teamNameOut,
+		scheduleInfo,
+	}
+}
+
+func numberInheritedQueries(client *service.Client, teamID *uint) (*int, error) {
+	if teamID != nil {
+		globalQueries, err := client.GetQueries(nil)
+		if err != nil {
+			return nil, fmt.Errorf("could not list global queries: %w", err)
+		}
+		return ptr.Int(len(globalQueries)), nil
+	}
+	return nil, nil
+}
+
 func getQueriesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "queries",
@@ -324,14 +369,16 @@ func getQueriesCommand() *cli.Command {
 			name := c.Args().First()
 
 			var teamID *uint
-			teamName := "All teams"
+			var teamName string
 
 			if tid := c.Uint(teamFlagName); tid != 0 {
 				teamID = &tid
 				team, err := client.GetTeam(*teamID)
 				if err != nil {
-					if strings.Contains(err.Error(), "Resource Not Found") {
-						fmt.Println("Team not found")
+					var notFoundErr service.NotFoundErr
+					if errors.As(err, &notFoundErr) {
+						// Do not error out, just inform the user and 'gracefully' exit.
+						fmt.Println("Team not found.")
 						return nil
 					}
 					return fmt.Errorf("get team: %w", err)
@@ -339,11 +386,20 @@ func getQueriesCommand() *cli.Command {
 				teamName = team.Name
 			}
 
-			// if name wasn't provided, list all queries
+			// if name wasn't provided, list either all global queries or all team queries...
 			if name == "" {
 				queries, err := client.GetQueries(teamID)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
+				}
+
+				if len(queries) == 0 {
+					scope := "global"
+					if teamID != nil {
+						scope = "team"
+					}
+					fmt.Printf("No %s queries found.\n", scope)
+					return nil
 				}
 
 				me, err := client.Me()
@@ -370,11 +426,6 @@ func getQueriesCommand() *cli.Command {
 					queries = queries[:n]
 				}
 
-				if len(queries) == 0 {
-					fmt.Println("No global queries found")
-					return nil
-				}
-
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
 						if err := printQuerySpec(c, &fleet.QuerySpec{
@@ -395,38 +446,21 @@ func getQueriesCommand() *cli.Command {
 					}
 				} else {
 					// Default to printing as a table
-					data := [][]string{}
-
-					for _, query := range queries {
-						platform := "all"
-						if query.Platform != "" {
-							platform = query.Platform
-						}
-
-						minOsqueryVersion := "all"
-						if query.MinOsqueryVersion != "" {
-							minOsqueryVersion = query.MinOsqueryVersion
-						}
-
-						scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s",
-							query.Interval,
-							platform,
-							minOsqueryVersion,
-							query.AutomationsEnabled,
-							query.Logging,
-						)
-
-						data = append(data, []string{
-							query.Name,
-							query.Description,
-							query.Query,
-							teamName,
-							scheduleInfo,
-						})
-					}
+					rows := [][]string{}
 
 					columns := []string{"name", "description", "query", "team", "schedule"}
-					printTable(c, columns, data)
+					for _, query := range queries {
+						rows = append(rows, queryToTableRow(query, teamName))
+					}
+
+					// Need to determine the number of inherited queries if we are viewing the
+					// queries for a team
+					nInheritedQueries, err := numberInheritedQueries(client, teamID)
+					if err != nil {
+						return err
+					}
+
+					printQueryTable(c, columns, rows, nInheritedQueries)
 				}
 				return nil
 			}
@@ -543,10 +577,8 @@ func getPacksCommand() *cli.Command {
 						if err := printPack(c, pack); err != nil {
 							return fmt.Errorf("unable to print pack: %w", err)
 						}
-
 						addQueries(pack)
 					}
-
 					return printQueries()
 				}
 
@@ -1041,6 +1073,18 @@ func getUserRolesCommand() *cli.Command {
 
 			return nil
 		},
+	}
+}
+
+func printQueryTable(c *cli.Context, columns []string, data [][]string, nInheritedQueries *int) {
+	table := defaultTable(c.App.Writer)
+	table.SetHeader(columns)
+	table.SetReflowDuringAutoWrap(false)
+	table.AppendBulk(data)
+	table.Render()
+
+	if nInheritedQueries != nil {
+		fmt.Printf("Not showing %d inherited queries. To see global queries, run this command without the `--team` flag.\n", *nInheritedQueries)
 	}
 }
 
