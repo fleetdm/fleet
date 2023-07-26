@@ -4,6 +4,8 @@ require 'json'
 require 'puppet'
 require 'hiera_puppet'
 
+require_relative './env'
+
 module Puppet::Util
   # FleetClient provides an interface for making HTTP requests to a Fleet server.
   class FleetClient
@@ -107,14 +109,8 @@ module Puppet::Util
     private
 
     def req(method: :get, path: '', body: nil, headers: {}, cached: false)
-      node_name = Puppet[:node_name_value]
-      node = Puppet::Node.new(node_name)
-      node.environment = Puppet.lookup(:current_environment).name.to_s
-      compiler = Puppet::Parser::Compiler.new(node)
-      scope = Puppet::Parser::Scope.new(compiler)
-      lookup_invocation = Puppet::Pops::Lookup::Invocation.new(scope, {}, {}, nil)
-      host = Puppet::Pops::Lookup.lookup('fleetdm::host', nil, '', false, nil, lookup_invocation)
-      token = Puppet::Pops::Lookup.lookup('fleetdm::token', nil, '', false, nil, lookup_invocation)
+      host = Puppet::Util.read_hiera('fleetdm::host')
+      token = Puppet::Util.read_hiera('fleetdm::token')
 
       if cached
         @cache_mutex.synchronize do
