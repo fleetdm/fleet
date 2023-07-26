@@ -43,6 +43,10 @@ const (
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
 
+	// FleetUISSOCallbackPath is the front-end route used to
+	// redirect after the SSO flow is completed.
+	FleetUISSOCallbackPath = "/mdm/sso/callback"
+
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
