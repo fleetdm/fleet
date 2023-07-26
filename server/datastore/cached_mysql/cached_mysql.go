@@ -25,8 +25,6 @@ const (
 	defaultTeamFeaturesExpiration     = 1 * time.Minute
 	teamMDMConfigKey                  = "TeamMDMConfig:team:%d"
 	defaultTeamMDMConfigExpiration    = 1 * time.Minute
-	// scheduledQueriesForAgentsKey uses defaultScheduledQueriesExpiration for expiration.
-	scheduledQueriesForAgentsKey = "ScheduledQueriesAgents:team:%d"
 )
 
 // cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
@@ -321,25 +319,4 @@ func (ds *cachedMysql) DeleteTeam(ctx context.Context, teamID uint) error {
 	ds.c.Delete(mdmConfigKey)
 
 	return nil
-}
-
-func (ds *cachedMysql) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
-	var teamIDVal uint
-	if teamID != nil {
-		teamIDVal = *teamID
-	}
-
-	key := fmt.Sprintf(scheduledQueriesForAgentsKey, teamIDVal)
-	if x, found := ds.c.Get(key); found {
-		if queries, ok := x.([]*fleet.Query); ok {
-			return queries, nil
-		}
-	}
-
-	queries, err := ds.Datastore.ListScheduledQueriesForAgents(ctx, teamID)
-	if err != nil {
-		return nil, err
-	}
-	ds.c.Set(key, queries, ds.scheduledQueriesExp)
-	return queries, nil
 }
