@@ -60,6 +60,11 @@ module.exports = {
       responseType: 'badRequest'
     },
 
+    cardVerificationRequired: {
+      description: 'The billing card provided requires additional verfication before it can be used.',
+      responseType: 'badRequest'
+    },
+
   },
 
 
@@ -112,6 +117,18 @@ module.exports = {
         },
       ],
     });
+
+    // Get the Stripe ID of the invoice for this subscription.
+    let latestInvoiceIdForThisSubscription = subscription.latest_invoice;
+
+    // Get the invoice from Stripe.
+    const invoice = await stripe.invoices.retrieve(latestInvoiceIdForThisSubscription);
+
+    if(!invoice.paid) {
+      // If the invoice is not paid, we will throw an error, and ask the customer to contact support.
+      // FUTURE: Send an invoice to the customer and update the recieve-from-stripe webhook to handle off-website invoice payments.
+      throw 'cardVerificationRequired';
+    }
 
     // Generate the license key for this subscription
     let licenseKey = await sails.helpers.createLicenseKey.with({
