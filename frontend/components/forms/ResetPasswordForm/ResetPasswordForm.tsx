@@ -1,5 +1,5 @@
 import React, { FormEvent, useState } from "react";
-import { size } from "lodash";
+import { isEmpty } from "lodash";
 
 import { IResetPasswordForm, IResetPasswordFormErrors } from "interfaces/user";
 
@@ -48,6 +48,7 @@ const ResetPasswordForm = ({
         ...errors,
         new_password: "Password must meet the criteria below",
       });
+      return false;
     }
 
     if (!validatePresence(newPasswordConfirmation)) {
@@ -56,6 +57,7 @@ const ResetPasswordForm = ({
         new_password_confirmation:
           "New password confirmation field must be completed",
       });
+      return false;
     }
 
     if (!validatePresence(newPassword)) {
@@ -63,6 +65,7 @@ const ResetPasswordForm = ({
         ...errors,
         new_password: "New password field must be completed",
       });
+      return false;
     }
 
     if (noMatch) {
@@ -70,11 +73,10 @@ const ResetPasswordForm = ({
         ...errors,
         new_password_confirmation: "Passwords do not match",
       });
+      return false;
     }
 
-    const valid = !size(errors);
-
-    return valid;
+    return true;
   };
 
   const onFormSubmit = (evt: FormEvent): void => {
