@@ -324,22 +324,22 @@ func (ds *cachedMysql) DeleteTeam(ctx context.Context, teamID uint) error {
 }
 
 func (ds *cachedMysql) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
-	var teamIDVal uint
-	if teamID != nil {
-		teamIDVal = *teamID
-	}
+	//var teamIDVal uint
+	//if teamID != nil {
+	//	teamIDVal = *teamID
+	//}
 
-	key := fmt.Sprintf(scheduledQueriesForAgentsKey, teamIDVal)
-	if x, found := ds.c.Get(key); found {
-		if queries, ok := x.([]*fleet.Query); ok {
-			return queries, nil
-		}
-	}
+	//key := fmt.Sprintf(scheduledQueriesForAgentsKey, teamIDVal)
+	//if x, found := ds.c.Get(key); found {
+	//	if queries, ok := x.([]*fleet.Query); ok {
+	//		return queries, nil
+	//	}
+	//}
 
 	queries, err := ds.Datastore.ListScheduledQueriesForAgents(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
-	ds.c.Set(key, queries, ds.scheduledQueriesExp)
+	//ds.c.Set(key, queries, ds.scheduledQueriesExp)
 	return queries, nil
 }
