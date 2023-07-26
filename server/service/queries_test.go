@@ -13,19 +13,63 @@ import (
 )
 
 func TestFilterQueriesForObserver(t *testing.T) {
-	require.True(t, onlyShowObserverCanRunQueries(&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}))
-	require.False(t, onlyShowObserverCanRunQueries(&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)}))
-	require.False(t, onlyShowObserverCanRunQueries(&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}))
+	t.Run("global role", func(t *testing.T) {
+		require.True(t, onlyShowObserverCanRunQueries(&fleet.User{
+			GlobalRole: ptr.String(fleet.RoleObserver),
+		}, nil))
 
-	require.True(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{{Role: fleet.RoleObserver}}}))
-	require.True(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{
-		{Role: fleet.RoleObserver},
-		{Role: fleet.RoleObserver},
-	}}))
-	require.False(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{
-		{Role: fleet.RoleObserver},
-		{Role: fleet.RoleMaintainer},
-	}}))
+		require.False(t, onlyShowObserverCanRunQueries(&fleet.User{
+			GlobalRole: ptr.String(fleet.RoleObserverPlus),
+		}, nil))
+
+		require.False(t, onlyShowObserverCanRunQueries(&fleet.User{
+			GlobalRole: ptr.String(fleet.RoleMaintainer),
+		}, nil))
+
+		require.False(t, onlyShowObserverCanRunQueries(&fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}, nil))
+	})
+
+	t.Run("user belongs to one or more teams", func(t *testing.T) {
+		require.True(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{{
+			Role: fleet.RoleObserver,
+			Team: fleet.Team{ID: 1},
+		}}}, ptr.Uint(1)))
+
+		require.True(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{
+			{
+				Role: fleet.RoleObserver,
+				Team: fleet.Team{ID: 1},
+			},
+			{
+				Role: fleet.RoleObserver,
+				Team: fleet.Team{ID: 2},
+			},
+		}}, ptr.Uint(2)))
+
+		require.True(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{
+			{
+				Role: fleet.RoleObserver,
+				Team: fleet.Team{ID: 1},
+			},
+			{
+				Role: fleet.RoleMaintainer,
+				Team: fleet.Team{ID: 2},
+			},
+		}}, ptr.Uint(1)))
+
+		require.False(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{
+			{
+				Role: fleet.RoleObserver,
+				Team: fleet.Team{ID: 1},
+			},
+			{
+				Role: fleet.RoleMaintainer,
+				Team: fleet.Team{ID: 2},
+			},
+		}}, ptr.Uint(2)))
+	})
 }
 
 func TestListQueries(t *testing.T) {
