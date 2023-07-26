@@ -42,7 +42,6 @@ type specGeneric struct {
 func defaultTable(writer io.Writer) *tablewriter.Table {
 	table := tablewriter.NewWriter(writer)
 	table.SetRowLine(true)
-	table.SetReflowDuringAutoWrap(false)
 	return table
 }
 
@@ -393,15 +392,6 @@ func getQueriesCommand() *cli.Command {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
 
-				if len(queries) == 0 {
-					scope := "global"
-					if teamID != nil {
-						scope = "team"
-					}
-					fmt.Printf("No %s queries found.\n", scope)
-					return nil
-				}
-
 				me, err := client.Me()
 				if err != nil {
 					return err
@@ -424,6 +414,15 @@ func getQueriesCommand() *cli.Command {
 						}
 					}
 					queries = queries[:n]
+				}
+
+				if len(queries) == 0 {
+					scope := "global"
+					if teamID != nil {
+						scope = "team"
+					}
+					fmt.Printf("No %s queries found.\n", scope)
+					return nil
 				}
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
