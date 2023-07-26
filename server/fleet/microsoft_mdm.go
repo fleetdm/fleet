@@ -223,11 +223,6 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 		return errors.New("invalid requestsecuritytoken message: AdditionalContext.ContextItems missing")
 	}
 
-	reqVersion, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemRequestVersion)
-	if err != nil || (reqVersion != mdm.EnrollmentVersionV5 && reqVersion != mdm.EnrollmentVersionV4) {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemRequestVersion, reqVersion, err)
-	}
-
 	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemEnrollmentType)
 	if err != nil || reqEnrollType != mdm.ReqSecTokenEnrollType {
 		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
