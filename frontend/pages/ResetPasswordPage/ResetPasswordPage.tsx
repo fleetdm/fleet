@@ -22,7 +22,6 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
   const { token } = location.query;
   const { currentUser, setConfig } = useContext(AppContext);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [noAccess, setNoAccess] = useState(false);
 
   useEffect(() => {
     if (!currentUser && !token) {
@@ -42,7 +41,6 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
 
     try {
       await usersAPI.performRequiredPasswordReset(new_password as string);
-      console.log("continueWithLoggedInUser is being hit?");
       const config = await configAPI.loadAll();
       setConfig(config);
       return router.push(PATHS.DASHBOARD);
@@ -62,7 +60,7 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
   };
 
   const onSubmit = async (formData: any) => {
-    if (currentUser && !noAccess) {
+    if (currentUser) {
       return continueWithLoggedInUser(formData);
     }
 
@@ -83,7 +81,10 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
 
   return (
     <AuthenticationFormWrapper>
-      <StackedWhiteBoxes leadText="Create a new password. Your new password must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)">
+      <StackedWhiteBoxes
+        router={router}
+        leadText="Create a new password. Your new password must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
+      >
         <ResetPasswordForm handleSubmit={onSubmit} serverErrors={errors} />
       </StackedWhiteBoxes>
     </AuthenticationFormWrapper>

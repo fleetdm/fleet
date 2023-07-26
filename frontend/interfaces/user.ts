@@ -78,6 +78,11 @@ export interface IResetPasswordFormErrors {
   new_password_confirmation?: string | null;
 }
 
+export interface IResetPasswordForm {
+  new_password: string;
+  new_password_confirmation: string;
+}
+
 export interface ILoginUserData {
   email: string;
   password: string;

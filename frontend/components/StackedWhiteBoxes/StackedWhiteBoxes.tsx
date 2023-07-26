@@ -1,6 +1,8 @@
-import React from "react";
-import { Link } from "react-router";
+import React, { useEffect } from "react";
+import { InjectedRouter, Link } from "react-router";
 import classnames from "classnames";
+
+import paths from "router/paths";
 
 import Icon from "components/Icon/Icon";
 
@@ -12,6 +14,7 @@ interface IStackedWhiteBoxesProps {
   className?: string;
   leadText?: string;
   previousLocation?: string;
+  router: InjectedRouter;
 }
 
 const StackedWhiteBoxes = ({
@@ -20,8 +23,23 @@ const StackedWhiteBoxes = ({
   className,
   leadText,
   previousLocation,
+  router,
 }: IStackedWhiteBoxesProps): JSX.Element => {
   const boxClass = classnames(baseClass, className);
+
+  useEffect(() => {
+    const closeWithEscapeKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        router.push(paths.LOGIN);
+      }
+    };
+
+    document.addEventListener("keydown", closeWithEscapeKey);
+
+    return () => {
+      document.removeEventListener("keydown", closeWithEscapeKey);
+    };
+  }, []);
 
   const renderBackButton = () => {
     if (!previousLocation) return false;

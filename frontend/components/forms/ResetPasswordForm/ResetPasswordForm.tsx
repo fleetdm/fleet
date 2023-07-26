@@ -1,7 +1,7 @@
 import React, { FormEvent, useState } from "react";
 import { size } from "lodash";
 
-import { IResetPasswordFormErrors } from "interfaces/user";
+import { IResetPasswordForm, IResetPasswordFormErrors } from "interfaces/user";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -9,6 +9,7 @@ import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import validatePresence from "components/forms/validators/validate_presence";
 import validatePassword from "components/forms/validators/valid_password";
 import validateEquality from "components/forms/validators/validate_equality";
+import { IOldApiError } from "interfaces/errors";
 
 const baseClass = "reset-password-form";
 
@@ -18,7 +19,7 @@ export interface IFormData {
 }
 
 interface IResetPasswordFormProps {
-  serverErrors: string;
+  serverErrors: IOldApiError;
   handleSubmit: (formData: IFormData) => void;
 }
 const ResetPasswordForm = ({
@@ -26,7 +27,7 @@ const ResetPasswordForm = ({
   handleSubmit,
 }: IResetPasswordFormProps): JSX.Element => {
   const [errors, setErrors] = useState<IResetPasswordFormErrors>({});
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<IResetPasswordForm>({
     new_password: "",
     new_password_confirmation: "",
   });
@@ -95,10 +96,11 @@ const ResetPasswordForm = ({
     };
   };
 
-  console.log("serverErrors", serverErrors);
   return (
     <form className={baseClass}>
-      {/* {serverErrors && <div className="form__base-error">{serverErrors}</div>} */}
+      {serverErrors.base && (
+        <div className="form__base-error">{serverErrors.base}</div>
+      )}
       <InputFieldWithIcon
         error={errors.new_password}
         autofocus

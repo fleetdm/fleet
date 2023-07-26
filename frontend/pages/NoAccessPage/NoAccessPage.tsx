@@ -1,3 +1,5 @@
+// Page returned when a user has no access because they have no global or team role
+
 import React, { useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
@@ -38,7 +40,10 @@ const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
 
   return (
     <AuthenticationFormWrapper>
-      <StackedWhiteBoxes headerText="This account does not currently have access to Fleet.">
+      <StackedWhiteBoxes
+        router={router}
+        headerText="This account does not currently have access to Fleet."
+      >
         <>
           <p>
             To get access,{" "}

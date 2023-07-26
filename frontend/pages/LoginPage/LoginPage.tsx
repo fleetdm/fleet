@@ -95,6 +95,17 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     })();
   }, []);
 
+  useEffect(() => {
+    if (
+      availableTeams &&
+      config &&
+      currentUser &&
+      !currentUser.force_password_reset
+    ) {
+      router.push(redirectLocation || paths.DASHBOARD);
+    }
+  }, [availableTeams, config, currentUser, redirectLocation, router]);
+
   // TODO: Fix this. If renderFlash is added as a dependency it causes infinite re-renders.
   useEffect(() => {
     let status = new URLSearchParams(location.search).get("status");
@@ -118,9 +129,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         setAvailableTeams(user, available_teams);
         setCurrentTeam(undefined);
 
-        console.log("user", user);
-        console.log("!user.global_role", !user.global_role);
-        console.log("user.teams.length === 0", user.teams.length === 0);
         if (!user.global_role && user.teams.length === 0) {
           return router.push(NO_ACCESS);
         }
@@ -132,10 +140,8 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
           const configResponse = await configAPI.loadAll();
           setConfig(configResponse);
         }
-        console.log("Reached end of try statement");
         return router.push(redirectLocation || DASHBOARD);
       } catch (response) {
-        console.log("response 2", response);
         const errorObject = formatErrorResponse(response);
         setErrors(errorObject);
         return false;

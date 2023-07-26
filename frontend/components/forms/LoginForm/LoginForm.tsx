@@ -32,17 +32,16 @@ const LoginForm = ({
     idp_name: idpName,
     idp_image_url: imageURL,
     sso_enabled: ssoEnabled,
-  } = ssoSettings || {};
+  } = ssoSettings || {}; // TODO: Consider refactoring ssoSettings undefined
 
   const loginFormClass = classnames(baseClass);
 
-  const [errors, setErrors] = useState<any>({}); // TODO
-  const [formData, setFormData] = useState<any>({
+  const [errors, setErrors] = useState<any>({});
+  const [formData, setFormData] = useState<ILoginUserData>({
     email: "",
     password: "",
-  }); // TODO
+  });
 
-  // TODO
   const validate = () => {
     const { password, email } = formData;
 
@@ -119,7 +118,7 @@ const LoginForm = ({
       });
     };
   };
-  console.log("baseError", baseError);
+
   return (
     <form onSubmit={onFormSubmit} className={loginFormClass}>
       <div className={`${baseClass}__container`}>
