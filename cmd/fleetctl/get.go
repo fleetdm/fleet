@@ -18,7 +18,6 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
@@ -332,15 +331,23 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 	}
 }
 
-func numberInheritedQueries(client *service.Client, teamID *uint) (*int, error) {
+func printInheritedQueries(client *service.Client, teamID *uint) error {
 	if teamID != nil {
 		globalQueries, err := client.GetQueries(nil)
 		if err != nil {
-			return nil, fmt.Errorf("could not list global queries: %w", err)
+			return fmt.Errorf("could not list global queries: %w", err)
 		}
-		return ptr.Int(len(globalQueries)), nil
+		fmt.Printf("Not showing %d inherited queries. To see global queries, run this command without the `--team` flag.\n", len(globalQueries))
 	}
-	return nil, nil
+	return nil
+}
+
+func printNoQueriesFound(teamID *uint) {
+	scope := "global"
+	if teamID != nil {
+		scope = "team"
+	}
+	fmt.Printf("No %s queries found.\n", scope)
 }
 
 func getQueriesCommand() *cli.Command {
@@ -417,11 +424,10 @@ func getQueriesCommand() *cli.Command {
 				}
 
 				if len(queries) == 0 {
-					scope := "global"
-					if teamID != nil {
-						scope = "team"
+					printNoQueriesFound(teamID)
+					if err := printInheritedQueries(client, teamID); err != nil {
+						return err
 					}
-					fmt.Printf("No %s queries found.\n", scope)
 					return nil
 				}
 
@@ -452,14 +458,10 @@ func getQueriesCommand() *cli.Command {
 						rows = append(rows, queryToTableRow(query, teamName))
 					}
 
-					// Need to determine the number of inherited queries if we are viewing the
-					// queries for a team
-					nInheritedQueries, err := numberInheritedQueries(client, teamID)
-					if err != nil {
+					printQueryTable(c, columns, rows)
+					if err := printInheritedQueries(client, teamID); err != nil {
 						return err
 					}
-
-					printQueryTable(c, columns, rows, nInheritedQueries)
 				}
 				return nil
 			}
@@ -1075,16 +1077,12 @@ func getUserRolesCommand() *cli.Command {
 	}
 }
 
-func printQueryTable(c *cli.Context, columns []string, data [][]string, nInheritedQueries *int) {
+func printQueryTable(c *cli.Context, columns []string, data [][]string) {
 	table := defaultTable(c.App.Writer)
 	table.SetHeader(columns)
 	table.SetReflowDuringAutoWrap(false)
 	table.AppendBulk(data)
 	table.Render()
-
-	if nInheritedQueries != nil {
-		fmt.Printf("Not showing %d inherited queries. To see global queries, run this command without the `--team` flag.\n", *nInheritedQueries)
-	}
 }
 
 func printTable(c *cli.Context, columns []string, data [][]string) {
