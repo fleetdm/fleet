@@ -111,9 +111,6 @@ const generateTableHeaders = ({
   isInherited = false,
 }: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
-  const isAnyTeamMaintainerOrTeamAdmin = permissionsUtils.isAnyTeamMaintainerOrTeamAdmin(
-    currentUser
-  );
 
   const tableHeaders: IDataColumn[] = [
     {
