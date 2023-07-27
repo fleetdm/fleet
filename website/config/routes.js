@@ -418,6 +418,12 @@ module.exports.routes = {
   'GET /docs/deploying/debugging': '/handbook/engineering/debugging',
   'GET /docs/deploying/load-testing': '/handbook/engineering/load-testing',
   'GET /docs/contributing/configuration': '/docs/configuration/configuration-files',
+  'GET /docs/contributing/*': {
+    skipAssets: true,
+    fn: (req, res)=>{
+      return res.redirect(301, 'https://github.com/fleetdm/fleet/tree/main/docs/Contributing');
+    }
+  },
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
