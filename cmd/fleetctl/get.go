@@ -331,23 +331,29 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 	}
 }
 
-func printInheritedQueries(client *service.Client, teamID *uint) error {
+func printInheritedQueriesMsg(client *service.Client, teamID *uint) error {
 	if teamID != nil {
 		globalQueries, err := client.GetQueries(nil)
 		if err != nil {
 			return fmt.Errorf("could not list global queries: %w", err)
 		}
-		fmt.Printf("Not showing %d inherited queries. To see global queries, run this command without the `--team` flag.\n", len(globalQueries))
+
+		if len(globalQueries) > 0 {
+			fmt.Printf("Not showing %d inherited queries. To see global queries, run this command without the `--team` flag.\n", len(globalQueries))
+		}
+		return nil
 	}
+
 	return nil
 }
 
-func printNoQueriesFound(teamID *uint) {
-	scope := "global"
+func printNoQueriesFoundMsg(teamID *uint) {
 	if teamID != nil {
-		scope = "team"
+		fmt.Println("No team queries found.")
+		return
 	}
-	fmt.Printf("No %s queries found.\n", scope)
+	fmt.Println("No global queries found.")
+	fmt.Println("To see team queries, run this command with the --team flag.")
 }
 
 func getQueriesCommand() *cli.Command {
@@ -424,8 +430,8 @@ func getQueriesCommand() *cli.Command {
 				}
 
 				if len(queries) == 0 {
-					printNoQueriesFound(teamID)
-					if err := printInheritedQueries(client, teamID); err != nil {
+					printNoQueriesFoundMsg(teamID)
+					if err := printInheritedQueriesMsg(client, teamID); err != nil {
 						return err
 					}
 					return nil
@@ -459,7 +465,7 @@ func getQueriesCommand() *cli.Command {
 					}
 
 					printQueryTable(c, columns, rows)
-					if err := printInheritedQueries(client, teamID); err != nil {
+					if err := printInheritedQueriesMsg(client, teamID); err != nil {
 						return err
 					}
 				}
