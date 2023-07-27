@@ -75,7 +75,7 @@ It takes a fully-activated mind to achieve ambitious goals. Think like an owner 
 We work to get results. How we work determines what we get.  Aim to deliver results daily.
 
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always publish.
-- **Start quickly.** Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) -->
+- **Start quickly.** Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  [Satisfice](https://longform.asmartbear.com/maximizing) first. Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) -->
 - **Keep it simple.** Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). <!-- Practicality over sophistication. -->
 - **Be realistic.** Focus on one or two tasks at a time.  When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge. <!-- Practice self-care. -->
 
