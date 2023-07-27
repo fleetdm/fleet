@@ -27,7 +27,7 @@ jobs:
     - name: Install Go
       uses: actions/setup-go@v4.0.1
       with:
-        go-version: 1.19.10
+        go-version: 1.19.11
 
     - name: Checkout Code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2

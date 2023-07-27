@@ -229,4 +229,4 @@ When you upgrade to 4.35, any global scheduled query will have its query be conv
 
 Packs will not be affected by this change. If a query is referenced by a pack, a global query will be generated and the pack will continue to point to that query. All changes are backwards compatible
 
-<meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community."
+<meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community.">
