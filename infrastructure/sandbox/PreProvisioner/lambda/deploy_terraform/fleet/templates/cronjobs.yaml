@@ -14,6 +14,7 @@ spec:
   # see https://docs.google.com/document/d/1-4KmOlgfGEksNZnQo79a9nRLgM_i7ar2qovoZO3s_6g/edit.
   concurrencyPolicy: Forbid
   schedule: "{{ .Values.crons.vulnerabilities }}"
+  suspend: true
   # EKS Fargate keeps resources running to show the job history.
   # This saves significantly on compute in AWS.
   # https://docs.google.com/document/d/1-4KmOlgfGEksNZnQo79a9nRLgM_i7ar2qovoZO3s_6g/edit
@@ -35,10 +36,10 @@ spec:
             resources:
               limits:
                 cpu: {{ .Values.resources.limits.cpu }}
-                memory: "2Gi"
+                memory: {{ .Values.resources.limits.memory }}
               requests:
                 cpu: {{ .Values.resources.requests.cpu }}
-                memory: "2Gi"
+                memory: {{ .Values.resources.requests.memory }}
             env:
               ## BEGIN FLEET SECTION
               - name: FLEET_SERVER_SANDBOX_ENABLED
