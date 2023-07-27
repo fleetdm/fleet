@@ -1331,13 +1331,12 @@ spec:
         darwin:
           auto_table_construction:
             tcc_system_entries:
-              query: "SELECT service, client, allowed, prompt_count, last_modified FROM access"
+              query: "SELECT service, client, auth_value, last_modified FROM access"
               path: "/Library/Application Support/com.apple.TCC/TCC.db"
               columns:
                 - "service"
                 - "client"
-                - "allowed"
-                - "prompt_count"
+                - "auth_value"
                 - "last_modified"
 ```
 
