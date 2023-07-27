@@ -10,7 +10,7 @@ const DEFAULT_SCHEDULABLE_QUERY_MOCK: ISchedulableQuery = {
   description: "A test query",
   query: "SELECT * FROM users",
   team_id: null,
-  interval: 43200, // Every 12 hours
+  interval: 3600,
   platform: "darwin,windows,linux",
   min_osquery_version: "",
   automations_enabled: true,
@@ -22,11 +22,11 @@ const DEFAULT_SCHEDULABLE_QUERY_MOCK: ISchedulableQuery = {
   observer_can_run: false,
   packs: [],
   stats: {
-    system_time_p50: 28.1053,
-    system_time_p95: 397.6667,
-    user_time_p50: 29.9412,
-    user_time_p95: 251.4615,
-    total_executions: 5746,
+    system_time_p50: 1,
+    system_time_p95: 1,
+    user_time_p50: 1,
+    user_time_p95: 1,
+    total_executions: 3,
   },
 };
 
