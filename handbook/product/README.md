@@ -35,6 +35,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 When starting a new draft:
 
 - Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project).
+- Right-click on the duplicated file, select "Share", and ensure **anyone with the link** can view the file.
 - Rename each Figma file to include the number and name of the corresponding issue on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). (e.g. # 11766 Instructions for Autopilot enrollment).
 -  The starter file includes 3 predefined pages: Cover, Ready, and Scratchpad.
     -  **Cover.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
@@ -73,7 +74,7 @@ For external contributors: please consider opening an issue with reference scree
 #### Estimating
 
 Once the draft has been approved: 
-* move it to the "Designed" column in the drafting board
+* move it to the "Designed" column in the drafting board and assign it to the appropriate engineering manager.
 * make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
@@ -365,7 +366,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 | Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
-| Report number of estimated stories (CX) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Zay Hanlon |
+| Report number of estimated stories (CX) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Mo Zhu |
 | Report number of estimated stories (MDM) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Noah Talerman |
 
 | Bug de-prioritization | Sprintly  | CEO and Head of Product review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to continue into the next sprint and which can be de-prioritized. | Mo Zhu |

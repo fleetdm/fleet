@@ -12,12 +12,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	autoscaling "k8s.io/client-go/applyconfigurations/autoscaling/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 func main() {
+    log.SetFlags(log.LstdFlags | log.Lshortfile)
 	instanceID := getOrPanic("INSTANCE_ID")
 	ddbTable := getOrPanic("DYNAMODB_LIFECYCLE_TABLE")
 	clusterName := getOrPanic("CLUSTER_NAME")
@@ -74,7 +74,14 @@ func deleteIngress(id, name, ddbTable string) {
 
 	// Scale it down to save money
 	time.Sleep(60)
-	_, err = clientset.AppsV1().Deployments("default").ApplyScale(context.Background(), id, &autoscaling.ScaleApplyConfiguration{Spec: &autoscaling.ScaleSpecApplyConfiguration{Replicas: new(int32)}}, v1.ApplyOptions{})
+    s, err := clientset.AppsV1().Deployments("default").GetScale(context.Background(), id, v1.GetOptions{})
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    sc := *s
+    sc.Spec.Replicas = 0
+	_, err = clientset.AppsV1().Deployments("default").UpdateScale(context.Background(), id, &sc, v1.UpdateOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -16,11 +16,14 @@ At its core, Fleet Desktop gives your end users visibility into the security pos
    <iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
 </div>
 
+## OS support
+Fleet Desktop is supported on macOS 12+.
+
 ## Installing Fleet Desktop
 For information on how to install Fleet Desktop, visit: [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop).
 
 ## Upgrading Fleet Desktop
-Once installed, Fleet Desktop will be automatically updated via Orbit. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
+Once installed, Fleet Desktop will be automatically updated via Fleetd. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
 
 ## Custom transparency link
 For organizations with complex security postures, they can direct end users to a resource of their choice to serve custom content.

@@ -377,11 +377,15 @@ func (d HostMDMProfileDetail) Message() string {
 }
 
 type MDMAppleProfilePayload struct {
-	ProfileID         uint   `db:"profile_id"`
-	ProfileIdentifier string `db:"profile_identifier"`
-	ProfileName       string `db:"profile_name"`
-	HostUUID          string `db:"host_uuid"`
-	Checksum          []byte `db:"checksum"`
+	ProfileID         uint                    `db:"profile_id"`
+	ProfileIdentifier string                  `db:"profile_identifier"`
+	ProfileName       string                  `db:"profile_name"`
+	HostUUID          string                  `db:"host_uuid"`
+	Checksum          []byte                  `db:"checksum"`
+	Status            *MDMAppleDeliveryStatus `db:"status" json:"status"`
+	OperationType     MDMAppleOperationType   `db:"operation_type"`
+	Detail            string                  `db:"detail"`
+	CommandUUID       string                  `db:"command_uuid"`
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {

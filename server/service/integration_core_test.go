@@ -951,11 +951,12 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	require.NoError(t, err)
 }
 
-func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
+func (s *integrationTestSuite) createHosts(t *testing.T, platforms ...string) []*fleet.Host {
 	var hosts []*fleet.Host
-
-	platforms := []string{"debian", "rhel", "linux"}
-	for i := 0; i < 3; i++ {
+	if len(platforms) == 0 {
+		platforms = []string{"debian", "rhel", "linux"}
+	}
+	for i, platform := range platforms {
 		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -965,7 +966,7 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
-			Platform:        platforms[i],
+			Platform:        platform,
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, host)
@@ -994,7 +995,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 func (s *integrationTestSuite) TestHostsCount() {
 	t := s.T()
 
-	hosts := s.createHosts(t)
+	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
@@ -1156,7 +1157,7 @@ func (s *integrationTestSuite) TestPacks() {
 func (s *integrationTestSuite) TestListHosts() {
 	t := s.T()
 
-	hosts := s.createHosts(t)
+	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
@@ -3071,7 +3072,7 @@ func (s *integrationTestSuite) TestLabels() {
 	lbl2 := createResp.Label.Label
 
 	// create hosts and add them to that label
-	hosts := s.createHosts(t)
+	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 	for _, h := range hosts {
 		err := s.ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{lbl2.ID: ptr.Bool(true)}, time.Now(), false)
 		require.NoError(t, err)
