@@ -1053,16 +1053,42 @@ func TestGetQueries(t *testing.T) {
 		return nil, errors.New("invalid team ID")
 	}
 
-	expectedGlobal := `+--------+-------------+-----------+
-|  NAME  | DESCRIPTION |   QUERY   |
-+--------+-------------+-----------+
-| query1 | some desc   | select 1; |
-+--------+-------------+-----------+
-| query2 | some desc 2 | select 2; |
-+--------+-------------+-----------+
-| query4 | some desc 4 | select 4; |
-+--------+-------------+-----------+
+	expectedGlobal := `+--------+-------------+-----------+-----------+--------------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |            SCHEDULE            |
++--------+-------------+-----------+-----------+--------------------------------+
+| query1 | some desc   | select 1; | All teams | interval: 0                    |
+|        |             |           |           |                                |
+|        |             |           |           | platform: all                  |
+|        |             |           |           |                                |
+|        |             |           |           | min_osquery_version: all       |
+|        |             |           |           |                                |
+|        |             |           |           | automations_enabled: false     |
+|        |             |           |           |                                |
+|        |             |           |           | logging:                       |
++--------+-------------+-----------+-----------+--------------------------------+
+| query2 | some desc 2 | select 2; | All teams | interval: 0                    |
+|        |             |           |           |                                |
+|        |             |           |           | platform: all                  |
+|        |             |           |           |                                |
+|        |             |           |           | min_osquery_version: all       |
+|        |             |           |           |                                |
+|        |             |           |           | automations_enabled: false     |
+|        |             |           |           |                                |
+|        |             |           |           | logging:                       |
++--------+-------------+-----------+-----------+--------------------------------+
+| query4 | some desc 4 | select 4; | All teams | interval: 60                   |
+|        |             |           |           |                                |
+|        |             |           |           | platform: darwin,windows       |
+|        |             |           |           |                                |
+|        |             |           |           | min_osquery_version: 5.3.0     |
+|        |             |           |           |                                |
+|        |             |           |           | automations_enabled: true      |
+|        |             |           |           |                                |
+|        |             |           |           | logging:                       |
+|        |             |           |           | differential_ignore_removals   |
++--------+-------------+-----------+-----------+--------------------------------+
 `
+
 	expectedYAMLGlobal := `---
 apiVersion: v1
 kind: query
@@ -1111,12 +1137,21 @@ spec:
 {"kind":"query","apiVersion":"v1","spec":{"name":"query4","description":"some desc 4","query":"select 4;","team":"","interval":60,"observer_can_run":true,"platform":"darwin,windows","min_osquery_version":"5.3.0","automations_enabled":true,"logging":"differential_ignore_removals"}}
 `
 
-	expectedTeam := `+--------+-------------+-----------+
-|  NAME  | DESCRIPTION |   QUERY   |
-+--------+-------------+-----------+
-| query3 | some desc 3 | select 3; |
-+--------+-------------+-----------+
+	expectedTeam := `+--------+-------------+-----------+--------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |  TEAM  |          SCHEDULE          |
++--------+-------------+-----------+--------+----------------------------+
+| query3 | some desc 3 | select 3; | Foobar | interval: 3600             |
+|        |             |           |        |                            |
+|        |             |           |        | platform: darwin           |
+|        |             |           |        |                            |
+|        |             |           |        | min_osquery_version: 5.4.0 |
+|        |             |           |        |                            |
+|        |             |           |        | automations_enabled: false |
+|        |             |           |        |                            |
+|        |             |           |        | logging: snapshot          |
++--------+-------------+-----------+--------+----------------------------+
 `
+
 	expectedYAMLTeam := `---
 apiVersion: v1
 kind: query
@@ -1149,7 +1184,12 @@ spec:
 }
 
 func TestGetQuery(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
 
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == 1 {
@@ -1339,11 +1379,19 @@ func TestGetQueriesAsObserver(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setCurrentUserSession(tc.user)
 
-			expected := `+--------+-------------+-----------+
-|  NAME  | DESCRIPTION |   QUERY   |
-+--------+-------------+-----------+
-| query2 | some desc 2 | select 2; |
-+--------+-------------+-----------+
+			expected := `+--------+-------------+-----------+-----------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
++--------+-------------+-----------+-----------+----------------------------+
+| query2 | some desc 2 | select 2; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
 `
 			expectedYaml := `---
 apiVersion: v1
@@ -1388,15 +1436,39 @@ spec:
 		},
 	})
 
-	expected := `+--------+-------------+-----------+
-|  NAME  | DESCRIPTION |   QUERY   |
-+--------+-------------+-----------+
-| query1 | some desc   | select 1; |
-+--------+-------------+-----------+
-| query2 | some desc 2 | select 2; |
-+--------+-------------+-----------+
-| query3 | some desc 3 | select 3; |
-+--------+-------------+-----------+
+	expected := `+--------+-------------+-----------+-----------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
++--------+-------------+-----------+-----------+----------------------------+
+| query1 | some desc   | select 1; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
+| query2 | some desc 2 | select 2; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
+| query3 | some desc 3 | select 3; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
 `
 	expectedYaml := `---
 apiVersion: v1
@@ -1498,13 +1570,29 @@ spec:
 			},
 		}, nil
 	}
-	expected = `+--------+-------------+-----------+
-|  NAME  | DESCRIPTION |   QUERY   |
-+--------+-------------+-----------+
-| query1 | some desc   | select 1; |
-+--------+-------------+-----------+
-| query2 | some desc 2 | select 2; |
-+--------+-------------+-----------+
+	expected = `+--------+-------------+-----------+-----------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
++--------+-------------+-----------+-----------+----------------------------+
+| query1 | some desc   | select 1; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
+| query2 | some desc 2 | select 2; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
 }
