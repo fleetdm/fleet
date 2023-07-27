@@ -125,6 +125,60 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 ```
 
+## mdm_config_profiles_darwin
+
+- Platforms: darwin
+
+- Discovery query:
+
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles';
+```
+
+- Query:
+
+```sql
+SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";
+```
+
+## mdm_disk_encryption_key_file_darwin
+
+- Platforms: darwin
+
+- Discovery query:
+
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'filevault_prk';
+```
+
+- Query:
+
+```sql
+WITH
+		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+		fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
+	SELECT encrypted, filevault_key FROM de LEFT JOIN fv;
+```
+
+## mdm_disk_encryption_key_file_lines_darwin
+
+- Platforms: darwin
+
+- Discovery query:
+
+```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'file_lines') AND NOT EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'filevault_prk');
+```
+
+- Query:
+
+```sql
+WITH 
+		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+		fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
+	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
+```
+
 ## mdm_windows
 
 - Platforms: windows
@@ -145,8 +199,8 @@ SELECT * FROM (
 			)
 			UNION ALL
 			SELECT * FROM (
-				SELECT "autopilot" AS "key", 1=1 AS "value" FROM registry
-				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache'
+				SELECT "is_federated" AS "key", data as "value" FROM registry 
+				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
 				LIMIT 1
 			)
 			UNION ALL

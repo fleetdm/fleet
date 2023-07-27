@@ -16,17 +16,21 @@ import (
 )
 
 func main() {
-	detailQueriesMap := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{
-		Vulnerabilities: config.VulnerabilitiesConfig{
-			DisableWinOSVulnerabilities: false,
+	detailQueriesMap := osquery_utils.GetDetailQueries(context.Background(),
+		config.FleetConfig{
+			Vulnerabilities: config.VulnerabilitiesConfig{
+				DisableWinOSVulnerabilities: false,
+			},
+			App: config.AppConfig{
+				EnableScheduledQueryStats: true,
+			},
 		},
-		App: config.AppConfig{
-			EnableScheduledQueryStats: true,
+		&fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}},
+		&fleet.Features{
+			EnableSoftwareInventory: true,
+			EnableHostUsers:         true,
 		},
-	}, nil, &fleet.Features{
-		EnableSoftwareInventory: true,
-		EnableHostUsers:         true,
-	})
+	)
 	var b strings.Builder
 
 	b.WriteString(`<!-- DO NOT EDIT. This document is automatically generated. -->
