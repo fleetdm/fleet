@@ -958,7 +958,7 @@ Please see [handbook/company#open-positions](https://fleetdm.com/handbook/compan
 
 ##### Weekly updates
 
-Please see [handbook/company/ceo-handbook#weekly-updates](https://fleetdm.com/handbook/company/ceo-handbook#weekly-updates)
+Please see [handbook/company/ceo-handbook#weekly-updates](https://fleetdm.com/handbook/company/ceo#weekly-updates)
 
 <meta name="maintainedBy" value="jostableford">
 <meta name="title" value="🔦 Business Operations">
