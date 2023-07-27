@@ -500,11 +500,11 @@ const PolicyForm = ({
   );
 
   const renderForGlobalAdminOrAnyMaintainer = () => {
-    // No platforms selected, query name blank, sql errors
+    // No platforms selected, query name blank on existing query, sql errors
     const disableSaveButton =
       (isEditMode && !isAnyPlatformSelected) ||
-      lastEditedQueryName === "" ||
-      size(errors);
+      (lastEditedQueryName === "" && !!lastEditedQueryId) ||
+      !!size(errors);
 
     return (
       <>
