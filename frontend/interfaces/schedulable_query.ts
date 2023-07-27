@@ -1,6 +1,6 @@
 import { IFormField } from "./form_field";
 import { IPack } from "./pack";
-import { SelectedPlatformString } from "./platform";
+import { SelectedPlatformString, SupportedPlatform } from "./platform";
 
 // Query itself
 export interface ISchedulableQuery {
@@ -23,6 +23,11 @@ export interface ISchedulableQuery {
   observer_can_run: boolean;
   packs: IPack[];
   stats: ISchedulableQueryStats;
+}
+
+export interface IEnhancedQuery extends ISchedulableQuery {
+  performance: string;
+  platforms: SupportedPlatform[];
 }
 export interface ISchedulableQueryStats {
   user_time_p50?: number;

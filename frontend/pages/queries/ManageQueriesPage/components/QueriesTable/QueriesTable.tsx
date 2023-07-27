@@ -285,7 +285,7 @@ const QueriesTable = ({
           variant: "text-icon",
           onActionButtonClick: onDeleteQueryClick,
         }}
-        selectedDropdownFilter={platform}
+        selectedDropdownFilter={!isInherited ? platform : undefined}
       />
     </div>
   ) : (
