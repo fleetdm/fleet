@@ -19,7 +19,6 @@ interface ILoginFormProps {
   handleSubmit: (formData: ILoginUserData) => Promise<false | void>;
   ssoSettings?: ISSOSettings;
   handleSSOSignOn?: () => void;
-  serverErrors?: Record<string, string>;
 }
 
 const LoginForm = ({
@@ -45,24 +44,28 @@ const LoginForm = ({
   const validate = () => {
     const { password, email } = formData;
 
+    const validationErrors: { [key: string]: string } = {};
+
     if (!validatePresence(email)) {
-      errors.email = "Email field must be completed";
+      validationErrors.email = "Email field must be completed";
     } else if (!validateEmail(email)) {
-      errors.email = "Email must be a valid email address";
+      validationErrors.email = "Email must be a valid email address";
     }
 
     if (!validatePresence(password)) {
-      errors.password = "Password field must be completed";
+      validationErrors.password = "Password field must be completed";
     }
 
-    const valid = !size(errors);
+    setErrors(validationErrors);
+    const valid = !size(validationErrors);
 
-    return { valid, errors };
+    return valid;
   };
 
   const onFormSubmit = (evt: FormEvent): Promise<false | void> | boolean => {
     evt.preventDefault();
     const valid = validate();
+
     if (valid) {
       return handleSubmit(formData);
     }
@@ -149,7 +152,6 @@ const LoginForm = ({
         </div>
         <Button
           className={`${baseClass}__submit-btn button button--brand`}
-          onClick={handleSubmit}
           type="submit"
         >
           Login

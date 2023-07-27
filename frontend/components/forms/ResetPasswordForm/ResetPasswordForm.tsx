@@ -1,5 +1,5 @@
 import React, { FormEvent, useState } from "react";
-import { isEmpty } from "lodash";
+import { size } from "lodash";
 
 import { IResetPasswordForm, IResetPasswordFormErrors } from "interfaces/user";
 
@@ -43,40 +43,28 @@ const ResetPasswordForm = ({
       newPasswordConfirmation &&
       !validateEquality(newPassword, newPasswordConfirmation);
 
+    const validationErrors: { [key: string]: string } = {};
+
     if (!validatePassword(newPassword)) {
-      setErrors({
-        ...errors,
-        new_password: "Password must meet the criteria below",
-      });
-      return false;
+      validationErrors.new_password = "Password must meet the criteria below";
     }
 
     if (!validatePresence(newPasswordConfirmation)) {
-      setErrors({
-        ...errors,
-        new_password_confirmation:
-          "New password confirmation field must be completed",
-      });
-      return false;
+      validationErrors.new_password_confirmation =
+        "New password confirmation field must be completed";
     }
 
     if (!validatePresence(newPassword)) {
-      setErrors({
-        ...errors,
-        new_password: "New password field must be completed",
-      });
-      return false;
+      validationErrors.new_password = "New password field must be completed";
     }
 
     if (noMatch) {
-      setErrors({
-        ...errors,
-        new_password_confirmation: "Passwords do not match",
-      });
-      return false;
+      validationErrors.new_password_confirmation = "Passwords do not match";
     }
 
-    return true;
+    setErrors(validationErrors);
+    const valid = !size(validationErrors);
+    return valid;
   };
 
   const onFormSubmit = (evt: FormEvent): void => {
@@ -100,7 +88,7 @@ const ResetPasswordForm = ({
 
   return (
     <form className={baseClass}>
-      {serverErrors.base && (
+      {serverErrors?.base && (
         <div className="form__base-error">{serverErrors.base}</div>
       )}
       <InputFieldWithIcon
