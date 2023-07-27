@@ -166,7 +166,7 @@ const generateTableHeaders = ({
     },
     {
       title: "Platform",
-      Header: "Compatible platforms",
+      Header: "Compatible with",
       disableSortBy: true,
       accessor: "platforms",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
