@@ -16,12 +16,12 @@ import { performanceIndicator } from "utilities/helpers";
 import { SupportedPlatform } from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import {
+  IEnhancedQuery,
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import queriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import checkPlatformCompatibility from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
@@ -52,17 +52,10 @@ interface IManageQueriesPageProps {
   };
 }
 
-interface IEnhancedQuery extends ISchedulableQuery {
-  performance: string;
-  platforms: SupportedPlatform[] | typeof DEFAULT_EMPTY_CELL_VALUE[];
-}
-
-const getPlatforms = (
-  queryString: string
-): SupportedPlatform[] | typeof DEFAULT_EMPTY_CELL_VALUE[] => {
+const getPlatforms = (queryString: string): SupportedPlatform[] => {
   const { platforms } = checkPlatformCompatibility(queryString);
 
-  return platforms || [DEFAULT_EMPTY_CELL_VALUE];
+  return platforms ?? [];
 };
 
 const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
