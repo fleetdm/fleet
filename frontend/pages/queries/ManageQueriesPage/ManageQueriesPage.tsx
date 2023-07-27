@@ -368,7 +368,8 @@ const ManageQueriesPage = ({
       try {
         await Promise.all(updateAutomatedQueries).then(() => {
           renderFlash("success", `Successfully updated query automations.`);
-          refetchAllQueries();
+          // allow time for backend to update before refetching
+          setTimeout(refetchAllQueries, 10);
         });
       } catch (errorResponse) {
         renderFlash(
