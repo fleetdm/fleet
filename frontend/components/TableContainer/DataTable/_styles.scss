@@ -216,11 +216,10 @@ $shadow-transition-width: 10px;
         .link-cell,
         .text-cell {
           display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
           white-space: nowrap;
           margin: 0;
-          .__react_component_tooltip {
-            white-space: normal;
-          }
         }
         .w400 {
           max-width: calc(400px - 48px);
@@ -235,9 +234,6 @@ $shadow-transition-width: 10px;
         .grey-cell {
           color: $ui-fleet-black-50;
           font-style: italic;
-          .__react_component_tooltip {
-            font-style: normal;
-          }
         }
       }
 

@@ -14,7 +14,7 @@ import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { OsqueryPlatform, SelectedPlatformString } from "interfaces/platform";
+import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
 import Avatar from "components/Avatar";
@@ -226,7 +226,7 @@ const PolicyForm = ({
       });
     }
 
-    let selectedPlatforms: OsqueryPlatform[] = [];
+    let selectedPlatforms: IOsqueryPlatform[] = [];
     if (isEditMode || defaultPolicy) {
       selectedPlatforms = getSelectedPlatforms();
     } else {
@@ -234,9 +234,7 @@ const PolicyForm = ({
       setSelectedPlatforms(selectedPlatforms);
     }
 
-    const newPlatformString = selectedPlatforms.join(
-      ","
-    ) as SelectedPlatformString;
+    const newPlatformString = selectedPlatforms.join(",") as IPlatformString;
 
     if (!defaultPolicy) {
       setLastEditedQueryPlatform(newPlatformString);

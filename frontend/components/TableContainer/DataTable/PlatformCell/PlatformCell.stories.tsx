@@ -6,7 +6,7 @@ const meta: Meta<typeof PlatformCell> = {
   title: "Components/Table/PlatformCell",
   component: PlatformCell,
   args: {
-    platforms: ["darwin", "windows", "linux"],
+    value: ["darwin", "windows", "linux"],
   },
 };
 

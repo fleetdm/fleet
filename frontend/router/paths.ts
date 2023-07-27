@@ -1,3 +1,4 @@
+import { IQuery } from "../interfaces/query";
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
@@ -44,10 +45,8 @@ export default {
   EDIT_LABEL: (labelId: number): string => {
     return `${URL_PREFIX}/labels/${labelId}`;
   },
-  EDIT_QUERY: (queryId: number, teamId?: number): string => {
-    return `${URL_PREFIX}/queries/${queryId}${
-      teamId ? `?team_id=${teamId}` : ""
-    }`;
+  EDIT_QUERY: (query: IQuery): string => {
+    return `${URL_PREFIX}/queries/${query.id}`;
   },
   EDIT_POLICY: (policy: IPolicy): string => {
     return `${URL_PREFIX}/policies/${policy.id}${
@@ -111,8 +110,7 @@ export default {
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
   NEW_LABEL: `${URL_PREFIX}/labels/new`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
-  NEW_QUERY: (teamId?: number) =>
-    `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,
+  NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
   USER_SETTINGS: `${URL_PREFIX}/profile`,

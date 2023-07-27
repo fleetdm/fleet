@@ -21,7 +21,7 @@ import {
   IMdmSolution,
   IMdmSummaryResponse,
 } from "interfaces/mdm";
-import { SelectedPlatform } from "interfaces/platform";
+import { ISelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
@@ -107,7 +107,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     includeNoTeam: false,
   });
 
-  const [selectedPlatform, setSelectedPlatform] = useState<SelectedPlatform>(
+  const [selectedPlatform, setSelectedPlatform] = useState<ISelectedPlatform>(
     "all"
   );
   const [
@@ -757,7 +757,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             className={`${baseClass}__platform_dropdown`}
             options={PLATFORM_DROPDOWN_OPTIONS}
             searchable={false}
-            onChange={(value: SelectedPlatform) => {
+            onChange={(value: ISelectedPlatform) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
                 (platform) => platform.value === value
               );

@@ -1,13 +1,13 @@
 import React from "react";
 
-import { OsqueryPlatform } from "interfaces/platform";
+import { IOsqueryPlatform } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 interface IPlatformCompatibilityProps {
-  compatiblePlatforms: OsqueryPlatform[] | null;
+  compatiblePlatforms: IOsqueryPlatform[] | null;
   error: Error | null;
 }
 
@@ -18,13 +18,13 @@ const DISPLAY_ORDER = [
   "Windows",
   "Linux",
   "ChromeOS",
-] as OsqueryPlatform[];
+] as IOsqueryPlatform[];
 
 const ERROR_NO_COMPATIBLE_TABLES = Error("no tables in query");
 
 const formatPlatformsForDisplay = (
-  compatiblePlatforms: OsqueryPlatform[]
-): OsqueryPlatform[] => {
+  compatiblePlatforms: IOsqueryPlatform[]
+): IOsqueryPlatform[] => {
   return compatiblePlatforms.map((str) => PLATFORM_DISPLAY_NAMES[str] || str);
 };
 

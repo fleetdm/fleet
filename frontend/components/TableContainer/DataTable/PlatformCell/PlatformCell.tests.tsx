@@ -1,15 +1,14 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { getByTestId, render, screen, within } from "@testing-library/react";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-import { SupportedPlatform } from "interfaces/platform";
 import PlatformCell from "./PlatformCell";
 
-const PLATFORMS: SupportedPlatform[] = ["windows", "darwin", "linux", "chrome"];
+const PLATFORMS = ["windows", "darwin", "linux", "chrome"];
 
 describe("Platform cell", () => {
   it("renders platform icons in correct order", () => {
-    render(<PlatformCell platforms={PLATFORMS} />);
+    render(<PlatformCell value={PLATFORMS} />);
 
     const icons = screen.queryAllByTestId("icon");
     const appleIcon = screen.queryByTestId("apple-icon");
@@ -24,7 +23,7 @@ describe("Platform cell", () => {
     expect(icons[3].firstChild).toBe(chromeIcon);
   });
   it("renders empty state", () => {
-    render(<PlatformCell platforms={[]} />);
+    render(<PlatformCell value={[]} />);
 
     const icons = screen.queryAllByTestId("icon");
     const emptyText = screen.queryByText(DEFAULT_EMPTY_CELL_VALUE);

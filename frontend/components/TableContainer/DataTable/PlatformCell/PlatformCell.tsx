@@ -4,7 +4,7 @@ import { SupportedPlatform } from "interfaces/platform";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface IPlatformCellProps {
-  platforms: SupportedPlatform[];
+  value: string[];
 }
 
 const baseClass = "platform-cell";
@@ -16,7 +16,7 @@ const ICONS: Record<string, "darwin" | "windows" | "linux" | "chrome"> = {
   chrome: "chrome",
 };
 
-const DISPLAY_ORDER: SupportedPlatform[] = [
+const DISPLAY_ORDER = [
   "darwin",
   "windows",
   "linux",
@@ -25,7 +25,9 @@ const DISPLAY_ORDER: SupportedPlatform[] = [
   // "Invalid query",
 ];
 
-const PlatformCell = ({ platforms }: IPlatformCellProps): JSX.Element => {
+const PlatformCell = ({
+  value: platforms,
+}: IPlatformCellProps): JSX.Element => {
   const orderedList = DISPLAY_ORDER.filter((platform) =>
     platforms.includes(platform)
   );

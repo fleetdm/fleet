@@ -7,10 +7,7 @@ import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
-import {
-  ICreateQueryRequestBody,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
+import { IQueryFormData, IQuery } from "interfaces/query";
 import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
@@ -22,12 +19,16 @@ interface IQueryEditorProps {
   router: InjectedRouter;
   baseClass: string;
   queryIdForEdit: number | null;
-  teamNameForQuery?: string;
-  apiTeamIdForQuery?: number;
-  storedQuery: ISchedulableQuery | undefined;
+  storedQuery: IQuery | undefined;
   storedQueryError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
+  createQuery: UseMutateAsyncFunction<
+    { query: IQuery },
+    unknown,
+    IQueryFormData,
+    unknown
+  >;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onOpenSchemaSidebar: () => void;
@@ -38,12 +39,11 @@ const QueryEditor = ({
   router,
   baseClass,
   queryIdForEdit,
-  teamNameForQuery,
-  apiTeamIdForQuery,
   storedQuery,
   storedQueryError,
   showOpenSchemaActionText,
   isStoredQueryLoading,
+  createQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
   onOpenSchemaSidebar,
@@ -59,10 +59,6 @@ const QueryEditor = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
-    lastEditedQueryFrequency,
-    lastEditedQueryLoggingType,
-    lastEditedQueryPlatforms,
-    lastEditedQueryMinOsqueryVersion,
   } = useContext(QueryContext);
 
   const [isQuerySaving, setIsQuerySaving] = useState(false);
@@ -81,35 +77,29 @@ const QueryEditor = ({
     [key: string]: string;
   }>({});
 
-  const saveQuery = debounce(async (formData: ICreateQueryRequestBody) => {
+  const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
     setIsQuerySaving(true);
     try {
-      const { query } = await queryAPI.create(formData);
-      router.push(PATHS.EDIT_QUERY(query.id));
+      const { query }: { query: IQuery } = await createQuery(formData);
+      router.push(PATHS.EDIT_QUERY(query));
       renderFlash("success", "Query created!");
       setBackendValidators({});
     } catch (createError: any) {
+      console.error(createError);
       if (createError.data.errors[0].reason.includes("already exists")) {
-        const teamErrorText =
-          teamNameForQuery && apiTeamIdForQuery !== 0
-            ? `the ${teamNameForQuery} team`
-            : "all teams";
-        setBackendValidators({
-          name: `A query with that name already exists for ${teamErrorText}.`,
-        });
+        setBackendValidators({ name: "A query with this name already exists" });
       } else {
         renderFlash(
           "error",
           "Something went wrong creating your query. Please try again."
         );
-        setBackendValidators({});
       }
     } finally {
       setIsQuerySaving(false);
     }
   });
 
-  const onUpdateQuery = async (formData: ICreateQueryRequestBody) => {
+  const onUpdateQuery = async (formData: IQueryFormData) => {
     if (!queryIdForEdit) {
       return false;
     }
@@ -121,10 +111,6 @@ const QueryEditor = ({
       lastEditedQueryDescription,
       lastEditedQueryBody,
       lastEditedQueryObserverCanRun,
-      lastEditedQueryFrequency,
-      lastEditedQueryPlatforms,
-      lastEditedQueryLoggingType,
-      lastEditedQueryMinOsqueryVersion,
     });
 
     try {
@@ -163,14 +149,12 @@ const QueryEditor = ({
       </div>
       <QueryForm
         router={router}
-        saveQuery={saveQuery}
+        onCreateQuery={onSaveQueryFormSubmit}
         goToSelectTargets={goToSelectTargets}
         onOsqueryTableSelect={onOsqueryTableSelect}
         onUpdate={onUpdateQuery}
         storedQuery={storedQuery}
         queryIdForEdit={queryIdForEdit}
-        apiTeamIdForQuery={apiTeamIdForQuery}
-        teamNameForQuery={teamNameForQuery}
         isStoredQueryLoading={isStoredQueryLoading}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}

@@ -1,7 +1,7 @@
 import { IPolicyNew } from "interfaces/policy";
-import { SelectedPlatformString } from "interfaces/platform";
+import { IPlatformString } from "interfaces/platform";
 
-const DEFAULT_POLICY_PLATFORM: SelectedPlatformString = "";
+const DEFAULT_POLICY_PLATFORM: IPlatformString = "";
 
 export const DEFAULT_POLICY = {
   id: 1,

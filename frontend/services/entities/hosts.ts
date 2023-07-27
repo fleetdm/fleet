@@ -8,7 +8,7 @@ import {
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
-import { SelectedPlatform } from "interfaces/platform";
+import { ISelectedPlatform } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import {
   FileVaultProfileStatus,
@@ -127,7 +127,7 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
   };
 };
 
-const createMdmParams = (platform?: SelectedPlatform, teamId?: number) => {
+const createMdmParams = (platform?: ISelectedPlatform, teamId?: number) => {
   if (platform === "all") {
     return buildQueryStringFromParams({ team_id: teamId });
   }
@@ -328,7 +328,7 @@ export default {
     return sendRequest("GET", HOST_MDM(id));
   },
 
-  getMdmSummary: (platform?: SelectedPlatform, teamId?: number) => {
+  getMdmSummary: (platform?: ISelectedPlatform, teamId?: number) => {
     const { MDM_SUMMARY } = endpoints;
 
     if (!platform || platform === "linux") {

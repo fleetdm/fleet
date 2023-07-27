@@ -8,6 +8,7 @@ const meta: Meta<typeof StatusIndicator> = {
   args: {
     value: "100",
     tooltip: {
+      id: 1,
       tooltipText: "Tooltip text",
     },
   },

@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { OsqueryPlatform } from "./platform";
+import { IOsqueryPlatform } from "./platform";
 
 export default PropTypes.shape({
   columns: PropTypes.arrayOf(
@@ -28,7 +28,7 @@ export interface IQueryTableColumn {
   hidden: boolean;
   required: boolean;
   index: boolean;
-  platforms?: OsqueryPlatform[];
+  platforms?: IOsqueryPlatform[];
   requires_user_context?: boolean;
 }
 
@@ -36,7 +36,7 @@ export interface IOsQueryTable {
   name: string;
   description: string;
   url: string;
-  platforms: OsqueryPlatform[];
+  platforms: IOsqueryPlatform[];
   evented: boolean;
   cacheable: boolean;
   columns: IQueryTableColumn[];

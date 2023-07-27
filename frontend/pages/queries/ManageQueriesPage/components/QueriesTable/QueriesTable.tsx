@@ -39,9 +39,7 @@ interface IQueriesTableProps {
     query?: string;
     order_key?: string;
     order_direction?: "asc" | "desc";
-    team_id?: string;
   };
-  isInherited?: boolean;
 }
 
 const DEFAULT_SORT_DIRECTION = "asc";
@@ -90,9 +88,8 @@ const QueriesTable = ({
   isOnlyObserver,
   isObserverPlus,
   isAnyTeamObserverPlus,
-  router,
   queryParams,
-  isInherited = false,
+  router,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
 
@@ -145,7 +142,6 @@ const QueriesTable = ({
       ) {
         newQueryParams.page = 0;
       }
-      newQueryParams.team_id = queryParams?.team_id;
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
         queryParams: newQueryParams,
@@ -236,21 +232,19 @@ const QueriesTable = ({
   };
 
   const tableHeaders = useMemo(
-    () => currentUser && generateTableHeaders({ currentUser, isInherited }),
-    [currentUser, isInherited]
+    () => currentUser && generateTableHeaders({ currentUser }),
+    [currentUser]
   );
 
-  const searchable =
-    !(queriesList?.length === 0 && searchQuery === "") && !isInherited;
+  const searchable = !(queriesList?.length === 0 && searchQuery === "");
 
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
-        disableCount={isInherited}
         resultsTitle="queries"
         columns={tableHeaders}
         data={queriesList}
-        filters={{ global: isInherited ? "" : searchQuery }}
+        filters={{ global: searchQuery }}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
@@ -272,9 +266,7 @@ const QueriesTable = ({
         isAllPagesSelected={false}
         searchable={searchable}
         searchQueryColumn="name"
-        customControl={
-          searchable && !isInherited ? renderPlatformDropdown : undefined
-        }
+        customControl={searchable ? renderPlatformDropdown : undefined}
         isClientSidePagination
         onClientSidePaginationChange={onClientSidePaginationChange}
         isClientSideFilter

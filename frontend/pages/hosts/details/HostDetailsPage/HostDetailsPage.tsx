@@ -18,20 +18,16 @@ import {
   IHost,
   IDeviceMappingResponse,
   IMacadminsResponse,
+  IPackStats,
   IHostResponse,
   IHostMdmData,
-  IPackStats,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
+import { IQuery, IFleetQueriesResponse } from "interfaces/query";
+import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
-import {
-  IListQueriesResponse,
-  IQueryKeyQueriesLoadAll,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
-import { IQueryStats } from "interfaces/query_stats";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -40,6 +36,7 @@ import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import permissions from "utilities/permissions";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -50,6 +47,8 @@ import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
 import ScheduleCard from "../cards/Schedule";
+import PacksCard from "../cards/Packs";
+import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -62,7 +61,6 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
-import SelectQueryModal from "./modals/SelectQueryModal";
 
 const baseClass = "host-details";
 
@@ -115,7 +113,9 @@ const HostDetailsPage = ({
 
   const {
     config,
+    currentUser,
     isGlobalAdmin = false,
+    isGlobalObserver,
     isPremiumTier = false,
     isSandboxMode,
     isOnlyObserver,
@@ -151,6 +151,7 @@ const HostDetailsPage = ({
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
+  const [packsState, setPacksState] = useState<IPackStats[]>();
   const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
@@ -158,17 +159,16 @@ const HostDetailsPage = ({
   const [pathname, setPathname] = useState("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
-    IListQueriesResponse,
+    IFleetQueriesResponse,
     Error,
-    ISchedulableQuery[],
-    IQueryKeyQueriesLoadAll[]
-  >([{ scope: "queries", teamId: undefined }], () => queryAPI.loadAll(), {
+    IQuery[]
+  >("fleet queries", () => queryAPI.loadAll(), {
     enabled: !!hostIdFromURL,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     retry: false,
-    select: (data: IListQueriesResponse) => data.queries,
+    select: (data: IFleetQueriesResponse) => data.queries,
   });
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
@@ -312,6 +312,7 @@ const HostDetailsPage = ({
             },
             { packs: [], schedule: [] }
           );
+          setPacksState(packStatsByType.packs);
           setSchedule(packStatsByType.schedule);
         }
       },
@@ -483,9 +484,9 @@ const HostDetailsPage = ({
     router.push(PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host?.id));
   };
 
-  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
+  const onQueryHostSaved = (selectedQuery: IQuery) => {
     router.push(
-      PATHS.EDIT_QUERY(selectedQuery.id) +
+      PATHS.EDIT_QUERY(selectedQuery) +
         TAGGED_TEMPLATES.queryByHostRoute(host?.id)
     );
   };
@@ -614,6 +615,23 @@ const HostDetailsPage = ({
     host?.mdm.name === "Fleet" &&
     host?.mdm.macos_settings?.disk_encryption === "action_required";
 
+  /*  Context team id might be different that host's team id
+  Observer plus must be checked against host's team id  */
+  const isGlobalOrHostsTeamObserverPlus =
+    currentUser && host?.team_id
+      ? permissions.isObserverPlus(currentUser, host.team_id)
+      : false;
+
+  const isHostsTeamObserver =
+    currentUser && host?.team_id
+      ? permissions.isTeamObserver(currentUser, host.team_id)
+      : false;
+
+  const canViewPacks =
+    !isGlobalObserver &&
+    !isGlobalOrHostsTeamObserverPlus &&
+    !isHostsTeamObserver;
+
   const bootstrapPackageData = {
     status: host?.mdm.macos_setup?.bootstrap_package_status,
     details: host?.mdm.macos_setup?.details,
@@ -726,6 +744,9 @@ const HostDetailsPage = ({
                 schedule={schedule}
                 isLoading={isLoadingHost}
               />
+              {canViewPacks && (
+                <PacksCard packsState={packsState} isLoading={isLoadingHost} />
+              )}
             </TabPanel>
             <TabPanel>
               <PoliciesCard
