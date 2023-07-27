@@ -101,6 +101,7 @@
       .data-table {
         &__wrapper {
           overflow-x: scroll;
+          overflow-y: hidden;
         }
         &__table {
           thead {
