@@ -32,7 +32,9 @@ const WindowsAutomaticEnrollmentPage = () => {
         />
         <h1>Azure Active Directory</h1>
         <p>
-          Connect to Azure AD to automatically enroll Windows hosts.{" "}
+          The end user will see Microsoft’s default initial setup. You can
+          further simplify the initial device setup with Autopilot (Apple DEP
+          equivalent).{" "}
           <CustomLink
             newTab
             text="Learn more"
