@@ -421,7 +421,7 @@ module.exports.routes = {
   'GET /docs/contributing/*': {
     skipAssets: true,
     fn: (req, res)=>{
-      return res.redirect(301, 'https://github.com/fleetdm/fleet/tree/main/docs/Contributing');
+      return res.redirect('https://github.com/fleetdm/fleet/tree/main/docs/Contributing');
     }
   },
   'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
