@@ -32,7 +32,7 @@ const WindowsAutomaticEnrollmentPage = () => {
         />
         <h1>Azure Active Directory</h1>
         <p>
-          The end user will see Microsoft’s default initial setup. You can
+          The end user will see Microsoft&apos;s default initial setup. You can
           further simplify the initial device setup with Autopilot (Apple DEP
           equivalent).{" "}
           <CustomLink
