@@ -199,6 +199,13 @@ module.exports.routes = {
     },
   },
 
+  'GET /try-fleet/waitlist': {
+    action: 'try-fleet/view-waitlist',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+  },
+
   'GET /admin/email-preview': {
     action: 'admin/view-email-templates',
     locals: {

@@ -33,6 +33,10 @@ module.exports = {
       throw {redirect: '/try-fleet/login' };
     }
 
+    if(this.req.me.inSandboxWaitlist){
+      throw {redirect: '/try-fleet/waitlist' };
+    }
+
     if(!this.req.me.fleetSandboxURL) {
       throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) fleetSandboxURL has somehow gone missing!`);
     }
