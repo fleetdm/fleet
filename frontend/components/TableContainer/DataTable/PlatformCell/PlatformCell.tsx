@@ -1,6 +1,7 @@
 import React from "react";
 import Icon from "components/Icon";
 import { SupportedPlatform } from "interfaces/platform";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface IPlatformCellProps {
   platforms: SupportedPlatform[];
@@ -42,7 +43,9 @@ const PlatformCell = ({ platforms }: IPlatformCellProps): JSX.Element => {
           ) : null;
         })
       ) : (
-        <span className={`${baseClass}__muted`}>---</span>
+        <span className={`${baseClass}__muted`}>
+          {DEFAULT_EMPTY_CELL_VALUE}
+        </span>
       )}
     </span>
   );

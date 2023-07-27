@@ -9,7 +9,10 @@ import PATHS from "router/paths";
 import permissionsUtils from "utilities/permissions";
 import { IUser } from "interfaces/user";
 import { secondsToDhms } from "utilities/helpers";
-import { ISchedulableQuery } from "interfaces/schedulable_query";
+import {
+  IEnhancedQuery,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import { SupportedPlatform } from "interfaces/platform";
 
 import Icon from "components/Icon";
@@ -48,7 +51,7 @@ interface IHeaderProps {
 }
 interface IRowProps {
   row: {
-    original: ISchedulableQuery;
+    original: IEnhancedQuery;
     getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
@@ -108,9 +111,6 @@ const generateTableHeaders = ({
   isInherited = false,
 }: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
-  const isAnyTeamMaintainerOrTeamAdmin = permissionsUtils.isAnyTeamMaintainerOrTeamAdmin(
-    currentUser
-  );
 
   const tableHeaders: IDataColumn[] = [
     {
@@ -163,18 +163,11 @@ const generateTableHeaders = ({
     },
     {
       title: "Platform",
-      Header: "Platform",
+      Header: "Compatible with",
       disableSortBy: true,
       accessor: "platforms",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
-        // translate the SelectedPlatformString into an array of `SupportedPlatform`s
-        const platformIconsToRender = (cellProps.row.original.platform === ""
-          ? ["darwin", "windows", "linux", "chrome"]
-          : cellProps.row.original.platform
-              ?.split(",")
-              .filter((platform) => platform !== "")) as SupportedPlatform[];
-
-        return <PlatformCell platforms={platformIconsToRender} />;
+        return <PlatformCell platforms={cellProps.row.original.platforms} />;
       },
     },
     {
