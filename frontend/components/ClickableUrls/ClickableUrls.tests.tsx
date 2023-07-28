@@ -8,7 +8,7 @@ const URL_1 =
   "https://privacyinternational.org/guide-step/4335/macos-opt-out-targeted-ads";
 const URL_2 = "https://support.apple.com/en-us/HT202074";
 
-describe("BackLink - component", () => {
+describe("ClickableUrls - component", () => {
   it("renders text and icon", () => {
     render(<ClickableUrls text={TEXT_WITH_URLS} />);
 
