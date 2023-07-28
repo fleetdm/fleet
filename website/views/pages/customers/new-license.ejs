@@ -41,7 +41,7 @@
         </div>
         <div class="card card-body mt-3" v-if="showBillingForm">
           <h3 class="pb-3">Billing information</h3>
-          <ajax-form action="saveBillingInfoAndSubscribe" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="billingFormRules" @submitted="submittedPaymentForm()" v-if="!cloudError || cloudError === 'couldNotSaveBillingInfo'">
+          <ajax-form action="saveBillingInfoAndSubscribe" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="billingFormRules" @submitted="submittedPaymentForm()" v-if="!cloudError || cloudError === 'couldNotSaveBillingInfo' || cloudError === 'cardVerificationRequired'">
             <div class="form-group">
               <label for="card">Billing Card</label>
               <stripe-card-element class="mb-3" id="card" busy.sync="syncing" :is-errored.sync="formErrors.paymentSource" :stripe-publishable-key="stripePublishableKey"
@@ -71,7 +71,10 @@
               </div>
             </div>
             <cloud-error purpose="cloud-error" v-if="cloudError === 'couldNotSaveBillingInfo'">
-              <p>The billing card provided could not be used. Please use another card or <a href="/contact" target="_blank">contact support</a></p>
+              <p>The billing card provided could not be used. Please use another card or <a href="/contact" target="_blank">contact support</a>.</p>
+            </cloud-error>
+            <cloud-error purpose="cloud-error" v-else-if="cloudError === 'cardVerificationRequired'">
+              <p>The billing card provided could not be used without additional verification. Please use another card or <a href="/contact" target="_blank">contact support</a> to complete your order.</p>
             </cloud-error>
             <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4">Get license key</ajax-button>
           </ajax-form>
