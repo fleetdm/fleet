@@ -2,23 +2,19 @@
 This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. 
 
 Need quick Answers?
-* [How can I...(#Intake)](#Intake)
-* [How to...(#Tasks)](#Tasks)
-* [Who will...(#Rituals)](#Rituals)
+* [How can I...(#Intake)](#how-can-i)
+* [How to...(#Tasks)](#how-to)
+* [Who will...(#Rituals)](#who-will)
 
 
+## Flaws and feedback
 
-## Pointers
+[![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
 
-What about [Mike](https://youtu.be/_T-UR9mU4-o?t=2563)?
-
-- "[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc. 
-
-
-- **Character**  
-TODO
-
-
+* "[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc." 
+* I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
+* I can be quick to criticism, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
+* I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
 
 
 
@@ -38,21 +34,17 @@ The CEO is the [directly responsible](https://fleetdm.com/handbook/company/why-t
 The 🦿 Remote department (also known as the "CEO support team"), is made up of these people:
 
 
-
-
 | Contributor                                    | Role
 |:-----------------------------------------------|:----------------------------------------------------------------------|
 | Mike McNeil ([@mikermcneil](https://github.com/mikermcneil))  | [CEO](https://www.linkedin.com/in/mikermcneil/)
-| Sam Pfluger ([@sampfluger88](https://github.com/sampfluger88)) | [Apprentice to the CEO](https://www.linkedin.com/in/sampfluger88/)
+| Sam Pfluger ([@sampfluger88](https://github.com/sampfluger88)) | [Apprentice to the CEO (AttC)](https://www.linkedin.com/in/sampfluger88/)
 
 
 
-## How can I...(#Intake)
+## How can I...
 
 
-
-
-## Scheduling with the CEO
+### Schedule time with the CEO
 
 - Reach out to the Apprentice in `#-meetings` with the required details to book a meeting with the CEO. 
 All [meetings](https://fleetdm.com/handbook/business-operations#internal-meeting-scheduling) on Mike's calendar should be scheduled and vetted by the Apprentice. 
@@ -96,7 +88,7 @@ Preferences for flights, in descending order of importance are:
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
 
-## Contact the CEO
+### Contact the CEO
 
 If urgent, send a Slack direct message (DM) right away. 
 
@@ -132,22 +124,13 @@ From Mike:
 >
 > Thank you so much! 🙇
 
-### `#g-ceo` slack channel
-This channel is for the CEO to drop ideas and tasks when on the go.
- - Prefixes: TODO, DOTO, FYI
- - Mark requests with 👀 (emoji reaction) to indicate that you are working on the task
- - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task
+
 
 
 ## How to...
 
 
-## Prep work
-
-
 ### All Hands prep
-
-- **DISCUSS - Mike, 2023-03**
 
 Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
@@ -164,7 +147,7 @@ Every month the Apprentice will do the prep work for the monthly "✌️ All han
 
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
-### After the All hands
+#### After the All hands
 
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
@@ -229,9 +212,11 @@ At Fleet, document prep steps are determined by the type of meeting.
 | External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journal template |
 | 1:1           | A recurring meeting that direct managers and direct reports use for performance management and is emptied after every call. | Most likely Reclaim | Agenda template |
 | Office hours  | A recurring meeting that is emptied after call used for group meetings of Fleet team members. | Google calendar | Office hour agenda template |
+| Journal       | Title = {date(XXXX-XX-XX) (Attendee) <>( Mike McNeil)}
+ with H2 (XXXX-XX-XX) = to reference meeting dates
+Does not  get cleaned out every time post meeting
+google doc
 
-
-## Tasks as assigned
 
 ### Private whiteboard
 From time to time the CEO will ask the Apprentice to the CEO to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
@@ -251,20 +236,30 @@ How to file videos from Gong recordings (**marking as "private" in Gong is not a
     - If appropriate, make this doc "¶¶," plus fleeties who were on the call.
     - Include in the doc "link to video:"
     - Include in the doc "link to transcript:"
-     
-## Rituals
 
-| Task | Description | Frequency | 
-| ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
-| [CEO e-mail management](#ceo-email-management)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
-| General communications  [slack channel](https://fleetdm.com/handbook/business-operations#slack-channels) | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+
+### Slack channel 
+The `#g-ceo` channel is for the CEO to drop ideas and tasks when on the go.
+ - Prefixes: TODO, DOTO, FYI
+ - Mark requests with 👀 (emoji reaction) to indicate that you are working on the task
+ - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task
+
+     
+## Who will...
+
+All rituals are completed by the [AttC](https://fleetdm.com/handbook/company/ceo#team)
+
+| Task | Frequency | 
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| [CEO e-mail management](#ceo-email-management)| Daily, multiple times |
+| General communications  [slack channel](https://fleetdm.com/handbook/company/ceo#slack-channel) |  Daily, multiple times |
 | Schedule internal and external [meetings for the CEO](#scheduling-with-the-ceo)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | [Preparing agendas and content](#document-preparation) for CEO's meetings | Create and edit agenda, provide context, and contact information | PRN                   |
 | Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
 | [Ad-hoc](https://fleetdm.com/handbook/customers#scheduling-a-customer-call) requests from the CEO | Triage requests, prioritize actions, flag actions for further review | PRN |   
 | Total [travel coordination](#travel-preferences) for the CEO | Triage travel request, plan and coordinate flight, stay, and concierge arrangements | PRN                   |
-| Coordinate the [weekly E-Group calendar](https://fleetdm.com/handbook/business-operations#weekly-updates) events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
-| Equipment warehouse management | Process inventory & transfer of all equipment Fleet IT warehouse | PRN | 
+| Coordinate the [weekly E-Group calendar](https://fleetdm.com/handbook/company/ceo#weekly-updates) events for the Executive team | Weekly, PRN           |
+| Fleet warehouse management | Process inventory & transfer of all equipment Fleet IT warehouse | PRN | 
 
 
 ## Kanban
