@@ -367,7 +367,6 @@ const ManageQueriesPage = ({
 
       try {
         await Promise.all(updateAutomatedQueries).then(() => {
-          console.log("Promise.all resolved");
           renderFlash("success", `Successfully updated query automations.`);
           refetchAllQueries();
         });
