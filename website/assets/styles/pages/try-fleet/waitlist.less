@@ -1,19 +1,15 @@
 #waitlist {
-
-  background-color: #FFF;
+  padding-top: 80px;
   p {
-    font-size: 14px;
-    line-height: 20px;
+    font-size: 16px;
   }
   h2 {
     font-size: 24px;
-    line-height: 24px;
+    line-height: 32px;
     font-weight: 800;
   }
   a {
-    color: @core-vibrant-blue;
-    cursor: pointer;
-    font-size: 14px;
+
   }
   input {
     padding: 16px;
@@ -33,37 +29,24 @@
   [purpose='error-message'] {
     font-size: 16px;
   }
-  [purpose='next-steps-button'] {
+  [purpose='homepage-button'] {
     font-size: 16px;
     font-weight: 700;
-    line-height: 24px;
-    padding: 16px;
-    img {
-      display: inline;
-      height: 24px;
-      width: auto;
-      padding-top: 0px;
-      padding-bottom: 0px;
-      margin: 0px;
-    }
-  }
-  [parasails-component='cloud-error'] {
-    padding: 16px 10px 16px 16px;
-  }
-  [parasails-component='ajax-button'] {
-    border-radius: 12px;
-    font-size: 16px;
     line-height: 18px;
-    padding-top: 17.5px;
-    padding-bottom: 17.5px;
+    padding: 16px 32px;
+    height: 40px;
+    color: #FFF;
+    cursor: pointer;
+    font-size: 14px;
+    background-color: @core-vibrant-blue;
+    border-radius: 6px;
+    width: 300px;
+    &:hover{
+      text-decoration: none;
+    }
   }
   @media (max-width: 768px) {
-    padding-top: 0px;
-    [purpose='sandbox-image'] {
-      margin-right: 0px;
-      margin-bottom: 16px;
-      width: 250px;
-    }
+    padding-top: 40px;
   }
 
 
