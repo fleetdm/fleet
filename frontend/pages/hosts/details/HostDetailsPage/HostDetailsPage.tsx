@@ -751,6 +751,9 @@ const HostDetailsPage = ({
                 schedule={schedule}
                 isLoading={isLoadingHost}
               />
+              {canViewPacks && (
+                <PacksCard packsState={packsState} isLoading={isLoadingHost} />
+              )}
             </TabPanel>
             <TabPanel>
               <PoliciesCard
