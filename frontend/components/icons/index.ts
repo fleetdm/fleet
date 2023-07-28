@@ -44,6 +44,7 @@ import AppleCircledGrey from "./AppleCircledGrey";
 import LinuxGreen from "./LinuxGreen";
 import LinuxCircledGrey from "./LinuxCircledGrey";
 import WindowsBlue from "./WindowsBlue";
+import WindowsCircledGrey from "./WindowsCircledGrey";
 import RedEncircledChrome from "./RedEncircledChrome";
 import ChromeCircledGrey from "./ChromeCircledGrey";
 
@@ -128,6 +129,7 @@ export const ICON_MAP = {
   "darwin-purple": ApplePurple,
   "darwin-grey": AppleCircledGrey,
   "windows-blue": WindowsBlue,
+  "windows-grey": WindowsCircledGrey,
   "linux-green": LinuxGreen,
   "linux-grey": LinuxCircledGrey,
   "chrome-red": RedEncircledChrome,

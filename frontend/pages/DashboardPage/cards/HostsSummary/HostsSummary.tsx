@@ -63,7 +63,7 @@ const HostsSummary = ({
 
   const renderWindowsCount = (teamId?: number) => (
     <SummaryTile
-      iconName="windows-blue"
+      iconName="windows-grey"
       count={windowsCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
