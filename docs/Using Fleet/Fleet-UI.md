@@ -46,7 +46,7 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 *In Fleet 4.35.0, the "Schedule" page was removed, and query automations are now configured on the "Queries" page. Instructions for scheduling queries in earlier versions of Fleet can be found [here](https://github.com/fleetdm/fleet/blob/ac797c8f81ede770853c25fd04102da9f5e109bf/docs/Using-Fleet/Fleet-UI.md#schedule-a-query).*
 
->Only users with the [admin role](./Permissions.md) can manage query automations.
+>Only users with the [admin role](https://fleetdm.com/docs/using-fleet/manage-access#admin) can manage query automations.
 
 Fleet allows you to schedule queries to run at a set frequency. Scheduled queries will send data to your log destination automatically. 
 
@@ -64,13 +64,13 @@ By default, queries that run on a schedule will only target platforms compatible
 
 > The frequency that queries run at is set when a query is created.
 
-With Fleet Premium, you can schedule queries for groups of hosts using [the teams feature](https://fleetdm.com/docs/using-fleet/teams). This allows you to collect different data for each group.
+With Fleet Premium, you can schedule queries for groups of hosts using [the teams feature](https://fleetdm.com/docs/using-fleet/segment-hosts). This allows you to collect different data for each group.
 
 > In Fleet Premium, groups of hosts are called "teams."
 
 **How to use teams to schedule queries for a group of hosts:**
 
-1. If you haven't already, first [create a team](https://fleetdm.com/docs/using-fleet/teams#create-a-team) and [transfer hosts](https://fleetdm.com/docs/using-fleet/teams#transfer-hosts-to-a-team) to the team.
+1. If you haven't already, first [create a team](https://fleetdm.com/docs/using-fleet/segment-hosts#create-a-team) and [transfer hosts](https://fleetdm.com/docs/using-fleet/segment-hosts#transfer-hosts-to-a-team) to the team.
 
 2. In the top navigation, select **Queries**.
 
