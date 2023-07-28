@@ -1165,14 +1165,71 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 
 // GetMDMWindowsTOSContent returns valid TOC content
 func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
-	tmpl, err := template.New("").Parse(`<html>
-	<script type='text/javascript'>
-		window.location = "/mdm/sso/windows/callback?" + "redirect_uri={{ .RedirectURL }}" + "&OpaqueBlob={{ .ClientData }}";
-	</script>
-	<body>
-		Redirecting to Fleet at {{ .RedirectURL }} ...
-	</body>
-	</html>`)
+	tmpl, err := template.New("").Parse(`
+	<html>
+		<styles>
+		.mdm-windows-sso-callback-page {
+			font-family: "Inter", sans-serif;
+			height: 100vh;
+			background-color: $core-white;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.main-content {
+			paddding: 40px;
+		}
+
+		.eula-wrapper {
+			width: 80vw;
+			text-align: center;
+		}
+
+		h1 {
+			font-size: 28px;
+			font-weight: bold;
+			margin-bottom: 42px;
+		}
+
+		p {
+			background-color: red;
+			height: 65vh;
+		}
+
+		button {
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			color: white;
+			background-color: #192147;
+			padding: 8px 16px;
+			font-size: 18px;
+			width: 341px;
+			height: 78px;
+		}
+		</styles>
+		<script type='text/javascript'>
+			const agreeToTerms = () => {
+				const urlParams = new URLSearchParams(window.location.search);
+				const redirectURI = urlParams.get("redirect_uri");
+
+				window.location = `${redirectURI}?IsAccepted=true`;
+			};
+		</script>
+		<body>
+			<div class="main-content">
+				<div class="mdm-windows-sso-callback-page">
+					<div class="eula-wrapper">
+						<h1>Terms and conditions</h1>
+						<p>frame here</p>
+						<button onClick="agreeToTerms()">Agree and continue</button>
+					</div>
+				</div>
+			</div>
+		</body>
+	</html>
+	`)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
 	}
