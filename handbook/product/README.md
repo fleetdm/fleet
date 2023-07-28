@@ -61,7 +61,7 @@ For external contributors: please consider opening an issue with reference scree
 
 - Prepare your draft in the user story issue.
 - Prepare the agenda for your design review meeting, which should be an empty document other than the proposed changes you will present.
-- Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/company/ceo-handbook). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
+- Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/company/ceo). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
 - When introducing a story, clarify which review "mode" the CEO should operate in:
   + **Final review** mode — you are 70% sure the design is 100% done.
   + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback.

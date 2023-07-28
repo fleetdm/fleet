@@ -61,7 +61,7 @@ Learn more about the company and [why you should join us here](https://fleetdm.c
 
 ## Want to join the team?
 
-You can [apply for this position here](https://3x3q33auqgj.typeform.com/to/ndA2wMXl).
+Reach out to [Zay Hanlon on LinkedIn](https://www.linkedin.com/search/results/all/?fetchDeterministicClustersOnly=true&heroEntityKey=urn%3Ali%3Afsd_profile%3AACoAABdNskUBL9B2WntdslOsPDZ96RPvZgfMofc&keywords=zay%20hanlon&origin=RICH_QUERY_SUGGESTION&position=0&searchId=0308a00d-1154-483b-8c71-69c6abbc9299&sid=5i7).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🐋 Customer Support Engineer">
