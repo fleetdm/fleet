@@ -1165,7 +1165,7 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 
 // GetMDMWindowsTOSContent returns valid TOC content
 func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
-	tmpl, err := template.New("").Parse("
+	tmpl, err := template.New("").Parse(`
 	<html>
 		<styles>
 		.mdm-windows-sso-callback-page {
@@ -1214,7 +1214,7 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 				const urlParams = new URLSearchParams(window.location.search);
 				const redirectURI = urlParams.get("redirect_uri");
 
-				window.location = `${redirectURI}?IsAccepted=true`;
+				window.location = "{{.RedirectURL}}" + "?IsAccepted=true&OpaqueBlob={{.ClientData}}";
 			};
 		</script>
 		<body>
@@ -1229,7 +1229,7 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 			</div>
 		</body>
 	</html>
-	")
+	`)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
 	}
