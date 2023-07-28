@@ -50,7 +50,7 @@ const HostsSummary = ({
 
   const renderMacCount = (teamId?: number) => (
     <SummaryTile
-      iconName="darwin-purple"
+      iconName="darwin-grey"
       count={macCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}

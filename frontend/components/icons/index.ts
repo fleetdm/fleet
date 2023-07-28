@@ -40,6 +40,7 @@ import Chrome from "./Chrome";
 
 // Encircled
 import ApplePurple from "./ApplePurple";
+import AppleCircledGrey from "./AppleCircledGrey";
 import LinuxGreen from "./LinuxGreen";
 import WindowsBlue from "./WindowsBlue";
 import RedEncircledChrome from "./RedEncircledChrome";
@@ -123,6 +124,7 @@ export const ICON_MAP = {
   ChromeOS: Chrome,
   "premium-feature": PremiumFeature,
   "darwin-purple": ApplePurple,
+  "darwin-grey": AppleCircledGrey,
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,
   "chrome-red": RedEncircledChrome,
