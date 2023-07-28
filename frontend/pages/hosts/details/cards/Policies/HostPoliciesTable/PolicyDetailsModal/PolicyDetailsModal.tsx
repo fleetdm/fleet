@@ -27,7 +27,6 @@ const PolicyDetailsModal = ({
         {policy?.resolution && (
           <div className={`${baseClass}__resolution`}>
             <span className={`${baseClass}__resolve-header`}> Resolve:</span>
-            <p>{policy?.resolution}</p>
             {policy?.resolution && <ClickableUrls text={policy?.resolution} />}
           </div>
         )}

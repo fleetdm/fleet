@@ -7,22 +7,20 @@ interface IClickableUrls {
   className?: string;
 }
 
-const baseClass = "back-link";
+const baseClass = "clickable-urls";
 
 const ClickableUrls = ({ text, className }: IClickableUrls): JSX.Element => {
   const clickableUrlClasses = classnames(baseClass, className);
 
-  // take that text, identify all links
-  const findLinks = (): string => {
-    return text;
-  };
-
-  const replacedLinks = text.replace(
-    /(^|[^a-z0-9\.\-\/])(https?:\/\/[a-z0-9\.\-\/]+)([^a-z0-9\.\-\/]|$)/g,
+  // Regex to find case insensitive URLs and replace with link
+  const replacedLinks = text.replaceAll(
+    /(^|[^a-z0-9\.\-\/])(https?:\/\/[A-Za-z0-9\.\-\/]+)([^A-Za-z0-9\.\-\/]|$)/g,
     '$1<a href="$2" target="_blank">$2</a>$3'
   );
 
-  const sanitizedResolutionContent = DOMPurify.sanitize(replacedLinks);
+  const sanitizedResolutionContent = DOMPurify.sanitize(replacedLinks, {
+    ADD_ATTR: ["target"], // Allows opening in a new tab
+  });
 
   const textWithLinks = (
     <div
@@ -30,8 +28,6 @@ const ClickableUrls = ({ text, className }: IClickableUrls): JSX.Element => {
       dangerouslySetInnerHTML={{ __html: sanitizedResolutionContent }}
     />
   );
-  // take those links and replace them with custom links to a new tab
-  // Return as JSX.Element
 
   return textWithLinks;
 };
