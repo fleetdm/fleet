@@ -353,14 +353,14 @@ const ManageQueriesPage = ({
       );
 
       // Update query automations using queries/{id} manage_automations parameter
-      const updateAutomatedQueries = [];
-      updateAutomatedQueries.push(
-        turnOnAutomations.map((id: number) =>
+      const updateAutomatedQueries: Promise<any>[] = [];
+      turnOnAutomations.map((id: number) =>
+        updateAutomatedQueries.push(
           queriesAPI.update(id, { automations_enabled: true })
         )
       );
-      updateAutomatedQueries.push(
-        turnOffAutomations.map((id: number) =>
+      turnOffAutomations.map((id: number) =>
+        updateAutomatedQueries.push(
           queriesAPI.update(id, { automations_enabled: false })
         )
       );
