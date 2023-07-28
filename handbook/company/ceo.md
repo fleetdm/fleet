@@ -96,7 +96,7 @@ If you mention the CEO from within a Slack thread, he will not read your message
 
 Please find a different way to get in touch:
 
-- If it can wait, add your message to the "CEO office minutes" agenda (see "Office hours" calendar)
+- If it can wait, add your message to the "🌪️👀 Roundup (#g-ceo)" agenda (see "Office hours" calendar)
 - Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO?
 - Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.)
 
