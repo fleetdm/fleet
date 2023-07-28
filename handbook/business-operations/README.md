@@ -640,7 +640,7 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
 - On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of teammates celebrating anniversaries over the next month.
 - On the day of the fleetiversary, the Head of BizOps or executive team member will post in `#random` celebrating the tenure of the teammate.
-- The Head of BizOps prepares compensation benchmarking data and schedules time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to compensation.
+- The Head of BizOps confers with manager or head of department and prepares compensation benchmarking data and schedules time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to compensation.
 - During the 1:1 call, founders review benchmarking for role and geography, and decide if there will be an adjustment.
 - Head of BizOps posts to slack in `#help-classified` with the decision on compensation changes and effective date, if any.
 - If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
@@ -718,7 +718,7 @@ Here are a few different entry points for a tour of Fleet's security policies an
 6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
 
 ### Vendor questionnaires 
-In responding to security questionnaires, Fleet endeavors to provide full transparency via our [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [Application security](https://fleetdm.com/docs/using-fleet/application-security) documentation. In addition to this documentation, please refer to [the Vendor questionnaires page](./vendor-questionnaires.md) 
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](./vendor-questionnaires.md) 
 
 ## Finance
 
@@ -950,7 +950,7 @@ The following stubs are included only to make links backward compatible.
 ##### Modifying an event organized by someone else
 ##### External meeting scheduling
 
-Please see [handbook/company/communication.md]( https://fleetdm.com/handbook/company/communication.md) for all meetings sections
+Please see [handbook/company/communication](https://fleetdm.com/handbook/company/communication#meetings) for all meetings sections
 
 ##### Open positions
 
