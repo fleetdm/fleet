@@ -186,7 +186,7 @@ module.exports.routes = {
   },
 
   'GET /try-fleet/sandbox': {
-    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired',
+    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist',
     locals: {
       layout: 'layouts/layout-sandbox',
     },
@@ -197,6 +197,14 @@ module.exports.routes = {
     locals: {
       layout: 'layouts/layout-sandbox',
     },
+  },
+
+  'GET /try-fleet/waitlist': {
+    action: 'try-fleet/view-waitlist',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet Sandbox waitlist | Fleet for osquery',
+    }
   },
 
   'GET /admin/email-preview': {
