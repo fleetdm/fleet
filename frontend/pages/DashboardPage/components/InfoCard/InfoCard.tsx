@@ -21,7 +21,7 @@ interface IInfoCardProps {
         text: string;
         onClick?: () => void;
       };
-  total_host_count?: string | (() => string | undefined);
+  total_host_count?: number;
   showTitle?: boolean;
 }
 
