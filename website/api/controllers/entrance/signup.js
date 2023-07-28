@@ -99,7 +99,7 @@ the account verification message.)`,
     }
 
     if(sails.config.custom.fleetSandboxWaitlistEnabled === undefined){
-      throw new Error(`The Fleet Sandbox waitlist configuration variable (sails.config.custom.fleetSandboxWaitlistEnabled) is missing!`)
+      throw new Error(`The Fleet Sandbox waitlist configuration variable (sails.config.custom.fleetSandboxWaitlistEnabled) is missing!`);
     }
 
     var newEmailAddress = emailAddress.toLowerCase();
