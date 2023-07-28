@@ -101,7 +101,7 @@ This configuration assumes you have brought all the required dependencies of Fle
 ## Infrastructure
 https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws
 
-![Architecture Diagram](../docs/images/fleet-aws-reference-arch-diagram.png)
+![Architecture Diagram](https://fleetdm.com/images/docs/fleet-aws-reference-arch-diagram-925x886@2x.png)
 
 The infrastructure used in this deployment is available in all regions. The following resources will be created:
 
@@ -267,7 +267,7 @@ During this process, terraform will create a `hosted zone` with an `NS` record f
 
 Let’s say we own `queryops.com` and have an ACM certificate issued to it. We want to host Fleet at `fleet.queryops.com` so in this case, we’ll need to hand nameserver authority over to `fleet.queryops.com` before ACM will verify via DNS and issue the certificate. To make this work, we need to create an `NS` record on `queryops.com` and copy the `NS` records that were created by terraform for the `fleet.queryops.com` hosted zone.
 
-![Route 53 QueryOps Hosted Zone](../docs/images/deploy-on-aws-1-622x250@2x.png)
+![Route 53 QueryOps Hosted Zone](https://fleetdm.com/images/docs/deploy-on-aws-1-622x250@2x.png)
 
 
 ### Modifying the Fleet configuration
@@ -325,7 +325,7 @@ This particular issue would only be encountered for the largest of Fleet deploym
 4. reduce the amount of data returned for scheduled queries (Snapshot vs Differential queries https://osquery.readthedocs.io/en/stable/deployment/logging/)
 
 
-More troubleshooting tips can be found here https://fleetdm.com/docs/deploying/faq
+More troubleshooting tips can be found here https://fleetdm.com/docs/get-started/faq#deployment
 
 <meta name="title" value="Deploy on AWS">
 <meta name="pageOrderInSection" value="700">
