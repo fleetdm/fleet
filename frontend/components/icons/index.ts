@@ -44,6 +44,7 @@ import AppleCircledGrey from "./AppleCircledGrey";
 import LinuxGreen from "./LinuxGreen";
 import WindowsBlue from "./WindowsBlue";
 import RedEncircledChrome from "./RedEncircledChrome";
+import ChromeCircledGrey from "./ChromeCircledGrey";
 
 // Status Icons
 import Success from "./Success";
@@ -128,6 +129,7 @@ export const ICON_MAP = {
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,
   "chrome-red": RedEncircledChrome,
+  "chrome-grey": ChromeCircledGrey,
   profile: Profile,
   download: Download,
   files: Files,
