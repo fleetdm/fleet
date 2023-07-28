@@ -568,5 +568,14 @@ Fleet is tested with Redis 5.0.14 and 6.2.7. Any version Redis after version 5 w
 
 Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups.
 
+## What happened to scheduled queries in 4.35? 
+Scheduled queries are not gone! Instead the concept of a scheduled query has been merged with a saved query. 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and pack into the new merged query concept.
+
+Before 4.35, a scheduled query was a separate item treated at the same level as a query. After 4.35, there will only be one page of queries and a query can be scheduled or it can simply be saved to be run ad-hoc. Queries can now belong to teams or they can be a global query which every team inherits.
+
+When you upgrade to 4.35, any global scheduled query will have its query be converted into a global query with the relevant schedule characteristics (frequency, min. osquery version, logging, etc.). Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
+
+Packs will not be affected by this change. If a query is referenced by a pack, a global query will be generated and the pack will continue to point to that query. All changes are backwards compatible.
+
 
 <meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community.">
