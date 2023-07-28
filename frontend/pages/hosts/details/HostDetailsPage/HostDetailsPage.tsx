@@ -18,7 +18,6 @@ import {
   IHost,
   IDeviceMappingResponse,
   IMacadminsResponse,
-  IPackStats,
   IHostResponse,
   IHostMdmData,
   IPackStats,
@@ -33,7 +32,6 @@ import {
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { IQueryStats } from "interfaces/query_stats";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
