@@ -50,7 +50,7 @@ jobs:
         #   - Unattended installation of Docker on macOS fails. (see
         #   https://github.com/docker/for-mac/issues/6450)
         os: [ubuntu-latest]
-        go-version: ['1.19.10']
+        go-version: ['1.19.11']
     runs-on: ${{ matrix.os }}
     steps:
 

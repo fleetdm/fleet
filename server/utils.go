@@ -51,22 +51,22 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to POST to %s: %s, request-size=%d", maskSecretURLParams(url), err, len(jsonBytes))
+		return fmt.Errorf("failed to POST to %s: %s, request-size=%d", MaskSecretURLParams(url), MaskURLError(err), len(jsonBytes))
 	}
 	defer resp.Body.Close()
 
 	if !httpSuccessStatus(resp.StatusCode) {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("error posting to %s: %d. %s", maskSecretURLParams(url), resp.StatusCode, string(body))
+		return fmt.Errorf("error posting to %s: %d. %s", MaskSecretURLParams(url), resp.StatusCode, string(body))
 	}
 
 	return nil
 }
 
-// maskSecretURLParams masks URL query values if the query param name includes "secret", "token",
+// MaskSecretURLParams masks URL query values if the query param name includes "secret", "token",
 // "key", "password". It accepts a raw string and returns a redacted string if the raw string is
 // URL-parseable. If it is not URL-parseable, the raw string is returned unchanged.
-func maskSecretURLParams(rawURL string) string {
+func MaskSecretURLParams(rawURL string) string {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return rawURL
@@ -92,6 +92,17 @@ func maskSecretURLParams(rawURL string) string {
 	u.RawQuery = q.Encode()
 
 	return u.Redacted()
+}
+
+// MaskURLError checks if the provided error is a *url.Error. If so, it applies MaskSecretURLParams
+// to the URL value and returns the modified error. If not, the error is returned unchanged.
+func MaskURLError(e error) error {
+	ue, ok := e.(*url.Error)
+	if !ok {
+		return e
+	}
+	ue.URL = MaskSecretURLParams(ue.URL)
+	return ue
 }
 
 // TODO: Consider moving other crypto functions from server/mdm/apple/util to here

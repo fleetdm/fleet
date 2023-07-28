@@ -75,7 +75,7 @@ It takes a fully-activated mind to achieve ambitious goals. Think like an owner 
 We work to get results. How we work determines what we get.  Aim to deliver results daily.
 
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always publish.
-- **Start quickly.** Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) -->
+- **Start quickly.** Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  [Satisfice](https://longform.asmartbear.com/maximizing) first. Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) -->
 - **Keep it simple.** Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). <!-- Practicality over sophistication. -->
 - **Be realistic.** Focus on one or two tasks at a time.  When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge. <!-- Practice self-care. -->
 
@@ -108,7 +108,7 @@ A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security
 When Kolide's attention shifted away from Fleet, and towards their separate, user-focused SaaS offering, the Fleet community took over maintenance of the open source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
 
 ### 2020: Fleet was incorporated
-Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/company/ceo-handbook), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
+Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/company/ceo), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
 ### 2022: Millions of hosts
 Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
@@ -124,7 +124,7 @@ Above and beyond the organizational chart, Fleet organizes cross-functional grou
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
-[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/ceo-handbook).)
+[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/ceo).)
 
 ## Strategy
 
@@ -164,7 +164,7 @@ Please see [📖Company#strategy](#strategy).
 
 ##### CEO handbook
 
-Please see [📖Company#CEO](https://fleetdm.com/handbook/company/ceo-handbook).
+Please see [📖Company#CEO](https://fleetdm.com/handbook/company/ceo).
 
 
 <meta name="maintainedBy" value="mikermcneil">

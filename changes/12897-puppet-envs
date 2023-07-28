@@ -1,0 +1,1 @@
+* Allow the puppet module to read different Fleet URL/token combinations for different environments

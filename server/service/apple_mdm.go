@@ -2143,6 +2143,10 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 type callbackMDMAppleSSORequest struct{}
 
+// TODO: these errors will result in JSON being returned, but we should
+// redirect to the UI and let the UI display an error instead. The errors are
+// rare enough (malformed data coming from the SSO provider) so they shouldn't
+// affect many users.
 func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
@@ -2162,8 +2166,6 @@ func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Req
 }
 
 type callbackMDMAppleSSOResponse struct {
-	Err error `json:"error,omitempty"`
-
 	redirectURL string
 }
 
@@ -2172,25 +2174,23 @@ func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.Re
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func (r callbackMDMAppleSSOResponse) error() error { return r.Err }
+// Error will always be nil because errors are handled by sending a query
+// parameter in the URL response, this way the UI is able to display an erorr
+// message.
+func (r callbackMDMAppleSSOResponse) error() error { return nil }
 
 func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	auth := request.(fleet.Auth)
-
-	// validate that the SSO response is valid
-	redirectURL, err := svc.InitiateMDMAppleSSOCallback(ctx, auth)
-	if err != nil {
-		return callbackMDMAppleSSOResponse{Err: err}, nil
-	}
+	redirectURL := svc.InitiateMDMAppleSSOCallback(ctx, auth)
 	return callbackMDMAppleSSOResponse{redirectURL: redirectURL}, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) string {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", fleet.ErrMissingLicense
+	return apple_mdm.FleetUISSOCallbackPath + "?error=true"
 }
 
 ////////////////////////////////////////////////////////////////////////////////
