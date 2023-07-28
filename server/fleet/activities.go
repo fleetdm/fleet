@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 )
 
-//go:generate go run gen_activity_doc.go ../../docs/Using-Fleet/Audit-Activities.md
+// go:generate go run gen_activity_doc.go "../../docs/Using Fleet/Audit-logs.md"
 
 // ActivityDetailsList is used to generate documentation.
 var ActivityDetailsList = []ActivityDetails{
