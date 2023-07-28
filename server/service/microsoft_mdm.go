@@ -1576,7 +1576,7 @@ func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *i
 	// installed only the first time the message is issued.
 	// FleetURL and FleetSecret properties are passed to the Fleet MSI
 	// See here for more information: https://learn.microsoft.com/en-us/windows/win32/msi/command-line-options
-	installCommandPayload := `<MsiInstallJob id="{f5645004-3214-46ea-92c2-48835689da06}">
+	installCommandPayload := `<MsiInstallJob id="{2592166F-1375-4D87-8EEF-AE35F2C48557}">
 					<Product Version="1.0.0.0">
 						<Download>
 							<ContentURLList>
@@ -1599,7 +1599,7 @@ func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *i
 				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
 				<Item>
 					<Target>
-					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7Bf5645004-3214-46ea-92c2-48835689da06%7D/DownloadInstall</LocURI>
+					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7B2592166F-1375-4D87-8EEF-AE35F2C48557%7D/DownloadInstall</LocURI>
 					</Target>
 				</Item>
 				</Add>
@@ -1607,7 +1607,7 @@ func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *i
 				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
 				<Item>
 					<Target>
-					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7Bf5645004-3214-46ea-92c2-48835689da06%7D/DownloadInstall</LocURI>
+					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7B2592166F-1375-4D87-8EEF-AE35F2C48557%7D/DownloadInstall</LocURI>
 					</Target>
 					<Data>` + html.EscapeString(installCommandPayload) + `</Data>
 					<Meta>
