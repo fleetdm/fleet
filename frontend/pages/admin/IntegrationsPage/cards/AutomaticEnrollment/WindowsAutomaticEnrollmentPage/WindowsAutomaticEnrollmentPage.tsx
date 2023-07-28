@@ -33,8 +33,8 @@ const WindowsAutomaticEnrollmentPage = () => {
         <h1>Azure Active Directory</h1>
         <p>
           The end user will see Microsoft&apos;s default initial setup. You can
-          further simplify the initial device setup with Autopilot (Apple DEP
-          equivalent).{" "}
+          further simplify the initial device setup with Autopilot, which is
+          similar to Apple&apos;s Automated Device Enrollment (DEP).{" "}
           <CustomLink
             newTab
             text="Learn more"
