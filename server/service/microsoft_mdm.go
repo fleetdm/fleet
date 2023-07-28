@@ -1167,56 +1167,58 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
 	tmpl, err := template.New("").Parse(`
 	<html>
-		<styles>
-		.mdm-windows-sso-callback-page {
-			font-family: "Inter", sans-serif;
-			height: 100vh;
-			background-color: $core-white;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-		}
+		<head>
+			<style>
+				.mdm-windows-sso-callback-page {
+					font-family: "Inter", sans-serif;
+					height: 100vh;
+					background-color: $core-white;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+				}
 
-		.main-content {
-			paddding: 40px;
-		}
+				.main-content {
+					padding: 40px;
+				}
 
-		.eula-wrapper {
-			width: 80vw;
-			text-align: center;
-		}
+				.eula-wrapper {
+					width: 80vw;
+					text-align: center;
+				}
 
-		h1 {
-			font-size: 28px;
-			font-weight: bold;
-			margin-bottom: 42px;
-		}
+				h1 {
+					font-size: 28px;
+					font-weight: bold;
+					margin-bottom: 42px;
+				}
 
-		p {
-			background-color: red;
-			height: 65vh;
-		}
+				p {
+					background-color: red;
+					height: 65vh;
+				}
 
-		button {
-			border: none;
-			border-radius: 4px;
-			cursor: pointer;
-			color: white;
-			background-color: #192147;
-			padding: 8px 16px;
-			font-size: 18px;
-			width: 341px;
-			height: 78px;
-		}
-		</styles>
-		<script type='text/javascript'>
-			const agreeToTerms = () => {
-				const urlParams = new URLSearchParams(window.location.search);
-				const redirectURI = urlParams.get("redirect_uri");
+				button {
+					border: none;
+					border-radius: 4px;
+					cursor: pointer;
+					color: white;
+					background-color: #192147;
+					padding: 8px 16px;
+					font-size: 18px;
+					width: 341px;
+					height: 78px;
+				}
+			</style>
+			<script type='text/javascript'>
+				const agreeToTerms = () => {
+					const urlParams = new URLSearchParams(window.location.search);
+					const redirectURI = urlParams.get("redirect_uri");
 
-				window.location = "{{.RedirectURL}}" + "?IsAccepted=true&OpaqueBlob={{.ClientData}}";
-			};
-		</script>
+					window.location = "{{.RedirectURL}}" + "?IsAccepted=true&OpaqueBlob={{.ClientData}}";
+				};
+			</script>
+		</head>
 		<body>
 			<div class="main-content">
 				<div class="mdm-windows-sso-callback-page">
