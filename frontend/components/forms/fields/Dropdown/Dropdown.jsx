@@ -6,6 +6,7 @@ import Select from "react-select";
 
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
+import CustomDropdownIndicator from "pages/hosts/ManageHostsPage/components/CustomDropdownIndicator";
 
 const baseClass = "dropdown";
 
@@ -159,6 +160,9 @@ class Dropdown extends Component {
           onOpen={onMenuOpen}
           onClose={onMenuClose}
           autoFocus={autoFocus}
+          components={{
+            DropdownIndicator: CustomDropdownIndicator,
+          }}
         />
       </FormField>
     );

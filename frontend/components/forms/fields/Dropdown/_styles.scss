@@ -113,15 +113,15 @@
     }
   }
 
-  .Select-arrow {
-    content: url("../assets/images/icon-chevron-black-16x16@2x.png");
-    height: 16px;
-    width: 16px;
-    vertical-align: middle;
-    margin-top: -1px;
-    margin-left: -4px;
-    border: none;
-  }
+  // .Select-arrow {
+  //   content: url("../assets/images/icon-chevron-black-16x16@2x.png");
+  //   height: 16px;
+  //   width: 16px;
+  //   vertical-align: middle;
+  //   margin-top: -1px;
+  //   margin-left: -4px;
+  //   border: none;
+  // }
 
   &.is-focused {
     &.dropdown__select {
@@ -140,32 +140,42 @@
     .Select-control {
       border-radius: $border-radius;
 
-      .Select-arrow {
-        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-        height: 16px;
-        width: 16px;
-        margin-left: -4px;
-        border: none;
-        top: 0px;
-      }
+      // .Select-arrow {
+      //   content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      //   height: 16px;
+      //   width: 16px;
+      //   margin-left: -4px;
+      //   border: none;
+      //   top: 0px;
+      // }
     }
   }
   :hover {
     .Select-arrow {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      height: 16px;
-      width: 16px;
-      margin-left: -4px;
-      border: none;
+      svg {
+        path {
+          stroke: $core-vibrant-blue;
+        }
+      }
+
+      // content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      // height: 16px;
+      // width: 16px;
+      // margin-left: -4px;
+      // border: none;
     }
     &.is-open {
-      .Select-arrow {
-        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-        height: 16px;
-        width: 16px;
-        margin-left: -4px;
-        border: none;
+      svg path {
+        stroke: $core-vibrant-blue;
       }
+
+      // .Select-arrow {
+      //   content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      //   height: 16px;
+      //   width: 16px;
+      //   margin-left: -4px;
+      //   border: none;
+      // }
     }
   }
 

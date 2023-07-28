@@ -1,11 +1,15 @@
 .label-filter-select {
   width: 175px;
 
+  svg {
+    transition: transform 0.25s ease;
+  }
+
   &:hover {
     // no access to hover state from react-select in JS so this is done here.
     .custom-dropdown-indicator {
       & path {
-        fill: $core-vibrant-blue;
+        stroke: $core-vibrant-blue;
       }
     }
   }
@@ -20,6 +24,13 @@
     &:hover {
       box-shadow: none;
       border: 1px solid $core-vibrant-blue;
+    }
+    &--is-focused,
+    &--menu-is-open {
+      svg {
+        transform: rotate(180deg);
+        transition: transform 0.25s ease;
+      }
     }
   }
 

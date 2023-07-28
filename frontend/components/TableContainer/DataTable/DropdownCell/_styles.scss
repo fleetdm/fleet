@@ -66,11 +66,11 @@
       left: -12px;
     }
 
-    &:not(.is-open) {
-      .Select-control:hover .Select-arrow {
-        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      }
-    }
+    // &:not(.is-open) {
+    //   .Select-control:hover .Select-arrow {
+    //     content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+    //   }
+    // }
 
     &.is-open {
       .Select-control .Select-placeholder {
