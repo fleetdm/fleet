@@ -1,6 +1,6 @@
-# Deploy Fleet on AWS with Terraform
+# Deploy Fleet on AWS
 
-There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render). This time, we’re going to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
+Learn how to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
 
 Deploying on AWS with Fleet’s reference architecture is an easy way to get a fully functional Fleet instance that can scale to your needs.
 
@@ -267,7 +267,7 @@ During this process, terraform will create a `hosted zone` with an `NS` record f
 
 Let’s say we own `queryops.com` and have an ACM certificate issued to it. We want to host Fleet at `fleet.queryops.com` so in this case, we’ll need to hand nameserver authority over to `fleet.queryops.com` before ACM will verify via DNS and issue the certificate. To make this work, we need to create an `NS` record on `queryops.com` and copy the `NS` records that were created by terraform for the `fleet.queryops.com` hosted zone.
 
-![Route 53 QueryOps Hosted Zone](../website/assets/images/articles/deploying-fleet-on-aws-with-terraform-1-622x250@2x.png)
+![Route 53 QueryOps Hosted Zone](../docs/images/deploy-on-aws-1-622x250@2x.png)
 
 
 ### Modifying the Fleet configuration
@@ -327,9 +327,7 @@ This particular issue would only be encountered for the largest of Fleet deploym
 
 More troubleshooting tips can be found here https://fleetdm.com/docs/deploying/faq
 
-<meta name="category" value="deploy">
-<meta name="authorGitHubUsername" value="edwardsb">
-<meta name="authorFullName" value="Ben Edwards">
-<meta name="publishedOn" value="2021-11-30">
-<meta name="articleTitle" value="Deploy Fleet on AWS with Terraform">
-<meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-aws-with-terraform-cover-1600x900@2x.jpg">
+<meta name="title" value="Deploy on AWS">
+<meta name="pageOrderInSection" value="700">
+<meta name="description" value="Learn how to deploy Fleet on AWS">
+<meta name="navSection" value="Deployment guides">
