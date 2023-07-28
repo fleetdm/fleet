@@ -4,7 +4,7 @@ import { IOsQueryTable } from "interfaces/osquery_table";
 import osqueryFleetTablesJSON from "../../schema/osquery_fleet_schema.json";
 
 // Typecasting explicity here as we are adding more rigid types such as
-// IOsqueryPlatform for platform names, instead of just any strings.
+// OsqueryPlatform for platform names, instead of just any strings.
 const queryTable = osqueryFleetTablesJSON as IOsQueryTable[];
 
 export const osqueryTables = queryTable.sort((a, b) => {
