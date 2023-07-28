@@ -2199,7 +2199,8 @@ currently pending.
 
 | Name | Type   | In    | Description                               |
 | ---- | ------ | ----- | ----------------------------------------- |
-| name | string | query | The name of the cron schedule to trigger. |
+| name | string | query | The name of the cron schedule to trigger. Supported trigger names are `apple_mdm_dep_profile_assigner`, `automations`, `cleanups_then_aggregation`, `integrations`, `mdm_apple_profile_manager`, `usage_statistics`, and `vulnerabilities`|
+ 
 
 #### Example
 

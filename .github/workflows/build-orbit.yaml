@@ -43,7 +43,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4.0.1
         with:
-          go-version: 1.19.10
+          go-version: 1.19.11
 
       - name: Build, codesign and notarize orbit
         run: go run ./orbit/tools/build/build.go 

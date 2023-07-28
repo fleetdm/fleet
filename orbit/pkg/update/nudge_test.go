@@ -2,8 +2,11 @@ package update
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,10 +59,24 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 		opt:    Options{Targets: make(map[string]TargetInfo), RootDirectory: tmpDir},
 	}
 	runner := &Runner{updater: updater, localHashes: make(map[string][]byte)}
-	interval := time.Minute
+	interval := time.Second
 	cfg := &fleet.OrbitConfig{}
 	nudgePath := "nudge/macos/stable/nudge.app.tar.gz"
+
+	// set up mock runNudgeFn to capture exec command
+	var execCmd func(command string, args ...string) *exec.Cmd
+	var execOut string
+	runNudgeFnInvoked := false
 	runNudgeFn := func(execPath, configPath string) error {
+		runNudgeFnInvoked = true
+		if execCmd != nil {
+			cmd := execCmd(execPath, configPath)
+			out, err := cmd.Output()
+			if err != nil {
+				return err
+			}
+			execOut = string(out)
+		}
 		return nil
 	}
 
@@ -169,7 +186,77 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	require.NoError(t, err)
 	require.Equal(t, cfg.NudgeConfig, &savedConfig)
 
-	// nudge is removed from targets when the config config is present
+	// mock exec command to test handling of nudge launch errors
+	wantCmd := filepath.Join(
+		tmpDir,
+		"bin",
+		"nudge",
+		NudgeMacOSTarget.Platform,
+		NudgeMacOSTarget.Channel,
+		NudgeMacOSTarget.ExtractedExecSubPath[0],
+	)
+	wantArgs := []string{fmt.Sprintf("file://%s", configPath)}
+	runNudgeFnInvoked = false
+
+	// nudge launches successfully
+	time.Sleep(1 * time.Second)
+	execCmd = mockExecCommand(t, "mock stdout", "", wantCmd, wantArgs...)
+	_, err = f.GetConfig()
+	require.NoError(t, err)
+	require.Equal(t, "mock stdout", execOut)
+	require.True(t, runNudgeFnInvoked)
+	runNudgeFnInvoked = false
+	execOut = ""
+
+	// nudge isn't disabled if error is not an ExitError
+	time.Sleep(1 * time.Second)
+	execCmd = func(command string, args ...string) *exec.Cmd {
+		return exec.Command("non-existent-command")
+	}
+	_, err = f.GetConfig()
+	require.ErrorContains(t, err, "exec: \"non-existent-command\": executable file not found in")
+	require.Empty(t, execOut)
+	require.True(t, runNudgeFnInvoked)
+	runNudgeFnInvoked = false
+
+	// nudge launches successfully
+	time.Sleep(1 * time.Second)
+	execCmd = mockExecCommand(t, "mock stdout", "", wantCmd, wantArgs...)
+	_, err = f.GetConfig()
+	require.NoError(t, err)
+	require.Equal(t, "mock stdout", execOut)
+	require.True(t, runNudgeFnInvoked)
+	runNudgeFnInvoked = false
+	execOut = ""
+
+	// nudge fails to launch, stderr is captured and logged
+	time.Sleep(1 * time.Second)
+	execCmd = mockExecCommand(t, "", "mock stderr", wantCmd, wantArgs...)
+	_, err = f.GetConfig()
+	require.ErrorContains(t, err, "exit status 1: mock stderr")
+	require.Empty(t, execOut)
+	require.True(t, runNudgeFnInvoked)
+	runNudgeFnInvoked = false
+
+	// after launch error, nudge will not launch again
+	time.Sleep(1 * time.Second)
+	_, err = f.GetConfig()
+	require.NoError(t, err)
+	require.Empty(t, execOut)
+	require.False(t, runNudgeFnInvoked)
+	time.Sleep(1 * time.Second)
+	_, err = f.GetConfig()
+	require.NoError(t, err)
+	require.Empty(t, execOut)
+	require.False(t, runNudgeFnInvoked)
+	time.Sleep(1 * time.Second)
+	_, err = f.GetConfig()
+	require.NoError(t, err)
+	require.NoError(t, err)
+	require.Empty(t, execOut)
+	require.False(t, runNudgeFnInvoked)
+
+	// nudge is removed from targets when the config is not present
 	cfg.NudgeConfig = nil
 	gotCfg, err = f.GetConfig()
 	require.NoError(t, err)
@@ -179,4 +266,59 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	ti, ok = targets["nudge"]
 	require.False(t, ok)
 	require.Empty(t, ti)
+}
+
+// TestHelperProcess is a helper process used for tests that mock exec.Command
+//
+// Inspired by: https://npf.io/2015/06/testing-exec-command/
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	wantCmd := os.Getenv("GO_WANT_HELPER_PROCESS_COMMAND")
+	if gotCmd := os.Args[3]; gotCmd != wantCmd {
+		fmt.Fprint(os.Stderr, fmt.Sprintf("expected command %s but got %s", wantCmd, gotCmd))
+		os.Exit(1)
+		return
+	}
+	wantArgs := os.Getenv("GO_WANT_HELPER_PROCESS_ARGS")
+	if gotArgs := os.Args[4]; gotArgs != wantArgs {
+		fmt.Fprint(os.Stderr, fmt.Sprintf("expected arg %s but got %s", wantArgs, gotArgs))
+		os.Exit(1)
+		return
+	}
+	fmt.Fprintf(os.Stdout, os.Getenv("GO_WANT_HELPER_PROCESS_STDOUT"))
+
+	err := os.Getenv("GO_WANT_HELPER_PROCESS_STDERR")
+	if err != "" {
+		fmt.Fprintf(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	os.Exit(0)
+
+	return
+}
+
+// mockExecCommand returns a function that can be used to mock exec.Command using TestHelperProcess.
+func mockExecCommand(t *testing.T, mockStdout string, mockStderr string, wantCommand string, wantArgs ...string) func(command string, args ...string) *exec.Cmd {
+	return func(command string, args ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcess", "--", command}
+		cs = append(cs, args...)
+
+		cmd := exec.Command(os.Args[0], cs...) //nolint:gosec // this is a test helper
+		cmd.Env = []string{
+			"GO_WANT_HELPER_PROCESS=1",
+			fmt.Sprintf("GO_WANT_HELPER_PROCESS_COMMAND=%s", wantCommand),
+			fmt.Sprintf("GO_WANT_HELPER_PROCESS_ARGS=%s", strings.Join(wantArgs, " ")),
+		}
+		if mockStdout != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("GO_WANT_HELPER_PROCESS_STDOUT=%s", mockStdout))
+		}
+		if mockStderr != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("GO_WANT_HELPER_PROCESS_STDERR=%s", mockStderr))
+		}
+
+		return cmd
+	}
 }

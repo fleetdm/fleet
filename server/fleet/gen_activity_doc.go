@@ -15,7 +15,7 @@ func main() {
 	var b strings.Builder
 
 	b.WriteString(`<!-- DO NOT EDIT. This document is automatically generated. -->
-# Audit activities
+# Audit logs
 
 Fleet logs the following information for administrative actions (in JSON):
 
@@ -64,9 +64,9 @@ Example:
 		}
 	}
 	b.WriteString(`
-
 <meta name="pageOrderInSection" value="1400">
 <meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">
+<meta name="navSection" value="Dig deeper">
 `)
 
 	if err := os.WriteFile(os.Args[1], []byte(b.String()), 0600); err != nil {

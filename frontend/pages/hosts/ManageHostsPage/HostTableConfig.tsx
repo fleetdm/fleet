@@ -154,7 +154,15 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
     accessor: "display_name",
     Cell: (cellProps: ICellProps) => {
-      if (cellProps.row.original.mdm.enrollment_status === "Pending") {
+      if (
+        // if the host is pending, we want to disable the link to host details
+        cellProps.row.original.mdm.enrollment_status === "Pending" &&
+        // pending status is only supported for macos devices
+        cellProps.row.original.platform === "darwin" &&
+        // osquery version is populated along with the rest of host details so use it
+        // here to check if we already have host details and don't need to disable the link
+        !cellProps.row.original.osquery_version
+      ) {
         return (
           <>
             <span

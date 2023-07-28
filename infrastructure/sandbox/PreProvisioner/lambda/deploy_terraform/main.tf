@@ -195,7 +195,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "crons.vulnerabilities"
-    value = "${random_integer.cron_offset.result}\\,${random_integer.cron_offset.result + 15}\\,${random_integer.cron_offset.result + 30}\\,${random_integer.cron_offset.result + 45} * * * *"
+    value = "${random_integer.cron_offset.result}\\,${random_integer.cron_offset.result + 15}\\,${random_integer.cron_offset.result + 30}\\,${random_integer.cron_offset.result + 45} 0,13-23 * * *"
   }
 
   set {
@@ -211,16 +211,6 @@ resource "helm_release" "main" {
   set {
     name  = "apm.token"
     value = var.apm_token
-  }
-
-  set {
-    name  = "resources.limits.memory"
-    value = "512Mi"
-  }
-
-  set {
-    name  = "resources.requests.memory"
-    value = "512Mi"
   }
 }
 
