@@ -14,22 +14,16 @@ We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we cre
 We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
 
 #### Internal meeting scheduling
-Use the Google Calendar "[Find a meeting time](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar)" feature to coordinate meetings with Fleet team members. Enter the `@fleetdm.com` emails for each
-participant into the "Meet with..." box in Google Calendar, and the calendar availability for each
-participant will appear in your view. Then, when you select a meeting time, those participants will
-automatically be invited, and a video conference will be attached to the invite.
-Please prefer this strategy over negotiating meeting times via chat -- This can save a lot of
-communication overhead, especially when scheduling with multiple participants.
-It is important to [set your working
-hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in
-Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently
-schedule a time when you are not available. Many team members use the free tier of
-[reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into
-their work calendars. It is also common practice to block out time for focused work.
+Use the Google Calendar "[Find a meeting time](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar)" feature to coordinate meetings with Fleet team members. 
+Enter the `@fleetdm.com` emails for each participant into the "Meet with..." box in Google Calendar, and the calendar availability for each participant will appear in your view. Then, when you select a meeting time, those participants will automatically be invited, and a video conference will be attached to the invite.
+Please prefer this strategy over negotiating meeting times via chat -- This can save a lot of communication overhead, especially when scheduling with multiple participants.
+It is important to [set your workinghours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. 
+Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
+It is also common practice to block out time for focused work.
 
 ##### Modifying an event organized by someone else
 To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
-> This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
+This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
 
 #### External meeting scheduling
 When scheduling external meetings, provide external participants with a
@@ -37,5 +31,5 @@ When scheduling external meetings, provide external participants with a
 need a Calendly account, reach out to `mikermcneil` via Slack.
 TODO
 
-<meta name="maintainedBy" value="mikermcneil">
+<meta name="maintainedBy" value="sampfluger88">
 <meta name="title" value="📡 Communication">
