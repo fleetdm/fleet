@@ -1584,7 +1584,7 @@ func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *i
 							</ContentURLList>
 						</Download>
 						<Validation>
-							<FileHash>7D127BA8F8CC5937DB3052E2632D672120217D910E271A58565BBA780ED8F05C</FileHash>
+							<FileHash>D9A64EBCAE085F9DCD4EABC20ABF198283852ADF5C3DD75FC21EC574ED5C0579</FileHash>
 						</Validation>
 						<Enforcement>
 							<CommandLine>/quiet FLEET_URL ="` + fleetEnrollUrl + `" FLEET_SECRET="` + globalEnrollSecret + `"</CommandLine>
