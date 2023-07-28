@@ -52,7 +52,7 @@ Fleet allows you to schedule queries to run at a set frequency. Scheduled querie
 
 The default log destination, **filesystem**, is good to start. With this set, data is sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [log destinations page](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-By default, queries that have been configured to run at a set schedule will only target platforms compatible with that query. This behavior can be overriden by setting the platforms in the "advanced options" when saving a query.
+By default, queries that run on a schedule will only target platforms compatible with that query. This behavior can be overridden by setting the platforms in the "advanced options" when saving a query.
 
 **How to schedule queries:**
 
@@ -76,12 +76,11 @@ With Fleet Premium, you can schedule queries for groups of hosts using [the team
 
 3. In the **Teams** dropdown below the top navigation, select the team you want to manage automation for.
 
-   > Note: Only queries that are availible for the selected team will be listed. When configuring query automations for all hosts, only queries that belong to all teams will be listed.
-
 4. Select **Manage automations**
 
 5. Select the queries you want to run on a schedule for this team, and select **Save**.
 
+   > Note: Only queries that belong to the selected team will be listed. When configuring query automations for all hosts, only global queries will be listed.
 
 ## Update agent options
 
