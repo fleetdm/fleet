@@ -30,11 +30,16 @@ This section provides instructions for migrating your hosts away from your old M
     * Note that there will be a gap in MDM coverage between when the host is unenrolled from the old
       MDM and when the host turns on MDM in Fleet.
 
-You can also optionally set a dark and light background logo that the end user will see on their
-device during the completion of their migration. This can be set by going to **Settings** > **Organization settings** > **Organization info** and adding a url to the desired image in the
-**Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light
-backgrounds)** inputs. These images will show depending on the system theme that the
-user is running on their device during the end user migration flow.
+### End user migration workflow
+
+During the end user migration workflow to Fleet MDM, a user's device will have their selected system
+theme (light or dark) applied. If your logo does not look good on either light or dark backgrounds,
+you can optionally set an alternate logo for the themes.
+
+You can do this in the Fleet UI by going to **Settings** > **Organization settings** >
+**Organization info** and adding a url to the desired image in the **Organization avatar URL (for
+dark backgrounds)** and **Organization avatar URL (for light backgrounds)** inputs. The appropriate
+image will show depending on the selected system theme.
 
 ## FileVault recovery keys
 
