@@ -78,11 +78,11 @@ func TestDeleteQuery(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var deletedQuery string
-	ds.DeleteQueryFunc = func(ctx context.Context, name string) error {
+	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
 		deletedQuery = name
 		return nil
 	}
-	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		if name != "query1" {
 			return nil, nil
 		}

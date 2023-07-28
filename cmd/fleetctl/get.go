@@ -102,7 +102,7 @@ func printLabel(c *cli.Context, label *fleet.LabelSpec) error {
 	return printSpec(c, spec)
 }
 
-func printQuery(c *cli.Context, query *fleet.QuerySpec) error {
+func printQuerySpec(c *cli.Context, query *fleet.QuerySpec) error {
 	spec := specGeneric{
 		Kind:    fleet.QueryKind,
 		Version: fleet.ApiVersion,
@@ -298,12 +298,74 @@ func getCommand() *cli.Command {
 	}
 }
 
+func queryToTableRow(query fleet.Query, teamName string) []string {
+	platform := "all"
+	if query.Platform != "" {
+		platform = query.Platform
+	}
+
+	minOsqueryVersion := "all"
+	if query.MinOsqueryVersion != "" {
+		minOsqueryVersion = query.MinOsqueryVersion
+	}
+
+	scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s",
+		query.Interval,
+		platform,
+		minOsqueryVersion,
+		query.AutomationsEnabled,
+		query.Logging,
+	)
+
+	teamNameOut := teamName
+	if teamName == "" {
+		teamNameOut = "All teams"
+	}
+
+	return []string{
+		query.Name,
+		query.Description,
+		query.Query,
+		teamNameOut,
+		scheduleInfo,
+	}
+}
+
+func printInheritedQueriesMsg(client *service.Client, teamID *uint) error {
+	if teamID != nil {
+		globalQueries, err := client.GetQueries(nil)
+		if err != nil {
+			return fmt.Errorf("could not list global queries: %w", err)
+		}
+
+		if len(globalQueries) > 0 {
+			fmt.Printf("Not showing %d inherited queries. To see global queries, run this command without the `--team` flag.\n", len(globalQueries))
+		}
+		return nil
+	}
+
+	return nil
+}
+
+func printNoQueriesFoundMsg(teamID *uint) {
+	if teamID != nil {
+		fmt.Println("No team queries found.")
+		return
+	}
+	fmt.Println("No global queries found.")
+	fmt.Println("To see team queries, run this command with the --team flag.")
+}
+
 func getQueriesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "queries",
 		Aliases: []string{"query", "q"},
 		Usage:   "List information about one or more queries",
 		Flags: []cli.Flag{
+			&cli.UintFlag{
+				Name:  teamFlagName,
+				Usage: "filter queries by team_id (0 means global)",
+			},
 			jsonFlag(),
 			yamlFlag(),
 			configFlag(),
@@ -318,9 +380,27 @@ func getQueriesCommand() *cli.Command {
 
 			name := c.Args().First()
 
-			// if name wasn't provided, list all queries
+			var teamID *uint
+			var teamName string
+
+			if tid := c.Uint(teamFlagName); tid != 0 {
+				teamID = &tid
+				team, err := client.GetTeam(*teamID)
+				if err != nil {
+					var notFoundErr service.NotFoundErr
+					if errors.As(err, &notFoundErr) {
+						// Do not error out, just inform the user and 'gracefully' exit.
+						fmt.Println("Team not found.")
+						return nil
+					}
+					return fmt.Errorf("get team: %w", err)
+				}
+				teamName = team.Name
+			}
+
+			// if name wasn't provided, list either all global queries or all team queries...
 			if name == "" {
-				queries, err := client.GetQueries()
+				queries, err := client.GetQueries(teamID)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -350,44 +430,54 @@ func getQueriesCommand() *cli.Command {
 				}
 
 				if len(queries) == 0 {
-					fmt.Println("No queries found")
+					printNoQueriesFoundMsg(teamID)
+					if err := printInheritedQueriesMsg(client, teamID); err != nil {
+						return err
+					}
 					return nil
 				}
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
-						if err := printQuery(c, &fleet.QuerySpec{
+						if err := printQuerySpec(c, &fleet.QuerySpec{
 							Name:        query.Name,
 							Description: query.Description,
 							Query:       query.Query,
+
+							TeamName:           teamName,
+							Interval:           query.Interval,
+							ObserverCanRun:     query.ObserverCanRun,
+							Platform:           query.Platform,
+							MinOsqueryVersion:  query.MinOsqueryVersion,
+							AutomationsEnabled: query.AutomationsEnabled,
+							Logging:            query.Logging,
 						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
 					}
 				} else {
 					// Default to printing as a table
-					data := [][]string{}
+					rows := [][]string{}
 
+					columns := []string{"name", "description", "query", "team", "schedule"}
 					for _, query := range queries {
-						data = append(data, []string{
-							query.Name,
-							query.Description,
-							query.Query,
-						})
+						rows = append(rows, queryToTableRow(query, teamName))
 					}
 
-					columns := []string{"name", "description", "query"}
-					printTable(c, columns, data)
+					printQueryTable(c, columns, rows)
+					if err := printInheritedQueriesMsg(client, teamID); err != nil {
+						return err
+					}
 				}
 				return nil
 			}
 
-			query, err := client.GetQuery(name)
+			query, err := client.GetQuerySpec(teamID, name)
 			if err != nil {
 				return err
 			}
 
-			if err := printQuery(c, query); err != nil {
+			if err := printQuerySpec(c, query); err != nil {
 				return fmt.Errorf("unable to print query: %w", err)
 			}
 
@@ -426,7 +516,7 @@ func getPacksCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  withQueriesFlagName,
-				Usage: "Output queries included in pack(s) too",
+				Usage: "Output queries included in pack(s) too, when used alongside --yaml or --json",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -457,7 +547,8 @@ func getPacksCommand() *cli.Command {
 					return nil
 				}
 
-				queries, err := client.GetQueries()
+				// Get global queries (teamID==nil), because 2017 packs reference global queries.
+				queries, err := client.GetQueries(nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -469,7 +560,7 @@ func getPacksCommand() *cli.Command {
 						continue
 					}
 
-					if err := printQuery(c, &fleet.QuerySpec{
+					if err := printQuerySpec(c, &fleet.QuerySpec{
 						Name:        query.Name,
 						Description: query.Description,
 						Query:       query.Query,
@@ -493,10 +584,8 @@ func getPacksCommand() *cli.Command {
 						if err := printPack(c, pack); err != nil {
 							return fmt.Errorf("unable to print pack: %w", err)
 						}
-
 						addQueries(pack)
 					}
-
 					return printQueries()
 				}
 
@@ -992,6 +1081,14 @@ func getUserRolesCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+func printQueryTable(c *cli.Context, columns []string, data [][]string) {
+	table := defaultTable(c.App.Writer)
+	table.SetHeader(columns)
+	table.SetReflowDuringAutoWrap(false)
+	table.AppendBulk(data)
+	table.Render()
 }
 
 func printTable(c *cli.Context, columns []string, data [][]string) {

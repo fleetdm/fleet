@@ -780,12 +780,6 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
-			"scheduled_query_aggregated_stats",
-			func(ctx context.Context) error {
-				return ds.UpdateScheduledQueryAggregatedStats(ctx)
-			},
-		),
-		schedule.WithJob(
 			"aggregated_munki_and_mdm",
 			func(ctx context.Context) error {
 				return ds.GenerateAggregatedMunkiAndMDM(ctx)

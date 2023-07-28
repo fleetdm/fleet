@@ -101,7 +101,7 @@ func testPoliciesNewGlobalPolicyLegacy(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, *policies[1].AuthorID)
 
 	// The original query can be removed as the policy owns it's own query.
-	require.NoError(t, ds.DeleteQuery(context.Background(), q.Name))
+	require.NoError(t, ds.DeleteQuery(context.Background(), nil, q.Name))
 
 	_, err = ds.DeleteGlobalPolicies(context.Background(), []uint{policies[0].ID, policies[1].ID})
 	require.NoError(t, err)

@@ -40,6 +40,10 @@ import (
 
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
+
+	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
+		return nil, nil
+	}
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
 	}
@@ -61,6 +65,30 @@ func TestGetClientConfig(t *testing.T) {
 			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+		if teamID == nil {
+			return nil, nil
+		}
+		return []*fleet.Query{
+			{
+				Query:             "SELECT 1 FROM table_1",
+				Name:              "Some strings carry more weight than others",
+				Interval:          10,
+				Platform:          "linux",
+				MinOsqueryVersion: "5.12.2",
+				Logging:           "snapshot",
+				TeamID:            ptr.Uint(1),
+			},
+			{
+				Query:    "SELECT 1 FROM table_2",
+				Name:     "You shall not pass",
+				Interval: 20,
+				Platform: "macos",
+				Logging:  "differential",
+				TeamID:   ptr.Uint(1),
+			},
+		}, nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`))}, nil
 	}
@@ -78,6 +106,7 @@ func TestGetClientConfig(t *testing.T) {
 
 	ctx1 := hostctx.NewContext(ctx, &fleet.Host{ID: 1})
 	ctx2 := hostctx.NewContext(ctx, &fleet.Host{ID: 2})
+	ctx3 := hostctx.NewContext(ctx, &fleet.Host{ID: 1, TeamID: ptr.Uint(1)})
 
 	expectedOptions := map[string]interface{}{
 		"baz": "bar",
@@ -141,6 +170,43 @@ func TestGetClientConfig(t *testing.T) {
 				"time":{"query":"select * from time","interval":30,"removed":false}
 			}
 		}
+	}`,
+		string(conf["packs"].(json.RawMessage)),
+	)
+
+	// Check scheduled queries are loaded properly
+	conf, err = svc.GetClientConfig(ctx3)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{ 
+		"pack_by_label": {
+			"queries":{
+				"time":{"query":"select * from time","interval":30,"removed":false}
+			}
+		},
+		"pack_by_other_label": {
+			"queries": {
+				"foobar":{"query":"select 3","interval":20,"shard":42},
+				"froobing":{"query":"select 'guacamole'","interval":60,"snapshot":true}
+			}
+		},
+		"team-1": {
+			"queries": {
+				"Some strings carry more weight than others": {
+					"query": "SELECT 1 FROM table_1",
+					"interval": 10,
+					"platform": "linux",
+					"version": "5.12.2",
+					"snapshot": true
+				},
+				"You shall not pass": {
+					"query": "SELECT 1 FROM table_2",
+					"interval": 20,
+					"platform": "macos",
+					"removed": true,
+					"version": ""
+				}
+			}
+		} 
 	}`,
 		string(conf["packs"].(json.RawMessage)),
 	)
@@ -1934,8 +2000,15 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+		return nil, nil
+	}
+
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return nil, nil
 	}
 
 	testCases := []struct {

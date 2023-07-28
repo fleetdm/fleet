@@ -33,7 +33,6 @@ import ManageSoftwarePage from "pages/software/ManageSoftwarePage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
-import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PolicyPage from "pages/policies/PolicyPage";
 import QueryPage from "pages/queries/QueryPage";
@@ -171,8 +170,8 @@ const routes = (
             <Route component={HostDetailsPage}>
               <Route path=":host_id" component={HostDetailsPage}>
                 <Route path="software" component={HostDetailsPage} />
-                <Route path="schedule" component={HostDetailsPage} />
                 <Route path="policies" component={HostDetailsPage} />
+                <Route path="schedule" component={HostDetailsPage} />
               </Route>
             </Route>
           </Route>
@@ -204,14 +203,6 @@ const routes = (
                 <IndexRoute component={EditPackPage} />
                 <Route path="edit" component={EditPackPage} />
               </Route>
-            </Route>
-          </Route>
-          <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-            <Route path="schedule">
-              <IndexRedirect to="manage" />
-              <Route path="manage" component={ManageSchedulePage} />
-              <Redirect from="manage/teams" to="manage" />
-              <Redirect from="manage/teams/:team_id" to="manage" />
             </Route>
           </Route>
           <Route path="queries">
