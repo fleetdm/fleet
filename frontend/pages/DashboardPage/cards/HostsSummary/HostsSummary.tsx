@@ -76,7 +76,7 @@ const HostsSummary = ({
 
   const renderLinuxCount = (teamId?: number) => (
     <SummaryTile
-      iconName="linux-green"
+      iconName="linux-grey"
       count={linuxCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
