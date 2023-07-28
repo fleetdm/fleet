@@ -388,7 +388,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	sql = appendListOptionsToSQL(sql, &opt.ListOptions)
 
 	results := []*fleet.Query{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &results, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
@@ -434,7 +434,7 @@ func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Q
 		fleet.Pack
 	}{}
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...)
+	err = sqlx.SelectContext(ctx, ds.writer(ctx), &rows, query, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "selecting load packs for queries")
 	}
