@@ -101,7 +101,7 @@ This configuration assumes you have brought all the required dependencies of Fle
 ## Infrastructure
 https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws
 
-![Architecture Diagram](../website/assets/images/articles/fleet-aws-reference-arch-diagram.png)
+![Architecture Diagram](../docs/images/fleet-aws-reference-arch-diagram.png)
 
 The infrastructure used in this deployment is available in all regions. The following resources will be created:
 
