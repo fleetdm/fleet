@@ -507,7 +507,7 @@ After receiving the interview packet, the Head of Business Operations uses the f
    - Subject: "Full time?"
    - Body: _(The offer email is copied verbatim from Google doc into Gmail as the body of the message, formatting and all.  Check all links in offer letter for accuracy, and also click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before.  Re-read the offer email one last time, and especially double-check that salary, number of shares, and start date match the equity plan.)_
 5. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
-   - _Grant the candidate "edit" access_ to their "exit scenarios" Google Sheet.
+   - _Grant the candidate "edit" access_ to their "exit scenarios" spreadsheet.
    - _Send_ the email.
 
 ##### Steps after an offer is accepted
