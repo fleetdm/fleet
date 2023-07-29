@@ -256,9 +256,8 @@ How to file videos from Gong recordings (**marking as "private" in Gong is not a
 
 | Channel | Purpose | Standard Operating Procedure | DRI |
 | ---------------- | ----------------------------------------------------------------------------- | --------------------------- | -------------------------------------- |
-| g-ceo            | Open [line of communication]() for Fleeties to make requests of the [remote team](https://fleetdm.com/handbook/company/ceo#team)
-
-| `help-being-ceo` | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | Mark items with 👀 (emoji reaction) to indicate that you are working on the task. Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | AttC |
+| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) | Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team)
+| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | Mark items with 👀 (emoji reaction) to indicate that you are working on the task. Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | AttC |
 
      
 ## Who will...
