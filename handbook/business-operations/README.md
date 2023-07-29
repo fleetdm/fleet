@@ -488,7 +488,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 After receiving the interview packet, the Head of Business Operations uses the following steps to make an offer:
 1. **Adjust compensation:** Head of Business Operations [re-benchmarks salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
    - _Paste a screenshot_ from Pave showing the amount of cash and equity in the offer (or write 1-2 sentences about what is being offered to this candidate and why) under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
-   - _Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ to reflect the official offer that is about to be sent:
+   - _Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ to reflect the offer that is about to be sent:
      -  Salary _(OTE actually offered)_
      -  Equity _(stock options actually offered)_
      -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
