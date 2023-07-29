@@ -150,6 +150,7 @@ module.exports.custom = {
 
     // 🦿 Handbook
     'handbook/company/ceo.md': 'sampfluger88',
+    'handbook/company': 'mikermcneil',
     'handbook/business-operations': 'mikermcneil',// TODO: Transfer to joanne once the philosophical stuff is moved into the new "Communication" page (similar to GitLab's)
     'handbook/engineering': 'lukeheath',
     'handbook/product': 'zhumo',
