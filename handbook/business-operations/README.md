@@ -508,7 +508,7 @@ After receiving the interview packet, the Head of Business Operations uses the f
    - Body: _(The offer email is copied verbatim from Google doc into Gmail as the body of the message, formatting and all.  Check all links in offer letter for accuracy, and also click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before.  Re-read the offer email one last time, and especially double-check that salary, number of shares, and start date match the equity plan.)_
 5. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
    - _Grant the candidate "edit" access_ to their "exit scenarios" Google Sheet.
-   - The CEO will review of offer and send! 🚀
+   - _Send_ the email.
 
 ##### Steps after an offer is accepted
 
@@ -517,13 +517,13 @@ Once the new team member replies and accepts their offer in writing, 🔦 Head o
    - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, then we are not done.  No offer is "accepted" until we've received a physical address.
    - _Review and update the team database_ to be sure everything is accurate, **one last time**.  Remember to read the column headers and precisely follow the instructions about how to format the data:
      - The new team member's role in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) now includes:
-       - **Start date** _(the new fleetie's first day, YYYY-MM-DD)_
-       - **Location** _(derive this from the physical address)_
-       - **GitHub username**  _(username of 2FA-enabled GitHub account)_
-       - **@fleetdm.com email** _(update with email this person should have)_
+       - **Start date** _(The new fleetie's first day, YYYY-MM-DD)_
+       - **Location** _(Derive this from the physical address)_
+       - **GitHub username**  _(Username of 2FA-enabled GitHub account)_
+       - **@fleetdm.com email** _(Set this to whatever email you think this person should have)_
      - The new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
-       - **OTE** _("on-target earnings", i.e. anticipated total annual cash compensation)_
-       - **Equity** _(stock options)_
+       - **OTE** _("On-target earnings", i.e. anticipated total annual cash compensation)_
+       - **Equity** _(Stock options)_
        - **"Notes"** _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
        - **Physical address** _(The full street address of the location where work will typically be performed.)_
        - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
