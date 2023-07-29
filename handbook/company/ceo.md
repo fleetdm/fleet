@@ -96,7 +96,7 @@ If you mention the CEO from within a Slack thread, he will not read your message
 
 Please find a different way to get in touch:
 
-- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and mention the [Attc](https://fleetdm.com/handbook/company/ceo#team) in the  [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
+- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the [Attc](https://fleetdm.com/handbook/company/ceo#team) in the  [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
 - Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO?
 - Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.)
 
