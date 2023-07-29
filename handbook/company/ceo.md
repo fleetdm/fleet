@@ -9,7 +9,7 @@ Need quick Answers?
 
 ## Team
 
-The 🦿 Remote department (g-remote) (also known as the "CEO support team"), is made up of these people:
+The 🦿 CEO support team is made up of these people:
 
 
 | Contributor                                    | Role
@@ -265,9 +265,9 @@ How to file videos from Gong recordings (**marking as "private" in Gong is not a
 
 
 
-| Task | Frequency | Discription | DRI
+| Task | Starting on | Frequency | DRI
 | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [Manage the CEO's email](#manage-the-ceo's-email)| Daily, multiple times | 
+| Manage the CEO's email | Daily, multiple times | 
 | General communications  [slack channel](https://fleetdm.com/handbook/company/ceo#slack-channel) |  Daily, multiple times |
 | Schedule internal and external [meetings for the CEO](#scheduling-with-the-ceo)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | [Preparing agendas and content](#document-preparation) for CEO's meetings | Create and edit agenda, provide context, and contact information | PRN                   |
