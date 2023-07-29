@@ -80,7 +80,7 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/development-groups.md               @mikermcneil
+/handbook/company/product-groups.md                   @mikermcneil
 /handbook/company/why-this-way.md                     @mikermcneil
 /handbook/company/README.md                           @mikermcneil
 /handbook/README.md                                   @mikermcneil  # « This is the "Table of contents" landing page
