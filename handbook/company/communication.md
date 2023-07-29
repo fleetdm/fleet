@@ -31,5 +31,5 @@ When scheduling external meetings, provide external participants with a
 need a Calendly account, reach out to `mikermcneil` via Slack.
 TODO
 
-<meta name="maintainedBy" value="sampfluger88">
+<meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="📡 Communication">
