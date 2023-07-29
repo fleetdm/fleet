@@ -405,7 +405,7 @@ Want to hire?  Here's how to open up a new position on the core team:
 > _**Why bother with approvals?**  We avoid cancelling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
 
 ##### Approving a new position
-When review is requested on a proposal to open a new position, the CEO will complete the following steps when reviewing the pull request:
+When review is requested on a proposal to open a new position, the 🐈‍⬛ CEO will complete the following steps when reviewing the pull request:
 
 1. **Consider role and reporting structure:** Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is set to the first Monday of the next month.
 2. **Read job description:** Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
@@ -486,41 +486,44 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 
 ##### Making an offer
 After receiving the interview packet, the Head of Business Operations uses the following steps to make an offer:
-1. **Adjust compensation:** Head of Business Operations [re-benchmarks salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
+1. **Adjust compensation:** 🔦 Head of Business Operations [re-benchmarks salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
    - _Paste a screenshot_ from Pave showing the amount of cash and equity in the offer (or write 1-2 sentences about what is being offered to this candidate and why) under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
-   - _Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ to reflect the offer offer that is about to be sent:
+   - _Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ to reflect the offer that is about to be sent:
      -  Salary _(OTE actually offered)_
      -  Equity _(stock options actually offered)_
      -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
      -  "Offer sent?" _(set this to `TRUE`)_
      - …and make sure the other status columns are set to `todo`.
-2. **Prepare the "exit scenarios" spreadsheet:** Head of Business Operations [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
-   - _Edit the candidate's copy of the exit scenarios spreadsheet_ to include the number of shares they will be offered, and the spreadsheet will update automatically to reflect their approximate ownership percentage.
-   - _Share the candidate's copy_ of the spreadsheet with their personal email, granting **"Edit"** access.
+2. **Prepare the "exit scenarios" spreadsheet:** 🔦 Head of Business Operations [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
+   - _Edit the candidate's copy of the exit scenarios spreadsheet_ to reflect the number of shares in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0), and the spreadsheet will update automatically to reflect their approximate ownership percentage.
      > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
-3. **Prepare offer email:** Head of Business Operations [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
+3. **Prepare offer:** 🔦 Head of Business Operations [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
-   - _Equity:_ Specify the number of shares, then highlight the number of shares with a link to the candidate's personalized copy of the "Exit scenarios" spreadsheet.
-   - _Other information_: Read the offer email very carefully and double-check correctness versus the equity plan, especially in regards to salary, equity, and start date.
-4. **Send offer:** Once both documents are complete, Head of Business Operations notifies Apprentice to the CEO who then drafts the offer email, bringing it to the CEO to send during their daily meeting:
+   - _Equity:_ Highlight the number of shares with a link to the candidate's custom "exit scenarios" spreadsheet.
+   - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/company/ceo#team).
+4. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
-   - Cc: Zach Wasserman and Head of Business Operations (both included as a recipient but will not participate in the email thread until after the offer is accepted)
+   - Cc: Zach Wasserman and Head of Business Operations _(neither participate in the email thread until after the offer is accepted)_
    - Subject: "Full time?"
-   - Body: _(The offer email is copied verbatim from Google Drive into Gmail as the body of the message, formatting and all.)_
+   - Body: _(The offer email is copied verbatim from Google doc into Gmail as the body of the message, formatting and all.  Check all links in offer letter for accuracy, and also click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before.  Re-read the offer email one last time, and especially double-check that salary, number of shares, and start date match the equity plan.)_
+5. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
+   - _Grant the candidate "edit" access_ to their "exit scenarios" spreadsheet.
+   - _Send_ the email.
 
 ##### Steps after an offer is accepted
 
-Once the new team member replies and accepts their offer in writing, Head of Business Operations replies to the candidate.  The Head of Business Operations is then responsible for these steps:
+Once the new team member replies and accepts their offer in writing, 🔦 Head of Business Operations follows these steps:
 1. **Verify, track, and reply:** Reply to the candidate:
    - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, then we are not done.  No offer is "accepted" until we've received a physical address.
    - _Review and update the team database_ to be sure everything is accurate, **one last time**.  Remember to read the column headers and precisely follow the instructions about how to format the data:
      - The new team member's role in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) now includes:
-       - **Start date** _(the new fleetie's first day, YYYY-MM-DD)_
-       - **Location** _(derive this from the physical address)_
-       - **GitHub username**  _(username of 2FA-enabled GitHub account)_
+       - **Start date** _(The new fleetie's first day, YYYY-MM-DD)_
+       - **Location** _(Derive this from the physical address)_
+       - **GitHub username**  _(Username of 2FA-enabled GitHub account)_
+       - **@fleetdm.com email** _(Set this to whatever email you think this person should have)_
      - The new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
-       - **OTE** _("on-target earnings", i.e. anticipated total annual cash compensation)_
-       - **Equity** _(stock options)_
+       - **OTE** _("On-target earnings", i.e. anticipated total annual cash compensation)_
+       - **Equity** _(Stock options)_
        - **"Notes"** _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
        - **Physical address** _(The full street address of the location where work will typically be performed.)_
        - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
@@ -543,7 +546,7 @@ Once the new team member replies and accepts their offer in writing, Head of Bus
    - Remove the [job description file](https://github.com/fleetdm/fleet/tree/main/handbook/company) that corresponds with the newly-filled position.  (This is a Markdown file named after the role, with a filename ending in `.md`.)
 5. **Close Slack channel:** Then archive and close the channel.
 
-Now what happens?  Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
+Now what happens?  🔦 Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
 ### Departures
 
