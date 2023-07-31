@@ -73,6 +73,7 @@ interface IQueryFormProps {
 }
 
 const validateQuerySQL = (query: string) => {
+  console.log("validateQuerySql");
   const errors: { [key: string]: string } = {};
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
@@ -533,6 +534,7 @@ const QueryForm = ({
           }
           labelActionComponent={isObserverPlus && renderLabelComponent()}
           wrapEnabled
+          data-testid="ace-editor"
         />
       )}
       <span className={`${baseClass}__platform-compatibility`}>
@@ -570,7 +572,8 @@ const QueryForm = ({
     // Save and save as new disabled for query name blank on existing query or sql errors
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) || !!size(errors);
-
+    console.log("errors", errors);
+    console.log("disableSaveFormErrors", disableSaveFormErrors);
     return (
       <>
         <form className={`${baseClass}__wrapper`} autoComplete="off">

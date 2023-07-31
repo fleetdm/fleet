@@ -177,6 +177,8 @@ describe("PolicyForm - component", () => {
       />
     );
 
+    // TODO: How to modify ace editor using react testing library
+
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
   });

@@ -10,6 +10,7 @@ import {
   NotificationContext,
 } from "context/notification";
 import { IPolicyContext, PolicyContext } from "context/policy";
+import { IQueryContext, QueryContext } from "context/query";
 
 export const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -38,6 +39,7 @@ interface IContextOptions {
   app?: Partial<IAppContext>;
   notification?: Partial<INotificationContext>;
   policy?: Partial<IPolicyContext>;
+  query?: Partial<IQueryContext>;
 }
 
 interface ICustomRenderOptions {
@@ -58,6 +60,7 @@ const CONTEXT_PROVIDER_MAP = {
   app: AppContext,
   notification: NotificationContext,
   policy: PolicyContext,
+  query: QueryContext,
 };
 
 type ContextProviderKeys = keyof typeof CONTEXT_PROVIDER_MAP;
