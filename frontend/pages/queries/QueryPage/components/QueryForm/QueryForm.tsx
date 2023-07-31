@@ -560,182 +560,187 @@ const QueryForm = ({
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
   // Global admin, any maintainer, any observer+ on new query
-  const renderEditableQueryForm = (
-    <>
-      <form className={`${baseClass}__wrapper`} autoComplete="off">
-        <div className={`${baseClass}__title-bar`}>
-          <div className="name-description">
-            {renderName()}
-            {renderDescription()}
+  const renderEditableQueryForm = () => {
+    // Save disabled for team maintainer/admins viewing global queries
+    const disableSavePermissionDenied =
+      isAnyTeamMaintainerOrTeamAdmin &&
+      !storedQuery?.team_id &&
+      !!queryIdForEdit;
+
+    // Save and save as new disabled for query name blank on existing query or sql errors
+    const disableSaveFormErrors =
+      (lastEditedQueryName === "" && !!lastEditedQueryId) || !!size(errors);
+
+    return (
+      <>
+        <form className={`${baseClass}__wrapper`} autoComplete="off">
+          <div className={`${baseClass}__title-bar`}>
+            <div className="name-description">
+              {renderName()}
+              {renderDescription()}
+            </div>
+            <div className="author">{savedQueryMode && renderAuthor()}</div>
           </div>
-          <div className="author">{savedQueryMode && renderAuthor()}</div>
-        </div>
-        <FleetAce
-          value={lastEditedQueryBody}
-          error={errors.query}
-          label="Query"
-          labelActionComponent={renderLabelComponent()}
-          name="query editor"
-          onLoad={onLoad}
-          wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={onChangeQuery}
-          handleSubmit={promptSaveQuery}
-          wrapEnabled
-          focus={!savedQueryMode}
-        />
-        <span className={`${baseClass}__platform-compatibility`}>
-          {renderPlatformCompatibility()}
-        </span>
-        {savedQueryMode && (
-          <div className={`${baseClass}__edit-options`}>
-            <div className={`${baseClass}__frequency`}>
-              <Dropdown
-                searchable={false}
-                options={FREQUENCY_DROPDOWN_OPTIONS}
-                onChange={onChangeSelectFrequency}
-                placeholder={"Every day"}
-                value={lastEditedQueryFrequency}
-                label={"Frequency"}
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-              />
-              If automations are on, this is how often your query collects data.
-            </div>
-            <div className={`${baseClass}__observers-can-run`}>
-              <Checkbox
-                value={lastEditedQueryObserverCanRun}
-                onChange={(value: boolean) =>
-                  setLastEditedQueryObserverCanRun(value)
-                }
-                wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
-              >
-                Observers can run
-              </Checkbox>
-              <p>
-                Users with the observer role will be able to run this query on
-                hosts where they have access.
-              </p>
-            </div>
-            <RevealButton
-              isShowing={showAdvancedOptions}
-              className={baseClass}
-              hideText={"Hide advanced options"}
-              showText={"Show advanced options"}
-              caretPosition={"after"}
-              onClick={toggleAdvancedOptions}
-            />
-            {showAdvancedOptions && (
-              <div className={`${baseClass}__advanced-options`}>
+          <FleetAce
+            value={lastEditedQueryBody}
+            error={errors.query}
+            label="Query"
+            labelActionComponent={renderLabelComponent()}
+            name="query editor"
+            onLoad={onLoad}
+            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            onChange={onChangeQuery}
+            handleSubmit={promptSaveQuery}
+            wrapEnabled
+            focus={!savedQueryMode}
+          />
+          <span className={`${baseClass}__platform-compatibility`}>
+            {renderPlatformCompatibility()}
+          </span>
+          {savedQueryMode && (
+            <div className={`${baseClass}__edit-options`}>
+              <div className={`${baseClass}__frequency`}>
                 <Dropdown
-                  options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
-                  placeholder="Select"
-                  label="Platform"
-                  onChange={onChangeSelectPlatformOptions}
-                  value={lastEditedQueryPlatforms}
-                  multi
-                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+                  searchable={false}
+                  options={FREQUENCY_DROPDOWN_OPTIONS}
+                  onChange={onChangeSelectFrequency}
+                  placeholder={"Every day"}
+                  value={lastEditedQueryFrequency}
+                  label={"Frequency"}
+                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
                 />
-                <Dropdown
-                  options={MIN_OSQUERY_VERSION_OPTIONS}
-                  onChange={onChangeMinOsqueryVersionOptions}
-                  placeholder="Select"
-                  value={lastEditedQueryMinOsqueryVersion}
-                  label="Minimum osquery version"
-                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
-                />
-                <Dropdown
-                  options={LOGGING_TYPE_OPTIONS}
-                  onChange={onChangeSelectLoggingType}
-                  placeholder="Select"
-                  value={lastEditedQueryLoggingType}
-                  label="Logging"
-                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
-                />
+                If automations are on, this is how often your query collects
+                data.
               </div>
-            )}
-          </div>
-        )}
-        {renderLiveQueryWarning()}
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-        >
-          {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
-            <>
-              {savedQueryMode && (
-                <Button
-                  variant="text-link"
-                  onClick={promptSaveAsNewQuery()}
-                  disabled={false}
-                  className="save-as-new-loading"
-                  isLoading={isSaveAsNewLoading}
-                >
-                  Save as new
-                </Button>
-              )}
-              <div className="query-form__button-wrap--save-query-button">
-                <div
-                  data-tip
-                  data-for="save-query-button"
-                  // Tooltip shows for team maintainer/admins viewing global queries
-                  data-tip-disable={
-                    !(
-                      isAnyTeamMaintainerOrTeamAdmin &&
-                      !storedQuery?.team_id &&
-                      !!queryIdForEdit
-                    )
+              <div className={`${baseClass}__observers-can-run`}>
+                <Checkbox
+                  value={lastEditedQueryObserverCanRun}
+                  onChange={(value: boolean) =>
+                    setLastEditedQueryObserverCanRun(value)
                   }
+                  wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
                 >
-                  <Button
-                    className="save-loading"
-                    variant="brand"
-                    onClick={promptSaveQuery()}
-                    // Button disabled for team maintainer/admins viewing global queries
-                    disabled={
-                      isAnyTeamMaintainerOrTeamAdmin &&
-                      !storedQuery?.team_id &&
-                      !!queryIdForEdit
-                    }
-                    isLoading={isQueryUpdating}
-                  >
-                    Save
-                  </Button>
-                </div>{" "}
-                <ReactTooltip
-                  className={`save-query-button-tooltip`}
-                  place="top"
-                  effect="solid"
-                  backgroundColor={COLORS["tooltip-bg"]}
-                  id="save-query-button"
-                  data-html
-                >
-                  <>
-                    You can only save changes
-                    <br /> to a team level query.
-                  </>
-                </ReactTooltip>
+                  Observers can run
+                </Checkbox>
+                <p>
+                  Users with the observer role will be able to run this query on
+                  hosts where they have access.
+                </p>
               </div>
-            </>
+              <RevealButton
+                isShowing={showAdvancedOptions}
+                className={baseClass}
+                hideText={"Hide advanced options"}
+                showText={"Show advanced options"}
+                caretPosition={"after"}
+                onClick={toggleAdvancedOptions}
+              />
+              {showAdvancedOptions && (
+                <div className={`${baseClass}__advanced-options`}>
+                  <Dropdown
+                    options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
+                    placeholder="Select"
+                    label="Platform"
+                    onChange={onChangeSelectPlatformOptions}
+                    value={lastEditedQueryPlatforms}
+                    multi
+                    wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+                  />
+                  <Dropdown
+                    options={MIN_OSQUERY_VERSION_OPTIONS}
+                    onChange={onChangeMinOsqueryVersionOptions}
+                    placeholder="Select"
+                    value={lastEditedQueryMinOsqueryVersion}
+                    label="Minimum osquery version"
+                    wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
+                  />
+                  <Dropdown
+                    options={LOGGING_TYPE_OPTIONS}
+                    onChange={onChangeSelectLoggingType}
+                    placeholder="Select"
+                    value={lastEditedQueryLoggingType}
+                    label="Logging"
+                    wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+                  />
+                </div>
+              )}
+            </div>
           )}
-          <Button
-            className={`${baseClass}__run`}
-            variant="blue-green"
-            onClick={goToSelectTargets}
+          {renderLiveQueryWarning()}
+          <div
+            className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
           >
-            Live query
-          </Button>
-        </div>
-      </form>
-      {showSaveQueryModal && (
-        <SaveQueryModal
-          queryValue={lastEditedQueryBody}
-          apiTeamIdForQuery={apiTeamIdForQuery}
-          saveQuery={saveQuery}
-          toggleSaveQueryModal={toggleSaveQueryModal}
-          backendValidators={backendValidators}
-          isLoading={isQuerySaving}
-        />
-      )}
-    </>
-  );
+            {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
+              <>
+                {savedQueryMode && (
+                  <Button
+                    variant="text-link"
+                    onClick={promptSaveAsNewQuery()}
+                    disabled={disableSaveFormErrors}
+                    className="save-as-new-loading"
+                    isLoading={isSaveAsNewLoading}
+                  >
+                    Save as new
+                  </Button>
+                )}
+                <div className="query-form__button-wrap--save-query-button">
+                  <div
+                    data-tip
+                    data-for="save-query-button"
+                    // Tooltip shows for team maintainer/admins viewing global queries
+                    data-tip-disable={!disableSavePermissionDenied}
+                  >
+                    <Button
+                      className="save-loading"
+                      variant="brand"
+                      onClick={promptSaveQuery()}
+                      // Button disabled for team maintainer/admins viewing global queries
+                      disabled={
+                        disableSavePermissionDenied || disableSaveFormErrors
+                      }
+                      isLoading={isQueryUpdating}
+                    >
+                      Save
+                    </Button>
+                  </div>{" "}
+                  <ReactTooltip
+                    className={`save-query-button-tooltip`}
+                    place="top"
+                    effect="solid"
+                    backgroundColor={COLORS["tooltip-bg"]}
+                    id="save-query-button"
+                    data-html
+                  >
+                    <>
+                      You can only save changes
+                      <br /> to a team level query.
+                    </>
+                  </ReactTooltip>
+                </div>
+              </>
+            )}
+            <Button
+              className={`${baseClass}__run`}
+              variant="blue-green"
+              onClick={goToSelectTargets}
+            >
+              Live query
+            </Button>
+          </div>
+        </form>
+        {showSaveQueryModal && (
+          <SaveQueryModal
+            queryValue={lastEditedQueryBody}
+            apiTeamIdForQuery={apiTeamIdForQuery}
+            saveQuery={saveQuery}
+            toggleSaveQueryModal={toggleSaveQueryModal}
+            backendValidators={backendValidators}
+            isLoading={isQuerySaving}
+          />
+        )}
+      </>
+    );
+  };
 
   if (isStoredQueryLoading) {
     return <Spinner />;
@@ -755,7 +760,7 @@ const QueryForm = ({
   }
 
   // Render default editable form
-  return renderEditableQueryForm;
+  return renderEditableQueryForm();
 };
 
 export default QueryForm;

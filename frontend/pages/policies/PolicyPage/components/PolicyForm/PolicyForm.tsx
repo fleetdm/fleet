@@ -466,7 +466,8 @@ const PolicyForm = ({
     );
   };
 
-  const renderRunForObserver = (
+  // Observers and observer+ of existing query, team role viewing inherited policy
+  const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
         <div className="name-description-resolve">
@@ -499,9 +500,10 @@ const PolicyForm = ({
     </form>
   );
 
-  const renderForGlobalAdminOrAnyMaintainer = () => {
-    // No platforms selected, query name blank on existing query, sql errors
-    const disableSaveButton =
+  // Admin or maintainer
+  const renderEditableQueryForm = () => {
+    // Save disabled for no platforms selected, query name blank on existing query, or sql errors
+    const disableSaveFormErrors =
       (isEditMode && !isAnyPlatformSelected) ||
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       !!size(errors);
@@ -548,7 +550,7 @@ const PolicyForm = ({
                   <Button
                     variant="brand"
                     onClick={promptSavePolicy()}
-                    disabled={disableSaveButton}
+                    disabled={disableSaveFormErrors}
                     className="save-loading"
                     isLoading={isUpdatingPolicy}
                   >
@@ -619,15 +621,18 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
-  if (
+  const noEditPermissions =
     isTeamObserver ||
     isGlobalObserver ||
-    (policyTeamId === 0 && !isOnGlobalTeam)
-  ) {
-    return renderRunForObserver;
+    (policyTeamId === 0 && !isOnGlobalTeam); // Team user viewing inherited policy
+
+  // Render non-editable form only
+  if (noEditPermissions) {
+    return renderNonEditableForm;
   }
 
-  return renderForGlobalAdminOrAnyMaintainer();
+  // Render default editable form
+  return renderEditableQueryForm();
 };
 
 export default PolicyForm;
