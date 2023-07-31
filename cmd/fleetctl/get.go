@@ -590,7 +590,7 @@ func getPacksCommand() *cli.Command {
 				}
 
 				if len(packs) == 0 {
-					fmt.Println("No packs found")
+					log(c, "No 2017 \"Packs\" found.\n")
 					return nil
 				}
 
