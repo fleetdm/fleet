@@ -222,6 +222,13 @@ module.exports.routes = {
     },
   },
 
+  'GET /admin/sandbox-waitlist': {
+    action: 'admin/view-sandbox-waitlist',
+    locals: {
+      layout: 'layouts/layout-customer'
+    },
+  },
+
   'GET /tables/:tableName': {
     action: 'view-osquery-table-details',
     locals: {

@@ -142,6 +142,18 @@
           </div>
         </div>
       </div>
+        <%if(me && me.isSuperAdmin){ %>
+        <div purpose="admin-nav" class="d-flex flex-row align-items-center px-5">
+          <div class=" justif-self-start">
+            <span>Admin pages</span>
+          </div>
+          <div class="d-flex flex-row align-self-end">
+            <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
+            <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview"> HTML Email preview tool</a>
+            <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/sandbox-waitlist">Manage Fleet Sandbox waitlist</a>
+          </div>
+        </div>
+        <%}%>
 
       <%- body %>
 
@@ -231,6 +243,7 @@
     <script src="/js/pages/admin/email-preview.page.js"></script>
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
+    <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/compliance.page.js"></script>
