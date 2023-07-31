@@ -106,6 +106,7 @@ func createApp(
 		},
 		triggerCommand(),
 		mdmCommand(),
+		upgradePacksCommand(),
 	}
 	return app
 }
