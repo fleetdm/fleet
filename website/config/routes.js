@@ -85,7 +85,7 @@ module.exports.routes = {
     }
   },// handles /docs and /docs/foo/bar
 
-  'GET /handbook/?*': {
+  'GET /handbook/?*':  {
     skipAssets: false,
     action: 'handbook/view-basic-handbook',
     locals: {
@@ -354,13 +354,13 @@ module.exports.routes = {
   // ```
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
-  'GET /try-fleet': '/get-started',
+  'GET /try-fleet':                  '/get-started',
   'GET /try': '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
   'GET /handbook/brand': '/handbook/digital-experience',
   'GET /guides/deploying-fleet-on-aws-with-terraform': '/deploy/deploying-fleet-on-aws-with-terraform',
-  'GET /guides/deploy-fleet-on-hetzner-cloud': '/deploy/deploy-fleet-on-hetzner-cloud',
+  'GET /guides/deploy-fleet-on-hetzner-cloud':'/deploy/deploy-fleet-on-hetzner-cloud',
   'GET /guides/deploying-fleet-on-render': '/deploy/deploying-fleet-on-render',
   'GET /use-cases/correlate-network-connections-with-community-id-in-osquery': '/guides/correlate-network-connections-with-community-id-in-osquery',
   'GET /use-cases/converting-unix-timestamps-with-osquery': '/guides/converting-unix-timestamps-with-osquery',
@@ -376,7 +376,7 @@ module.exports.routes = {
   'GET /use-cases/stay-on-course-with-your-security-compliance-goals': '/guides/stay-on-course-with-your-security-compliance-goals',
   'GET /use-cases/using-elasticsearch-and-kibana-to-visualize-osquery-performance': '/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance',
   'GET /use-cases/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think': '/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think',
-  'GET /docs/contributing/testing': '/docs/contributing/testing-and-local-development',
+  'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
   'GET /handbook/sales': '/handbook/customers#sales',
   'GET /handbook/people': '/handbook/business-operations',
   'GET /handbook/people/ceo-handbook': '/handbook/business-operations/ceo-handbook',
@@ -392,7 +392,7 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/business-operations/security',
-  'GET /handbook/security/security-policies': '/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
+  'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
   'GET /handbook/handbook': '/handbook/company/handbook',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
@@ -435,7 +435,7 @@ module.exports.routes = {
   'GET /docs/contributing/configuration': '/docs/configuration/configuration-files',
   'GET /docs/contributing/*': {
     skipAssets: true,
-    fn: (req, res) => {
+    fn: (req, res)=>{
       return res.redirect('https://github.com/fleetdm/fleet/tree/main/docs/Contributing');
     }
   },
@@ -453,27 +453,27 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
-  'GET /renew': 'https://calendly.com/zayhanlon/fleet-renewal-discussion',
-  'GET /documentation': '/docs',
-  'GET /contribute': '/docs/contributing',
-  'GET /install': '/fleetctl-preview',
-  'GET /company': '/company/about',
-  'GET /company/about': '/handbook', // FUTURE: brief "about" page explaining the origins of the company
-  'GET /contact': '/company/contact',
-  'GET /legal': '/legal/terms',
-  'GET /terms': '/legal/terms',
-  'GET /handbook/security/github': '/handbook/security#git-hub-security',
-  'GET /login': '/customers/login',
-  'GET /slack': 'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
+  'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
+  'GET /documentation':              '/docs',
+  'GET /contribute':                 '/docs/contributing',
+  'GET /install':                    '/fleetctl-preview',
+  'GET /company':                    '/company/about',
+  'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
+  'GET /contact':                    '/company/contact',
+  'GET /legal':                      '/legal/terms',
+  'GET /terms':                      '/legal/terms',
+  'GET /handbook/security/github':   '/handbook/security#git-hub-security',
+  'GET /login':                      '/customers/login',
+  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
-  'GET /blog': '/articles',
-  'GET /brand': '/logos',
-  'GET /get-started': '/try-fleet/register',
-  'GET /g': (req, res) => { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/?meet-fleet' + originalQueryStringWithAmp); },
-  'GET /test-fleet-sandbox': '/try-fleet/register',
-  'GET /unsubscribe': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/api/v1/unsubscribe-from-all-newsletters?' + originalQueryString); },
-  'GET /tables': '/tables/account_policy_data',
-  'GET /imagine/launch-party': 'https://www.eventbrite.com/e/601763519887',
+  'GET /blog':                   '/articles',
+  'GET /brand':                  '/logos',
+  'GET /get-started':            '/try-fleet/register',
+  'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
+  'GET /test-fleet-sandbox':     '/try-fleet/register',
+  'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
+  'GET /tables':                 '/tables/account_policy_data',
+  'GET /imagine/launch-party':   'https://www.eventbrite.com/e/601763519887',
 
   // Fleet UI
   // =============================================================================================================
@@ -485,30 +485,30 @@ module.exports.routes = {
   // =============================================================================================================
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
   // XML file, which helps search engines know which pages are available on the website.
-  'GET /sitemap.xml': { action: 'download-sitemap' },
+  'GET /sitemap.xml':            { action: 'download-sitemap' },
 
   // RSS feeds
   // =============================================================================================================
-  'GET /rss/:categoryName': { action: 'download-rss-feed' },
+  'GET /rss/:categoryName': {action: 'download-rss-feed'},
 
   // Potential future pages
   // =============================================================================================================
   // Things that are not webpages here (in the Sails app) yet, but could be in the future.  For now they are just
   // redirects to somewhere else EXTERNAL to the Sails app.
-  'GET /security': 'https://github.com/fleetdm/fleet/security/policy',
-  'GET /trust': 'https://trust.fleetdm.com',
-  'GET /status': 'https://status.fleetdm.com',
-  'GET /hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
-  'GET /apply': '/jobs',
-  'GET /jobs': 'https://fleetdm.com/handbook/company#open-positions',
-  'GET /company/stewardship': 'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
-  'GET /legal/terms': 'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
-  'GET /legal/privacy': 'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
-  'GET /logout': '/api/v1/account/logout',
-  'GET /defcon': 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
-  'GET /osquery-stickers': 'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
-  'GET /swag': 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
-  'GET /community': 'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
+  'GET /security':               'https://github.com/fleetdm/fleet/security/policy',
+  'GET /trust':                  'https://trust.fleetdm.com',
+  'GET /status':                 'https://status.fleetdm.com',
+  'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
+  'GET /apply':                  '/jobs',
+  'GET /jobs':                   'https://fleetdm.com/handbook/company#open-positions',
+  'GET /company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
+  'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
+  'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
+  'GET /logout':                 '/api/v1/account/logout',
+  'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
+  'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
+  'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
+  'GET /community':              'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
@@ -517,32 +517,32 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
-  'POST /api/v1/webhooks/receive-from-customer-fleet-instance': { action: 'webhooks/receive-from-customer-fleet-instance', csrf: false },
+  'POST /api/v1/webhooks/receive-from-customer-fleet-instance': { action: 'webhooks/receive-from-customer-fleet-instance', csrf: false},
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣╠═╝║  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
   //  ╩ ╩╩  ╩  ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
   // Note that, in this app, these API endpoints may be accessed using the `Cloud.*()` methods
   // from the Parasails library, or by using those method names as the `action` in <ajax-form>.
-  'POST /api/v1/deliver-contact-form-message': { action: 'deliver-contact-form-message' },
+  'POST /api/v1/deliver-contact-form-message':        { action: 'deliver-contact-form-message' },
   'POST /api/v1/entrance/send-password-recovery-email': { action: 'entrance/send-password-recovery-email' },
-  'POST /api/v1/customers/signup': { action: 'entrance/signup' },
-  'POST /api/v1/account/update-profile': { action: 'account/update-profile' },
-  'POST /api/v1/account/update-password': { action: 'account/update-password' },
-  'POST /api/v1/account/update-billing-card': { action: 'account/update-billing-card' },
-  'POST /api/v1/customers/login': { action: 'entrance/login' },
-  '/api/v1/account/logout': { action: 'account/logout' },
-  'POST /api/v1/customers/create-quote': { action: 'customers/create-quote' },
+  'POST /api/v1/customers/signup':                     { action: 'entrance/signup' },
+  'POST /api/v1/account/update-profile':               { action: 'account/update-profile' },
+  'POST /api/v1/account/update-password':              { action: 'account/update-password' },
+  'POST /api/v1/account/update-billing-card':          { action: 'account/update-billing-card'},
+  'POST /api/v1/customers/login':                      { action: 'entrance/login' },
+  '/api/v1/account/logout':                            { action: 'account/logout' },
+  'POST /api/v1/customers/create-quote':               { action: 'customers/create-quote' },
   'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
-  'POST /api/v1/entrance/update-password-and-login': { action: 'entrance/update-password-and-login' },
-  'POST /api/v1/deliver-demo-signup': { action: 'deliver-demo-signup' },
+  'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
+  'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
   'POST /api/v1/admin/generate-license-key': { action: 'admin/generate-license-key' },
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
-  'POST /api/v1/deliver-mdm-beta-signup': { action: 'deliver-mdm-beta-signup' },
-  'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false },
+  'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
+  'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
-  'POST /api/v1/deliver-launch-party-signup': { action: 'imagine/deliver-launch-party-signup' },
-  'POST /api/v1/deliver-mdm-demo-email': { action: 'deliver-mdm-demo-email' },
+  'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
+  'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
 };
