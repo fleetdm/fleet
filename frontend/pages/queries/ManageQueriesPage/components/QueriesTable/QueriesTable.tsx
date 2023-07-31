@@ -39,11 +39,13 @@ interface IQueriesTableProps {
     query?: string;
     order_key?: string;
     order_direction?: "asc" | "desc";
+    team_id?: string;
   };
+  isInherited?: boolean;
 }
 
-const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_SORT_HEADER = "updated_at";
+const DEFAULT_SORT_DIRECTION = "asc";
+const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PLATFORM = "all";
 
@@ -53,12 +55,6 @@ const PLATFORM_FILTER_OPTIONS = [
     label: "All platforms",
     value: "all",
     helpText: "All queries.",
-  },
-  {
-    disabled: false,
-    label: "Linux",
-    value: "linux",
-    helpText: "Queries that are compatible with Linux operating systems.",
   },
   {
     disabled: false,
@@ -72,6 +68,18 @@ const PLATFORM_FILTER_OPTIONS = [
     value: "windows",
     helpText: "Queries that are compatible with Windows operating systems.",
   },
+  {
+    disabled: false,
+    label: "Linux",
+    value: "linux",
+    helpText: "Queries that are compatible with Linux operating systems.",
+  },
+  {
+    disabled: false,
+    label: "ChromeOS",
+    value: "chrome",
+    helpText: "Queries that are compatible with Chromebooks.",
+  },
 ];
 
 const QueriesTable = ({
@@ -82,16 +90,16 @@ const QueriesTable = ({
   isOnlyObserver,
   isObserverPlus,
   isAnyTeamObserverPlus,
-  queryParams,
   router,
+  queryParams,
+  isInherited = false,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();
   const initialSortHeader = (() =>
-    (queryParams?.order_key as "updated_at" | "name" | "author") ??
-    "updated_at")();
+    (queryParams?.order_key as "name" | "updated_at" | "author") ?? "name")();
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
   const initialPlatform = (() =>
@@ -137,6 +145,7 @@ const QueriesTable = ({
       ) {
         newQueryParams.page = 0;
       }
+      newQueryParams.team_id = queryParams?.team_id;
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
         queryParams: newQueryParams,
@@ -227,19 +236,21 @@ const QueriesTable = ({
   };
 
   const tableHeaders = useMemo(
-    () => currentUser && generateTableHeaders({ currentUser }),
-    [currentUser]
+    () => currentUser && generateTableHeaders({ currentUser, isInherited }),
+    [currentUser, isInherited]
   );
 
-  const searchable = !(queriesList?.length === 0 && searchQuery === "");
+  const searchable =
+    !(queriesList?.length === 0 && searchQuery === "") && !isInherited;
 
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
+        disableCount={isInherited}
         resultsTitle="queries"
         columns={tableHeaders}
         data={queriesList}
-        filters={{ global: searchQuery }}
+        filters={{ global: isInherited ? "" : searchQuery }}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
@@ -261,18 +272,20 @@ const QueriesTable = ({
         isAllPagesSelected={false}
         searchable={searchable}
         searchQueryColumn="name"
-        customControl={searchable ? renderPlatformDropdown : undefined}
+        customControl={
+          searchable && !isInherited ? renderPlatformDropdown : undefined
+        }
         isClientSidePagination
         onClientSidePaginationChange={onClientSidePaginationChange}
         isClientSideFilter
         primarySelectAction={{
           name: "delete query",
           buttonText: "Delete",
-          icon: "delete",
+          iconSvg: "trash",
           variant: "text-icon",
           onActionButtonClick: onDeleteQueryClick,
         }}
-        selectedDropdownFilter={platform}
+        selectedDropdownFilter={!isInherited ? platform : undefined}
       />
     </div>
   ) : (

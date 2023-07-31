@@ -56,7 +56,7 @@ const EulaSection = () => {
 
   return (
     <div className={baseClass}>
-      <h2>End user license aggreement (EULA)</h2>
+      <h2>End user license agreement (EULA)</h2>
       {isLoading ? (
         <Spinner />
       ) : (

@@ -34,18 +34,8 @@ func truncateString(str string, length int) string {
 	return str
 }
 
-func softwareToUniqueString(s fleet.Software) string {
-	ss := []string{s.Name, s.Version, s.Source, s.BundleIdentifier}
-	// Release, Vendor and Arch fields were added on a migration,
-	// thus we only include them in the string if at least one of them is defined.
-	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
-		ss = append(ss, s.Release, s.Vendor, s.Arch)
-	}
-	return strings.Join(ss, "\u0000")
-}
-
 func uniqueStringToSoftware(s string) fleet.Software {
-	parts := strings.Split(s, "\u0000")
+	parts := strings.Split(s, fleet.SoftwareFieldSeparator)
 
 	// Release, Vendor and Arch fields were added on a migration,
 	// If one of them is defined, then they are included in the string.
@@ -71,18 +61,211 @@ func uniqueStringToSoftware(s string) fleet.Software {
 func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software)
 	for _, s := range softwares {
-		result[softwareToUniqueString(s)] = s
+		result[s.ToUniqueStr()] = s
 	}
 	return result
 }
 
-// UpdateHostSoftware updates the software list of a host.
-// The update consists of deleting existing entries that are not in the given `software`
-// slice, updating existing entries and inserting new entries.
-func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
+func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+	var result *fleet.UpdateHostSoftwareDBResult
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		r, err := applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
+		result = r
+		return err
 	})
+	return result, err
+}
+
+func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
+	ctx context.Context,
+	hostID uint,
+	reported map[string]struct{},
+	mutationResults *fleet.UpdateHostSoftwareDBResult,
+) error {
+	currS := mutationResults.CurrInstalled()
+
+	hsip, err := ds.getHostSoftwareInstalledPaths(ctx, hostID)
+	if err != nil {
+		return err
+	}
+
+	toI, toD, err := hostSoftwareInstalledPathsDelta(hostID, reported, hsip, currS)
+	if err != nil {
+		return err
+	}
+
+	if len(toI) == 0 && len(toD) == 0 {
+		// Nothing to do ...
+		return nil
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := deleteHostSoftwareInstalledPaths(ctx, tx, toD); err != nil {
+			return err
+		}
+
+		if err := insertHostSoftwareInstalledPaths(ctx, tx, toI); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// getHostSoftwareInstalledPaths returns all HostSoftwareInstalledPath for the given hostID.
+func (ds *Datastore) getHostSoftwareInstalledPaths(
+	ctx context.Context,
+	hostID uint,
+) (
+	[]fleet.HostSoftwareInstalledPath,
+	error,
+) {
+	stmt := `
+		SELECT t.id, t.host_id, t.software_id, t.installed_path
+		FROM host_software_installed_paths t
+		WHERE t.host_id = ?
+	`
+
+	var result []fleet.HostSoftwareInstalledPath
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, hostID); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// hostSoftwareInstalledPathsDelta returns what should be inserted and deleted to keep the
+// 'host_software_installed_paths' table in-sync with the osquery reported query results.
+// 'reported' is a set of 'installed_path-software.UniqueStr' strings, built from the osquery
+// results.
+// 'stored' contains all 'host_software_installed_paths' rows for the given host.
+// 'hostSoftware' contains the current software installed on the host.
+func hostSoftwareInstalledPathsDelta(
+	hostID uint,
+	reported map[string]struct{},
+	stored []fleet.HostSoftwareInstalledPath,
+	hostSoftware []fleet.Software,
+) (
+	toInsert []fleet.HostSoftwareInstalledPath,
+	toDelete []uint,
+	err error,
+) {
+	if len(reported) != 0 && len(hostSoftware) == 0 {
+		// Error condition, something reported implies that the host has some software
+		err = fmt.Errorf("software installed paths for host %d were reported but host contains no software", hostID)
+		return
+	}
+
+	sIDLookup := map[uint]fleet.Software{}
+	for _, s := range hostSoftware {
+		sIDLookup[s.ID] = s
+	}
+
+	sUnqStrLook := map[string]fleet.Software{}
+	for _, s := range hostSoftware {
+		sUnqStrLook[s.ToUniqueStr()] = s
+	}
+
+	iSPathLookup := make(map[string]fleet.HostSoftwareInstalledPath)
+	for _, r := range stored {
+		s, ok := sIDLookup[r.SoftwareID]
+		// Software currently not found on the host, should be deleted ...
+		if !ok {
+			toDelete = append(toDelete, r.ID)
+			continue
+		}
+
+		key := fmt.Sprintf("%s%s%s", r.InstalledPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		iSPathLookup[key] = r
+
+		// Anything stored but not reported should be deleted
+		if _, ok := reported[key]; !ok {
+			toDelete = append(toDelete, r.ID)
+		}
+	}
+
+	for key := range reported {
+		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 2)
+		iSPath, unqStr := parts[0], parts[1]
+
+		// Shouldn't be possible ... everything 'reported' should be in the the software table
+		// because this executes after 'ds.UpdateHostSoftware'
+		s, ok := sUnqStrLook[unqStr]
+		if !ok {
+			err = fmt.Errorf("reported installed path for %s does not belong to any stored software entry", unqStr)
+			return
+		}
+
+		if _, ok := iSPathLookup[key]; ok {
+			// Nothing to do
+			continue
+		}
+
+		toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
+			HostID:        hostID,
+			SoftwareID:    s.ID,
+			InstalledPath: iSPath,
+		})
+	}
+
+	return
+}
+
+func deleteHostSoftwareInstalledPaths(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	toDelete []uint,
+) error {
+	if len(toDelete) == 0 {
+		return nil
+	}
+
+	stmt := `DELETE FROM host_software_installed_paths WHERE id IN (?)`
+	stmt, args, err := sqlx.In(stmt, toDelete)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building delete statement for delete host_software_installed_paths")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "executing delete statement for delete host_software_installed_paths")
+	}
+
+	return nil
+}
+
+func insertHostSoftwareInstalledPaths(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	toInsert []fleet.HostSoftwareInstalledPath,
+) error {
+	if len(toInsert) == 0 {
+		return nil
+	}
+
+	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES %s"
+	batchSize := 500
+
+	for i := 0; i < len(toInsert); i += batchSize {
+		end := i + batchSize
+		if end > len(toInsert) {
+			end = len(toInsert)
+		}
+		batch := toInsert[i:end]
+
+		var args []interface{}
+		for _, v := range batch {
+			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath)
+		}
+
+		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?), ", len(batch)), ", ")
+		stmt := fmt.Sprintf(stmt, placeHolders)
+
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting rows into host_software_installed_paths")
+		}
+	}
+
+	return nil
 }
 
 func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) bool {
@@ -92,10 +275,10 @@ func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time
 
 	currentMap := make(map[string]fleet.Software)
 	for _, s := range current {
-		currentMap[softwareToUniqueString(s)] = s
+		currentMap[s.ToUniqueStr()] = s
 	}
 	for _, s := range incoming {
-		cur, ok := currentMap[softwareToUniqueString(s)]
+		cur, ok := currentMap[s.ToUniqueStr()]
 		if !ok {
 			return false
 		}
@@ -120,7 +303,7 @@ func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time
 }
 
 func (ds *Datastore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {
-	return listSoftwareByHostIDShort(ctx, ds.reader, hostID)
+	return listSoftwareByHostIDShort(ctx, ds.reader(ctx), hostID)
 }
 
 func listSoftwareByHostIDShort(
@@ -154,69 +337,82 @@ WHERE
 	return softwares, nil
 }
 
+// applyChangesForNewSoftwareDB returns the current host software and the applied mutations: what
+// was inserted and what was deleted
 func applyChangesForNewSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
 	software []fleet.Software,
 	minLastOpenedAtDiff time.Duration,
-) error {
+) (*fleet.UpdateHostSoftwareDBResult, error) {
+	r := &fleet.UpdateHostSoftwareDBResult{}
+
 	currentSoftware, err := listSoftwareByHostIDShort(ctx, tx, hostID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "loading current software for host")
+		return nil, ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
+	r.WasCurrInstalled = currentSoftware
 
 	if nothingChanged(currentSoftware, software, minLastOpenedAtDiff) {
-		return nil
+		return r, nil
 	}
 
 	current := softwareSliceToMap(currentSoftware)
 	incoming := softwareSliceToMap(software)
 
-	if err = deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
-		return err
+	deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+	if err != nil {
+		return nil, err
 	}
+	r.Deleted = deleted
 
-	if err = insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
-		return err
+	inserted, err := insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+	if err != nil {
+		return nil, err
 	}
+	r.Inserted = inserted
 
 	if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, minLastOpenedAtDiff); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err = updateSoftwareUpdatedAt(ctx, tx, hostID); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return r, nil
 }
 
 // delete host_software that is in current map, but not in incoming map.
+// returns the deleted software on the host
 func deleteUninstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExecerContext,
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
-) error {
-	var deletesHostSoftware []uint
+) ([]fleet.Software, error) {
+	var deletesHostSoftwareIDs []uint
+	var deletedSoftware []fleet.Software
+
 	for currentKey, curSw := range currentMap {
 		if _, ok := incomingMap[currentKey]; !ok {
-			deletesHostSoftware = append(deletesHostSoftware, curSw.ID)
+			deletedSoftware = append(deletedSoftware, curSw)
+			deletesHostSoftwareIDs = append(deletesHostSoftwareIDs, curSw.ID)
 		}
 	}
-	if len(deletesHostSoftware) == 0 {
-		return nil
+	if len(deletesHostSoftwareIDs) == 0 {
+		return nil, nil
 	}
 
 	stmt := `DELETE FROM host_software WHERE host_id = ? AND software_id IN (?);`
-	stmt, args, err := sqlx.In(stmt, hostID, deletesHostSoftware)
+	stmt, args, err := sqlx.In(stmt, hostID, deletesHostSoftwareIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build delete host software query")
+		return nil, ctxerr.Wrap(ctx, err, "build delete host software query")
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete host software")
+		return nil, ctxerr.Wrap(ctx, err, "delete host software")
 	}
 
 	// Cleanup the software table when no more hosts have the deleted host_software
@@ -224,19 +420,19 @@ func deleteUninstalledHostSoftwareDB(
 	// Otherwise the software will be listed by ds.ListSoftware but ds.SoftwareByID,
 	// ds.CountHosts and ds.ListHosts will return a *notFoundError error for such
 	// software.
-	stmt = `DELETE FROM software WHERE id IN (?) AND 
+	stmt = `DELETE FROM software WHERE id IN (?) AND
 	NOT EXISTS (
 		SELECT 1 FROM host_software hsw WHERE hsw.software_id = software.id
 	)`
-	stmt, args, err = sqlx.In(stmt, deletesHostSoftware)
+	stmt, args, err = sqlx.In(stmt, deletesHostSoftwareIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build delete software query")
+		return nil, ctxerr.Wrap(ctx, err, "build delete software query")
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software")
+		return nil, ctxerr.Wrap(ctx, err, "delete software")
 	}
 
-	return nil
+	return deletedSoftware, nil
 }
 
 func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.Software) (uint, error) {
@@ -286,14 +482,16 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 }
 
 // insert host_software that is in incoming map, but not in current map.
+// returns the inserted software on the host
 func insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
-) error {
+) ([]fleet.Software, error) {
 	var insertsHostSoftware []interface{}
+	var insertedSoftware []fleet.Software
 
 	incomingOrdered := make([]string, 0, len(incomingMap))
 	for s := range incomingMap {
@@ -303,12 +501,16 @@ func insertNewInstalledHostSoftwareDB(
 
 	for _, s := range incomingOrdered {
 		if _, ok := currentMap[s]; !ok {
-			id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
+			swToInsert := uniqueStringToSoftware(s)
+			id, err := getOrGenerateSoftwareIdDB(ctx, tx, swToInsert)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			sw := incomingMap[s]
 			insertsHostSoftware = append(insertsHostSoftware, hostID, id, sw.LastOpenedAt)
+
+			swToInsert.ID = id
+			insertedSoftware = append(insertedSoftware, swToInsert)
 		}
 	}
 
@@ -316,11 +518,11 @@ func insertNewInstalledHostSoftwareDB(
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
 		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
 		if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert host software")
+			return nil, ctxerr.Wrap(ctx, err, "insert host software")
 		}
 	}
 
-	return nil
+	return insertedSoftware, nil
 }
 
 // update host_software when incoming software has a significantly more recent
@@ -647,11 +849,31 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 		HostID:           &host.ID,
 		IncludeCVEScores: includeCVEScores,
 	}
-	software, err := listSoftwareDB(ctx, ds.reader, opts)
+	software, err := listSoftwareDB(ctx, ds.reader(ctx), opts)
 	if err != nil {
 		return err
 	}
-	host.Software = software
+
+	installedPaths, err := ds.getHostSoftwareInstalledPaths(
+		ctx,
+		host.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	lookup := make(map[uint][]string)
+	for _, ip := range installedPaths {
+		lookup[ip.SoftwareID] = append(lookup[ip.SoftwareID], ip.InstalledPath)
+	}
+
+	host.Software = make([]fleet.HostSoftwareEntry, 0, len(software))
+	for _, s := range software {
+		host.Software = append(host.Software, fleet.HostSoftwareEntry{
+			Software:       s,
+			InstalledPaths: lookup[s.ID],
+		})
+	}
 	return nil
 }
 
@@ -694,10 +916,10 @@ func (ds *Datastore) AllSoftwareIterator(
 	var err error
 	var args []interface{}
 
-	stmt := `SELECT 
+	stmt := `SELECT
 		s.* ,
 		COALESCE(sc.cpe, '') AS generated_cpe
-	FROM software s 
+	FROM software s
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
 
 	var conditionals []string
@@ -725,7 +947,7 @@ func (ds *Datastore) AllSoftwareIterator(
 		}
 	}
 
-	rows, err := ds.reader.QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
+	rows, err := ds.reader(ctx).QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
@@ -748,7 +970,7 @@ func (ds *Datastore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.Softwa
 	for _, cpe := range cpes {
 		args = append(args, cpe.SoftwareID, cpe.CPE)
 	}
-	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	res, err := ds.writer(ctx).ExecContext(ctx, sql, args...)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software cpes")
 	}
@@ -774,7 +996,7 @@ func (ds *Datastore) DeleteSoftwareCPEs(ctx context.Context, cpes []fleet.Softwa
 		return 0, ctxerr.Wrap(ctx, err, "error building 'In' query part when deleting software CPEs")
 	}
 
-	res, err := ds.writer.ExecContext(ctx, query, args...)
+	res, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, ctxerr.Wrapf(ctx, err, "deleting cpes software")
 	}
@@ -791,7 +1013,7 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 	var args []interface{}
 
 	stmt := `SELECT id, software_id, cpe FROM software_cpe`
-	err = sqlx.SelectContext(ctx, ds.reader, &result, stmt, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, args...)
 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
@@ -800,11 +1022,11 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 }
 
 func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(ctx, ds.reader, opt)
+	return listSoftwareDB(ctx, ds.reader(ctx), opt)
 }
 
 func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
-	return countSoftwareDB(ctx, ds.reader, opt)
+	return countSoftwareDB(ctx, ds.reader(ctx), opt)
 }
 
 // DeleteSoftwareVulnerabilities deletes the given list of software vulnerabilities
@@ -821,7 +1043,7 @@ func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerab
 	for _, vulnerability := range vulnerabilities {
 		args = append(args, vulnerability.SoftwareID, vulnerability.CVE)
 	}
-	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
 		return ctxerr.Wrapf(ctx, err, "deleting vulnerable software")
 	}
 	return nil
@@ -834,7 +1056,7 @@ func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source 
 	cutPoint := time.Now().UTC().Add(-1 * duration)
 	args = append(args, source, cutPoint)
 
-	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting out of date vulnerabilities")
 	}
 	return nil
@@ -889,7 +1111,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 	}
 
 	var results []softwareCVE
-	err = sqlx.SelectContext(ctx, ds.reader, &results, sql, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software")
 	}
@@ -993,14 +1215,14 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	)
 
 	// first, reset all counts to 0
-	if _, err := ds.writer.ExecContext(ctx, resetStmt, updatedAt); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, resetStmt, updatedAt); err != nil {
 		return ctxerr.Wrap(ctx, err, "reset all software_host_counts to 0")
 	}
 
 	// next get a cursor for the global and team counts for each software
 	stmtLabel := []string{"global", "team"}
 	for i, countStmt := range []string{globalCountsStmt, teamCountsStmt} {
-		rows, err := ds.reader.QueryContext(ctx, countStmt)
+		rows, err := ds.reader(ctx).QueryContext(ctx, countStmt)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "read %s counts from host_software", stmtLabel[i])
 		}
@@ -1028,7 +1250,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 			if batchCount == batchSize {
 				values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-				if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+				if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
 					return ctxerr.Wrapf(ctx, err, "insert %s batch into software_host_counts", stmtLabel[i])
 				}
 
@@ -1038,7 +1260,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		}
 		if batchCount > 0 {
 			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-			if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+			if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert last %s batch into software_host_counts", stmtLabel[i])
 			}
 		}
@@ -1049,74 +1271,122 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	}
 
 	// remove any unused software (global counts = 0)
-	if _, err := ds.writer.ExecContext(ctx, cleanupSoftwareStmt); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupSoftwareStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
 	}
 
 	// remove any software count row for software that don't exist anymore
-	if _, err := ds.writer.ExecContext(ctx, cleanupOrphanedStmt); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupOrphanedStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 
 	// remove any software count row for teams that don't exist anymore
-	if _, err := ds.writer.ExecContext(ctx, cleanupTeamStmt); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupTeamStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 	return nil
 }
 
-// HostsBySoftwareIDs returns a list of all hosts that have at least one of the specified Software
-// installed. It returns a minimal represention of matching hosts.
-func (ds *Datastore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
-	queryStmt := `
-    SELECT 
-      h.id,
-      h.hostname,
-      if(h.computer_name = '', h.hostname, h.computer_name) display_name
-    FROM
-      hosts h
-    INNER JOIN
-      host_software hs
-    ON
-      h.id = hs.host_id
-    WHERE
-      hs.software_id IN (?)
-	GROUP BY h.id, h.hostname
-    ORDER BY
-      h.id`
+func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
+	stmt := `
+		SELECT DISTINCT
+			h.id,
+			h.hostname,
+			if(h.computer_name = '', h.hostname, h.computer_name) display_name,
+			COALESCE(hsip.installed_path, '') AS software_installed_path
+		FROM hosts h
+				INNER JOIN host_software hs ON h.id = hs.host_id AND hs.software_id IN (?)
+				LEFT JOIN host_software_installed_paths hsip ON hs.host_id = hsip.host_id AND hs.software_id = hsip.software_id
+		ORDER BY h.id`
 
-	stmt, args, err := sqlx.In(queryStmt, softwareIDs)
+	stmt, args, err := sqlx.In(stmt, softwareIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query args")
 	}
-	var hosts []*fleet.HostShort
-	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
+
+	var qR []struct {
+		HostID      uint   `db:"id"`
+		HostName    string `db:"hostname"`
+		DisplayName string `db:"display_name"`
+		SPath       string `db:"software_installed_path"`
 	}
-	return hosts, nil
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &qR, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting hosts by softwareIDs")
+	}
+
+	var result []fleet.HostVulnerabilitySummary
+	lookup := make(map[uint]int)
+
+	for _, r := range qR {
+		i, ok := lookup[r.HostID]
+
+		if ok {
+			result[i].AddSoftwareInstalledPath(r.SPath)
+			continue
+		}
+
+		mapped := fleet.HostVulnerabilitySummary{
+			ID:          r.HostID,
+			Hostname:    r.HostName,
+			DisplayName: r.DisplayName,
+		}
+		mapped.AddSoftwareInstalledPath(r.SPath)
+		result = append(result, mapped)
+
+		lookup[r.HostID] = len(result) - 1
+	}
+
+	return result, nil
 }
 
-func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
-	query := `
-SELECT DISTINCT
-    	(h.id),
-    	h.hostname,
-    	if(h.computer_name = '', h.hostname, h.computer_name) display_name
-FROM
-    hosts h
-    INNER JOIN host_software hs ON h.id = hs.host_id
-    INNER JOIN software_cve scv ON scv.software_id = hs.software_id
-WHERE
-    scv.cve = ?
-ORDER BY
-    h.id
-`
+// ** DEPRECATED **
+func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
+	stmt := `
+		SELECT DISTINCT
+				(h.id),
+				h.hostname,
+				if(h.computer_name = '', h.hostname, h.computer_name) display_name,
+				COALESCE(hsip.installed_path, '') AS software_installed_path
+		FROM hosts h
+			INNER JOIN host_software hs ON h.id = hs.host_id
+			INNER JOIN software_cve scv ON scv.software_id = hs.software_id
+			LEFT JOIN host_software_installed_paths hsip ON hs.host_id = hsip.host_id AND hs.software_id = hsip.software_id
+		WHERE scv.cve = ?
+		ORDER BY h.id`
 
-	var hosts []*fleet.HostShort
-	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, cve); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select hosts by cves")
+	var qR []struct {
+		HostID      uint   `db:"id"`
+		HostName    string `db:"hostname"`
+		DisplayName string `db:"display_name"`
+		SPath       string `db:"software_installed_path"`
 	}
-	return hosts, nil
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &qR, stmt, cve); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting hosts by softwareIDs")
+	}
+
+	var result []fleet.HostVulnerabilitySummary
+	lookup := make(map[uint]int)
+
+	for _, r := range qR {
+		i, ok := lookup[r.HostID]
+
+		if ok {
+			result[i].AddSoftwareInstalledPath(r.SPath)
+			continue
+		}
+
+		mapped := fleet.HostVulnerabilitySummary{
+			ID:          r.HostID,
+			Hostname:    r.HostName,
+			DisplayName: r.DisplayName,
+		}
+		mapped.AddSoftwareInstalledPath(r.SPath)
+		result = append(result, mapped)
+
+		lookup[r.HostID] = len(result) - 1
+	}
+
+	return result, nil
 }
 
 func (ds *Datastore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) error {
@@ -1147,7 +1417,7 @@ ON DUPLICATE KEY UPDATE
 
 		query := fmt.Sprintf(query, valuesFrag)
 
-		_, err := ds.writer.ExecContext(ctx, query, args...)
+		_, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert cve scores")
 		}
@@ -1170,7 +1440,7 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	stmt := `INSERT INTO software_cve (cve, source, software_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE updated_at=?`
 	args = append(args, vuln.CVE, source, vuln.SoftwareID, time.Now().UTC())
 
-	res, err := ds.writer.ExecContext(ctx, stmt, args...)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "insert software vulnerability")
 	}
@@ -1214,7 +1484,7 @@ func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &queryR, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryR, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
@@ -1260,7 +1530,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
@@ -1287,7 +1557,7 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 

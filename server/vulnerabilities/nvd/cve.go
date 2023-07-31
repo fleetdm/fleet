@@ -132,11 +132,25 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
+	knownNVDBugRules, err := GetKnownNVDBugRules()
+	if err != nil {
+		return nil, err
+	}
+
 	// we are using a map here to remove any duplicates - a vulnerability can be present in more than one
 	// NVD feed file.
 	vulns := make(map[string]fleet.SoftwareVulnerability)
 	for _, file := range files {
-		foundVulns, err := checkCVEs(ctx, ds, logger, parsed, file, collectVulns)
+
+		foundVulns, err := checkCVEs(
+			ctx,
+			ds,
+			logger,
+			parsed,
+			file,
+			collectVulns,
+			knownNVDBugRules,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -179,6 +193,7 @@ func checkCVEs(
 	softwareCPEs []softwareCPEWithNVDMeta,
 	file string,
 	collectVulns bool,
+	knownNVDBugRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, error) {
 	dict, err := cvefeed.LoadJSONDictionary(file)
 	if err != nil {
@@ -216,6 +231,14 @@ func checkCVEs(
 					for _, matches := range cacheHits {
 						if len(matches.CPEs) == 0 {
 							continue
+						}
+
+						if rule, ok := knownNVDBugRules.FindMatch(
+							matches.CVE.ID(),
+						); ok {
+							if !rule.CPEMatches(softwareCPE.meta) {
+								continue
+							}
 						}
 
 						vuln := fleet.SoftwareVulnerability{

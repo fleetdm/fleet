@@ -104,7 +104,6 @@ const generatePackTableHeaders = (): IDataColumn[] => {
         <PillCell
           value={cellProps.cell.value}
           customIdPrefix="query-perf-pill"
-          hostDetails
         />
       ),
     },

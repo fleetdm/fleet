@@ -74,8 +74,14 @@ Using the migration scripts located in fleet/test/upgrade/
 1. Run the upgrade_test.go script using the most recent stable version of Fleet and `main`.
 2. Upgrade test returns an 'OK' response.
 </td><td>pass/fail</td></tr>
-</table>
 
+<tr><td>Release blockers</td><td>Verify there are no outstanding release blocking tickets.</td><td>
+  
+1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.
+2. If any are found raise an alarm in the `#help-engineering` and `#help-product` channels.
+</td><td>pass/fail</td></tr>
+</table>
+  
 # Notes
 
 Issues found new to this version:

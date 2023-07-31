@@ -76,8 +76,17 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 			q.Name = q.QueryName
 		}
 		_, err := tx.ExecContext(ctx, query,
-			packID, q.QueryName, q.Name, q.Description, q.Interval,
-			q.Snapshot, q.Removed, q.Shard, q.Platform, q.Version, q.Denylist,
+			packID,
+			q.QueryName,
+			q.Name,
+			q.Description,
+			q.Interval,
+			q.Snapshot,
+			q.Removed,
+			q.Shard,
+			q.Platform,
+			q.Version,
+			q.Denylist,
 		)
 		switch {
 		case isChildForeignKeyError(err):
@@ -232,7 +241,7 @@ func (ds *Datastore) PackByName(ctx context.Context, name string, opts ...fleet.
 			WHERE name = ?
 	`
 	var pack fleet.Pack
-	err := sqlx.GetContext(ctx, ds.reader, &pack, sqlStatement, name)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &pack, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -240,7 +249,7 @@ func (ds *Datastore) PackByName(ctx context.Context, name string, opts ...fleet.
 		return nil, false, ctxerr.Wrap(ctx, err, "fetch pack by name")
 	}
 
-	if err := loadPackTargetsDB(ctx, ds.reader, &pack); err != nil {
+	if err := loadPackTargetsDB(ctx, ds.reader(ctx), &pack); err != nil {
 		return nil, false, err
 	}
 
@@ -413,7 +422,7 @@ func (ds *Datastore) DeletePack(ctx context.Context, name string) error {
 
 // Pack fetch fleet.Pack with matching ID
 func (ds *Datastore) Pack(ctx context.Context, pid uint) (*fleet.Pack, error) {
-	return packDB(ctx, ds.reader, pid)
+	return packDB(ctx, ds.reader(ctx), pid)
 }
 
 func packDB(ctx context.Context, q sqlx.QueryerContext, pid uint) (*fleet.Pack, error) {
@@ -433,114 +442,8 @@ func packDB(ctx context.Context, q sqlx.QueryerContext, pid uint) (*fleet.Pack, 
 	return pack, nil
 }
 
-// EnsureGlobalPack gets or inserts a pack with type global
-func (ds *Datastore) EnsureGlobalPack(ctx context.Context) (*fleet.Pack, error) {
-	pack := &fleet.Pack{}
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// read from primary as we will create the pack if it doesn't exist
-		err := sqlx.GetContext(ctx, tx, pack, `SELECT * FROM packs WHERE pack_type = 'global'`)
-		if err == sql.ErrNoRows {
-			pack, err = insertNewGlobalPackDB(ctx, tx)
-			return err
-		} else if err != nil {
-			return ctxerr.Wrap(ctx, err, "get pack")
-		}
-
-		return loadPackTargetsDB(ctx, tx, pack)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return pack, nil
-}
-
-func insertNewGlobalPackDB(ctx context.Context, q sqlx.ExtContext) (*fleet.Pack, error) {
-	var packID uint
-	res, err := q.ExecContext(ctx,
-		`INSERT INTO packs (name, description, platform, pack_type) VALUES ('Global', 'Global pack', '','global')`,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "insert pack")
-	}
-	packId, err := res.LastInsertId()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "last insert id")
-	}
-	packID = uint(packId)
-	if _, err := q.ExecContext(ctx,
-		`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))`,
-		packID, fleet.TargetLabel, "All Hosts",
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "adding label to pack")
-	}
-
-	return packDB(ctx, q, packID)
-}
-
-func (ds *Datastore) EnsureTeamPack(ctx context.Context, teamID uint) (*fleet.Pack, error) {
-	pack := &fleet.Pack{}
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		t, err := teamDB(ctx, tx, teamID)
-		if err != nil || t == nil {
-			return ctxerr.Wrap(ctx, err, "Error finding team")
-		}
-
-		teamType := fmt.Sprintf("team-%d", teamID)
-		// read from primary as we will create the team pack if it doesn't exist
-		err = sqlx.GetContext(ctx, tx, pack, `SELECT * FROM packs WHERE pack_type = ?`, teamType)
-		if err == sql.ErrNoRows {
-			pack, err = insertNewTeamPackDB(ctx, tx, t)
-			return err
-		} else if err != nil {
-			return ctxerr.Wrap(ctx, err, "get pack")
-		}
-
-		if err := loadPackTargetsDB(ctx, tx, pack); err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return pack, nil
-}
-
 func teamScheduleName(team *fleet.Team) string {
 	return fmt.Sprintf("Team: %s", team.Name)
-}
-
-func teamSchedulePackType(team *fleet.Team) string {
-	return teamSchedulePackTypeByID(team.ID)
-}
-
-func teamSchedulePackTypeByID(teamID uint) string {
-	return fmt.Sprintf("team-%d", teamID)
-}
-
-func insertNewTeamPackDB(ctx context.Context, q sqlx.ExtContext, team *fleet.Team) (*fleet.Pack, error) {
-	var packID uint
-	res, err := q.ExecContext(ctx,
-		`INSERT INTO packs (name, description, platform, pack_type)
-                   VALUES (?, 'Schedule additional queries for all hosts assigned to this team.', '',?)`,
-		teamScheduleName(team), teamSchedulePackType(team),
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "insert team pack")
-	}
-	packId, err := res.LastInsertId()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "last insert id")
-	}
-	packID = uint(packId)
-	if _, err := q.ExecContext(ctx,
-		`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, ?)`,
-		packID, fleet.TargetTeam, team.ID,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "adding team id target to pack")
-	}
-	return packDB(ctx, q, packID)
 }
 
 // ListPacks returns all fleet.Pack records limited and sorted by fleet.ListOptions
@@ -550,13 +453,13 @@ func (ds *Datastore) ListPacks(ctx context.Context, opt fleet.PackListOptions) (
 		query = `SELECT * FROM packs`
 	}
 	var packs []*fleet.Pack
-	err := sqlx.SelectContext(ctx, ds.reader, &packs, appendListOptionsToSQL(query, &opt.ListOptions))
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &packs, appendListOptionsToSQL(query, &opt.ListOptions))
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "listing packs")
 	}
 
 	for _, pack := range packs {
-		if err := loadPackTargetsDB(ctx, ds.reader, pack); err != nil {
+		if err := loadPackTargetsDB(ctx, ds.reader(ctx), pack); err != nil {
 			return nil, err
 		}
 	}
@@ -565,13 +468,13 @@ func (ds *Datastore) ListPacks(ctx context.Context, opt fleet.PackListOptions) (
 }
 
 func (ds *Datastore) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-	return listPacksForHost(ctx, ds.reader, hid)
+	return listPacksForHost(ctx, ds.reader(ctx), hid)
 }
 
-// listPacksForHost returns all the packs that are configured to run on the given host.
+// listPacksForHost returns all the "user packs" that are configured to run on the given host.
 func listPacksForHost(ctx context.Context, db sqlx.QueryerContext, hid uint) ([]*fleet.Pack, error) {
 	query := `
-SELECT DISTINCT packs.* FROM (
+	SELECT DISTINCT packs.* FROM (
 	(
 		SELECT p.* FROM packs p
 		JOIN pack_targets pt
@@ -581,26 +484,29 @@ SELECT DISTINCT packs.* FROM (
 			AND pt.target_id = lm.label_id
 			AND pt.type = ?
 		)
-		WHERE lm.host_id = ? AND NOT p.disabled
+		WHERE lm.host_id = ? AND NOT p.disabled AND p.pack_type IS NULL
 	)
 	UNION ALL
 	(
 		SELECT p.* FROM packs p
-		JOIN pack_targets pt
-		ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = ?)
+		JOIN pack_targets pt ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = ?)
+		WHERE p.pack_type IS NULL
 	)
 	UNION ALL
 	(
 		SELECT p.*
 		FROM packs p
 		JOIN pack_targets pt
-		ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = (SELECT team_id FROM hosts WHERE id = ?)))
-	) packs`
+		ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = (SELECT team_id FROM hosts WHERE id = ?))
+		WHERE p.pack_type IS NULL
+	)) packs`
+
 	packs := []*fleet.Pack{}
 	if err := sqlx.SelectContext(ctx, db, &packs, query,
 		fleet.TargetLabel, hid, fleet.TargetHost, hid, fleet.TargetTeam, hid,
 	); err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "listing hosts in pack")
 	}
+
 	return packs, nil
 }

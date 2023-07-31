@@ -96,7 +96,8 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	hosts, err := ts.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
 	for _, host := range hosts {
-		require.NoError(t, ts.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
+		_, err := ts.ds.UpdateHostSoftware(context.Background(), host.ID, nil)
+		require.NoError(t, err)
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
 
@@ -110,6 +111,18 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 			err := ts.ds.DeleteLabel(ctx, lbl.Name)
 			require.NoError(t, err)
 		}
+	}
+
+	queries, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
+	require.NoError(t, err)
+	queryIDs := make([]uint, 0, len(queries))
+	for _, query := range queries {
+		queryIDs = append(queryIDs, query.ID)
+	}
+	if len(queryIDs) > 0 {
+		count, err := ts.ds.DeleteQueries(ctx, queryIDs)
+		require.NoError(t, err)
+		require.Equal(t, len(queries), int(count))
 	}
 
 	users, err := ts.ds.ListUsers(ctx, fleet.UserListOptions{})

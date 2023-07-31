@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 )
 
-//go:generate go run gen_activity_doc.go ../../docs/Using-Fleet/Audit-Activities.md
+// go:generate go run gen_activity_doc.go "../../docs/Using Fleet/Audit-logs.md"
 
 // ActivityDetailsList is used to generate documentation.
 var ActivityDetailsList = []ActivityDetails{
@@ -27,6 +27,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedTeam{},
 	ActivityTypeDeletedTeam{},
 	ActivityTypeAppliedSpecTeam{},
+	ActivityTypeTransferredHostsToTeam{},
 
 	ActivityTypeEditedAgentOptions{},
 
@@ -66,6 +67,9 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledMacosSetupEndUserAuth{},
 	ActivityTypeDisabledMacosSetupEndUserAuth{},
+
+	ActivityTypeEnabledWindowsMDM{},
+	ActivityTypeDisabledWindowsMDM{},
 }
 
 type ActivityDetails interface {
@@ -396,6 +400,31 @@ func (a ActivityTypeAppliedSpecTeam) Documentation() (activity string, details s
 }`
 }
 
+type ActivityTypeTransferredHostsToTeam struct {
+	TeamID           *uint    `json:"team_id"`
+	TeamName         *string  `json:"team_name"`
+	HostIDs          []uint   `json:"host_ids"`
+	HostDisplayNames []string `json:"host_display_names"`
+}
+
+func (a ActivityTypeTransferredHostsToTeam) ActivityName() string {
+	return "transferred_hosts"
+}
+
+func (a ActivityTypeTransferredHostsToTeam) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user transfers a host (or multiple hosts) to a team (or no team).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the hosts were transferred to, ` + "`null`" + ` if transferred to no team.
+- "team_name": The name of the team that the hosts were transferred to, ` + "`null`" + ` if transferred to no team.
+- "host_ids": The list of identifiers of the hosts that were transferred.
+- "host_display_names": The list of display names of the hosts that were transferred (in the same order as the "host_ids").`, `{
+  "team_id": 123,
+  "team_name": "Workstations",
+  "host_ids": [1, 2, 3],
+  "host_display_names": ["alice-macbook-air", "bob-macbook-pro", "linux-server"]
+}`
+}
+
 type ActivityTypeEditedAgentOptions struct {
 	Global   bool    `json:"global"`
 	TeamID   *uint   `json:"team_id"`
@@ -410,8 +439,8 @@ func (a ActivityTypeEditedAgentOptions) Documentation() (activity string, detail
 	return `Generated when agent options are edited (either globally or for a team).`,
 		`This activity contains the following fields:
 - "global": "true" if the user updated the global agent options, "false" if the agent options of a team were updated.
-- "team_id": unique ID of the team for which the agent options were updated (null if global is true).
-- "team_name": the name of the team for which the agent options were updated (null if global is true).`, `{
+- "team_id": unique ID of the team for which the agent options were updated (` + "`null`" + ` if global is true).
+- "team_name": the name of the team for which the agent options were updated (` + "`null`" + ` if global is true).`, `{
 	"team_id": 123,
 	"team_name": "foo",
 	"global": false
@@ -663,6 +692,7 @@ type ActivityTypeMDMEnrolled struct {
 	HostSerial       string `json:"host_serial"`
 	HostDisplayName  string `json:"host_display_name"`
 	InstalledFromDEP bool   `json:"installed_from_dep"`
+	MDMPlatform      string `json:"mdm_platform"`
 }
 
 func (a ActivityTypeMDMEnrolled) ActivityName() string {
@@ -674,10 +704,12 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
 		`This activity contains the following fields:
 - "host_serial": Serial number of the host.
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP.`, `{
+- "installed_from_dep": Whether the host was enrolled via DEP.
+- "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.`, `{
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
-  "installed_from_dep": true
+  "installed_from_dep": true,
+  "mdm_platform": "apple"
 }`
 }
 
@@ -717,8 +749,8 @@ func (a ActivityTypeEditedMacOSMinVersion) ActivityName() string {
 func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when the minimum required macOS version or deadline is modified.`,
 		`This activity contains the following fields:
-- "team_id": The ID of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
+- "team_id": The ID of the team that the minimum macOS version applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum macOS version applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
 - "minimum_version": The minimum macOS version required, empty if the requirement was removed.
 - "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.`, `{
   "team_id": 3,
@@ -763,8 +795,8 @@ func (a ActivityTypeCreatedMacosProfile) Documentation() (activity, details, det
 		`This activity contains the following fields:
 - "profile_name": Name of the profile.
 - "profile_identifier": Identifier of the profile.
-- "team_id": The ID of the team that the profile applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that the profile applies to, null if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
   "team_id": 123,
@@ -788,8 +820,8 @@ func (a ActivityTypeDeletedMacosProfile) Documentation() (activity, details, det
 		`This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
 - "profile_identifier": Identifier of deleted the profile.
-- "team_id": The ID of the team that the profile applied to, null if it applied to devices that are not in a team.
-- "team_name": The name of the team that the profile applied to, null if it applied to devices that are not in a team.`, `{
+- "team_id": The ID of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.`, `{
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
   "team_id": 123,
@@ -809,8 +841,8 @@ func (a ActivityTypeEditedMacosProfile) ActivityName() string {
 func (a ActivityTypeEditedMacosProfile) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user edits the macOS profiles of a team (or no team) via the fleetctl CLI.`,
 		`This activity contains the following fields:
-- "team_id": The ID of the team that the profiles apply to, null if they apply to devices that are not in a team.
-- "team_name": The name of the team that the profiles apply to, null if they apply to devices that are not in a team.`, `{
+- "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
 }`
@@ -830,8 +862,8 @@ func (a ActivityTypeChangedMacosSetupAssistant) Documentation() (activity, detai
 	return `Generated when a user sets the macOS setup assistant for a team (or no team).`,
 		`This activity contains the following fields:
 - "name": Name of the macOS setup assistant file.
-- "team_id": The ID of the team that the setup assistant applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that the setup assistant applies to, null if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team that the setup assistant applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setup assistant applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "name": "dep_profile.json",
   "team_id": 123,
   "team_name": "Workstations"
@@ -852,8 +884,8 @@ func (a ActivityTypeDeletedMacosSetupAssistant) Documentation() (activity, detai
 	return `Generated when a user deletes the macOS setup assistant for a team (or no team).`,
 		`This activity contains the following fields:
 - "name": Name of the deleted macOS setup assistant file.
-- "team_id": The ID of the team that the setup assistant applied to, null if it applied to devices that are not in a team.
-- "team_name": The name of the team that the setup assistant applied to, null if it applied to devices that are not in a team.`, `{
+- "team_id": The ID of the team that the setup assistant applied to, ` + "`null`" + ` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the setup assistant applied to, ` + "`null`" + ` if it applied to devices that are not in a team.`, `{
   "name": "dep_profile.json",
   "team_id": 123,
   "team_name": "Workstations"
@@ -872,8 +904,8 @@ func (a ActivityTypeEnabledMacosDiskEncryption) ActivityName() string {
 func (a ActivityTypeEnabledMacosDiskEncryption) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user turns on macOS disk encryption for a team (or no team).`,
 		`This activity contains the following fields:
-- "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team that disk encryption applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
 }`
@@ -891,8 +923,8 @@ func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 func (a ActivityTypeDisabledMacosDiskEncryption) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user turns off macOS disk encryption for a team (or no team).`,
 		`This activity contains the following fields:
-- "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team that disk encryption applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
 }`
@@ -912,8 +944,8 @@ func (a ActivityTypeAddedBootstrapPackage) Documentation() (activity, details, d
 	return `Generated when a user adds a new bootstrap package to a team (or no team).`,
 		`This activity contains the following fields:
 - "package_name": Name of the package.
-- "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team that the package applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the package applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "bootstrap_package_name": "bootstrap-package.pkg",
   "team_id": 123,
   "team_name": "Workstations"
@@ -934,8 +966,8 @@ func (a ActivityTypeDeletedBootstrapPackage) Documentation() (activity, details,
 	return `Generated when a user deletes a bootstrap package from a team (or no team).`,
 		`This activity contains the following fields:
 - "package_name": Name of the package.
-- "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team that the package applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the package applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "package_name": "bootstrap-package.pkg",
   "team_id": 123,
   "team_name": "Workstations"
@@ -954,8 +986,8 @@ func (a ActivityTypeEnabledMacosSetupEndUserAuth) ActivityName() string {
 func (a ActivityTypeEnabledMacosSetupEndUserAuth) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).`,
 		`This activity contains the following fields:
-- "team_id": The ID of the team that end user authentication applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that end user authentication applies to, null if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team that end user authentication applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
 }`
@@ -973,11 +1005,33 @@ func (a ActivityTypeDisabledMacosSetupEndUserAuth) ActivityName() string {
 func (a ActivityTypeDisabledMacosSetupEndUserAuth) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).`,
 		`This activity contains the following fields:
-- "team_id": The ID of the team that end user authentication applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that end user authentication applies to, null if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team that end user authentication applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
 }`
+}
+
+type ActivityTypeEnabledWindowsMDM struct{}
+
+func (a ActivityTypeEnabledWindowsMDM) ActivityName() string {
+	return "enabled_windows_mdm"
+}
+
+func (a ActivityTypeEnabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
+	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns on MDM features for all Windows hosts (servers excluded).`,
+		`This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledWindowsMDM struct{}
+
+func (a ActivityTypeDisabledWindowsMDM) ActivityName() string {
+	return "disabled_windows_mdm"
+}
+
+func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
+	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.`,
+		`This activity does not contain any detail fields.`, ``
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.

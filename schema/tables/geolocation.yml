@@ -1,0 +1,24 @@
+name: geolocation
+evented: false
+platforms:
+  - chrome
+description: Last reported geolocation
+columns:
+  - name: ip
+    type: text
+    required: false
+    description: IP address
+  - name: city
+    type: text
+    required: false
+    description: City
+  - name: country
+    type: text
+    required: false
+    description: Country
+  - name: region
+    type: text
+    required: false
+    description: Region
+notes: |
+  - This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

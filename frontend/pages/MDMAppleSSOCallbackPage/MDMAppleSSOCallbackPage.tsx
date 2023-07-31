@@ -17,12 +17,19 @@ const RedirectTo = ({ url }: { url: string }) => {
 interface IEnrollmentGateProps {
   profileToken?: string;
   eulaToken?: string;
+  enrollmentReference?: string;
+  error?: boolean;
 }
 
-const EnrollmentGate = ({ profileToken, eulaToken }: IEnrollmentGateProps) => {
+const EnrollmentGate = ({
+  profileToken,
+  eulaToken,
+  enrollmentReference,
+  error,
+}: IEnrollmentGateProps) => {
   const [showEULA, setShowEULA] = useState(Boolean(eulaToken));
 
-  if (!profileToken) {
+  if (!profileToken || error) {
     return <SSOError />;
   }
 
@@ -47,22 +54,39 @@ const EnrollmentGate = ({ profileToken, eulaToken }: IEnrollmentGateProps) => {
   }
 
   return (
-    <RedirectTo url={endpoints.MDM_APPLE_ENROLLMENT_PROFILE(profileToken)} />
+    <RedirectTo
+      url={endpoints.MDM_APPLE_ENROLLMENT_PROFILE(
+        profileToken,
+        enrollmentReference
+      )}
+    />
   );
 };
 
 interface IMDMSSOCallbackQuery {
   eula_token?: string;
   profile_token?: string;
+  enrollment_reference?: string;
+  error?: boolean;
 }
 
 const MDMAppleSSOCallbackPage = (
   props: WithRouterProps<object, IMDMSSOCallbackQuery>
 ) => {
-  const { eula_token, profile_token } = props.location.query;
+  const {
+    eula_token,
+    profile_token,
+    enrollment_reference,
+    error,
+  } = props.location.query;
   return (
     <div className={baseClass}>
-      <EnrollmentGate eulaToken={eula_token} profileToken={profile_token} />
+      <EnrollmentGate
+        eulaToken={eula_token}
+        profileToken={profile_token}
+        enrollmentReference={enrollment_reference}
+        error={error}
+      />
     </div>
   );
 };

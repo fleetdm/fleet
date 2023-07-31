@@ -439,6 +439,8 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 		if policy.Team != "" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
+				// This is so that the proper HTTP status code is returned
+				svc.authz.SkipAuthorization(ctx)
 				return ctxerr.Wrap(ctx, err, "getting team by name")
 			}
 			if err := svc.authz.Authorize(ctx, &fleet.Policy{

@@ -1,21 +1,21 @@
 .mac-os-updates {
   font-size: $x-small;
 
-  h2 {
-    font-size: $small;
-    margin: 0;
-  }
-
   &__description {
     margin: $pad-xxlarge 0;
   }
 
   &__content {
-    max-width: $break-1600;
+    max-width: $break-xxl;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
     gap: $pad-xxlarge;
+
+    h2 {
+      font-size: $small;
+      margin: 0;
+    }
   }
 
   &__os-versions-card {
@@ -26,7 +26,7 @@
     margin-top: 80px;
   }
 
-  @media (max-width: $break-990) {
+  @media (max-width: $break-md) {
     &__content {
       flex-direction: column;
     }

@@ -3,13 +3,9 @@ package apple_mdm
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"fmt"
-	"net/url"
-	"path"
 	"strings"
 	"text/template"
 	"time"
@@ -18,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/log/level"
@@ -46,6 +43,10 @@ const (
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
 
+	// FleetUISSOCallbackPath is the front-end route used to
+	// redirect after the SSO flow is completed.
+	FleetUISSOCallbackPath = "/mdm/sso/callback"
+
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
@@ -56,20 +57,21 @@ const (
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, MDMPath)
+	return commonmdm.ResolveURL(serverURL, MDMPath, false)
+}
+
+func ResolveAppleEnrollMDMURL(serverURL string) (string, error) {
+	return commonmdm.ResolveURL(serverURL, EnrollPath, false)
 }
 
 func ResolveAppleSCEPURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, SCEPPath)
-}
-
-func resolveURL(serverURL, relPath string) (string, error) {
-	u, err := url.Parse(serverURL)
-	if err != nil {
-		return "", err
-	}
-	u.Path = path.Join(u.Path, relPath)
-	return u.String(), nil
+	// Apple's SCEP client appends a query string to the SCEP URL in the
+	// enrollment profile, without checking if the URL already has a query
+	// string. Eg: if the URL is `/test/example?foo=bar` it'll make a
+	// request to `/test/example?foo=bar?SCEPOperation=..`
+	//
+	// As a consequence we ensure that the query is always clean for the SCEP URL.
+	return commonmdm.ResolveURL(serverURL, SCEPPath, true)
 }
 
 // DEPService is used to encapsulate tasks related to DEP enrollment.
@@ -300,8 +302,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 	var appleBMTeam *fleet.Team
 	if appCfg.MDM.AppleBMDefaultTeam != "" {
 		tm, err := d.ds.TeamByName(ctx, appCfg.MDM.AppleBMDefaultTeam)
-		// NOTE: TeamByName does NOT return a not found error if it does not exist
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		if err != nil && !fleet.IsNotFound(err) {
 			return err
 		}
 		appleBMTeam = tm
@@ -361,20 +362,7 @@ func NewDEPService(
 		depStorage,
 		depsync.WithLogger(logging.NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
 		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
-			n, teamID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, resp.Devices)
-			switch {
-			case err != nil:
-				level.Error(kitlog.With(logger)).Log("err", err)
-				sentry.CaptureException(err)
-			case n > 0:
-				level.Info(kitlog.With(logger)).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
-			case n == 0:
-				level.Info(kitlog.With(logger)).Log("msg", "no DEP hosts to add")
-			}
-
-			// at this point, the hosts rows are created for the devices, with the
-			// correct team_id, so we know what team-specific profile needs to be applied.
-			return depSvc.processDeviceResponse(ctx, depClient, resp, teamID)
+			return depSvc.processDeviceResponse(ctx, depClient, resp)
 		}),
 	)
 
@@ -384,12 +372,80 @@ func NewDEPService(
 // processDeviceResponse processes the device response from the device sync
 // DEP API endpoints and assigns the profile UUID associated with the DEP
 // client DEP name.
-func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep.Client, resp *godep.DeviceResponse, tmID *uint) error {
+func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep.Client, resp *godep.DeviceResponse) error {
 	if len(resp.Devices) < 1 {
 		// no devices means we can't assign anything
 		return nil
 	}
 
+	var addedDevices []godep.Device
+	var deletedSerials []string
+	var modifiedDevices []godep.Device
+	var modifiedSerials []string
+	for _, device := range resp.Devices {
+		level.Debug(d.logger).Log(
+			"msg", "device",
+			"serial_number", device.SerialNumber,
+			"device_assigned_by", device.DeviceAssignedBy,
+			"device_assigned_date", device.DeviceAssignedDate,
+			"op_date", device.OpDate,
+			"op_type", device.OpType,
+			"profile_assign_time", device.ProfileAssignTime,
+			"push_push_time", device.ProfilePushTime,
+			"profile_uuid", device.ProfileUUID,
+		)
+
+		switch strings.ToLower(device.OpType) {
+		// The op_type field is only applicable with the SyncDevices API call,
+		// Empty op_type come from the first call to FetchDevices without a cursor,
+		// and we do want to assign profiles to them.
+		case "added", "":
+			addedDevices = append(addedDevices, device)
+		case "modified":
+			modifiedDevices = append(modifiedDevices, device)
+			modifiedSerials = append(modifiedSerials, device.SerialNumber)
+		case "deleted":
+			deletedSerials = append(deletedSerials, device.SerialNumber)
+		default:
+			level.Warn(d.logger).Log(
+				"msg", "unrecognized op_type",
+				"op_type", device.OpType,
+				"serial_number", device.SerialNumber,
+			)
+		}
+	}
+
+	existingSerials, err := d.ds.GetMatchingHostSerials(ctx, modifiedSerials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get matching host serials")
+	}
+
+	// treat device that's coming as "modified" but doesn't exist in the
+	// `hosts` table, as an "added" device.
+	for _, d := range modifiedDevices {
+		if _, ok := existingSerials[d.SerialNumber]; !ok {
+			addedDevices = append(addedDevices, d)
+		}
+	}
+
+	err = d.ds.DeleteHostDEPAssignments(ctx, deletedSerials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
+	}
+
+	n, tmID, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices)
+	switch {
+	case err != nil:
+		level.Error(kitlog.With(d.logger)).Log("err", err)
+		sentry.CaptureException(err)
+	case n > 0:
+		level.Info(kitlog.With(d.logger)).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
+	case n == 0:
+		level.Info(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
+	}
+
+	// at this point, the hosts rows are created for the devices, with the
+	// correct team_id, so we know what team-specific profile needs to be applied.
 	var appleBMTeam *fleet.Team
 	if tmID != nil {
 		tm, err := d.ds.Team(ctx, *tmID)
@@ -416,34 +472,9 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		return nil
 	}
 
-	var serials []string
-	for _, device := range resp.Devices {
-		level.Debug(d.logger).Log(
-			"msg", "device",
-			"serial_number", device.SerialNumber,
-			"device_assigned_by", device.DeviceAssignedBy,
-			"device_assigned_date", device.DeviceAssignedDate,
-			"op_date", device.OpDate,
-			"op_type", device.OpType,
-			"profile_assign_time", device.ProfileAssignTime,
-			"push_push_time", device.ProfilePushTime,
-			"profile_uuid", device.ProfileUUID,
-		)
-		// We currently only listen for an op_type of "added", the other
-		// op_types are ambiguous and it would be needless to assign the
-		// profile UUID every single time we get an update.
-		if strings.ToLower(device.OpType) == "added" ||
-			// The op_type field is only applicable with the SyncDevices API call,
-			// Empty op_type come from the first call to FetchDevices without a cursor,
-			// and we do want to assign profiles to them.
-			strings.ToLower(device.OpType) == "" {
-			serials = append(serials, device.SerialNumber)
-		}
-	}
-
 	logger := kitlog.With(d.logger, "profile_uuid", profUUID)
 
-	if len(serials) < 1 {
+	if len(addedDevices) < 1 {
 		level.Debug(logger).Log(
 			"msg", "no serials to assign",
 			"devices", len(resp.Devices),
@@ -451,11 +482,16 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		return nil
 	}
 
-	apiResp, err := depClient.AssignProfile(ctx, DEPName, profUUID, serials...)
+	var addedSerials []string
+	for _, d := range addedDevices {
+		addedSerials = append(addedSerials, d.SerialNumber)
+	}
+
+	apiResp, err := depClient.AssignProfile(ctx, DEPName, profUUID, addedSerials...)
 	if err != nil {
 		level.Info(logger).Log(
 			"msg", "assign profile",
-			"devices", len(serials),
+			"devices", len(addedSerials),
 			"err", err,
 		)
 		return fmt.Errorf("assign profile: %w", err)
@@ -463,7 +499,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 
 	logs := []interface{}{
 		"msg", "profile assigned",
-		"devices", len(serials),
+		"devices", len(addedSerials),
 	}
 	logs = append(logs, logCountsForResults(apiResp.Devices)...)
 	level.Info(logger).Log(logs...)
@@ -644,4 +680,54 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// ProfileBimap implements bidirectional mapping for profiles, and utility
+// functions to generate those mappings based on frequently used operations.
+type ProfileBimap struct {
+	wantedState  map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload
+	currentState map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload
+}
+
+// NewProfileBimap retuns a new ProfileBimap
+func NewProfileBimap() *ProfileBimap {
+	return &ProfileBimap{
+		map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload{},
+		map[*fleet.MDMAppleProfilePayload]*fleet.MDMAppleProfilePayload{},
+	}
+}
+
+// GetMatchingProfileInDesiredState returns the addition key that matches the given removal
+func (pb *ProfileBimap) GetMatchingProfileInDesiredState(removal *fleet.MDMAppleProfilePayload) (*fleet.MDMAppleProfilePayload, bool) {
+	value, ok := pb.currentState[removal]
+	return value, ok
+}
+
+// GetMatchingProfileInCurrentState returns the removal key that matches the given addition
+func (pb *ProfileBimap) GetMatchingProfileInCurrentState(addition *fleet.MDMAppleProfilePayload) (*fleet.MDMAppleProfilePayload, bool) {
+	key, ok := pb.wantedState[addition]
+	return key, ok
+}
+
+// IntersectByIdentifierAndHostUUID populates the bimap matching the profiles by Identifier and HostUUID
+func (pb *ProfileBimap) IntersectByIdentifierAndHostUUID(wantedProfiles, currentProfiles []*fleet.MDMAppleProfilePayload) {
+	key := func(p *fleet.MDMAppleProfilePayload) string {
+		return fmt.Sprintf("%s-%s", p.ProfileIdentifier, p.HostUUID)
+	}
+
+	removeProfs := map[string]*fleet.MDMAppleProfilePayload{}
+	for _, p := range currentProfiles {
+		removeProfs[key(p)] = p
+	}
+
+	for _, p := range wantedProfiles {
+		if pp, ok := removeProfs[key(p)]; ok {
+			pb.add(p, pp)
+		}
+	}
+}
+
+func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfilePayload) {
+	pb.wantedState[wantedProfile] = currentProfile
+	pb.currentState[currentProfile] = wantedProfile
 }

@@ -9,14 +9,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
-	"path"
-	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,33 +28,77 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-//go:embed *.tmpl
-var templatesFS embed.FS
+var (
+	//go:embed *.tmpl
+	templatesFS embed.FS
 
-//go:embed *.software
-var softwareFS embed.FS
+	//go:embed *.software
+	macOSVulnerableSoftwareFS embed.FS
 
-var vulnerableSoftware []fleet.Software
+	//go:embed ubuntu_2204-software.json.bz2
+	ubuntuSoftwareFS embed.FS
+	//go:embed windows_11-software.json.bz2
+	windowsSoftwareFS embed.FS
 
-func init() {
-	vulnerableSoftwareData, err := softwareFS.ReadFile("vulnerable.software")
+	macosVulnerableSoftware []fleet.Software
+	windowsSoftware         []map[string]string
+	ubuntuSoftware          []map[string]string
+)
+
+func loadMacOSVulnerableSoftware() {
+	macOSVulnerableSoftwareData, err := macOSVulnerableSoftwareFS.ReadFile("macos_vulnerable.software")
 	if err != nil {
-		log.Fatal("reading vulnerable software file: ", err)
+		log.Fatal("reading vulnerable macOS software file: ", err)
 	}
-	lines := bytes.Split(vulnerableSoftwareData, []byte("\n"))
+	lines := bytes.Split(macOSVulnerableSoftwareData, []byte("\n"))
 	for _, line := range lines {
 		parts := bytes.Split(line, []byte("##"))
 		if len(parts) < 2 {
 			fmt.Println("skipping", string(line))
 			continue
 		}
-		vulnerableSoftware = append(vulnerableSoftware, fleet.Software{
+		macosVulnerableSoftware = append(macosVulnerableSoftware, fleet.Software{
 			Name:    strings.TrimSpace(string(parts[0])),
 			Version: strings.TrimSpace(string(parts[1])),
 			Source:  "apps",
 		})
 	}
-	log.Printf("Loaded %d vulnerable software\n", len(vulnerableSoftware))
+	log.Printf("Loaded %d vulnerable macOS software\n", len(macosVulnerableSoftware))
+}
+
+func loadSoftwareItems(fs embed.FS, path string) []map[string]string {
+	bz2, err := fs.Open(path)
+	if err != nil {
+		panic(err)
+	}
+
+	type softwareJSON struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		Release string `json:"release,omitempty"`
+		Arch    string `json:"arch,omitempty"`
+	}
+	var softwareList []softwareJSON
+	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
+	if err := json.NewDecoder(bzip2.NewReader(bz2)).Decode(&softwareList); err != nil { //nolint:gosec
+		panic(err)
+	}
+
+	softwareRows := make([]map[string]string, 0, len(softwareList))
+	for _, s := range softwareList {
+		softwareRows = append(softwareRows, map[string]string{
+			"name":    s.Name,
+			"version": s.Version,
+			"source":  "programs",
+		})
+	}
+	return softwareRows
+}
+
+func init() {
+	loadMacOSVulnerableSoftware()
+	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2")
+	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2")
 }
 
 type Stats struct {
@@ -211,20 +251,22 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type agent struct {
-	agentIndex      int
-	softwareCount   softwareEntityCount
-	userCount       entityCount
-	policyPassProb  float64
-	munkiIssueProb  float64
-	munkiIssueCount int
-	strings         map[string]string
-	serverAddress   string
-	fastClient      fasthttp.Client
-	stats           *Stats
-	nodeKeyManager  *nodeKeyManager
-	nodeKey         string
-	templates       *template.Template
-	os              string
+	agentIndex             int
+	softwareCount          softwareEntityCount
+	userCount              entityCount
+	policyPassProb         float64
+	munkiIssueProb         float64
+	munkiIssueCount        int
+	liveQueryFailProb      float64
+	liveQueryNoResultsProb float64
+	strings                map[string]string
+	serverAddress          string
+	fastClient             fasthttp.Client
+	stats                  *Stats
+	nodeKeyManager         *nodeKeyManager
+	nodeKey                string
+	templates              *template.Template
+	os                     string
 	// deviceAuthToken holds Fleet Desktop device authentication token.
 	//
 	// Non-nil means the agent is identified as orbit osquery,
@@ -283,6 +325,8 @@ func newAgent(
 	emptySerialProb float64,
 	mdmProb float64,
 	mdmSCEPChallenge string,
+	liveQueryFailProb float64,
+	liveQueryNoResultsProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -309,14 +353,16 @@ func newAgent(
 		uuid = mdmClient.UUID
 	}
 	return &agent{
-		agentIndex:      agentIndex,
-		serverAddress:   serverAddress,
-		softwareCount:   softwareCount,
-		userCount:       userCount,
-		strings:         make(map[string]string),
-		policyPassProb:  policyPassProb,
-		munkiIssueProb:  munkiIssueProb,
-		munkiIssueCount: munkiIssueCount,
+		agentIndex:             agentIndex,
+		serverAddress:          serverAddress,
+		softwareCount:          softwareCount,
+		userCount:              userCount,
+		strings:                make(map[string]string),
+		policyPassProb:         policyPassProb,
+		munkiIssueProb:         munkiIssueProb,
+		munkiIssueCount:        munkiIssueCount,
+		liveQueryFailProb:      liveQueryFailProb,
+		liveQueryNoResultsProb: liveQueryNoResultsProb,
 		fastClient: fasthttp.Client{
 			TLSConfig: tlsConfig,
 		},
@@ -742,94 +788,6 @@ func (a *agent) hostUsers() []map[string]string {
 	return users
 }
 
-func extract(src, dst string) {
-	srcF, err := os.Open(src)
-	if err != nil {
-		panic(err)
-	}
-	defer srcF.Close()
-
-	dstF, err := os.Create(dst)
-	if err != nil {
-		panic(err)
-	}
-	defer dstF.Close()
-
-	r := bzip2.NewReader(srcF)
-	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
-	_, err = io.Copy(dstF, r) //nolint:gosec
-	if err != nil {
-		panic(err)
-	}
-}
-
-func loadSoftware(platform string, ver string) []map[string]string {
-	_, exFilename, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("No caller information")
-	}
-	exDir := path.Dir(exFilename)
-
-	srcPath := filepath.Join(
-		exDir,
-		"..",
-		"..",
-		"server",
-		"vulnerabilities",
-		"testdata",
-		platform,
-		"software",
-		fmt.Sprintf("%s_%s-software.json.bz2", platform, ver),
-	)
-
-	tmpDir, err := os.MkdirTemp("", "osquery-perf")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpDir)
-	dstPath := filepath.Join(tmpDir, fmt.Sprintf("%s-software.json", ver))
-
-	extract(srcPath, dstPath)
-
-	type softwareJSON struct {
-		Name    string `json:"name"`
-		Version string `json:"version"`
-		Release string `json:"release,omitempty"`
-		Arch    string `json:"arch,omitempty"`
-	}
-
-	var software []softwareJSON
-	contents, err := os.ReadFile(dstPath)
-	if err != nil {
-		log.Printf("reading vuln software for %s %s: %s\n", platform, ver, err)
-		return nil
-	}
-
-	err = json.Unmarshal(contents, &software)
-	if err != nil {
-		log.Printf("unmarshalling vuln software for %s %s:%s", platform, ver, err)
-		return nil
-	}
-
-	var r []map[string]string
-	for _, fi := range software {
-		r = append(r, map[string]string{
-			"name":    fi.Name,
-			"version": fi.Version,
-			"source":  "osquery-perf",
-		})
-	}
-	return r
-}
-
-func (a *agent) softwareWindows11() []map[string]string {
-	return loadSoftware("windows", "11")
-}
-
-func (a *agent) softwareUbuntu2204() []map[string]string {
-	return loadSoftware("ubuntu", "2204")
-}
-
 func (a *agent) softwareMacOS() []map[string]string {
 	var lastOpenedCount int
 	commonSoftware := make([]map[string]string, a.softwareCount.common)
@@ -844,6 +802,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/Common_%d", i),
 		}
 	}
 	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
@@ -864,6 +823,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/Unique_%s_%d", a.CachedString("hostname"), i),
 		}
 	}
 	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
@@ -874,7 +834,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 	}
 	randomVulnerableSoftware := make([]map[string]string, a.softwareCount.vulnerable)
 	for i := 0; i < len(randomVulnerableSoftware); i++ {
-		sw := vulnerableSoftware[rand.Intn(len(vulnerableSoftware))]
+		sw := macosVulnerableSoftware[rand.Intn(len(macosVulnerableSoftware))]
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
@@ -885,6 +845,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": sw.BundleIdentifier,
 			"source":            sw.Source,
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
 		}
 	}
 	software := append(commonSoftware, uniqueSoftware...)
@@ -1145,106 +1106,134 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 	}
 }
 
-func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
+func (a *agent) runLiveQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string) {
+	if a.liveQueryFailProb > 0.0 && rand.Float64() <= a.liveQueryFailProb {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String("live query failed with error foobar")
+	}
+	ss := fleet.OsqueryStatus(0)
+	if a.liveQueryNoResultsProb > 0.0 && rand.Float64() <= a.liveQueryNoResultsProb {
+		return []map[string]string{}, &ss, nil
+	}
+	return []map[string]string{{
+		"admindir":   "/var/lib/dpkg",
+		"arch":       "amd64",
+		"maintainer": "foobar",
+		"name":       "netconf",
+		"priority":   "optional",
+		"revision":   "",
+		"section":    "default",
+		"size":       "112594",
+		"source":     "",
+		"status":     "install ok installed",
+		"version":    "20230224000000",
+	}}, &ss, nil
+}
+
+func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus, message *string) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
 		hostDetailQueryPrefix = "fleet_detail_query_"
+		liveQueryPrefix       = "fleet_distributed_query_"
 	)
 	statusOK := fleet.StatusOK
 	statusNotOK := fleet.OsqueryStatus(1)
 
 	switch {
+	case strings.HasPrefix(name, liveQueryPrefix):
+		results, status, message = a.runLiveQuery(query)
+		return true, results, status, message
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
-		return true, a.runPolicy(query), &statusOK
+		return true, a.runPolicy(query), &statusOK, nil
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
-		return true, a.randomQueryStats(), &statusOK
+		return true, a.randomQueryStats(), &statusOK, nil
 	case name == hostDetailQueryPrefix+"mdm":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.mdmMac()
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"mdm_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.mdmWindows()
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"munki_info":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.munkiInfo()
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"google_chrome_profiles":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.googleChromeProfiles()
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"battery":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.batteries()
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"users":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.hostUsers()
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"software_macos":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.softwareMacOS()
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
-			results = a.softwareWindows11()
+			results = windowsSoftware
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"software_linux":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			switch a.os {
 			case "ubuntu_22.04":
-				results = a.softwareUbuntu2204()
+				results = ubuntuSoftware
 			}
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskSpace()
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 
 	case strings.HasPrefix(name, hostDetailQueryPrefix+"disk_encryption_linux"):
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryptionLinux()
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"disk_encryption_darwin" ||
 		name == hostDetailQueryPrefix+"disk_encryption_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryption()
 		}
-		return true, results, &ss
+		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":
 		// Real osquery running on hosts would return no results if it was not
 		// running kubequery (due to discovery query). Returning true here so that
 		// the caller knows it is handled, will not try to return lorem-ipsum-style
 		// results.
-		return true, nil, &statusNotOK
+		return true, nil, &statusNotOK, nil
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
-			return false, nil, nil
+			return false, nil, nil, nil
 		}
 		var ni bytes.Buffer
 		err := a.templates.ExecuteTemplate(&ni, name, a)
@@ -1256,7 +1245,7 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			panic(err)
 		}
 
-		return true, results, &statusOK
+		return true, results, &statusOK, nil
 	}
 }
 
@@ -1264,10 +1253,11 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
 		Statuses: make(map[string]fleet.OsqueryStatus),
+		Messages: make(map[string]string),
 	}
 	r.NodeKey = a.nodeKey
 	for name, query := range queries {
-		handled, results, status := a.processQuery(name, query)
+		handled, results, status, message := a.processQuery(name, query)
 		if !handled {
 			// If osquery-perf does not handle the incoming query,
 			// always return status OK and the default query result.
@@ -1279,6 +1269,9 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 			}
 			if status != nil {
 				r.Statuses[name] = *status
+			}
+			if message != nil {
+				r.Messages[name] = *message
 			}
 		}
 	}
@@ -1345,10 +1338,13 @@ func main() {
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		osTemplates                 = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
-		emptySerialProb             = flag.Float64("empty_serial_prob", 0.0, "Probability of a host having no serial number [0, 1]")
+		emptySerialProb             = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
 
-		mdmProb          = flag.Float64("mdm_prob", 0.1, "Probability of a host enrolling via MDM (for macOS) [0, 1]")
+		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via MDM (for macOS) [0, 1]")
 		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running MDM enroll")
+
+		liveQueryFailProb      = flag.Float64("live_query_fail_prob", 0.0, "Probability of a live query failing execution in the host")
+		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
 	)
 
 	flag.Parse()
@@ -1428,6 +1424,8 @@ func main() {
 			*emptySerialProb,
 			*mdmProb,
 			*mdmSCEPChallenge,
+			*liveQueryFailProb,
+			*liveQueryNoResultsProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

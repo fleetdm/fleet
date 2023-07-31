@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -14,12 +15,13 @@ import EmptyTable from "components/EmptyTable/EmptyTable";
 import Button from "components/buttons/Button/Button";
 import AppleBusinessManagerSection from "./components/AppleBusinessManagerSection/AppleBusinessManagerSection";
 import IdpSection from "./components/IdpSection/IdpSection";
+
 import EulaSection from "./components/EulaSection/EulaSection";
 
 const baseClass = "automatic-enrollment";
 
 interface IAutomaticEnrollment {
-  router: any;
+  router: InjectedRouter;
 }
 
 const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {

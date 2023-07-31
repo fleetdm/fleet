@@ -19,7 +19,7 @@ module.exports = {
 
     success: {
       outputFriendlyName: 'Is PR preapproved?',
-      outputDescription: 'Whether the provided GitHub user is the DRI for all changed paths.',
+      outputDescription: 'Whether the provided GitHub user is a maintainer for all changed paths.',
       outputType: 'boolean',
     },
 
@@ -28,14 +28,19 @@ module.exports = {
 
   fn: async function ({repo, prNumber, githubUserToCheck, isGithubUserMaintainerOrDoesntMatter}) {
 
-    require('assert')(sails.config.custom.githubRepoDRIByPath);
-    require('assert')(sails.config.custom.confidentialGithubRepoDRIByPath);
+    require('assert')(sails.config.custom.githubRepoMaintainersByPath);
+    require('assert')(sails.config.custom.confidentialGithubRepoMaintainersByPath);
+    require('assert')(sails.config.custom.fleetMdmGitopsGithubRepoMaintainersByPath);
     require('assert')(sails.config.custom.githubAccessToken);
 
-    let DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
+    let MAINTAINERS_BY_PATH = sails.config.custom.githubRepoMaintainersByPath;
 
     if (repo === 'confidential') {
-      DRI_BY_PATH = sails.config.custom.confidentialGithubRepoDRIByPath;
+      MAINTAINERS_BY_PATH = sails.config.custom.confidentialGithubRepoMaintainersByPath;
+    }
+
+    if (repo === 'fleet-mdm-gitops') {
+      MAINTAINERS_BY_PATH = sails.config.custom.fleetMdmGitopsGithubRepoMaintainersByPath;
     }
 
     let owner = 'fleetdm';
@@ -44,22 +49,22 @@ module.exports = {
       'Authorization': `token ${sails.config.custom.githubAccessToken}`
     };
 
-    // Check the PR's author versus the intersection of DRIs for all changed files.
+    // Check the PR's author versus the intersection of maintainers for all changed files.
     return await sails.helpers.flow.build(async()=>{
 
-      let isDRIForAllChangedPathsStill = false;
+      let isMaintainerForAllChangedPathsStill = false;
 
       // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
       let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
         per_page: 100,//eslint-disable-line camelcase
       }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
-      isDRIForAllChangedPathsStill = _.all(changedPaths, (changedPath)=>{
+      isMaintainerForAllChangedPathsStill = _.all(changedPaths, (changedPath)=>{
         changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
 
-        // sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
+        // sails.log.verbose(`…checking maintainership of changed path "${changedPath}"`);
 
-        let selfMergers = DRI_BY_PATH[changedPath] ? [].concat(DRI_BY_PATH[changedPath]) : [];// « ensure array
+        let selfMergers = MAINTAINERS_BY_PATH[changedPath] ? [].concat(MAINTAINERS_BY_PATH[changedPath]) : [];// « ensure array
         if (!githubUserToCheck && selfMergers.length >= 1) {// « not checking a user, so just make sure all these paths are preapproved for SOMEONE
           return true;
         }
@@ -69,8 +74,8 @@ module.exports = {
         let numRemainingPathsToCheck = changedPath.split('/').length;
         while (numRemainingPathsToCheck > 0) {
           let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
-          // sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
-          let selfMergers = DRI_BY_PATH[ancestralPath] ? [].concat(DRI_BY_PATH[ancestralPath]) : [];// « ensure array
+          // sails.log.verbose(`…checking maintainers of ancestral path "${ancestralPath}" for changed path`);
+          let selfMergers = MAINTAINERS_BY_PATH[ancestralPath] ? [].concat(MAINTAINERS_BY_PATH[ancestralPath]) : [];// « ensure array
           if (!githubUserToCheck && selfMergers.length >= 1) {// « not checking a user, so just make sure all these paths are preapproved for SOMEONE
             return true;
           }
@@ -81,7 +86,7 @@ module.exports = {
         }//∞
       });//∞
 
-      if (isDRIForAllChangedPathsStill && changedPaths.length < 100) {
+      if (isMaintainerForAllChangedPathsStill && changedPaths.length < 100) {
         return true;
       } else {
         return false;

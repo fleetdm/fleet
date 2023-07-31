@@ -80,8 +80,8 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 		// immediately so that RunReplication is unblocked too.
 		defer cancel()
 
-		primary := ds.writer
-		replica := ds.reader.(*sqlx.DB)
+		primary := ds.primary
+		replica := ds.replica.(*sqlx.DB)
 		replicaDB := testName + testReplicaDatabaseSuffix
 		last := time.Now().Add(-time.Minute)
 
@@ -103,6 +103,11 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 		for _, fk := range fks {
 			stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
 			_, err := replica.ExecContext(ctx, stmt)
+			// If the FK was already removed do nothing
+			if err != nil && strings.Contains(err.Error(), "check that column/key exists") {
+				continue
+			}
+
 			require.NoError(t, err)
 		}
 
@@ -275,7 +280,7 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
-	err := fn(ds.writer)
+	err := fn(ds.primary)
 	require.NoError(tb, err)
 }
 

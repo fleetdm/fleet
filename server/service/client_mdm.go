@@ -50,11 +50,16 @@ func (c *Client) RequestAppleCSR(email, org string) (*fleet.AppleCSR, error) {
 	return responseBody.AppleCSR, err
 }
 
-func (c *Client) GetBootstrapPackageMetadata(teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d/metadata", teamID)
 	request := bootstrapPackageMetadataRequest{}
 	var responseBody bootstrapPackageMetadataResponse
-	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	var err error
+	if forUpdate {
+		err = c.authenticatedRequestWithQuery(request, verb, path, &responseBody, "for_update=true")
+	} else {
+		err = c.authenticatedRequest(request, verb, path, &responseBody)
+	}
 	return responseBody.MDMAppleBootstrapPackage, err
 }
 
@@ -99,6 +104,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 	if err != nil {
 		return fmt.Errorf("do multipart request: %w", err)
 	}
+	defer response.Body.Close()
 
 	var bpResponse uploadBootstrapPackageResponse
 	if err := c.parseResponse(verb, path, response, &bpResponse); err != nil {
@@ -110,10 +116,10 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 
 func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, teamID uint) error {
 	isFirstTime := false
-	oldMeta, err := c.GetBootstrapPackageMetadata(teamID)
+	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
 		// not found is OK, it means this is our first time uploading a package
-		if !errors.Is(err, notFoundErr{}) {
+		if !errors.As(err, &notFoundErr{}) {
 			return fmt.Errorf("getting bootstrap package metadata: %w", err)
 		}
 		isFirstTime = true

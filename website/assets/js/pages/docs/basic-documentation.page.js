@@ -17,6 +17,7 @@ parasails.registerPage('basic-documentation', {
     subtopics: [],
     relatedTopics: [],
     scrollDistance: 0,
+    navSectionsByDocsSectionSlug: {},
 
   },
 
@@ -38,29 +39,31 @@ parasails.registerPage('basic-documentation', {
 
     this.pages = _.sortBy(this.markdownPages, 'htmlId');
 
+    this.pages = this.pages.filter((page)=>{
+      return _.startsWith(page.url, '/docs');
+    });
     this.pagesBySectionSlug = (() => {
-      const DOCS_SLUGS = ['using-fleet', 'deploying', 'contributing'];
-
-      let sectionSlugs = _.uniq(_.pluck(this.pages, 'url').map((url) => url.split(/\//).slice(-2)[0]));
-
+      const DOCS_SLUGS = ['get-started', 'deploy', 'using-fleet', 'configuration', 'rest-api'];
+      let sectionSlugs = _.uniq(this.pages.map((page) => page.url.split(/\//).slice(-2)[0]));
       let pagesBySectionSlug = {};
 
       for (let sectionSlug of sectionSlugs) {
         pagesBySectionSlug[sectionSlug] = this.pages.filter((page) => {
           return sectionSlug === page.url.split(/\//).slice(-2)[0];
         });
+
         // Sorting pages by pageOrderInSectionPath value, README files do not have a pageOrderInSectionPath, and FAQ pages are added to the end of the sorted array below.
         pagesBySectionSlug[sectionSlug] = _.sortBy(pagesBySectionSlug[sectionSlug], (page) => {
           if (!page.sectionRelativeRepoPath.match(/README\.md$/i) && !page.sectionRelativeRepoPath.match(/FAQ\.md$/i)) {
             return page.pageOrderInSectionPath;
           }
         });
+        this.navSectionsByDocsSectionSlug[sectionSlug] = _.groupBy(pagesBySectionSlug[sectionSlug], 'docNavCategory');
       }
       // We need to re-sort the top-level sections because their htmlIds do not reflect the correct order
       pagesBySectionSlug['docs'] = DOCS_SLUGS.map((slug) => {
         return pagesBySectionSlug['docs'].find((page) => slug === _.kebabCase(page.title));
       });
-
       // We need to move any FAQs to the end of its array
       for (let slug of DOCS_SLUGS) {
         let pages = pagesBySectionSlug[slug];
@@ -76,8 +79,10 @@ parasails.registerPage('basic-documentation', {
 
       return pagesBySectionSlug;
     })();
-    // Adding scroll event listener for scrolling sidebars with the header.
-    window.addEventListener('scroll', this.scrollSideNavigationWithHeader);
+    // Adding a scroll event listener for scrolling sidebars and showing the back to top button.
+    if(!this.isDocsLandingPage){
+      window.addEventListener('scroll', this.handleScrollingInDocumentation);
+    }
   },
 
   mounted: async function() {
@@ -93,9 +98,9 @@ parasails.registerPage('basic-documentation', {
         appId: 'NZXAYZXDGH',
         apiKey: this.algoliaPublicKey,
         indexName: 'fleetdm',
-        inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
-        debug: false,
-        algoliaOptions: {
+        container: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
+        clickAnalytics: true,
+        searchParameters: {
           'facetFilters': ['section:docs']
         },
       });
@@ -132,7 +137,7 @@ parasails.registerPage('basic-documentation', {
     // https://github.com/sailshq/sailsjs.com/blob/7a74d4901dcc1e63080b502492b03fc971d3d3b2/assets/js/functions/sails-website-actions.js#L177-L239
     (function highlightThatSyntax(){
       $('pre code').each((i, block) => {
-        window.hljs.highlightBlock(block);
+        window.hljs.highlightElement(block);
       });
 
       // Make sure the <pre> tags whose code isn't being highlighted
@@ -232,6 +237,24 @@ parasails.registerPage('basic-documentation', {
       return this.pagesBySectionSlug[slug];
     },
 
+    findAndSortNavSectionsByUrl: function (url='') {
+      let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
+        'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
+        'deploy':['Uncategorized','TBD','Deployment guides'],
+      };
+      let slug = _.last(url.split(/\//));
+      //
+      if(NAV_SECTION_ORDER_BY_DOCS_SLUG[slug]) {
+        let orderForThisSection = NAV_SECTION_ORDER_BY_DOCS_SLUG[slug];
+        let sortedSection = {};
+        orderForThisSection.map((section)=>{
+          sortedSection[section] = this.navSectionsByDocsSectionSlug[slug][section];
+        });
+        this.navSectionsByDocsSectionSlug[slug] = sortedSection;
+      }
+      return this.navSectionsByDocsSectionSlug[slug];
+    },
+
     getActiveSubtopicClass: function (currentLocation, url) {
       return _.last(currentLocation.split(/#/)) === _.last(url.split(/#/)) ? 'active' : '';
     },
@@ -264,23 +287,38 @@ parasails.registerPage('basic-documentation', {
       this.searchString = this.inputTextValue;
     },
 
-    scrollSideNavigationWithHeader: function () {
-      var rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
-      var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      if(rightNavBar) {
-        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
+    handleScrollingInDocumentation: function () {
+      let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+      let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
+      let scrollTop = window.pageYOffset;
+      let windowHeight = window.innerHeight;
+      // If the right nav bar exists, add and remove a class based on the current scroll position.
+      if (rightNavBar) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
           rightNavBar.classList.add('header-hidden', 'scrolled');
+        } else if (scrollTop === 0) {
+          rightNavBar.classList.remove('header-hidden', 'scrolled');
         } else {
-          if(scrollTop === 0) {
-            rightNavBar.classList.remove('header-hidden', 'scrolled');
-          } else {
-            rightNavBar.classList.remove('header-hidden');
-          }
+          rightNavBar.classList.remove('header-hidden');
+        }
+      }
+      // If back to top button exists, add and remove a class based on the current scroll position.
+      if (backToTopButton){
+        if (scrollTop > 2500) {
+          backToTopButton.classList.add('show');
+        } else if (scrollTop === 0) {
+          backToTopButton.classList.remove('show');
         }
       }
       this.scrollDistance = scrollTop;
+    },
+    clickScrollToTop: function() {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth',
+      });
     }
-
   }
 
 });

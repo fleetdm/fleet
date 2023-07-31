@@ -11,6 +11,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCheckPolicySpecAuthorization(t *testing.T) {
+	t.Run("when team not found", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		req := []*fleet.PolicySpec{
+			{
+				Team: "some_team",
+			},
+		}
+
+		user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+		actual := svc.ApplyPolicySpecs(ctx, req)
+		var expected fleet.NotFoundError
+
+		require.ErrorAs(t, actual, &expected)
+	})
+}
+
 func TestGlobalPoliciesAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)

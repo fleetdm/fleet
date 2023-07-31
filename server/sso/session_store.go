@@ -71,7 +71,7 @@ func (s *store) get(requestID string) (*Session, error) {
 	val, err := redigo.String(conn.Do("GET", requestID))
 	if err != nil {
 		if err == redigo.ErrNil {
-			return nil, ErrSessionNotFound
+			return nil, fleet.NewAuthRequiredError("session not found")
 		}
 		return nil, err
 	}
@@ -84,8 +84,6 @@ func (s *store) get(requestID string) (*Session, error) {
 	}
 	return &sess, nil
 }
-
-var ErrSessionNotFound = errors.New("session not found")
 
 func (s *store) expire(requestID string) error {
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())

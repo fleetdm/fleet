@@ -40,12 +40,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.19.8']
+        go-version: ['^1.19.11']
     runs-on: ${{ matrix.os }}
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 

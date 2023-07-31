@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"time"
@@ -169,9 +170,10 @@ type Service interface {
 	// are valid
 	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
 
-	// InitSSOCallback handles the IDP response and ensures the credentials
-	// are valid, then responds with an enrollment profile.
-	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) (string, error)
+	// InitiateMDMAppleSSOCallback handles the IDP response and ensures the
+	// credentials are valid, then responds with an URL to the Fleet UI to
+	// handle next steps based on the query parameters provided.
+	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) string
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
@@ -252,17 +254,20 @@ type Service interface {
 	// ApplyQuerySpecs applies a list of queries (creating or updating them as necessary)
 	ApplyQuerySpecs(ctx context.Context, specs []*QuerySpec) error
 	// GetQuerySpecs gets the YAML file representing all the stored queries.
-	GetQuerySpecs(ctx context.Context) ([]*QuerySpec, error)
-	// GetQuerySpec gets the spec for the query with the given name.
-	GetQuerySpec(ctx context.Context, name string) (*QuerySpec, error)
+	GetQuerySpecs(ctx context.Context, teamID *uint) ([]*QuerySpec, error)
+	// GetQuerySpec gets the spec for the query with the given name on a team.
+	// A nil or 0 teamID means the query is looked for in the global domain.
+	GetQuerySpec(ctx context.Context, teamID *uint, name string) (*QuerySpec, error)
 
 	// ListQueries returns a list of saved queries. Note only saved queries should be returned (those that are created
 	// for distributed queries but not saved should not be returned).
-	ListQueries(ctx context.Context, opt ListOptions) ([]*Query, error)
+	// When is set to scheduled != nil, then only scheduled queries will be returned if `*scheduled == true`
+	// and only non-scheduled queries will be returned if `*scheduled == false`.
+	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool) ([]*Query, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
-	DeleteQuery(ctx context.Context, name string) error
+	DeleteQuery(ctx context.Context, teamID *uint, name string) error
 	// DeleteQueryByID deletes a query by ID. For backwards compatibility with UI
 	DeleteQueryByID(ctx context.Context, id uint) error
 	// DeleteQueries deletes the existing query objects with the provided IDs. The number of deleted queries is returned
@@ -491,7 +496,8 @@ type Service interface {
 	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.
 	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
-	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplySpecOptions) error
+	// On success, it returns the mapping of team names to team ids.
+	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplySpecOptions) (map[string]uint, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
@@ -580,6 +586,9 @@ type Service interface {
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
+	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
+	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
+
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
@@ -604,7 +613,7 @@ type Service interface {
 	// TODO(mna): this may have to be removed if we don't end up supporting
 	// manual enrollment via a token (currently we only support it via Fleet
 	// Desktop, in the My Device page). See #8701.
-	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string) (profile []byte, err error)
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
@@ -658,11 +667,24 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
+	// MDMApplePreassignProfile preassigns a profile to a host, pending the match
+	// request that will match the profiles to a team (or create one if needed),
+	// assign the host to that team and assign the profiles to the host.
+	MDMApplePreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
+
+	// MDMAppleMatchPreassignment matches the existing preassigned profiles to a
+	// team, creating one if none match, assigns the corresponding host to that
+	// team and assigns the matched team's profiles to the host.
+	MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error
+
 	// MDMAppleDeviceLock remote locks a host
 	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
 
 	// MMDAppleEraseDevice erases a host
 	MDMAppleEraseDevice(ctx context.Context, hostID uint) error
+
+	// MDMListHostConfigurationProfiles returns configuration profiles for a given host
+	MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*MDMAppleConfigProfile, error)
 
 	// MDMAppleEnableFileVaultAndEscrow adds a configuration profile for the
 	// given team that enables FileVault with a config that allows Fleet to
@@ -682,11 +704,16 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMAppleConfigured(ctx context.Context) error
 
+	// VerifyMDMWindowsConfigured verifies that the server is configured for
+	// Windows MDM. If an error is returned, authorization is skipped so the
+	// error can be raised to the user.
+	VerifyMDMWindowsConfigured(ctx context.Context) error
+
 	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 
-	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
+	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint, forUpdate bool) (*MDMAppleBootstrapPackage, error)
 
 	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error
 
@@ -732,4 +759,32 @@ type Service interface {
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
 
 	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Windows MDM
+
+	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
+	GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*DiscoverResponse, error)
+
+	// GetMDMMicrosoftSTSAuthResponse returns a valid STS auth page
+	GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error)
+
+	// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
+	GetMDMWindowsPolicyResponse(ctx context.Context, authToken *HeaderBinarySecurityToken) (*GetPoliciesResponse, error)
+
+	// GetMDMWindowsEnrollResponse returns a valid RequestSecurityTokenResponseCollection message
+	GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg *RequestSecurityToken, authToken *HeaderBinarySecurityToken) (*RequestSecurityTokenResponseCollection, error)
+
+	// GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
+	GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *SoapFault
+
+	// SignMDMMicrosoftClientCSR returns a signed certificate from the client certificate signing request and the
+	// certificate fingerprint. The certificate common name should be passed in the subject parameter.
+	SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error)
+
+	// GetMDMWindowsManagementResponse returns a valid SyncML response message
+	GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *SyncMLMessage) (*string, error)
+
+	// GetMDMWindowsTOSContent returns TOS content
+	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
 }

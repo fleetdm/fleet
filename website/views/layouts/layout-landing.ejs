@@ -121,7 +121,6 @@
     <!--STYLES-->
     <link rel="stylesheet" href="/dependencies/bootstrap-4/bootstrap-4.css">
     <link rel="stylesheet" href="/dependencies/fontawesome.css">
-    <link rel="stylesheet" href="/dependencies/nunito-webfonts.css">
     <link rel="stylesheet" href="/styles/importer.css">
     <!--STYLES END-->
   </head>
@@ -251,8 +250,10 @@
     <script src="/js/pages/get-started.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
+    <script src="/js/pages/imagine/defcon-31.page.js"></script>
     <script src="/js/pages/imagine/higher-education.page.js"></script>
     <script src="/js/pages/imagine/launch-party.page.js"></script>
+    <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
     <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
@@ -265,13 +266,16 @@
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
     <script src="/js/pages/sales-one-pager.page.js"></script>
+    <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/register.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
+    <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/upgrade.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
+    <script src="/js/pages/vulnerability-management.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
@@ -291,16 +295,15 @@
         //    - https://github.com/lancedikson/bowser/tree/1fb99ced0e8834fd9662604bad7e0f0c3eba2786#rendering-engine-flags
         // --------------------------------------------------------------------
         var LATEST_SUPPORTED_VERSION_BY_OS = {
-          iOS: '11',//« earliest version to eliminate rare bug where `window.location` doesn't exist momentarily after doing a server-side redirect
-          Android: '6'
+          iOS: '12',//« earliest version that suppports the hubspot chatbot.
+          Android: '7' // « earliest version we can test for compatibility issues with on browserstack
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
-          msedge: '16',
-          // msie: '11',
-          safari: '11',//« earliest version to eliminate rare bug where `window.location` doesn't exist momentarily after doing a server-side redirect
-          firefox: '54',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
-          chrome: '51',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
-          opera: '38',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
+          msedge: '80',//« earliest version to support the backdrop filter css property.
+          safari: '12',//« earliest version that suppports the hubspot chatbot.
+          firefox: '102',//« earliest version to support the backdrop filter css property.
+          chrome: '76',//« earliest version to support the backdrop filter css property.
+          opera: '64',//« earliest version to support the backdrop filter css property.
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {
           'microsoft edge': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.msedge,

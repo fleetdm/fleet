@@ -8,7 +8,7 @@ import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
-import { ButtonVariant } from "components/buttons/Button/Button";
+import Icon from "components/Icon/Icon";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
@@ -20,7 +20,10 @@ export interface ITableQueryData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
-  showInheritedTable?: boolean; // Only used for policies tables
+  /**  Only used for showing inherited policies table */
+  showInheritedTable?: boolean;
+  /** Only used for sort/query changes to inherited policies table */
+  editingInheritedTable?: boolean;
 }
 interface IRowProps extends Row {
   original: {
@@ -200,9 +203,9 @@ const TableContainer = ({
     }
   }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
-  const onResultsCountChange = (resultsCount: number) => {
+  const onResultsCountChange = useCallback((resultsCount: number) => {
     setClientFilterCount(resultsCount);
-  };
+  }, []);
 
   useDeepEffect(() => {
     if (!onQueryChange) {
@@ -334,11 +337,8 @@ const TableContainer = ({
                 >
                   <>
                     {actionButton.buttonText}
-                    {actionButton.icon && (
-                      <img
-                        src={actionButton.icon}
-                        alt={`${actionButton.buttonText} icon`}
-                      />
+                    {actionButton.iconSvg && (
+                      <Icon name={actionButton.iconSvg} />
                     )}
                   </>
                 </Button>
@@ -440,7 +440,9 @@ const TableContainer = ({
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}
                 renderFooter={renderFooter}
-                renderPagination={renderPagination}
+                renderPagination={
+                  isClientSidePagination ? undefined : renderPagination
+                }
                 setExportRows={setExportRows}
               />
             </div>

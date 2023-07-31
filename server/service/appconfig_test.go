@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -349,7 +351,7 @@ func TestSSONotPresent(t *testing.T) {
 func TestNeedFieldsPresent(t *testing.T) {
 	invalid := &fleet.InvalidArgumentError{}
 	config := fleet.AppConfig{
-		SSOSettings: fleet.SSOSettings{
+		SSOSettings: &fleet.SSOSettings{
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
@@ -366,7 +368,7 @@ func TestNeedFieldsPresent(t *testing.T) {
 func TestShortIDPName(t *testing.T) {
 	invalid := &fleet.InvalidArgumentError{}
 	config := fleet.AppConfig{
-		SSOSettings: fleet.SSOSettings{
+		SSOSettings: &fleet.SSOSettings{
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
@@ -384,7 +386,7 @@ func TestShortIDPName(t *testing.T) {
 func TestMissingMetadata(t *testing.T) {
 	invalid := &fleet.InvalidArgumentError{}
 	config := fleet.AppConfig{
-		SSOSettings: fleet.SSOSettings{
+		SSOSettings: &fleet.SSOSettings{
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:  "fleet",
@@ -399,9 +401,35 @@ func TestMissingMetadata(t *testing.T) {
 	assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
 }
 
+func TestSSOValidationValidatesSchemaInMetadataURL(t *testing.T) {
+	var schemas []string
+	schemas = append(schemas, getURISchemas()...)
+	schemas = append(schemas, "asdfaklsdfjalksdfja")
+
+	for _, scheme := range schemas {
+		actual := &fleet.InvalidArgumentError{}
+		sut := fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO: true,
+				SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "fleet",
+					IDPName:     "onelogin",
+					MetadataURL: fmt.Sprintf("%s://somehost", scheme),
+				},
+			},
+		}
+
+		validateSSOSettings(sut, &fleet.AppConfig{}, actual, &fleet.LicenseInfo{})
+
+		require.Equal(t, scheme == "http" || scheme == "https", !actual.HasErrors())
+		require.Equal(t, scheme == "http" || scheme == "https", !strings.Contains(actual.Error(), "metadata_url"))
+		require.Equal(t, scheme == "http" || scheme == "https", !strings.Contains(actual.Error(), "must be either https or http"))
+	}
+}
+
 func TestJITProvisioning(t *testing.T) {
 	config := fleet.AppConfig{
-		SSOSettings: fleet.SSOSettings{
+		SSOSettings: &fleet.SSOSettings{
 			EnableSSO:             true,
 			EnableJITProvisioning: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
@@ -421,27 +449,6 @@ func TestJITProvisioning(t *testing.T) {
 		assert.Contains(t, invalid.Error(), "missing or invalid license")
 	})
 
-	config = fleet.AppConfig{
-		SSOSettings: fleet.SSOSettings{
-			EnableSSO:         true,
-			EnableJITRoleSync: true,
-			SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
-				IDPName:     "onelogin",
-				MetadataURL: "http://isser.metadata.com",
-			},
-		},
-	}
-
-	t.Run("doesn't allow to enable JIT role sync without a premium license", func(t *testing.T) {
-		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
-		require.True(t, invalid.HasErrors())
-		assert.Contains(t, invalid.Error(), "enable_jit_role_sync")
-		assert.Contains(t, invalid.Error(), "missing or invalid license")
-	})
-
 	t.Run("allows JIT provisioning to be enabled with a premium license", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
 		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: fleet.TierPremium})
@@ -450,11 +457,12 @@ func TestJITProvisioning(t *testing.T) {
 
 	t.Run("doesn't care if JIT provisioning is set to false on free licenses", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		oldConfig := &fleet.AppConfig{}
-
-		oldConfig.SSOSettings.EnableJITProvisioning = true
+		oldConfig := &fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableJITProvisioning: false,
+			},
+		}
 		config.SSOSettings.EnableJITProvisioning = false
-		config.SSOSettings.EnableJITRoleSync = false
 		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{})
 		require.False(t, invalid.HasErrors())
 	})
@@ -471,7 +479,9 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			SMTPSettings: fleet.SMTPSettings{SMTPPassword: "smtppassword"},
+			SMTPSettings: &fleet.SMTPSettings{
+				SMTPPassword: "smtppassword",
+			},
 			Integrations: fleet.Integrations{
 				Jira: []*fleet.JiraIntegration{
 					{APIToken: "jiratoken"},
@@ -575,7 +585,7 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 		ServerSettings: fleet.ServerSettings{
 			ServerURL: "https://example.org",
 		},
-		SMTPSettings: fleet.SMTPSettings{
+		SMTPSettings: &fleet.SMTPSettings{
 			SMTPEnabled:    true,
 			SMTPConfigured: true,
 		},
@@ -591,7 +601,7 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 
 	// Disable SMTP.
 	newAppConfig := fleet.AppConfig{
-		SMTPSettings: fleet.SMTPSettings{
+		SMTPSettings: &fleet.SMTPSettings{
 			SMTPEnabled:    false,
 			SMTPConfigured: true,
 		},
@@ -800,7 +810,8 @@ func TestMDMAppleConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
-				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:   fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates: fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 			},
 		}, {
 			name:          "newDefaultTeamNoLicense",
@@ -826,6 +837,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			expectedMDM: fleet.MDM{
 				AppleBMDefaultTeam: "foobar",
 				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 			},
 		}, {
 			name:        "foundEdit",
@@ -836,6 +848,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			expectedMDM: fleet.MDM{
 				AppleBMDefaultTeam: "foobar",
 				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 			},
 		}, {
 			name:          "ssoFree",
@@ -852,6 +865,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			expectedMDM: fleet.MDM{
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
 				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:          fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 			},
 		}, {
 			name:        "ssoAllFields",
@@ -870,7 +884,8 @@ func TestMDMAppleConfig(t *testing.T) {
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
-				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:   fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates: fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 			},
 		}, {
 			name:        "ssoShortEntityID",
@@ -983,4 +998,128 @@ func TestMDMAppleConfig(t *testing.T) {
 			require.Equal(t, tt.expectedMDM, ac.MDM)
 		})
 	}
+}
+
+func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// SMTP and SSO are initially set.
+	agentOptions := json.RawMessage(`
+{
+  "config": {
+      "options": {
+        "distributed_interval": 10
+      }
+  },
+  "overrides": {
+    "platforms": {
+      "darwin": {
+        "options": {
+          "distributed_interval": 5
+        }
+      }
+    }
+  }
+}`)
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test",
+		},
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://example.org",
+		},
+		SMTPSettings: &fleet.SMTPSettings{
+			SMTPEnabled:       true,
+			SMTPConfigured:    true,
+			SMTPSenderAddress: "foobar@example.com",
+		},
+		SSOSettings: &fleet.SSOSettings{
+			EnableSSO: true,
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				MetadataURL: "foobar.example.com/metadata",
+			},
+		},
+		AgentOptions: &agentOptions,
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		return nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+
+	// Not sending smtp_settings, sso_settings or agent_settings will do nothing.
+	b := []byte(`{}`)
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+	updatedAppConfig, err := svc.ModifyAppConfig(ctx, b, fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+
+	require.True(t, updatedAppConfig.SMTPSettings.SMTPEnabled)
+	require.True(t, dsAppConfig.SMTPSettings.SMTPEnabled)
+	require.True(t, updatedAppConfig.SSOSettings.EnableSSO)
+	require.True(t, dsAppConfig.SSOSettings.EnableSSO)
+	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
+	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+
+	// Not sending sso_settings or agent settings will not change them, and
+	// sending SMTP settings will change them.
+	b = []byte(`{"smtp_settings": {"enable_smtp": false}}`)
+	updatedAppConfig, err = svc.ModifyAppConfig(ctx, b, fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+
+	require.False(t, updatedAppConfig.SMTPSettings.SMTPEnabled)
+	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
+	require.True(t, updatedAppConfig.SSOSettings.EnableSSO)
+	require.True(t, dsAppConfig.SSOSettings.EnableSSO)
+	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
+	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+
+	// Not sending smtp_settings or agent settings will not change them, and
+	// sending SSO settings will change them.
+	b = []byte(`{"sso_settings": {"enable_sso": false}}`)
+	updatedAppConfig, err = svc.ModifyAppConfig(ctx, b, fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+
+	require.False(t, updatedAppConfig.SMTPSettings.SMTPEnabled)
+	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
+	require.False(t, updatedAppConfig.SSOSettings.EnableSSO)
+	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
+	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
+	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+
+	// Not sending smtp_settings or sso_settings will not change them, and
+	// sending agent options will change them.
+	newAgentOptions := json.RawMessage(`{
+  "config": {
+      "options": {
+        "distributed_interval": 100
+      }
+  },
+  "overrides": {
+    "platforms": {
+      "darwin": {
+        "options": {
+          "distributed_interval": 2
+        }
+      }
+    }
+  }
+}`)
+	b = []byte(`{"agent_options": ` + string(newAgentOptions) + `}`)
+	updatedAppConfig, err = svc.ModifyAppConfig(ctx, b, fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+
+	require.False(t, updatedAppConfig.SMTPSettings.SMTPEnabled)
+	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
+	require.False(t, updatedAppConfig.SSOSettings.EnableSSO)
+	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
+	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
+	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
 }

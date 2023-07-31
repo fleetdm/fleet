@@ -30,6 +30,7 @@
   - [Testing Kinesis Logging](#testing-kinesis-logging)
   - [Testing pre-built installers](#testing-pre-built-installers)
   - [Telemetry](#telemetry)
+  - [Fleetd Chrome extension](#fleetd-chrome-extension)
   - [MDM setup and testing](#mdm-setup-and-testing)
     - [ABM setup](#abm-setup)
       - [Private key, certificate, and encrypted token](#private-key-certificate-and-encrypted-token)
@@ -40,6 +41,9 @@
       - [Testing DEP enrollment](#testing-dep-enrollment)
         - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
     - [Nudge](#nudge)
+      - [Debugging tips](#debugging-tips)
+    - [Bootstrap package](#bootstrap-package)
+    - [Puppet module](#puppet-module)
 
 ## License key
 
@@ -323,7 +327,6 @@ Configure SSO on the Organization Settings page with the following:
 ```
 Identity Provider Name: SimpleSAML
 Entity ID: https://localhost:8080
-Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
 Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
 ```
 
@@ -482,6 +485,12 @@ You can configure the server to record and report trace data using OpenTelemetry
 
 Please refer to [tools/telemetry](https://github.com/fleetdm/fleet/tree/main/tools/telemetry/README.md) for instructions.
 
+## Fleetd Chrome extension
+
+### Debugging the service Worker
+
+View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
+
 ## MDM setup and testing
 
 To run your local server with the MDM features enabled, you need to get certificates and keys.
@@ -503,13 +512,13 @@ To enable the [DEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/g
 
 First ask @zwass to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
 
-Once you have access to ABM, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
+Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
 
 ### APNs and SCEP setup
 
 The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
 
-To generate both, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-push-notification-service-apns).
+To generate both, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-setup#apple-push-notification-service-apns).
 
 Note that:
 
@@ -595,16 +604,9 @@ If you are using QEMU for Linux, follow the instruction guide to install a recen
 
 > NOTE: Currently this is not possible for M1 Mac machines.
 
-1. Create a DEP profile with:
+1. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
 
-```
-fleetctl apple-mdm enrollment-profiles create-automatic --dep-profile ./tools/mdm/apple/dep_sample_profile.json
-```
-Reference the [Apple DEP Profile documentation](https://developer.apple.com/documentation/devicemanagement/profile) for further information on each setting.
-
-2. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
-
-3. Boot the machine, it should automatically enroll into MDM.
+2. Boot the machine, it should automatically enroll into MDM.
 
 ##### Gating the DEP profile behind SSO
 
@@ -626,7 +628,6 @@ mdm:
   end_user_authentication:
     entity_id: <your_fleet_tunnel_url>
     idp_name: SimpleSAML
-    issuer_uri: <your_idp_tunnel_url>/simplesaml/saml2/idp/SSOService.php
     metadata_url: <your_idp_tunnel_url>/simplesaml/saml2/idp/metadata.php
 ```
 
@@ -636,7 +637,7 @@ The next time you go through the DEP flow, you should be prompted to authenticat
 
 ### Nudge
 
-We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Orbit:
+We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Fleetd:
 
 1. When Orbit pings the server for a config (every 30 seconds,) we send the corresponding Nudge configuration for the host. Orbit then saves this config at `<ORBIT_ROOT_DIR>/nudge-config.json`
 2. If Orbit gets a Nudge config, it downloads Nudge from TUF.
@@ -664,4 +665,17 @@ log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --styl
 open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
 ```
 
+### Bootstrap package
+
+A bootstrap package is a `pkg` file that gets automatically installed on hosts when they enroll via DEP.
+
+The `pkg` file needs to be a signed "distribution package", you can find a dummy file that meets all the requirements [in Drive](https://drive.google.com/file/d/1adwAOTD5G6D4WzWvJeMId6mDhyeFy-lm/view). We have instructions in [the docs](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#bootstrap-package) to upload a new bootstrap package to your Fleet instance.
+
+The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo.png`. To verify if the package was installed, you can open that folder and verify that the logo is there.
+
+### Puppet module
+
+Instructions to develop and test the module can be found in the [`CONTRIBUTING.md` file](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/CONTRIBUTING.md) that sits alongside the module code.
+
 <meta name="pageOrderInSection" value="1500">
+<meta name="description" value="An overview of Fleet's full test suite and integration tests.">

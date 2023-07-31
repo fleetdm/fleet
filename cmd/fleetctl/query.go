@@ -75,6 +75,10 @@ func queryCommand() *cli.Command {
 				Destination: &flTimeout,
 				Usage:       "How long to run query before exiting (10s, 1h, etc.)",
 			},
+			&cli.UintFlag{
+				Name:  teamFlagName,
+				Usage: "ID of the team where the named query belongs to (0 means global)",
+			},
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -94,7 +98,11 @@ func queryCommand() *cli.Command {
 			}
 
 			if flQueryName != "" {
-				q, err := fleet.GetQuery(flQueryName)
+				var teamID *uint
+				if tid := c.Uint(teamFlagName); tid != 0 {
+					teamID = &tid
+				}
+				q, err := fleet.GetQuerySpec(teamID, flQueryName)
 				if err != nil {
 					return fmt.Errorf("Query '%s' not found", flQueryName)
 				}
@@ -176,10 +184,6 @@ func queryCommand() *cli.Command {
 						}
 					}
 
-					if responded >= online && flExit {
-						return nil
-					}
-
 					msg := fmt.Sprintf(" %.f%% responded (%.f%% online) | %d/%d targeted hosts (%d/%d online)", percentTotal, percentOnline, responded, total, responded, online)
 
 					s.Lock()
@@ -187,6 +191,14 @@ func queryCommand() *cli.Command {
 					s.Unlock()
 
 					if total == responded && status != nil {
+						s.Stop()
+						if !flQuiet {
+							fmt.Fprintln(os.Stderr, msg)
+						}
+						return nil
+					}
+
+					if status != nil && totals != nil && responded >= online && flExit {
 						s.Stop()
 						if !flQuiet {
 							fmt.Fprintln(os.Stderr, msg)

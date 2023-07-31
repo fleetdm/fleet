@@ -1,0 +1,7 @@
+.manual-enroll-mdm-modal {
+  @include enroll-mdm-modal;
+
+  &__error-message {
+    margin: $pad-xxxlarge;
+  }
+}

@@ -5,7 +5,7 @@ import {
   OS_END_OF_LIFE_LINK_BY_PLATFORM,
   OS_VENDOR_BY_PLATFORM,
 } from "interfaces/operating_system";
-import { ISelectedPlatform } from "interfaces/platform";
+import { SelectedPlatform } from "interfaces/platform";
 import {
   getOSVersions,
   IGetOSVersionsQueryKey,
@@ -26,7 +26,7 @@ import generateTableHeaders from "./OperatingSystemsTableConfig";
 
 interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
-  selectedPlatform: ISelectedPlatform;
+  selectedPlatform: SelectedPlatform;
   showTitle: boolean;
   /** controls the displaying of description text under the title. Defaults to `true` */
   showDescription?: boolean;
@@ -42,7 +42,7 @@ const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 8;
 const baseClass = "operating-systems";
 
-const EmptyOperatingSystems = (platform: ISelectedPlatform): JSX.Element => (
+const EmptyOperatingSystems = (platform: SelectedPlatform): JSX.Element => (
   <EmptyTable
     className={`${baseClass}__os-empty-table`}
     header={`No${
@@ -90,22 +90,40 @@ const OperatingSystems = ({
     }
   );
 
-  const description =
-    showDescription &&
-    OS_VENDOR_BY_PLATFORM[selectedPlatform] &&
-    OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform] ? (
-      <p>
-        {OS_VENDOR_BY_PLATFORM[selectedPlatform]} releases updates and fixes for
-        supported operating systems.{" "}
-        <CustomLink
-          url={OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform]}
-          text="See supported operating systems"
-          newTab
-          multiline
-        />
-      </p>
-    ) : null;
-
+  const renderDescription = () => {
+    if (selectedPlatform === "chrome") {
+      return (
+        <p>
+          Chromebooks automatically receive updates from Google until their
+          auto-update expiration date.{" "}
+          <CustomLink
+            url={"https://fleetdm.com/learn-more-about/chromeos-updates"}
+            text="See supported devices"
+            newTab
+            multiline
+          />
+        </p>
+      );
+    }
+    if (
+      showDescription &&
+      OS_VENDOR_BY_PLATFORM[selectedPlatform] &&
+      OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform]
+    )
+      return (
+        <p>
+          {OS_VENDOR_BY_PLATFORM[selectedPlatform]} releases updates and fixes
+          for supported operating systems.{" "}
+          <CustomLink
+            url={OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform]}
+            text="See supported operating systems"
+            newTab
+            multiline
+          />
+        </p>
+      );
+    return null;
+  };
   const titleDetail = osInfo?.counts_updated_at ? (
     <LastUpdatedText
       lastUpdatedAt={osInfo?.counts_updated_at}
@@ -122,7 +140,7 @@ const OperatingSystems = ({
     }
     setShowTitle(true);
     if (osInfo?.os_versions?.length) {
-      setTitleDescription?.(description);
+      setTitleDescription?.(renderDescription());
       setTitleDetail?.(titleDetail);
       return;
     }

@@ -1,35 +1,41 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { forEach } from "lodash";
 
-import { IPlatformString, SUPPORTED_PLATFORMS } from "interfaces/platform";
+import {
+  SelectedPlatformString,
+  SUPPORTED_PLATFORMS,
+} from "interfaces/platform";
 
 import PlatformSelector from "components/PlatformSelector";
 
 export interface IPlatformSelector {
   setSelectedPlatforms: (platforms: string[]) => void;
-  getSelectedPlatforms: () => ("darwin" | "linux" | "windows")[];
+  getSelectedPlatforms: () => ("darwin" | "windows" | "linux" | "chrome")[];
   isAnyPlatformSelected: boolean;
   render: () => JSX.Element;
 }
 
 const usePlatformSelector = (
-  platformContext: IPlatformString | null | undefined,
+  platformContext: SelectedPlatformString | null | undefined,
   baseClass = ""
 ): IPlatformSelector => {
   const [checkDarwin, setCheckDarwin] = useState(false);
   const [checkWindows, setCheckWindows] = useState(false);
   const [checkLinux, setCheckLinux] = useState(false);
+  const [checkChrome, setCheckChrome] = useState(false);
 
   const checksByPlatform: Record<string, boolean> = {
     darwin: checkDarwin,
     windows: checkWindows,
     linux: checkLinux,
+    chrome: checkChrome,
   };
 
   const settersByPlatform: Record<string, (val: boolean) => void> = {
     darwin: setCheckDarwin,
     windows: setCheckWindows,
     linux: setCheckLinux,
+    chrome: setCheckChrome,
   };
 
   const setSelectedPlatforms = (platformsToCheck: string[]) => {
@@ -46,7 +52,7 @@ const usePlatformSelector = (
 
   useEffect(() => {
     if (platformContext === "") {
-      setSelectedPlatforms(["darwin", "windows", "linux"]);
+      setSelectedPlatforms(["darwin", "windows", "linux", "chrome"]);
     }
     platformContext && setSelectedPlatforms(platformContext.split(","));
   }, [platformContext]);
@@ -58,12 +64,14 @@ const usePlatformSelector = (
         checkDarwin={checkDarwin}
         checkWindows={checkWindows}
         checkLinux={checkLinux}
+        checkChrome={checkChrome}
         setCheckDarwin={setCheckDarwin}
         setCheckWindows={setCheckWindows}
         setCheckLinux={setCheckLinux}
+        setCheckChrome={setCheckChrome}
       />
     );
-  }, [checkDarwin, checkWindows, checkLinux]);
+  }, [checkDarwin, checkWindows, checkLinux, checkChrome]);
 
   return {
     setSelectedPlatforms,

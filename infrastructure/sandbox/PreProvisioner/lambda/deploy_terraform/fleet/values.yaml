@@ -54,6 +54,7 @@ fleet:
   listenPort: 8080
   # Name of the Secret resource storing TLS and S3 bucket secrets
   secretName: fleet
+  licenseKey: ""
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
   autoApplySQLMigrations: true
   tls:
@@ -137,6 +138,10 @@ osquery:
       statusTopic: ""
       resultTopic: ""
 
+apm:
+  url: ""
+  token: ""
+
 ## Section: MySQL
 # All of the connection settings for MySQL
 mysql:
@@ -149,8 +154,8 @@ mysql:
   # Only needed if creating secret.
   password: default
   passwordKey: mysql-password
-  maxOpenConns: 25
-  maxIdleConns: 25
+  maxOpenConns: 5
+  maxIdleConns: 5
   connMaxLifetime: 0
   tls:
     enabled: false

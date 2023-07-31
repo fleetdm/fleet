@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { IPlatformString } from "interfaces/platform";
+import { SelectedPlatformString } from "interfaces/platform";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -31,7 +31,7 @@ export interface IPolicy {
   author_name: string;
   author_email: string;
   resolution: string;
-  platform: IPlatformString;
+  platform: SelectedPlatformString;
   team_id?: number;
   created_at: string;
   updated_at: string;
@@ -61,9 +61,11 @@ export interface IPolicyWebhookPreviewPayload {
   critical?: boolean;
 }
 
+export type PolicyStatusResponse = "pass" | "fail" | "";
+
 // Used on the host details page and other places where the status of individual hosts are displayed
 export interface IHostPolicy extends IPolicy {
-  response: string;
+  response: PolicyStatusResponse;
 }
 
 export interface ILoadAllPoliciesResponse {
@@ -78,7 +80,7 @@ export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
   critical?: boolean;
-  platform?: IPlatformString;
+  platform?: SelectedPlatformString;
   name?: string | number | boolean | undefined;
   query?: string | number | boolean | undefined;
   team_id?: number;
@@ -93,6 +95,6 @@ export interface IPolicyNew {
   query: string;
   resolution: string;
   critical: boolean;
-  platform: IPlatformString;
+  platform: SelectedPlatformString;
   mdm_required?: boolean;
 }

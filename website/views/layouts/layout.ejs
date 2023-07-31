@@ -122,7 +122,6 @@
     <!--STYLES-->
     <link rel="stylesheet" href="/dependencies/bootstrap-4/bootstrap-4.css">
     <link rel="stylesheet" href="/dependencies/fontawesome.css">
-    <link rel="stylesheet" href="/dependencies/nunito-webfonts.css">
     <link rel="stylesheet" href="/styles/importer.css">
     <!--STYLES END-->
   </head>
@@ -135,12 +134,6 @@
     <%/* End Google Tag Manager (noscript) */%>
     <div purpose="page-wrap">
       <div class="header" purpose="header-container">
-        <%// Call to action ribbon above page header %>
-        <div purpose="header-ribbon-cta" class="<%= headerCTAHidden  ?  'd-none' : 'd-flex' %> flex-row justify-content-center align-items-md-center">
-          <div class="mb-0 d-flex flex-lg-row flex-column justify-content-center py-3 px-2">
-            <p class="text-center pr-1 mb-0">Instant deployment with Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join the beta</a></p>
-          </div>
-        </div>
         <%// Page header%>
         <div purpose="page-header" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a purpose="header-logo" href="/">
@@ -166,8 +159,10 @@
               <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Platform</a>
               <div class="d-block">
                 <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
+                  <a href="/device-management">Device management</a>
                   <a href="/osquery-management">Osquery management</a>
                   <a href="/compliance">Security compliance</a>
+                  <a href="/vulnerability-management">Vulnerability management</a>
                   <span>SUCCESS STORIES</span>
                   <a class="pl-3" href="/success-stories/fleet-user-stories-wayfair">Wayfair</a>
                   <a class="pl-3" href="/success-stories/fleet-user-stories-schrodinger">Schrödinger</a>
@@ -182,6 +177,7 @@
                   <a href="/releases">Releases</a>
                   <a href="/queries">Health checks &amp; queries</a>
                   <a href="/tables">Explore data</a>
+                  <a href="/support">Support</a>
                   <span>GUIDES</span>
                   <a class="pl-3" href="/deploy">Deployment guides</a>
                   <a class="pl-3" href="/guides">How-to guides</a>
@@ -218,8 +214,10 @@
             <div purpose="dropdown-button" class="btn-group">
               <a purpose="header-nav-btn" style="" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
               <div purpose="header-dropdown" class="dropdown-menu">
+                <a class="dropdown-item mb-1" href="/device-management">Device management</a>
                 <a class="dropdown-item mb-1" href="/osquery-management">Osquery management</a>
                 <a class="dropdown-item mb-1" href="/compliance">Security compliance</a>
+                <a class="dropdown-item mb-1" href="/vulnerability-management">Vulnerability management</a>
                 <div class="dropdown-divider"></div>
                 <h6 class="muted dropdown-header">SUCCESS STORIES</h6>
                 <a class="dropdown-item mb-1" href="/success-stories/fleet-user-stories-wayfair">Wayfair</a>
@@ -234,6 +232,7 @@
                 <a class="dropdown-item mb-1" href="/releases">Releases</a>
                 <a class="dropdown-item mb-1" href="/queries">Health checks &amp; queries</a>
                 <a class="dropdown-item mb-1" href="/tables">Explore data</a>
+                <a class="dropdown-item mb-1" href="/support">Support</a>
                 <div class="dropdown-divider"></div>
                 <span class="muted dropdown-header">GUIDES</span>
                 <a class="dropdown-item" href="/deploy">Deployment guides</a>
@@ -323,16 +322,16 @@
             </div>
 
             <div purpose="footer-socials" style="" class="flex-row d-inline-flex font-weight-bold order-first order-md-last justify-content-start justify-content-md-end pl-md-3 py-3">
-              <a href="https://twitter.com/fleetctl">
+              <a target="_blank" href="https://twitter.com/fleetctl">
                 <img alt="Twitter logo" src="/images/logo-twitter-dark-25x20@2x.png" class="pr-4"/>
               </a>
-              <a href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ">
+              <a target="_blank" href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ">
                 <img alt="Youtube logo" src="/images/logo-youtube-29x20@2x.png"  class="pr-4"/>
               </a>
-              <a href="/slack">
+              <a target="_blank" href="/slack">
                 <img alt="Slack logo" src="/images/logo-slack-dark-20x20@2x.png" class="pr-4"/>
               </a>
-              <a href="https://github.com/fleetdm/fleet">
+              <a target="_blank" href="https://github.com/fleetdm/fleet">
                 <img alt="GitHub logo" src="/images/logo-github-dark-24x24@2x.png" />
               </a>
             </div>
@@ -451,8 +450,10 @@
     <script src="/js/pages/get-started.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
+    <script src="/js/pages/imagine/defcon-31.page.js"></script>
     <script src="/js/pages/imagine/higher-education.page.js"></script>
     <script src="/js/pages/imagine/launch-party.page.js"></script>
+    <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
     <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
@@ -465,13 +466,16 @@
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
     <script src="/js/pages/sales-one-pager.page.js"></script>
+    <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/register.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
+    <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/upgrade.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
+    <script src="/js/pages/vulnerability-management.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
@@ -491,20 +495,18 @@
         //    - https://github.com/lancedikson/bowser/tree/1fb99ced0e8834fd9662604bad7e0f0c3eba2786#rendering-engine-flags
         // --------------------------------------------------------------------
         var LATEST_SUPPORTED_VERSION_BY_OS = {
-          iOS: '11',//« earliest version to eliminate rare bug where `window.location` doesn't exist momentarily after doing a server-side redirect
-          Android: '6'
+          iOS: '12',//« earliest version that suppports the hubspot chatbot.
+          Android: '7' // « earliest version we can test for compatibility issues with on browserstack
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
-          msedge: '17',
-          // msie: '11',
-          safari: '11',//« earliest version to eliminate rare bug where `window.location` doesn't exist momentarily after doing a server-side redirect
-          firefox: '54',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
-          chrome: '55',//« earliest version to support both ES6 (for Vue.js), unprefixed flexbox (for Bootstrap 4), and async functions
-          opera: '42',//« earliest version to support both ES6 (for Vue.js), unprefixed flexbox (for Bootstrap 4), and async functions
+          msedge: '80',//« earliest version to support the backdrop filter css property.
+          safari: '12',//« earliest version that suppports the hubspot chatbot.
+          firefox: '102',//« earliest version to support the backdrop filter css property.
+          chrome: '76',//« earliest version to support the backdrop filter css property.
+          opera: '64',//« earliest version to support the backdrop filter css property.
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {
           'microsoft edge': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.msedge,
-          // 'internet explorer': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.msie,
           'safari': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.safari,
           'firefox': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.firefox,
           'chrome': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.chrome,

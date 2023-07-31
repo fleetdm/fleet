@@ -37,14 +37,14 @@ jobs:
       matrix:
         # See #9943, we just need to add windows-latest here once all issues are fixed.
         os: [ubuntu-latest, macos-latest]
-        go-version: ['1.19.8']
+        go-version: ['1.19.11']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
         uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
       - name: Install Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
+        uses: actions/setup-go@v4.0.1
         with:
           go-version: ${{ matrix.go-version }}
 

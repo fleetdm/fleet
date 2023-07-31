@@ -42,7 +42,7 @@ This workflow outlines the process that sales and customer success can follow wh
     - They complete the AE tasks listed at the top of the issue.
     - Then they assign the issue to BizOps and the Head of Customer Success (CS).
     - AE completes the Business Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
-    - Solution Architect completes the Technical Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
+    - Solutions Consultant completes the Technical Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
     - AE moves the {Account Name} folder within Opportunities to the Sales> Account Plans folder.
     - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
     - Prepare to review the following from the Account Plan:
@@ -66,9 +66,12 @@ This workflow outlines the process that sales and customer success can follow wh
     - Schedule the customer onboarding kickoff call
     - Collect deployment details (if not completed during POC)
     - Schedule the recurring customer check-in
-    - Owns running the meeting, note taking, TODO follow up, etc. 
+    - Owns running the meeting, note taking, TODO follow up, etc.
 
 
+> Due to legislation by the U.S. Department of Commerce, we are unable to initiate business with [certain countries and territories including specific U.S. sanction programs.](https://ofac.treasury.gov/sanctions-programs-and-country-information)
+
+ 
 ## Fleet's W-9
 
 A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
@@ -267,7 +270,7 @@ When creating a new issue, make sure the following:
 
 ### Assistance from engineering
 
-Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
+Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack. Additional help can be obtained by messaging your friendly Solutions Consultant in the `#help-solutions-consulting` channel.
 
 ## Runbook
 
@@ -290,7 +293,7 @@ Occasionally, we will need to track public issues for customers that wish to rem
 ## Generating a trial license key
 1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
     - [Here is a tutorial on using the self-service method](https://www.loom.com/share/b519e6a42a7d479fa628e394ee1d1517) (internal video)
-    - Pre-sales license key DRI is the Director of Solutions Architecture
+    - Pre-sales license key DRI is the Director of Solutions Consulting
     - Post-sales license key DRI is the VP of Customer Success
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
@@ -304,6 +307,10 @@ Fleeties can find a summary of contract terms in the relevant [customer's Salesf
 For all subscription agreements, NDAs, and similar contracts, Fleet maintains a [standard set of terms and maximum allowable adjustments for those terms](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit#gid=1136345578).
 
 Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
+
+### Non-standard NDAs
+
+To get a non-standard NDA (a non-disclosure agreement from another party) signed, [request a legal review](https://fleetdm.com/handbook/business-operations#intake).
 
 ### Reviewing subscription agreement
 
@@ -453,9 +460,8 @@ In order to maintain a consistent contributor experience in Salesforce, we log i
 2. Click the accounts tab and check for the following: 
 
 * The default filter is Customers when you click on the accounts tab. Click on an account to continue.
-* Click on a customer and make sure billing address, parent account, LinkedIn company URL, CISO employees (#), employees, and industry appear first at the top of the account.
-* "Looking for meeting notes" reminder should appear on the right of the screen.  
-* Useful links section should include links to Purchase Orders (POs), signed subscription agreements, invoices sent, meeting notes, and signed NDA. Clicking these links should search the appropriate repository for the requested information pertaining to the customer.
+* Click on a customer and make sure billing address, parent account, LinkedIn company URL, CISO employees (#), employees, and industry appear first at the top of the account. 
+* Useful links section should appear in the top right section of the account page. It includes links to purchase orders (POs), signed subscription agreements, invoices sent, meeting notes, and signed NDA. Clicking these links should search the appropriate repository for the requested information pertaining to the customer. All meeting notes should be saved in the [Meeting notes](https://drive.google.com/drive/folders/18e-rVadHG0T5w98OKMngM-yv-K9SXaOq) folder in Google Drive with the account name and date in the title. We do not use the notes feature on "accounts" or "opportunities" in Salesforce. 
 * Additional information section should include fields for account (customer) name first, account rating, LinkedIn sales navigator URL, LinkedIn company URL, and my LinkedIn overlaps. Make sure the LinkedIn links work.
 * Accounting section should include the following fields: invoice sent (latest), the payment received on (latest), subscription end date (latest), press approval field, license key, total opportunities (#), deals won (#), close date (first deal), cumulative revenue, payment terms, billing address, and shipping address. 
 * Opportunities, meeting notes, and activity feed should appear on the right.  
@@ -498,8 +504,8 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 | 🗣️ Product Feature Requests | Weekly | Present and advocate for requests and ideas brought to Fleet's attention by customers that are interesting from a product perspective. | Kathy Satterlee |
 | Customer meetings | Weekly | Check-in on how product and company are performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Kathy Satterlee |
 | Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
-| Sales huddle | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps. | Alex Mitchell
-[Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
+| Opportunity pipeline review | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps, amounts, dates, and status (including choosing Closed Lost if no communications for >= 45 days). | Alex Mitchell
+[Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Taylor Hughes |
 | Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell |
 | Dripify review | Daily | Review responses to Dripify sequencing, respond to standard messages, escalate urgent messages in `#help-CEO`. | Brad Macdowall
 
@@ -513,6 +519,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#fleet-at-*` _(customer channels)_ | Kathy Satterlee                                                     |
 | `#g-sales`                     | Alex Mitchell |
 | `#_from-prospective-customers` | Alex Mitchell |
+| `#help-solutions-consulting` | Dave Herder |
 
 
 <meta name="maintainedBy" value="alexmitchelliii">

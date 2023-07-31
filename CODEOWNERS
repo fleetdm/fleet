@@ -1,92 +1,92 @@
-# Go engineers are automatically added as reviewers when changes are made to go
-# files or related backend files.
+##############################################################################################
+#   ██████╗ ██████╗ ██████╗ ███████╗ ██████╗ ██╗    ██╗███╗   ██╗███████╗██████╗ ███████╗
+#  ██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔═══██╗██║    ██║████╗  ██║██╔════╝██╔══██╗██╔════╝
+#  ██║     ██║   ██║██║  ██║█████╗  ██║   ██║██║ █╗ ██║██╔██╗ ██║█████╗  ██████╔╝███████╗
+#  ██║     ██║   ██║██║  ██║██╔══╝  ██║   ██║██║███╗██║██║╚██╗██║██╔══╝  ██╔══██╗╚════██║
+#  ╚██████╗╚██████╔╝██████╔╝███████╗╚██████╔╝╚███╔███╔╝██║ ╚████║███████╗██║  ██║███████║
+#   ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚══════╝
+##############################################################################################
+# ⛔ This file indicates REQUIRED reviewers for changes to certain file paths in this repo.
+#
+# > How? This "requiredness" is provided natively by GitHub.  If a team is specified, then
+# > the logic behaves slightly differently.  See GitHub's latest documentation on CODEOWNERS
+# > for more information.  CODEOWNERS is especially useful for paths that usually end up
+# > in PRs with lots of other reviewers.)
+#
+# ⚠️ For file paths not listed, the DRI is instead indicated in website/config/custom.js.
+# Regardless of whether a path's DRI is configured in CODEOWNERS or custom.js, the DRI is
+# automatically requested for review when changes are proposed.
+#   [!] But beware: No path should ever be configured as a DRI in both CODEOWNERS _and_
+#       the website config.
+#   [!] In addition, no path should ever be configured in CODEOWNERS if there is ALSO one
+#       of its ancestral paths configured in website/config/custom.js.
+#
+# ✅ Some paths also have multiple individuals who are allowed to make changes without review,
+# even though they are not the DRI.  These are called "maintainers".
+#
+# For more information on how this works, see:
+# - What is a DRI and how is this configured? https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility
+# - Historical context: https://github.com/fleetdm/fleet/pull/12786
+##############################################################################################
+
+
+##############################################################################################
+# 🚀 Golang files and other files related to the core product backend.
+# (1 or more Golang-literate engineers is required to review changes.)
+# FUTURE: Look for a way to not have this notify every single person in this "github team".
+##############################################################################################
 *.go @fleetdm/go
 go.sum @fleetdm/go
 go.mod @fleetdm/go
 /server/ @fleetdm/go
 /cmd/ @fleetdm/go
 
-# Compliance
-/ee/cis/ @sharon-fdm @lucasmrod @marcosd4h @rachelElysia
-
-# React engineers are automatically added as reviewers when changes are made to react files
+##############################################################################################
+# 🚀 React files and other files related to the core product frontend.
+# (1 or more React-literate engineers is required to review changes.)
+# FUTURE: Look for a way to not have this notify every single person in this "github team".
+##############################################################################################
 /frontend/ @fleetdm/frontend
 
-# Infra/terraform
-*.tf @edwardsb @zwinnerman-fleetdm @rfairburn
-/infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
-/charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
-/terraform @zwinnerman-fleetdm @edwardsb @rfairburn
+##############################################################################################
+# 🚀 Config as code for infrastructure, internal security and IT use cases, and more.
+# (1 or more infra-literate engineers is required to review changes.)
+# FUTURE: Look for a way to not have this notify every single person in this "github team".
+##############################################################################################
+/infrastructure/ @fleetdm/infra
+/charts/ @fleetdm/infra
+/terraform/ @fleetdm/infra
 
-# GitHub issue templates
-/.github/ISSUE_TEMPLATE @mikermcneil
-
-# Codeowners file
-/CODEOWNERS @mikermcneil
-
-# Changelog
-/CHANGELOG.md @noahtalerman
-
-# Fleet documentation (who is auto-requested as reviewer for changes to docs?)
-/docs/ @ksatter
-
-# REST API reference documentation
-/docs/Using-Fleet/REST-API.md @ksatter @lukeheath
-/docs/Contributing/API-for-contributors.md @ksatter @lukeheath
-
-# Standard query library YAML
-/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @zwass
-
-# Exapnded table documentation
-/schema @eashaw
-
-# Articles
-/articles @jarodreyes
-
-# Website
-/website/ @eashaw
-/website/views/ @eashaw
-/website/assets/ @eashaw
-
-# Features table
-# - CEO is DRI for pricing
-# - Mo is DRI for features table
-# - Eric is DRI for website frontend code
-/website/views/pages/pricing.ejs @mikermcneil
-/handbook/product/pricing-features-table.yml @mikermcneil
-
-# Website redirects and URLs
-/website/config/routes.js @mikermcneil @eashaw
-
-# Website backend, scripts, deps
-/website/api/ @mikermcneil @eashaw
-/website/config/ @mikermcneil @eashaw
-/website/scripts/ @mikermcneil @eashaw
-/website/package.json @mikermcneil @eashaw
-
-# GitHub brandfront
-/README.md @mikermcneil
-
-# NPM brandfront (npmjs.com/package/fleetctl)
-/tools/fleetctl-npm/README.md @mikermcneil
-
-# Handbook
-/handbook/company @mikermcneil
-/handbook/company/* @mikermcneil
-/handbook/business-operations @mikermcneil
-/handbook/business-operations/* @mikermcneil
-/handbook/engineering @lukeheath
-/handbook/engineering/* @lukeheath
-/handbook/product @zhumo
-/handbook/product/* @zhumo
-/handbook/customers @alexmitchelliii
-/handbook/customers/* @alexmitchelliii
-/handbook/marketing @jarodreyes
-/handbook/marketing/* @jarodreyes
-/handbook/README.md @mikermcneil # « This is the "Table of contents"
-
+##############################################################################################
+# ⚗️ Reference, config surface, built-in queries, API, and other documentation.
 #
-# For configuration that determines auto-approval + auto-unfreezing, so that contributors
-# can merge their own PRs without additional approval, please see the latest version of:
-# https://github.com/fleetdm/fleet/blob/74f65447b718663bd04df31ea1da28915d98792c/website/config/custom.js#L88-L128
+# (see website/config/custom.js for DRIs of other paths not listed here)
+##############################################################################################
+/docs                                           @rachaelshaw
+/docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
+/schema                                         @rachaelshaw # « Data tables (osquery/fleetd schema) documentation
+
+##############################################################################################
+# 🫧 Pricing and features
 #
+# (see website/config/custom.js for DRIs of other paths not listed here)
+##############################################################################################
+/website/views/pages/pricing.ejs                      @mikermcneil # « CEO is DRI for pricing
+/handbook/product/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for product marketing (e.g. features table)
+
+##############################################################################################
+# 🦿 Handbook
+#
+# (see website/config/custom.js for DRIs of other paths not listed here)
+##############################################################################################
+/handbook/company/product-groups.md                   @mikermcneil
+/handbook/company/why-this-way.md                     @mikermcneil
+/handbook/company/README.md                           @mikermcneil
+/handbook/README.md                                   @mikermcneil  # « This is the "Table of contents" landing page
+
+
+
+
+# ℹ️ But wait, there's more!
+# See the comments up top to learn where else DRIs and maintainers are configured.

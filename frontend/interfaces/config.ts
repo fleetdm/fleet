@@ -11,6 +11,7 @@ import { IIntegrations } from "./integration";
 export default PropTypes.shape({
   org_name: PropTypes.string,
   org_logo_url: PropTypes.string,
+  contact_url: PropTypes.string,
   server_url: PropTypes.string,
   live_query_disabled: PropTypes.bool,
   enable_analytics: PropTypes.bool,
@@ -46,6 +47,7 @@ export default PropTypes.shape({
     enabled_and_configured: PropTypes.bool,
     apple_bm_terms_expired: PropTypes.bool,
     apple_bm_enabled_and_configured: PropTypes.bool,
+    windows_enabled_and_configured: PropTypes.bool,
     macos_updates: PropTypes.shape({
       minimum_version: PropTypes.string,
       deadline: PropTypes.string,
@@ -104,10 +106,18 @@ interface IEndUserAuthentication {
   metadata_url: string;
 }
 
+export interface IMacOsMigrationSettings {
+  enable: boolean;
+  mode: "voluntary" | "forced" | "";
+  webhook_url: string;
+}
+
 export interface IMdmConfig {
   enabled_and_configured: boolean;
+  apple_bm_default_team?: string;
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
+  windows_enabled_and_configured: boolean;
   end_user_authentication: IEndUserAuthentication;
   macos_updates: {
     minimum_version: string;
@@ -117,6 +127,12 @@ export interface IMdmConfig {
     custom_settings: null;
     enable_disk_encryption: boolean;
   };
+  macos_setup: {
+    bootstrap_package: string | null;
+    enable_end_user_authentication: boolean;
+    macos_setup_assistant: string | null;
+  };
+  macos_migration: IMacOsMigrationSettings;
 }
 
 export interface IDeviceGlobalConfig {
@@ -171,12 +187,15 @@ export interface IConfig {
   org_info: {
     org_name: string;
     org_logo_url: string;
+    org_logo_url_light_background: string;
+    contact_url: string;
   };
   sandbox_enabled: boolean;
   server_settings: {
     server_url: string;
     live_query_disabled: boolean;
     enable_analytics: boolean;
+    deferred_save_host: boolean;
   };
   smtp_settings: {
     enable_smtp: boolean;
@@ -195,6 +214,7 @@ export interface IConfig {
   };
   sso_settings: {
     entity_id: string;
+    issuer_uri: string;
     idp_image_url: string;
     metadata: string;
     metadata_url: string;
@@ -202,6 +222,7 @@ export interface IConfig {
     enable_sso: boolean;
     enable_sso_idp_login: boolean;
     enable_jit_provisioning: boolean;
+    enable_jit_role_sync: boolean;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
@@ -251,6 +272,10 @@ export interface IConfig {
         enable_log_compression: boolean;
       };
     };
+    audit?: {
+      plugin: string;
+      config: any;
+    };
   };
   email?: {
     backend: string;
@@ -260,6 +285,7 @@ export interface IConfig {
     };
   };
   mdm: IMdmConfig;
+  mdm_enabled?: boolean; // TODO: remove when windows MDM is released. Only used for windows MDM dev currently.
 }
 
 export interface IWebhookSettings {

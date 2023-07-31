@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -50,6 +51,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/go-kit/log"
 	"github.com/kolide/kit/version"
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/nanomdm/push"
@@ -60,8 +62,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	_ "go.elastic.co/apm/module/apmsql"
-	_ "go.elastic.co/apm/module/apmsql/mysql"
+	_ "go.elastic.co/apm/module/apmsql/v2"
+	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -327,7 +329,9 @@ the way that the Fleet server works.
 			redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
 			ds = redisWrapperDS
 
-			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
+			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
+				log.With(logger, "component", "query-results"),
+			)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
@@ -545,13 +549,30 @@ the way that the Fleet server works.
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 
+			// register the Microsoft MDM services
+			var (
+				wstepCertManager microsoft_mdm.CertManager
+			)
+
+			// Configuring WSTEP certs if Windows MDM feature flag is enabled
+			if configpkg.IsMDMFeatureFlagEnabled() && config.MDM.IsMicrosoftWSTEPSet() {
+				_, crtPEM, keyPEM, err := config.MDM.MicrosoftWSTEP()
+				if err != nil {
+					initFatal(err, "validate Microsoft WSTEP certificate and key")
+				}
+				wstepCertManager, err = microsoft_mdm.NewCertManager(ds, crtPEM, keyPEM)
+				if err != nil {
+					initFatal(err, "initialize mdm microsoft wstep depot")
+				}
+			}
+
 			// save the app config with the updated MDM.Enabled value
 			if err := ds.SaveAppConfig(context.Background(), appCfg); err != nil {
 				initFatal(err, "saving app config")
 			}
 
 			// setup mail service
-			if appCfg.SMTPSettings.SMTPEnabled {
+			if appCfg.SMTPSettings != nil && appCfg.SMTPSettings.SMTPEnabled {
 				// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
 				if config.Email.EmailBackend != "" {
 					config.Email.EmailBackend = ""
@@ -596,12 +617,18 @@ the way that the Fleet server works.
 				mdmPushService,
 				mdmPushCertTopic,
 				cronSchedules,
+				wstepCertManager,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
 
 			if license.IsPremium() {
+				var profileMatcher fleet.ProfileMatcher
+				if appCfg.MDM.EnabledAndConfigured {
+					profileMatcher = apple_mdm.NewProfileMatcher(redisPool)
+				}
+
 				svc, err = eeservice.NewService(
 					svc,
 					ds,
@@ -613,6 +640,7 @@ the way that the Fleet server works.
 					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 					mdmPushCertTopic,
 					ssoSessionStore,
+					profileMatcher,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -682,7 +710,11 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage)
+				var commander *apple_mdm.MDMAppleCommander
+				if appCfg.MDM.EnabledAndConfigured {
+					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				}
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}

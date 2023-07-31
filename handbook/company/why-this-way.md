@@ -12,7 +12,7 @@ Here are some of Fleet's decisions about the best way to work, and the reasoning
 
 Fleet's source code, website, documentation, company handbook, and internal tools are [public](https://github.com/fleetdm/fleet) and accessible to everyone, including engineers, executives, and end users. (Even [paid features](https://fleetdm.com/pricing) are source-available.)
 
-Meanwhile, the [company behind Fleet](https://twitter.com/fleetctl) is built on the [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) business model.  Openness is one of our core [values](https://fleetdm.com/handbook/company#values), and everything we do is public by [default](https://about.gitlab.com/handbook/values/#public-by-default).  Even the [company handbook](https://fleetdm.com/handbook) is open to the world.
+Meanwhile, the [company behind Fleet](https://twitter.com/fleetctl) is built on the [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) business model.  Openness is one of our core [values](https://fleetdm.com/handbook/company#values), and everything we do is [public by default](https://handbook.gitlab.com/handbook/values/#public-by-default).  Even the [company handbook](https://fleetdm.com/handbook) is open to the world.
 
 Is open-source collaboration _really_ worth all that?  Is it any good?
 
@@ -41,6 +41,20 @@ Making changes to the handbook first [encourages](https://www.youtube.com/watch?
 To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company).
 
 
+## Why read documentation?
+
+There are three reasons for visiting [the docs](https://fleetdm.com/docs):
+- **Tire-kicking**: "I think this is cool, now is it something that I could ACTUALLY use? Does it ACTUALLY work? What all's in it?  What links can I share with my colleagues to help them see what I'm seeing?"
+- **Committed learning**: "I've decided to learn this. I need a curriculum to get me there; with content that makes it as easy as possible, surface-level as possible. I want to learn how Fleet works and how to do all the things."
+- **Quick reference**: "Is this thing broken or am I using it right? How do I use this?" Whether they just stumbled in from a search engine, an on-site search, or through the Fleet website navigation, visitors interested in quick reference are interested in getting to the correct answer quickly.  Quick referencers search for REST API pages, the config surface of the Fleet server, agent options, how to build YAML for `fleetctl apply`, the built-in MDM profiles, the table schema, the built-in queries, reference architectures and cost calculators for deploying your own Fleet instance.
+
+Everyone [can contribute](https://fleetdm.com/handbook/company#openness) to Fleet's documentation.  Here are a few principles to keep in mind:
+ 
+- **🚪 Start simple.** It's easier to learn when you aren't overwhelmed.  Good documentation pages and sections start _prescriptive, brief, and clear_; ideally with a short example.  You can always hedge and caveat further down the page. This makes the docs more [accessible and outsider-friendly](https://fleetdm.com/handbook/company#purpose).  For example, notice how [this page gets more complicated as you scroll down](https://sailsjs.com/documentation/reference/blueprint-api/destroy), or how [both](https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?schema) of [these sections](https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?seldomused-settings) start simple, with caveats pushed down to the end. 
+
+<!-- 🔌🚪🪟 -->
+
+
 ## Why the emphasis on training?
 Investing in people and providing generous, prioritized training, especially up front, helps contributors understand what is going on at Fleet. By making training a prerequisite at Fleet, we can:
 - help team members feel confident in the better decisions they make at work. 
@@ -57,25 +71,15 @@ Here are a few examples of how Fleet prioritizes training:
 ## Why direct responsibility?
 Like Apple and GitLab, Fleet uses the concept of [directly responsible individuals (DRIs)](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/) to know who is responsible for what. 
 
-A DRI is a person who is singularly responsble for a given aspect of the open-source project, the product, or the company.  A DRI is responsible for making decisions, accomplishing goals, and getting any resources necessary to make a given area of Fleet successful.
-
-For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals"). Changes are always approved by the DRI [first, before they become real](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
-
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.  This saves time by eliminating a requirement for consensus decisions or political presenteeism, enables faster decision-making, and ensures a single individual is aware of what to do next.
 
-### Reporting structure
-In addition to Fleet's [organizational chart](https://fleetdm.com/handbook/company#org-chart), the company also organizes [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups) to allow for faster collaboration and fewer roundtrips.
+- **What is a DRI?**: A DRI is a person who is singularly responsible for a given aspect of the open-source project, the product, or the company.  A DRI is responsible for making decisions, accomplishing goals, and getting any resources necessary to make a given area of Fleet successful.  For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals").
+- **Change control**: In keeping with Fleet's handbook-first philosophy and value of writing things down, changes are always approved by the DRI [first, before they become real](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Fleet aims to make picking the right reviewer for your change as easy and automatic as possible. 
+- **Picking a reviewer**: In most cases, you won't need to select a particular reviewer for your pull request.  (It will just happen automatically.)  Automatic PR review requests are driven by a combination of [custom repo automation](https://github.com/fleetdm/fleet/pull/12786) and [CODEOWNERS files](https://github.com/search?q=org%3Afleetdm+path%3ACODEOWNERS&type=code).  When in doubt, refer to the roles in the company's [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups), and (to a lesser degree) the job titles and reporting structure indicated by the [company's organizational chart](https://fleetdm.com/handbook/company#org-chart).
+- **"Maintained by" photo**: For [handbook pages](https://github.com/fleetdm/fleet/tree/main/handbook) and [articles](https://github.com/fleetdm/fleet/tree/main/articles), the "Maintained by" photo displayed on the website corresponds with the `name="maintainedBy"` tags at the very bottom of the raw markdown source for each page.  This photo should match the DRI who is auto-requested to approve changes.  (It is determined by the person's GitHub profile picture.)
+- **Multiple maintainers**: In some cases, multiple subject-matter experts called "maintainers" can merge changes to certain file paths, even though there is already a dedicated DRI configured as the "CODEOWNER".  For examples of this, see the auto-approval flows configured as `sails.config.custom.githubRepoMaintainersByPath` and related configuration in [`website/config/custom.js`](https://github.com/fleetdm/fleet/blob/main/website/config/custom.js).
 
 
-### Reviewers
-Fleet aims to make picking the right reviewer for your change as easy and automatic as possible.  In many cases, you won't need to select a particular reviewer for your pull request.  (It will just happen automatically.)
-
-To check out the right person to review a given piece of content or source code path, consider:
-1. The [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) files of the fleetdm/fleet and fleetdm/confidential repositories.
-2. The  `name="maintainedBy"` tags at the very bottom of the raw markdown source for [every handbook page](https://github.com/fleetdm/fleet/tree/main/handbook) and [individual article](https://github.com/fleetdm/fleet/tree/main/articles).
-3. The job titles and reporting structure indicated by the [company's organizational chart](https://fleetdm.com/handbook/company#org-chart) and the roles in our [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups).
-
-> In some cases, multiple subject-matter experts can merge changes to files even though there is a dedicated DRI configured as the "CODEOWNER".  For examples of this, see the auto-approval flows configured as `sails.config.custom.githubRepoDRIByPath` and `sails.config.custom.confidentialGithubRepoDRIByPath` in [`website/config/custom.js`](https://github.com/fleetdm/fleet/blob/main/website/config/custom.js).
 
 
 ## Why do we use a wireframe-first approach?
@@ -117,6 +121,7 @@ The only exceptions are:
 2. **Non-public matters:** Since GitHub does not allow non-public issues inside public repos, we have to use separate repositories to track non-public issues.  Sometimes it is also useful to contribute files to a non-public repository, such as when they mention customer relationships that are under non-disclosure agreements.  When we work on something non-public, we contribute to the repository with the appropriate [level of confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality):
    - _Confidential:_ [`fleetdm/confidential`](https://github.com/fleetdm/confidential)
    - _Classified (¶¶):_ [`fleetdm/classified`](https://github.com/fleetdm/classified)
+3. **GitHub Actions:** Since GitHub requires GitHub Actions to live in dedicated repositories in order to submit them to the marketplace, Fleet uses a separate repo for publishing [GitHub Actions designed for other people to deploy and use (and/or fork)](https://github.com/fleetdm/fleet-mdm-gitops).
 
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
@@ -135,7 +140,7 @@ Here are a few of the drawbacks that we have experienced when generating docs vi
 - Markdown is more accessible. Anyone can edit Fleet's docs directly from our website without needing coding experience. 
 - A single Markdown file reduces the amount of surface area to manage that comes from spreading code comments across multiple files throughout the codebase. (see ["Why do we use one repo?"](#why-do-we-use-one-repo)).
 - Autogenerated docs can become just as outdated as handmade docs, except since they are siloed, they require more skills to edit.
-- When docs live at separate repo paths from source code, we are able to automate approval processes that allow contributors to make small improvements and notes, directly from the website.  This [leads to more contributions](https://github.com/balderdashy/sails-docs/network/members), since it lowers the barrier of entry for [becoming a contributor](https://fleetdm.com/docs/contributing/committing-changes).
+- When docs live at separate repo paths from source code, we are able to automate approval processes that allow contributors to make small improvements and notes, directly from the website.  This [leads to more contributions](https://github.com/balderdashy/sails-docs/network/members), since it lowers the barrier of entry for [becoming a contributor](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
 - Autogenerated docs are typically hosted on a subdomain. This means we have less control over a user's journey through our website and lose the SEO benefits of self-hosted documentation.
 - Autogenerating docs from code comments is not always the best way to make sure reference docs accurately reflect the API.
 - As the Fleet REST API, documentation, and tools mature, a more declarative format such as OpenAPI might become the source of truth, but only after investing in a format and processes to make it continually accurate as well as visible, accessible, and modifiable for all contributors.
@@ -235,6 +240,54 @@ Many companies encourage salespeople to "spray and pray" email blasts, and to do
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
 - **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵fair to competitors](https://fleetdm.com/handbook/company#objectivity).
 - **Step up.** We look at the [🟠big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
+
+## Why does Fleet support query packs?
+
+As originally envisioned by Zach Wasserman and the team when creating osquery, packs are a way to import and export queries into (and out of!) any platform that speaks osquery, whether that's Fleet, [Security Onion](https://securityonionsolutions.com/), an EDR, or even Rapid7. Queries [should be portable](https://github.com/fleetdm/fleet/blob/f711e60de47c69ab8be5bc13cf73fedf88adc338/README.md#lighter-than-air) to minimize lock-in to particular tools.
+
+The "Packs" section of the UI that began in `kolide/fleet` c. 2017 was an early attempt to  segment and target formations of hosts that share certain characteristics.  This came with some difficulties with debugging and collaboration, since it could be hard to tell which queries were running on which hosts. It also made it harder to understand what performance impact running all those queries might cause.
+
+Eventually, when working on some related improvements, it became clear that Fleet needed a better way to organize hosts, controls, reports, and configuration that wasn't tied exclusively to data collection in Splunk.  It was time to learn from the original design and come up with a smarter way to group hosts.
+
+The first step was to add a simpler way to schedule queries, and tuck away the legacy feature called "Packs", so that "packs" refer to what they were originally: a portable way to import and export queries. 
+
+Packs will always be supported in Fleet.
+
+## Why does Fleet use sentence case?
+
+Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
+
+In sentence case, we write and capitalize words as if they were in sentences:
+
+> Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
+
+As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer") and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized.
+
+The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
+
+## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
+
+Fleet is more than an MDM (mobile device management) solution.
+
+With Fleet, you can secure and investigate Macs, Windows servers, Chromebooks, and more by installing the fleetd agent (or chrome extension for Chromebooks). When we use the word "enroll" in Fleet, we want this to mean anytime one of these hosts shows up in Fleet and the user can see that sweet telemetry.
+
+Fleet also has MDM features that allow IT admins to enforce OS settings, OS updates, and more. When we use the phrase "MDM on" in Fleet, it means a host has these features activated.
+
+Workspace ONE and other MDM solutions use "enroll" to mean both telemetry is being collecting and enforcement features are activated.
+
+Since Fleet is more than MDM, you can collect telemetry on your Windows servers and you can enforce OS settings on your Macs. Or you can collect telemetry for both without enforcing OS settings.
+
+
+
+
+#### Stubs
+The following stubs are included only so that old links continue to work (for backwards compatibility.)
+
+##### Reporting structure
+Please see [handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
+
+##### Reviewers
+Please see [handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
 
 
 <meta name="maintainedBy" value="mikermcneil">

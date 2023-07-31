@@ -1,3 +1,0 @@
-- Added `PATCH /mdm/apple/setup` endpoint.
-- Added `enable_end_user_authentication` to `mdm.macos_setup` in global app config and team config
-  objects.

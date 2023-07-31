@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
+	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -93,11 +95,12 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 }
 
 type getDeviceHostResponse struct {
-	Host         *HostDetailResponse      `json:"host"`
-	OrgLogoURL   string                   `json:"org_logo_url"`
-	Err          error                    `json:"error,omitempty"`
-	License      fleet.LicenseInfo        `json:"license"`
-	GlobalConfig fleet.DeviceGlobalConfig `json:"global_config"`
+	Host                      *HostDetailResponse      `json:"host"`
+	OrgLogoURL                string                   `json:"org_logo_url"`
+	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
+	Err                       error                    `json:"error,omitempty"`
+	License                   fleet.LicenseInfo        `json:"license"`
+	GlobalConfig              fleet.DeviceGlobalConfig `json:"global_config"`
 }
 
 func (r getDeviceHostResponse) error() error { return r.Err }
@@ -143,12 +146,31 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		},
 	}
 
+	resp.DEPAssignedToFleet = ptr.Bool(false)
+	if ac.MDM.EnabledAndConfigured && license.IsPremium() {
+		hdep, err := svc.GetHostDEPAssignment(ctx, host)
+		if err != nil && !fleet.IsNotFound(err) {
+			return getDeviceHostResponse{Err: err}, nil
+		}
+		resp.DEPAssignedToFleet = ptr.Bool(hdep.IsDEPAssignedToFleet())
+	}
+
 	return getDeviceHostResponse{
 		Host:         resp,
 		OrgLogoURL:   ac.OrgInfo.OrgLogoURL,
 		License:      *license,
 		GlobalConfig: deviceGlobalConfig,
 	}, nil
+}
+
+func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error) {
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	if !alreadyAuthd {
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+	}
+	return svc.ds.GetHostDEPAssignment(ctx, host.ID)
 }
 
 // AuthenticateDevice returns the host identified by the device authentication

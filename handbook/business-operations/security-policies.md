@@ -25,35 +25,35 @@ All Fleet employees and long-term collaborators are expected to read and electro
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @mikermcneil | 2022-06-01     |
+| @zwass | 2023-06-01     |
 
-Fleet requires all workforce members to comply with the following acceptable use requirements and procedures:
+Fleet requires all team members to comply with the following acceptable use requirements and procedures:
 
 1. The use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
 
-2. Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public.
+2. Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public. Unattended devices (even in private spaces) must be locked with the lid closed or through the OS screen lock mechanism.
 
-3. Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops.
+3. Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
 
-4. Teams must exclussively use legal software with a valid license installed through the internal "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in *#g-security*.  
+4. Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
 
-5. Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager.
+5. Teams must exclusively use legal software with a valid license installed through the "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC).  
 
-6. Sanitize and remove any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (memory dumps, for example), should not be shared.
+6. Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager (1Password). If you don't know how to use the password manager or safely access secrets, please ask in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC)!
 
-7. Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers.
+7. Sanitize and remove any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (eg. debug profiles) should not be shared publicly.
 
-8. It is strictly forbidden to download or store any secrets used to sign Orbit installer updates on end-user computing devices, including laptops, workstations, and mobile devices.
+8. Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly, and never allow unattended screen sharing.
 
-9. Only allow company-owned and managed computers to connect directly to Fleet autoupdater production environments.
+9. Device operating systems must be kept up to date. Fleet-managed macOS workstations will receive prompts for updates to be installed, and unmanaged devices are to be updated by the team member using them. Access may be revoked for devices not kept up to date.
 
-10. Enforce the policy that Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly.
+10. Team members must not store sensitive data on external storage devices (USB sticks, external hard drives).
 
-11. Require device's operating system must be kept up to date. Fleet-managed systems will receive prompts for updates to be installed, and BYOD devices are to be updated by the team member using them or they might lose access. 
+11. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
-12. Require team members must not store sensitive data on portable storage.
+12. Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
 
-13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
+When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC))
 
 ## Access control policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
@@ -150,7 +150,17 @@ Fleet policy requires that:
 
 #### Line of Succession
 
-The following order of succession to make sure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Executive Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering cannot function as the overall authority or choose to delegate this responsibility to a successor, the board of directors shall serve as that authority or choose an alternative delegate. 
+The following order of succession to make sure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Executive Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering cannot function as the overall authority or choose to delegate this responsibility to a successor, the board of directors shall serve as that authority or choose an alternative delegate.
+
+For technical incidents:
+1. CTO (Zach Wasserman)
+2. Director of Product Engineering (Luke Heath)
+3. CEO (Mike McNeil)
+
+For business/operational incidents:
+1. CEO (Mike McNeil)
+2. Head of Business Operations (Joanne Stableford)
+3. CTO (Zach Wasserman)
 
 ### Response Teams and Responsibilities
 
@@ -172,7 +182,7 @@ Current Fleet continuity leadership team members include the CEO and CTO.
 
 #### Notification and Activation Phase
 
-This phase addresses the initial actions taken to detect and assess the damage inflicted by a disruption to Fleet Device Management or the Fleet automatic updater service. Based on the assessment of the Event, sometimes, according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be triggered by the Head of Security in the event of a cyber disaster.
+This phase addresses the initial actions taken to detect and assess the damage inflicted by a disruption to Fleet Device Management. Based on the assessment of the Event, sometimes, according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be triggered by the Head of Security in the event of a cyber disaster.
 
 The notification sequence is listed below:
 
@@ -193,7 +203,7 @@ The notification sequence is listed below:
 
 #### Reconstitution Phase
 
-This section discusses activities necessary for restoring full Fleet automatic updater service operations at the original or new site. The goal is to restore full operations within 24 hours of a disaster or outage. The goal is to provide a seamless transition of operations.
+This section discusses activities necessary for restoring full Fleet operations at the original or new site. The goal is to restore full operations within 24 hours of a disaster or outage. The goal is to provide a seamless transition of operations.
 
 1. Contact Partners and Customers affected to begin initial communication - CTO
 2. Assess damage to the environment - Infrastructure
@@ -208,7 +218,7 @@ This section discusses activities necessary for restoring full Fleet automatic u
 
 #### Plan Deactivation
 
-If the Fleet automatic updater environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service or both, make sure that any leftover systems created temporarily are destroyed.
+If the Fleet environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service or both, make sure that any leftover systems created temporarily are destroyed.
 
 ## Data management policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
@@ -265,6 +275,7 @@ External disclosure of critical data is strictly prohibited without an approved 
 * Production security data, such as
     - Production secrets, passwords, access keys, certificates, etc.
     - Production security audit logs, events, and incident data
+* Production customer data
 
 
 **Confidential** and proprietary data represents company secrets and is of significant value to the company.
@@ -279,6 +290,7 @@ Disclosure requires the signing of NDA and management approval.
 * Employee/HR data
 * News and public announcements (pre-announcement)
 * Patents (pre-filing)
+* Production metadata (server logs, non-secret configurations, etc.)
 * Non-production security data, including
     - Non-prod secrets, passwords, access keys, certificates, etc.
     - Non-prod security audit logs, events, and incident data
@@ -308,7 +320,7 @@ Requirements for data handling, such as the need for encryption and the duration
 | Data             | Labeling or Tagging | Segregated Storage | Endpoint Storage | Encrypt At Rest | Encrypt In Transit | Encrypt In Use | Controlled Access | Monitoring | Destruction at Disposal | Retention Period | Backup Recovery |
 |------------------|---------------------|--------------------|------------------|-----------------|--------------------|----------------|-------------------|------------|------------------------|------------------|-----------------|
 | **Critical**     | Required            | Required           | Prohibited       | Required        | Required           | Required       | Access is blocked to end users by default; Temporary access for privileged users only | Required   | Required   | seven years for audit trails; Varies for customer-owned data† | Required   |
-| **Confidential** | Required            | N/R                | Allowed          | Required        | Required           | Required       | All access is based on need-to-know | Required   | Required   | seven years for official documentation; Others vary based on business need | Required   |
+| **Confidential** | Required            | N/R                | Allowed          | Required        | Required           | Required       | All access is based on need-to-know | Required   | Required   | Seven years for official documentation; Others vary based on business need | Required   |
 | **Internal**     | Required            | N/R                | Allowed          | N/R             | N/R                | N/R            | All employees and contractors (read); Data owners and authorized individuals (write) | N/R | N/R | Varies based on business need | Optional   |
 | **Public**       | N/R                 | N/R                | Allowed          | N/R             | N/R                | N/R            | Everyone (read); Data owners and authorized individuals (write) | N/R     | N/R     | Varies based on business need | Optional   |
 
@@ -318,6 +330,13 @@ N/R = Not Required
 
 Most Fleet data is **public** yet retained and backed up not due to our data handling requirements but simply business requirements.
 
+#### Customer data deletion
+
+This process is followed when offboarding a customer and deleting all of the production customer data.
+
+1. `terraform destroy` the infrastructure for the customer. This triggers immediate deletion of the RDS database and all automated snapshots, along with immediate deletion of the ElastiCache Redis instance. Secrets are marked for deletion with a 7 day recovery window. Cloudwatch (server) logs are automatically deleted after the retention window expires.
+2. Manually delete any manual database snapshots. The engineer should verify that there are no manual snapshots remaining for this customer.
+3. Commit a removal of all the Terraform files for the customer.
 
 ## Encryption policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
@@ -354,6 +373,12 @@ Encryption and key management for local disk encryption of end-user devices foll
 
 4. Transmission encryption keys are limited to use for one year and then must be regenerated.
 
+### Authorized Sub-Processors for Fleet Cloud services
+
+| Sub-processor Name | Purpose | Location |
+| ------------------ | ------- | -------- |
+| Amazon Web Services, Inc. and sub-processors located at https://aws.amazon.com/compliance/sub-processors/ | Database hosting platform | USA |
+
 ## Human resources security policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
@@ -368,7 +393,7 @@ Fleet policy requires all workforce members to comply with the HR Security Polic
 
 Fleet policy requires that:
 
-1. Background verification checks on candidates for employees and contractors with production access to the Fleet automatic updater service must be carried out in accordance with relevant laws, regulations, and ethics. These checks should be proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
+1. Background verification checks on candidates for employees and contractors with production access to the Fleet infrastructure resources must be carried out in accordance with relevant laws, regulations, and ethics. These checks should be proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
 
 2. Employees, contractors, and third-party users must agree to and sign the terms and conditions of their employment contract and comply with acceptable use.
 
@@ -388,7 +413,7 @@ Fleet policy requires that:
 
 10. Fleet will publish job descriptions for available positions and conduct interviews to assess a candidate's technical skills as well as soft skills prior to hiring.
 
-11. Background checks of an employee or contractor must be performed by operations and/or the hiring team before we grant the new employee or contractor access to the Fleet automatic updater environment.
+11. Background checks of an employee or contractor must be performed by operations and/or the hiring team before we grant the new employee or contractor access to the Fleet production environment.
 
 12. A list of employees and contractors will be maintained, including their titles and managers, and made available to everyone internally.
 

@@ -6,6 +6,10 @@
   border-left: 1px solid #e2e4ea;
   border-radius: 6px;
 
+  &__loading-spinner {
+    margin: auto;
+  }
+
   .aggregate-mac-settings-indicator {
     flex-grow: 1;
 

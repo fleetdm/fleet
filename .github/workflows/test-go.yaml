@@ -40,17 +40,17 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.19.8']
+        go-version: ['^1.19.11']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
     runs-on: ${{ matrix.os }}
 
     env:
       RACE_ENABLED: false
-      GO_TEST_TIMEOUT: 10m
+      GO_TEST_TIMEOUT: 15m
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -96,17 +96,18 @@ jobs:
           MINIO_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
-          NETWORK_TEST_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+          NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Upload to Codecov
       uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
       with:
         files: coverage.txt
+        flags: backend
 
     - name: Slack Notification
       if: github.event.schedule == '0 4 * * *' && failure()
-      uses: slackapi/slack-github-action@16b6c78ee73689a627b65332b34e5d409c7299da # v1.18.0
+      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
       with:
         payload: |
           {

@@ -67,7 +67,7 @@ module.exports.routes = {
     }
   },
 
-  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
+  'r|^/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
@@ -171,6 +171,8 @@ module.exports.routes = {
     action: 'try-fleet/view-register',
     locals: {
       layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet Sandbox | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet Sandbox - The fastest way to test Fleet. Get up and running in minutes to try out Fleet.',
     }
   },
 
@@ -178,11 +180,13 @@ module.exports.routes = {
     action: 'try-fleet/view-sandbox-login',
     locals: {
       layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Log in to Fleet Sandbox | Fleet for osquery',
+      pageDescriptionForMeta: 'Log in to Fleet Sandbox.',
     }
   },
 
   'GET /try-fleet/sandbox': {
-    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired',
+    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist',
     locals: {
       layout: 'layouts/layout-sandbox',
     },
@@ -193,6 +197,14 @@ module.exports.routes = {
     locals: {
       layout: 'layouts/layout-sandbox',
     },
+  },
+
+  'GET /try-fleet/waitlist': {
+    action: 'try-fleet/view-waitlist',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet Sandbox waitlist | Fleet for osquery',
+    }
   },
 
   'GET /admin/email-preview': {
@@ -243,7 +255,7 @@ module.exports.routes = {
     action: 'view-fleet-mdm',
     locals: {
       pageTitleForMeta: 'Device management | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about upcoming features and join the Fleet MDM beta today.',
+      pageDescriptionForMeta: 'GitOps-driven MDM. Automate the management of your fleet of devices with increased visibility, control, and improved stability.',
       currentSection: 'platform',
     }
   },
@@ -273,6 +285,23 @@ module.exports.routes = {
     }
   },
 
+  'GET /vulnerability-management': {
+    action: 'view-vulnerability-management',
+    locals: {
+      pageTitleForMeta: 'Vulnerability management | Fleet for osquery',
+      pageDescriptionForMeta: 'Know what\’s going on with your computers. Measure and automate risk across your laptops and servers.',
+    }
+  },
+
+  'GET /support': {
+    action: 'view-support',
+    locals: {
+      pageTitleForMeta: 'Support | Fleet for osquery',
+      pageDescriptionForMeta: 'Ask a question, chat with other engineers, or get in touch with the Fleet team.',
+      currentSection: 'documentation',
+    }
+  },
+
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
@@ -283,6 +312,20 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Fleet for higher education',
       pageDescriptionForMeta: 'Automate security workflows in a single application by creating or installing policies to identify which devices comply with your security guidelines.',
+    }
+  },
+  'GET /imagine/rapid-7-alternative': {
+    action: 'imagine/view-rapid-7-alternative',
+    locals: {
+      pageTitleForMeta: 'An open-source alternative to Rapid7',
+      pageDescriptionForMeta: 'Simplify vulnerability management with Fleet, an open-source platform with superior visibility.',
+    }
+  },
+  'GET /imagine/defcon-31': {
+    action: 'imagine/view-defcon-31',
+    locals: {
+      pageTitleForMeta: 'Fleet at DefCon 31',
+      pageDescriptionForMeta: 'Find Fleet at DefCon and get a custom tee shirt.',
     }
   },
 
@@ -344,9 +387,54 @@ module.exports.routes = {
   'GET /handbook/security': '/handbook/business-operations/security',
   'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
   'GET /handbook/handbook': '/handbook/company/handbook',
-  'GET /handbook/company/product-groups': '/handbook/company/development-groups',
+  'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
-  'GET /platform': (req,res)=> {return res.redirect(302, '/');},// FUTURE: change this to a 301 (permanent) redirect once we are sure what the page that replaces this is.
+  'GET /platform': '/',
+  'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
+  'GET /handbook/business-operations/ceo-handbook': '/handbook/company/ceo-handbook',
+
+  'GET /docs': '/docs/get-started/why-fleet',
+  'GET /docs/get-started': '/docs/get-started/why-fleet',
+  'GET /docs/rest-api': '/docs/rest-api/rest-api',
+  'GET /docs/using-fleet': '/docs/using-fleet/fleet-ui',
+  'GET /docs/configuration': '/docs/configuration/fleet-server-configuration',
+  'GET /docs/contributing': 'https://github.com/fleetdm/fleet/tree/main/docs/Contributing',
+  'GET /docs/deploy': '/docs/deploy/introduction',
+  'GET /docs/using-fleet/faq': '/docs/get-started/faq',
+  'GET /docs/using-fleet/monitoring-fleet': '/docs/deploy/monitoring-fleet',
+  'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts',
+  'GET /docs/using-fleet/teams': '/docs/using-fleet/segment-hosts',
+  'GET /docs/using-fleet/permissions': '/docs/using-fleet/manage-access',
+  'GET /docs/using-fleet/chromeos': '/docs/using-fleet/enroll-chromebooks',
+  'GET /docs/using-fleet/rest-api': '/docs/rest-api/rest-api',
+  'GET /docs/using-fleet/configuration-files': '/docs/configuration/configuration-files/',
+  'GET /docs/using-fleet/application-security': '/handbook/business-operations/application-security',
+  'GET /docs/using-fleet/security-audits': '/handbook/business-operations/security-audits',
+  'GET /docs/using-fleet/process-file-events': '/guides/querying-process-file-events-table-on-centos-7',
+  'GET /docs/using-fleet/audit-activities': '/docs/using-fleet/audit-logs',
+  'GET /docs/using-fleet/detail-queries-summary': '/docs/using-fleet/understanding-host-vitals',
+  'GET /docs/using-fleet/orbit': '/docs/using-fleet/fleetd',
+  'GET /docs/deploying': '/docs/deploy',
+  'GET /docs/deploying/faq': '/docs/get-started/faq',
+  'GET /docs/deploying/introduction': '/docs/deploy/introduction',
+  'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures ',
+  'GET /docs/deploying/upgrading-fleet': '/docs/deploy/upgrading-fleet',
+  'GET /docs/deploying/server-installation': '/docs/deploy/server-installation',
+  'GET /docs/deploying/cloudgov': '/docs/deploy/cloudgov',
+  'GET /docs/deploying/configuration': '/docs/configuration/fleet-server-configuration',
+  'GET /docs/deploying/fleetctl-agent-updates': '/docs/using-fleet/update-agents',
+  'GET /docs/deploying/debugging': '/handbook/engineering/debugging',
+  'GET /docs/deploying/load-testing': '/handbook/engineering/load-testing',
+  'GET /docs/contributing/configuration': '/docs/configuration/configuration-files',
+  'GET /docs/contributing/*': {
+    skipAssets: true,
+    fn: (req, res)=>{
+      return res.redirect('https://github.com/fleetdm/fleet/tree/main/docs/Contributing');
+    }
+  },
+  'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
+  'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
+  'GET /handbook/company/ceo-handbook': '/handbook/company/ceo',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -364,13 +452,12 @@ module.exports.routes = {
   'GET /install':                    '/fleetctl-preview',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
-  'GET /support':                    '/company/contact',
   'GET /contact':                    '/company/contact',
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
   'GET /login':                      '/customers/login',
-  'GET /slack':                      'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/',
+  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
@@ -402,7 +489,8 @@ module.exports.routes = {
   // Things that are not webpages here (in the Sails app) yet, but could be in the future.  For now they are just
   // redirects to somewhere else EXTERNAL to the Sails app.
   'GET /security':               'https://github.com/fleetdm/fleet/security/policy',
-  'GET /trust':                  'https://app.vanta.com/fleet/trust/5i2ulsbd76k619q9leaoh0',
+  'GET /trust':                  'https://trust.fleetdm.com',
+  'GET /status':                 'https://status.fleetdm.com',
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   'GET /apply':                  '/jobs',
   'GET /jobs':                   'https://fleetdm.com/handbook/company#open-positions',
@@ -413,7 +501,7 @@ module.exports.routes = {
   'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
   'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
   'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
-  'GET /community':              'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/',
+  'GET /community':              'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
@@ -422,7 +510,7 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
-
+  'POST /api/v1/webhooks/receive-from-customer-fleet-instance': { action: 'webhooks/receive-from-customer-fleet-instance', csrf: false},
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣╠═╝║  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
@@ -449,4 +537,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
   'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
+  'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
 };

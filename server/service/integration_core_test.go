@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -521,6 +522,20 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 	require.NoError(t, err)
 	require.Len(t, user.Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
+
+	spec = []byte(fmt.Sprintf(`
+  roles:
+    %s:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: non-existent
+`,
+		email))
+	userRoleSpec = applyUserRoleSpecsRequest{}
+	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
+	require.NoError(t, err)
+	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusBadRequest)
 }
 
 func (s *integrationTestSuite) TestGlobalSchedule() {
@@ -537,6 +552,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 		Description:    "Some description",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Saved:          true,
 	})
 	require.NoError(t, err)
 
@@ -550,7 +566,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
 	assert.Equal(t, uint(42), gs.GlobalSchedule[0].Interval)
-	assert.Equal(t, "TestQuery1", gs.GlobalSchedule[0].Name)
+	assert.Contains(t, gs.GlobalSchedule[0].Name, "Copy of TestQuery1 (")
 	id := gs.GlobalSchedule[0].ID
 
 	// list page 2, should be empty
@@ -624,7 +640,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
 		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	soft1 := host.Software[0]
@@ -935,11 +952,12 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	require.NoError(t, err)
 }
 
-func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
+func (s *integrationTestSuite) createHosts(t *testing.T, platforms ...string) []*fleet.Host {
 	var hosts []*fleet.Host
-
-	platforms := []string{"debian", "rhel", "linux"}
-	for i := 0; i < 3; i++ {
+	if len(platforms) == 0 {
+		platforms = []string{"debian", "rhel", "linux"}
+	}
+	for i, platform := range platforms {
 		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -949,7 +967,7 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
-			Platform:        platforms[i],
+			Platform:        platform,
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, host)
@@ -978,7 +996,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 func (s *integrationTestSuite) TestHostsCount() {
 	t := s.T()
 
-	hosts := s.createHosts(t)
+	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
@@ -1140,7 +1158,7 @@ func (s *integrationTestSuite) TestPacks() {
 func (s *integrationTestSuite) TestListHosts() {
 	t := s.T()
 
-	hosts := s.createHosts(t)
+	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
@@ -1182,7 +1200,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	_, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	resp = listHostsResponse{}
@@ -1193,7 +1212,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Greater(t, resp.Hosts[0].SoftwareUpdatedAt, resp.Hosts[0].CreatedAt)
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
-	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
+	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
 	defer cleanupQuery(s, q.ID)
 	p, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
 		QueryID: &q.ID,
@@ -2334,6 +2353,12 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 		TeamID:  &tm1.ID,
 		HostIDs: []uint{hosts[0].ID, hosts[1].ID},
 	}, http.StatusOK, &addResp)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
+			tm1.ID, tm1.Name, hosts[0].ID, hosts[1].ID, hosts[0].DisplayName(), hosts[1].DisplayName()),
+		0,
+	)
 
 	// check that hosts are now part of that team
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
@@ -2350,6 +2375,12 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	req := addHostsToTeamByFilterRequest{TeamID: &tm2.ID}
 	req.Filters.MatchQuery = hosts[2].Hostname
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
+			tm2.ID, tm2.Name, hosts[2].ID, hosts[2].DisplayName()),
+		0,
+	)
 
 	// check that host 2 is now part of team 2
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[2].ID), nil, http.StatusOK, &getResp)
@@ -2361,6 +2392,18 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &delResp)
 	// delete non-existing host
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[2].ID+1), nil, http.StatusNotFound, &delResp)
+
+	// assign host 1 to no team
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  nil,
+		HostIDs: []uint{hosts[1].ID},
+	}, http.StatusOK, &addResp)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": null, "team_name": null, "host_ids": [%d], "host_display_names": [%q]}`,
+			hosts[1].ID, hosts[1].DisplayName()),
+		0,
+	)
 
 	// list the hosts
 	var listResp listHostsResponse
@@ -3030,7 +3073,7 @@ func (s *integrationTestSuite) TestLabels() {
 	lbl2 := createResp.Label.Label
 
 	// create hosts and add them to that label
-	hosts := s.createHosts(t)
+	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 	for _, h := range hosts {
 		err := s.ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{lbl2.ID: ptr.Bool(true)}, time.Now(), false)
 		require.NoError(t, err)
@@ -3182,6 +3225,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	var getResp getLabelSpecResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(name)), nil, http.StatusOK, &getResp)
 	assert.Equal(t, name, getResp.Spec.Name)
+	assert.NotEqual(t, 0, getResp.Spec.ID)
 
 	// get a non-existing label spec
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
@@ -4635,6 +4679,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Equal(t, "free", acResp.License.Tier)
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 	assert.False(t, acResp.MDM.AppleBMTermsExpired)
+	assert.False(t, acResp.MDMEnabled)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -4663,12 +4708,13 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, "test", acResp.OrgInfo.OrgName)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
+	assert.False(t, acResp.MDMEnabled)
 
 	// the global agent options were not modified by the last call, so the
 	// corresponding activity should not have been created.
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
-	if !assert.Len(t, listActivities.Activities, 1) {
+	if len(listActivities.Activities) > 1 {
 		// if there is an activity, make sure it is not edited_agent_options
 		require.NotEqual(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	}
@@ -4847,6 +4893,14 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"mdm": { "apple_bm_default_team": "xyz" }
   }`), http.StatusUnprocessableEntity, &acResp)
 
+	// try to enable Windows MDM, impossible without the feature flag
+	// (only set in mdm integrations tests)
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": true }
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "cannot enable Windows MDM without the feature flag explicitly enabled")
+
 	// verify that the Apple BM terms expired flag was never modified
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -4878,6 +4932,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, defAppCfg), http.StatusOK)
 }
 
+// TODO(lucas): Add tests here.
 func (s *integrationTestSuite) TestQuerySpecs() {
 	t := s.T()
 
@@ -4984,12 +5039,16 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	// at index 1 having 19, index 2 = 18, etc. until index 19 = 1. So software
 	// sws[0] is only used by 1 host, while sws[19] is used by all.
 	for i, h := range hosts {
-		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), h.ID, sws[i:]))
+		_, err := s.ds.UpdateHostSoftware(context.Background(), h.ID, sws[i:])
+		require.NoError(t, err)
 		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h, false))
 
 		if i == 0 {
 			// this host has all software, refresh the list so we have the software.ID filled
-			sws = h.Software
+			sws = make([]fleet.Software, 0, len(h.Software))
+			for _, s := range h.Software {
+				sws = append(sws, s.Software)
+			}
 		}
 	}
 
@@ -5237,7 +5296,8 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), hosts[0].ID, software))
+	_, err := s.ds.UpdateHostSoftware(context.Background(), hosts[0].ID, software)
+	require.NoError(t, err)
 	searchResp = searchHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local0"}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, 1)
@@ -5824,7 +5884,8 @@ func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
 		{Name: "bar", Version: "0.0.3", Source: "apps", LastOpenedAt: &today},
 		{Name: "baz", Version: "0.0.4", Source: "apps", LastOpenedAt: &yesterday},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
@@ -5891,7 +5952,8 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
 
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
@@ -6147,7 +6209,8 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
 
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
@@ -6322,8 +6385,12 @@ func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 	createHostAndDeviceToken(t, s.ds, tkn)
 
 	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+		which := fmt.Sprintf("%s %s", route.method, route.path)
+		log.Print(which)
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
-		if route.premiumOnly {
+		if route.premiumOnly && route.deviceAuthenticated {
+			// user-authenticated premium-only routes will never see the ErrMissingLicense error
+			// if mdm is not configured, as the MDM middleware will intercept and fail the call.
 			expectedErr = fleet.ErrMissingLicense
 		}
 		path := route.path
@@ -6332,7 +6399,7 @@ func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 		}
 		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, expectedErr.Error())
+		assert.Contains(t, errMsg, expectedErr.Error(), which)
 	}
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -6349,6 +6416,20 @@ func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 
 func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	t := s.T()
+	ctx := context.Background()
+
+	// set the enabled and configured flags,
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origEnabledAndConfigured := appCfg.MDM.EnabledAndConfigured
+	appCfg.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.EnabledAndConfigured = origEnabledAndConfigured
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
 
 	var resp orbitGetConfigResponse
 	// missing orbit key
@@ -6360,14 +6441,28 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
 	hSimpleMDM := createOrbitEnrolledHost(t, "darwin", "simplemdm", s.ds)
-	err := s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM)
+	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM)
 	require.NoError(t, err)
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hSimpleMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
+	// not yet assigned in ABM
 	hFleetMDM := createOrbitEnrolledHost(t, "darwin", "fleetmdm", s.ds)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hFleetMDM.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RenewEnrollmentProfile)
+
+	// simulate ABM assignment
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		insertAppConfigQuery := `INSERT INTO host_dep_assignments (host_id) VALUES (?)`
+		_, err = q.ExecContext(context.Background(), insertAppConfigQuery, hFleetMDM.ID)
+		return err
+	})
+	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM)
 	require.NoError(t, err)
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
@@ -6485,6 +6580,7 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 		Name:           "TestQuery2",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Saved:          true,
 	})
 	require.NoError(t, err)
 
@@ -6501,6 +6597,7 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	// list the scheduled queries with the new endpoint, but the old version
 	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusMethodNotAllowed)
 	res.Body.Close()
+
 	// list again, this time with the correct version
 	gs := fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/2022-04/fleet/schedule", nil, http.StatusOK, &gs)
@@ -6533,6 +6630,7 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 		NodeKey:         ptr.String(name),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
+		HardwareSerial:  uuid.New().String(),
 		Platform:        os,
 	})
 	require.NoError(t, err)

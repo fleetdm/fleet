@@ -1,4 +1,3 @@
-import { IQuery } from "../interfaces/query";
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
@@ -10,16 +9,20 @@ export default {
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/mac-settings/custom-settings`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/mac-settings/disk-encryption`,
   CONTROLS_MAC_SETUP: `${URL_PREFIX}/controls/mac-setup`,
+  CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/mac-setup/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/mac-setup/bootstrap-package`,
   CONTROLS_MAC_SCRIPTS: `${URL_PREFIX}/controls/mac-scripts`,
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
   DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
+  DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
   ADMIN_INTEGRATIONS_MDM: `${URL_PREFIX}/settings/integrations/mdm`,
+  ADMIN_INTEGRATIONS_MDM_MAC: `${URL_PREFIX}/settings/integrations/mdm/apple`,
+  ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT: `${URL_PREFIX}/settings/integrations/automatic-enrollment`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
@@ -41,8 +44,10 @@ export default {
   EDIT_LABEL: (labelId: number): string => {
     return `${URL_PREFIX}/labels/${labelId}`;
   },
-  EDIT_QUERY: (query: IQuery): string => {
-    return `${URL_PREFIX}/queries/${query.id}`;
+  EDIT_QUERY: (queryId: number, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId}${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
   },
   EDIT_POLICY: (policy: IPolicy): string => {
     return `${URL_PREFIX}/policies/${policy.id}${
@@ -74,6 +79,12 @@ export default {
   DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
+  DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/software`;
+  },
+  DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
+  },
   MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,
   SOFTWARE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/${id}`;
@@ -100,7 +111,8 @@ export default {
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
   NEW_LABEL: `${URL_PREFIX}/labels/new`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
-  NEW_QUERY: `${URL_PREFIX}/queries/new`,
+  NEW_QUERY: (teamId?: number) =>
+    `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
   USER_SETTINGS: `${URL_PREFIX}/profile`,

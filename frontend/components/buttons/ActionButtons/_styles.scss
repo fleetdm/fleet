@@ -7,15 +7,14 @@
 
   &__secondary-buttons {
     display: none;
-    @media (min-width: 990px) {
+    @media (min-width: $break-md) {
       display: flex;
     }
   }
 
   &__secondary-dropdown {
-    .more-options-icon {
-      padding-left: $pad-small;
-      padding-right: $pad-medium;
+    .icon {
+      padding-left: 6px;
     }
     .dropdown-button {
       margin-left: $pad-large;
@@ -36,7 +35,7 @@
         }
       }
     }
-    @media (min-width: 990px) {
+    @media (min-width: $break-md) {
       display: none;
     }
   }

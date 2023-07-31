@@ -4,11 +4,17 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -45,14 +51,71 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to POST to %s: %s, request-size=%d", url, err, len(jsonBytes))
+		return fmt.Errorf("failed to POST to %s: %s, request-size=%d", MaskSecretURLParams(url), MaskURLError(err), len(jsonBytes))
 	}
 	defer resp.Body.Close()
 
 	if !httpSuccessStatus(resp.StatusCode) {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("error posting to %s: %d. %s", url, resp.StatusCode, string(body))
+		return fmt.Errorf("error posting to %s: %d. %s", MaskSecretURLParams(url), resp.StatusCode, string(body))
 	}
 
 	return nil
+}
+
+// MaskSecretURLParams masks URL query values if the query param name includes "secret", "token",
+// "key", "password". It accepts a raw string and returns a redacted string if the raw string is
+// URL-parseable. If it is not URL-parseable, the raw string is returned unchanged.
+func MaskSecretURLParams(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+
+	keywords := []string{"secret", "token", "key", "password"}
+	containsKeyword := func(s string) bool {
+		s = strings.ToLower(s)
+		for _, kw := range keywords {
+			if strings.Contains(s, kw) {
+				return true
+			}
+		}
+		return false
+	}
+
+	q := u.Query()
+	for k := range q {
+		if containsKeyword(k) {
+			q[k] = []string{"MASKED"}
+		}
+	}
+	u.RawQuery = q.Encode()
+
+	return u.Redacted()
+}
+
+// MaskURLError checks if the provided error is a *url.Error. If so, it applies MaskSecretURLParams
+// to the URL value and returns the modified error. If not, the error is returned unchanged.
+func MaskURLError(e error) error {
+	ue, ok := e.(*url.Error)
+	if !ok {
+		return e
+	}
+	ue.URL = MaskSecretURLParams(ue.URL)
+	return ue
+}
+
+// TODO: Consider moving other crypto functions from server/mdm/apple/util to here
+
+// DecodePrivateKeyPEM decodes PEM-encoded private key data.
+func DecodePrivateKeyPEM(encoded []byte) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode(encoded)
+	if block == nil {
+		return nil, errors.New("no PEM-encoded data found")
+	}
+	if block.Type != "RSA PRIVATE KEY" {
+		return nil, fmt.Errorf("unexpected block type %s", block.Type)
+	}
+
+	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }

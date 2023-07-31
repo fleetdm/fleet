@@ -8,6 +8,7 @@ on:
       - 'handbook/**'
       - 'schema/**'
       - 'articles/**'
+      - '.github/workflows/test-website.yml'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -28,16 +29,20 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [14.x]
+        node-version: [16.x]
 
     steps:
     - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     # Set the Node.js version
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # v1
+      uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
+
+
+    # Download top-level dependencies and build Storybook in the website's assets/ folder.
+    - run: npm install --legacy-peer-deps && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
 
     # Now start building!
     # > …but first, get a little crazy for a sec and delete the top-level package.json file
@@ -57,4 +62,4 @@ jobs:
     - run: cd website/ && npm test
 
     # Compile assets
-    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.GITHUB_TOKEN }}" npm run build-for-prod
+    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_RELEASE_GITHUB_PAT }}" npm run build-for-prod

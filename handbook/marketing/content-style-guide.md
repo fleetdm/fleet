@@ -56,6 +56,10 @@ Osquery should always be written in lowercase unless used to start a sentence or
 - Open-source software, built on osquery.
 - Osquery and Fleet provide structured, convenient access to information about your devices.
 
+#### Device vs endpoint
+When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
+
+
 ## Grammar and mechanics
 
 ### Headings
@@ -104,12 +108,9 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
   - "Zach is the co-creator of osquery"
   - "Does it work with MySQL?"
 
-#### Why sentence case?
-The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
+> Struggling with this? It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Many contributors have given the feedback that this opinionated solution is a huge relief once you build the habit of using sentence case capitalization, since it frees up mental capacity in every copywriting situation. You don't have to think as hard, nor choose between flouting and laboriously adhering to the (likely somewhat complex and out of date) styleguide.
 
-> Struggling with this?  It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself.  Many contributors have given the feedback that this opinionated solution is a huge relief once you build the habit of using sentence case capitalization, since it frees up mental capacity in every copywriting situation.  You don't have to think as hard, nor choose between flouting and laboriously adhering to the (likely somewhat complex and out of date) styleguide.
-
-> TODO: extrapolate the bulk of this whole sentence-case section to "Why this way", since it applies for every department at Fleet
+You can read about why we use sentence case in ["📖Company/Why this way?"](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case).
 
 ### Contractions
 They’re great! Don’t be afraid to use them. They’ll help your writing sound more approachable.
@@ -297,6 +298,7 @@ Give an overview of the topic. You don’t need to mention everything at the beg
 
 #### Explanation
 You’ve let users know why they’re reading your doc. It’s time to make sure they understand the topic. This will be most of your documentation. Don’t shy away from details.
+
 #### Reference
 Support your explanation with relevant references. This shows users how to put your explanation into practice. Such material will keep users coming back.
 

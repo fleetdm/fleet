@@ -6,6 +6,7 @@ import { millisecondsToHours, millisecondsToMinutes, isAfter } from "date-fns";
 import ReactTooltip from "react-tooltip";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
 import Icon from "components/Icon";
@@ -14,6 +15,7 @@ import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
+import { COLORS } from "styles/var/colors";
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -106,8 +108,12 @@ const generateTableHeaders = (
   const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
-      Header: "Name",
-      disableSortBy: true,
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
@@ -133,7 +139,7 @@ const generateTableHeaders = (
                     type="dark"
                     effect="solid"
                     id={`critical-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor="#3e4771"
+                    backgroundColor={COLORS["tooltip-bg"]}
                   >
                     This policy has been marked as critical.
                     {isSandboxMode && (
@@ -150,6 +156,7 @@ const generateTableHeaders = (
           path={PATHS.EDIT_POLICY(cellProps.row.original)}
         />
       ),
+      sortType: "caseInsensitive",
     },
     {
       title: "Yes",
@@ -195,8 +202,12 @@ const generateTableHeaders = (
     },
     {
       title: "No",
-      Header: () => <PassingColumnHeader isPassing={false} />,
-      disableSortBy: true,
+      Header: (cellProps) => (
+        <HeaderCell
+          value={<PassingColumnHeader isPassing={false} />}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "failing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => {
         if (cellProps.row.original.has_run) {
@@ -234,6 +245,7 @@ const generateTableHeaders = (
           </>
         );
       },
+      sortType: "caseInsensitive",
     },
   ];
 

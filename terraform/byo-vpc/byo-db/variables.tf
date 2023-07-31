@@ -52,9 +52,12 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.22.1")
+    image                        = optional(string, "fleetdm/fleet:v4.31.1")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
+    depends_on                   = optional(list(any), [])
+    mount_points                 = optional(list(any), [])
+    volumes                      = optional(list(any), [])
     extra_environment_variables  = optional(map(string), {})
     extra_iam_policies           = optional(list(string), [])
     extra_execution_iam_policies = optional(list(string), [])
@@ -67,16 +70,25 @@ variable "fleet_config" {
       }), {
       name = "fleet"
     })
-    database = object({
+    database = optional(object({
       password_secret_arn = string
       user                = string
       database            = string
       address             = string
       rr_address          = optional(string, null)
+      }), {
+      password_secret_arn = null
+      user                = null
+      database            = null
+      address             = null
+      rr_address          = null
     })
-    redis = object({
+    redis = optional(object({
       address = string
       use_tls = optional(bool, true)
+      }), {
+      address = null
+      use_tls = true
     })
     awslogs = optional(object({
       name      = optional(string, null)
@@ -90,12 +102,17 @@ variable "fleet_config" {
       prefix    = "fleet"
       retention = 5
     })
-    loadbalancer = object({
+    loadbalancer = optional(object({
       arn = string
+      }), {
+      arn = null
     })
-    networking = object({
+    networking = optional(object({
       subnets         = list(string)
       security_groups = optional(list(string), null)
+      }), {
+      subnets         = null
+      security_groups = null
     })
     autoscaling = optional(object({
       max_capacity                 = optional(number, 5)
@@ -130,9 +147,12 @@ variable "fleet_config" {
   default = {
     mem                          = 512
     cpu                          = 256
-    image                        = "fleetdm/fleet:v4.22.1"
+    image                        = "fleetdm/fleet:v4.31.1"
     family                       = "fleet"
     sidecars                     = []
+    depends_on                   = []
+    volumes                      = []
+    mount_points                 = []
     extra_environment_variables  = {}
     extra_iam_policies           = []
     extra_execution_iam_policies = []

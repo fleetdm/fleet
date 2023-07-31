@@ -7,25 +7,31 @@ interface IAutoEnrollMdmModalProps {
   onCancel: () => void;
 }
 
-const baseClass = "auto-enroll-mdm-modal enroll-mdm-modal";
+const baseClass = "auto-enroll-mdm-modal";
 
 const AutoEnrollMdmModal = ({
   onCancel,
 }: IAutoEnrollMdmModalProps): JSX.Element => {
   return (
-    <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Turn on MDM"
+      onExit={onCancel}
+      className={baseClass}
+      width="xlarge"
+    >
       <div>
         <p className={`${baseClass}__description`}>
           To turn on MDM, Apple Inc. requires that you install a profile.
         </p>
         <ol>
           <li>
-            From the Apple menu in the top left corner of your screen, select{" "}
-            <b>System Settings</b> or <b>System Preferences</b>.
+            Open your Mac’s notification center by selecting the date and time
+            in the top right corner of your screen.
           </li>
           <li>
-            In the search bar, type “Profiles”. Select <b>Profiles</b>, double
-            click on <b>Enrollment Profile</b>, and select <b>Install</b>.
+            Select the <b>Device Enrollment</b> notification. This will open{" "}
+            <b>System Settings</b> or <b>System Preferences</b>. Select{" "}
+            <b>Allow</b>.
           </li>
           <li>
             Enter your password, and select <b>Enroll</b>.

@@ -39,19 +39,20 @@ const REGEX_DETAIL_PAGES = {
   PACK_NEW: /\/packs\/new/i,
   POLICY_EDIT: /\/policies\/\d+/i,
   POLICY_NEW: /\/policies\/new/i,
-  QUERY_EDIT: /\/queries\/\d+/i,
-  QUERY_NEW: /\/queries\/new/i,
   SOFTWARE_DETAILS: /\/software\/\d+/i,
 };
 
 const REGEX_GLOBAL_PAGES = {
-  MANAGE_QUERIES: /\/queries\/manage/i,
   MANAGE_PACKS: /\/packs\/manage/i,
   ORGANIZATION: /\/settings\/organization/i,
   USERS: /\/settings\/users/i,
   INTEGRATIONS: /\/settings\/integrations/i,
   TEAMS: /\/settings\/teams$/i, // Note: we want this to only match if it is the end of the path
   PROFILE: /\/profile/i,
+};
+
+const REGEX_EXCLUDE_NO_TEAM_PAGES = {
+  MANAGE_POLICIES: /\/policies\/manage/i,
 };
 
 const testDetailPage = (path: string, re: RegExp) => {
@@ -70,6 +71,12 @@ const isDetailPage = (path: string) => {
 
 const isGlobalPage = (path: string) => {
   return Object.values(REGEX_GLOBAL_PAGES).some((re) => path.match(re));
+};
+
+const isExcludeNoTeamPage = (path: string) => {
+  return Object.values(REGEX_EXCLUDE_NO_TEAM_PAGES).some((re) =>
+    path.match(re)
+  );
 };
 
 const SiteTopNav = ({
@@ -156,6 +163,13 @@ const SiteTopNav = ({
           </div> */}
         </li>
       );
+    }
+
+    if (
+      isExcludeNoTeamPage(navItem.location.pathname) &&
+      (currentQueryParams.team_id === "0" || currentQueryParams.team_id === 0)
+    ) {
+      currentQueryParams.team_id = undefined;
     }
 
     return (

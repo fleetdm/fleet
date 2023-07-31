@@ -12,24 +12,27 @@
 
   &__page {
     text-align: center;
-    width: 150px;
+    width: 156px;
     font-size: $small;
     font-weight: $regular;
     color: $core-white;
     position: relative;
-    padding-bottom: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 
     &::before {
       content: "";
       position: absolute;
-      width: 200px;
+      width: 197px;
       height: 2px;
       background-color: $core-vibrant-blue;
       bottom: 46px;
-      left: 87px;
+      left: 90px;
 
       @include breakpoint(tablet) {
-        bottom: 25px;
+        bottom: 21px;
       }
     }
 
@@ -41,7 +44,7 @@
       border-radius: 50%;
       content: "";
       font-size: $x-large;
-      margin: 14px auto 0;
+      margin-top: 12px;
       position: relative;
       z-index: 1;
       cursor: pointer;
@@ -64,6 +67,7 @@
     &--1 {
       &::after {
         border: 2px solid $core-white;
+        margin-top: 11px;
       }
 
       &.registration-breadcrumbs__page--active {
@@ -100,6 +104,7 @@
     &--2 {
       &::after {
         border: solid 1px $core-vibrant-blue;
+        margin-top: 11px;
       }
 
       &.registration-breadcrumbs__page--active {
@@ -139,6 +144,7 @@
 
       &::after {
         border: solid 1px $core-vibrant-blue;
+        margin-top: 11px;
       }
 
       &.registration-breadcrumbs__page--active {

@@ -1,0 +1,88 @@
+name: privacy_preferences
+description: Information on Chrome features that can affect a user's privacy, available from the [chrome.privacy APIs](https://developer.chrome.com/docs/extensions/reference/privacy/)
+platforms:
+  - chrome
+evented: false
+columns:
+  - name: network_prediction_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: web_rtc_ip_handling_policy
+    description: One of "default", "default_public_and_private_interfaces", "default_public_interface_only", or "disable_non_proxied_udp" * Available for Chrome 48+
+    required: false
+    type: text
+  - name: autofill_address_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: autofill_credit_card_enabled
+    description: 1 if enabled else 0 * Available for Chrome 70+
+    required: false
+    type: integer
+  - name: autofill_enabled
+    description: 1 if enabled else 0 - * Deprecated since Chrome 70, please use privacy.services.autofillAddressEnabled and privacy.services.autofillCreditCardEnabled. This currently remains for backward compatibility and will be removed in the future.
+    required: false
+    type: integer
+  - name: save_passwords_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: safe_browsing_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: safe_browsing_extended_reporting_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: search_suggest_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: spelling_service_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: translation_service_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: ad_measurement_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: do_not_track_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: fledge_enabled
+    description: 1 if enabled else 0 * Available for Chrome 111+
+    required: false
+    type: integer
+  - name: hyperlink_auditing_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: privacy_sandbox_enabled
+    description: 1 if enabled else 0 - * Available for Chrome 90+ Deprecated since Chrome 111, see https://developer.chrome.com/docs/extensions/reference/privacy/#property-websites-privacySandboxEnabled
+    required: false
+    type: integer
+  - name: protected_content_enabled
+    description: 1 if enabled else 0 - * Windows and ChromeOS only
+    required: false
+    type: integer
+  - name: referrers_enabled
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: third_party_cookies_allowed
+    description: 1 if enabled else 0
+    required: false
+    type: integer
+  - name: topics_enabled
+    description: 1 if enabled else 0 * Available for Chrome 111+
+    required: false
+    type: integer
+notes: |
+  - This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

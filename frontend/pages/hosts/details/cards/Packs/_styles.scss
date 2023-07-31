@@ -16,7 +16,7 @@
           display: none;
           width: 0;
         }
-        @media (min-width: $break-990) {
+        @media (min-width: $break-md) {
           .last_run__header {
             display: table-cell;
           }
@@ -33,7 +33,7 @@
           display: none;
           width: 0;
         }
-        @media (min-width: $break-990) {
+        @media (min-width: $break-md) {
           .last_run__cell {
             display: table-cell;
           }
@@ -55,7 +55,7 @@
       cursor: pointer;
       text-align: left;
       font-size: $x-small;
-      font-weight: bold;
+      font-weight: $bold;
       border: none;
       padding: 17px 12px;
 

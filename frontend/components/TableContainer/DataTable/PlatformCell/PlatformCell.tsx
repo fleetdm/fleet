@@ -1,29 +1,31 @@
 import React from "react";
 import Icon from "components/Icon";
+import { SupportedPlatform } from "interfaces/platform";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface IPlatformCellProps {
-  value: string[];
+  platforms: SupportedPlatform[];
 }
 
 const baseClass = "platform-cell";
 
-const ICONS: Record<string, "darwin" | "linux" | "windows"> = {
+const ICONS: Record<string, "darwin" | "windows" | "linux" | "chrome"> = {
   darwin: "darwin",
-  linux: "linux",
   windows: "windows",
+  linux: "linux",
+  chrome: "chrome",
 };
 
-const DISPLAY_ORDER = [
+const DISPLAY_ORDER: SupportedPlatform[] = [
   "darwin",
-  "linux",
   "windows",
+  "linux",
+  "chrome",
   // "None",
   // "Invalid query",
 ];
 
-const PlatformCell = ({
-  value: platforms,
-}: IPlatformCellProps): JSX.Element => {
+const PlatformCell = ({ platforms }: IPlatformCellProps): JSX.Element => {
   const orderedList = DISPLAY_ORDER.filter((platform) =>
     platforms.includes(platform)
   );
@@ -41,7 +43,9 @@ const PlatformCell = ({
           ) : null;
         })
       ) : (
-        <span className={`${baseClass}__muted`}>---</span>
+        <span className={`${baseClass}__muted`}>
+          {DEFAULT_EMPTY_CELL_VALUE}
+        </span>
       )}
     </span>
   );

@@ -14,7 +14,7 @@ import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
+import { OsqueryPlatform, SelectedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
 import Avatar from "components/Avatar";
@@ -26,11 +26,11 @@ import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
+import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import NewPolicyModal from "../NewPolicyModal";
+import SaveNewPolicyModal from "../SaveNewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "policy-form";
 
@@ -82,7 +82,9 @@ const PolicyForm = ({
   backendValidators,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState(false);
+  const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
+    false
+  );
   const [showQueryEditor, setShowQueryEditor] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -169,6 +171,7 @@ const PolicyForm = ({
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasSavePermissions =
+    !isEditMode || // save a new policy
     isGlobalAdmin ||
     isGlobalMaintainer ||
     (isTeamAdmin && policyTeamId === storedPolicy?.team_id) || // team admin cannot save global policy
@@ -223,7 +226,7 @@ const PolicyForm = ({
       });
     }
 
-    let selectedPlatforms: IOsqueryPlatform[] = [];
+    let selectedPlatforms: OsqueryPlatform[] = [];
     if (isEditMode || defaultPolicy) {
       selectedPlatforms = getSelectedPlatforms();
     } else {
@@ -231,14 +234,16 @@ const PolicyForm = ({
       setSelectedPlatforms(selectedPlatforms);
     }
 
-    const newPlatformString = selectedPlatforms.join(",") as IPlatformString;
+    const newPlatformString = selectedPlatforms.join(
+      ","
+    ) as SelectedPlatformString;
 
     if (!defaultPolicy) {
       setLastEditedQueryPlatform(newPlatformString);
     }
 
     if (!isEditMode) {
-      setIsNewPolicyModalOpen(true);
+      setIsSaveNewPolicyModalOpen(true);
     } else {
       const payload: IPolicyFormData = {
         name: lastEditedQueryName,
@@ -285,7 +290,7 @@ const PolicyForm = ({
     }
 
     return (
-      <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
+      <Button variant="small-icon" onClick={onOpenSchemaSidebar}>
         <>
           <img alt="" src={InfoIcon} />
           Show schema
@@ -324,13 +329,16 @@ const PolicyForm = ({
               onKeyPress={onInputKeypress}
               isFocused={isEditingName}
             />
-            <a className="edit-link" onClick={() => setIsEditingName(true)}>
-              <img
-                className={`edit-icon ${isEditingName && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
+            <Button
+              variant="text-icon"
+              className="edit-link"
+              onClick={() => setIsEditingName(true)}
+            >
+              <Icon
+                name="pencil"
+                className={`edit-icon ${isEditingName ? "hide" : ""}`}
               />
-            </a>
+            </Button>
           </div>
         </>
       );
@@ -362,16 +370,16 @@ const PolicyForm = ({
               onKeyPress={onInputKeypress}
               isFocused={isEditingDescription}
             />
-            <a
+            <Button
+              variant="text-icon"
               className="edit-link"
               onClick={() => setIsEditingDescription(true)}
             >
-              <img
-                className={`edit-icon ${isEditingDescription && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
+              <Icon
+                name="pencil"
+                className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
               />
-            </a>
+            </Button>
           </div>
         </>
       );
@@ -400,16 +408,16 @@ const PolicyForm = ({
               onKeyPress={onInputKeypress}
               isFocused={isEditingResolution}
             />
-            <a
+            <Button
+              variant="text-icon"
               className="edit-link"
               onClick={() => setIsEditingResolution(true)}
             >
-              <img
-                className={`edit-icon ${isEditingResolution && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
+              <Icon
+                name="pencil"
+                className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
               />
-            </a>
+            </Button>
           </div>
         </>
       );
@@ -585,15 +593,14 @@ const PolicyForm = ({
           </ReactTooltip>
         </div>
       </form>
-      {isNewPolicyModalOpen && (
-        <NewPolicyModal
+      {isSaveNewPolicyModalOpen && (
+        <SaveNewPolicyModal
           baseClass={baseClass}
           queryValue={lastEditedQueryBody}
           onCreatePolicy={onCreatePolicy}
-          setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
+          setIsSaveNewPolicyModalOpen={setIsSaveNewPolicyModalOpen}
           backendValidators={backendValidators}
           platformSelector={platformSelector}
-          lastEditedQueryPlatform={lastEditedQueryPlatform}
           isUpdatingPolicy={isUpdatingPolicy}
         />
       )}

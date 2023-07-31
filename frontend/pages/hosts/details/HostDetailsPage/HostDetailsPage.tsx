@@ -18,16 +18,20 @@ import {
   IHost,
   IDeviceMappingResponse,
   IMacadminsResponse,
-  IPackStats,
   IHostResponse,
   IHostMdmData,
+  IPackStats,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
-import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
+import {
+  IListQueriesResponse,
+  IQueryKeyQueriesLoadAll,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -35,11 +39,7 @@ import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
-import {
-  normalizeEmptyValues,
-  humanHostDiskEncryptionEnabled,
-  wrapFleetHelper,
-} from "utilities/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -52,7 +52,6 @@ import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
 import ScheduleCard from "../cards/Schedule";
 import PacksCard from "../cards/Packs";
-import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -65,6 +64,7 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
+import SelectQueryModal from "./modals/SelectQueryModal";
 
 const baseClass = "host-details";
 
@@ -91,11 +91,6 @@ interface ISearchQueryData {
   sortDirection: string;
   pageSize: number;
   pageIndex: number;
-}
-
-interface IHostDiskEncryptionProps {
-  enabled?: boolean;
-  tooltip?: string;
 }
 
 interface IHostDetailsSubNavItem {
@@ -144,7 +139,7 @@ const HostDetailsPage = ({
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
-  const [showQueryHostModal, setShowQueryHostModal] = useState(false);
+  const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
@@ -160,28 +155,25 @@ const HostDetailsPage = ({
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
+  const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [packsState, setPacksState] = useState<IPackStats[]>();
-  const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
-  const [
-    hostDiskEncryption,
-    setHostDiskEncryption,
-  ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
-    IFleetQueriesResponse,
+    IListQueriesResponse,
     Error,
-    IQuery[]
-  >("fleet queries", () => queryAPI.loadAll(), {
+    ISchedulableQuery[],
+    IQueryKeyQueriesLoadAll[]
+  >([{ scope: "queries", teamId: undefined }], () => queryAPI.loadAll(), {
     enabled: !!hostIdFromURL,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     retry: false,
-    select: (data: IFleetQueriesResponse) => data.queries,
+    select: (data: IListQueriesResponse) => data.queries,
   });
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
@@ -307,13 +299,6 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
-        setHostDiskEncryption({
-          enabled: returnedHost.disk_encryption_enabled,
-          tooltip: humanHostDiskEncryptionEnabled(
-            returnedHost.platform,
-            returnedHost.disk_encryption_enabled
-          ),
-        });
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
@@ -332,8 +317,8 @@ const HostDetailsPage = ({
             },
             { packs: [], schedule: [] }
           );
+          setSchedule(packStatsByType.schedule);
           setPacksState(packStatsByType.packs);
-          setScheduleState(packStatsByType.schedule);
         }
       },
       onError: (error) => handlePageError(error),
@@ -504,9 +489,9 @@ const HostDetailsPage = ({
     router.push(PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host?.id));
   };
 
-  const onQueryHostSaved = (selectedQuery: IQuery) => {
+  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
     router.push(
-      PATHS.EDIT_QUERY(selectedQuery) +
+      PATHS.EDIT_QUERY(selectedQuery.id) +
         TAGGED_TEMPLATES.queryByHostRoute(host?.id)
     );
   };
@@ -549,7 +534,7 @@ const HostDetailsPage = ({
         setShowTransferHostModal(true);
         break;
       case "query":
-        setShowQueryHostModal(true);
+        setShowSelectQueryModal(true);
         break;
       case "diskEncryption":
         setShowDiskEncryptionModal(true);
@@ -685,7 +670,7 @@ const HostDetailsPage = ({
         </div>
         <HostSummaryCard
           titleData={titleData}
-          diskEncryption={hostDiskEncryption}
+          diskEncryptionEnabled={host?.disk_encryption_enabled}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}
@@ -693,7 +678,7 @@ const HostDetailsPage = ({
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostMacSettings={host?.mdm.profiles ?? []}
+          hostMdmProfiles={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
@@ -723,6 +708,7 @@ const HostDetailsPage = ({
                 <AgentOptionsCard
                   osqueryData={osqueryData}
                   wrapFleetHelper={wrapFleetHelper}
+                  isChromeOS={host?.platform === "chrome"}
                 />
                 <LabelsCard
                   labels={host?.labels || []}
@@ -746,8 +732,8 @@ const HostDetailsPage = ({
                 router={router}
                 queryParams={queryParams}
                 routeTemplate={routeTemplate}
-                hostId={host?.id || 0}
                 pathname={pathname}
+                pathPrefix={PATHS.HOST_SOFTWARE(host?.id || 0)}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard
@@ -759,7 +745,8 @@ const HostDetailsPage = ({
             </TabPanel>
             <TabPanel>
               <ScheduleCard
-                scheduleState={scheduleState}
+                isChromeOSHost={host?.platform === "chrome"}
+                schedule={schedule}
                 isLoading={isLoadingHost}
               />
               {canViewPacks && (
@@ -783,9 +770,9 @@ const HostDetailsPage = ({
             isUpdating={isUpdatingHost}
           />
         )}
-        {showQueryHostModal && host && (
+        {showSelectQueryModal && host && (
           <SelectQueryModal
-            onCancel={() => setShowQueryHostModal(false)}
+            onCancel={() => setShowSelectQueryModal(false)}
             queries={fleetQueries || []}
             queryErrors={fleetQueriesError}
             isOnlyObserver={isOnlyObserver}
@@ -821,7 +808,7 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            hostMacSettings={host?.mdm.profiles ?? []}
+            hostMDMData={host?.mdm}
             onClose={toggleMacSettingsModal}
           />
         )}

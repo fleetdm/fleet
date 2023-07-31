@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -180,7 +181,7 @@ type applyTeamSpecsRequest struct {
 	Specs  []*fleet.TeamSpec `json:"specs"`
 }
 
-func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader) error {
+func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
 	if err := fleet.JSONStrictDecode(r, req); err != nil {
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		if !req.Force || !fleet.IsJSONUnknownFieldError(err) {
@@ -213,7 +214,8 @@ func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader) e
 }
 
 type applyTeamSpecsResponse struct {
-	Err error `json:"error,omitempty"`
+	Err           error           `json:"error,omitempty"`
+	TeamIDsByName map[string]uint `json:"team_ids_by_name,omitempty"`
 }
 
 func (r applyTeamSpecsResponse) error() error { return r.Err }
@@ -230,22 +232,22 @@ func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.
 		}
 	}
 
-	err := svc.ApplyTeamSpecs(ctx, actualSpecs, fleet.ApplySpecOptions{
+	idsByName, err := svc.ApplyTeamSpecs(ctx, actualSpecs, fleet.ApplySpecOptions{
 		Force:  req.Force,
 		DryRun: req.DryRun,
 	})
 	if err != nil {
 		return applyTeamSpecsResponse{Err: err}, nil
 	}
-	return applyTeamSpecsResponse{}, nil
+	return applyTeamSpecsResponse{TeamIDsByName: idsByName}, nil
 }
 
-func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
+func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) (map[string]uint, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
