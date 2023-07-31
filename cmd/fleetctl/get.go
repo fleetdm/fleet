@@ -574,7 +574,7 @@ func getPacksCommand() *cli.Command {
 
 			// if name wasn't provided, list all packs
 			if name == "" {
-				packs, err := client.GetPacks()
+				packs, err := client.GetPacksSpecs()
 				if err != nil {
 					return fmt.Errorf("could not list packs: %w", err)
 				}
@@ -619,7 +619,7 @@ To retrieve "Pack" data in a portable format for upgrading, run `+"`fleetctl upg
 			}
 
 			// Name was specified
-			pack, err := client.GetPack(name)
+			pack, err := client.GetPackSpec(name)
 			if err != nil {
 				return err
 			}
