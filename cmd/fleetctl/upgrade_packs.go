@@ -3,8 +3,12 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
 )
 
@@ -81,10 +85,20 @@ func upgradePacksCommand() *cli.Command {
 			// map queries by packs that reference them
 			queriesByPack := mapQueriesToPacks(packsSpecs, queries)
 
-			var newSpecs []*fleet.QuerySpec
+			var (
+				newSpecs         []*fleet.QuerySpec
+				convertedQueries int
+			)
+			// use a consistent upgrade timestamp for all new queries (used to make name unique)
+			upgradeTimestamp := time.Now()
 			for _, packSpec := range packsSpecs {
-				newSpecs = append(newSpecs,
-					upgradePackToQueriesSpecs(packSpec, packsByID[packSpec.ID], queriesByPack[packSpec])...)
+				newPackSpecs, convPackQueries := upgradePackToQueriesSpecs(packSpec, packsByID[packSpec.ID], queriesByPack[packSpec], upgradeTimestamp)
+				newSpecs = append(newSpecs, newPackSpecs...)
+				convertedQueries += convPackQueries
+			}
+
+			if err := writeQuerySpecsToFile(outputFilename, newSpecs); err != nil {
+				return fmt.Errorf("could not write queries to file: %w", err)
 			}
 
 			log(c, fmt.Sprintf(`Converted %d queries from %d 2017 "Packs" into portable queries:
@@ -94,11 +108,38 @@ func upgradePacksCommand() *cli.Command {
 To import these queries to Fleet, you can merge the data in the output file with your existing query configuration and run `+"`fleetctl apply`"+`.
 
 Note that existing 2017 "Packs" have been left intact. To avoid running duplicate queries on your hosts, visit %s/packs/manage and disable all 2017 "Packs" after upgrading. Fleet will continue to support these until the next major version release, when 2017 "Packs" will be automatically converted to queries.
-`, len(newSpecs), len(packsSpecs), appCfg.ServerSettings.ServerURL))
+`, convertedQueries, len(packsSpecs), appCfg.ServerSettings.ServerURL))
 
 			return nil
 		},
 	}
+}
+
+func writeQuerySpecsToFile(filename string, specs []*fleet.QuerySpec) error {
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultFileMode)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	for _, spec := range specs {
+		qYaml := fleet.QueryObject{
+			ObjectMetadata: fleet.ObjectMetadata{
+				ApiVersion: fleet.ApiVersion,
+				Kind:       fleet.QueryKind,
+			},
+			Spec: *spec,
+		}
+		yml, err := yaml.Marshal(qYaml)
+		if err != nil {
+			return err
+		}
+		if _, err := fmt.Fprint(f, string(yml)+"\n---\n"); err != nil {
+			return err
+		}
+	}
+
+	return f.Close()
 }
 
 func mapQueriesToPacks(packs []*fleet.PackSpec, queries []fleet.Query) map[*fleet.PackSpec][]*fleet.Query {
@@ -119,10 +160,15 @@ func mapQueriesToPacks(packs []*fleet.PackSpec, queries []fleet.Query) map[*flee
 	return queriesByPack
 }
 
-func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, packQueries []*fleet.Query) []*fleet.QuerySpec {
+// upgrades the pack to the new query format, duplicating queries as needed
+// (pack queries targeting teams are duplicated for each team, pack queries
+// targeting labels or hosts are duplicated as a global query). Returns the
+// generated new query specs and the number of pack queries that were
+// converted.
+func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, packQueries []*fleet.Query, ts time.Time) ([]*fleet.QuerySpec, int) {
 	if len(packQueries) == 0 {
 		// if the pack has no query, there's nothing to convert
-		return nil
+		return nil, 0
 	}
 
 	var targetsHosts bool
@@ -136,9 +182,18 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 		schedByName[sq.QueryName] = &sq
 	}
 
-	var newSpecs []*fleet.QuerySpec
+	var (
+		newSpecs         []*fleet.QuerySpec
+		convertedQueries int
+	)
+
 	for _, pq := range packQueries {
 		sched := schedByName[pq.Name]
+		desc := pq.Description
+		if desc != "" && !strings.HasSuffix(desc, "\n") {
+			desc += "\n"
+		}
+		desc += fmt.Sprintf("(converted from pack %q, query %q)", packSpec.Name, pq.Name)
 
 		var loggingType string
 		if sched.Snapshot != nil && *sched.Snapshot {
@@ -154,6 +209,7 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 		var (
 			schedPlatform string
 			schedVersion  string
+			converted     bool
 		)
 		if sched.Platform != nil {
 			schedPlatform = *sched.Platform
@@ -163,10 +219,17 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 		}
 
 		for _, tm := range packSpec.Targets.Teams {
+			converted = true
+
+			// TODO(mna): this is quite a name, check what we want to do for that,
+			// all of this is kinda required to ensure (with reasonable certainty)
+			// uniqueness.
+
 			// duplicate the query for each targeted team
+			newQueryName := fmt.Sprintf("%s - %s - %s - %s", packSpec.Name, pq.Name, tm, ts.Format("Jan _2 15:04:05.000"))
 			newSpecs = append(newSpecs, &fleet.QuerySpec{
-				Name:               pq.Name, // TODO(mna): unique name as we did in migration
-				Description:        pq.Description + fmt.Sprintf("\n\n(Converted from pack %q.)", packSpec.Name),
+				Name:               newQueryName,
+				Description:        desc,
 				Query:              pq.Query,
 				TeamName:           tm,
 				Interval:           sched.Interval,
@@ -179,10 +242,13 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 		}
 
 		if len(packSpec.Targets.Labels) > 0 || targetsHosts {
+			converted = true
+
 			// write a global query without scheduling features
+			newQueryName := fmt.Sprintf("%s - %s - %s", packSpec.Name, pq.Name, ts.Format("Jan _2 15:04:05.000"))
 			newSpecs = append(newSpecs, &fleet.QuerySpec{
-				Name:               pq.Name, // TODO(mna): unique name as we did in migration
-				Description:        pq.Description + fmt.Sprintf("\n\n(Converted from pack %q.)", packSpec.Name),
+				Name:               newQueryName,
+				Description:        desc,
 				Query:              pq.Query,
 				TeamName:           "",
 				Interval:           0,
@@ -193,7 +259,11 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 				Logging:            loggingType,
 			})
 		}
+
+		if converted {
+			convertedQueries++
+		}
 	}
 
-	return newSpecs
+	return newSpecs, convertedQueries
 }
