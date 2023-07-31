@@ -22,7 +22,7 @@ How to create a query:
 
 3. In the **Query** field, enter your query. Remember, you can find common queries in [Fleet's library](https://fleetdm.com/queries).
 
-4. Select **Save**, enter a name and description for your query, and select **Save query**.
+4. Select **Save**, enter a name and description for your query, select the frequency that the query should run at, and select **Save query**.
 
 ## Run a query
 
@@ -44,33 +44,43 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 ## Schedule a query
 
-Fleet allows you to schedule queries. Scheduled queries will send data to your log destination automatically.
+*In Fleet 4.35.0, the "Schedule" page was removed, and query automations are now configured on the "Queries" page. Instructions for scheduling queries in earlier versions of Fleet can be found [here](https://github.com/fleetdm/fleet/blob/ac797c8f81ede770853c25fd04102da9f5e109bf/docs/Using-Fleet/Fleet-UI.md#schedule-a-query).*
+
+>Only users with the [admin role](https://fleetdm.com/docs/using-fleet/manage-access#admin) can manage query automations.
+
+Fleet allows you to schedule queries to run at a set frequency. Scheduled queries will send data to your log destination automatically. 
 
 The default log destination, **filesystem**, is good to start. With this set, data is sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [log destinations page](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-How to schedule a query:
+By default, queries that run on a schedule will only target platforms compatible with that query. This behavior can be overridden by setting the platforms in the "advanced options" when saving a query.
 
-1. In the top navigation, select **Schedule**.
+**How to schedule queries:**
 
-2. Select **Schedule a query**.
+1. In the top navigation, select **Queries**.
 
-3. Select the **Select query** dropdown and choose the query that you'd like to run on a schedule. 
+2. Select **Manage automations**.
 
-4. Select the **Frequency** dropdown and choose how often you'd like the query to run and send results to your log destination. **Every hour** is a good frequency to start. You can change this later.
+3. Check the box next to the queries you want to automate, and select **Save**.
 
-5. Select **Schedule**.
+> The frequency that queries run at is set when a query is created.
 
-With Fleet Premium, you can schedule queries for groups of hosts using [the teams feature](https://fleetdm.com/docs/using-fleet/teams). This allows you to collect different data for each group.
+With Fleet Premium, you can schedule queries for groups of hosts using [the teams feature](https://fleetdm.com/docs/using-fleet/segment-hosts). This allows you to collect different data for each group.
 
 > In Fleet Premium, groups of hosts are called "teams."
 
-How to use teams to schedule queries for a group of hosts:
+**How to use teams to schedule queries for a group of hosts:**
 
-1. If you haven't already, first [create a team](https://fleetdm.com/docs/using-fleet/teams#create-a-team) and [transfer hosts](https://fleetdm.com/docs/using-fleet/teams#transfer-hosts-to-a-team) to the team.
+1. If you haven't already, first [create a team](https://fleetdm.com/docs/using-fleet/segment-hosts#create-a-team) and [transfer hosts](https://fleetdm.com/docs/using-fleet/segment-hosts#transfer-hosts-to-a-team) to the team.
 
-2. In the **Teams** dropdown below the top navigation, select the team.
+2. In the top navigation, select **Queries**.
 
-3. Follow the "How to schedule a query" instructions above.
+3. In the **Teams** dropdown below the top navigation, select the team you want to manage automation for.
+
+4. Select **Manage automations**
+
+5. Select the queries you want to run on a schedule for this team, and select **Save**.
+
+   > Note: Only queries that belong to the selected team will be listed. When configuring query automations for all hosts, only global queries will be listed.
 
 ## Update agent options
 
