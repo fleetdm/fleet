@@ -5622,8 +5622,8 @@ load balancer timeout.
 
 ## Schedule
 
-> The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
+> The Schedule API endpoints are deprecated as of Fleet 4.35. It is maintained for backwards compatibility. 
+> Please use the [Queries](#queries) endpoint, which as of 4.35 has attributes such as `interval` and `platform` that enable scheduling.
 
 - [Get schedule (deprecated)](#get-schedule)
 - [Add query to schedule (deprecated)](#add-query-to-schedule)
@@ -5637,8 +5637,8 @@ These API routes let you control your scheduled queries.
 
 ### Get schedule
 
-> The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
+> The Schedule API endpoints are deprecated as of Fleet 4.35. It is maintained for backwards compatibility. 
+> Please use the [Queries](#queries) endpoint, which as of 4.35 has attributes such as `interval` and `platform` that enable scheduling.
 
 `GET /api/v1/fleet/global/schedule`
 
@@ -5711,8 +5711,8 @@ None.
 
 ### Add query to schedule
 
-> The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
+> The Schedule API endpoints are deprecated as of Fleet 4.35. It is maintained for backwards compatibility. 
+> Please use the [Queries](#queries) endpoint, which as of 4.35 has attributes such as `interval` and `platform` that enable scheduling.
 
 `POST /api/v1/fleet/global/schedule`
 
@@ -5772,8 +5772,8 @@ None.
 
 ### Edit query in schedule
 
-> The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
+> The Schedule API endpoints are deprecated as of Fleet 4.35. It is maintained for backwards compatibility. 
+> Please use the [Queries](#queries) endpoint, which as of 4.35 has attributes such as `interval` and `platform` that enable scheduling.
 
 `PATCH /api/v1/fleet/global/schedule/{id}`
 
@@ -5828,8 +5828,8 @@ None.
 
 ### Remove query from schedule
 
-> The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
+> The Schedule API endpoints are deprecated as of Fleet 4.35. It is maintained for backwards compatibility. 
+> Please use the [Queries](#queries) endpoint, which as of 4.35 has attributes such as `interval` and `platform` that enable scheduling.
 
 `DELETE /api/v1/fleet/global/schedule/{id}`
 
@@ -5850,8 +5850,8 @@ None.
 
 ### Team schedule
 
-> The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
+> The Schedule API endpoints are deprecated as of Fleet 4.35. It is maintained for backwards compatibility. 
+> Please use the [Queries](#queries) endpoint, which as of 4.35 has attributes such as `interval` and `platform` that enable scheduling.
 
 - [Get team schedule (deprecated)](#get-team-schedule)
 - [Add query to team schedule (deprecated)](#add-query-to-team-schedule)
@@ -5862,8 +5862,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Get team schedule
 
-> The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
+> The Schedule API endpoints are deprecated as of Fleet 4.35. It is maintained for backwards compatibility. 
+> Please use the [Queries](#queries) endpoint, which as of 4.35 has attributes such as `interval` and `platform` that enable scheduling.
 
 `GET /api/v1/fleet/teams/{id}/schedule`
 
@@ -5942,8 +5942,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Add query to team schedule
 
-> The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
+> The Schedule API endpoints are deprecated as of Fleet 4.35. It is maintained for backwards compatibility. 
+> Please use the [Queries](#queries) endpoint, which as of 4.35 has attributes such as `interval` and `platform` that enable scheduling.
 
 `POST /api/v1/fleet/teams/{id}/schedule`
 
@@ -6000,8 +6000,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Edit query in team schedule
 
-> The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
+> The Schedule API endpoints are deprecated as of Fleet 4.35. It is maintained for backwards compatibility. 
+> Please use the [Queries](#queries) endpoint, which as of 4.35 has attributes such as `interval` and `platform` that enable scheduling.
 
 `PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
@@ -6057,8 +6057,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Remove query from team schedule
 
-> The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
+> The Schedule API endpoints are deprecated as of Fleet 4.35. It is maintained for backwards compatibility. 
+> Please use the [Queries](#queries) endpoint, which as of 4.35 has attributes such as `interval` and `platform` that enable scheduling.
 
 `DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
@@ -7679,7 +7679,6 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 `GET /debug/pprof/{key}`
 
 #### Parameters
-
 None.
 
 ## API errors
