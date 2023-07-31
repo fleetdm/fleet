@@ -75,6 +75,8 @@ const initTable =
   osqueryTables.find((table) => table.name === "users") ||
   DEFAULT_OSQUERY_TABLE;
 
+export type IPolicyContext = InitialStateType;
+
 const initialState = {
   lastEditedQueryId: null,
   lastEditedQueryName: "",

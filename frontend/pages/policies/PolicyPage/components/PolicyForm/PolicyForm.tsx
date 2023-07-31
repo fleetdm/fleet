@@ -139,6 +139,7 @@ const PolicyForm = ({
     baseClass
   );
 
+  console.log("lastEditedQueryPlatform", lastEditedQueryPlatform);
   const {
     getSelectedPlatforms,
     setSelectedPlatforms,
@@ -508,6 +509,7 @@ const PolicyForm = ({
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       !!size(errors);
 
+    console.log("disableSaveFormErrors", disableSaveFormErrors);
     return (
       <>
         <form className={`${baseClass}__wrapper`} autoComplete="off">
