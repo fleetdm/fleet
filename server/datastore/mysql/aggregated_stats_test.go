@@ -14,14 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func slowStats(t *testing.T, ds *Datastore, id uint, percentile int, table, column string) float64 {
-	scheduledQueriesSQL := fmt.Sprintf(`SELECT d.%s / d.executions FROM scheduled_query_stats d WHERE d.scheduled_query_id=? ORDER BY (d.%s / d.executions) ASC`, column, column)
-	queriesSQL := fmt.Sprintf(`SELECT d.%s / d.executions FROM scheduled_query_stats d JOIN scheduled_queries sq ON (sq.id=d.scheduled_query_id) WHERE sq.query_id=? ORDER BY (d.%s / d.executions) ASC`, column, column)
-	queryToRun := scheduledQueriesSQL
-	if table == "queries" {
-		queryToRun = queriesSQL
-	}
-	rows, err := ds.writer(context.Background()).Queryx(queryToRun, id)
+func slowStats(t *testing.T, ds *Datastore, id uint, percentile int, column string) float64 {
+	queriesSQL := fmt.Sprintf(`SELECT d.%s / d.executions FROM scheduled_query_stats d JOIN queries q ON (d.scheduled_query_id=q.id) WHERE q.id=? ORDER BY (d.%s / d.executions) ASC`, column, column)
+	rows, err := ds.writer(context.Background()).Queryx(queriesSQL, id)
 	require.NoError(t, err)
 	defer rows.Close()
 
@@ -58,7 +53,7 @@ func TestAggregatedStats(t *testing.T) {
 		require.NoError(t, err)
 	}
 	for i := 0; i < scheduledQueryCount; i++ {
-		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id,name,query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
+		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id, name, query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 	insertScheduledQuerySQL := `INSERT IGNORE INTO scheduled_query_stats(host_id, scheduled_query_id, system_time, user_time, executions) VALUES %s`
@@ -70,7 +65,7 @@ func TestAggregatedStats(t *testing.T) {
 			require.NoError(t, err)
 			args = []interface{}{}
 		}
-		args = append(args, rand.Intn(hostCount)+1, rand.Intn(scheduledQueryCount)+1, rand.Intn(10000)+100, rand.Intn(10000)+100, rand.Intn(10000)+100)
+		args = append(args, rand.Intn(hostCount)+1, rand.Intn(queryCount)+1, rand.Intn(10000)+100, rand.Intn(10000)+100, rand.Intn(10000)+100)
 	}
 	if len(args) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(args)/5), ",")
@@ -84,7 +79,7 @@ func TestAggregatedStats(t *testing.T) {
 		require.NoError(t, err)
 	}
 	for i := scheduledQueryCount; i < scheduledQueryCount+4; i++ {
-		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id,name,query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
+		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id, name, query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 
@@ -95,8 +90,7 @@ func TestAggregatedStats(t *testing.T) {
 		aggregate aggregatedStatsType
 		aggFunc   func(ctx context.Context) error
 	}{
-		{"scheduled_queries", aggregatedStatsTypeScheduledQuery, ds.UpdateScheduledQueryAggregatedStats},
-		{"queries", aggregatedStatsTypeQuery, ds.UpdateQueryAggregatedStats},
+		{"queries", aggregatedStatsTypeScheduledQuery, ds.UpdateQueryAggregatedStats},
 	}
 	for _, tt := range testcases {
 		t.Run(tt.table, func(t *testing.T) {
@@ -114,7 +108,7 @@ func TestAggregatedStats(t *testing.T) {
 					`
 select
        id,
-			 global_stats,
+	   global_stats,
        JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
        JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
        JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
@@ -125,10 +119,10 @@ from aggregated_stats where type=?`, tt.aggregate))
 			require.True(t, len(stats) > 0)
 			for _, stat := range stats {
 				require.False(t, stat.GlobalStats)
-				checkAgainstSlowStats(t, ds, stat.ID, 50, tt.table, "user_time", stat.UserTimeP50)
-				checkAgainstSlowStats(t, ds, stat.ID, 95, tt.table, "user_time", stat.UserTimeP95)
-				checkAgainstSlowStats(t, ds, stat.ID, 50, tt.table, "system_time", stat.SystemTimeP50)
-				checkAgainstSlowStats(t, ds, stat.ID, 95, tt.table, "system_time", stat.SystemTimeP95)
+				checkAgainstSlowStats(t, ds, stat.ID, 50, "user_time", stat.UserTimeP50)
+				checkAgainstSlowStats(t, ds, stat.ID, 95, "user_time", stat.UserTimeP95)
+				checkAgainstSlowStats(t, ds, stat.ID, 50, "system_time", stat.SystemTimeP50)
+				checkAgainstSlowStats(t, ds, stat.ID, 95, "system_time", stat.SystemTimeP95)
 				require.NotNil(t, stat.TotalExecutions)
 				assert.True(t, *stat.TotalExecutions >= 0)
 			}
@@ -136,8 +130,8 @@ from aggregated_stats where type=?`, tt.aggregate))
 	}
 }
 
-func checkAgainstSlowStats(t *testing.T, ds *Datastore, id uint, percentile int, table, column string, against *float64) {
-	slowp := slowStats(t, ds, id, percentile, table, column)
+func checkAgainstSlowStats(t *testing.T, ds *Datastore, id uint, percentile int, column string, against *float64) {
+	slowp := slowStats(t, ds, id, percentile, column)
 	if against != nil {
 		assert.Equal(t, slowp, *against)
 	} else {

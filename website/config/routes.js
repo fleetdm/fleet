@@ -186,7 +186,7 @@ module.exports.routes = {
   },
 
   'GET /try-fleet/sandbox': {
-    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired',
+    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist',
     locals: {
       layout: 'layouts/layout-sandbox',
     },
@@ -197,6 +197,14 @@ module.exports.routes = {
     locals: {
       layout: 'layouts/layout-sandbox',
     },
+  },
+
+  'GET /try-fleet/waitlist': {
+    action: 'try-fleet/view-waitlist',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet Sandbox waitlist | Fleet for osquery',
+    }
   },
 
   'GET /admin/email-preview': {
@@ -384,7 +392,46 @@ module.exports.routes = {
   'GET /platform': '/',
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
   'GET /handbook/business-operations/ceo-handbook': '/handbook/company/ceo-handbook',
+
+  'GET /docs': '/docs/get-started/why-fleet',
+  'GET /docs/get-started': '/docs/get-started/why-fleet',
+  'GET /docs/rest-api': '/docs/rest-api/rest-api',
+  'GET /docs/using-fleet': '/docs/using-fleet/fleet-ui',
+  'GET /docs/configuration': '/docs/configuration/fleet-server-configuration',
+  'GET /docs/contributing': 'https://github.com/fleetdm/fleet/tree/main/docs/Contributing',
+  'GET /docs/deploy': '/docs/deploy/introduction',
+  'GET /docs/using-fleet/faq': '/docs/get-started/faq',
+  'GET /docs/using-fleet/monitoring-fleet': '/docs/deploy/monitoring-fleet',
+  'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts',
+  'GET /docs/using-fleet/teams': '/docs/using-fleet/segment-hosts',
+  'GET /docs/using-fleet/permissions': '/docs/using-fleet/manage-access',
+  'GET /docs/using-fleet/chromeos': '/docs/using-fleet/enroll-chromebooks',
+  'GET /docs/using-fleet/rest-api': '/docs/rest-api/rest-api',
+  'GET /docs/using-fleet/configuration-files': '/docs/configuration/configuration-files/',
+  'GET /docs/using-fleet/application-security': '/handbook/business-operations/application-security',
+  'GET /docs/using-fleet/security-audits': '/handbook/business-operations/security-audits',
+  'GET /docs/using-fleet/process-file-events': '/guides/querying-process-file-events-table-on-centos-7',
+  'GET /docs/using-fleet/audit-activities': '/docs/using-fleet/audit-logs',
+  'GET /docs/using-fleet/detail-queries-summary': '/docs/using-fleet/understanding-host-vitals',
   'GET /docs/using-fleet/orbit': '/docs/using-fleet/fleetd',
+  'GET /docs/deploying': '/docs/deploy',
+  'GET /docs/deploying/faq': '/docs/get-started/faq',
+  'GET /docs/deploying/introduction': '/docs/deploy/introduction',
+  'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures ',
+  'GET /docs/deploying/upgrading-fleet': '/docs/deploy/upgrading-fleet',
+  'GET /docs/deploying/server-installation': '/docs/deploy/server-installation',
+  'GET /docs/deploying/cloudgov': '/docs/deploy/cloudgov',
+  'GET /docs/deploying/configuration': '/docs/configuration/fleet-server-configuration',
+  'GET /docs/deploying/fleetctl-agent-updates': '/docs/using-fleet/update-agents',
+  'GET /docs/deploying/debugging': '/handbook/engineering/debugging',
+  'GET /docs/deploying/load-testing': '/handbook/engineering/load-testing',
+  'GET /docs/contributing/configuration': '/docs/configuration/configuration-files',
+  'GET /docs/contributing/*': {
+    skipAssets: true,
+    fn: (req, res)=>{
+      return res.redirect('https://github.com/fleetdm/fleet/tree/main/docs/Contributing');
+    }
+  },
   'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
   'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
   'GET /handbook/company/ceo-handbook': '/handbook/company/ceo',

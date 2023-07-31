@@ -2,57 +2,62 @@
 This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. 
 
 Need quick Answers?
-* [How can I...(#Intake)](#Intake)
-* [How to...(#Tasks)](#Tasks)
-* [Who will...(#Rituals)](#Rituals)
-
-
-
-## Pointers
-
-What about [Mike](https://youtu.be/_T-UR9mU4-o?t=2563)?
-
-- "[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc. 
-
-
-- **Character**  
-TODO
-
-
-
-
-
-### Writing style
-
-Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. Don’t sound formal, sound welcoming so that anyone can understand. Translate "puffery" into "ease of use" or "readability".  Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). Create heading(s) that make good permalinks, use links and add missing links. Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”). Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. A big goal is to be able to link directly to this stuff when something comes up as a gentle way to remind and train using the foundation we've already built. Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere). Read your PRs, check it carefully with each change and edit until the diff looks good. Check preview mode in GitHub to make sure the format renders correctly. If you look at your diff and notice unintentional changes, remove them.
-
-
-
-## Responsibilities
-The CEO is the [directly responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company. 
-- **Note** When the CEO is out of office, these responsibilities should be delegated so they can be handled promptly.  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
+* [How can I...(#Intake)](#how-can-i)
+* [How to...(#Tasks)](#how-to)
+* [Who will...(#Rituals)](#who-will)
 
 
 ## Team
 
-The 🦿 Remote department (also known as the "CEO support team"), is made up of these people:
-
-
+The 🦿 CEO support team is made up of these people:
 
 
 | Contributor                                    | Role
 |:-----------------------------------------------|:----------------------------------------------------------------------|
 | Mike McNeil ([@mikermcneil](https://github.com/mikermcneil))  | [CEO](https://www.linkedin.com/in/mikermcneil/)
-| Sam Pfluger ([@sampfluger88](https://github.com/sampfluger88)) | [Apprentice to the CEO](https://www.linkedin.com/in/sampfluger88/)
+| Sam Pfluger ([@sampfluger88](https://github.com/sampfluger88)) | [Apprentice to the CEO (AttC)](https://www.linkedin.com/in/sampfluger88/)
+
+
+## Flaws and feedback
+
+[![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
+
+* "[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc." 
+* I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
+* I can be quick to criticism, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
+* I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
 
 
 
-## How can I...(#Intake)
+### Writing style
+
+Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
+Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. 
+Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. 
+Don’t sound formal, sound welcoming so that anyone can understand. Translate "puffery" into "ease of use" or "readability".  
+Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). 
+Create heading(s) that make good permalinks, use links and add missing links. Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”). 
+Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make 
+it awkward. 
+A big goal is to be able to link directly to this stuff when something comes up as a gentle way to remind and train using the foundation we've already built. 
+Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere). 
+Read your PRs, check it carefully with each change and edit until the diff looks good. Check preview mode in GitHub to make sure the format renders correctly. If you look at your diff and notice unintentional 
+changes, remove them.
+
+
+
+## Responsibilities
+The CEO is the [directly responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [final review of UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company. 
+- **Note** When the CEO is out of office, these responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 
 
 
-## Scheduling with the CEO
+
+## How can I...
+
+
+### Schedule time with the CEO
 
 - Reach out to the Apprentice in `#-meetings` with the required details to book a meeting with the CEO. 
 All [meetings](https://fleetdm.com/handbook/business-operations#internal-meeting-scheduling) on Mike's calendar should be scheduled and vetted by the Apprentice. 
@@ -79,12 +84,6 @@ Don't schedule over the Weekly E-group call unless approved by Mike.
 Last-minute changes or cancellations must be communicated to Mike via [direct message (DM) only](#why-not-mention-the-ceo-in-slack-threads).
  - If there is additional context to share, you can cross-post another Slack message as part of your DM.
 
-### CEO email management
-
-The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for handling all email traffic prior to review. Multiple times daily (minimum 3), The Apprentice will reduce the scope of Mike's inbox to only include necessary and actionable communication.
- -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
- -  Escalate actionable sales communication and update Mike directly.
- -  Ensure all calendar invites have [necessary documents](#document-preparation) included.
 
 ### Travel preferences
 Preferences for flights, in descending order of importance are:
@@ -96,15 +95,15 @@ Preferences for flights, in descending order of importance are:
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
 
-## Contact the CEO
+### Contact the CEO
 
-If urgent, send a Slack direct message (DM) right away. 
+If urgent or personal, send a Slack direct message (DM) right away. 
 
 If you mention the CEO from within a Slack thread, he will not read your message.
 
 Please find a different way to get in touch:
 
-- If it can wait, add your message to the "CEO office minutes" agenda (see "Office hours" calendar)
+- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the [Attc](https://fleetdm.com/handbook/company/ceo#team) in the  [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
 - Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO?
 - Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.)
 
@@ -132,22 +131,20 @@ From Mike:
 >
 > Thank you so much! 🙇
 
-### `#g-ceo` slack channel
-This channel is for the CEO to drop ideas and tasks when on the go.
- - Prefixes: TODO, DOTO, FYI
- - Mark requests with 👀 (emoji reaction) to indicate that you are working on the task
- - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task
+
 
 
 ## How to...
 
+### Manage the CEO's email
 
-## Prep work
+The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for handling all email traffic prior to review. Multiple times daily (minimum 3), The Apprentice will reduce the scope of Mike's inbox to only include necessary and actionable communication.
+ -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
+ -  Escalate actionable sales communication and update Mike directly.
+ -  Ensure all calendar invites have [necessary documents](#document-preparation) included.
 
 
-### All Hands prep
-
-- **DISCUSS - Mike, 2023-03**
+### Prep for the All hands call
 
 Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
@@ -164,7 +161,7 @@ Every month the Apprentice will do the prep work for the monthly "✌️ All han
 
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
-### After the All hands
+#### After the All hands
 
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
@@ -229,9 +226,11 @@ At Fleet, document prep steps are determined by the type of meeting.
 | External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journal template |
 | 1:1           | A recurring meeting that direct managers and direct reports use for performance management and is emptied after every call. | Most likely Reclaim | Agenda template |
 | Office hours  | A recurring meeting that is emptied after call used for group meetings of Fleet team members. | Google calendar | Office hour agenda template |
+| Journal       | Title = {date(XXXX-XX-XX) (Attendee) <>( Mike McNeil)}
+ with H2 (XXXX-XX-XX) = to reference meeting dates
+Does not  get cleaned out every time post meeting
+google doc
 
-
-## Tasks as assigned
 
 ### Private whiteboard
 From time to time the CEO will ask the Apprentice to the CEO to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
@@ -251,21 +250,33 @@ How to file videos from Gong recordings (**marking as "private" in Gong is not a
     - If appropriate, make this doc "¶¶," plus fleeties who were on the call.
     - Include in the doc "link to video:"
     - Include in the doc "link to transcript:"
-     
-## Rituals
 
-| Task | Description | Frequency | 
-| ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
-| [CEO e-mail management](#ceo-email-management)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
-| General communications  [slack channel](https://fleetdm.com/handbook/business-operations#slack-channels) | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+
+## Slack channels
+
+| Channel | Purpose | Standard Operating Procedure | DRI |
+| ---------------- | ----------------------------------------------------------------------------- | --------------------------- | -------------------------------------- |
+| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) | Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team)
+| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | Mark items with 👀 (emoji reaction) to indicate that you are working on the task. Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | AttC |
+
+     
+## Who will...
+
+
+
+| Task | Starting on | Frequency | DRI
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Manage the CEO's email | Daily, multiple times | 
+| General communications  [slack channel](https://fleetdm.com/handbook/company/ceo#slack-channel) |  Daily, multiple times |
 | Schedule internal and external [meetings for the CEO](#scheduling-with-the-ceo)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | [Preparing agendas and content](#document-preparation) for CEO's meetings | Create and edit agenda, provide context, and contact information | PRN                   |
-| Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
 | [Ad-hoc](https://fleetdm.com/handbook/customers#scheduling-a-customer-call) requests from the CEO | Triage requests, prioritize actions, flag actions for further review | PRN |   
 | Total [travel coordination](#travel-preferences) for the CEO | Triage travel request, plan and coordinate flight, stay, and concierge arrangements | PRN                   |
-| Coordinate the [weekly E-Group calendar](https://fleetdm.com/handbook/business-operations#weekly-updates) events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
-| Equipment warehouse management | Process inventory & transfer of all equipment Fleet IT warehouse | PRN | 
-
+| Fleet warehouse management | Process inventory & transfer of all equipment Fleet IT warehouse | PRN | 
+| Weekly update | Weekly | On Friday, Mike McNeil posts a single message in #general [based on the message from the previous week, saving a copy for reference _next_ week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).  This weekly update recognizes each of the week's on-duty people for each of the on-call rotations, along with any hiring and departure announcements, and information about ongoing onboardings and open positions.  | Mike McNeil |
+| CEO inbox sweep | Daily unless OOO | Mike McNeil does a morning sweep of the CEO's inbox to remove spam and grab action items. | Mike McNeil |
+| Calendar audit | Daily | Daily Mike McNeil audits CEOs calendar and set notes for meetings. | Mike McNeil |
+| Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | AttC |
 
 ## Kanban
 
@@ -400,5 +411,5 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
  4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
  -->
  
-<meta name="maintainedBy" value="sampfluger888">
+<meta name="maintainedBy" value="Sampfluger88">
 <meta name="title" value="CEO handbook">

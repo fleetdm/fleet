@@ -190,10 +190,10 @@ module.exports = {
             // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L308-L313
             // > And https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L107-L132
             let pageRelSourcePath = path.relative(path.join(topLvlRepoPath, sectionRepoPath), path.resolve(pageSourcePath));
-            let pageUnextensionedLowercasedRelPath = (
+            let pageUnextensionedUnwhitespacedLowercasedRelPath = (
               pageRelSourcePath
               .replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2')
-              .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/')
+              .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/')
             );
             let RX_README_FILENAME = /\/?readme\.?m?d?$/i;// « for matching `readme` or `readme.md` (case-insensitive) at the end of a file path
 
@@ -219,7 +219,7 @@ module.exports = {
               (
                 SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
                 '/' + (
-                  pageUnextensionedLowercasedRelPath
+                  pageUnextensionedUnwhitespacedLowercasedRelPath
                   .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')// « Get URL-friendly by encoding characters and stripping off ordering prefixes (like the "1-" in "1-Using-Fleet") for all folder and file names in the path.
                 )
               ).replace(RX_README_FILENAME, '')// « Interpret README files as special and map it to the URL representing its containing folder.
@@ -293,7 +293,7 @@ module.exports = {
                 let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, sectionRepoPath, pageRelSourcePath), '../', oldRelPath);
                 let possibleReferencedUrlHash = oldRelPath.match(/(\.md#)([^/]*$)/) ? oldRelPath.match(/(\.md#)([^/]*$)/)[2] : false;
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
-                  (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/'))
+                  (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/'))
                   .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')
                 ).replace(RX_README_FILENAME, '');
                 if(possibleReferencedUrlHash) {
@@ -414,10 +414,11 @@ module.exports = {
 
               // If the page has a pageOrderInSection meta tag, we'll use that to sort pages in their bottom level sections.
               let pageOrderInSection;
+              let docNavCategory;
               if(sectionRepoPath === 'docs/') {
                 // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
                 // READMEs in subfolders and FAQ pages don't have pageOrderInSection values, they are always sorted at the end of sections.
-                let isPageAReadmeOrFAQ = (_.last(pageUnextensionedLowercasedRelPath.split(/\//)) === 'faq' || _.last(pageUnextensionedLowercasedRelPath.split(/\//)) === 'readme');
+                let isPageAReadmeOrFAQ = (_.last(pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//)) === 'faq' || _.last(pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//)) === 'readme');
                 if(embeddedMetadata.pageOrderInSection) {
                   if(isPageAReadmeOrFAQ) {
                   // Throwing an error if a FAQ or README page has a pageOrderInSection meta tag
@@ -432,6 +433,11 @@ module.exports = {
                 } else if(!embeddedMetadata.pageOrderInSection && !isPageAReadmeOrFAQ){
                   // If the page is not a Readme or a FAQ, we'll throw an error if its missing a pageOrderInSection meta tag.
                   throw new Error(`Failed compiling markdown content: A Non FAQ or README Documentation page is missing a pageOrderInSection meta tag (<meta name="pageOrderInSection" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with a number higher than 0.`);
+                }
+                if(embeddedMetadata.navSection){
+                  docNavCategory = embeddedMetadata.navSection;
+                } else {
+                  docNavCategory = 'Uncategorized';
                 }
               }
 
@@ -506,7 +512,7 @@ module.exports = {
                 rootRelativeUrlPath = (
                   '/' +
                   (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category)) + '/' +
-                  (pageUnextensionedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
+                  (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
                 );
               }
 
@@ -521,7 +527,7 @@ module.exports = {
               let htmlId = (
                 sectionRepoPath.slice(0,10)+
                 '--'+
-                _.last(pageUnextensionedLowercasedRelPath.split(/\//)).slice(0,20)+
+                _.last(pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//)).slice(0,20)+
                 '--'+
                 sails.helpers.strings.random.with({len:10})// if two files in different folders happen to have the same filename, there is a 1/16^10 chance of a collision (this is small enough- worst case, the build fails at the uniqueness check and we rerun it.)
               ).replace(/[^a-z0-9\-]/ig,'');
@@ -545,6 +551,7 @@ module.exports = {
                 lastModifiedAt: lastModifiedAt,
                 htmlId: htmlId,
                 pageOrderInSectionPath: pageOrderInSection,
+                docNavCategory: docNavCategory ? docNavCategory : undefined,// FUTURE: No docs specific markdown page attributes.
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
                 meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection']),
                 linksForHandbookIndex: linksForHandbookIndex.length > 0 ? linksForHandbookIndex : undefined,

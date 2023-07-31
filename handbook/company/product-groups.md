@@ -176,7 +176,7 @@ These questions are helpful for the product team when considering what to priori
 
 #### Design reviews
 
-Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/company/ceo-handbook#calendar-audit).
+Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/company/ceo#calendar-audit).
 
 The product designer prepares proposed changes in the form of wireframes for this meeting, and presents them quickly.  Here are some tips for making this meeting effective:
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
