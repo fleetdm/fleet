@@ -1,4 +1,4 @@
-# 🐋 Product Marketing Manager
+# 🫧 Product Marketing Manager
 
 ## Let's start with why we exist. 📡
 
@@ -21,7 +21,7 @@ tldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com
 at Fleet you will get the chance to…
 
 In your first 120 days:
-- 🏋🏻 Train under our marketing and product teams to learn the ins and outs of Fleet, build and execute a strategy for our Product Marketing team and learn how to work with Sales to create outstanding product marketing materials. 
+- 🏋🏻 Train under our marketing and product teams to learn the ins and outs of Fleet, build and execute a strategy for our Product Marketing team and learn how to work with Product and Marketing to create outstanding enterprise marketing materials. 
 - ⏫ Work hand-in-hand with the sales team by joining sales enablement meetings, customer calls and office hours to understand the pain points of our prospects and customers.
 - 🥇 Be the most informed person at Fleet about the capabilities of the product and how those features translate to value within the market. 
 - 🚀 Manage product launches across multiple teams and rollout new products with flare and pomp by collaborating with Design, PR, Growth Marketing and Field Marketing owners.

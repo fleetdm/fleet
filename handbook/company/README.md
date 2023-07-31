@@ -31,6 +31,7 @@ Fleet is currently hiring for the following positions:
 - [🐋 Customer Support Engineer](https://fleetdm.com/handbook/company/customer-support-engineer)
 - [🐋 Account Executive](https://fleetdm.com/handbook/company/account-executive)
 - [🚀 Software Engineer](https://fleetdm.com/handbook/company/software-engineer)
+- [🫧 Product Marketing Manager](https://fleetdm.com/handbook/company/product-marketing-manager)
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
