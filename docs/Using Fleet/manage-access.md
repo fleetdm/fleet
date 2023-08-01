@@ -35,9 +35,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 | **Action**                                                                                                                                 | Observer | Observer+* | Maintainer | Admin | GitOps* |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ---------- | ---------- | ----- | ------- |
-| View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅    |         |
+| View all [activity](https://fleetdm.com/docs/rest-api/activities)                                                              | ✅       | ✅         | ✅         | ✅    |         |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
-| Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                          | ✅       | ✅         | ✅         | ✅    |         |
+| Filter hosts using [labels](https://fleetdm.com/docs/rest-api/labels)                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Target hosts using labels                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
 | Add and delete hosts                                                                                                                       |          |            | ✅         | ✅    |         |
 | Transfer hosts between teams\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
@@ -100,11 +100,11 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 Users in Fleet either have team access or global access.
 
-Users with team access only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
+Users with team access only have access to the [hosts](https://fleetdm.com/docs/rest-api/hosts), [software](https://fleetdm.com/docs/rest-api/software), and [policies](https://fleetdm.com/docs/rest-api/policies) assigned to
 their team.
 
 Users with global access have access to all
-[hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [queries](https://fleetdm.com/docs/using-fleet/rest-api#queries), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies). Check out [the user permissions
+[hosts](https://fleetdm.com/docs/rest-api/hosts), [software](https://fleetdm.com/docs/rest-api/software), [queries](https://fleetdm.com/docs/rest-api/queries), and [policies](https://fleetdm.com/docs/rest-api/policies). Check out [the user permissions
 table](#user-permissions) above for global user permissions.
 
 Users can be a member of multiple teams in Fleet.
@@ -114,7 +114,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | **Action**                                                                                                                       | Team observer | Team observer+ | Team maintainer | Team admin | Team GitOps |
 | -------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------- | --------------- | ---------- | ----------- |
 | View hosts                                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
-| Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
+| Filter hosts using [labels](https://fleetdm.com/docs/rest-api/labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)     | ✅            | ✅             | ✅              | ✅         |             |

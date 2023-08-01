@@ -73,7 +73,7 @@ When you navigate to [http://127.0.0.1:8050/](http://127.0.0.1:8050/) in a brows
 ## What can we do next?
 
 
-* What other endpoints can we leverage? Maybe list all [Software](https://fleetdm.com/docs/using-fleet/rest-api#software)? 
+* What other endpoints can we leverage? Maybe list all [Software](https://fleetdm.com/docs/rest-api/software)? 
 * Add some [authentication](https://realpython.com/token-based-authentication-with-flask/) on the Flask app.
 * [Deploy the Flask app to AWS or Heroku](https://blog.nextideatech.com/deploy-flask-on-aws-heroku/).
 * Explore other open-source dashboarding solutions. [Maybe via Grafana?](https://www.metricfire.com/blog/anomaly-detection-using-osquery-and-grafana/)

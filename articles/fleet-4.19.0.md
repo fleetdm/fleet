@@ -46,7 +46,7 @@ In 4.19.0, we also:
 
 * Improved performance for aggregating software inventory. Aggregate software inventory is displayed on the **Software page** in the Fleet UI.
 
-* Added the ability to see the vendor for Windows programs in software inventory. Vendor data is available in the [`GET /software` API route](https://fleetdm.com/docs/using-fleet/rest-api#software).
+* Added the ability to see the vendor for Windows programs in software inventory. Vendor data is available in the [`GET /software` API route](https://fleetdm.com/docs/rest-api/software).
 
 * Added a message in `fleetctl` that notifies users to run `fleet prepare` instead of `fleetctl prepare` when running database migrations for Fleet.
 

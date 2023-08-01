@@ -69,7 +69,7 @@ We configured our SaaS tools and developed [a strategy](https://fleetdm.com/secu
 
 ### Secure Configuration
 
-Using the [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os), my own experience securing endpoints, and much feedback from the team, we defined our minimalist baseline. We then explained why we applied every setting and documented it in our [handbook](https://fleetdm.com/handbook/security#how-we-protect-end-user-devices). We created [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) to track compliance using Fleet and deployed the baseline via MDM.
+Using the [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os), my own experience securing endpoints, and much feedback from the team, we defined our minimalist baseline. We then explained why we applied every setting and documented it in our [handbook](https://fleetdm.com/handbook/security#how-we-protect-end-user-devices). We created [policies](https://fleetdm.com/docs/rest-api/policies) to track compliance using Fleet and deployed the baseline via MDM.
 
 ![Policies applied to Fleet company-owned computers](../website/assets/images/articles/tales-from-fleet-security-securing-the-startup-2-700x497@2x.png)
 *Policies applied to Fleet company-owned computers*

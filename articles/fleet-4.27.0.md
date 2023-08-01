@@ -69,7 +69,7 @@ List of other features
 - Changed default hosts per page from 100 to 50.
 - Support CrOS as a valid platform string for customers with ChromeOS hosts.
 - Clean tables at smaller screen widths.
-- Added `meta` attribute to [`GET /api/v1/activities` API endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) that includes pagination metadata. Fixed edge case
+- Added `meta` attribute to [`GET /api/v1/activities` API endpoint](https://fleetdm.com/docs/rest-api/activities) that includes pagination metadata. Fixed edge case
 on UI for pagination buttons on activities card.
 - Use stricter file permissions in `fleetctl updates add` command.
 - When table only has 1 host, remove bulky tooltip overflow.

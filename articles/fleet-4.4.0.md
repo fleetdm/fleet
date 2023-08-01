@@ -25,7 +25,7 @@ To turn on this feature, the software inventory feature flag must first be enabl
 
 Once enabled, run: `GET /api/v1/fleet/software` to retrieve an aggregated list of all software installed on your devices.
 
-Visit the Fleet docs for more information about the [software inventory feature flag](https://fleetdm.com/docs/deploying/configuration#software-inventory) and [listing all software](https://fleetdm.com/docs/using-fleet/rest-api#software).
+Visit the Fleet docs for more information about the [software inventory feature flag](https://fleetdm.com/docs/deploying/configuration#software-inventory) and [listing all software](https://fleetdm.com/docs/rest-api/software).
 
 ## Reveal the bundle ID of installed software on macOS devices
 **Available in Fleet Free and Fleet Premium**
