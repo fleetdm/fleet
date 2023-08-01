@@ -216,6 +216,10 @@ func TestUpgradeSinglePack(t *testing.T) {
 func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://example.com"}}, nil
+	}
+
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
 	}
@@ -255,6 +259,7 @@ func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 
 	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, `Converted 0 queries from 2 2017 "Packs" into portable queries:`)
+	require.Contains(t, got, `visit https://example.com/packs/manage and disable all`)
 
 	content, err := os.ReadFile(outputFile)
 	require.NoError(t, err)
@@ -351,6 +356,9 @@ func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
 	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
 	require.NoError(t, err)
 
+	// first try without the required output file flag
+	runAppCheckErr(t, []string{"upgrade-packs"}, `Required flag "o" not set`)
+	// then try with the required flag but user is not admin
 	runAppCheckErr(t, []string{"upgrade-packs", "-o", outputFile}, `could not upgrade packs: forbidden: user does not have the admin role`)
 
 	content, err := os.ReadFile(outputFile)
