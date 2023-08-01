@@ -67,13 +67,13 @@ type Datastore interface {
 	// ApplyQueries applies a list of queries (likely from a yaml file) to the datastore. Existing queries are updated,
 	// and new queries are created.
 	ApplyQueries(ctx context.Context, authorID uint, queries []*Query) error
-
 	// NewQuery creates a new query object in thie datastore. The returned query should have the ID updated.
 	NewQuery(ctx context.Context, query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
 	SaveQuery(ctx context.Context, query *Query) error
-	// DeleteQuery deletes an existing query object.
-	DeleteQuery(ctx context.Context, name string) error
+	// DeleteQuery deletes an existing query object on a team. If teamID is nil, then the query is
+	// looked up in the 'global' team.
+	DeleteQuery(ctx context.Context, teamID *uint, name string) error
 	// DeleteQueries deletes the existing query objects with the provided IDs. The number of deleted queries is returned
 	// along with any error.
 	DeleteQueries(ctx context.Context, ids []uint) (uint, error)
@@ -82,8 +82,12 @@ type Datastore interface {
 	// ListQueries returns a list of queries with the provided sorting and paging options. Associated packs should also
 	// be loaded.
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
-	// QueryByName looks up a query by name.
-	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
+	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
+	// given teamID. If teamID is nil, then all scheduled queries for the 'global' team are returned.
+	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*Query, error)
+	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
+	// the 'global' team.
+	QueryByName(ctx context.Context, teamID *uint, name string, opts ...OptionalArg) (*Query, error)
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
@@ -139,14 +143,8 @@ type Datastore interface {
 	// PackByName fetches pack if it exists, if the pack exists the bool return value is true
 	PackByName(ctx context.Context, name string, opts ...OptionalArg) (*Pack, bool, error)
 
-	// ListPacksForHost lists the packs that a host should execute.
+	// ListPacksForHost lists the "user packs" that a host should execute.
 	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
-
-	// EnsureGlobalPack gets or inserts a pack with type global
-	EnsureGlobalPack(ctx context.Context) (*Pack, error)
-
-	// EnsureTeamPack gets or inserts a pack with type global
-	EnsureTeamPack(ctx context.Context, teamID uint) (*Pack, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// LabelStore
@@ -586,7 +584,6 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Aggregated Stats
 
-	UpdateScheduledQueryAggregatedStats(ctx context.Context) error
 	UpdateQueryAggregatedStats(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -625,7 +622,7 @@ type Datastore interface {
 	TeamMDMConfig(ctx context.Context, teamID uint) (*TeamMDM, error)
 
 	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
-	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
+	SaveHostPackStats(ctx context.Context, teamID *uint, hostID uint, stats []PackStats) error
 	// AsyncBatchSaveHostsScheduledQueryStats efficiently saves a batch of hosts'
 	// pack stats of scheduled queries. It is the async and batch version of
 	// SaveHostPackStats. It returns the number of INSERT-ON DUPLICATE UPDATE

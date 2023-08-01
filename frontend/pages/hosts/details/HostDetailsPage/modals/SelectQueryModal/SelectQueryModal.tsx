@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useContext } from "react";
 
 import { filter, includes } from "lodash";
-import { IQuery } from "interfaces/query";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
@@ -11,12 +10,13 @@ import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 
 import DataError from "components/DataError";
 import permissions from "utilities/permissions";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
 
 export interface ISelectQueryModalProps {
   onCancel: () => void;
   onQueryHostCustom: () => void;
-  onQueryHostSaved: (selectedQuery: IQuery) => void;
-  queries: IQuery[] | [];
+  onQueryHostSaved: (selectedQuery: ISchedulableQuery) => void;
+  queries: ISchedulableQuery[] | [];
   queryErrors: Error | null;
   isOnlyObserver?: boolean;
   hostsTeamId: number | null;

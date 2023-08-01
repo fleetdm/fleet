@@ -1,0 +1,62 @@
+-
+  task: "Prioritize for next sprint"
+  startedOn: "2023-08-09"
+  frequency: "Triweekly"
+  description: "Drag next sprint's priorities to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
+  dri: "sampfluger88"
+  autoIssue:
+    labels: [ "#g-ceo" ]
+-
+  task: "Process the CEO's inbox"
+  startedOn: "2023-07-29"
+  frequency: "Daily, 4 times"
+  description: "TODO"
+  dri: "sampfluger88"
+-
+  task: "Process the CEO's calendar"
+  startedOn: "2023-07-29"
+  frequency: "Daily, 4 times"
+  description: "TODO"
+  dri: "sampfluger88"
+-
+  task: "Fleet IT warehouse management"
+  startedOn: "2023-07-29"
+  frequency: "Weekly"
+  description: "TODO"
+  dri: "sampfluger88"
+-
+  task: "Send weekly update"
+  startedOn: "2023-07-28"
+  frequency: "Weekly"
+  description: "TODO"
+  dri: "sampfluger88"
+-
+  task: "Wipe e-group agenda"
+  startedOn: "2023-07-26"
+  frequency: "After each weekly e-group meeting"
+  description: "TODO"
+  dri: "sampfluger88"
+-
+  task: "Share recording of all hands meeting"
+  startedOn: "2023-07-xx"
+  frequency: "After each monthly all hands meeting"
+  description: "[Sharing the all hands recording](https://fleetdm.com/handbook/company/ceo#after-the-all-hands)"
+  dri: "sampfluger88"
+-
+  task: "Prepare all hands deck"
+  startedOn: "2023-07-xx"
+  frequency: "The night (CT) before each monthly all hands meeting"
+  description: "[Preparing the all hands deck](https://fleetdm.com/handbook/company/ceo#prep-for-the-all-hands-call)"
+  dri: "sampfluger88"
+-
+  task: "Prepare board deck"
+  startedOn: "2023-07-29"
+  frequency: "Two nights (CT) before the day of the mock board meeting"
+  description: "TODO"
+  dri: "sampfluger88"
+-
+  task: "Process CEO GitHub review requests, mentions, and outstanding PRs"
+  startedOn: "2023-07-29"
+  frequency: "Daily"
+  description: "TODO"
+  dri: "sampfluger88"

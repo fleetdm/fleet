@@ -681,225 +681,405 @@ func TestAuthorizeQuery(t *testing.T) {
 		},
 	}
 
-	query := &fleet.Query{ObserverCanRun: false}
-	emptyTquery := &fleet.TargetedQuery{Query: query}
-	team1Query := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1}}, Query: query}
-	team12Query := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2}}, Query: query}
-	team2Query := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{2}}, Query: query}
-	team123Query := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2, 3}}, Query: query}
+	globalQuery := &fleet.Query{
+		ObserverCanRun: false,
+	}
+	globalQueryNoTargets := &fleet.TargetedQuery{
+		Query: globalQuery,
+	}
 
-	observerQuery := &fleet.Query{ObserverCanRun: true}
-	emptyTobsQuery := &fleet.TargetedQuery{Query: observerQuery}
-	team1ObsQuery := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1}}, Query: observerQuery}
-	team12ObsQuery := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2}}, Query: observerQuery}
-	team2ObsQuery := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{2}}, Query: observerQuery}
-	team123ObsQuery := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2, 3}}, Query: observerQuery}
+	globalQueryTargetedToTeam1 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1}},
+		Query:       globalQuery,
+	}
+	globalQueryTargetedToTeam1AndTeam2 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2}},
+		Query:       globalQuery,
+	}
+	globalQueryTargetedToTeam2 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{2}},
+		Query:       globalQuery,
+	}
+	globalQueryTargetedToTeam1AndTeam2AndTeam3 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2, 3}},
+		Query:       globalQuery,
+	}
 
-	teamAdminQuery := &fleet.Query{ID: 1, AuthorID: ptr.Uint(teamAdmin.ID), ObserverCanRun: false}
-	teamMaintQuery := &fleet.Query{ID: 2, AuthorID: ptr.Uint(teamMaintainer.ID), ObserverCanRun: false}
+	globalObserverQuery := &fleet.Query{
+		ObserverCanRun: true,
+	}
+	globalObserverQueryEmptyTargets := &fleet.TargetedQuery{
+		Query: globalObserverQuery,
+	}
+	globalObserverQueryTargetedToTeam1 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1}},
+		Query:       globalObserverQuery,
+	}
+	globalObserverQueryTargetedToTeam1AndTeam2 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2}},
+		Query:       globalObserverQuery,
+	}
+	globalObserverQueryTargetedToTeam2 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{2}},
+		Query:       globalObserverQuery,
+	}
+	globalObserverQueryTargetedToTeam1AndTeam2AndTeam3 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2, 3}},
+		Query:       globalObserverQuery,
+	}
+
+	teamAdminQuery := &fleet.Query{
+		ID:             1,
+		AuthorID:       ptr.Uint(teamAdmin.ID),
+		ObserverCanRun: false,
+		TeamID:         ptr.Uint(1),
+	}
+	teamMaintQuery := &fleet.Query{
+		ID:             2,
+		AuthorID:       ptr.Uint(teamMaintainer.ID),
+		ObserverCanRun: false,
+		TeamID:         ptr.Uint(1),
+	}
 	globalAdminQuery := &fleet.Query{ID: 3, AuthorID: ptr.Uint(test.UserAdmin.ID), ObserverCanRun: false}
 	globalGitOpsQuery := &fleet.Query{ID: 4, AuthorID: ptr.Uint(test.UserGitOps.ID), ObserverCanRun: false}
-	teamGitOpsQuery := &fleet.Query{ID: 5, AuthorID: ptr.Uint(teamGitOps.ID), ObserverCanRun: false}
+	teamGitOpsQuery := &fleet.Query{
+		ID: 5, AuthorID: ptr.Uint(teamGitOps.ID),
+		ObserverCanRun: false,
+		TeamID:         ptr.Uint(1),
+	}
+	observerQueryOnTeam3 := &fleet.Query{
+		ID:             6,
+		ObserverCanRun: true,
+		TeamID:         ptr.Uint(3),
+	}
+	observerQueryOnTeam3TargetedToTeam3 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{3}},
+		Query:       observerQueryOnTeam3,
+	}
+	observerQueryOnTeam3TargetedToTeam2 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{2}},
+		Query:       observerQueryOnTeam3,
+	}
+	observerQueryOnTeam3TargetedToTeam1 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1}},
+		Query:       observerQueryOnTeam3,
+	}
+	observerQueryOnTeam1 := &fleet.Query{
+		ID:             7,
+		ObserverCanRun: true,
+		TeamID:         ptr.Uint(1),
+	}
+	observerQueryOnTeam1TargetedToTeam1 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1}},
+		Query:       observerQueryOnTeam1,
+	}
+	observerQueryOnTeam1TargetedToTeam2 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{2}},
+		Query:       observerQueryOnTeam1,
+	}
 
-	runTestCases(t, []authTestCase{
-		// No access
-		{user: nil, object: query, action: read, allow: false},
-		{user: nil, object: query, action: write, allow: false},
-		{user: nil, object: teamAdminQuery, action: write, allow: false},
-		{user: nil, object: emptyTquery, action: run, allow: false},
-		{user: nil, object: team1Query, action: run, allow: false},
-		{user: nil, object: query, action: runNew, allow: false},
-		{user: nil, object: observerQuery, action: read, allow: false},
-		{user: nil, object: observerQuery, action: write, allow: false},
-		{user: nil, object: emptyTobsQuery, action: run, allow: false},
-		{user: nil, object: team1ObsQuery, action: run, allow: false},
-		{user: nil, object: observerQuery, action: runNew, allow: false},
+	runTestCasesGroups(t, []tcGroup{
+		{
+			name: "no access",
+			testCases: []authTestCase{
+				{user: nil, object: globalQuery, action: read, allow: false},
+				{user: nil, object: globalQuery, action: write, allow: false},
+				{user: nil, object: teamAdminQuery, action: write, allow: false},
+				{user: nil, object: globalQueryNoTargets, action: run, allow: false},
+				{user: nil, object: globalQueryTargetedToTeam1, action: run, allow: false},
+				{user: nil, object: globalQuery, action: runNew, allow: false},
+				{user: nil, object: globalObserverQuery, action: read, allow: false},
+				{user: nil, object: globalObserverQuery, action: write, allow: false},
+				{user: nil, object: globalObserverQueryEmptyTargets, action: run, allow: false},
+				{user: nil, object: globalObserverQueryTargetedToTeam1, action: run, allow: false},
+				{user: nil, object: globalObserverQuery, action: runNew, allow: false},
+			},
+		},
+		{
+			name: "User with no roles cannot access queries",
+			testCases: []authTestCase{
+				{user: test.UserNoRoles, object: globalQuery, action: read, allow: false},
+				{user: test.UserNoRoles, object: globalQuery, action: write, allow: false},
+				{user: test.UserNoRoles, object: teamAdminQuery, action: write, allow: false},
+				{user: test.UserNoRoles, object: globalQueryNoTargets, action: run, allow: false},
+				{user: test.UserNoRoles, object: globalQueryTargetedToTeam1, action: run, allow: false},
+				{user: test.UserNoRoles, object: globalQuery, action: runNew, allow: false},
+				{user: test.UserNoRoles, object: globalObserverQuery, action: read, allow: false},
+				{user: test.UserNoRoles, object: globalObserverQuery, action: write, allow: false},
+				{user: test.UserNoRoles, object: globalObserverQueryEmptyTargets, action: run, allow: false},
+				{user: test.UserNoRoles, object: globalObserverQueryTargetedToTeam1, action: run, allow: false},
+				{user: test.UserNoRoles, object: globalObserverQuery, action: runNew, allow: false},
+			},
+		},
+		{
+			name: "Global observer can read",
+			testCases: []authTestCase{
+				{user: test.UserObserver, object: globalQuery, action: read, allow: true},
+				{user: test.UserObserver, object: globalQuery, action: write, allow: false},
+				{user: test.UserObserver, object: teamAdminQuery, action: write, allow: false},
+				{user: test.UserObserver, object: globalQueryNoTargets, action: run, allow: false},
+				{user: test.UserObserver, object: globalQueryTargetedToTeam1, action: run, allow: false},
+				{user: test.UserObserver, object: globalQuery, action: runNew, allow: false},
+				{user: test.UserObserver, object: globalObserverQuery, action: read, allow: true},
+				{user: test.UserObserver, object: globalObserverQuery, action: write, allow: false},
+				{user: test.UserObserver, object: globalObserverQueryEmptyTargets, action: run, allow: true},            // can run observer query
+				{user: test.UserObserver, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},         // can run observer query
+				{user: test.UserObserver, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: true}, // can run observer query
+				{user: test.UserObserver, object: globalObserverQuery, action: runNew, allow: false},
 
-		// User with no roles cannot access queries.
-		{user: test.UserNoRoles, object: query, action: read, allow: false},
-		{user: test.UserNoRoles, object: query, action: write, allow: false},
-		{user: test.UserNoRoles, object: teamAdminQuery, action: write, allow: false},
-		{user: test.UserNoRoles, object: emptyTquery, action: run, allow: false},
-		{user: test.UserNoRoles, object: team1Query, action: run, allow: false},
-		{user: test.UserNoRoles, object: query, action: runNew, allow: false},
-		{user: test.UserNoRoles, object: observerQuery, action: read, allow: false},
-		{user: test.UserNoRoles, object: observerQuery, action: write, allow: false},
-		{user: test.UserNoRoles, object: emptyTobsQuery, action: run, allow: false},
-		{user: test.UserNoRoles, object: team1ObsQuery, action: run, allow: false},
-		{user: test.UserNoRoles, object: observerQuery, action: runNew, allow: false},
+				{user: test.UserObserver, object: observerQueryOnTeam3, action: read, allow: true},
+				{user: test.UserObserver, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
+				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
+			},
+		},
+		{
+			name: "Global observer+ can read all queries, not write them, and can run any query",
+			testCases: []authTestCase{
+				{user: test.UserObserverPlus, object: globalQuery, action: read, allow: true},
+				{user: test.UserObserverPlus, object: globalQuery, action: write, allow: false},
+				{user: test.UserObserverPlus, object: teamAdminQuery, action: write, allow: false},
+				{user: test.UserObserverPlus, object: globalQueryNoTargets, action: run, allow: true},
+				{user: test.UserObserverPlus, object: globalQueryTargetedToTeam1, action: run, allow: true},
+				{user: test.UserObserverPlus, object: globalQuery, action: runNew, allow: true},
+				{user: test.UserObserverPlus, object: globalObserverQuery, action: read, allow: true},
+				{user: test.UserObserverPlus, object: globalObserverQuery, action: write, allow: false},
+				{user: test.UserObserverPlus, object: globalObserverQueryEmptyTargets, action: run, allow: true},            // can run observer query
+				{user: test.UserObserverPlus, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},         // can run observer query
+				{user: test.UserObserverPlus, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: true}, // can run observer query
+				{user: test.UserObserverPlus, object: globalObserverQuery, action: runNew, allow: true},
 
-		// Global observer can read
-		{user: test.UserObserver, object: query, action: read, allow: true},
-		{user: test.UserObserver, object: query, action: write, allow: false},
-		{user: test.UserObserver, object: teamAdminQuery, action: write, allow: false},
-		{user: test.UserObserver, object: emptyTquery, action: run, allow: false},
-		{user: test.UserObserver, object: team1Query, action: run, allow: false},
-		{user: test.UserObserver, object: query, action: runNew, allow: false},
-		{user: test.UserObserver, object: observerQuery, action: read, allow: true},
-		{user: test.UserObserver, object: observerQuery, action: write, allow: false},
-		{user: test.UserObserver, object: emptyTobsQuery, action: run, allow: true}, // can run observer query
-		{user: test.UserObserver, object: team1ObsQuery, action: run, allow: true},  // can run observer query
-		{user: test.UserObserver, object: team12ObsQuery, action: run, allow: true}, // can run observer query
-		{user: test.UserObserver, object: observerQuery, action: runNew, allow: false},
+				{user: test.UserObserverPlus, object: observerQueryOnTeam3, action: read, allow: true},
+				{user: test.UserObserverPlus, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: test.UserObserverPlus, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
+				{user: test.UserObserverPlus, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
+			},
+		},
+		{
+			name: "Global maintainer can read/write/run any query",
+			testCases: []authTestCase{
+				{user: test.UserMaintainer, object: globalQuery, action: read, allow: true},
+				{user: test.UserMaintainer, object: globalQuery, action: write, allow: true},
+				{user: test.UserMaintainer, object: teamMaintQuery, action: write, allow: true},
+				{user: test.UserMaintainer, object: globalAdminQuery, action: write, allow: true},
+				{user: test.UserMaintainer, object: globalQueryNoTargets, action: run, allow: true},
+				{user: test.UserMaintainer, object: globalQueryTargetedToTeam1, action: run, allow: true},
+				{user: test.UserMaintainer, object: globalQuery, action: runNew, allow: true},
+				{user: test.UserMaintainer, object: globalObserverQuery, action: read, allow: true},
+				{user: test.UserMaintainer, object: globalObserverQuery, action: write, allow: true},
+				{user: test.UserMaintainer, object: globalObserverQueryEmptyTargets, action: run, allow: true},
+				{user: test.UserMaintainer, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},
+				{user: test.UserMaintainer, object: globalObserverQuery, action: runNew, allow: true},
 
-		// Global observer+ can read all queries, not write them, and can run any query.
-		{user: test.UserObserverPlus, object: query, action: read, allow: true},
-		{user: test.UserObserverPlus, object: query, action: write, allow: false},
-		{user: test.UserObserverPlus, object: teamAdminQuery, action: write, allow: false},
-		{user: test.UserObserverPlus, object: emptyTquery, action: run, allow: true},
-		{user: test.UserObserverPlus, object: team1Query, action: run, allow: true},
-		{user: test.UserObserverPlus, object: query, action: runNew, allow: true},
-		{user: test.UserObserverPlus, object: observerQuery, action: read, allow: true},
-		{user: test.UserObserverPlus, object: observerQuery, action: write, allow: false},
-		{user: test.UserObserverPlus, object: emptyTobsQuery, action: run, allow: true}, // can run observer query
-		{user: test.UserObserverPlus, object: team1ObsQuery, action: run, allow: true},  // can run observer query
-		{user: test.UserObserverPlus, object: team12ObsQuery, action: run, allow: true}, // can run observer query
-		{user: test.UserObserverPlus, object: observerQuery, action: runNew, allow: true},
+				{user: test.UserMaintainer, object: observerQueryOnTeam3, action: read, allow: true},
+				{user: test.UserMaintainer, object: observerQueryOnTeam3, action: write, allow: true},
+				{user: test.UserMaintainer, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
+				{user: test.UserMaintainer, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
+			},
+		},
+		{
+			name: "Global admin can read/write/run any query (on its team)",
+			testCases: []authTestCase{
+				{user: test.UserAdmin, object: globalQuery, action: read, allow: true},
+				{user: test.UserAdmin, object: globalQuery, action: write, allow: true},
+				{user: test.UserAdmin, object: teamMaintQuery, action: write, allow: true},
+				{user: test.UserAdmin, object: globalAdminQuery, action: write, allow: true},
+				{user: test.UserAdmin, object: globalQueryNoTargets, action: run, allow: true},
+				{user: test.UserAdmin, object: globalQueryTargetedToTeam1, action: run, allow: true},
+				{user: test.UserAdmin, object: globalQuery, action: runNew, allow: true},
+				{user: test.UserAdmin, object: globalObserverQuery, action: read, allow: true},
+				{user: test.UserAdmin, object: globalObserverQuery, action: write, allow: true},
+				{user: test.UserAdmin, object: globalObserverQueryEmptyTargets, action: run, allow: true},
+				{user: test.UserAdmin, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},
+				{user: test.UserAdmin, object: globalObserverQuery, action: runNew, allow: true},
 
-		// Global maintainer can read/write (even not authored by them)/run any.
-		{user: test.UserMaintainer, object: query, action: read, allow: true},
-		{user: test.UserMaintainer, object: query, action: write, allow: true},
-		{user: test.UserMaintainer, object: teamMaintQuery, action: write, allow: true},
-		{user: test.UserMaintainer, object: globalAdminQuery, action: write, allow: true},
-		{user: test.UserMaintainer, object: emptyTquery, action: run, allow: true},
-		{user: test.UserMaintainer, object: team1Query, action: run, allow: true},
-		{user: test.UserMaintainer, object: query, action: runNew, allow: true},
-		{user: test.UserMaintainer, object: observerQuery, action: read, allow: true},
-		{user: test.UserMaintainer, object: observerQuery, action: write, allow: true},
-		{user: test.UserMaintainer, object: emptyTobsQuery, action: run, allow: true},
-		{user: test.UserMaintainer, object: team1ObsQuery, action: run, allow: true},
-		{user: test.UserMaintainer, object: observerQuery, action: runNew, allow: true},
+				{user: test.UserAdmin, object: observerQueryOnTeam3, action: read, allow: true},
+				{user: test.UserAdmin, object: observerQueryOnTeam3, action: write, allow: true},
+				{user: test.UserAdmin, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
+				{user: test.UserAdmin, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
+			},
+		},
+		{
+			name: "Global GitOps cannot read, or run any query, but can write",
+			testCases: []authTestCase{
+				{user: test.UserGitOps, object: globalQuery, action: read, allow: false},
+				{user: test.UserGitOps, object: globalQuery, action: write, allow: true},
+				{user: test.UserGitOps, object: teamAdminQuery, action: write, allow: true},
+				{user: test.UserGitOps, object: globalQueryNoTargets, action: run, allow: false},
+				{user: test.UserGitOps, object: globalQueryTargetedToTeam1, action: run, allow: false},
+				{user: test.UserGitOps, object: globalQuery, action: runNew, allow: false},
+				{user: test.UserGitOps, object: globalObserverQuery, action: read, allow: false},
+				{user: test.UserGitOps, object: globalObserverQuery, action: write, allow: true},
+				{user: test.UserGitOps, object: globalObserverQueryEmptyTargets, action: run, allow: false},
+				{user: test.UserGitOps, object: globalObserverQueryTargetedToTeam1, action: run, allow: false},
+				{user: test.UserGitOps, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false},
+				{user: test.UserGitOps, object: globalObserverQuery, action: runNew, allow: false},
+			},
+		},
+		{
+			name: "Team observer can read and run observer_can_run only",
+			testCases: []authTestCase{
+				{user: teamObserver, object: globalQuery, action: read, allow: true},
+				{user: teamObserver, object: globalQuery, action: write, allow: false},
+				{user: teamObserver, object: teamAdminQuery, action: write, allow: false},
+				{user: teamObserver, object: globalQueryNoTargets, action: run, allow: false},
+				{user: teamObserver, object: globalQueryTargetedToTeam1, action: run, allow: false},
+				{user: teamObserver, object: globalQuery, action: runNew, allow: false},
+				{user: teamObserver, object: globalObserverQuery, action: read, allow: true},
+				{user: teamObserver, object: globalObserverQuery, action: write, allow: false},
+				{user: teamObserver, object: globalObserverQueryEmptyTargets, action: run, allow: true},             // can run observer query with no targeted team
+				{user: teamObserver, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},          // can run observer query filtered to observed team
+				{user: teamObserver, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false}, // not filtered only to observed teams
+				{user: teamObserver, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},         // not filtered only to observed teams
+				{user: teamObserver, object: globalObserverQuery, action: runNew, allow: false},
 
-		// Global admin can read/write (even not authored by them)/run any
-		{user: test.UserAdmin, object: query, action: read, allow: true},
-		{user: test.UserAdmin, object: query, action: write, allow: true},
-		{user: test.UserAdmin, object: teamMaintQuery, action: write, allow: true},
-		{user: test.UserAdmin, object: globalAdminQuery, action: write, allow: true},
-		{user: test.UserAdmin, object: emptyTquery, action: run, allow: true},
-		{user: test.UserAdmin, object: team1Query, action: run, allow: true},
-		{user: test.UserAdmin, object: query, action: runNew, allow: true},
-		{user: test.UserAdmin, object: observerQuery, action: read, allow: true},
-		{user: test.UserAdmin, object: observerQuery, action: write, allow: true},
-		{user: test.UserAdmin, object: emptyTobsQuery, action: run, allow: true},
-		{user: test.UserAdmin, object: team1ObsQuery, action: run, allow: true},
-		{user: test.UserAdmin, object: observerQuery, action: runNew, allow: true},
+				{user: teamObserver, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamObserver, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamObserver, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamObserver, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamObserver, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamObserver, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
+			},
+		},
+		{
+			name: "Team observer+ can read all queries, not write them, and can run any query",
+			testCases: []authTestCase{
+				{user: teamObserverPlus, object: globalQuery, action: read, allow: true},
+				{user: teamObserverPlus, object: globalQuery, action: write, allow: false},
+				{user: teamObserverPlus, object: teamAdminQuery, action: write, allow: false},
+				{user: teamObserverPlus, object: globalQueryNoTargets, action: run, allow: true},
+				{user: teamObserverPlus, object: globalQueryTargetedToTeam1, action: run, allow: true},
+				{user: teamObserverPlus, object: globalQuery, action: runNew, allow: true},
+				{user: teamObserverPlus, object: globalObserverQuery, action: read, allow: true},
+				{user: teamObserverPlus, object: globalObserverQuery, action: write, allow: false},
+				{user: teamObserverPlus, object: globalObserverQueryEmptyTargets, action: run, allow: true},             // can run observer query with no targeted team
+				{user: teamObserverPlus, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},          // can run observer query filtered to observed team
+				{user: teamObserverPlus, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false}, // not filtered only to observed teams
+				{user: teamObserverPlus, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},         // not filtered only to observed teams
+				{user: teamObserverPlus, object: globalObserverQuery, action: runNew, allow: true},
 
-		// Global GitOps cannot read, or run any query, but can write.
-		{user: test.UserGitOps, object: query, action: read, allow: false},
-		{user: test.UserGitOps, object: query, action: write, allow: true},
-		{user: test.UserGitOps, object: teamAdminQuery, action: write, allow: true},
-		{user: test.UserGitOps, object: emptyTquery, action: run, allow: false},
-		{user: test.UserGitOps, object: team1Query, action: run, allow: false},
-		{user: test.UserGitOps, object: query, action: runNew, allow: false},
-		{user: test.UserGitOps, object: observerQuery, action: read, allow: false},
-		{user: test.UserGitOps, object: observerQuery, action: write, allow: true},
-		{user: test.UserGitOps, object: emptyTobsQuery, action: run, allow: false},
-		{user: test.UserGitOps, object: team1ObsQuery, action: run, allow: false},
-		{user: test.UserGitOps, object: team12ObsQuery, action: run, allow: false},
-		{user: test.UserGitOps, object: observerQuery, action: runNew, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamObserverPlus, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
+			},
+		},
+		{
+			name: "Team maintainer can read/write/run queries filtered on their team(s)",
+			testCases: []authTestCase{
+				{user: teamMaintainer, object: globalQuery, action: read, allow: true},
+				{user: teamMaintainer, object: globalQuery, action: write, allow: false}, // query belongs to global domain.
+				{user: teamMaintainer, object: teamMaintQuery, action: write, allow: true},
+				{user: teamMaintainer, object: teamAdminQuery, action: write, allow: true},
+				{user: teamMaintainer, object: globalQueryNoTargets, action: run, allow: true},
+				{user: teamMaintainer, object: globalQueryTargetedToTeam1, action: run, allow: true},
+				{user: teamMaintainer, object: globalQueryTargetedToTeam1AndTeam2, action: run, allow: false},
+				{user: teamMaintainer, object: globalQueryTargetedToTeam2, action: run, allow: false},
+				{user: teamMaintainer, object: globalQuery, action: runNew, allow: true},
+				{user: teamMaintainer, object: globalObserverQuery, action: read, allow: true},
+				{user: teamMaintainer, object: globalObserverQuery, action: write, allow: false}, // query belongs to global domain.
+				{user: teamMaintainer, object: globalObserverQueryEmptyTargets, action: run, allow: true},
+				{user: teamMaintainer, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},
+				{user: teamMaintainer, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false},
+				{user: teamMaintainer, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},
+				{user: teamMaintainer, object: globalObserverQuery, action: runNew, allow: true},
 
-		// Team observer can read and run observer_can_run only
-		{user: teamObserver, object: query, action: read, allow: true},
-		{user: teamObserver, object: query, action: write, allow: false},
-		{user: teamObserver, object: teamAdminQuery, action: write, allow: false},
-		{user: teamObserver, object: emptyTquery, action: run, allow: false},
-		{user: teamObserver, object: team1Query, action: run, allow: false},
-		{user: teamObserver, object: query, action: runNew, allow: false},
-		{user: teamObserver, object: observerQuery, action: read, allow: true},
-		{user: teamObserver, object: observerQuery, action: write, allow: false},
-		{user: teamObserver, object: emptyTobsQuery, action: run, allow: true},  // can run observer query with no targeted team
-		{user: teamObserver, object: team1ObsQuery, action: run, allow: true},   // can run observer query filtered to observed team
-		{user: teamObserver, object: team12ObsQuery, action: run, allow: false}, // not filtered only to observed teams
-		{user: teamObserver, object: team2ObsQuery, action: run, allow: false},  // not filtered only to observed teams
-		{user: teamObserver, object: observerQuery, action: runNew, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamMaintainer, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
+			},
+		},
+		{
+			name: "Team admin can read/write their own queries/run queries filtered on their team(s)",
+			testCases: []authTestCase{
+				{user: teamAdmin, object: globalQuery, action: read, allow: true},
+				{user: teamAdmin, object: globalQuery, action: write, allow: false}, // query belongs to global domain.
+				{user: teamAdmin, object: teamAdminQuery, action: write, allow: true},
+				{user: teamAdmin, object: teamMaintQuery, action: write, allow: true},
+				{user: teamAdmin, object: globalAdminQuery, action: write, allow: false}, // query belongs to global domain.
+				{user: teamAdmin, object: globalQueryNoTargets, action: run, allow: true},
+				{user: teamAdmin, object: globalQueryTargetedToTeam1, action: run, allow: true},
+				{user: teamAdmin, object: globalQueryTargetedToTeam1AndTeam2, action: run, allow: false},
+				{user: teamAdmin, object: globalQueryTargetedToTeam2, action: run, allow: false},
+				{user: teamAdmin, object: globalQuery, action: runNew, allow: true},
+				{user: teamAdmin, object: globalObserverQuery, action: read, allow: true},
+				{user: teamAdmin, object: globalObserverQuery, action: write, allow: false}, // observerQuery belongs to global domain.
+				{user: teamAdmin, object: globalObserverQueryEmptyTargets, action: run, allow: true},
+				{user: teamAdmin, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},
+				{user: teamAdmin, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false},
+				{user: teamAdmin, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},
+				{user: teamAdmin, object: globalObserverQuery, action: runNew, allow: true},
 
-		// Team observer+ can read all queries, not write them, and can run any query.
-		{user: teamObserverPlus, object: query, action: read, allow: true},
-		{user: teamObserverPlus, object: query, action: write, allow: false},
-		{user: teamObserverPlus, object: teamAdminQuery, action: write, allow: false},
-		{user: teamObserverPlus, object: emptyTquery, action: run, allow: true},
-		{user: teamObserverPlus, object: team1Query, action: run, allow: true},
-		{user: teamObserverPlus, object: query, action: runNew, allow: true},
-		{user: teamObserverPlus, object: observerQuery, action: read, allow: true},
-		{user: teamObserverPlus, object: observerQuery, action: write, allow: false},
-		{user: teamObserverPlus, object: emptyTobsQuery, action: run, allow: true},  // can run observer query with no targeted team
-		{user: teamObserverPlus, object: team1ObsQuery, action: run, allow: true},   // can run observer query filtered to observed team
-		{user: teamObserverPlus, object: team12ObsQuery, action: run, allow: false}, // not filtered only to observed teams
-		{user: teamObserverPlus, object: team2ObsQuery, action: run, allow: false},  // not filtered only to observed teams
-		{user: teamObserverPlus, object: observerQuery, action: runNew, allow: true},
+				{user: teamAdmin, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamAdmin, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamAdmin, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamAdmin, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamAdmin, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamAdmin, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
+			},
+		},
+		{
+			name: "Team GitOps cannot read or run any query, but can create new or edit (write) queries authored by it.",
+			testCases: []authTestCase{
+				{user: teamGitOps, object: globalQuery, action: read, allow: false},
+				{user: teamGitOps, object: globalQuery, action: write, allow: false}, // cannot create a global query
+				{user: teamGitOps, object: teamAdminQuery, action: write, allow: true},
+				{user: teamGitOps, object: teamGitOpsQuery, action: write, allow: true},
+				{user: teamGitOps, object: globalGitOpsQuery, action: write, allow: false}, // cannot write a global query
+				{user: teamGitOps, object: globalQueryNoTargets, action: run, allow: false},
+				{user: teamGitOps, object: globalQueryTargetedToTeam1, action: run, allow: false},
+				{user: teamGitOps, object: globalQuery, action: runNew, allow: false},
+				{user: teamGitOps, object: globalObserverQueryEmptyTargets, action: run, allow: false},
+				{user: teamGitOps, object: globalObserverQueryTargetedToTeam1, action: run, allow: false},
+				{user: teamGitOps, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false},
+				{user: teamGitOps, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},
+				{user: teamGitOps, object: globalObserverQuery, action: runNew, allow: false},
 
-		// Team maintainer can read/write their own queries/run queries filtered on their team(s)
-		{user: teamMaintainer, object: query, action: read, allow: true},
-		{user: teamMaintainer, object: query, action: write, allow: true},
-		{user: teamMaintainer, object: teamMaintQuery, action: write, allow: true},
-		{user: teamMaintainer, object: teamAdminQuery, action: write, allow: false},
-		{user: teamMaintainer, object: emptyTquery, action: run, allow: true},
-		{user: teamMaintainer, object: team1Query, action: run, allow: true},
-		{user: teamMaintainer, object: team12Query, action: run, allow: false},
-		{user: teamMaintainer, object: team2Query, action: run, allow: false},
-		{user: teamMaintainer, object: query, action: runNew, allow: true},
-		{user: teamMaintainer, object: observerQuery, action: read, allow: true},
-		{user: teamMaintainer, object: observerQuery, action: write, allow: true},
-		{user: teamMaintainer, object: emptyTobsQuery, action: run, allow: true},
-		{user: teamMaintainer, object: team1ObsQuery, action: run, allow: true},
-		{user: teamMaintainer, object: team12ObsQuery, action: run, allow: false},
-		{user: teamMaintainer, object: team2ObsQuery, action: run, allow: false},
-		{user: teamMaintainer, object: observerQuery, action: runNew, allow: true},
+				{user: teamGitOps, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamGitOps, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamGitOps, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamGitOps, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamGitOps, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamGitOps, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: false},
+			},
+		},
+		{
+			name: "User admin on team 1, observer on team 2",
+			testCases: []authTestCase{
+				{user: twoTeamsAdminObs, object: globalQuery, action: read, allow: true},
+				{user: twoTeamsAdminObs, object: globalQuery, action: write, allow: false}, // cannot write a global query
+				{user: twoTeamsAdminObs, object: teamAdminQuery, action: write, allow: true},
+				{user: twoTeamsAdminObs, object: teamMaintQuery, action: write, allow: true},
+				{user: twoTeamsAdminObs, object: globalAdminQuery, action: write, allow: false}, // cannot write a global query
+				{user: twoTeamsAdminObs, object: globalQueryNoTargets, action: run, allow: true},
+				{user: twoTeamsAdminObs, object: globalQueryTargetedToTeam1, action: run, allow: true},
+				{user: twoTeamsAdminObs, object: globalQueryTargetedToTeam1AndTeam2, action: run, allow: false}, // user is only observer on team 2
+				{user: twoTeamsAdminObs, object: globalQueryTargetedToTeam2, action: run, allow: false},
+				{user: twoTeamsAdminObs, object: globalQueryTargetedToTeam1AndTeam2AndTeam3, action: run, allow: false},
+				{user: twoTeamsAdminObs, object: globalQuery, action: runNew, allow: true},
+				{user: twoTeamsAdminObs, object: globalObserverQuery, action: read, allow: true},
+				{user: twoTeamsAdminObs, object: globalObserverQuery, action: write, allow: false}, // cannot write a global query
+				{user: twoTeamsAdminObs, object: globalObserverQueryEmptyTargets, action: run, allow: true},
+				{user: twoTeamsAdminObs, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},
+				{user: twoTeamsAdminObs, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: true}, // user is at least observer on both teams
+				{user: twoTeamsAdminObs, object: globalObserverQueryTargetedToTeam2, action: run, allow: true},
+				{user: twoTeamsAdminObs, object: globalObserverQueryTargetedToTeam1AndTeam2AndTeam3, action: run, allow: false}, // not member of team 3
+				{user: twoTeamsAdminObs, object: globalObserverQuery, action: runNew, allow: true},
 
-		// Team admin can read/write their own queries/run queries filtered on their team(s)
-		{user: teamAdmin, object: query, action: read, allow: true},
-		{user: teamAdmin, object: query, action: write, allow: true},
-		{user: teamAdmin, object: teamAdminQuery, action: write, allow: true},
-		{user: teamAdmin, object: teamMaintQuery, action: write, allow: false},
-		{user: teamAdmin, object: globalAdminQuery, action: write, allow: false},
-		{user: teamAdmin, object: emptyTquery, action: run, allow: true},
-		{user: teamAdmin, object: team1Query, action: run, allow: true},
-		{user: teamAdmin, object: team12Query, action: run, allow: false},
-		{user: teamAdmin, object: team2Query, action: run, allow: false},
-		{user: teamAdmin, object: query, action: runNew, allow: true},
-		{user: teamAdmin, object: observerQuery, action: read, allow: true},
-		{user: teamAdmin, object: observerQuery, action: write, allow: true},
-		{user: teamAdmin, object: emptyTobsQuery, action: run, allow: true},
-		{user: teamAdmin, object: team1ObsQuery, action: run, allow: true},
-		{user: teamAdmin, object: team12ObsQuery, action: run, allow: false},
-		{user: teamAdmin, object: team2ObsQuery, action: run, allow: false},
-		{user: teamAdmin, object: observerQuery, action: runNew, allow: true},
-
-		// Team GitOps cannot read or run any query, but can create new or edit (write) queries authored by it.
-		{user: teamGitOps, object: query, action: read, allow: false},
-		{user: teamGitOps, object: query, action: write, allow: true},              // create new
-		{user: teamGitOps, object: teamAdminQuery, action: write, allow: false},    // not the author
-		{user: teamGitOps, object: teamGitOpsQuery, action: write, allow: true},    // author
-		{user: teamGitOps, object: globalGitOpsQuery, action: write, allow: false}, // not the author
-		{user: teamGitOps, object: emptyTquery, action: run, allow: false},
-		{user: teamGitOps, object: team1Query, action: run, allow: false},
-		{user: teamGitOps, object: query, action: runNew, allow: false},
-		{user: teamGitOps, object: emptyTobsQuery, action: run, allow: false},
-		{user: teamGitOps, object: team1ObsQuery, action: run, allow: false},
-		{user: teamGitOps, object: team12ObsQuery, action: run, allow: false},
-		{user: teamGitOps, object: team2ObsQuery, action: run, allow: false},
-		{user: teamGitOps, object: observerQuery, action: runNew, allow: false},
-
-		// User admin on team 1, observer on team 2
-		{user: twoTeamsAdminObs, object: query, action: read, allow: true},
-		{user: twoTeamsAdminObs, object: query, action: write, allow: true},
-		{user: twoTeamsAdminObs, object: teamAdminQuery, action: write, allow: false},
-		{user: twoTeamsAdminObs, object: teamMaintQuery, action: write, allow: false},
-		{user: twoTeamsAdminObs, object: globalAdminQuery, action: write, allow: false},
-		{user: twoTeamsAdminObs, object: emptyTquery, action: run, allow: true},
-		{user: twoTeamsAdminObs, object: team1Query, action: run, allow: true},
-		{user: twoTeamsAdminObs, object: team12Query, action: run, allow: false}, // user is only observer on team 2
-		{user: twoTeamsAdminObs, object: team2Query, action: run, allow: false},
-		{user: twoTeamsAdminObs, object: team123Query, action: run, allow: false},
-		{user: twoTeamsAdminObs, object: query, action: runNew, allow: true},
-		{user: twoTeamsAdminObs, object: observerQuery, action: read, allow: true},
-		{user: twoTeamsAdminObs, object: observerQuery, action: write, allow: true},
-		{user: twoTeamsAdminObs, object: emptyTobsQuery, action: run, allow: true},
-		{user: twoTeamsAdminObs, object: team1ObsQuery, action: run, allow: true},
-		{user: twoTeamsAdminObs, object: team12ObsQuery, action: run, allow: true}, // user is at least observer on both teams
-		{user: twoTeamsAdminObs, object: team2ObsQuery, action: run, allow: true},
-		{user: twoTeamsAdminObs, object: team123ObsQuery, action: run, allow: false}, // not member of team 3
-		{user: twoTeamsAdminObs, object: observerQuery, action: runNew, allow: true},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: true},
+			},
+		},
 	})
 }
 
@@ -970,109 +1150,6 @@ func TestAuthorizeUserCreatedPack(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: write, allow: false},
-	})
-}
-
-func TestAuthorizeGlobalPack(t *testing.T) {
-	t.Parallel()
-
-	globalPack := &fleet.Pack{
-		// Type "global" is the type for the one global pack.
-		Type: ptr.String("global"),
-	}
-	runTestCases(t, []authTestCase{
-		{user: nil, object: globalPack, action: read, allow: false},
-		{user: nil, object: globalPack, action: write, allow: false},
-
-		{user: test.UserNoRoles, object: globalPack, action: read, allow: false},
-		{user: test.UserNoRoles, object: globalPack, action: write, allow: false},
-
-		{user: test.UserAdmin, object: globalPack, action: read, allow: true},
-		{user: test.UserAdmin, object: globalPack, action: write, allow: true},
-
-		{user: test.UserMaintainer, object: globalPack, action: read, allow: true},
-		{user: test.UserMaintainer, object: globalPack, action: write, allow: true},
-
-		{user: test.UserObserver, object: globalPack, action: read, allow: true},
-		{user: test.UserObserver, object: globalPack, action: write, allow: false},
-
-		{user: test.UserObserverPlus, object: globalPack, action: read, allow: true},
-		{user: test.UserObserverPlus, object: globalPack, action: write, allow: false},
-
-		// This is one exception to the "write only" nature of gitops. To be able to create
-		// and edit packs currently it needs read access too.
-		{user: test.UserGitOps, object: globalPack, action: read, allow: true},
-		{user: test.UserGitOps, object: globalPack, action: write, allow: true},
-
-		{user: test.UserTeamAdminTeam1, object: globalPack, action: read, allow: true},
-		{user: test.UserTeamAdminTeam1, object: globalPack, action: write, allow: false},
-
-		{user: test.UserTeamMaintainerTeam1, object: globalPack, action: read, allow: true},
-		{user: test.UserTeamMaintainerTeam1, object: globalPack, action: write, allow: false},
-
-		{user: test.UserTeamObserverTeam1, object: globalPack, action: read, allow: true},
-		{user: test.UserTeamObserverTeam1, object: globalPack, action: write, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam1, object: globalPack, action: read, allow: true},
-		{user: test.UserTeamObserverPlusTeam1, object: globalPack, action: write, allow: false},
-
-		{user: test.UserTeamGitOpsTeam1, object: globalPack, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: globalPack, action: write, allow: false},
-	})
-}
-
-func TestAuthorizeTeamPack(t *testing.T) {
-	t.Parallel()
-
-	team1Pack := &fleet.Pack{Type: ptr.String("team-1")}
-	team2Pack := &fleet.Pack{Type: ptr.String("team-2")}
-	runTestCases(t, []authTestCase{
-		{user: test.UserAdmin, object: team1Pack, action: read, allow: true},
-		{user: test.UserAdmin, object: team1Pack, action: write, allow: true},
-
-		{user: test.UserMaintainer, object: team1Pack, action: read, allow: true},
-		{user: test.UserMaintainer, object: team1Pack, action: write, allow: true},
-
-		{user: test.UserObserver, object: team1Pack, action: read, allow: false},
-		{user: test.UserObserver, object: team1Pack, action: write, allow: false},
-
-		{user: test.UserObserverPlus, object: team1Pack, action: read, allow: false},
-		{user: test.UserObserverPlus, object: team1Pack, action: write, allow: false},
-
-		// This is one exception to the "write only" nature of gitops. To be able to create
-		// and edit packs currently it needs read access too.
-		{user: test.UserGitOps, object: team1Pack, action: read, allow: true},
-		{user: test.UserGitOps, object: team1Pack, action: write, allow: true},
-
-		{user: test.UserTeamAdminTeam1, object: team1Pack, action: read, allow: true},
-		{user: test.UserTeamAdminTeam1, object: team1Pack, action: write, allow: true},
-
-		{user: test.UserTeamMaintainerTeam1, object: team1Pack, action: read, allow: true},
-		{user: test.UserTeamMaintainerTeam1, object: team1Pack, action: read, allow: true},
-
-		{user: test.UserTeamObserverTeam1, object: team1Pack, action: read, allow: true},
-		{user: test.UserTeamObserverTeam1, object: team1Pack, action: write, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam1, object: team1Pack, action: read, allow: true},
-		{user: test.UserTeamObserverPlusTeam1, object: team1Pack, action: write, allow: false},
-
-		{user: test.UserTeamGitOpsTeam1, object: team1Pack, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Pack, action: write, allow: true},
-
-		{user: test.UserTeamAdminTeam1, object: team2Pack, action: read, allow: false},
-		{user: test.UserTeamAdminTeam1, object: team2Pack, action: write, allow: false},
-
-		{user: test.UserTeamMaintainerTeam1, object: team2Pack, action: read, allow: false},
-		{user: test.UserTeamMaintainerTeam1, object: team2Pack, action: write, allow: false},
-
-		{user: test.UserTeamObserverTeam1, object: team2Pack, action: read, allow: false},
-		{user: test.UserTeamObserverTeam1, object: team2Pack, action: write, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam1, object: team2Pack, action: read, allow: false},
-		{user: test.UserTeamObserverPlusTeam1, object: team2Pack, action: write, allow: false},
-
-		{user: test.UserTeamGitOpsTeam1, object: team2Pack, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team2Pack, action: write, allow: false},
 	})
 }
 
@@ -1584,45 +1661,64 @@ func assertUnauthorized(t *testing.T, user *fleet.User, object, action interface
 	assert.Error(t, auth.Authorize(test.UserContext(context.Background(), user), object, action), "should be unauthorized\n%s", string(b))
 }
 
+type tcGroup struct {
+	name      string
+	testCases []authTestCase
+}
+
 func runTestCases(t *testing.T, testCases []authTestCase) {
+	runTestCasesGroups(t, []tcGroup{
+		{
+			name:      "all",
+			testCases: testCases,
+		},
+	})
+}
+
+func runTestCasesGroups(t *testing.T, testCaseGroups []tcGroup) {
 	t.Helper()
 
-	for _, tt := range testCases {
-		tt := tt
+	for _, gg := range testCaseGroups {
+		gg := gg
+		t.Run(gg.name, func(t *testing.T) {
+			for _, tt := range gg.testCases {
+				tt := tt
 
-		// build a useful test name from user role, object, action and expected result
-		action := tt.action
-		role := "none"
-		if tt.user != nil {
-			if tt.user.GlobalRole != nil {
-				role = "g:" + *tt.user.GlobalRole
-			} else if len(tt.user.Teams) > 0 {
-				role = ""
-				for _, tm := range tt.user.Teams {
-					if role != "" {
-						role += ","
+				// build a useful test name from user role, object, action and expected result
+				action := tt.action
+				role := "none"
+				if tt.user != nil {
+					if tt.user.GlobalRole != nil {
+						role = "g:" + *tt.user.GlobalRole
+					} else if len(tt.user.Teams) > 0 {
+						role = ""
+						for _, tm := range tt.user.Teams {
+							if role != "" {
+								role += ","
+							}
+							role += tm.Role
+						}
 					}
-					role += tm.Role
 				}
-			}
-		}
 
-		obj := fmt.Sprintf("%T", tt.object)
-		if at, ok := tt.object.(AuthzTyper); ok {
-			obj = at.AuthzType()
-		}
+				obj := fmt.Sprintf("%T", tt.object)
+				if at, ok := tt.object.(AuthzTyper); ok {
+					obj = at.AuthzType()
+				}
 
-		result := "allow"
-		if !tt.allow {
-			result = "deny"
-		}
+				result := "allow"
+				if !tt.allow {
+					result = "deny"
+				}
 
-		t.Run(action+"_"+obj+"_"+role+"_"+result, func(t *testing.T) {
-			t.Parallel()
-			if tt.allow {
-				assertAuthorized(t, tt.user, tt.object, tt.action)
-			} else {
-				assertUnauthorized(t, tt.user, tt.object, tt.action)
+				t.Run(action+"_"+obj+"_"+role+"_"+result, func(t *testing.T) {
+					t.Parallel()
+					if tt.allow {
+						assertAuthorized(t, tt.user, tt.object, tt.action)
+					} else {
+						assertUnauthorized(t, tt.user, tt.object, tt.action)
+					}
+				})
 			}
 		})
 	}

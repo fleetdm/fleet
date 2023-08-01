@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -972,92 +973,313 @@ spec:
 }
 
 func TestGetQueries(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
 
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		return []*fleet.Query{
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{
 			{
-				ID:             33,
-				Name:           "query1",
-				Description:    "some desc",
-				Query:          "select 1;",
-				Saved:          false,
-				ObserverCanRun: false,
-			},
-			{
-				ID:             12,
-				Name:           "query2",
-				Description:    "some desc 2",
-				Query:          "select 2;",
-				Saved:          true,
-				ObserverCanRun: false,
+				ID:   1,
+				Name: "Foobar",
 			},
 		}, nil
 	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == 1 {
+			return &fleet.Team{
+				ID:   tid,
+				Name: "Foobar",
+			}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		if opt.TeamID == nil {
+			return []*fleet.Query{
+				{
+					ID:             33,
+					Name:           "query1",
+					Description:    "some desc",
+					Query:          "select 1;",
+					Saved:          true, // ListQueries always returns the saved ones.
+					ObserverCanRun: false,
+				},
+				{
+					ID:             12,
+					Name:           "query2",
+					Description:    "some desc 2",
+					Query:          "select 2;",
+					Saved:          true, // ListQueries always returns the saved ones.
+					ObserverCanRun: false,
+				},
+				{
+					ID:                 14,
+					Name:               "query4",
+					Description:        "some desc 4",
+					Query:              "select 4;",
+					Interval:           60,
+					AutomationsEnabled: true,
+					MinOsqueryVersion:  "5.3.0",
+					Platform:           "darwin,windows",
+					Logging:            "differential_ignore_removals",
+					Saved:              true, // ListQueries always returns the saved ones.
+					ObserverCanRun:     true,
+				},
+			}, nil
+		} else if *opt.TeamID == 1 {
+			return []*fleet.Query{
+				{
+					ID:                 13,
+					Name:               "query3",
+					Description:        "some desc 3",
+					Query:              "select 3;",
+					Interval:           3600,
+					AutomationsEnabled: false,
+					MinOsqueryVersion:  "5.4.0",
+					Platform:           "darwin",
+					Logging:            "snapshot",
+					Saved:              true, // ListQueries always returns the saved ones.
+					TeamID:             ptr.Uint(1),
+					ObserverCanRun:     true,
+				},
+			}, nil
+		} else if *opt.TeamID == 2 {
+			return []*fleet.Query{}, nil
+		}
+		return nil, errors.New("invalid team ID")
+	}
 
-	expected := `+--------+-------------+-----------+
-|  NAME  | DESCRIPTION |   QUERY   |
-+--------+-------------+-----------+
-| query1 | some desc   | select 1; |
-+--------+-------------+-----------+
-| query2 | some desc 2 | select 2; |
-+--------+-------------+-----------+
+	expectedGlobal := `+--------+-------------+-----------+-----------+--------------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |            SCHEDULE            |
++--------+-------------+-----------+-----------+--------------------------------+
+| query1 | some desc   | select 1; | All teams | interval: 0                    |
+|        |             |           |           |                                |
+|        |             |           |           | platform: all                  |
+|        |             |           |           |                                |
+|        |             |           |           | min_osquery_version: all       |
+|        |             |           |           |                                |
+|        |             |           |           | automations_enabled: false     |
+|        |             |           |           |                                |
+|        |             |           |           | logging:                       |
++--------+-------------+-----------+-----------+--------------------------------+
+| query2 | some desc 2 | select 2; | All teams | interval: 0                    |
+|        |             |           |           |                                |
+|        |             |           |           | platform: all                  |
+|        |             |           |           |                                |
+|        |             |           |           | min_osquery_version: all       |
+|        |             |           |           |                                |
+|        |             |           |           | automations_enabled: false     |
+|        |             |           |           |                                |
+|        |             |           |           | logging:                       |
++--------+-------------+-----------+-----------+--------------------------------+
+| query4 | some desc 4 | select 4; | All teams | interval: 60                   |
+|        |             |           |           |                                |
+|        |             |           |           | platform: darwin,windows       |
+|        |             |           |           |                                |
+|        |             |           |           | min_osquery_version: 5.3.0     |
+|        |             |           |           |                                |
+|        |             |           |           | automations_enabled: true      |
+|        |             |           |           |                                |
+|        |             |           |           | logging:                       |
+|        |             |           |           | differential_ignore_removals   |
++--------+-------------+-----------+-----------+--------------------------------+
 `
-	expectedYaml := `---
+
+	expectedYAMLGlobal := `---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query1
+  observer_can_run: false
+  platform: ""
   query: select 1;
+  team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc 2
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query2
+  observer_can_run: false
+  platform: ""
   query: select 2;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: true
+  description: some desc 4
+  interval: 60
+  logging: differential_ignore_removals
+  min_osquery_version: 5.3.0
+  name: query4
+  observer_can_run: true
+  platform: darwin,windows
+  query: select 4;
+  team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query4","description":"some desc 4","query":"select 4;","team":"","interval":60,"observer_can_run":true,"platform":"darwin,windows","min_osquery_version":"5.3.0","automations_enabled":true,"logging":"differential_ignore_removals"}}
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "queries", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
+	expectedTeam := `+--------+-------------+-----------+--------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |  TEAM  |          SCHEDULE          |
++--------+-------------+-----------+--------+----------------------------+
+| query3 | some desc 3 | select 3; | Foobar | interval: 3600             |
+|        |             |           |        |                            |
+|        |             |           |        | platform: darwin           |
+|        |             |           |        |                            |
+|        |             |           |        | min_osquery_version: 5.4.0 |
+|        |             |           |        |                            |
+|        |             |           |        | automations_enabled: false |
+|        |             |           |        |                            |
+|        |             |           |        | logging: snapshot          |
++--------+-------------+-----------+--------+----------------------------+
+`
+
+	expectedYAMLTeam := `---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: some desc 3
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: 5.4.0
+  name: query3
+  observer_can_run: true
+  platform: darwin
+  query: select 3;
+  team: Foobar
+`
+	expectedJSONTeam := `{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"darwin","min_osquery_version":"5.4.0","automations_enabled":false,"logging":"snapshot"}}
+`
+
+	assert.Equal(t, expectedGlobal, runAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, expectedYAMLGlobal, runAppForTest(t, []string{"get", "queries", "--yaml"}))
+	assert.Equal(t, expectedJSONGlobal, runAppForTest(t, []string{"get", "queries", "--json"}))
+
+	assert.Equal(t, expectedTeam, runAppForTest(t, []string{"get", "queries", "--team", "1"}))
+	assert.Equal(t, expectedYAMLTeam, runAppForTest(t, []string{"get", "queries", "--yaml", "--team", "1"}))
+	assert.Equal(t, expectedJSONTeam, runAppForTest(t, []string{"get", "queries", "--json", "--team", "1"}))
+
+	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries", "--team", "2"}))
+	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries", "--yaml", "--team", "2"}))
+	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries", "--json", "--team", "2"}))
 }
 
 func TestGetQuery(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
 
-	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		if name != "query1" {
-			return nil, nil
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == 1 {
+			return &fleet.Team{
+				ID:   tid,
+				Name: "Foobar",
+			}, nil
 		}
-		return &fleet.Query{
-			ID:             33,
-			Name:           "query1",
-			Description:    "some desc",
-			Query:          "select 1;",
-			Saved:          false,
-			ObserverCanRun: false,
-		}, nil
+		return nil, &notFoundError{}
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		if teamID == nil {
+			if name != "globalQuery1" {
+				return nil, &notFoundError{}
+			}
+			return &fleet.Query{
+				ID:             33,
+				Name:           "globalQuery1",
+				Description:    "some desc",
+				Query:          "select 1;",
+				Saved:          true,
+				ObserverCanRun: false,
+			}, nil
+		} else if *teamID == 1 {
+			if name != "teamQuery1" {
+				return nil, &notFoundError{}
+			}
+			return &fleet.Query{
+				ID:             34,
+				Name:           "teamQuery1",
+				Description:    "some team desc",
+				Query:          "select 2;",
+				Saved:          true,
+				ObserverCanRun: true,
+				TeamID:         teamID,
+
+				Interval:           3600,
+				AutomationsEnabled: true,
+				MinOsqueryVersion:  "5.2.0",
+				Platform:           "linux",
+				Logging:            "differential",
+			}, nil
+		} else {
+			return nil, &notFoundError{}
+		}
 	}
 
 	expectedYaml := `---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc
-  name: query1
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
+  name: globalQuery1
+  observer_can_run: false
+  platform: ""
   query: select 1;
+  team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"globalQuery1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
 `
 
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "query1"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "query1"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "query1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "globalQuery1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "globalQuery1"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "globalQuery1"}))
+
+	expectedYaml = `---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: true
+  description: some team desc
+  interval: 3600
+  logging: differential
+  min_osquery_version: 5.2.0
+  name: teamQuery1
+  observer_can_run: true
+  platform: linux
+  query: select 2;
+  team: Foobar
+`
+	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"name":"teamQuery1","description":"some team desc","query":"select 2;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"linux","min_osquery_version":"5.2.0","automations_enabled":true,"logging":"differential"}}
+`
+
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--team", "1", "teamQuery1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "--team", "1", "teamQuery1"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "--team", "1", "teamQuery1"}))
 }
 
 // TestGetQueriesAsObservers tests that when observers run `fleectl get queries` they
@@ -1157,21 +1379,36 @@ func TestGetQueriesAsObserver(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setCurrentUserSession(tc.user)
 
-			expected := `+--------+-------------+-----------+
-|  NAME  | DESCRIPTION |   QUERY   |
-+--------+-------------+-----------+
-| query2 | some desc 2 | select 2; |
-+--------+-------------+-----------+
+			expected := `+--------+-------------+-----------+-----------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
++--------+-------------+-----------+-----------+----------------------------+
+| query2 | some desc 2 | select 2; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
 `
 			expectedYaml := `---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc 2
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query2
+  observer_can_run: true
+  platform: ""
   query: select 2;
+  team: ""
 `
-			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
 `
 
 			assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -1199,41 +1436,86 @@ spec:
 		},
 	})
 
-	expected := `+--------+-------------+-----------+
-|  NAME  | DESCRIPTION |   QUERY   |
-+--------+-------------+-----------+
-| query1 | some desc   | select 1; |
-+--------+-------------+-----------+
-| query2 | some desc 2 | select 2; |
-+--------+-------------+-----------+
-| query3 | some desc 3 | select 3; |
-+--------+-------------+-----------+
+	expected := `+--------+-------------+-----------+-----------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
++--------+-------------+-----------+-----------+----------------------------+
+| query1 | some desc   | select 1; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
+| query2 | some desc 2 | select 2; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
+| query3 | some desc 3 | select 3; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
 `
 	expectedYaml := `---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query1
+  observer_can_run: false
+  platform: ""
   query: select 1;
+  team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc 2
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query2
+  observer_can_run: true
+  platform: ""
   query: select 2;
+  team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
+  automations_enabled: false
   description: some desc 3
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
   name: query3
+  observer_can_run: false
+  platform: ""
   query: select 3;
+  team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;"}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -1288,13 +1570,29 @@ spec:
 			},
 		}, nil
 	}
-	expected = `+--------+-------------+-----------+
-|  NAME  | DESCRIPTION |   QUERY   |
-+--------+-------------+-----------+
-| query1 | some desc   | select 1; |
-+--------+-------------+-----------+
-| query2 | some desc 2 | select 2; |
-+--------+-------------+-----------+
+	expected = `+--------+-------------+-----------+-----------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
++--------+-------------+-----------+-----------+----------------------------+
+| query1 | some desc   | select 1; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
+| query2 | some desc 2 | select 2; | All teams | interval: 0                |
+|        |             |           |           |                            |
+|        |             |           |           | platform: all              |
+|        |             |           |           |                            |
+|        |             |           |           | min_osquery_version: all   |
+|        |             |           |           |                            |
+|        |             |           |           | automations_enabled: false |
+|        |             |           |           |                            |
+|        |             |           |           | logging:                   |
++--------+-------------+-----------+-----------+----------------------------+
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
 }

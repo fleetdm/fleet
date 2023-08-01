@@ -1617,7 +1617,7 @@ func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *i
 	// installed only the first time the message is issued.
 	// FleetURL and FleetSecret properties are passed to the Fleet MSI
 	// See here for more information: https://learn.microsoft.com/en-us/windows/win32/msi/command-line-options
-	installCommandPayload := `<MsiInstallJob id="{f5645004-3214-46ea-92c2-48835689da06}">
+	installCommandPayload := `<MsiInstallJob id="{A427C0AA-E2D5-40DF-ACE8-0D726A6BE096}">
 					<Product Version="1.0.0.0">
 						<Download>
 							<ContentURLList>
@@ -1625,10 +1625,10 @@ func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *i
 							</ContentURLList>
 						</Download>
 						<Validation>
-							<FileHash>7D127BA8F8CC5937DB3052E2632D672120217D910E271A58565BBA780ED8F05C</FileHash>
+							<FileHash>9F89C57D1B34800480B38BD96186106EB6418A82B137A0D56694BF6FFA4DDF1A</FileHash>
 						</Validation>
 						<Enforcement>
-							<CommandLine>/quiet FleetURL="` + fleetEnrollUrl + `" FleetSecret="` + globalEnrollSecret + `"</CommandLine>
+							<CommandLine>/quiet FLEET_URL="` + fleetEnrollUrl + `" FLEET_SECRET="` + globalEnrollSecret + `"</CommandLine>
 							<TimeOut>10</TimeOut>
 							<RetryCount>1</RetryCount>
 							<RetryInterval>5</RetryInterval>
@@ -1640,7 +1640,7 @@ func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *i
 				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
 				<Item>
 					<Target>
-					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7Bf5645004-3214-46ea-92c2-48835689da06%7D/DownloadInstall</LocURI>
+					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
 					</Target>
 				</Item>
 				</Add>
@@ -1648,7 +1648,7 @@ func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *i
 				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
 				<Item>
 					<Target>
-					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7Bf5645004-3214-46ea-92c2-48835689da06%7D/DownloadInstall</LocURI>
+					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
 					</Target>
 					<Data>` + html.EscapeString(installCommandPayload) + `</Data>
 					<Meta>
