@@ -1,6 +1,6 @@
 /* eslint-disable */
 // @ts-nocheck
-import { osqueryTableNames } from "utilities/osquery_tables";
+import { osqueryTableNames, osqueryTableColumnNames } from "utilities/osquery_tables";
 
 ace.define(
   "ace/mode/fleet_highlight_rules",
@@ -37,9 +37,12 @@ ace.define(
 
       var osqueryTables = osqueryTableNames.join("|");
 
+      var osqueryColumns = osqueryTableColumnNames.join("|");
+
       var keywordMapper = this.createKeywordMapper(
         {
           "osquery-token": osqueryTables,
+          "osquery-columns": osqueryColumns,
           "support.function": builtinFunctions,
           keyword: keywords,
           "constant.language": builtinConstants,
