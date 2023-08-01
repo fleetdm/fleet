@@ -395,7 +395,7 @@ module.exports.routes = {
 
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
-  'GET /docs/rest-api': '/docs/rest-api/rest-api',
+  'GET /docs/rest-api': '/docs/rest-api/authentication',
   'GET /docs/using-fleet': '/docs/using-fleet/fleet-ui',
   'GET /docs/configuration': '/docs/configuration/fleet-server-configuration',
   'GET /docs/contributing': 'https://github.com/fleetdm/fleet/tree/main/docs/Contributing',
@@ -406,7 +406,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/teams': '/docs/using-fleet/segment-hosts',
   'GET /docs/using-fleet/permissions': '/docs/using-fleet/manage-access',
   'GET /docs/using-fleet/chromeos': '/docs/using-fleet/enroll-chromebooks',
-  'GET /docs/using-fleet/rest-api': '/docs/rest-api/rest-api',
+  'GET /docs/using-fleet/rest-api': '/docs/rest-api/',
   'GET /docs/using-fleet/configuration-files': '/docs/configuration/configuration-files/',
   'GET /docs/using-fleet/application-security': '/handbook/business-operations/application-security',
   'GET /docs/using-fleet/security-audits': '/handbook/business-operations/security-audits',
