@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -321,16 +322,56 @@ func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
 		}, nil
 	}
 
-	// expects a global query for p1 (targets a label) and per-team queries for p2 (t1 and t2)
-	b, err := os.ReadFile(filepath.Join("testdata", "expectedUpgradePacks.yml"))
-	require.NoError(t, err)
-	expected := string(b)
+	const expected = `
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: (converted from pack "p1", query "q1")
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: p1 - q1 - Jan  1 00:00:00.000
+  observer_can_run: false
+  platform: darwin
+  query: select 1
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: true
+  description: (converted from pack "p2", query "q2")
+  interval: 90
+  logging: differential
+  min_osquery_version: ""
+  name: p2 - q2 - t1 - Jan  1 00:00:00.000
+  observer_can_run: false
+  platform: linux
+  query: select 2
+  team: t1
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: true
+  description: (converted from pack "p2", query "q2")
+  interval: 90
+  logging: differential
+  min_osquery_version: ""
+  name: p2 - q2 - t2 - Jan  1 00:00:00.000
+  observer_can_run: false
+  platform: linux
+  query: select 2
+  team: t2
+---
+`
 
 	tempDir := t.TempDir()
 	outputFile := filepath.Join(tempDir, "output.yml")
 
 	// write some dummy data in the file, it should be overwritten
-	err = os.WriteFile(outputFile, []byte("dummy"), 0644)
+	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
 	require.NoError(t, err)
 
 	testUpgradePacksTimestamp = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -339,7 +380,7 @@ func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
 
 	content, err := os.ReadFile(outputFile)
 	require.NoError(t, err)
-	require.Equal(t, expected, string(content))
+	require.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(string(content)))
 }
 
 func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
