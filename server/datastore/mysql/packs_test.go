@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -31,13 +30,10 @@ func TestPacks(t *testing.T) {
 		{"ApplySpecMissingQueries", testPacksApplySpecMissingQueries},
 		{"ApplySpecMissingName", testPacksApplySpecMissingName},
 		{"ListForHost", testPacksListForHost},
-		{"EnsureGlobal", testPacksEnsureGlobal},
-		{"EnsureTeam", testPacksEnsureTeam},
-		{"TeamNameChangesTeamSchedule", testPacksTeamNameChangesTeamSchedule},
-		{"TeamScheduleNamesMigrateToNewFormat", testPacksTeamScheduleNamesMigrateToNewFormat},
 		{"ApplySpecFailsOnTargetIDNull", testPacksApplySpecFailsOnTargetIDNull},
 		{"ApplyStatsNotLocking", testPacksApplyStatsNotLocking},
 		{"ApplyStatsNotLockingTryTwo", testPacksApplyStatsNotLockingTryTwo},
+		{"ListForHostIncludesOnlyUserPacks", testListForHostIncludesOnlyUserPacks},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -420,125 +416,6 @@ func testPacksListForHost(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testPacksEnsureGlobal(t *testing.T, ds *Datastore) {
-	test.AddAllHostsLabel(t, ds)
-
-	packs, err := ds.ListPacks(context.Background(), fleet.PackListOptions{IncludeSystemPacks: true})
-	require.Nil(t, err)
-	assert.Len(t, packs, 0)
-
-	gp, err := ds.EnsureGlobalPack(context.Background())
-	require.Nil(t, err)
-
-	packs, err = ds.ListPacks(context.Background(), fleet.PackListOptions{IncludeSystemPacks: true})
-	require.Nil(t, err)
-	assert.Len(t, packs, 1)
-	assert.Equal(t, gp.ID, packs[0].ID)
-	assert.Equal(t, "global", *gp.Type)
-
-	labels, err := ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
-	require.Nil(t, err)
-
-	assert.Equal(t, []uint{labels[0]}, gp.LabelIDs)
-
-	_, err = ds.EnsureGlobalPack(context.Background())
-	require.Nil(t, err)
-
-	packs, err = ds.ListPacks(context.Background(), fleet.PackListOptions{IncludeSystemPacks: true})
-	require.Nil(t, err)
-	assert.Len(t, packs, 1)
-	assert.Equal(t, gp.ID, packs[0].ID)
-	assert.Equal(t, "global", *gp.Type)
-}
-
-func testPacksEnsureTeam(t *testing.T, ds *Datastore) {
-	packs, err := ds.ListPacks(context.Background(), fleet.PackListOptions{IncludeSystemPacks: true})
-	require.Nil(t, err)
-	assert.Len(t, packs, 0)
-
-	_, err = ds.EnsureTeamPack(context.Background(), 12)
-	require.Error(t, err)
-
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-
-	tp, err := ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-
-	packs, err = ds.ListPacks(context.Background(), fleet.PackListOptions{IncludeSystemPacks: true})
-	require.Nil(t, err)
-	assert.Len(t, packs, 1)
-	assert.Equal(t, tp.ID, packs[0].ID)
-	assert.Equal(t, teamScheduleName(team1), tp.Name)
-	assert.Equal(t, fmt.Sprintf("team-%d", team1.ID), *tp.Type)
-	assert.Equal(t, []uint{team1.ID}, tp.TeamIDs)
-
-	_, err = ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-
-	packs, err = ds.ListPacks(context.Background(), fleet.PackListOptions{IncludeSystemPacks: true})
-	require.Nil(t, err)
-	assert.Len(t, packs, 1)
-	assert.Equal(t, tp.ID, packs[0].ID)
-
-	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
-	require.NoError(t, err)
-
-	tp2, err := ds.EnsureTeamPack(context.Background(), team2.ID)
-	require.NoError(t, err)
-
-	packs, err = ds.ListPacks(context.Background(), fleet.PackListOptions{IncludeSystemPacks: true})
-	require.Nil(t, err)
-	assert.Len(t, packs, 2)
-	assert.Equal(t, tp.ID, packs[0].ID)
-	assert.Equal(t, tp2.ID, packs[1].ID)
-
-	assert.Equal(t, fmt.Sprintf("team-%d", team2.ID), *tp2.Type)
-	assert.Equal(t, []uint{team2.ID}, tp2.TeamIDs)
-}
-
-func testPacksTeamNameChangesTeamSchedule(t *testing.T, ds *Datastore) {
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-
-	tp, err := ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-	firstName := teamScheduleName(team1)
-	assert.Equal(t, firstName, tp.Name)
-
-	team1.Name = "new name!!"
-	team1, err = ds.SaveTeam(context.Background(), team1)
-	require.NoError(t, err)
-
-	tp, err = ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-	assert.NotEqual(t, firstName, tp.Name)
-	assert.Equal(t, teamScheduleName(team1), tp.Name)
-}
-
-func testPacksTeamScheduleNamesMigrateToNewFormat(t *testing.T, ds *Datastore) {
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-
-	// insert team pack by hand with the old naming scheme
-	_, err = ds.writer(context.Background()).Exec(
-		"INSERT INTO packs(name, description, platform, disabled, pack_type) VALUES (?, ?, ?, ?, ?)",
-		teamSchedulePackType(team1), "desc", "windows", false, teamSchedulePackType(team1),
-	)
-	require.NoError(t, err)
-
-	tp, err := ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-	require.Equal(t, teamSchedulePackType(team1), tp.Name)
-
-	require.NoError(t, ds.MigrateData(context.Background()))
-
-	tp, err = ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-	require.NotEqual(t, teamSchedulePackType(team1), tp.Name)
-	require.Equal(t, teamScheduleName(team1), tp.Name)
-}
-
 func testPacksApplySpecFailsOnTargetIDNull(t *testing.T, ds *Datastore) {
 	// Do not define queries mentioned in spec
 	specs := []*fleet.PackSpec{
@@ -621,7 +498,7 @@ func testPacksApplyStatsNotLocking(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 
 				amount := rand.Intn(5000)
-				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
+				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.TeamID, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
 			}
 		}
 	}()
@@ -673,7 +550,7 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 					require.NoError(t, err)
 
 					amount := rand.Intn(5000)
-					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
+					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.TeamID, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
 				}
 			}
 		}()
@@ -682,4 +559,34 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 	time.Sleep(60 * time.Second)
 
 	cancelFunc()
+}
+
+func testListForHostIncludesOnlyUserPacks(t *testing.T, ds *Datastore) {
+	mockClock := clock.NewMockClock()
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", mockClock.Now())
+	ctx := context.Background()
+
+	label := &fleet.LabelSpec{
+		ID:   1,
+		Name: "All Hosts",
+	}
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{label}))
+
+	pack := &fleet.PackSpec{
+		ID:   1,
+		Name: "foo_pack",
+		Targets: fleet.PackSpecTargets{
+			Labels: []string{
+				label.Name,
+			},
+		},
+	}
+	require.NoError(t, ds.ApplyPackSpecs(ctx, []*fleet.PackSpec{pack}))
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{label.ID: ptr.Bool(true)}, mockClock.Now(), false))
+
+	packs, err := ds.ListPacksForHost(ctx, h1.ID)
+	require.Nil(t, err)
+	if assert.Len(t, packs, 1) {
+		assert.Equal(t, "foo_pack", packs[0].Name)
+	}
 }

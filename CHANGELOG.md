@@ -1,3 +1,9 @@
+## Fleet 4.34.1 (Jul 14, 2023)
+
+* Fixed Observer+ not being able to run some queries.
+
+* If a policy was defined with an invalid query, the desktop endpoint should count that policy as a failed policy.
+
 ## Fleet 4.34.0 (Jul 11, 2023)
 
 * Added execution of programmatic Windows MDM enrollment on eligible devices when Windows MDM is enabled.

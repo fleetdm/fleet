@@ -1,2 +1,0 @@
-- If a policy was defined with an invalid query, the desktop endpoint should count that policy as a
-  failed policy.

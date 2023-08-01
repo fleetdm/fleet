@@ -186,7 +186,7 @@ module.exports.routes = {
   },
 
   'GET /try-fleet/sandbox': {
-    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired',
+    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist',
     locals: {
       layout: 'layouts/layout-sandbox',
     },
@@ -197,6 +197,14 @@ module.exports.routes = {
     locals: {
       layout: 'layouts/layout-sandbox',
     },
+  },
+
+  'GET /try-fleet/waitlist': {
+    action: 'try-fleet/view-waitlist',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet Sandbox waitlist | Fleet for osquery',
+    }
   },
 
   'GET /admin/email-preview': {
@@ -421,9 +429,12 @@ module.exports.routes = {
   'GET /docs/contributing/*': {
     skipAssets: true,
     fn: (req, res)=>{
-      return res.redirect(301, 'https://github.com/fleetdm/fleet/tree/main/docs/Contributing');
+      return res.redirect('https://github.com/fleetdm/fleet/tree/main/docs/Contributing');
     }
   },
+  'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
+  'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
+  'GET /handbook/company/ceo-handbook': '/handbook/company/ceo',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗

@@ -929,8 +929,8 @@ func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
-	q2 := test.NewQuery(t, ds, "query2", "select 1", 0, true)
+	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
+	q2 := test.NewQuery(t, ds, nil, "query2", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
 		QueryID: &q.ID,
 	})

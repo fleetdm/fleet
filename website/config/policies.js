@@ -42,7 +42,7 @@ module.exports.policies = {
   'view-sales-one-pager': true,
   'try-fleet/view-register': true,
   'try-fleet/view-sandbox-login': true,
-  'try-fleet/view-sandbox-teleporter-or-redirect-because-expired': true,
+  'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist': true,
   'create-or-update-one-newsletter-subscription': true,
   'unsubscribe-from-all-newsletters': true,
   'view-osquery-table-details': true,

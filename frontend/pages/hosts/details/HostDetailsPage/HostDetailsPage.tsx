@@ -18,16 +18,20 @@ import {
   IHost,
   IDeviceMappingResponse,
   IMacadminsResponse,
-  IPackStats,
   IHostResponse,
   IHostMdmData,
+  IPackStats,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
-import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
+import {
+  IListQueriesResponse,
+  IQueryKeyQueriesLoadAll,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -48,7 +52,6 @@ import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
 import ScheduleCard from "../cards/Schedule";
 import PacksCard from "../cards/Packs";
-import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -61,6 +64,7 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
+import SelectQueryModal from "./modals/SelectQueryModal";
 
 const baseClass = "host-details";
 
@@ -151,24 +155,25 @@ const HostDetailsPage = ({
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [packsState, setPacksState] = useState<IPackStats[]>();
   const [schedule, setSchedule] = useState<IQueryStats[]>();
+  const [packsState, setPacksState] = useState<IPackStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
-    IFleetQueriesResponse,
+    IListQueriesResponse,
     Error,
-    IQuery[]
-  >("fleet queries", () => queryAPI.loadAll(), {
+    ISchedulableQuery[],
+    IQueryKeyQueriesLoadAll[]
+  >([{ scope: "queries", teamId: undefined }], () => queryAPI.loadAll(), {
     enabled: !!hostIdFromURL,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     retry: false,
-    select: (data: IFleetQueriesResponse) => data.queries,
+    select: (data: IListQueriesResponse) => data.queries,
   });
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
@@ -312,8 +317,8 @@ const HostDetailsPage = ({
             },
             { packs: [], schedule: [] }
           );
-          setPacksState(packStatsByType.packs);
           setSchedule(packStatsByType.schedule);
+          setPacksState(packStatsByType.packs);
         }
       },
       onError: (error) => handlePageError(error),
@@ -484,9 +489,9 @@ const HostDetailsPage = ({
     router.push(PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host?.id));
   };
 
-  const onQueryHostSaved = (selectedQuery: IQuery) => {
+  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
     router.push(
-      PATHS.EDIT_QUERY(selectedQuery) +
+      PATHS.EDIT_QUERY(selectedQuery.id) +
         TAGGED_TEMPLATES.queryByHostRoute(host?.id)
     );
   };
