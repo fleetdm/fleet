@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: (converted from pack "p1", query "q1")
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: p1 - q1 - Jan  1 00:00:00.000
+  observer_can_run: false
+  platform: darwin
+  query: select 1
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: true
+  description: (converted from pack "p2", query "q2")
+  interval: 90
+  logging: differential
+  min_osquery_version: ""
+  name: p2 - q2 - t1 - Jan  1 00:00:00.000
+  observer_can_run: false
+  platform: linux
+  query: select 2
+  team: t1
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: true
+  description: (converted from pack "p2", query "q2")
+  interval: 90
+  logging: differential
+  min_osquery_version: ""
+  name: p2 - q2 - t2 - Jan  1 00:00:00.000
+  observer_can_run: false
+  platform: linux
+  query: select 2
+  team: t2
+---
