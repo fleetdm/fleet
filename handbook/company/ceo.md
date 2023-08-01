@@ -278,8 +278,8 @@ Thank you so much!" 🙇
 ## Rituals
 (Who will...)
 
+<rituals :rituals-yaml="ritualsTables.company"></rituals>
 
-| TODO | 
 
 
 ## Kanban

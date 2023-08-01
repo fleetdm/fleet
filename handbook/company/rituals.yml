@@ -40,13 +40,15 @@
   task: "Share recording of all hands meeting"
   startedOn: "2023-07-xx"
   frequency: "After each monthly all hands meeting"
-  description: "[Sharing the all hands recording](https://fleetdm.com/handbook/company/ceo#after-the-all-hands)"
+  description: "Sharing the all hands recording"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#after-the-all-hands"
   dri: "sampfluger88"
 -
   task: "Prepare all hands deck"
   startedOn: "2023-07-xx"
   frequency: "The night (CT) before each monthly all hands meeting"
-  description: "[Preparing the all hands deck](https://fleetdm.com/handbook/company/ceo#prep-for-the-all-hands-call)"
+  description: "Preparing the all hands deck"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#preparing-for-the-all-hands"
   dri: "sampfluger88"
 -
   task: "Prepare board deck"
