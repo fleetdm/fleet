@@ -735,7 +735,7 @@ module.exports = {
         for(let ritualsYamlFilePath of ritualTablesYamlFiles){
           // Get this rituals.yml file's parent folder name, we'll use this as the key for this section's rituals in the ritualsTables dictionary
 
-          let parentFolderOfThisYamlFile = ritualsYamlFilePath.split('handbook/')[1].split('/rituals.yml')[0]// TODO: get the parent folder name a different way.
+          let parentFolderOfThisYamlFile = ritualsYamlFilePath.split('handbook/')[1].split('/rituals.yml')[0];// TODO: get the parent folder name a better way.
           // Parse the rituals YAML file.
           let yaml = await sails.helpers.fs.read(ritualsYamlFilePath).intercept('doesNotExist', (err)=>new Error(`Could not find pricing table features YAML file at "${ritualsYamlFilePath}".  Was it accidentally moved?  Raw error: `+err.message));
           let ritualsFromRitualTableYaml = YAML.parse(yaml, {prettyErrors: true});
@@ -743,19 +743,19 @@ module.exports = {
           // Make sure each ritual in the rituals YAML file has a task, startedOn, frequency, description, and DRI.
           for(let ritual of ritualsFromRitualTableYaml){
             if(!ritual.task){ // Throw an error if a ritual is missing a task
-              throw new Error(`Could not build rituals from ${RELATIVE_PATH_TO_RITUAL_TABLE_YML_IN_FLEET_REPO}. A ritual in the YAML file is missing a task. To resolve add a task value (the name of the ritual) and try running this script again`);
+              throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual in the YAML file is missing a task. To resolve add a task value (the name of the ritual) and try running this script again`);
             }
             if(!ritual.startedOn){// Throw an error if a ritual is missing a startedOn value.
-              throw new Error(`Could not build rituals from ${RELATIVE_PATH_TO_RITUAL_TABLE_YML_IN_FLEET_REPO}. A ritual in the YAML file is missing a startedOn. To resolve add a startedOn value to the "${ritual.task}" ritual and try running this script again`);
+              throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual in the YAML file is missing a startedOn. To resolve add a startedOn value to the "${ritual.task}" ritual and try running this script again`);
             }
             if(!ritual.frequency){// Throw an error if a ritual is missing a frequency value.
-              throw new Error(`Could not build rituals from ${RELATIVE_PATH_TO_RITUAL_TABLE_YML_IN_FLEET_REPO}. A ritual in the YAML file is missing a frequency. To resolve add a frequency value to the "${ritual.task}" ritual and try running this script again`);
+              throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual in the YAML file is missing a frequency. To resolve add a frequency value to the "${ritual.task}" ritual and try running this script again`);
             }
             if(!ritual.description){// Throw an error if a ritual is missing a description value.
-              throw new Error(`Could not build rituals from ${RELATIVE_PATH_TO_RITUAL_TABLE_YML_IN_FLEET_REPO}. A ritual in the YAML file is missing a description. To resolve add a description value to the "${ritual.task}" ritual and try running this script again`);
+              throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual in the YAML file is missing a description. To resolve add a description value to the "${ritual.task}" ritual and try running this script again`);
             }
             if(!ritual.dri){// Throw an error if a ritual is missing a dri value.
-              throw new Error(`Could not build rituals from ${RELATIVE_PATH_TO_RITUAL_TABLE_YML_IN_FLEET_REPO}. A ritual in the YAML file is missing a DRI. To resolve add a DRI value to the "${ritual.task}" ritual and try running this script again`);
+              throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual in the YAML file is missing a DRI. To resolve add a DRI value to the "${ritual.task}" ritual and try running this script again`);
             }
           }
           // Add the rituals to builtStaticContent
