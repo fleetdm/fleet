@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -662,7 +661,6 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
 	profileToken, enrollmentRef, eulaToken, err := svc.mdmSSOHandleCallbackAuth(ctx, auth)
-
 	if err != nil {
 		logging.WithErr(ctx, err)
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
@@ -841,41 +839,9 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		}
 	}
 
-	teamName := teamNameFromPreassignGroups(groups)
-	team, err := svc.ds.TeamByName(ctx, teamName)
-
+	team, err := svc.getOrCreatePreassignTeam(ctx, groups)
 	if err != nil {
-		// TODO: update to use fleet.IsNotFound once
-		// https://github.com/fleetdm/fleet/pull/12620 is merged
-		if !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
-
-		// Create a new team with this set of profiles. Creating via the service
-		// call so that it properly assigns the agent options and creates audit
-		// activities, etc.
-		payload := fleet.TeamPayload{Name: &teamName}
-		team, err = svc.NewTeam(ctx, payload)
-		if err != nil {
-			return err
-		}
-
-		// teams created by the match endpoint have disk encryption
-		// enabled by default.
-		// TODO: maybe make this configurable?
-		payload.MDM = &fleet.TeamPayloadMDM{
-			MacOSSettings: &fleet.MacOSSettings{
-				EnableDiskEncryption: true,
-			},
-		}
-
-		// TODO: seems like we don't support enabling disk encryption
-		// on team creation?
-		// see https://github.com/fleetdm/fleet/issues/12220
-		team, err = svc.ModifyTeam(ctx, team.ID, payload)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	// create profiles for that team via the service call, so that uniqueness
@@ -891,6 +857,58 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 	}
 
 	return nil
+}
+
+func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []string) (*fleet.Team, error) {
+	teamName := teamNameFromPreassignGroups(groups)
+	team, err := svc.ds.TeamByName(ctx, teamName)
+	if err != nil {
+		if !fleet.IsNotFound(err) {
+			return nil, err
+		}
+
+		// Create a new team for this set of groups. Creating via the service
+		// call so that it properly assigns the agent options and creates audit
+		// activities, etc.
+		payload := fleet.TeamPayload{Name: &teamName}
+		team, err = svc.NewTeam(ctx, payload)
+		if err != nil {
+			return nil, err
+		}
+
+		// Get default bootstrap package and end user auth settings for no team.
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		payload.MDM = &fleet.TeamPayloadMDM{
+			MacOSSettings: &fleet.MacOSSettings{
+				// teams created by the match endpoint have disk encryption
+				// enabled by default.
+				// TODO: maybe make this configurable?
+				EnableDiskEncryption: true,
+			},
+			MacOSSetup: &fleet.MacOSSetup{
+				// // NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
+				// // instead by CopyDefaultMDMAppleBootstrapPackage below
+				// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
+				EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
+			},
+		}
+
+		// TODO: seems like we don't support enabling disk encryption
+		// on team creation?
+		// see https://github.com/fleetdm/fleet/issues/12220
+		team, err = svc.ModifyTeam(ctx, team.ID, payload)
+		if err != nil {
+			return nil, err
+		}
+		if err := svc.ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, team.ID); err != nil {
+			return nil, err
+		}
+	}
+	return team, nil
 }
 
 // teamNameFromPreassignGroups returns the team name to use for a new team
