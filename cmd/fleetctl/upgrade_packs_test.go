@@ -365,3 +365,29 @@ func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("dummy"), content)
 }
+
+func TestFleetctlUpgradePacks_NoPack(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
+	}
+
+	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
+		return nil, nil
+	}
+
+	tempDir := t.TempDir()
+	outputFile := filepath.Join(tempDir, "output.yml")
+
+	// write some dummy data in the file, it should NOT be overwritten
+	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
+	require.NoError(t, err)
+
+	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	require.Contains(t, got, "No 2017 \"Packs\" found.\n")
+
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err)
+	require.Equal(t, []byte("dummy"), content)
+}
