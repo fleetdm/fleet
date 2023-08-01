@@ -321,21 +321,21 @@ func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
 		}, nil
 	}
 
+	// expects a global query for p1 (targets a label) and per-team queries for p2 (t1 and t2)
+	b, err := os.ReadFile(filepath.Join("testdata", "expectedUpgradePacks.yml"))
+	require.NoError(t, err)
+	expected := string(b)
+
 	tempDir := t.TempDir()
 	outputFile := filepath.Join(tempDir, "output.yml")
 
 	// write some dummy data in the file, it should be overwritten
-	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
+	err = os.WriteFile(outputFile, []byte("dummy"), 0644)
 	require.NoError(t, err)
 
 	testUpgradePacksTimestamp = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, `Converted 2 queries from 2 2017 "Packs" into portable queries:`)
-
-	// expects a global query for p1 (targets a label) and per-team queries for p2 (t1 and t2)
-	b, err := os.ReadFile(filepath.Join("testdata", "expectedUpgradePacks.yml"))
-	require.NoError(t, err)
-	expected := string(b)
 
 	content, err := os.ReadFile(outputFile)
 	require.NoError(t, err)
