@@ -75,6 +75,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
-<meta name="publishedOn" value="2023-07-12">
+<meta name="publishedOn" value="2023-08-01">
 <meta name="articleTitle" value="Fleet 4.35.0 | Improvements and bug fixes.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.35.0-1600x900@2x.png">
