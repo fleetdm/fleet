@@ -575,7 +575,6 @@ Before 4.35, a scheduled query was a separate item treated at the same level as 
 
 After upgrading to 4.35, any global scheduled query will have its query be converted into a global query with the relevant schedule characteristics (frequency, min. osquery version, logging, etc.). Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
 
-Packs will not be affected by this change. If a query is referenced by a pack, a global query will be generated and the pack will continue to point to that query. All changes are backwards compatible.
 
 
 <meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community.">
