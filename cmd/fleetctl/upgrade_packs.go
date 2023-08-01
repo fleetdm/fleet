@@ -173,7 +173,7 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 
 	var targetsHosts bool
 	if packDB != nil {
-		targetsHosts = len(packDB.HostIDs) > 0
+		targetsHosts = len(packDB.Hosts) > 0
 	}
 
 	schedByName := make(map[string]*fleet.PackSpecQuery, len(packSpec.Queries))
@@ -189,6 +189,10 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 
 	for _, pq := range packQueries {
 		sched := schedByName[pq.Name]
+		if sched == nil {
+			continue
+		}
+
 		desc := pq.Description
 		if desc != "" && !strings.HasSuffix(desc, "\n") {
 			desc += "\n"
