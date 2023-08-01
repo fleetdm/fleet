@@ -22,12 +22,6 @@ import (
 func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spec.Group, error) {
 	specs := &spec.Group{
 		Queries: []*fleet.QuerySpec{},
-		Packs:   []*fleet.PackSpec{},
-		Labels:  []*fleet.LabelSpec{},
-	}
-
-	pack := &fleet.PackSpec{
-		Name: name,
 	}
 
 	// this ensures order is consistent in output
@@ -41,12 +35,8 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 
 	for _, name := range keys {
 		query := inputPack.Queries[name]
-		spec := &fleet.QuerySpec{
-			Name:        name,
-			Description: query.Description,
-			Query:       query.Query,
-		}
 
+		// get the interval as uint from a variety of possible types
 		interval := uint(0)
 		switch i := query.Interval.(type) {
 		case string:
@@ -61,21 +51,15 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 			interval = uint(i)
 		}
 
-		specs.Queries = append(specs.Queries, spec)
-		pack.Queries = append(pack.Queries, fleet.PackSpecQuery{
+		spec := &fleet.QuerySpec{
 			Name:        name,
-			QueryName:   name,
-			Interval:    interval,
 			Description: query.Description,
-			Snapshot:    query.Snapshot,
-			Removed:     query.Removed,
-			Shard:       query.Shard,
-			Platform:    query.Platform,
-			Version:     query.Version,
-		})
-	}
+			Query:       query.Query,
+			Interval:    interval,
+		}
 
-	specs.Packs = append(specs.Packs, pack)
+		specs.Queries = append(specs.Queries, spec)
+	}
 
 	return specs, nil
 }
@@ -149,27 +133,6 @@ func convertCommand() *cli.Command {
 				}
 				defer file.Close()
 				w = file
-			}
-
-			for _, pack := range specs.Packs {
-				specBytes, err := json.Marshal(pack)
-				if err != nil {
-					return err
-				}
-
-				meta := spec.Metadata{
-					Kind:    fleet.PackKind,
-					Version: fleet.ApiVersion,
-					Spec:    specBytes,
-				}
-
-				out, err := yaml.Marshal(meta)
-				if err != nil {
-					return err
-				}
-
-				fmt.Fprintln(w, "---")
-				fmt.Fprint(w, string(out))
 			}
 
 			for _, query := range specs.Queries {
