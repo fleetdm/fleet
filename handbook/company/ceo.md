@@ -188,7 +188,8 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/b
  - The PDF can be found in the current months [👋All hands folder](https://drive.google.com/drive/u/0/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) in Google Drive.
  - Download the PDF and upload (double click the `+`) into your updated Slack message, which will look like this:👇 
 
-![image](https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1)
+<img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
+
 
 🚀 **Send it!**
 
@@ -249,10 +250,8 @@ How to file videos from Gong recordings (**marking as "private" in Gong is not a
 
 | Channel | Purpose | Standard Operating Procedure | DRI |
 | ------- | ------- | ---------------------------- | --- |
-| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV)  
-| Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) 
-| Reach out to the AttC with requests or to add an item on the  | AttC |
-| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | AttC |
+| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) | Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) | Reach out to the AttC with requests or to add an item on the  | [@sampfluger]([https://github.com/sampfluger88](https://fleetdm.slack.com/archives/D05DW7BT2GY)) |
+| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | [@sampfluger]([https://github.com/sampfluger88](https://fleetdm.slack.com/archives/D05DW7BT2GY)) |
 
      
 ### Why not mention the CEO in Slack threads?
@@ -262,7 +261,7 @@ So why not the CEO?
 
 From Mike:
 
-<blockquote purpose= quote>Staying on top of your Slack mentions (including in threads!) is very important.  Please use them. 
+<blockquote purpose="quote">Staying on top of your Slack mentions (including in threads!) is very important.  Please use them. 
 But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.  [Too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit).
 I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
  What do I still read?
