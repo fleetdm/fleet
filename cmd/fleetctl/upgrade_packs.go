@@ -12,6 +12,9 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// variable used by tests to set a predictable timestamp
+var testUpgradePacksTimestamp time.Time
+
 func upgradePacksCommand() *cli.Command {
 	var outputFilename string
 	return &cli.Command{
@@ -90,7 +93,10 @@ func upgradePacksCommand() *cli.Command {
 				convertedQueries int
 			)
 			// use a consistent upgrade timestamp for all new queries (used to make name unique)
-			upgradeTimestamp := time.Now()
+			upgradeTimestamp := testUpgradePacksTimestamp
+			if upgradeTimestamp.IsZero() {
+				upgradeTimestamp = time.Now()
+			}
 			for _, packSpec := range packsSpecs {
 				newPackSpecs, convPackQueries := upgradePackToQueriesSpecs(packSpec, packsByID[packSpec.ID], queriesByPack[packSpec], upgradeTimestamp)
 				newSpecs = append(newSpecs, newPackSpecs...)
@@ -134,7 +140,7 @@ func writeQuerySpecsToFile(filename string, specs []*fleet.QuerySpec) error {
 		if err != nil {
 			return err
 		}
-		if _, err := fmt.Fprint(f, string(yml)+"\n---\n"); err != nil {
+		if _, err := fmt.Fprint(f, string(yml)+"---\n"); err != nil {
 			return err
 		}
 	}

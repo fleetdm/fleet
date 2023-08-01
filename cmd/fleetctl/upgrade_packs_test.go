@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -171,6 +174,16 @@ func TestUpgradeSinglePack(t *testing.T) {
 			},
 			wantCount: 1,
 		},
+		{
+			desc:    "a query, team target, disabled pack",
+			pack:    &fleet.Pack{Name: "p1", Disabled: true, Teams: []fleet.Target{{Type: fleet.TargetTeam, DisplayText: "t1"}}},
+			queries: []*fleet.Query{{Name: "q1", Query: "select 1"}},
+			scheds:  []fleet.PackSpecQuery{{QueryName: "q1", Interval: 60}},
+			want: []*fleet.QuerySpec{
+				{Name: "p1 - q1 - t1 - Jan  1 00:00:00.000", Description: `(converted from pack "p1", query "q1")`, Query: "select 1", TeamName: "t1", AutomationsEnabled: false, Interval: 60},
+			},
+			wantCount: 1,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -200,8 +213,147 @@ func TestUpgradeSinglePack(t *testing.T) {
 	}
 }
 
-func TestFleetctlUpgradePacks_Empty(t *testing.T) {
+func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
+	}
+
+	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
+		return []*fleet.PackSpec{
+			{Name: "p1", Targets: fleet.PackSpecTargets{Labels: []string{"l1"}}},
+			{Name: "p2", Targets: fleet.PackSpecTargets{Teams: []string{"t1"}}},
+		}, nil
+	}
+
+	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
+		return []*fleet.Pack{
+			{Name: "p1", Labels: []fleet.Target{{Type: fleet.TargetLabel, DisplayText: "l1"}}, LabelIDs: []uint{1}},
+			{Name: "p2", Teams: []fleet.Target{{Type: fleet.TargetTeam, DisplayText: "t1"}}, TeamIDs: []uint{1}},
+		}, nil
+	}
+
+	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+		return nil, nil
+	}
+
+	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+		return fleet.TargetMetrics{}, nil
+	}
+
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return nil, nil
+	}
+
+	tempDir := t.TempDir()
+	outputFile := filepath.Join(tempDir, "output.yml")
+
+	// write some dummy data in the file, it should be overwritten
+	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
+	require.NoError(t, err)
+
+	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	require.Contains(t, got, `Converted 0 queries from 2 2017 "Packs" into portable queries:`)
+
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err)
+	require.Empty(t, content)
 }
 
 func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
+	}
+
+	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
+		// queries must match those returned by ListScheduledQueriesInPackWithStats
+		return []*fleet.PackSpec{
+			{ID: 1, Name: "p1", Targets: fleet.PackSpecTargets{Labels: []string{"l1"}}, Queries: []fleet.PackSpecQuery{
+				{QueryName: "q1", Name: "sq1", Interval: 60, Snapshot: ptr.Bool(true), Platform: ptr.String("darwin")},
+			}},
+			{ID: 2, Name: "p2", Targets: fleet.PackSpecTargets{Teams: []string{"t1", "t2"}}, Queries: []fleet.PackSpecQuery{
+				{QueryName: "q2", Name: "sq2", Interval: 90, Removed: ptr.Bool(true), Platform: ptr.String("linux")},
+			}},
+		}, nil
+	}
+
+	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
+		return []*fleet.Pack{
+			{ID: 1, Name: "p1", Labels: []fleet.Target{
+				{Type: fleet.TargetLabel, DisplayText: "l1"},
+			}, LabelIDs: []uint{1}},
+			{ID: 2, Name: "p2", Teams: []fleet.Target{
+				{Type: fleet.TargetTeam, DisplayText: "t1"},
+				{Type: fleet.TargetTeam, DisplayText: "t2"},
+			}, TeamIDs: []uint{1, 2}},
+		}, nil
+	}
+
+	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+		// queries must match those returned by GetPackSpecs
+		if id == 1 {
+			return []*fleet.ScheduledQuery{
+				{ID: 1, PackID: id, Name: "sq1", QueryName: "q1", Interval: 60, Snapshot: ptr.Bool(true), Platform: ptr.String("darwin")},
+			}, nil
+		}
+		return []*fleet.ScheduledQuery{
+			{ID: 2, PackID: id, Name: "sq2", QueryName: "q2", Interval: 90, Removed: ptr.Bool(true), Platform: ptr.String("linux")},
+		}, nil
+	}
+
+	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+		return fleet.TargetMetrics{}, nil
+	}
+
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return []*fleet.Query{
+			{Name: "q1", Query: "select 1"},
+			{Name: "q2", Query: "select 2"},
+			{Name: "q3", Query: "select 3"},
+		}, nil
+	}
+
+	tempDir := t.TempDir()
+	outputFile := filepath.Join(tempDir, "output.yml")
+
+	// write some dummy data in the file, it should be overwritten
+	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
+	require.NoError(t, err)
+
+	testUpgradePacksTimestamp = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	require.Contains(t, got, `Converted 2 queries from 2 2017 "Packs" into portable queries:`)
+
+	// expects a global query for p1 (targets a label) and per-team queries for p2 (t1 and t2)
+	b, err := os.ReadFile(filepath.Join("testdata", "upgradePacksExpectedNonEmpty.yml"))
+	require.NoError(t, err)
+	expected := string(b)
+
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err)
+	require.Equal(t, expected, string(content))
+}
+
+func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleObserver)}, nil
+	}
+
+	tempDir := t.TempDir()
+	outputFile := filepath.Join(tempDir, "output.yml")
+
+	// write some dummy data in the file, it should NOT be overwritten
+	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
+	require.NoError(t, err)
+
+	runAppCheckErr(t, []string{"upgrade-packs", "-o", outputFile}, `could not upgrade packs: forbidden: user does not have the admin role`)
+
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err)
+	require.Equal(t, []byte("dummy"), content)
 }
