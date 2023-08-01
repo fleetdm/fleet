@@ -1,2 +1,0 @@
-- The `osquery/config` endpoint should include scheduled queries for the host's team stored in the
-  `queries` table.
