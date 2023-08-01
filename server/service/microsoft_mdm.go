@@ -1179,7 +1179,7 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 				}
 
 				.main-content {
-					padding: 40px;
+					padding: 0px;
 				}
 
 				.eula-wrapper {
@@ -1226,7 +1226,7 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 				<div class="mdm-windows-sso-callback-page">
 					<div class="eula-wrapper">
 						<h1>Terms and conditions</h1>
-						<iframe width="724" height="1024" src="/assets/viewerjs-0.5.8/ViewerJS/#../../../assets/windows-end-user-license-agreement.pdf"></iframe>
+						<iframe width="500" height="400" src="/assets/viewerjs-0.5.8/ViewerJS/#../../../assets/windows-end-user-license-agreement.pdf"></iframe>
 						<button onClick="agreeToTerms()">Agree and continue</button>
 					</div>
 				</div>
