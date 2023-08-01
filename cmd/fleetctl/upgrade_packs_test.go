@@ -333,7 +333,7 @@ func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
 	require.Contains(t, got, `Converted 2 queries from 2 2017 "Packs" into portable queries:`)
 
 	// expects a global query for p1 (targets a label) and per-team queries for p2 (t1 and t2)
-	b, err := os.ReadFile(filepath.Join("testdata", "upgradePacksExpectedNonEmpty.yml"))
+	b, err := os.ReadFile(filepath.Join("testdata", "expectedUpgradePacks.yml"))
 	require.NoError(t, err)
 	expected := string(b)
 
