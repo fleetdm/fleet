@@ -22,12 +22,12 @@ The 🦿 CEO support team is made up of these people:
 
 [![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
 
-* "[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc." 
-* I talk to think.
-* I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
-* I can be quick to criticism, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
-* I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
-* When ideas differ I start at "what I would do", then talk myself backward toward the original idea
+<blockquote purpose="quote">[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc.</blockquote> 
+- I talk to think.
+- I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
+- I can be quick to criticism, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
+- I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
+- When ideas differ I start at "what I would do", then talk myself backward toward the original idea
 
 
 #### Writing style
@@ -75,18 +75,11 @@ To grab time with the CEO @mention the [AttC](#team) in the [#-meetings channel]
 Other internal meetings and blocked time can always be moved to make room. External meetings, travel, and personal commitments cannot be moved.
 
 All meetings on Mike's calendar are reviewed and scheduled by the AttC. 
-_Please **do not** directly schedule a meeting onto Mike's calendar without confirming with the Apprentice first unless requested directly from Mike._
+Please ***do not*** directly schedule a meeting onto Mike's calendar without confirming with the Apprentice first unless requested directly from Mike.
 
 All meetings with the CEO should originate from his calendar and Zoom account. 
 All items on Mike's calendar are subject to change by the CEO to better serve the company. 
 Last-minute changes or cancellations must be communicated to Mike via [direct message (DM) only](#why-not-mention-the-ceo-in-slack-threads).
-
-
-
-
-
- 
-
 
 
 ### Schedule travel for the CEO
@@ -247,22 +240,9 @@ How to file videos from Gong recordings (**marking as "private" in Gong is not a
     - Include in the doc "link to transcript:"
 
 
-### Why not mention the CEO in Slack threads?
-Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
+## Rituals
+(Who will...)
 
-So why not the CEO?
-
-From Mike:
-
-"Staying on top of your Slack mentions (including in threads!) is very important.  Please use them. 
-But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.  [Too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit).
-I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
- What do I still read?
- - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
- - If you send me a direct message, I'll see and read that ASAP.
-Keep in mind I am often in meetings all day, and may not be able to reply promptly.
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
-Thank you so much!" 🙇
 
 
 ## Slack channels
@@ -275,17 +255,27 @@ Thank you so much!" 🙇
 | [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | AttC |
 
      
-## Rituals
-(Who will...)
+### Why not mention the CEO in Slack threads?
+Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
 
+So why not the CEO?
 
-| TODO | 
+From Mike:
+
+<blockquote purpose= quote>Staying on top of your Slack mentions (including in threads!) is very important.  Please use them. 
+But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.  [Too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit).
+I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
+ What do I still read?
+ - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
+ - If you send me a direct message, I'll see and read that ASAP.
+Keep in mind I am often in meetings all day, and may not be able to reply promptly.
+When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
+Thank you so much!" 🙇</blockquote> 
 
 
 ## Kanban
 
 Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this department, including pending tasks in the active sprint and any new or pending requests.
-
 
 
 ## Intake
