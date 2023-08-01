@@ -328,6 +328,13 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Find Fleet at DefCon and get a custom tee shirt.',
     }
   },
+  'GET /imagine/jamf-alternative': {
+    action: 'imagine/view-jamf-alternative',
+    locals: {
+      pageTitleForMeta: 'An open-source alternative to Jamf',
+      pageDescriptionForMeta: 'Simplify vulnerability management with Fleet, an open-source platform with superior visibility.',
+    }
+  },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
