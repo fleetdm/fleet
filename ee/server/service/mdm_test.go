@@ -126,7 +126,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 	}
 	teamStore := map[uint]*fleet.Team{1: team1, 2: team2}
 
-	resetDSFuncsInvoked := func() {
+	resetInvoked := func() {
 		ds.TeamByNameFuncInvoked = false
 		ds.NewTeamFuncInvoked = false
 		ds.SaveTeamFuncInvoked = false
@@ -136,7 +136,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.NewJobFuncInvoked = false
 	}
 	setupDS := func(t *testing.T) {
-		resetDSFuncsInvoked()
+		resetInvoked()
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appConfig, nil
@@ -200,7 +200,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.AppConfigFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
-		resetDSFuncsInvoked()
+		resetInvoked()
 	})
 
 	t.Run("create preassign team", func(t *testing.T) {
@@ -283,7 +283,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 		require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 		require.True(t, ds.NewJobFuncInvoked)
-		resetDSFuncsInvoked()
+		resetInvoked()
 
 		// when called again, simply get the previously created team
 		team, err = svc.getOrCreatePreassignTeam(ctx, preassignGroups)
@@ -301,7 +301,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 		require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 		require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-		resetDSFuncsInvoked()
+		resetInvoked()
 	})
 
 	t.Run("modify team", func(t *testing.T) {
@@ -331,7 +331,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
-		resetDSFuncsInvoked()
+		resetInvoked()
 	})
 
 	t.Run("new team", func(t *testing.T) {
@@ -368,7 +368,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
-		resetDSFuncsInvoked()
+		resetInvoked()
 	})
 
 	t.Run("apply team spec", func(t *testing.T) {
@@ -419,7 +419,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 
 		// apply team spec creates new team without defaults
-		_, err := (*Service)(svc).ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.NewTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
@@ -428,11 +428,11 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
-		resetDSFuncsInvoked()
+		resetInvoked()
 
 		// apply team spec edits existing team without applying defaults
 		spec.MDM.MacOSUpdates.Deadline = optjson.SetString("2025-01-01")
-		_, err = (*Service)(svc).ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.SaveTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
@@ -441,7 +441,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
-		resetDSFuncsInvoked()
+		resetInvoked()
 	})
 }
 

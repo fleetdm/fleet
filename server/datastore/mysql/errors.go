@@ -95,6 +95,7 @@ func (e *existsError) Error() string {
 	if e.Identifier != nil {
 		msg += fmt.Sprintf(" %v", e.Identifier)
 	}
+	msg += " already exists"
 	if e.TeamID != nil {
 		msg += fmt.Sprintf(" with TeamID %d", *e.TeamID)
 	}
