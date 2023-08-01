@@ -573,7 +573,7 @@ Scheduled queries are not gone! Instead the concept of a scheduled query has bee
 
 Before 4.35, a scheduled query was a separate item treated at the same level as a query. After 4.35, there will only be one page of queries and a query can be scheduled or it can simply be saved to be run ad-hoc. Queries can now belong to teams or they can be a global query which every team inherits.
 
-When you upgrade to 4.35, any global scheduled query will have its query be converted into a global query with the relevant schedule characteristics (frequency, min. osquery version, logging, etc.). Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
+After upgrading to 4.35, any global scheduled query will have its query be converted into a global query with the relevant schedule characteristics (frequency, min. osquery version, logging, etc.). Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
 
 Packs will not be affected by this change. If a query is referenced by a pack, a global query will be generated and the pack will continue to point to that query. All changes are backwards compatible.
 
