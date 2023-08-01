@@ -1,66 +1,10 @@
 ---
 apiVersion: v1
-kind: pack
-spec:
-  disabled: false
-  name: convert_input
-  queries:
-  - description: Retrieves the list of application scheme/protocol-based IPC handlers.
-    interval: 86400
-    name: app_schemes
-    platform: darwin
-    query: app_schemes
-    version: 1.4.7
-  - description: Retrieves the current disk encryption status for the target system.
-    interval: 86400
-    name: disk_encryption
-    platform: posix
-    query: disk_encryption
-    version: 1.4.5
-  - description: Retrieves the current filters and chains per filter in the target
-      system.
-    interval: 3600
-    name: iptables
-    platform: linux
-    query: iptables
-    version: 1.4.5
-  - description: Retrieves all the daemons that will run in the start of the target
-      OSX system.
-    interval: 3600
-    name: launchd
-    platform: darwin
-    query: launchd
-    version: 1.4.5
-  - description: Lists the application bundle that owns a sandbox label.
-    interval: 86400
-    name: sandboxes
-    platform: darwin
-    query: sandboxes
-    version: 1.4.7
-  targets:
-    labels: null
-    teams: null
----
-apiVersion: v1
-kind: query
-spec:
-  automations_enabled: false
-  description: Retrieves the list of application scheme/protocol-based IPC handlers.
-  interval: 0
-  logging: ""
-  min_osquery_version: ""
-  name: app_schemes
-  observer_can_run: false
-  platform: ""
-  query: select * from app_schemes;
-  team: ""
----
-apiVersion: v1
 kind: query
 spec:
   automations_enabled: false
   description: Retrieves the current disk encryption status for the target system.
-  interval: 0
+  interval: 86400
   logging: ""
   min_osquery_version: ""
   name: disk_encryption
@@ -73,13 +17,27 @@ apiVersion: v1
 kind: query
 spec:
   automations_enabled: false
+  description: Retrieves the current disk encryption status for the target system.
+  interval: 300
+  logging: ""
+  min_osquery_version: ""
+  name: disk_encryption
+  observer_can_run: false
+  platform: "darwin,linux"
+  query: select * from disk_encryption;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
   description: Retrieves the current filters and chains per filter in the target system.
-  interval: 0
+  interval: 3600
   logging: ""
   min_osquery_version: ""
   name: iptables
   observer_can_run: false
-  platform: ""
+  platform: "linux"
   query: select * from iptables;
   team: ""
 ---
@@ -87,14 +45,15 @@ apiVersion: v1
 kind: query
 spec:
   automations_enabled: false
-  description: Retrieves all the daemons that will run in the start of the target
+  description:
+    Retrieves all the daemons that will run in the start of the target
     OSX system.
-  interval: 0
+  interval: 3600
   logging: ""
   min_osquery_version: ""
   name: launchd
   observer_can_run: false
-  platform: ""
+  platform: "darwin"
   query: select * from launchd;
   team: ""
 ---
@@ -103,11 +62,11 @@ kind: query
 spec:
   automations_enabled: false
   description: Lists the application bundle that owns a sandbox label.
-  interval: 0
+  interval: 86400
   logging: ""
   min_osquery_version: ""
   name: sandboxes
   observer_can_run: false
-  platform: ""
+  platform: "darwin"
   query: select * from sandboxes;
   team: ""
