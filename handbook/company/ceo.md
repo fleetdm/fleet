@@ -278,7 +278,7 @@ Thank you so much!" 🙇
 ## Rituals
 (Who will...)
 
-<rituals :rituals-yaml="ritualsTables.company"></rituals>
+<rituals :rituals-table="ritualsTables.company"></rituals>
 
 
 
