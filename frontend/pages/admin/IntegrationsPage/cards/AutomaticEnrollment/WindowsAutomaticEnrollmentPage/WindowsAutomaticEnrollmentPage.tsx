@@ -78,7 +78,7 @@ const WindowsAutomaticEnrollmentPage = () => {
                 inputWrapperClass={`${baseClass}__url-input`}
                 label="MDM terms of use URL"
                 name="mdmTermsOfUseUrl"
-                tooltip="The terms of use API is used to display the terms of service to end users
+                tooltip="The terms of use URL is used to display the terms of service to end users
                 before turning on MDM their host. The terms of use text informs users about
                 policies that will be enforced on the host."
                 value={generateMdmTermsOfUseUrl(
@@ -90,7 +90,7 @@ const WindowsAutomaticEnrollmentPage = () => {
                 inputWrapperClass={`${baseClass}__url-input`}
                 label="MDM discovery URL"
                 name="mdmDiscoveryUrl"
-                tooltip="The enrollment API is used to connect hosts with the MDM service."
+                tooltip="The enrollment URL is used to connect hosts with the MDM service."
                 value={generateMdmDiscoveryUrl(
                   config?.server_settings.server_url || ""
                 )}
