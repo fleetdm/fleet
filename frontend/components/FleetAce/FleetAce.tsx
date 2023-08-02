@@ -12,7 +12,12 @@ import {
   osqueryTableNames,
   selectedTableColumns,
 } from "utilities/osquery_tables";
-import { checkTable } from "utilities/sql_tools";
+import {
+  checkTable,
+  sqlBuiltinFunctions,
+  sqlDataTypes,
+  sqlKeyWords,
+} from "utilities/sql_tools";
 
 import "./mode";
 import "./theme";
@@ -85,6 +90,7 @@ const FleetAce = ({
     // Error handling within checkTableValues
 
     if (!readOnly) {
+      // Takes SQL and returns what table(s) are being used
       const checkTableValues = checkTable(value);
       console.log("checkTableValues", checkTableValues);
 
@@ -99,6 +105,46 @@ const FleetAce = ({
       if (updateCompleters) {
         langTools.setCompleters([]); // Reset completers as modifications are additive
         console.log("SET COMPLETERS TO EMPTY");
+
+        // Autocomplete sql keywords, builtin functions, and datatypes
+        const sqlKeyWordsCompleter = {
+          getCompletions: (
+            editor: Ace.Editor,
+            session: Ace.EditSession,
+            pos: Ace.Point,
+            prefix: string,
+            callback: Ace.CompleterCallback
+          ): void => {
+            callback(null, [
+              ...sqlKeyWords.map(
+                (keyWord: string) =>
+                  ({
+                    caption: `${keyWord}`,
+                    value: keyWord.toUpperCase(),
+                    meta: "keyword",
+                  } as Ace.Completion)
+              ),
+              ...sqlBuiltinFunctions.map(
+                (builtInFunction: string) =>
+                  ({
+                    caption: builtInFunction,
+                    value: builtInFunction.toUpperCase(),
+                    meta: "built-in function",
+                  } as Ace.Completion)
+              ),
+              ...sqlDataTypes.map(
+                (dataType: string) =>
+                  ({
+                    caption: dataType,
+                    value: dataType.toUpperCase(),
+                    meta: "data type",
+                  } as Ace.Completion)
+              ),
+            ]);
+          },
+        };
+
+        langTools.addCompleter(sqlKeyWordsCompleter); // Add selected table columns or all columns
 
         const sqlTableColumns = selectedTableColumns(
           checkTableValues.tables || []
