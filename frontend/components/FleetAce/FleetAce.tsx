@@ -81,7 +81,6 @@ const FleetAce = ({
     if (!readOnly) {
       // Takes SQL and returns what table(s) are being used
       const checkTableValues = checkTable(value);
-      console.log("checkTableValues", checkTableValues);
 
       // Update completers if no sql errors or the errors include syntax near table name
       const updateCompleters =
@@ -90,10 +89,8 @@ const FleetAce = ({
           .toString()
           .includes("Syntax error found near Identifier (FROM Clause)");
 
-      console.log("updateCompleters", updateCompleters);
       if (updateCompleters) {
         langTools.setCompleters([]); // Reset completers as modifications are additive
-        console.log("SET COMPLETERS TO EMPTY");
 
         // Autocomplete sql keywords, builtin functions, and datatypes
         const sqlKeyWordsCompleter = {
@@ -140,7 +137,6 @@ const FleetAce = ({
         );
 
         // Autocomplete table columns
-        console.log("sqlTableColumns", sqlTableColumns);
         const sqlTableColumnsCompleter = {
           getCompletions: (
             editor: Ace.Editor,
@@ -166,7 +162,6 @@ const FleetAce = ({
           },
         };
         langTools.addCompleter(sqlTableColumnsCompleter); // Add selected table columns or all columns
-        console.log("ADD COLUMN COMPLETERS");
 
         // Add all table name completers if no table name found
         const updateTableNameCompleters =
@@ -175,7 +170,6 @@ const FleetAce = ({
         if (updateTableNameCompleters) {
           // Autocomplete table names
           const sqlTables = osqueryTableNames;
-          console.log("sqlTables", sqlTables);
           const sqlTablesCompleter = {
             getCompletions: (
               editor: Ace.Editor,
@@ -198,7 +192,6 @@ const FleetAce = ({
             },
           };
           langTools.addCompleter(sqlTablesCompleter); // Add table name completers
-          console.log("ADD TABLE COMPLETERS");
         }
       }
     }
