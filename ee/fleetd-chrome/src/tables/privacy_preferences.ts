@@ -5,12 +5,12 @@ export default class TablePrivacyPreferences extends Table {
   // https://developer.chrome.com/docs/extensions/reference/privacy/
 
   name = "privacy_preferences";
+
   propertyAPIs = {
     // all of type `types.ChromeSetting<boolean>` with default `true` unless otherwise specified
 
     // though all of these properties are documented, some have not been added to the
     // typings we are using: https://www.npmjs.com/package/@types/chrome and must be `@ts-ignore`d
-
     // network
     network_prediction_enabled: chrome.privacy.network.networkPredictionEnabled,
     // type `types.ChromeSetting<IPHandlingPolicy>`, default "default"
