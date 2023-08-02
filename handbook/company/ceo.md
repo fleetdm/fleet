@@ -66,7 +66,7 @@ Please find a different way to get in touch:
 
 ### Schedule time with the CEO
 
-All [meetings](https://fleetdm.com/handbook/company/communtcation#internal-meeting-scheduling) are welcomed and a top priority for the CEO to get on the calendar quickly. 
+All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meeting-scheduling) are welcomed and a top priority for the CEO to get on the calendar quickly. 
 
 To grab time with the CEO @mention the [AttC](#team) in the [#-meetings channel](https://fleetdm.slack.com/archives/C01BQKMTJNR) with the following details:
 - Proposed date and time
@@ -108,7 +108,7 @@ Prioritizing in order of importance:
 
 _External meetings, travel, and personal commitments cannot be moved without the CEO's approval._ 
 
-[Meeting agenda prep](https://www.loom.com/share/7288747d006f4e7794de93d25945608a) is especially important to help the CEO focus and transition quickly in and between meetings.
+[Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
 
 In the notes document include:
   1. LinkedIn profile link of all outside participants
@@ -132,6 +132,33 @@ Morning times should be held for team members and external folks whose time zone
 
 Don't schedule over the Weekly E-group call unless approved by Mike.
  - Refer to Mike's list of priorities in the [Priority calls](https://docs.google.com/document/d/1kYbRUMiGgOtrl1Lh6HWRc64p3rLhwvgTZD6CSONbGEo/edit#) (internal doc). 
+
+### Send the weekly update
+
+We like to be open about milestones and announcements.
+  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
+  - Friday nights, the AttC will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
+    - A link to view KPIs
+    - Who was on-call that week
+    - Fleeties who are currently onboarding
+    - Planned hires who haven't started yet
+    - Fleeties who had their lady day that week
+  
+  - Change the "⚡️" to "🔭" in the beginning of the formula
+
+<img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/574f251c-6ea7-4e22-b0ca-1c450ca09ec6">
+
+  - Select this week's cell (first week with the 🔮) in the KPI spreadsheet and copy the entire formula
+  
+  - Paste without formating (CMD+⇧+V) back into the same cell
+  
+  - The formula will now look like this:
+    
+  <img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
+  
+  - Paste the newly formatted message in the [#general](https://fleetdm.slack.com/archives/C019FNQPA23) Slack channel
+
+  - 📬 **Send it!**
 
 
 ### Schedule travel for the CEO
@@ -187,7 +214,7 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/b
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
 
-🚀 **Send it!**
+📬 **Send it!**
 
 ### Connect on osquery and MacAdmins Slack
 
