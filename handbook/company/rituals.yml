@@ -1,40 +1,50 @@
+# TODO- stub out description of file and BIG SCRIPT TITLE"
+
+
+
 -
-  task: "Prioritize for next sprint"
-  startedOn: "2023-08-09"
-  frequency: "Triweekly"
+  task: "Prioritize for next sprint" # Title that will actually show in rituals table
+  startedOn: "2023-08-09" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
+  frequency: "Triweekly" # must be supported by
   description: "Drag next sprint's priorities to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
-  dri: "sampfluger88"
-  autoIssue:
-    labels: [ "#g-ceo" ]
+  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
+  dri: "sampfluger88" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-ceo" ] # label to be applied to issue
 -
   task: "Process the CEO's inbox"
   startedOn: "2023-07-29"
   frequency: "Daily, 4 times"
   description: "TODO"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#process-the-ceo's-inbox"
   dri: "sampfluger88"
 -
   task: "Process the CEO's calendar"
   startedOn: "2023-07-29"
   frequency: "Daily, 4 times"
-  description: "TODO"
+  description: "TODO"  
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#process-the-ceo's-calendar"
   dri: "sampfluger88"
 -
   task: "Fleet IT warehouse management"
   startedOn: "2023-07-29"
   frequency: "Weekly"
   description: "TODO"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#fleet-it-warehouse-management"
   dri: "sampfluger88"
 -
   task: "Send weekly update"
   startedOn: "2023-07-28"
   frequency: "Weekly"
   description: "TODO"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#send-the-weekly-update"
   dri: "sampfluger88"
 -
   task: "Wipe e-group agenda"
   startedOn: "2023-07-26"
   frequency: "After each weekly e-group meeting"
   description: "TODO"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#post-e-group-archival"
   dri: "sampfluger88"
 -
   task: "Share recording of all hands meeting"
