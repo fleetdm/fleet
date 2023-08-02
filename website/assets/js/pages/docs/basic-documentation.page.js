@@ -181,10 +181,10 @@ parasails.registerPage('basic-documentation', {
     let headingsOnThisPage = $('#body-content').find(':header');
     for(let key in Object.values(headingsOnThisPage)){
       let heading = headingsOnThisPage[key];
-      $(heading).click(()=> {
+      // Find the child <a> element
+      let linkToCopy = _.first($(heading).find('a.markdown-link'));
+      $(linkToCopy).click(()=> {
         if(typeof navigator.clipboard !== 'undefined') {
-          // Find the child <a> element
-          let linkToCopy = _.first($(heading).find('a.markdown-link'));
           // If this heading has already been clicked and still has the copied class we'll just ignore this click
           if(!$(heading).hasClass('copied')){
             // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
