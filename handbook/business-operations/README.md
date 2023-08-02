@@ -828,6 +828,11 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
 
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
+#### Vetty
+
+Fleet employees with access to Fleet's infrastructure undergo background check provided through Vetty.  
+Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty scroll down to the bottom of the candidates page and click "View Historical."
+
 
 ### Equipment
 #### Laptops
