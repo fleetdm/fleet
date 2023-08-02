@@ -81,7 +81,7 @@ const filterCompatiblePlatforms = (
   return SUPPORTED_PLATFORMS.filter((p) => compatiblePlatforms.includes(p));
 };
 
-const parseSqlTables = (
+export const parseSqlTables = (
   sqlString: string,
   includeCteTables = false
 ): string[] => {
@@ -122,7 +122,30 @@ const parseSqlTables = (
   }
 };
 
-const checkPlatformCompatibility = (
+export const checkTable = (
+  sqlString = "",
+  includeCteTables = false
+): { tables: string[] | null; error: Error | null } => {
+  let sqlTables: string[] | undefined;
+  try {
+    sqlTables = parseSqlTables(sqlString, includeCteTables);
+  } catch (err) {
+    return { tables: null, error: new Error(`${err}`) };
+  }
+
+  if (sqlTables === undefined) {
+    return {
+      tables: null,
+      error: new Error(
+        "Unexpected error checking table names: sqlTables are undefined"
+      ),
+    };
+  }
+
+  return { tables: sqlTables, error: null };
+};
+
+export const checkPlatformCompatibility = (
   sqlString: string,
   includeCteTables = false
 ): { platforms: SupportedPlatform[] | null; error: Error | null } => {
@@ -150,4 +173,4 @@ const checkPlatformCompatibility = (
   }
 };
 
-export default checkPlatformCompatibility;
+export default { checkPlatformCompatibility, checkTable };

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import AceEditor from "react-ace";
 import ReactAce from "react-ace/lib/ace";
 import { IAceEditor } from "react-ace/lib/types";
@@ -7,6 +7,12 @@ import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
 import "ace-builds/src-noconflict/ext-language_tools";
 import { noop } from "lodash";
+import ace, { Ace } from "ace-builds";
+import {
+  osqueryTableNames,
+  selectedTableColumns,
+} from "utilities/osquery_tables";
+import { checkTable } from "utilities/sql_tools";
 
 import "./mode";
 import "./theme";
@@ -52,6 +58,17 @@ const FleetAce = ({
   onChange,
   handleSubmit = noop,
 }: IFleetAceProps): JSX.Element => {
+  // const [sqlTables, setSqlTables] = useState<any>([]);
+
+  // useEffect(() => {
+  //   // Error handling within checkTableValues
+  //   if (!readOnly) {
+  //     const checkTableValues = checkTable(value);
+  //     console.log("checkTableValues", checkTableValues);
+  //     setSqlTables(selectedTableColumns(checkTableValues.tables || []));
+  //   }
+  // }, [value]);
+
   const editorRef = useRef<ReactAce>(null);
   const wrapperClass = classnames(wrapperClassName, baseClass, {
     [`${baseClass}__wrapper--error`]: !!error,
@@ -61,6 +78,92 @@ const FleetAce = ({
     editor.commands.removeCommand("gotoline");
     editor.commands.removeCommand("find");
   };
+
+  const langTools = ace.require("ace/ext/language_tools");
+
+  useEffect(() => {
+    // Error handling within checkTableValues
+
+    if (!readOnly) {
+      const checkTableValues = checkTable(value);
+      console.log("checkTableValues", checkTableValues);
+
+      // Update completers if no sql errors or the errors include syntax near table name
+      const updateCompleters =
+        !checkTableValues.error ||
+        checkTableValues.error
+          .toString()
+          .includes("Syntax error found near Identifier (FROM Clause)");
+
+      console.log("updateCompleters", updateCompleters);
+      if (updateCompleters) {
+        langTools.setCompleters([]); // Reset completers as modifications are additive
+        console.log("SET COMPLETERS TO EMPTY");
+
+        const sqlTableColumns = selectedTableColumns(
+          checkTableValues.tables || []
+        );
+
+        // Autocomplete table columns
+        console.log("sqlTableColumns", sqlTableColumns);
+        const sqlTableColumnsCompleter = {
+          getCompletions: (
+            editor: Ace.Editor,
+            session: Ace.EditSession,
+            pos: Ace.Point,
+            prefix: string,
+            callback: Ace.CompleterCallback
+          ): void => {
+            callback(
+              null,
+              sqlTableColumns.map(
+                (column: any) =>
+                  ({
+                    caption: `${column.name} ${column.description}`, // Distinct values from tables,
+                    value: column.name,
+                    meta: "Column",
+                  } as Ace.Completion)
+              )
+            );
+          },
+        };
+        langTools.addCompleter(sqlTableColumnsCompleter); // Add selected table columns or all columns
+        console.log("ADD COLUMN COMPLETERS");
+
+        // Add all table name completers if no table name found
+        const updateTableNameCompleters = !checkTableValues.tables?.length;
+
+        if (updateTableNameCompleters) {
+          // Autocomplete table names
+          const sqlTables = osqueryTableNames;
+          console.log("sqlTables", sqlTables);
+          const sqlTablesCompleter = {
+            getCompletions: (
+              editor: Ace.Editor,
+              session: Ace.EditSession,
+              pos: Ace.Point,
+              prefix: string,
+              callback: Ace.CompleterCallback
+            ): void => {
+              callback(
+                null,
+                sqlTables.map(
+                  (table: string) =>
+                    ({
+                      caption: `${table}`, // Distinct values from columns,
+                      value: table,
+                      meta: "Table",
+                    } as Ace.Completion)
+                )
+              );
+            },
+          };
+          langTools.addCompleter(sqlTablesCompleter); // Add table name completers
+          console.log("ADD TABLE COMPLETERS");
+        }
+      }
+    }
+  }, [value]);
 
   const onLoadHandler = (editor: IAceEditor) => {
     fixHotkeys(editor);
