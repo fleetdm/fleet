@@ -231,10 +231,6 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 		for _, tm := range packSpec.Targets.Teams {
 			converted = true
 
-			// TODO(mna): this is quite a name, check what we want to do for that,
-			// all of this is kinda required to ensure (with reasonable certainty)
-			// uniqueness.
-
 			// duplicate the query for each targeted team
 			newQueryName := fmt.Sprintf("%s - %s - %s - %s", packSpec.Name, pq.Name, tm, ts.Format("Jan _2 15:04:05.000"))
 			newSpecs = append(newSpecs, &fleet.QuerySpec{
@@ -246,7 +242,7 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 				ObserverCanRun:     pq.ObserverCanRun,
 				Platform:           schedPlatform,
 				MinOsqueryVersion:  schedVersion,
-				AutomationsEnabled: !packSpec.Disabled, // TODO(mna): confirm this
+				AutomationsEnabled: !packSpec.Disabled,
 				Logging:            loggingType,
 			})
 		}
