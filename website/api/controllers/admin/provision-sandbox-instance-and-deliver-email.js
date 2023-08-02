@@ -59,18 +59,18 @@ module.exports = {
     .timeout(10000)
     .intercept(['requestFailed', 'non200Response'], (err)=>{
       // If we received a non-200 response from the cloud provisioner API, we'll throw a 500 error.
-      return new Error('When attempting to provision a Sandbox instance for a user on the Fleet Sandbox waitlist ('+emailAddress+'), the cloud provisioner gave a non 200 response. Raw response received from provisioner: '+err.stack);
+      return new Error('When attempting to provision a Sandbox instance for a user on the Fleet Sandbox waitlist ('+userToRemoveFromSandboxWaitlist.emailAddress+'), the cloud provisioner gave a non 200 response. Raw response received from provisioner: '+err.stack);
     })
     .intercept({name: 'TimeoutError'},(err)=>{
       // If the request timed out, log a warning and return a 'requestToSandboxTimedOut' response.
-      sails.log.warn('When attempting to provision a Sandbox instance for a user on the Fleet Sandbox waitlist ('+emailAddress+'), the request to the cloud provisioner took over timed out. Raw error: '+err.stack);
+      sails.log.warn('When attempting to provision a Sandbox instance for a user on the Fleet Sandbox waitlist ('+userToRemoveFromSandboxWaitlist.emailAddress+'), the request to the cloud provisioner took over timed out. Raw error: '+err.stack);
       return 'requestToSandboxTimedOut';
     });
 
     if(!cloudProvisionerResponseData.URL) {
       // If we didn't receive a URL in the response from the cloud provisioner API, we'll throwing an error before we save the new user record and the user will need to try to sign up again.
       throw new Error(
-        `When provisioning a Fleet Sandbox instance for a user on the Fleet Sandbox waitlist (${emailAddress}), the response data from the cloud provisioner API was malformed. It did not contain a valid Fleet Sandbox instance URL in its expected "URL" property.
+        `When provisioning a Fleet Sandbox instance for a user on the Fleet Sandbox waitlist (${userToRemoveFromSandboxWaitlist.emailAddress}), the response data from the cloud provisioner API was malformed. It did not contain a valid Fleet Sandbox instance URL in its expected "URL" property.
         Here is the malformed response data (parsed response body) from the cloud provisioner API: ${cloudProvisionerResponseData}`
       );
     }
@@ -86,7 +86,7 @@ module.exports = {
         return true;
       }
     }, 10000).intercept('tookTooLong', ()=>{
-      return new Error('This newly provisioned Fleet Sandbox instance (for '+emailAddress+') is taking too long to respond with a 2xx status code, even after repeatedly polling the health check endpoint.  Note that failed requests and non-2xx responses from the health check endpoint were ignored during polling.  Search for a bit of non-dynamic text from this error message in the fleetdm.com source code for more info on exactly how this polling works.');
+      return new Error('This newly provisioned Fleet Sandbox instance (for '+userToRemoveFromSandboxWaitlist.emailAddress+') is taking too long to respond with a 2xx status code, even after repeatedly polling the health check endpoint.  Note that failed requests and non-2xx responses from the health check endpoint were ignored during polling.  Search for a bit of non-dynamic text from this error message in the fleetdm.com source code for more info on exactly how this polling works.');
     });
 
 
