@@ -1,0 +1,68 @@
+<!-- This is the html page for a user accepting the terms of service during the
+windwos mdm enrollment flow. -->
+<html>
+  <head>
+    <style>
+      .mdm-windows-sso-callback-page {
+        font-family: "Inter", sans-serif;
+        height: 100vh;
+        background-color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .main-content {
+        padding: 0px;
+      }
+
+      .eula-wrapper {
+        width: 80vw;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      h1 {
+        font-size: 28px;
+        font-weight: bold;
+        margin-top: 0;
+        margin-bottom: 42px;
+      }
+
+      button {
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        color: white;
+        background-color: #192147;
+        margin-top: 16px;
+        padding: 8px 16px;
+        font-size: 18px;
+        width: 341px;
+        height: 78px;
+      }
+    </style>
+    <script type="text/javascript">
+      const agreeToTerms = () => {
+        window.location =
+          "{{.RedirectURL}}" + "?IsAccepted=true&OpaqueBlob={{.ClientData}}";
+      };
+    </script>
+  </head>
+  <body>
+    <div class="main-content">
+      <div class="mdm-windows-sso-callback-page">
+        <div class="eula-wrapper">
+          <h1>Terms and conditions</h1>
+          <iframe
+            width="500"
+            height="400"
+            src="/assets/viewerjs-0.5.8/ViewerJS/#../../../assets/windows-end-user-license-agreement.pdf"
+          ></iframe>
+          <button onClick="agreeToTerms()">Agree and continue</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
