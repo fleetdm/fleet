@@ -532,5 +532,5 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-
+<meta name="description" value="Learn how to list, create, modify, and delete teams with Fleet's REST API.">
 <meta name="pageOrderInSection" value="1500">

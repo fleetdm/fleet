@@ -4,7 +4,7 @@
 
 ## Translate IDs
 
-Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
+Transforms a host name into a host id. For example, the Fleet UI uses this endpoint when sending live queries to a set of hosts.
 
 `POST /api/v1/fleet/translate`
 
@@ -90,4 +90,5 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 }
 ```
 
+<meta name="description" value="Learn how to retrieve Fleet database IDs for hosts, labels, teams, and users with Fleet's REST API.">
 <meta name="pageOrderInSection" value="1600">

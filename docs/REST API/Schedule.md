@@ -452,6 +452,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-
+<meta name="description" value="Documentation for the schedule API endpoints in Fleet. Note: These endpoints are deprecated as of Fleet 4.35.">
 <meta name="pageOrderInSection" value="1100">
 <meta name="title" value="Schedule (deprecated)">

@@ -463,5 +463,5 @@ load balancer timeout.
 }
 ```
 
-
+<meta name="description" value="Learn about the endpoints used to manage queries in Fleet's REST API.">
 <meta name="pageOrderInSection" value="1000">

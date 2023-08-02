@@ -82,4 +82,5 @@
 }
 ```
 
+<meta name="description" value="Documentation for the software endpoint in Fleet's REST API.">
 <meta name="pageOrderInSection" value="1300">

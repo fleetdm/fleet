@@ -161,4 +161,5 @@ for pagination. For a comprehensive list of activity types and detailed informat
 
 ```
 
+<meta name="description" value="Learn how to get a list of activities performed in a Fleet's REST API.">
 <meta name="pageOrderInSection" value="300">

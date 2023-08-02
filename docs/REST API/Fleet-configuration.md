@@ -1008,4 +1008,5 @@ None.
 }
 ```
 
+<meta name="description" value="Learn how to view and modify your Fleet instance configuration and invite users using Fleet's REST API.">
 <meta name="pageOrderInSection" value="400">

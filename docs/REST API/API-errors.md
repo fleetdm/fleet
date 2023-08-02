@@ -24,4 +24,5 @@ Response:
 ```
 
 
+<meta name="description" value="Read about how Fleet's REST API returns errors.">
 <meta name="pageOrderInSection" value="1900">

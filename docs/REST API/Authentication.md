@@ -395,4 +395,5 @@ This is the callback endpoint that the identity provider will use to send securi
 
 
 
+<meta name="description" value="Learn how to authenticate requests to Fleet's REST API.">
 <meta name="pageOrderInSection" value="200">

@@ -1430,5 +1430,5 @@ Retrieves a list of the configuration profiles assigned to a host.
 }
 ```
 
-
+<meta name="description" value="Documentation for the hosts endpoint in Fleet's REST API.">
 <meta name="pageOrderInSection" value="600">

@@ -637,5 +637,5 @@ Either `query` or `query_id` must be provided.
 }
 ```
 
-
+<meta name="description" value="Learn how to manage your policies with Fleet's REST API.">
 <meta name="pageOrderInSection" value="900">

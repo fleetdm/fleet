@@ -52,4 +52,5 @@ Deletes the session specified by ID. When the user associated with the session n
 `Status: 200`
 
 
+<meta name="description" value="Documentation for the sessions endpoint in Fleet's REST API.">
 <meta name="pageOrderInSection" value="1200">

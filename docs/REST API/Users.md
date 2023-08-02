@@ -590,5 +590,5 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 `Status: 200`
 
 
-
+<meta name="description" value="Documentation for the users endpoints in Fleet's REST API.">
 <meta name="pageOrderInSection" value="1700">

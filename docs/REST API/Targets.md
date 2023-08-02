@@ -158,5 +158,5 @@ The returned lists are filtered based on the hosts the requesting user has acces
 }
 ```
 
-
+<meta name="description" value="Documentation for the targets endpoint in Fleet's REST API.">
 <meta name="pageOrderInSection" value="1400">

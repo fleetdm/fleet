@@ -78,4 +78,5 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 
 None.
 
+<meta name="description" value="Learn how to retrieve debug information from Fleet's REST API.">
 <meta name="pageOrderInSection" value="1800">

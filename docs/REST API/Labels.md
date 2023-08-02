@@ -436,5 +436,5 @@ Deletes the label specified by ID.
 
 `Status: 200`
 
-
+<meta name="description" value="Learn how to create, modify, delete, and list labels with Fleet's REST API.">
 <meta name="pageOrderInSection" value="700">

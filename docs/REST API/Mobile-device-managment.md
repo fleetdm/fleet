@@ -898,5 +898,6 @@ Content-Length: <length>
 Body: <blob>
 ```
 
+<meta name="description" value="Learn about the API endpoints that can be used to automate and modify mobile device management features in Fleet.">
 <meta name="title" value="Mobile device management (MDM)">
 <meta name="pageOrderInSection" value="800">
