@@ -35,13 +35,13 @@ ace.define(
         "int|numeric|decimal|date|varchar|char|bigint|float|double|bit|binary|text|set|timestamp|" +
         "money|real|number|integer";
 
-      // var osqueryTables = osqueryTableNames.join("|");
-      // var osqueryColumns = osqueryTableColumnNames.join("|");
+      var osqueryTables = osqueryTableNames.join("|");
+      var osqueryColumns = osqueryTableColumnNames.join("|");
 
       var keywordMapper = this.createKeywordMapper(
         {
-          // "osquery-token": osqueryTables,
-          // "osquery-columns": osqueryColumns,
+          "osquery-token": osqueryTables,
+          "osquery-columns": osqueryColumns,
           "support.function": builtinFunctions,
           keyword: keywords,
           "constant.language": builtinConstants,

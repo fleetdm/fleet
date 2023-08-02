@@ -119,7 +119,10 @@ const FleetAce = ({
               sqlTableColumns.map(
                 (column: any) =>
                   ({
-                    caption: `${column.name} ${column.description}`, // Distinct values from tables,
+                    caption: `${column.name}: ${column.description.slice(
+                      0,
+                      8
+                    )}...`, // Distinct values from tables,
                     value: column.name,
                     meta: "Column",
                   } as Ace.Completion)
@@ -131,7 +134,8 @@ const FleetAce = ({
         console.log("ADD COLUMN COMPLETERS");
 
         // Add all table name completers if no table name found
-        const updateTableNameCompleters = !checkTableValues.tables?.length;
+        const updateTableNameCompleters =
+          !checkTableValues.tables?.length || !sqlTableColumns.length;
 
         if (updateTableNameCompleters) {
           // Autocomplete table names
