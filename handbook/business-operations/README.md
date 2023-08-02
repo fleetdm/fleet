@@ -11,13 +11,6 @@ To make a request of the business operations department, [create an issue using 
 ## Kanban
 Any Fleet team member can [view the 🔦#g-business-operations kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) (confidential) for this department, including pending tasks in the active sprint and any new requests.
 
-## Levels of confidentiality
-
-- *Public*   _(share with anyone, anywhere in the world)_
-- *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
-- *Classified*  _(share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring)_
-
-> TODO: extrapolate to "why this way" page
 
 ## Rituals
 The following table lists this group's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -38,15 +31,6 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
 | Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
 
-<!--
-TODO: Move to CEO handbook page
-
-| Weekly update | Weekly | On Friday, Mike McNeil posts a single message in #general [based on the message from the previous week, saving a copy for reference _next_ week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).  This weekly update recognizeseach of the week's on-duty people for each of the on-call rotations, along with any hiring and departure announcements, and information about ongoing onboardings and open positions.  | Mike McNeil |
-| CEO inbox sweep | Daily unless OOO | Mike McNeil does a morning sweep of the CEO's inbox to remove spam and grab action items. | Mike McNeil |
-| Calendar audit | Daily | Daily Mike McNeil audits CEOs calendar and set notes for meetings. | Mike McNeil |
-| [Workiversaries](#workiversaries) | Weekly/PRN | Mike McNeil posts in `#g-people` and tags @mikermcneil about any upcoming workiversaries. | Mike McNeil |
-| Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
--->
 
 <!--
 Note: These are out of date, but retained for future reference:
@@ -69,9 +53,6 @@ Note: These are out of date, but retained for future reference:
 
 -->
 
-### Weekly updates
-
-Please see [handbook/company/ceo-handbook#weekly-updates](https://fleetdm.com/handbook/company/ceo-handbook#weekly-updates)
 
 ### Key reviews
 Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics (numbers measuring everyday excellence) and progress of timebound goals for a particular quarter (OKRs). The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
@@ -99,8 +80,6 @@ Here are a few different entry points for a tour of Fleet's security policies an
 5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
 6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
 
-## Directly responsible individuals
-Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
 
 ## Slack channels
 These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels):
@@ -115,11 +94,6 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 | `#_security`                            | Zach Wasserman
 
-## Email relays
-
-There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
-
-> TODO: extrapolate to "why this way" page
 
 ## People Operations
 
@@ -774,35 +748,12 @@ In responding to security questionnaires, Fleet endeavors to provide full transp
 
 ## IT Operations
 
-### Tools we use
+## Tools we use
 
 There are a number of tools that are used throughout Fleet. Some of these tools are used company-wide, while others are department-specific. You can see a list of those tools in ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing).
 
-#### Slack
-At Fleet, we do not send internal emails to each other. Instead, we prefer to use [Slack](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/) to communicate with other folks who work at Fleet.
-We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
-We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 
-##### Slack channel prefixes
-We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
-We use these prefixes to organize the Fleet Slack:
- * ***g-***: for team/group channels *(Note: "g-" is short for "grupo" or "group")*.
- * ***oooh-***: used to discuss and share interesting information about a topic.
- * ***help-***: for asking for help on specific topics.
- * ***at*** or ***fleet-at***: for customer channels.
- * ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
-
-##### Slack communications and best practices
-In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc). 
-      1. What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from. 
-      2. Why does this matter? Great question! The Fleet [culture](https://fleetdm.com/handbook/company#culture) is pretty simple: think of others, and remember the company [Values](https://fleetdm.com/handbook/company#values).
-
-#### Zoom
-We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
-By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
-Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
-
-#### Role-specific licenses
+### Role-specific licenses
 Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#intake) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
 
 | Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_ |
@@ -877,21 +828,6 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
 
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
-#### Github
-##### GitHub labels
-
-We use special characters to define different types of GitHub labels. By combining labels, we
-organize and categorize GitHub issues. This reduces the total number of labels required while
-maintaining an expressive labeling system. For example, instead of a label called
-`platform-dev-backend`, we use `#platform :dev ~backend`.
-
-| Special character | Label type  | Examples                            |
-|:------------------|:------------|:------------------------------------|
-| `#`               | Noun        | `#platform`, `#interface`, `#agent`
-| `:`               | Verb        | `:dev`, `:research`, `:design`
-| `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
-
-> TODO: extrapolate to "why this way" page
 
 ### Equipment
 #### Laptops
@@ -939,20 +875,34 @@ Older equipment results in lost productivity of Fleeties and should be considere
 > If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
 
 
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
 ##### Open positions
 
 Please see [handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
 
-#### Stubs
-The following stubs are included only to make links backward compatible.
-
+##### Email relays
 ##### Meetings
 ##### Scheduling a meeting
 ##### Internal meeting scheduling
 ##### Modifying an event organized by someone else
 ##### External meeting scheduling
+##### Levels of confidentiality
+##### Github
+##### GitHub labels
+##### Zoom
+##### Slack
 
-Please see [handbook/company/communication](https://fleetdm.com/handbook/company/communication#meetings) for all meetings sections
+Please see [handbook/company/communications](https://fleetdm.com/handbook/company/communications) for all sections
+
+##### Weekly updates
+
+Please see [handbook/company/ceo#weekly-updates](https://fleetdm.com/handbook/company/ceo-handbook#send-the-weekly-update)
+
+##### Directly responsible individuals
+
+Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
 
 
 <meta name="maintainedBy" value="jostableford">
