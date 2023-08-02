@@ -187,7 +187,6 @@ const HostSummary = ({
           <StatusIndicator
             value={status || ""} // temporary work around of integration test bug
             tooltip={{
-              id,
               tooltipText: getHostStatusTooltipText(status),
               position: "bottom",
             }}

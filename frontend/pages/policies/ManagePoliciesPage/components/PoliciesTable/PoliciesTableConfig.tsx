@@ -15,6 +15,7 @@ import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
+import { COLORS } from "styles/var/colors";
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -138,7 +139,7 @@ const generateTableHeaders = (
                     type="dark"
                     effect="solid"
                     id={`critical-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor="#3e4771"
+                    backgroundColor={COLORS["tooltip-bg"]}
                   >
                     This policy has been marked as critical.
                     {isSandboxMode && (

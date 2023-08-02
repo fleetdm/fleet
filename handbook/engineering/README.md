@@ -31,15 +31,17 @@ New tickets are estimated, specified, and prioritized on the roadmap:
 
 ### Scrum items
 
-Our scrum boards are exclusively composed of three types of scrum items:
+Our scrum boards are exclusively composed of four types of scrum items:
 
 1. **User stories**: These are simple and concise descriptions of features or requirements from the user's perspective, marked with the `story` label. They keep our focus on delivering value to our customers. Occasionally, due to ZenHub's ticket sub-task structure, the term 'epic' may be seen. However, we treat these as regular user stories.
 
-2. **Sub-tasks**: These smaller, more manageable tasks contribute to the completion of a larger user story. Sub-tasks are labeled as `~sub-task` and enable us to break down complex tasks into more detailed and easier to estimate work units.
+2. **Sub-tasks**: These smaller, more manageable tasks contribute to the completion of a larger user story. Sub-tasks are labeled as `~sub-task` and enable us to break down complex tasks into more detailed and easier-to-estimate work units. Sub-tasks are always assigned to exactly one user story.
 
-3. **Bugs**: Representing errors or flaws that result in incorrect or unexpected outcomes, bugs are marked with the `bug` label. Like user stories and sub-tasks, bugs are documented, prioritized, and addressed during a sprint. Bugs [may be estimated or left unestimated](https://fleetdm.com/handbook/engineering#do-we-estimate-released-bugs-and-outages), as determined by the product group's engineering manager.
+3. **Timeboxes**: Tasks that are specified to complete within a pre-defined amount of time are marked with the `timebox` label. Timeboxes are research or investigation tasks necessary to move a prioritized user story forward, sometimes called "spikes" in scrum methodology. We use the term "timebox" because it better communicates its purpose. Timeboxes are always assigned to exactly one user story.
 
-> Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these three types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
+4. **Bugs**: Representing errors or flaws that result in incorrect or unexpected outcomes, bugs are marked with the `bug` label. Like user stories and sub-tasks, bugs are documented, prioritized, and addressed during a sprint. Bugs [may be estimated or left unestimated](https://fleetdm.com/handbook/engineering#do-we-estimate-released-bugs-and-outages), as determined by the product group's engineering manager.
+
+> Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these four types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
 
 ## Meetings
 
@@ -152,6 +154,10 @@ Engineering-initiated stories follow the [user story drafting process](https://f
 
 > We aspire to dedicate 20% of each sprint to technical changes, but may allocate less based on customer needs and business priorities. 
 
+## Documentation for contributors
+
+Fleet's documentation for contributors can be found in the [Fleet GitHub repo](https://github.com/fleetdm/fleet/tree/main/docs/Contributing).
+
 ## Release process
 
 - [Release freeze period](#release-freeze-period)
@@ -201,7 +207,7 @@ Next, create a new GitHub issue using the [Release QA template](https://github.c
 
 ### Release day
 
-Documentation on completing the release process can be found [here](https://fleetdm.com/docs/contributing/releasing-fleet).
+Documentation on completing the release process can be found [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md).
 
 ## Deploying to dogfood
 
@@ -364,6 +370,10 @@ At Fleet, we consider an outage to be a situation where new features or previous
 
 Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. However, there are some specific gotchas to be aware of when implementing new features. Visit our [scaling Fleet page](https://fleetdm.com/handbook/engineering/scaling-fleet) for tips on scaling Fleet as efficiently and effectively as possible. 
 
+## Load testing
+
+The [load testing page](https://fleetdm.com/handbook/engineering/load-testing) outlines the process we use to load test Fleet, and contains the results of our semi-annual load test.
+
 ## Version support
 
 To provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. In the current version fixes, Fleet will not backport to older releases.
@@ -464,6 +474,10 @@ For each bug found, please use the [bug report template](https://github.com/flee
 
 For unreleased bugs in an active sprint, a new bug is created with the `~unreleased bug` label. The `:release` label and associated product group label is added, and the engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
 
+### Debugging 
+
+You can read our guide to diagnosing issues in Fleet on the [debugging page](https://fleetdm.com/handbook/engineering/debugging).
+
 ## Bug process
 
 - [Bug states](#bug-states)
@@ -511,7 +525,7 @@ Fleeties do not have to wait for QA to reproduce the bug. If you're confident it
 If a bug requires input from product, the `:product` label is added, it is assigned to the product group's PM, and the bug is moved to the "Product drafting" column of the [bugs board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board). It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
 
 #### In engineering
-A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `:release` and `~critical bug` labels are added, and it is moved to the "Current release' column of the bugs board. If the bug is a `~critical bug`, the EM follows the [critical bug notification process](https://fleetdm.com/docs/contributing/releasing-fleet#critical-bug-notification-process).
+A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `:release` and `~critical bug` labels are added, and it is moved to the "Current release' column of the bugs board. If the bug is a `~critical bug`, the EM follows the [critical bug notification process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#critical-bug-notification-process).
 
 If the bug does not meet the criteria of a critical bug, the EM will determine if there is capacity in the current sprint for this bug. If so, the `:release` label is added, and it is moved to the "Current release' column on the bugs board. If there is no available capacity in the current sprint, the EM will move the bug to the "Sprint backlog" column where it will be prioritized for the next sprint.
 
@@ -542,9 +556,9 @@ This filter returns all "bug" issues closed after the specified date. Simply rep
 
 When a release is in testing, QA should use the Slack channel #help-qa to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
 
-When a critical bug is found, the Fleetie who labels the bug as critical is responsible for following the [critical bug notification process](https://fleetdm.com/docs/contributing/releasing-fleet#critical-bug-notification-process) below. 
+When a critical bug is found, the Fleetie who labels the bug as critical is responsible for following the [critical bug notification process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#critical-bug-notification-process) below. 
 
-All unreleased bugs are addressed before publishing a release. Released bugs that are not critical may be addressed during the next release per the standard [bug process](https://fleetdm.com/docs/contributing/releasing-fleet#bug-process). 
+All unreleased bugs are addressed before publishing a release. Released bugs that are not critical may be addressed during the next release per the standard [bug process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#bug-process). 
 
 ### Release blockers
 
@@ -572,7 +586,7 @@ When outside of working hours for the product team or if no one from product res
 Once the critical bug is confirmed, customer experience needs to ping both customers and the community to warn them. If CX is not available, the oncall engineer is responsible for doing this.
 If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
 
-When a critical bug is identified, we will then follow the patch release process in [our documentation](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases).
+When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases).
 
 ## Measurement
 
@@ -684,9 +698,9 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Vulnerability alerts (fleetdm.com)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub. | Eric Shaw |
 | Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Zach Wasserman |
 | Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Zach Wasserman |
-| Freeze ritual                 | Every three weeks   | Go through [the process of freezing](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases) the `main` branch to prepare for the next release.                                                  | Luke Heath |
-| Release ritual                | Every three weeks   | Go through [the process of releasing](https://fleetdm.com/docs/contributing/releasing-fleet) the next iteration of Fleet.              | Luke Heath |
-| Create patch release branch   | Every patch release | Go through the process of [creating a patch release](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases) branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath |
+| Freeze ritual                 | Every three weeks   | Go through [the process of freezing](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases) the `main` branch to prepare for the next release.                                                  | Luke Heath |
+| Release ritual                | Every three weeks   | Go through [the process of releasing](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) the next iteration of Fleet.              | Luke Heath |
+| Create patch release branch   | Every patch release | Go through the process of [creating a patch release](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases) branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath |
 | Bug review                    | Weekly              | Review bugs that are in QA's inbox. | Reed Haynes     |
 | QA report                     | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
 | Release QA                    | Every three weeks | Every release cycle, by end of day Friday of release week, all issues move to "Ready for release" on the #g-mdm and #g-cx sprint boards. | Reed Haynes |

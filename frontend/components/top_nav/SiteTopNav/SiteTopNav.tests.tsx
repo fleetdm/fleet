@@ -43,7 +43,6 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
-    expect(screen.getByText(/schedule/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(screen.getByText(/settings/i)).toBeInTheDocument();
     expect(screen.getByText(/manage users/i)).toBeInTheDocument();
@@ -80,7 +79,6 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
-    expect(screen.getByText(/schedule/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(screen.getByText(/my account/i)).toBeInTheDocument();
     expect(screen.getByText(/documentation/i)).toBeInTheDocument();
@@ -122,7 +120,6 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/sign out/i)).toBeInTheDocument();
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/schedule/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
   });
@@ -152,7 +149,6 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
-    expect(screen.getByText(/schedule/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(screen.getByText(/settings/i)).toBeInTheDocument();
     expect(screen.getByText(/manage users/i)).toBeInTheDocument();
@@ -189,7 +185,6 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
-    expect(screen.getByText(/schedule/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(screen.getByText(/my account/i)).toBeInTheDocument();
     expect(screen.getByText(/documentation/i)).toBeInTheDocument();
@@ -231,7 +226,6 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/sign out/i)).toBeInTheDocument();
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/schedule/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
   });
@@ -264,7 +258,6 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
-    expect(screen.getByText(/schedule/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(screen.getByText(/settings/i)).toBeInTheDocument();
     expect(screen.getByText(/my account/i)).toBeInTheDocument();
@@ -302,7 +295,6 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
-    expect(screen.getByText(/schedule/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(screen.getByText(/my account/i)).toBeInTheDocument();
     expect(screen.getByText(/documentation/i)).toBeInTheDocument();
@@ -344,7 +336,6 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/sign out/i)).toBeInTheDocument();
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/schedule/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
   });

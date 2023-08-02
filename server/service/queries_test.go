@@ -13,19 +13,63 @@ import (
 )
 
 func TestFilterQueriesForObserver(t *testing.T) {
-	require.True(t, onlyShowObserverCanRunQueries(&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}))
-	require.False(t, onlyShowObserverCanRunQueries(&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)}))
-	require.False(t, onlyShowObserverCanRunQueries(&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}))
+	t.Run("global role", func(t *testing.T) {
+		require.True(t, onlyShowObserverCanRunQueries(&fleet.User{
+			GlobalRole: ptr.String(fleet.RoleObserver),
+		}, nil))
 
-	require.True(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{{Role: fleet.RoleObserver}}}))
-	require.True(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{
-		{Role: fleet.RoleObserver},
-		{Role: fleet.RoleObserver},
-	}}))
-	require.False(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{
-		{Role: fleet.RoleObserver},
-		{Role: fleet.RoleMaintainer},
-	}}))
+		require.False(t, onlyShowObserverCanRunQueries(&fleet.User{
+			GlobalRole: ptr.String(fleet.RoleObserverPlus),
+		}, nil))
+
+		require.False(t, onlyShowObserverCanRunQueries(&fleet.User{
+			GlobalRole: ptr.String(fleet.RoleMaintainer),
+		}, nil))
+
+		require.False(t, onlyShowObserverCanRunQueries(&fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}, nil))
+	})
+
+	t.Run("user belongs to one or more teams", func(t *testing.T) {
+		require.True(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{{
+			Role: fleet.RoleObserver,
+			Team: fleet.Team{ID: 1},
+		}}}, ptr.Uint(1)))
+
+		require.True(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{
+			{
+				Role: fleet.RoleObserver,
+				Team: fleet.Team{ID: 1},
+			},
+			{
+				Role: fleet.RoleObserver,
+				Team: fleet.Team{ID: 2},
+			},
+		}}, ptr.Uint(2)))
+
+		require.True(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{
+			{
+				Role: fleet.RoleObserver,
+				Team: fleet.Team{ID: 1},
+			},
+			{
+				Role: fleet.RoleMaintainer,
+				Team: fleet.Team{ID: 2},
+			},
+		}}, ptr.Uint(1)))
+
+		require.False(t, onlyShowObserverCanRunQueries(&fleet.User{Teams: []fleet.UserTeam{
+			{
+				Role: fleet.RoleObserver,
+				Team: fleet.Team{ID: 1},
+			},
+			{
+				Role: fleet.RoleMaintainer,
+				Team: fleet.Team{ID: 2},
+			},
+		}}, ptr.Uint(2)))
+	})
 }
 
 func TestListQueries(t *testing.T) {
@@ -63,7 +107,7 @@ func TestListQueries(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.title, func(t *testing.T) {
 			viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
-			_, err := svc.ListQueries(viewerCtx, fleet.ListOptions{})
+			_, err := svc.ListQueries(viewerCtx, fleet.ListOptions{}, nil, nil)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedOpts, calledWithOpts)
 		})
@@ -74,36 +118,105 @@ func TestQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	authoredQueryID := uint(1)
-	authoredQueryName := "authored"
-	queryName := map[uint]string{
-		authoredQueryID: authoredQueryName,
-		2:               "not authored",
+	team := fleet.Team{
+		ID:   1,
+		Name: "Foobar",
 	}
-	teamMaintainer := &fleet.User{ID: 42, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}}
+	teamAdmin := &fleet.User{
+		ID: 42,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team.ID},
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	teamMaintainer := &fleet.User{
+		ID: 43,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team.ID},
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	}
+	teamObserver := &fleet.User{
+		ID: 44,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team.ID},
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+	teamObserverPlus := &fleet.User{
+		ID: 45,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team.ID},
+				Role: fleet.RoleObserverPlus,
+			},
+		},
+	}
+	teamGitOps := &fleet.User{
+		ID: 46,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team.ID},
+				Role: fleet.RoleGitOps,
+			},
+		},
+	}
+	globalQuery := fleet.Query{
+		ID:     99,
+		Name:   "global query",
+		TeamID: nil,
+	}
+	teamQuery := fleet.Query{
+		ID:     88,
+		Name:   "team query",
+		TeamID: ptr.Uint(team.ID),
+	}
+	queriesMap := map[uint]fleet.Query{
+		globalQuery.ID: globalQuery,
+		teamQuery.ID:   teamQuery,
+	}
 
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &team, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == team.Name {
+			return &team, nil
+		}
+		return nil, newNotFoundError()
+	}
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return query, nil
 	}
-	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		if name == authoredQueryName {
-			return &fleet.Query{ID: 99, AuthorID: ptr.Uint(teamMaintainer.ID)}, nil
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		if teamID == nil && name == "global query" {
+			return &globalQuery, nil
+		} else if teamID != nil && *teamID == team.ID && name == "team query" {
+			return &teamQuery, nil
 		}
-		return &fleet.Query{ID: 8888, AuthorID: ptr.Uint(6666)}, nil
+		return nil, newNotFoundError()
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
-		if id == authoredQueryID {
-			return &fleet.Query{ID: 99, AuthorID: ptr.Uint(teamMaintainer.ID)}, nil
+		if id == 99 {
+			return &globalQuery, nil
+		} else if id == 88 {
+			return &teamQuery, nil
 		}
-		return &fleet.Query{ID: 8888, AuthorID: ptr.Uint(6666)}, nil
+		return nil, newNotFoundError()
 	}
 	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query) error {
 		return nil
 	}
-	ds.DeleteQueryFunc = func(ctx context.Context, name string) error {
+	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {
@@ -125,65 +238,183 @@ func TestQueryAuth(t *testing.T) {
 		shouldFailNew   bool
 	}{
 		{
-			"global admin",
+			"global admin and global query",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			authoredQueryID,
+			globalQuery.ID,
 			false,
 			false,
 			false,
 		},
 		{
-			"global maintainer",
+			"global admin and team query",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			teamQuery.ID,
+			false,
+			false,
+			false,
+		},
+		{
+			"global maintainer and global query",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
-			authoredQueryID,
+			globalQuery.ID,
 			false,
 			false,
 			false,
 		},
 		{
-			"global observer",
+			"global maintainer and team query",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			teamQuery.ID,
+			false,
+			false,
+			false,
+		},
+		{
+			"global observer and global query",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
-			authoredQueryID,
+			globalQuery.ID,
 			true,
 			false,
 			true,
 		},
 		{
-			"team maintainer, author of the query",
+			"global observer and team query",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			teamQuery.ID,
+			true,
+			false,
+			true,
+		},
+		{
+			"global observer+ and global query",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			globalQuery.ID,
+			true,
+			false,
+			true,
+		},
+		{
+			"global observer+ and team query",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			teamQuery.ID,
+			true,
+			false,
+			true,
+		},
+		{
+			"global gitops and global query",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			globalQuery.ID,
+			false,
+			true,
+			false,
+		},
+		{
+			"global gitops and team query",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			teamQuery.ID,
+			false,
+			true,
+			false,
+		},
+		{
+			"team admin and global query",
+			teamAdmin,
+			globalQuery.ID,
+			true,
+			false,
+			true,
+		},
+		{
+			"team admin and team query",
+			teamAdmin,
+			teamQuery.ID,
+			false,
+			false,
+			false,
+		},
+		{
+			"team maintainer and global query",
 			teamMaintainer,
-			authoredQueryID,
+			globalQuery.ID,
+			true,
 			false,
-			false,
-			false,
+			true,
 		},
 		{
-			"team maintainer, NOT author of the query",
+			"team maintainer and team query",
 			teamMaintainer,
-			2,
-			true,
+			teamQuery.ID,
+			false,
 			false,
 			false,
 		},
 		{
-			"team observer",
-			&fleet.User{ID: 48, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: authoredQueryID}, Role: fleet.RoleObserver}}},
-			2,
+			"team observer and global query",
+			teamObserver,
+			globalQuery.ID,
 			true,
 			false,
 			true,
+		},
+		{
+			"team observer and team query",
+			teamObserver,
+			teamQuery.ID,
+			true,
+			false,
+			true,
+		},
+		{
+			"team observer+ and global query",
+			teamObserverPlus,
+			globalQuery.ID,
+			true,
+			false,
+			true,
+		},
+		{
+			"team observer+ and team query",
+			teamObserverPlus,
+			teamQuery.ID,
+			true,
+			false,
+			true,
+		},
+		{
+			"team gitops and global query",
+			teamGitOps,
+			globalQuery.ID,
+			true,
+			true,
+			true,
+		},
+		{
+			"team gitops and team query",
+			teamGitOps,
+			teamQuery.ID,
+			false,
+			true,
+			false,
 		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewQuery(ctx, fleet.QueryPayload{Name: ptr.String("name"), Query: ptr.String("select 1")})
+			query := queriesMap[tt.qid]
+
+			_, err := svc.NewQuery(ctx, fleet.QueryPayload{
+				Name:   ptr.String("name"),
+				Query:  ptr.String("select 1"),
+				TeamID: query.TeamID,
+			})
 			checkAuthErr(t, tt.shouldFailNew, err)
 
 			_, err = svc.ModifyQuery(ctx, tt.qid, fleet.QueryPayload{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			err = svc.DeleteQuery(ctx, queryName[tt.qid])
+			err = svc.DeleteQuery(ctx, query.TeamID, query.Name)
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			err = svc.DeleteQueryByID(ctx, tt.qid)
@@ -195,16 +426,24 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.GetQuery(ctx, tt.qid)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ListQueries(ctx, fleet.ListOptions{})
+			_, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			err = svc.ApplyQuerySpecs(ctx, []*fleet.QuerySpec{{Name: queryName[tt.qid], Query: "SELECT 1"}})
+			teamName := ""
+			if query.TeamID != nil {
+				teamName = team.Name
+			}
+			err = svc.ApplyQuerySpecs(ctx, []*fleet.QuerySpec{{
+				Name:     query.Name,
+				Query:    "SELECT 1",
+				TeamName: teamName,
+			}})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.GetQuerySpecs(ctx)
+			_, err = svc.GetQuerySpecs(ctx, query.TeamID)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.GetQuerySpec(ctx, queryName[tt.qid])
+			_, err = svc.GetQuerySpec(ctx, query.TeamID, query.Name)
 			checkAuthErr(t, tt.shouldFailRead, err)
 		})
 	}

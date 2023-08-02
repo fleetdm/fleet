@@ -4,7 +4,7 @@
 
 Open-source platform for IT and security teams with thousands of computers.  Designed for APIs, GitOps, webhooks, YAML, and humans.
 
-<a href="https://fleetdm.com/logos"><img alt="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101"/></a>
+<a href="https://fleetdm.com/logos"><img src="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101" alt="A glass city in the clouds"/></a>
 
 
 ## What's it for?
@@ -56,7 +56,7 @@ In keeping with Fleet's value of openness, [Fleet Device Management's company ha
 <!-- > To upgrade from Fleet ≤3.2.0, just follow the upgrading steps for the earliest subsequent major release from this repository (it'll work out of the box until the release of Fleet 5.0). -->
 
 
-## Is it any good??
+## Is it any good?
 Fleet is used in production by IT and security teams with thousands of laptops and servers.  Many deployments support tens of thousands of hosts, and a few large organizations manage deployments as large as 400,000+ hosts.
 
 

@@ -83,7 +83,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     // API calls
     (async function testGravatarAvailability() {
       try {
-        const response = await fetch("https://gravatar.com/avatar");
+        const response = await fetch("https://www.gravatar.com/avatar/0000");
         if (response.ok) {
           localStorage.setItem("gravatar_available", "true");
         } else {
