@@ -3,7 +3,7 @@ parasails.registerPage('sandbox-waitlist', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    //…
+    syncing: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -20,6 +20,10 @@ parasails.registerPage('sandbox-waitlist', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+    clickApproveWaitlistUser: async function(userId) {
+      this.syncing = true;
+      await Cloud.provisionSandboxInstanceAndDeliverEmail.with({userId});
+      this.syncing = false;
+    }
   }
 });

@@ -553,4 +553,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
   'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
   'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
+  'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
 };
