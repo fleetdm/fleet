@@ -24,6 +24,10 @@
   padding-left: 0px;
 }
 
+.ace_editor.ace-fleet.ace_autocomplete {
+  width: 350px;
+}
+
 .ace-fleet .ace_content {
   height: 100% !important;
 }

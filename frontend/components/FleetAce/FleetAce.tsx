@@ -121,7 +121,7 @@ const FleetAce = ({
                   ({
                     caption: `${column.name}: ${column.description.slice(
                       0,
-                      8
+                      15
                     )}...`, // Distinct values from tables,
                     value: column.name,
                     meta: "Column",
