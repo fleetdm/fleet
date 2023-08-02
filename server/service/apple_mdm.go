@@ -1566,6 +1566,9 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	if dryRun {
 		return nil
 	}
+	for _, p := range profs {
+		logging.WithExtras(ctx, "msg", "profile to bach set", "identifier", p.Identifier, "checksum", p.Checksum)
+	}
 	if err := svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs); err != nil {
 		return err
 	}
@@ -1607,7 +1610,7 @@ func preassignMDMAppleProfileEndpoint(ctx context.Context, request interface{}, 
 	if err := svc.MDMApplePreassignProfile(ctx, req.MDMApplePreassignProfilePayload); err != nil {
 		return preassignMDMAppleProfileResponse{Err: err}, nil
 	}
-	logging.WithExtras(ctx, "host_external_identifier", req.ExternalHostIdentifier, "msg", "successfully preassigned profiles")
+	logging.WithExtras(ctx, "host_external_identifier", req.ExternalHostIdentifier, "msg", "successfully preassigned profiles", "host_uuid", req.HostUUID, "group", req.Group, "exclude", req.Exclude, "checksum", req.HexMD5Hash())
 	return preassignMDMAppleProfileResponse{}, nil
 }
 

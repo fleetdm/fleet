@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -782,7 +781,13 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 	if err != nil {
 		return err
 	}
+
+	for _, p := range profs.Profiles {
+		logging.WithExtras(ctx, "host_external_identifier", externalHostIdentifier, "profile.group", p.Group, "profile.md5", p.HexMD5Hash, "profile.exclude", p.Exclude)
+	}
+
 	if len(profs.Profiles) == 0 || profs.HostUUID == "" {
+		logging.WithExtras(ctx, "host_external_identifier", externalHostIdentifier, "msg", "early returning since there are no profiles to match", "len profs", len(profs.Profiles), "profs.host_uuid", profs.HostUUID)
 		return nil // nothing to do
 	}
 
@@ -823,15 +828,19 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		}
 	}
 
+	logging.WithExtras(ctx, "host_external_identifier", externalHostIdentifier, "groups", groups)
+
 	teamName := teamNameFromPreassignGroups(groups)
 	team, err := svc.ds.TeamByName(ctx, teamName)
 
 	if err != nil {
 		// TODO: update to use fleet.IsNotFound once
 		// https://github.com/fleetdm/fleet/pull/12620 is merged
-		if !errors.Is(err, sql.ErrNoRows) {
+		if !fleet.IsNotFound(err) {
 			return err
 		}
+
+		logging.WithExtras(ctx, "host_external_identifier", externalHostIdentifier, "didn't find matching team, creating one with name", teamName)
 
 		// Create a new team with this set of profiles. Creating via the service
 		// call so that it properly assigns the agent options and creates audit
@@ -860,12 +869,15 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		}
 	}
 
+	logging.WithExtras(ctx, "host_external_identifier", externalHostIdentifier, "using team id", &team.ID)
+
 	// create profiles for that team via the service call, so that uniqueness
 	// of profile identifier/name is verified, activity created, etc.
 	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false); err != nil {
 		return err
 	}
 
+	logging.WithExtras(ctx, "host_external_identifier", externalHostIdentifier, "msg", "about to add host to team", "host_id", host.ID, "team_id", &team.ID)
 	// assign host to that team via the service call, which will trigger
 	// deployment of the profiles.
 	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}); err != nil {
