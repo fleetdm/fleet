@@ -2328,6 +2328,8 @@ Returns the information of the specified host.
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
+> Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
+
 ### Get host by identifier
 
 Returns the information of the host specified using the `uuid`, `osquery_host_id`, `hostname`, or
@@ -2525,6 +2527,8 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 ```
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
+
+> Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
 ### Delete host
 
