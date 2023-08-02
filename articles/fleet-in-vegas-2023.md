@@ -64,5 +64,5 @@ Fleet is committed to staying on the leading edge of cybersecurity trends and ad
 <meta name="authorFullName" value="JD Strong">
 <meta name="publishedOn" value="2023-08-02">
 <meta name="articleTitle" value="Fleet takes on Vegas: Exploring cybersecurity's future at Black Hat, B-Sides, and DEF CON 31">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-in-vegas-2023@2x">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-in-vegas-2023@2x.jpg">
 <meta name="description" value="Explore groundbreaking insights from Fleet's presentations at Black Hat, Security B-Sides, and DEF CON, uncovering new approaches in cybersecurity including agentless C2 systems, open-source GitOps, and hands-on vulnerability detection.">
