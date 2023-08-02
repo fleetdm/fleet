@@ -355,7 +355,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	appConfig, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
-	assert.Len(t, team.Secrets, 0) // no secret gets created automatically when creating a team via apply spec
+	assert.Len(t, team.Secrets, 1) // secret gets created automatically for a new team when none is supplied.
 	require.NotNil(t, team.Config.AgentOptions)
 	require.JSONEq(t, defaultOpts, string(*team.Config.AgentOptions))
 	require.Equal(t, appConfig.Features, team.Config.Features)
