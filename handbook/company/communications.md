@@ -1,6 +1,7 @@
-# Communication
+# Communications
 
-Fleet's [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) style of communication is part of the company's DNA and essential to moving Fleet into the future.
+Fleet's [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) style of communication and the [tools we use](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) are part of the company's DNA and essential to moving Fleet into the future.
+
 
 ## Meetings
 
@@ -26,7 +27,7 @@ In an all-remote company, “face time” matters.
 
 
 
-#### Internal meeting scheduling
+### Internal meeting scheduling
 
 Fleet uses the Zoom add-on for Google Calendar to schedule meetings (exceptions are customers that are non-negotiably required to use a different tool) when we [create calendar events](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar). 
 Our Zoom meetings are configured to let participants join before the host arrives, to make sure meetings start on time even if the host isn't there.
@@ -40,16 +41,77 @@ It is important to [set your workinghours](https://support.google.com/calendar/a
 - Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
 It is also common practice to block out time for focused work.
 
-#### Modifying an event organized by someone else
+### Modifying an event organized by someone else
 
 To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
 This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
 
-#### External meeting scheduling
+### External meeting scheduling
 
 When scheduling external meetings, provide external participants with a
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
 need a Calendly account, reach out to `mikermcneil` via Slack.
+
+
+## Email relays
+
+There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
+
+
+## Github
+
+### GitHub labels
+
+We use special characters to define different types of GitHub labels. By combining labels, we
+organize and categorize GitHub issues. This reduces the total number of labels required while
+maintaining an expressive labeling system. For example, instead of a label called
+`platform-dev-backend`, we use `#platform :dev ~backend`.
+
+| Special character | Label type  | Examples                            |
+|:------------------|:------------|:------------------------------------|
+| `#`               | Noun        | `#platform`, `#interface`, `#agent`
+| `:`               | Verb        | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
+
+
+## Zoom
+
+We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
+By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
+Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
+
+
+## Slack
+
+At Fleet, we do not send internal emails to each other. Instead, we prefer to use [Slack](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/) to communicate with other folks who work at Fleet.
+We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
+We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
+
+### Slack channel prefixes
+We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
+We use these prefixes to organize the Fleet Slack:
+ * ***g-***: for team/group channels *(Note: "g-" is short for "grupo" or "group")*.
+ * ***oooh-***: used to discuss and share interesting information about a topic.
+ * ***help-***: for asking for help on specific topics.
+ * ***at*** or ***fleet-at***: for customer channels.
+ * ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
+
+#### Slack communications and best practices
+In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc). 
+      1. What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from. 
+      2. Why does this matter? Great question! The Fleet [culture](https://fleetdm.com/handbook/company#culture) is pretty simple: think of others, and remember the company [Values](https://fleetdm.com/handbook/company#values).
+
+
+
+
+## Levels of confidentiality
+
+- *Public*   _(share with anyone, anywhere in the world)_
+- *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
+- *Classified*  _(share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring)_
+
+
+
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="📡 Communication">
