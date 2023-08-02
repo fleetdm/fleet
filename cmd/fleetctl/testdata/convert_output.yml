@@ -3,13 +3,27 @@ apiVersion: v1
 kind: query
 spec:
   automations_enabled: false
+  description: Retrieves the list of application scheme/protocol-based IPC handlers.
+  interval: 86400
+  logging: ""
+  min_osquery_version: ""
+  name: app_schemes
+  observer_can_run: false
+  platform: "darwin"
+  query: select * from app_schemes;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
   description: Retrieves the current disk encryption status for the target system.
   interval: 86400
   logging: ""
   min_osquery_version: ""
-  name: disk_encryption
+  name: disk_encryption (posix)
   observer_can_run: false
-  platform: ""
+  platform: "darwin,linux"
   query: select * from disk_encryption;
   team: ""
 ---
@@ -21,10 +35,24 @@ spec:
   interval: 300
   logging: ""
   min_osquery_version: ""
-  name: disk_encryption
+  name: disk_encryption (darwin,linux)
   observer_can_run: false
   platform: "darwin,linux"
   query: select * from disk_encryption;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: Retrieve basic information about the physical disks of a system.
+  interval: 86400
+  logging: ""
+  min_osquery_version: ""
+  name: disk_info
+  observer_can_run: false
+  platform: "windows,chrome"
+  query: select * from disk_info;
   team: ""
 ---
 apiVersion: v1
@@ -61,6 +89,34 @@ apiVersion: v1
 kind: query
 spec:
   automations_enabled: false
+  description: Retrieves the list of listening ports.
+  interval: 3600
+  logging: ""
+  min_osquery_version: ""
+  name: listening_ports (specs)
+  observer_can_run: false
+  platform: "darwin,linux,windows"
+  query: select * from listening_ports;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: Retrieves the list of listening ports.
+  interval: 3600
+  logging: ""
+  min_osquery_version: ""
+  name: listening_ports (utility)
+  observer_can_run: false
+  platform: "darwin,linux,windows"
+  query: select * from listening_ports;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
   description: Lists the application bundle that owns a sandbox label.
   interval: 86400
   logging: ""
@@ -69,4 +125,144 @@ spec:
   observer_can_run: false
   platform: "darwin"
   query: select * from sandboxes;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: System resource usage limits.
+  interval: 300
+  logging: ""
+  min_osquery_version: ""
+  name: ulimit_info (smart)
+  observer_can_run: false
+  platform: "darwin,linux"
+  query: select * from ulimit_info;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: System uptime.
+  interval: 600
+  logging: ""
+  min_osquery_version: ""
+  name: uptime (kernel)
+  observer_can_run: false
+  platform: "darwin"
+  query: select * from uptime;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: System uptime.
+  interval: 600
+  logging: ""
+  min_osquery_version: ""
+  name: uptime (linwin)
+  observer_can_run: false
+  platform: "linux,windows"
+  query: select * from uptime;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: System uptime.
+  interval: 600
+  logging: ""
+  min_osquery_version: ""
+  name: uptime (macwin)
+  observer_can_run: false
+  platform: "darwin,windows"
+  query: select * from uptime;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: System uptime.
+  interval: 600
+  logging: ""
+  min_osquery_version: ""
+  name: uptime (sleuthkit)
+  observer_can_run: false
+  platform: "darwin,linux"
+  query: select * from uptime;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: Lists the application bundle that owns a sandbox label.
+  interval: 86400
+  logging: ""
+  min_osquery_version: ""
+  name: sandboxes
+  observer_can_run: false
+  platform: "darwin"
+  query: select * from sandboxes;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: List of all user groups.
+  interval: 3600
+  logging: ""
+  min_osquery_version: ""
+  name: user groups (all)
+  observer_can_run: false
+  platform: ""
+  query: select * from user_groups;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: List of all user groups.
+  interval: 3600
+  logging: ""
+  min_osquery_version: ""
+  name: user groups (any)
+  observer_can_run: false
+  platform: ""
+  query: select * from user_groups;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: List of all user groups.
+  interval: 3600
+  logging: ""
+  min_osquery_version: ""
+  name: user groups (empty)
+  observer_can_run: false
+  platform: ""
+  query: select * from user_groups;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: Triggers one-off YARA query for files at the specified path. Requires one of sig_group, sigfile, or sigrule.
+  interval: 0
+  logging: ""
+  min_osquery_version: ""
+  name: yara (yara)
+  observer_can_run: false
+  platform: "darwin,linux,windows"
+  query: select * from yara;
   team: ""
