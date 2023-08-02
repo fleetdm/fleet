@@ -63,17 +63,6 @@ const FleetAce = ({
   onChange,
   handleSubmit = noop,
 }: IFleetAceProps): JSX.Element => {
-  // const [sqlTables, setSqlTables] = useState<any>([]);
-
-  // useEffect(() => {
-  //   // Error handling within checkTableValues
-  //   if (!readOnly) {
-  //     const checkTableValues = checkTable(value);
-  //     console.log("checkTableValues", checkTableValues);
-  //     setSqlTables(selectedTableColumns(checkTableValues.tables || []));
-  //   }
-  // }, [value]);
-
   const editorRef = useRef<ReactAce>(null);
   const wrapperClass = classnames(wrapperClassName, baseClass, {
     [`${baseClass}__wrapper--error`]: !!error,
