@@ -39,14 +39,10 @@ import Ubuntu from "./Ubuntu";
 import Chrome from "./Chrome";
 
 // Encircled
-import ApplePurple from "./ApplePurple";
-import AppleCircledGrey from "./AppleCircledGrey";
-import LinuxGreen from "./LinuxGreen";
-import LinuxCircledGrey from "./LinuxCircledGrey";
-import WindowsBlue from "./WindowsBlue";
-import WindowsCircledGrey from "./WindowsCircledGrey";
-import RedEncircledChrome from "./RedEncircledChrome";
-import ChromeCircledGrey from "./ChromeCircledGrey";
+import AppleCircled from "./AppleCircled";
+import LinuxCircled from "./LinuxCircled";
+import WindowsCircled from "./WindowsCircled";
+import ChromeCircled from "./ChromeCircled";
 
 // Status Icons
 import Success from "./Success";
@@ -126,14 +122,10 @@ export const ICON_MAP = {
   chrome: Chrome,
   ChromeOS: Chrome,
   "premium-feature": PremiumFeature,
-  "darwin-purple": ApplePurple,
-  "darwin-grey": AppleCircledGrey,
-  "windows-blue": WindowsBlue,
-  "windows-grey": WindowsCircledGrey,
-  "linux-green": LinuxGreen,
-  "linux-grey": LinuxCircledGrey,
-  "chrome-red": RedEncircledChrome,
-  "chrome-grey": ChromeCircledGrey,
+  "apple-circled": AppleCircled,
+  "windows-circled": WindowsCircled,
+  "linux-circled": LinuxCircled,
+  "chrome-circled": ChromeCircled,
   profile: Profile,
   download: Download,
   files: Files,
