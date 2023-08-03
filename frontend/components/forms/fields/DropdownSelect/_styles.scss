@@ -1,0 +1,140 @@
+.dropdown-select {
+  width: 175px;
+
+  svg {
+    transition: transform 0.25s ease;
+  }
+
+  &:hover {
+    // no access to hover state from react-select in JS so this is done here.
+    .custom-dropdown-indicator {
+      & path {
+        stroke: $core-vibrant-blue;
+      }
+    }
+  }
+
+  .dropdown-select__control {
+    border: 1px solid $ui-fleet-black-10;
+    background-color: $ui-light-grey;
+    border-radius: $border-radius;
+
+    &--is-focused,
+    &--menu-is-open,
+    &:hover {
+      box-shadow: none;
+      border: 1px solid $core-vibrant-blue;
+    }
+    &--is-focused,
+    &--menu-is-open {
+      svg {
+        transform: rotate(180deg);
+        transition: transform 0.25s ease;
+      }
+    }
+  }
+
+  .dropdown-select__value-container {
+    margin-left: 10px;
+    padding-left: 27px;
+
+    &::before {
+      display: inline-block;
+      position: absolute;
+      content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
+      transform: scale(0.5);
+      left: -6px;
+      margin-top: 4px;
+    }
+  }
+
+  .dropdown-select__single-value,
+  .dropdown-select__placeholder {
+    color: $core-fleet-black;
+    font-size: $small;
+  }
+
+  .dropdown-select__placeholder {
+    width: 75px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    @media (max-width: $break-md) {
+      width: auto;
+    }
+  }
+
+  .dropdown-select__indicator-separator {
+    display: none;
+  }
+
+  .dropdown-select__indicator {
+    color: $core-fleet-black;
+  }
+
+  .dropdown-select__menu {
+    width: 300px;
+    margin-top: 0;
+    z-index: 2;
+    animation: fade-in 150ms ease-out;
+  }
+
+  .dropdown-select__menu-list {
+    max-height: 574px;
+    padding: $pad-small $pad-medium;
+  }
+
+  .dropdown-select__option {
+    padding: 10px 1rem;
+
+    &--is-selected,
+    &:active {
+      background-color: $ui-vibrant-blue-25;
+    }
+
+    &--is-focused {
+      background-color: $ui-vibrant-blue-10;
+    }
+
+    &--is-disabled {
+      &:active {
+        background-color: transparent;
+      }
+    }
+  }
+
+  .dropdown-select__group-heading {
+    padding: 0;
+  }
+
+  .option-label {
+    display: flex;
+    align-items: center;
+
+    span {
+      font-size: $x-small;
+      font-weight: $regular;
+      color: $core-fleet-black;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .option-icon {
+      margin-right: $pad-small;
+    }
+  }
+
+  &__custom-dropdown-indicator {
+    &:hover {
+      cursor: pointer;
+    }
+  }
+}
+
+@media (min-width: 1100px) {
+  .dropdown-select {
+    width: 180px;
+  }
+}

@@ -7,7 +7,6 @@ import Select from "react-select";
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
 import CustomDropdownIndicator from "pages/hosts/ManageHostsPage/components/CustomDropdownIndicator";
-import Icon from "components/Icon";
 
 const baseClass = "dropdown";
 
@@ -112,22 +111,8 @@ class Dropdown extends Component {
     );
   };
 
-  renderCustomDropdownArrow = () => {
-    return (
-      <div className={`${baseClass}__custom-arrow`}>
-        <Icon name="chevron" className={`${baseClass}__icon`} />
-      </div>
-    );
-  };
-
   render() {
-    const {
-      handleChange,
-      renderOption,
-      onMenuOpen,
-      onMenuClose,
-      renderCustomDropdownArrow,
-    } = this;
+    const { handleChange, renderOption, onMenuOpen, onMenuClose } = this;
     const {
       error,
       className,
@@ -175,7 +160,9 @@ class Dropdown extends Component {
           onOpen={onMenuOpen}
           onClose={onMenuClose}
           autoFocus={autoFocus}
-          arrowRenderer={renderCustomDropdownArrow}
+          components={{
+            DropdownIndicator: CustomDropdownIndicator,
+          }}
         />
       </FormField>
     );
