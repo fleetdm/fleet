@@ -85,7 +85,7 @@ fleetctl CLI:
 
 1. Choose which team you want to enable end user authentication on.
 
-In this example, we'll enable end user authentication on the "Workstations (canary)" team so that the authentication is only required for hosts that automatically enroll to this team.
+   In this example, we'll enable end user authentication on the "Workstations (canary)" team so that the authentication is only required for hosts that automatically enroll to this team.
 
 3. Create a `workstations-canary-config.yaml` file:
 
