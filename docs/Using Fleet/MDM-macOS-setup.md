@@ -77,7 +77,7 @@ Fleet UI:
 
 1. Head to the **Controls > macOS settings > macOS setup > End user authentication** page.
 
-2. Choose which team you want to enable end user authentication for to to by selecting the desired team in the teams dropdown in the upper left corner.
+2. Choose which team you want to enable end user authentication for by selecting the desired team in the teams dropdown in the upper left corner.
 
 3. Select the **On** checkbox and select **Save**.
 
