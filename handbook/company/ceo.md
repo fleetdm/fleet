@@ -240,19 +240,6 @@ How to file videos from Gong recordings (**marking as "private" in Gong is not a
     - Include in the doc "link to video:"
     - Include in the doc "link to transcript:"
 
-
-## Rituals
-(Who will...)
-
-
-
-## Slack channels
-
-| Channel | Purpose | Standard Operating Procedure | DRI |
-| ------- | ------- | ---------------------------- | --- |
-| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) | Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) | Reach out to the AttC with requests or to add an item on the  | [@sampfluger]([https://github.com/sampfluger88](https://fleetdm.slack.com/archives/D05DW7BT2GY)) |
-| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | [@sampfluger]([https://github.com/sampfluger88](https://fleetdm.slack.com/archives/D05DW7BT2GY)) |
-
      
 ### Why not mention the CEO in Slack threads?
 Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
@@ -268,25 +255,7 @@ I held on as long as I could.  But due to volume, in late 2022, I made the decis
  - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
  - If you send me a direct message, I'll see and read that ASAP.
 Keep in mind I am often in meetings all day, and may not be able to reply promptly.
-Thank you so much!" 🙇
-
-
-## Slack channels
-
-| Channel | Purpose | Standard Operating Procedure | DRI |
-| ------- | ------- | ---------------------------- | --- |
-| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV)  
-| Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) 
-| Reach out to the AttC with requests or to add an item on the  | AttC |
-| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | AttC |
-
-     
-## Rituals
-(Who will...)
-
-<rituals :rituals-table="ritualsTables.company"></rituals>
-
-
+Thank you so much!" 🙇</blockquote>
 
 
 ## Kanban
@@ -297,6 +266,19 @@ Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.z
 ## Intake
 To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
 
+## Rituals
+(Who will...)
+
+<rituals :rituals="rituals['handbook/company/rituals.yml']"></rituals>
+
+## Slack channels
+
+| Channel | Purpose | Standard Operating Procedure | DRI |
+| ------- | ------- | ---------------------------- | --- |
+| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV)  
+| Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) 
+| Reach out to the AttC with requests or to add an item on the  | AttC |
+| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | AttC |
 
 
 
