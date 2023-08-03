@@ -12,7 +12,7 @@ const QueryTableExample = ({ example }: IQueryTableExampleProps) => {
   return (
     <div className={baseClass}>
       <h3>Example</h3>
-      <FleetMarkdown markdown={example} />
+      <FleetMarkdown markdown={example} name="query-table-example" />
     </div>
   );
 };
