@@ -6,7 +6,6 @@ import Select from "react-select";
 
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
-import CustomDropdownIndicator from "pages/hosts/ManageHostsPage/components/CustomDropdownIndicator";
 import Icon from "components/Icon";
 
 const baseClass = "dropdown";
