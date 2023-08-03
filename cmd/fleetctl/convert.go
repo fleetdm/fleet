@@ -19,6 +19,57 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+func convertPlatform(platformsIn string) (*string, error) {
+	// mappings based on https://github.com/osquery/osquery/blob/b87a4b5f1567415a72acd5ecd0e9e7ab75754959/tools/codegen/genwebsitejson.py#L38C18-L38C18
+	platformMapping := map[string][]string{
+		"darwin":    {"darwin"},
+		"linux":     {"linux"},
+		"windows":   {"windows"},
+		"chrome":    {"chrome"},
+		"specs":     {"darwin", "linux", "windows"},
+		"utility":   {"darwin", "linux", "windows"},
+		"yara":      {"darwin", "linux", "windows"},
+		"smart":     {"darwin", "linux"},
+		"kernel":    {"darwin"},
+		"linwin":    {"linux", "windows"},
+		"macwin":    {"darwin", "windows"},
+		"posix":     {"darwin", "linux"},
+		"sleuthkit": {"darwin", "linux"},
+		"any":       {""},
+		"all":       {""},
+		"":          {""},
+	}
+
+	resultOrder := []string{"darwin", "linux", "windows", "chrome"}
+
+	splitPlatformsIn := strings.Split(platformsIn, ",")
+
+	// validate and convert each substring
+	mapped := map[string]struct{}{} // use a set to dedupe
+	for _, substring := range splitPlatformsIn {
+		mappedSubstring, ok := platformMapping[substring]
+		// validate substring
+		if !ok {
+			return nil, fmt.Errorf("unsupported platform: %s", substring)
+		}
+		for _, p := range mappedSubstring {
+			mapped[p] = struct{}{}
+		}
+	}
+
+	// convert set to slice
+	result := []string{}
+	for _, p := range resultOrder {
+		if _, ok := mapped[p]; ok {
+			result = append(result, p)
+		}
+	}
+
+	resultString := strings.Join(result, ",")
+
+	return &resultString, nil
+}
+
 func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spec.Group, error) {
 	specs := &spec.Group{
 		Queries: []*fleet.QuerySpec{},
@@ -51,11 +102,17 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 			interval = uint(i)
 		}
 
+		convertedPlatforms, err := convertPlatform(*query.Platform)
+		if err != nil {
+			return nil, err
+		}
+
 		spec := &fleet.QuerySpec{
 			Name:        name,
 			Description: query.Description,
 			Query:       query.Query,
 			Interval:    interval,
+			Platform:    *convertedPlatforms,
 		}
 
 		specs.Queries = append(specs.Queries, spec)
