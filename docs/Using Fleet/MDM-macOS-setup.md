@@ -26,7 +26,7 @@ To require end user authentication, we will do the following steps:
 
 ### Step 1: connect Fleet to your IdP
 
-In Fleet, you can connect Fleet to your IdP using the Fleet UI or fleetctl command-line tool.
+You can connect Fleet to your IdP using the Fleet UI or fleetctl command-line tool.
 
 The Fleet UI method is a good start if you're just getting familiar with Fleet.
 
