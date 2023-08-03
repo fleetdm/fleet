@@ -21,16 +21,10 @@ Using Fleet, you can require end users to authenticate with your identity provid
 To require end user authentication, we will do the following steps:
 
 1. Connect Fleet to your IdP
-2. Upload a EULA to Fleet
+2. Upload a EULA to Fleet (optional)
 3. Enable end user authentication
 
 ### Step 1: connect Fleet to your IdP
-
-You can connect Fleet to your IdP using the Fleet UI or fleetctl command-line tool.
-
-The Fleet UI method is a good start if you're just getting familiar with Fleet.
-
-The fleetctl CLI method enables managing your IdP credentials in a Git repository. This way you can enforce code review and benefit from Git's change history.
 
 Fleet UI:
 
@@ -40,7 +34,7 @@ Fleet UI:
 
 fleetctl CLI:
 
-1. Create `fleet-config.yaml` file:
+1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
 
 ```yaml
 apiVersion: v1
@@ -55,19 +49,19 @@ spec:
   ...
 ```
 
-2. Add an `mdm.end_user_authentication` key to your YAML document. This key accepts the above keys for your IdP credentials. 
+2. Fill in the relevant information from your IdP under the `mdm.end_user_authentication` key. 
 
 3. Run the fleetctl `apply -f fleet-config.yml` command to add your IdP credentials.
 
 4. Confirm that your IdP credentials were saved by running `fleetctl get config`.
-
-Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
 
 ### Step 2: upload a EULA to Fleet
 
 1. Head to the **Settings > Integrations > Automatic enrollment** page.
 
 2. Under **End user license agreement (EULA)**, select **Upload** and choose your EULA.
+
+> Uploading a EULA is optional. If you don't upload a EULA, the end user will skip this step and continue to the next step of the new Mac setup experience after they authenticate with your IdP.
 
 ### Step 3: enable end user authentication
 
@@ -203,12 +197,6 @@ $ pkgutil --check-signature /path/to/signed-package.pkg
 In the output you should see that package has a "signed" status.
 
 ### Step 3: upload the package to Fleet
-
-In Fleet, you can upload the package using the Fleet UI or fleetctl command-line tool.
-
-The Fleet UI method is a good start if you're just getting familiar with Fleet.
-
-The fleetctl CLI method enables managing the package in a Git repository. This way you can enforce code review and benefit from Git's change history.
 
 Fleet UI:
 
