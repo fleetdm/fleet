@@ -119,7 +119,7 @@ Learn more about "No team" configuration options [here](./configuration-files/RE
 
 3. Add an `mdm.macos_setup.enable_end_user_authentication` key to your YAML document. This key accepts a boolean value.
 
-4. Run the fleetctl `apply -f workstations-canary-config.yml` command to enable authentication for this team.
+4. Run the `fleetctl apply -f workstations-canary-config.yml` command to enable authentication for this team.
 
 5. Confirm that end user authentication is enabled by running the `fleetctl get teams --name=Workstations --yaml` command.
 
