@@ -27,6 +27,7 @@ import Issue from "./Issue";
 import More from "./More";
 import Plus from "./Plus";
 import PremiumFeature from "./PremiumFeature";
+import Policy from "./Policy";
 import Query from "./Query";
 import Search from "./Search";
 
@@ -107,6 +108,7 @@ export const ICON_MAP = {
   issue: Issue,
   more: More,
   plus: Plus,
+  policy: Policy,
   query: Query,
   copy: Copy,
   eye: Eye,

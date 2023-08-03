@@ -6,8 +6,6 @@ import { renderWithSetup } from "test/test-utils";
 
 import FilterPill from "./FilterPill";
 
-import PolicyIcon from "../../../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
-
 describe("Filter Pill Component", () => {
   it("renders the pill text", () => {
     render(<FilterPill label="Test Pill" onClear={noop} />);
@@ -15,8 +13,8 @@ describe("Filter Pill Component", () => {
     expect(screen.getByText("Test Pill")).toBeInTheDocument();
   });
 
-  it("renders an passed in icon properly", () => {
-    render(<FilterPill label="Test Pill" icon={PolicyIcon} onClear={noop} />);
+  it("renders icon properly", () => {
+    render(<FilterPill label="Test Pill" icon="policy" onClear={noop} />);
 
     expect(screen.getByTestId("filter-pill__icon")).toBeInTheDocument();
   });
