@@ -14,7 +14,7 @@ In addition to the customization above, Fleet automatically installs the fleetd 
 
 MacOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](./MDM-setup.md#apple-business-manager-abm).
 
-## End user authentication
+## End user authentication and EULA
 
 Using Fleet, you can require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
 
