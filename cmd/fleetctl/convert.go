@@ -108,11 +108,12 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 		}
 
 		spec := &fleet.QuerySpec{
-			Name:        name,
-			Description: query.Description,
-			Query:       query.Query,
-			Interval:    interval,
-			Platform:    *convertedPlatforms,
+			Name:              name,
+			Description:       query.Description,
+			Query:             query.Query,
+			Interval:          interval,
+			Platform:          *convertedPlatforms,
+			MinOsqueryVersion: *query.Version,
 		}
 
 		specs.Queries = append(specs.Queries, spec)
