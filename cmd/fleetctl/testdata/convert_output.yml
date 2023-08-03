@@ -6,10 +6,10 @@ spec:
   description: Retrieves the list of application scheme/protocol-based IPC handlers.
   interval: 86400
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: app_schemes
   observer_can_run: false
-  platform: "darwin"
+  platform: darwin
   query: select * from app_schemes;
   team: ""
 ---
@@ -20,10 +20,10 @@ spec:
   description: Retrieves the current disk encryption status for the target system.
   interval: 86400
   logging: ""
-  min_osquery_version: "1.4.5"
+  min_osquery_version: 1.4.5
   name: disk_encryption (posix)
   observer_can_run: false
-  platform: "darwin,linux"
+  platform: darwin,linux
   query: select * from disk_encryption;
   team: ""
 ---
@@ -34,10 +34,10 @@ spec:
   description: Retrieves the current disk encryption status for the target system.
   interval: 300
   logging: ""
-  min_osquery_version: "1.4.5"
+  min_osquery_version: 1.4.5
   name: disk_encryption (darwin,linux)
   observer_can_run: false
-  platform: "darwin,linux"
+  platform: darwin,linux
   query: select * from disk_encryption;
   team: ""
 ---
@@ -48,10 +48,10 @@ spec:
   description: Retrieve basic information about the physical disks of a system.
   interval: 86400
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: disk_info
   observer_can_run: false
-  platform: "windows,chrome"
+  platform: windows,chrome
   query: select * from disk_info;
   team: ""
 ---
@@ -62,10 +62,10 @@ spec:
   description: Retrieves the current filters and chains per filter in the target system.
   interval: 3600
   logging: ""
-  min_osquery_version: "1.4.5"
+  min_osquery_version: 1.4.5
   name: iptables
   observer_can_run: false
-  platform: "linux"
+  platform: linux
   query: select * from iptables;
   team: ""
 ---
@@ -78,10 +78,10 @@ spec:
     OSX system.
   interval: 3600
   logging: ""
-  min_osquery_version: "1.4.5"
+  min_osquery_version: 1.4.5
   name: launchd
   observer_can_run: false
-  platform: "darwin"
+  platform: darwin
   query: select * from launchd;
   team: ""
 ---
@@ -92,10 +92,10 @@ spec:
   description: Retrieves the list of listening ports.
   interval: 3600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: listening_ports (specs)
   observer_can_run: false
-  platform: "darwin,linux,windows"
+  platform: darwin,linux,windows
   query: select * from listening_ports;
   team: ""
 ---
@@ -106,10 +106,10 @@ spec:
   description: Retrieves the list of listening ports.
   interval: 3600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: listening_ports (utility)
   observer_can_run: false
-  platform: "darwin,linux,windows"
+  platform: darwin,linux,windows
   query: select * from listening_ports;
   team: ""
 ---
@@ -120,10 +120,10 @@ spec:
   description: Lists the application bundle that owns a sandbox label.
   interval: 86400
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: sandboxes
   observer_can_run: false
-  platform: "darwin"
+  platform: darwin
   query: select * from sandboxes;
   team: ""
 ---
@@ -134,10 +134,10 @@ spec:
   description: System resource usage limits.
   interval: 300
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: ulimit_info (smart)
   observer_can_run: false
-  platform: "darwin,linux"
+  platform: darwin,linux
   query: select * from ulimit_info;
   team: ""
 ---
@@ -148,10 +148,10 @@ spec:
   description: System uptime.
   interval: 600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: uptime (kernel)
   observer_can_run: false
-  platform: "darwin"
+  platform: darwin
   query: select * from uptime;
   team: ""
 ---
@@ -162,10 +162,10 @@ spec:
   description: System uptime.
   interval: 600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: uptime (linwin)
   observer_can_run: false
-  platform: "linux,windows"
+  platform: linux,windows
   query: select * from uptime;
   team: ""
 ---
@@ -176,10 +176,10 @@ spec:
   description: System uptime.
   interval: 600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: uptime (macwin)
   observer_can_run: false
-  platform: "darwin,windows"
+  platform: darwin,windows
   query: select * from uptime;
   team: ""
 ---
@@ -190,10 +190,10 @@ spec:
   description: System uptime.
   interval: 600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: uptime (sleuthkit)
   observer_can_run: false
-  platform: "darwin,linux"
+  platform: darwin,linux
   query: select * from uptime;
   team: ""
 ---
@@ -204,10 +204,10 @@ spec:
   description: Lists the application bundle that owns a sandbox label.
   interval: 86400
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: sandboxes
   observer_can_run: false
-  platform: "darwin"
+  platform: darwin
   query: select * from sandboxes;
   team: ""
 ---
@@ -218,7 +218,7 @@ spec:
   description: List of all user groups.
   interval: 3600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: user groups (all)
   observer_can_run: false
   platform: ""
@@ -232,7 +232,7 @@ spec:
   description: List of all user groups.
   interval: 3600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: user groups (any)
   observer_can_run: false
   platform: ""
@@ -246,10 +246,10 @@ spec:
   description: List of all user groups.
   interval: 3600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: user groups (darwin,linux)
   observer_can_run: false
-  platform: "darwin,linux"
+  platform: darwin,linux
   query: select * from user_groups;
   team: ""
 ---
@@ -274,10 +274,10 @@ spec:
   description: List of all user groups.
   interval: 3600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: user groups (linux,darwin)
   observer_can_run: false
-  platform: "darwin,linux"
+  platform: darwin,linux
   query: select * from user_groups;
   team: ""
 ---
@@ -288,10 +288,10 @@ spec:
   description: List of all user groups.
   interval: 3600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: user groups (windows,chrome)
   observer_can_run: false
-  platform: "windows,chrome"
+  platform: windows,chrome
   query: select * from user_groups;
   team: ""
 ---
@@ -302,23 +302,25 @@ spec:
   description: Extracted information from Windows crash logs (Minidumps).
   interval: 3600
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: windows crashes
   observer_can_run: false
-  platform: "windows"
-  query: select * windows_crashes;
+  platform: windows
+  query: select * from windows_crashes;
   team: ""
 ---
 apiVersion: v1
 kind: query
 spec:
   automations_enabled: false
-  description: Triggers one-off YARA query for files at the specified path. Requires one of sig_group, sigfile, or sigrule.
+  description:
+    Triggers one-off YARA query for files at the specified path. Requires
+    one of sig_group, sigfile, or sigrule.
   interval: 0
   logging: ""
-  min_osquery_version: "1.4.7"
+  min_osquery_version: 1.4.7
   name: yara (yara)
   observer_can_run: false
-  platform: "darwin,linux,windows"
+  platform: darwin,linux,windows
   query: select * from yara;
   team: ""
