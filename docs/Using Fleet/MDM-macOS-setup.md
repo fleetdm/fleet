@@ -87,7 +87,7 @@ fleetctl CLI:
 
    In this example, we'll enable end user authentication on the "Workstations (canary)" team so that the authentication is only required for hosts that automatically enroll to this team.
 
-3. Create a `workstations-canary-config.yaml` file:
+2. Create a `workstations-canary-config.yaml` file:
 
 ```yaml
 apiVersion: v1
