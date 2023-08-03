@@ -60,7 +60,7 @@ fleetctl generate mdm-apple --email <email> --org <org>
 ### Step 3: configure Fleet with the generated files
 Restart the Fleet server with the contents of the APNs certificate, APNs private key, SCEP certificate, and SCEP private key in the following environment variables:
 
-> Note: Any environment variable that ends in `_BYTES` expects the file's actual content to be passed in, not a path to the file. If you want to pass a file path, remove the `_BYTES` off the environment variable
+> Note: Any environment variable that ends in `_BYTES` expects the file's actual content to be passed in, not a path to the file. If you want to pass in a file path, remove the `_BYTES` suffix from the environment variable.
 
 * [FLEET_MDM_APPLE_APNS_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-cert-bytes)
 * [FLEET_MDM_APPLE_APNS_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-key-bytes)
