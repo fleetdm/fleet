@@ -81,7 +81,7 @@ const filterCompatiblePlatforms = (
   return SUPPORTED_PLATFORMS.filter((p) => compatiblePlatforms.includes(p));
 };
 
-const parseSqlTables = (
+export const parseSqlTables = (
   sqlString: string,
   includeCteTables = false
 ): string[] => {
@@ -122,7 +122,30 @@ const parseSqlTables = (
   }
 };
 
-const checkPlatformCompatibility = (
+export const checkTable = (
+  sqlString = "",
+  includeCteTables = false
+): { tables: string[] | null; error: Error | null } => {
+  let sqlTables: string[] | undefined;
+  try {
+    sqlTables = parseSqlTables(sqlString, includeCteTables);
+  } catch (err) {
+    return { tables: null, error: new Error(`${err}`) };
+  }
+
+  if (sqlTables === undefined) {
+    return {
+      tables: null,
+      error: new Error(
+        "Unexpected error checking table names: sqlTables are undefined"
+      ),
+    };
+  }
+
+  return { tables: sqlTables, error: null };
+};
+
+export const checkPlatformCompatibility = (
   sqlString: string,
   includeCteTables = false
 ): { platforms: SupportedPlatform[] | null; error: Error | null } => {
@@ -150,4 +173,101 @@ const checkPlatformCompatibility = (
   }
 };
 
-export default checkPlatformCompatibility;
+export const sqlKeyWords = [
+  "select",
+  "insert",
+  "update",
+  "delete",
+  "from",
+  "where",
+  "and",
+  "or",
+  "group",
+  "by",
+  "order",
+  "limit",
+  "offset",
+  "having",
+  "as",
+  "case",
+  "when",
+  "else",
+  "end",
+  "type",
+  "left",
+  "right",
+  "join",
+  "on",
+  "outer",
+  "desc",
+  "asc",
+  "union",
+  "create",
+  "table",
+  "primary",
+  "key",
+  "if",
+  "foreign",
+  "not",
+  "references",
+  "default",
+  "null",
+  "inner",
+  "cross",
+  "natural",
+  "database",
+  "drop",
+  "grant",
+];
+
+// Note: `last` was removed from the list of built-in functions because it collides with the
+// `last` table available in osquery
+export const sqlBuiltinFunctions = [
+  "avg",
+  "count",
+  "first",
+  "max",
+  "min",
+  "sum",
+  "ucase",
+  "lcase",
+  "mid",
+  "len",
+  "round",
+  "rank",
+  "now",
+  "format",
+  "coalesce",
+  "ifnull",
+  "isnull",
+  "nvl",
+];
+
+export const sqlDataTypes = [
+  "int",
+  "numeric",
+  "decimal",
+  "date",
+  "varchar",
+  "char",
+  "bigint",
+  "float",
+  "double",
+  "bit",
+  "binary",
+  "text",
+  "set",
+  "timestamp",
+  "money",
+  "real",
+  "number",
+  "integer",
+];
+
+export default {
+  checkPlatformCompatibility,
+  checkTable,
+  sqlKeyWords,
+  sqlBuiltinFunctions,
+  sqlDataTypes,
+};

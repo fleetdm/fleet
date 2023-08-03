@@ -2,7 +2,7 @@ import React, { useCallback, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { OsqueryPlatform, SUPPORTED_PLATFORMS } from "interfaces/platform";
-import checkPlatformCompatibility from "utilities/sql_tools";
+import { checkPlatformCompatibility } from "utilities/sql_tools";
 
 import PlatformCompatibility from "components/PlatformCompatibility";
 

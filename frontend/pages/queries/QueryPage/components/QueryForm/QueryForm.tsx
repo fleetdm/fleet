@@ -34,6 +34,8 @@ import queryAPI from "services/entities/queries";
 
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
+import { parseSqlTables } from "utilities/sql_tools";
+
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
 // @ts-ignore
@@ -164,7 +166,6 @@ const QueryForm = ({
     if (!isStoredQueryLoading && queryIdForEdit === lastEditedQueryId) {
       setCompatiblePlatforms(lastEditedQueryBody);
     }
-
     debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
 
