@@ -18,12 +18,11 @@ module.exports = {
 
   fn: async function () {
 
-    let usersCurrentlyOnWaitlist = await User.find({inSandboxWaitlist: true});
-
-    let usersCurrentlyOnWaitlistSortedBySignupTime = _.sortBy(usersCurrentlyOnWaitlist, 'createdAt');
+    let usersCurrentlyOnWaitlist = await User.find({inSandboxWaitlist: true})
+    .sort('createdAt ASC');
 
     return {
-      usersWaitingForSandboxInstance: usersCurrentlyOnWaitlistSortedBySignupTime
+      usersWaitingForSandboxInstance: usersCurrentlyOnWaitlist
     };
 
   }
