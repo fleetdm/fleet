@@ -1241,8 +1241,8 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 		{Identifier: globalPfs[1].Identifier, DisplayName: globalPfs[1].Name, InstallDate: time.Now()},
 		{Identifier: globalPfs[2].Identifier, DisplayName: globalPfs[2].Name, InstallDate: time.Now()},
 	}
-	require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, host1, verified))
-	require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, host3, verified))
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, host1, profilesByIdentifier(verified)))
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, host3, profilesByIdentifier(verified)))
 
 	// still no profiles to install
 	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
@@ -1581,7 +1581,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	require.Equal(t, uint(0), res.Verified)
 
 	// upsert hosts[0] filevault to verified
-	require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[0], []*fleet.HostMacOSProfile{{Identifier: fvNoTeam.Identifier, DisplayName: fvNoTeam.Name, InstallDate: time.Now()}}))
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[0], profilesByIdentifier([]*fleet.HostMacOSProfile{{Identifier: fvNoTeam.Identifier, DisplayName: fvNoTeam.Name, InstallDate: time.Now()}})))
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
@@ -3933,13 +3933,13 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	checkHostMDMProfileStatuses()
 
 	// statuses don't change during the grace period if profiles are missing (i.e. not installed)
-	require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[0], []*fleet.HostMacOSProfile{}))
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[0], map[string]*fleet.HostMacOSProfile{}))
 	checkHostMDMProfileStatuses()
 
 	// only "verifying" status can change to "verified" so status of cp1 doesn't change (it
 	// remains "pending")
-	require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[0], []*fleet.HostMacOSProfile{
-		{
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[0], map[string]*fleet.HostMacOSProfile{
+		cp1.Identifier: {
 			Identifier:  cp1.Identifier,
 			DisplayName: cp1.Name,
 			InstallDate: time.Now(),
@@ -3949,7 +3949,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 
 	// if install date is before the updated at timestamp of the profile, statuses don't change
 	// during the grace period
-	require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[1], []*fleet.HostMacOSProfile{
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[1], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
 			Identifier:  cp1.Identifier,
 			DisplayName: cp1.Name,
@@ -3965,12 +3965,12 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			DisplayName: cp3.Name,
 			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt.Add(-1 * time.Hour),
 		},
-	}))
+	})))
 	checkHostMDMProfileStatuses()
 
 	// if install date is on or after the updated at timestamp of the profile, "verifying" status
 	// changes to "verified"
-	require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[2], []*fleet.HostMacOSProfile{
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
 			Identifier:  cp1.Identifier,
 			DisplayName: cp1.Name,
@@ -3986,12 +3986,12 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			DisplayName: cp3.Name,
 			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt,
 		},
-	}))
+	})))
 	expectedHostMDMStatus[hosts[2].ID][cp2.Identifier] = fleet.MDMAppleDeliveryVerified
 	checkHostMDMProfileStatuses()
 
 	// repeated call doesn't change statuses
-	require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[2], []*fleet.HostMacOSProfile{
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
 			Identifier:  cp1.Identifier,
 			DisplayName: cp1.Name,
@@ -4007,7 +4007,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			DisplayName: cp3.Name,
 			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt,
 		},
-	}))
+	})))
 	checkHostMDMProfileStatuses()
 
 	// simulate expired grace period by setting updated_at timestamp of profiles back by 24 hours
@@ -4021,7 +4021,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	})
 
 	// after the grace period, status changes to "failed" if a profile is missing (i.e. not installed)
-	require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[2], []*fleet.HostMacOSProfile{
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
 			Identifier:  cp1.Identifier,
 			DisplayName: cp1.Name,
@@ -4032,13 +4032,13 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			DisplayName: cp2.Name,
 			InstallDate: time.Now(),
 		},
-	}))
+	})))
 	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMAppleDeliveryFailed // cp3 is missing
 	checkHostMDMProfileStatuses()
 
 	// after the grace period, status changes to "failed" if a profile is outdated (i.e. installed
 	// before the updated at timestamp of the profile)
-	require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[2], []*fleet.HostMacOSProfile{
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
 			Identifier:  cp1.Identifier,
 			DisplayName: cp1.Name,
@@ -4049,7 +4049,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			DisplayName: cp2.Name,
 			InstallDate: time.Now().Add(-48 * time.Hour),
 		},
-	}))
+	})))
 	expectedHostMDMStatus[hosts[2].ID][cp2.Identifier] = fleet.MDMAppleDeliveryFailed // cp2 is outdated
 	checkHostMDMProfileStatuses()
 }
@@ -4567,7 +4567,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 			// within grace period
 			setProfileUpdatedAt(t, cp, twoMinutesAgo)
-			require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, h, reportedProfiles))
+			require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 			require.NoError(t, checkHostStatus(t, h, tc.initialStatus, "")) // if missing within grace period, no change
 
 			// reinitialize
@@ -4576,7 +4576,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 			// outside grace period
 			setProfileUpdatedAt(t, cp, twoHoursAgo)
-			require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, h, reportedProfiles))
+			require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 			require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // grace period expired, check expected status
 		}
 	})
@@ -4631,7 +4631,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 				// within grace period
 				setProfileUpdatedAt(t, cp, twoMinutesAgo)
-				require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, h, reportedProfiles))
+				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, "")) // outdated profiles are treated similar to missing profiles so status doesn't change if within grace period
 
 				// reinitalize
@@ -4640,7 +4640,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 				// outside grace period
 				setProfileUpdatedAt(t, cp, twoHoursAgo)
-				require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, h, reportedProfiles))
+				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // grace period expired, check expected status
 			})
 		}
@@ -4694,7 +4694,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 				// within grace period
 				setProfileUpdatedAt(t, cp, twoMinutesAgo)
-				require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, h, reportedProfiles))
+				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // if found within grace period, verifying status can become verified so check expected status
 
 				// reinitialize
@@ -4703,7 +4703,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 				// outside grace period
 				setProfileUpdatedAt(t, cp, twoHoursAgo)
-				require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, h, reportedProfiles))
+				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // grace period expired, check expected status
 			})
 		}
@@ -4762,7 +4762,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 				// within grace period
 				setProfileUpdatedAt(t, cp, twoMinutesAgo)
-				require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, h, reportedProfiles))
+				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // if found within grace period, verifying status can become verified so check expected status
 
 				// reinitialize
@@ -4771,9 +4771,73 @@ func TestMDMProfileVerification(t *testing.T) {
 
 				// outside grace period
 				setProfileUpdatedAt(t, cp, twoHoursAgo)
-				require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, h, reportedProfiles))
+				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // grace period expired, check expected status
 			})
 		}
 	})
+
+	t.Run("EarliestInstallDate", func(t *testing.T) {
+		hostString := "host-earliest-install-date"
+		h := test.NewHost(t, ds, hostString, hostString, hostString, hostString, twoMinutesAgo)
+
+		cp := configProfileForTest(t,
+			fmt.Sprintf("name-test-profile-%s", hostString),
+			fmt.Sprintf("identifier-test-profile-%s", hostString),
+			fmt.Sprintf("uuid-test-profile-%s", hostString))
+
+		// save the config profile to no team
+		stored0, err := ds.NewMDMAppleConfigProfile(ctx, *cp)
+		require.NoError(t, err)
+
+		reportedProfiles := []*fleet.HostMacOSProfile{
+			{
+				DisplayName: cp.Name,
+				Identifier:  cp.Identifier,
+				InstallDate: twoDaysAgo,
+			},
+		}
+		initialStatus := fleet.MDMAppleDeliveryVerifying
+
+		// initialize
+		upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{stored0}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
+		require.NoError(t, checkHostStatus(t, h, initialStatus, ""))
+
+		// within grace period
+		setProfileUpdatedAt(t, stored0, twoMinutesAgo) // host is out of date but still within grace period
+		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
+		require.NoError(t, checkHostStatus(t, h, fleet.MDMAppleDeliveryVerifying, "")) // no change
+
+		// reinitialize
+		upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{stored0}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
+		require.NoError(t, checkHostStatus(t, h, initialStatus, ""))
+
+		// outside grace period
+		setProfileUpdatedAt(t, stored0, twoHoursAgo) // host is out of date and grace period has passed
+		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
+		require.NoError(t, checkHostStatus(t, h, fleet.MDMAppleDeliveryFailed, string(fleet.HostMDMProfileDetailFailedWasVerifying))) // set to failed
+
+		// reinitialize
+		upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{stored0}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
+		require.NoError(t, checkHostStatus(t, h, initialStatus, ""))
+
+		// save a copy of the config profile to team 1
+		cp.TeamID = ptr.Uint(1)
+		stored1, err := ds.NewMDMAppleConfigProfile(ctx, *cp)
+		require.NoError(t, err)
+
+		setProfileUpdatedAt(t, stored0, twoHoursAgo)                  // host would be out of date based on this copy of the profile record
+		setProfileUpdatedAt(t, stored1, twoDaysAgo.Add(-1*time.Hour)) // BUT this record now establishes the earliest install date
+
+		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
+		require.NoError(t, checkHostStatus(t, h, fleet.MDMAppleDeliveryVerified, "")) // set to verified based on earliest install date
+	})
+}
+
+func profilesByIdentifier(profiles []*fleet.HostMacOSProfile) map[string]*fleet.HostMacOSProfile {
+	byIdentifier := map[string]*fleet.HostMacOSProfile{}
+	for _, p := range profiles {
+		byIdentifier[p.Identifier] = p
+	}
+	return byIdentifier
 }
