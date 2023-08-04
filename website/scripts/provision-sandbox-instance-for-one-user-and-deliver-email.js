@@ -53,6 +53,7 @@ module.exports = {
       templateData: {},
     });
 
+    sails.log(`Successfully removed a user (id: ${userToRemoveFromSandboxWaitlist.id}) from the Fleet Sandbox waitlist.`)
 
   }
 
