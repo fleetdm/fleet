@@ -100,7 +100,7 @@ const WindowsAutomaticEnrollmentPage = () => {
           </li>
           <li>
             Go back to <b>Mobility (MDM and MAM)</b>, refresh the page, then
-            open newly created app On-premises MDM application settings
+            open newly created app and select{" "}
             <b>On-premises MDM application settings</b>.
           </li>
           <li>
