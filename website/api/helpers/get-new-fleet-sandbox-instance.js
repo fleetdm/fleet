@@ -68,7 +68,7 @@ module.exports = {
       // If we received a non-200 response from the cloud provisioner API, we'll throw a 500 error.
       return new Error('When attempting to provision a Sandbox instance for a user on the Fleet Sandbox waitlist ('+emailAddress+'), the cloud provisioner gave a non 200 response. Raw response received from provisioner: '+err.stack);
     })
-    .intercept({name: 'TimeoutError'},(err)=>{
+    .intercept({name: 'TimeoutError'},()=>{
       // If the request timed out, log a warning and return a 'requestToSandboxTimedOut' response.
       return 'requestToProvisionerTimedOut';
     });

@@ -162,7 +162,7 @@ the account verification message.)`,
       })
       .intercept((err)=>{ // For any other errors, we'll throw a 500 error.
         return new Error(`When attempting to provision a new Fleet Sandbox instance for a new user signing up (email: ${newEmailAddress}), an error occured. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${err}`);
-      })
+      });
 
       // Build up data for the new user record and save it to the database.
       // (Also use `fetch` to retrieve the new ID so that we can use it below.)
