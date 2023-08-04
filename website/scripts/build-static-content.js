@@ -27,7 +27,7 @@ module.exports = {
 
     let baseHeadersForGithubRequests;
     if(!skipGithubRequests){
-      let baseHeadersForGithubRequests = {
+      baseHeadersForGithubRequests = {
         'User-Agent': 'Fleet-Standard-Query-Library',
         'Accept': 'application/vnd.github.v3+json',
       };
