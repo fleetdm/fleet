@@ -14,7 +14,7 @@ parasails.registerComponent('rituals', {
   //  ╠═╝╠╦╝║ ║╠═╝╚═╗
   //  ╩  ╩╚═╚═╝╩  ╚═╝
   props: [
-    'ritualsTable',
+    'rituals',
   ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
@@ -42,7 +42,7 @@ parasails.registerComponent('rituals', {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="ritual in ritualsTable">
+        <tr v-for="ritual in rituals">
           <td>{{ritual.task}}</td>
           <td>{{ritual.startedOn}}</td>
           <td>{{ritual.frequency}}</td>
