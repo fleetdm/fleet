@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Get new Fleet Sandbox instance',
+  friendlyName: 'Provision new Fleet Sandbox instance',
 
 
   description: 'Provisions a new Fleet Sandbox instance and returns the details of the Sandbox instance.',
@@ -12,17 +12,20 @@ module.exports = {
     firstName: {
       type: 'string',
       required: true,
-      description: 'The first name of the user who is having a Fleet Sandbox instance provisioned for them.'
+      description: 'The first name of the user who is having a Fleet Sandbox instance provisioned for them.',
+      extendedDescription: 'This will be used in the Fleet instance'
     },
     lastName: {
       type: 'string',
       required: true,
-      description: 'The last name of the user who is having a Fleet Sandbox instance provisioned for them.'
+      description: 'The last name of the user who is having a Fleet Sandbox instance provisioned for them.',
+      extendedDescription: 'This will be used in the Fleet instance'
     },
     emailAddress: {
       type: 'string',
       required: true,
       description: 'The email address of the User record that is having a Fleet sandbox instance provisioned for them.',
+      extendedDescription: 'This will be used in the Fleet instance'
     },
 
   },
@@ -32,7 +35,12 @@ module.exports = {
 
     success: {
       description: 'All done.',
-      outputType: {},
+      outputFriendlyName: 'Sandbox instance details',
+      outputType: {
+        fleetSandboxDemoKey: 'string',
+        fleetSandboxExpiresAt: 'number',
+        fleetSandboxURL: 'string',
+      },
     },
 
     requestToProvisionerTimedOut: {

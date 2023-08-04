@@ -151,7 +151,7 @@ the account verification message.)`,
       // If the Fleet Sandbox waitlist is not enabled (sails.config.custom.fleetSandboxWaitlistEnabled) We'll provision a Sandbox instance BEFORE creating the new User record.
       // This way, if this fails, we won't save the new record to the database, and the user will see an error on the signup form asking them to try again.
 
-      let sandboxInstanceDetails = await sails.helpers.getNewFleetSandboxInstance.with({
+      let sandboxInstanceDetails = await sails.helpers.fleetSandboxCloudProvisioner.provisionNewFleetSandboxInstance.with({
         firstName: firstName,
         lastName: lastName,
         emailAddress: newEmailAddress,

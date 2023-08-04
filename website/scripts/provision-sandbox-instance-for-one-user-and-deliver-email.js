@@ -24,7 +24,7 @@ module.exports = {
 
     let userToRemoveFromSandboxWaitlist = earliestCreatedUserCurrentlyOnWaitlist[0];
 
-    let sandboxInstanceDetails = await sails.helpers.getNewFleetSandboxInstance.with({
+    let sandboxInstanceDetails = await sails.helpers.fleetSandboxCloudProvisioner.provisionNewFleetSandboxInstance.with({
       firstName: userToRemoveFromSandboxWaitlist.firstName,
       lastName: userToRemoveFromSandboxWaitlist.lastName,
       emailAddress: userToRemoveFromSandboxWaitlist.emailAddress,
