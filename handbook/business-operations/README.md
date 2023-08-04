@@ -456,7 +456,7 @@ The following stubs are included only to make links backward compatible.
 Please see [handbook/company/communications](https://fleetdm.com/handbook/company/communications) for all sections above.
 
 ##### People Operations stubs
-The following sections have been moved to the [People Operations hanbook page](https://fleetdm.com/handbook/business-operations/people-operations)
+The following sections have been moved to the [People Operations hanbook page](https://fleetdm.com/handbook/business-operations/people-operations).
 ###### Relocating
 ###### People Operations rituals
 ###### Celebrations
@@ -506,6 +506,7 @@ The following sections have been moved to the [People Operations hanbook page](h
 ###### Steps after an offer is accepted
 ###### Departures
 ###### Communicating departures
+The above sections have been moved to the [People Operations hanbook page](https://fleetdm.com/handbook/business-operations/people-operations).
 
 ##### Open positions
 
