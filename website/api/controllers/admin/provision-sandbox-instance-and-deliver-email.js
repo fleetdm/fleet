@@ -20,10 +20,6 @@ module.exports = {
     success: {
       description: 'A user was successfully removed from the Fleet Sandbox waitlist.'
     },
-
-    couldNotProvisionInstance:{
-      description: 'Could not provision a Fleet Sandbox Instance for this user',
-    }
   },
 
 
@@ -32,7 +28,7 @@ module.exports = {
     let userToRemoveFromSandboxWaitlist = await User.findOne({id: userId});
 
     if(!userToRemoveFromSandboxWaitlist.inSandboxWaitlist) {
-      throw new Error(`When attempting to provision a Fleet Sandbox instance for a user (id:${userId}) who is on the waitlist, the user account associated with the provided ID has already been removed from the waitlist.`);
+      throw new Error(`When attempting to provision a Fleet Sandbox instance for a user (id:${userId}) who is on the waitlist, the user record associated with the provided ID has already been removed from the waitlist.`);
     }
 
     let sandboxInstanceDetails = await sails.helpers.getNewFleetSandboxInstance.with({

@@ -79,7 +79,7 @@ the account verification message.)`,
       'parameters should have been validated/coerced _before_ they were sent.'
     },
 
-    requestToSandboxTimedOut: {
+    requestToProvisionerTimedOut: {
       statusCode: 408,
       description: 'The request to the cloud provisioner exceeded the set timeout.',
     },
@@ -156,10 +156,13 @@ the account verification message.)`,
         lastName: lastName,
         emailAddress: newEmailAddress,
       })
-      .intercept((err)=>{
-        sails.log.warn(`When attempting to provision a new Fleet Sandbox instance for a User (id:${userToRemoveFromSandboxWaitlist.id}), an error occured. Full error: ${err.raw}`);
-        return 'requestToSandboxTimedOut';
-      });
+      .intercept('requestToProvisionerTimedOut', (err)=>{ // If the request to the Fleet Sandbox provisioner fails, we'll log a warning an return a requestToSandboxTimedOut response. This will tell the frontend to display a message asking the user to retry signing up.
+        sails.log.warn(`When attempting to provision a new Fleet Sandbox instance for a new user signing up (email: ${newEmailAddress}). The Fleet Sandbox provisioner returned a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${err}`);
+        return 'requestToProvisionerTimedOut';
+      })
+      .intercept((err)=>{ // For any other errors, we'll throw a 500 error.
+        return new Error(`When attempting to provision a new Fleet Sandbox instance for a new user signing up (email: ${newEmailAddress}), an error occured. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${err}`);
+      })
 
       // Build up data for the new user record and save it to the database.
       // (Also use `fetch` to retrieve the new ID so that we can use it below.)

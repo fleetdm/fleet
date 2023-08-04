@@ -30,7 +30,7 @@ module.exports = {
       emailAddress: userToRemoveFromSandboxWaitlist.emailAddress,
     })
     .intercept((err)=>{
-      return new Error(`When attempting to provision a new Fleet Sandbox instance for a User (id:${userToRemoveFromSandboxWaitlist.id}), an error occured. Full error: ${err.raw}`);
+      return new Error(`When attempting to provision a new Fleet Sandbox instance for a User (id:${userToRemoveFromSandboxWaitlist.id}), an error occured. Full error: ${err}`);
     });
 
 
@@ -53,7 +53,7 @@ module.exports = {
       templateData: {},
     });
 
-    sails.log(`Successfully removed a user (id: ${userToRemoveFromSandboxWaitlist.id}) from the Fleet Sandbox waitlist.`)
+    sails.log(`Successfully removed a user (id: ${userToRemoveFromSandboxWaitlist.id}) from the Fleet Sandbox waitlist.`);
 
   }
 
