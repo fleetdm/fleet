@@ -1,5 +1,12 @@
 .section--users {
   margin-top: $pad-medium;
+
+  .table-container {
+    &__header {
+      padding-top: $pad-large;
+    }
+  }
+
   .data-table-block {
     .data-table__table {
       thead {
