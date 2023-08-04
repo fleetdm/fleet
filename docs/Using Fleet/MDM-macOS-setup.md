@@ -202,7 +202,7 @@ Fleet UI:
 
 1. Head to the **Controls > macOS settings > macOS setup > Bootstrap package** page.
 
-2. Choose which team you want to add the bootstrap package to to by selecting the desired team in the teams dropdown in the upper left corner.
+2. Choose which team you want to add the bootstrap package to by selecting the desired team in the teams dropdown in the upper left corner.
 
 3. Select **Upload** and choose your bootstrap package.
 
