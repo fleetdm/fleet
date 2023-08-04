@@ -117,10 +117,10 @@ func main() {
 
 // Function to print a section (lines separated by "======")
 func printSection(section []string) {
-	execname := strings.Join(section, "\n")
-	fmt.Println("Running: " + execname)
+	query := strings.Join(section, "\n")
+	fmt.Println("Runningquery: " + query)
 
-	cmd := exec.Command(execname)
+	cmd := exec.Command("orbit", "shell", query)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
