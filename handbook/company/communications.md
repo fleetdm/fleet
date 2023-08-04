@@ -7,6 +7,8 @@ Fleet's [open-core](https://www.heavybit.com/library/video/commercial-open-sourc
 
 The idea here is to get this vision implemented on a single departmental handbook page first, starting with handbook/company/ceo.  It's hard to know what the philosophy should be until we can see it.  So we need to shorten the feedback loop so we can see it change live in one place.  That way we can iterate in one place instead of having things go a bunch of different directions, and adding in all the complexity of extra redirects to keep track of and all that stuff.  Then once we've got that looking good and have iterated a bit, we'll spread it out.
 
+Another thing is that we need to get a better intuitive understanding of who these pages are designed to serve.  So in order to put ourselves in their shoes (get behind their eyeballs), we need something to look at.  So doing a particular page first provides us with that canvas.
+
 - (h1) Top-level page title/ file name
     
   - (h2) Short section on _departmentally specific philosophy_ and the purpose of the page: If philosophy applies to more than your department, **pull it out**, make it easier for contributors to find.
@@ -21,13 +23,13 @@ The idea here is to get this vision implemented on a single departmental handboo
 - (h2) How-tos (Inward facing e.g. Fleetie)
   - e.g. (h2) Process CEO email
 
-- (h2) Rituals
-  
-- (h2) Slack channels 
-
 - (h2) Intake
 
 - (h2) Kanban
+
+- (h2) Rituals
+  
+- (h2) Slack channels
 
 
 
