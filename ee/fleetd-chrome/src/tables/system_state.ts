@@ -5,16 +5,14 @@ export default class TableSystemState extends Table {
   columns = ["idle_state"];
 
   async generate() {
-    const autoLockDelay = (await new Promise((resolve) =>
-      chrome.idle.getAutoLockDelay(resolve)
-    )) as number;
+    // @ts-ignore ignore typing which is out-of-date
+    const autoLockDelay = (await chrome.idle.getAutoLockDelay()) as number;
 
     // Idle time is set to 20% of the user's autolock time or defaults to 30 seconds
     const idleStateDelay = autoLockDelay > 0 ? 0.2 * autoLockDelay : 30;
 
-    const idleState = (await new Promise((resolve) =>
-      chrome.idle.queryState(idleStateDelay, resolve)
-    )) as string;
+    // @ts-ignore ignore typing which is out-of-date
+    const idleState = (await chrome.idle.queryState(idleStateDelay)) as string;
 
     return [{ idle_state: idleState }];
   }

@@ -138,7 +138,7 @@ module.exports.custom = {
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
-    // 'handbook/product/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
+    // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -149,8 +149,9 @@ module.exports.custom = {
     'website/config/custom.js': 'mikermcneil',
 
     // 🦿 Handbook
-    'handbook/company/ceo-handbook.md': 'sampfluger88',
-    'handbook/business-operations': 'mikermcneil',// TODO: Transfer to joanne once the philosophical stuff is deduplicated
+    'handbook/company/ceo.md': 'sampfluger88',
+    'handbook/company': 'mikermcneil',
+    'handbook/business-operations': 'mikermcneil',// TODO: Transfer to joanne once the philosophical stuff is moved into the new "Communication" page (similar to GitLab's)
     'handbook/engineering': 'lukeheath',
     'handbook/product': 'zhumo',
     'handbook/customers': 'alexmitchelliii',
@@ -226,7 +227,7 @@ module.exports.custom = {
     // Handbook
     'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
-    'handbook/company/ceo-handbook.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/ceo.md': ['sampfluger88', 'mikermcneil'],
     'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
     'handbook/engineering': ['zwass', 'lukeheath'],
     'handbook/product': ['noahtalerman', 'zhumo'],

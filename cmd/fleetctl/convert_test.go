@@ -64,5 +64,5 @@ func TestConvertFileStdout(t *testing.T) {
 	os.Stdout = oldStdout
 	w.Close()
 	out, _ := ioutil.ReadAll(r)
-	require.Equal(t, expected, out)
+	require.Equal(t, string(expected), string(out))
 }

@@ -98,13 +98,18 @@
                   <a :href="page.url" class="font-weight-bold">
                     {{page.title}}
                   </a>
-                  <ul class="px-0 pt-3 mb-0" v-if="!_.isEmpty(findPagesByUrl(page.url))">
-                    <li class="px-0 mb-2" v-for="subpage in findPagesByUrl(page.url)">
-                      <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                        {{subpage.title}}
-                      </a>
-                    </li>
-                  </ul>
+                  <div purpose="expanded-nav" class="pt-3" v-if="isCurrentSection(page)">
+                    <ul class="p-0 pl-2 mb-2" v-if="!_.isEmpty(findPagesByUrl(page.url))">
+                      <div purpose="nav-section" v-for="(section, sectionName) of findAndSortNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
+                        <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
+                        <li v-for="subpage in section" :key="subpage.title">
+                          <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                            {{subpage.title}}
+                          </a>
+                        </li>
+                      </div>
+                    </ul>
+                  </div>
                 </li>
               </ul>
             </div>
@@ -124,50 +129,37 @@
 
       <div class="container-fluid d-flex flex-column flex-lg-row p-0 pt-lg-4 pb-lg-4 m-0">
         <div purpose="left-sidebar" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
-          <ul class="p-0 pb-2 m-0 left-nav">
+          <ul class="p-0 pb-3 m-0 left-nav">
             <li v-for="page in findPagesByUrl()" :key="page.title">
               <a :href="page.url" class="font-weight-bold pb-3">{{page.title}}</a>
-              <div class="pt-2" v-if="isCurrentSection(page)">
-                <ul class="p-0 mb-2">
-                  <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
-                    <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                      {{subpage.title}}
-                    </a>
-                  </li>
+              <div purpose="expanded-nav" class="pt-3" v-if="isCurrentSection(page)">
+                <ul class="p-0 pl-2 mb-2">
+                  <div purpose="nav-section" v-for="(section, sectionName) of findAndSortNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
+                    <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
+                    <li v-for="subpage in section" :key="subpage.title">
+                      <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                        {{subpage.title}}
+                      </a>
+                    </li>
+                  </div>
                 </ul>
               </div>
             </li>
           </ul>
-          <a class="font-weight-bold py-3" target="_blank" href="https://github.com/fleetdm/fleet/releases">Releases</a>
-          <a href="/support" class="btn btn-block btn-sm btn-primary">Support</a>
-          <div purpose="right-sidebar-buttons">
-            <div class="d-none d-lg-block" purpose="demo-cta">
-              <a class="d-flex align-items-center justify-content-center" @click="clickOpenChatWidget()">
-                <div class="d-flex flex-column align-items-center">
-                <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="Target and configure specific devices" src="/images/docs-cta-icon-47x38@2x.png">
-                  <p class="mb-2 text-center">Target and configure specific devices</p>
-                  <span>
-                    Talk to an expert <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
-                  </span>
-                </div>
-              </a>
-            </div>
-            <div>
-              <div purpose="premium-cta" style="background: #E59CC4;" v-if="currentDocsSection === 'using-fleet' || currentDocsSection === 'contributing'">
-                <div purpose="docs-cta-image" class="d-flex justify-content-center">
-                  <img alt="A computer next to a coffee cup" src="/images/docs-premium-cta-computer-125x134@2x.png">
-                </div>
-                <p>Even more control with <span>Fleet Premium</span></p>
-                <a purpose="premium-cta-btn" href="/upgrade">Learn more</a>
+          <a class="pt-4 pb-3" target="_blank" href="https://fleetdm.com/tables">Data tables</a>
+          <a class="pb-3" target="_blank" href="https://fleetdm.com/queries">Built-in queries</a>
+          <a class="pb-3" target="_blank" href="https://github.com/fleetdm/fleet/releases">Releases</a>
+          <a class="pb-3" target="_blank" href="https://fleetdm.com/support">Support</a>
+          <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
+            <a class="d-flex align-items-center justify-content-center" href="https://kqphpqst851.typeform.com/to/ZfA3sOu0" target="_blank">
+              <div class="d-flex flex-column align-items-center">
+              <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
+                <p class="mb-0">Request Fleet swag</p>
+                <span>
+                  It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
+                </span>
               </div>
-              <div purpose="premium-cta" style="background: #A182DF;" v-else-if="currentDocsSection === 'deploying'">
-                <div purpose="docs-cta-image" class="d-flex justify-content-center">
-                  <img alt="A telephone in a glass display case" src="/images/docs-premium-cta-telephone-125x134@2x.png">
-                </div>
-                <p>Expertise on-demand with <span>Fleet Premium</span></p>
-                <a purpose="premium-cta-btn" href="/upgrade">Learn more</a>
-              </div>
-            </div>
+            </a>
           </div>
         </div>
 
@@ -187,19 +179,6 @@
               </li>
             </ul>
           </div>
-          <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
-            <a class="d-flex align-items-center justify-content-center" href="https://kqphpqst851.typeform.com/to/ZfA3sOu0" target="_blank">
-              <div class="d-flex flex-column align-items-center">
-              <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
-                <p class="mb-0">Request Fleet swag</p>
-                <span>
-                  It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
-                </span>
-              </div>
-            </a>
-          </div>
-
-
         </div>
 
         <div purpose="content" id="body-content" class="d-flex flex-column px-lg-5 content" parasails-has-no-page-script>

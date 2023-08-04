@@ -37,7 +37,7 @@ jobs:
       matrix:
         # See #9943, we just need to add windows-latest here once all issues are fixed.
         os: [ubuntu-latest, macos-latest]
-        go-version: ['1.19.10']
+        go-version: ['1.19.11']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code

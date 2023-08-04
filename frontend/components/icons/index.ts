@@ -9,6 +9,7 @@ import CriticalPolicy from "./CriticalPolicy";
 import Disable from "./Disable";
 import DownCaret from "./DownCaret";
 import Ex from "./Ex";
+import ExCircled from "./ExCircled";
 import EmptyHosts from "./EmptyHosts";
 import EmptyIntegrations from "./EmptyIntegrations";
 import EmptyMembers from "./EmptyMembers";
@@ -51,6 +52,8 @@ import Pending from "./Pending";
 import PendingPartial from "./PendingPartial";
 import ErrorOutline from "./ErrorOutline";
 import Error from "./Error";
+import Warning from "./Warning";
+import Clock from "./Clock";
 
 import Copy from "./Copy";
 import Eye from "./Eye";
@@ -81,6 +84,7 @@ export const ICON_MAP = {
   disable: Disable,
   "down-caret": DownCaret,
   ex: Ex,
+  "ex-circled": ExCircled,
   "empty-hosts": EmptyHosts,
   "empty-integrations": EmptyIntegrations,
   "empty-members": EmptyMembers,
@@ -110,6 +114,8 @@ export const ICON_MAP = {
   "pending-partial": PendingPartial,
   error: Error,
   "error-outline": ErrorOutline,
+  warning: Warning,
+  clock: Clock,
   darwin: Apple,
   macOS: Apple,
   windows: Windows,

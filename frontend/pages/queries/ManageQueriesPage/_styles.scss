@@ -56,14 +56,17 @@
 
   &__action-button-container {
     display: flex;
-    align-items: flex-start;
-  }
-
-  .form-field--dropdown {
-    margin: 0;
+    gap: $pad-small;
   }
 
   .queries-table {
+    .controls {
+      .form-field {
+        &--dropdown {
+          margin: 0;
+        }
+      }
+    }
     &__platform-dropdown {
       width: 159px;
 
@@ -95,99 +98,100 @@
     }
 
     .data-table-block {
-      .data-table__table {
-        thead {
-          .name__header {
-            width: auto;
-          }
-          .platforms__header {
-            width: $col-sm;
-          }
-          .author_name__header {
-            display: none;
-            width: 0;
-          }
-          .updated_at__header {
-            display: none;
-            width: 0;
-          }
-          @media (min-width: $break-md) {
-            .author_name__header {
-              display: table-cell;
+      .data-table {
+        &__wrapper {
+          overflow-x: scroll;
+          overflow-y: hidden;
+        }
+        &__table {
+          thead {
+            .name__header {
               width: auto;
             }
-          }
-          @media (min-width: $break-lg) {
-            .author_name__header {
-              width: $col-md;
+            .platforms__header {
+              width: $col-sm;
             }
             .updated_at__header {
-              display: table-cell;
-              width: auto;
+              display: none;
+              width: 0;
             }
-          }
-        }
-        tbody {
-          .name__cell {
-            max-width: $col-lg;
-
-            .children-wrapper {
-              display: flex;
-              gap: $pad-xsmall;
-
-              .observer-can-run-tooltip {
-                font-weight: $regular;
+            .performance__header {
+              display: none;
+              width: 0;
+              @media (min-width: $break-md) {
+                display: table-cell;
+                width: auto;
+              }
+            }
+            @media (min-width: $break-lg) {
+              .author_name__header {
+                width: $col-md;
+              }
+              .updated_at__header {
+                display: table-cell;
+                width: auto;
               }
             }
           }
-
-          @media (max-width: $break-md) {
+          tbody {
             .name__cell {
-              .w400 {
-                max-width: calc(400px - 81px);
+              max-width: $col-lg;
+
+              .children-wrapper {
+                display: flex;
+                gap: $pad-xsmall;
+
+                .observer-can-run-tooltip {
+                  font-weight: $regular;
+                }
               }
             }
-          }
-          .platforms__cell {
-            max-width: $col-md;
-          }
-          .author_name__cell {
-            display: none;
-            max-width: $col-md;
-            img,
-            div,
-            span {
-              display: flex;
-              align-items: center;
+
+            @media (max-width: $break-md) {
+              .name__cell {
+                .w400 {
+                  max-width: calc(400px - 81px);
+                }
+              }
             }
-            div {
-              padding-right: $pad-small;
+            .platforms__cell {
+              max-width: $col-md;
             }
-            .author-name {
-              display: block;
-            }
-          }
-          .updated_at__cell {
-            display: none;
-            max-width: $col-md;
-          }
-          @media (min-width: $break-md) {
-            .author_name__cell {
-              display: table-cell;
-            }
-          }
-          @media (min-width: $break-lg) {
             .updated_at__cell {
-              display: table-cell;
+              display: none;
+              max-width: $col-md;
+            }
+            .performance__cell {
+              display: none;
+              max-width: $col-md;
+            }
+            @media (min-width: $break-md) {
+              .performance__cell {
+                display: table-cell;
+              }
+            }
+            @media (min-width: $break-lg) {
+              .updated_at__cell {
+                display: table-cell;
+              }
             }
           }
         }
       }
     }
 
+    .query-name-cell {
+      .children-wrapper {
+        .query-name-text {
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+      }
+    }
     .query-icon {
       position: relative;
       top: 2px;
+      display: block;
     }
   }
 }
