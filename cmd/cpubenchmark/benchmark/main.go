@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-
-	"github.com/shirou/gopsutil/cpu"
+	"time"
 )
 
 func main() {
@@ -19,13 +18,15 @@ func main() {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// Get the initial CPU time
-	initialCPUTime, err := cpuTimes()
-	if err != nil {
-		fmt.Println("Error getting CPU time:", err)
-	}
+	// // Get the initial CPU time
+	// initialCPUTime, err := cpuTimes()
+	// if err != nil {
+	// 	fmt.Println("Error getting CPU time:", err)
+	// }
 
-	err = cmd.Start()
+	startTime := time.Now()
+
+	err := cmd.Start()
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -37,21 +38,25 @@ func main() {
 		fmt.Println("Error waiting for process:", err)
 	}
 
-	// Get the final CPU time
-	finalCPUTime, err := cpuTimes()
-	if err != nil {
-		fmt.Println("Error getting CPU time:", err)
-	}
+	endTime := time.Now()
+	elapsedTime := endTime.Sub(startTime)
+	fmt.Printf("Elapsed time: %v\n", elapsedTime)
 
-	// Calculate and print CPU usage
-	cpuUsage := finalCPUTime - initialCPUTime
-	fmt.Printf("CPU usage: %.2f%%\n", cpuUsage*100)
+	// // Get the final CPU time
+	// finalCPUTime, err := cpuTimes()
+	// if err != nil {
+	// 	fmt.Println("Error getting CPU time:", err)
+	// }
+
+	// // Calculate and print CPU usage
+	// cpuUsage := finalCPUTime - initialCPUTime
+	// fmt.Printf("CPU usage: %.2f%%\n", cpuUsage*100)
 }
 
-func cpuTimes() (float64, error) {
-	percent, err := cpu.Percent(0, false)
-	if err != nil {
-		return 0, err
-	}
-	return percent[0] / 100.0, nil
-}
+// func cpuTimes() (float64, error) {
+// 	percent, err := cpu.Percent(0, false)
+// 	if err != nil {
+// 		return 0, err
+// 	}
+// 	return percent[0] / 100.0, nil
+// }
