@@ -743,7 +743,7 @@ module.exports = {
           // Get this rituals.yml file's parent folder name, we'll use this as the key for this section's rituals in the ritualsTables dictionary
           let relativeRepoPathForThisRitualsFile = path.relative(topLvlRepoPath, ritualsYamlFilePath);
           // Parse the rituals YAML file.
-          let yaml = await sails.helpers.fs.read(ritualsYamlFilePath).intercept('doesNotExist', (err)=>new Error(`Could not find pricing table features YAML file at "${ritualsYamlFilePath}".  Was it accidentally moved?  Raw error: `+err.message));
+          let yaml = await sails.helpers.fs.read(ritualsYamlFilePath);
           let ritualsFromRitualTableYaml = YAML.parse(yaml, {prettyErrors: true});
 
           // Make sure each ritual in the rituals YAML file has a task, startedOn, frequency, description, and DRI.
