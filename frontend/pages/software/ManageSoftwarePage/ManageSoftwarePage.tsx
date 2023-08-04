@@ -655,7 +655,7 @@ const ManageSoftwarePage = ({
         resetPageIndex={resetPageIndex}
         disableNextPage={isLastPage}
         searchable={searchable}
-        inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
+        inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
         onQueryChange={onQueryChange}
         additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
         // for the useDeepEffect hook to fire onQueryChange for events happeing outside of

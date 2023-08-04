@@ -232,7 +232,7 @@ const SoftwareTable = ({
                 defaultSearchQuery={searchQuery}
                 defaultPageIndex={page}
                 pageSize={DEFAULT_PAGE_SIZE}
-                inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
+                inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
                 onQueryChange={onQueryChange}
                 emptyComponent={() => (
                   <EmptySoftwareTable
