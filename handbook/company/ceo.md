@@ -22,7 +22,7 @@ The 🦿 CEO support team is made up of these people:
 
 [![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
 
-<blockquote purpose="quote">[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc.</blockquote> 
+"[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc."
 - I talk to think.
 - I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
 - I can be quick to criticism, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
@@ -66,7 +66,7 @@ Please find a different way to get in touch:
 
 ### Schedule time with the CEO
 
-All [meetings](https://fleetdm.com/handbook/company/communtcation#internal-meeting-scheduling) are welcomed and a top priority for the CEO to get on the calendar quickly. 
+All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meeting-scheduling) are welcomed and a top priority for the CEO to get on the calendar quickly. 
 
 To grab time with the CEO @mention the [AttC](#team) in the [#-meetings channel](https://fleetdm.slack.com/archives/C01BQKMTJNR) with the following details:
 - Proposed date and time
@@ -82,40 +82,22 @@ All items on Mike's calendar are subject to change by the CEO to better serve th
 Last-minute changes or cancellations must be communicated to Mike via [direct message (DM) only](#why-not-mention-the-ceo-in-slack-threads).
 
 
-### Schedule travel for the CEO
-Preferences for flights, in descending order of importance are:
-  - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
-  - Select a non-middle seat, whenever possible
-  - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
-  - The CEO does not like to be called "Michael".  Unfortunately, this is necessary when booking flights.  (He has missed flights before by not doing this.)
-  - Default to carry-on only, no checked bags.  (For trips longer than 5 nights, add 1 checked bag.)
-  - Use the Brex card.
-  - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
-
-
-
-
-
-
-
-
-
 ## Tasks
 (How to...)
 
 
-### Manage the CEO's email
+### Process the CEO's email
 
-The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for handling all email traffic prior to review. Multiple times daily (minimum 3), The Apprentice will reduce the scope of Mike's inbox to only include necessary and actionable communication.
+The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for processing all email traffic prior to CEO review. The [AttC](#team) will reduce the scope of Mike's inbox to only include necessary and actionable communication.
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
- -  Ensure all calendar invites have [necessary documents](#document-preparation) included.
+ -  Ensure all calendar invites have the necessary documents included.
 
 
 ### Process the CEO's calendar
 
 Time management for the CEO is essential at all times. 
-The AttC will process the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
+The AttC processes the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
 
 Prioritizing in order of importance:
  - External meetings
@@ -126,15 +108,21 @@ Prioritizing in order of importance:
 
 _External meetings, travel, and personal commitments cannot be moved without the CEO's approval._ 
 
+[Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
 
 In the notes document include:
   1. LinkedIn profile link of all outside participants
-  2. Company profile link 
-  3. Context that helps the CEO to understand the purpose of meeting at a glance
-  4. Share the document with meeting participants
+  2. Screen-shot of LinkedIn profile pic
+  3. Company name (in doc title and file name)
+  4. Correct date (20XX-XX-XX in doc title and file name)
+  5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
+     - CEO's email
+     - LinkedIn messages (careful not to mark things as read!)
+     - Google Drive 
+Be sure to do this from Mike's browser so as to not lock him out of any meeting docs.
 
 
-### Scheduling and adjusting CEO meetings
+#### Schedule and adjust CEO meetings
 
 If Mike agrees to a meeting at 9 am or earlier, the Apprentice will schedule a "DOTO: Mike" on his calendar the night before reminding him that he has a meeting before 9 am Central the following day.
 
@@ -145,11 +133,47 @@ Morning times should be held for team members and external folks whose time zone
 Don't schedule over the Weekly E-group call unless approved by Mike.
  - Refer to Mike's list of priorities in the [Priority calls](https://docs.google.com/document/d/1kYbRUMiGgOtrl1Lh6HWRc64p3rLhwvgTZD6CSONbGEo/edit#) (internal doc). 
 
+### Send the weekly update
+
+We like to be open about milestones and announcements.
+  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
+  - Friday nights, the AttC will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
+    - A link to view KPIs
+    - Who was on-call that week
+    - Fleeties who are currently onboarding
+    - Planned hires who haven't started yet
+    - Fleeties who had their lady day that week
+  
+  - Change the "⚡️" to "🔭" in the beginning of the formula
+
+<img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/574f251c-6ea7-4e22-b0ca-1c450ca09ec6">
+
+  - Select this week's cell (first week with the 🔮) in the KPI spreadsheet and copy the entire formula
+  
+  - Paste without formating (CMD+⇧+V) back into the same cell
+  
+  - The formula will now look like this:
+    
+  <img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
+  
+  - Paste the newly formatted message in the [#general](https://fleetdm.slack.com/archives/C019FNQPA23) Slack channel
+
+  - 📬 **Send it!**
 
 
+### Schedule travel for the CEO
+
+Preferences for flights, in descending order of importance are:
+  - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
+  - Select a non-middle seat, whenever possible
+  - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
+  - The CEO does not like to be called "Michael".  Unfortunately, this is necessary when booking flights.  (He has missed flights before by not doing this.)
+  - Default to carry-on only, no checked bags.  (For trips longer than 5 nights, add 1 checked bag.)
+  - Use the Brex card.
+  - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
 
 
-### Preparing for the All hands
+### Prepare for the All hands
 
 Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
@@ -190,38 +214,31 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/b
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
 
+📬 **Send it!**
 
-🚀 **Send it!**
+### Connect on osquery and MacAdmins Slack
+
+Go through (live) 3 recent questions asked in [osquery](https://osquery.slack.com/archives/C01DXJL16D8) or [MacAdmins](https://macadmins.slack.com/archives/C19MR7EM9) Slack.  Find the contributor on [LinkedIn](https://www.linkedin.com/search/results/all/?sid=54z). 
+Send connect request (blank), Then jump into the conversation in Slack, based on what we learned from LinkedIn.
+
+Goal: chum up the water.  No one else is currently LinkedIn connecting with community Slack participants. 
 
 
 ### 💻 Sid : Mike
+
 Every two weeks, our CEO Mike has a 1:1 meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
 
 After each meeting, the CEO's apprentice makes a copy of the original document and moves it into a particular folder in the "Fleet" shared drive, with a particular naming convention:
 
 <img width="364" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/2781ec0c-4f8b-49ca-9586-87ebdc2c71dc">
 
+### Post-e-group archival  
 
-### Investor and advisor updates
-We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - CEO (TODO: who?) tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
-
-### Document preparation 
-At Fleet, document prep steps are determined by the type of meeting. 
-
-| Meeting type  | Description | Automation enabled? | Meeting note preference |
-| ------------  | -------------------------------------------------------------| ------------------ | ------------- |
-| "One-off"     | A non-recurring meeting that has a separate doc per meeting. | Most likely Zapier | Note template |
-| External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journal template |
-| 1:1           | A recurring meeting that direct managers and direct reports use for performance management and is emptied after every call. | Most likely Reclaim | Agenda template |
-| Office hours  | A recurring meeting that is emptied after call used for group meetings of Fleet team members. | Google calendar | Office hour agenda template |
-| Journal       | Title = {date(XXXX-XX-XX) (Attendee) <>( Mike McNeil)}
- with H2 (XXXX-XX-XX) = to reference meeting dates
-Does not  get cleaned out every time post meeting
-google doc
+Immediately after every e-group the AttC duplicates the e-group agenda doc as a backup copy saved to ["Classified" shared drive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).  Rename it to "YYYY-MM-DD backup of e-group agenda".  Then clear out all agenda items from the e-group doc (the ones that people add, not the standard fixtures), and replace them with a single item:  `Sam: FYI: Agenda from last time (YYYY-MM-DD):` [LINK](link)
 
 
-### Private whiteboard
+### Unroll a Slack thread
+
 From time to time the CEO will ask the Apprentice to the CEO to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
   1. Start with a new doc.
   2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
@@ -230,7 +247,22 @@ From time to time the CEO will ask the Apprentice to the CEO to unroll a Slack t
       - To copy images right-click+copy and then paste in the doc (some resizing may be necessary to fit the page).
 
 ### Gong
-How to file videos from Gong recordings (**marking as "private" in Gong is not appropriate. Never use it- instead, use this process**):
+
+#### Delete accidental Gong recordings and transcripts
+
+- [Sign in to Gong](https://us-65885.app.gong.io/deals?company-id=2676443513846037003&workspace-id=9148397688380544352&board-id=8761946992754097113&view-mode=DEALS&tab-idx=0&account-activity=true&owner-ids=&owner-team-ids=5778354842532790437&timespan-id=34&sort-by=DealActivity&sort-field=%7B%22type%22%3A%22RegularField%22%2C%22name%22%3A%22DealActivity%22%7D&sort-order=DESC&owner-id=5778354842532790437&include-team=true) trough the CEO's browser
+- Click `Conversations`
+- Select the call recording no longer needed
+- Click the "hotdog" menu in the right-hand corner
+<img width="264" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/86948d02-a972-42ef-9a2d-1d93f24a1780">
+  
+- `Delete recording`
+- Always check back to ensure the recording **and** transcript were both deleted
+
+
+#### File Gong recordings
+
+Marking as _"private"_ in Gong doesn't limit access, instead, use this process:
   1. Move to ¶¶ recording in google drive.
   2. Download video from Gong, then delete it from Gong (promptly) and instead upload mp4 to appropriate ¶¶ folder in google drive.
   3. Move generated transcript doc in google drive (promptly) instead into appropriate ¶¶ folder in google drive.
@@ -239,17 +271,16 @@ How to file videos from Gong recordings (**marking as "private" in Gong is not a
     - If appropriate, make this doc "¶¶," plus fleeties who were on the call.
     - Include in the doc "link to video:"
     - Include in the doc "link to transcript:"
-
      
 ### Why not mention the CEO in Slack threads?
 Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
 
-So why not the CEO?
+[Too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) the CEO gets mentioned.
 
 From Mike:
 
-<blockquote purpose="quote">Staying on top of your Slack mentions (including in threads!) is very important.  Please use them. 
-But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.  [Too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit).
+<blockquote purpose="large-quote">Staying on top of your Slack mentions (including in threads!) is very important.  Please use them. 
+But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
 I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
  What do I still read?
  - If you mention me in a top-level channel message, I'll see and read it in 1 business day.

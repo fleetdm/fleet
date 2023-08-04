@@ -27,7 +27,25 @@ This section provides instructions for migrating your hosts away from your old M
     2. In ABM, assign these hosts' MDM server to Fleet: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**.
 5. In your old MDM solution, unenroll the hosts to be migrated. MacOS does not allow multiple MDMs to be installed at once.
 6. Send [these guided instructions](#instructions-for-end-users) to your end users to complete the final few steps via Fleet Desktop.
-    * Note that there will be a gap in MDM coverage between when the host is unenrolled from the old MDM and when the host turns on MDM in Fleet.
+    * Note that there will be a gap in MDM coverage between when the host is unenrolled from the old
+      MDM and when the host turns on MDM in Fleet. Use Fleet's [end user migration workflow](#end-user-migration-workflow) to reduce the gap in MDM coverage.
+
+### End user migration workflow
+
+> Available in Fleet Premium or Ultimate
+
+You can use Fleet's end user migration workflow to reduce the gap in MDM coverage during migration.
+
+The migration worfklow is supported for automatically enrolled (DEP) hosts.
+
+During the end user migration workflow, an end user's device will have their selected system
+theme (light or dark) applied. If your logo does not look good on either light or dark backgrounds,
+you can optionally set an alternate logo for the themes.
+
+You can do this in the Fleet UI by going to **Settings** > **Organization settings** >
+**Organization info** and adding a url to the desired image in the **Organization avatar URL (for
+dark backgrounds)** and **Organization avatar URL (for light backgrounds)** inputs. The appropriate
+image will show depending on the selected system theme.
 
 ## FileVault recovery keys
 

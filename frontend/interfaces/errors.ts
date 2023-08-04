@@ -5,6 +5,7 @@ export default PropTypes.shape({
   base: PropTypes.string,
 });
 
+// Response created by utilities/format_error_response
 export interface IOldApiError {
   http_status: number;
   base: string;
@@ -15,7 +16,9 @@ export interface IError {
   reason: string;
 }
 
+// Response returned by API when there is an error
 export interface IApiError {
   message: string;
   errors: IError[];
+  uuid?: string;
 }
