@@ -53,9 +53,9 @@ go.mod @fleetdm/go
 # (1 or more infra-literate engineers is required to review changes.)
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
-/infrastructure/ @fleetdm/infra
-/charts/ @fleetdm/infra
-/terraform/ @fleetdm/infra
+/infrastructure/ @fleetdm/infra @edwardsb
+/charts/ @fleetdm/infra @edwardsb
+/terraform/ @fleetdm/infra @edwardsb
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
@@ -73,14 +73,14 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /website/views/pages/pricing.ejs                      @mikermcneil # « CEO is DRI for pricing
-/handbook/product/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for product marketing (e.g. features table)
+/handbook/company/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for features table
 
 ##############################################################################################
 # 🦿 Handbook
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/development-groups.md               @mikermcneil
+/handbook/company/product-groups.md                   @mikermcneil
 /handbook/company/why-this-way.md                     @mikermcneil
 /handbook/company/README.md                           @mikermcneil
 /handbook/README.md                                   @mikermcneil  # « This is the "Table of contents" landing page

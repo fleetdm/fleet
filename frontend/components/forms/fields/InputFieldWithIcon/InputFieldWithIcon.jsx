@@ -103,7 +103,6 @@ class InputFieldWithIcon extends InputField {
       { [`${baseClass}__icon--active`]: value }
     );
 
-    console.log("iconSvg", iconSvg);
     return (
       <div className={wrapperClasses}>
         {this.props.label && this.renderHeading()}

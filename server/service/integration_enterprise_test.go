@@ -472,11 +472,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 
 	qr, err := s.ds.NewQuery(
 		context.Background(),
-		&fleet.Query{Name: "TestQueryTeamPolicy", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true},
+		&fleet.Query{
+			Name:           "TestQueryTeamPolicy",
+			Description:    "Some description",
+			Query:          "select * from osquery;",
+			ObserverCanRun: true,
+			Saved:          true,
+		},
 	)
 	require.NoError(t, err)
 
-	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: ptr.Uint(42)}}
+	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{
+		QueryID:  &qr.ID,
+		Interval: ptr.Uint(42),
+	}}
 	r := teamScheduleQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
 
@@ -484,8 +493,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
-	assert.Equal(t, "TestQueryTeamPolicy", ts.Scheduled[0].Name)
-	assert.Equal(t, qr.ID, ts.Scheduled[0].QueryID)
+	assert.Contains(t, ts.Scheduled[0].Name, "Copy of TestQueryTeamPolicy")
+	assert.NotEqual(t, qr.ID, ts.Scheduled[0].QueryID) // it creates a new query (copy)
 	id := ts.Scheduled[0].ID
 
 	modifyResp := modifyTeamScheduleResponse{}
@@ -2950,12 +2959,16 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	ggsr := getGlobalScheduleResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &ggsr)
 	require.NoError(t, ggsr.Err)
-	var globalPackID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &globalPackID,
-			`SELECT id FROM packs WHERE pack_type = 'global'`)
-	})
-	require.NotZero(t, globalPackID)
+	cpar := createPackResponse{}
+	var userPackID uint
+	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name:     ptr.String("Foobar"),
+			Disabled: ptr.Bool(false),
+		},
+	}, http.StatusOK, &cpar)
+	userPackID = cpar.Pack.Pack.ID
+	require.NotZero(t, userPackID)
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		UserPayload: fleet.UserPayload{
@@ -3178,10 +3191,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("POST", "/api/latest/fleet/queries/delete", deleteQueriesRequest{IDs: []uint{cqr2.Query.ID}}, http.StatusOK, &deleteQueriesResponse{})
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%s", cqr3.Query.Name), deleteQueryRequest{}, http.StatusOK, &deleteQueryResponse{})
 
-	// Attempt to add a query to the global schedule, should allow.
+	// Attempt to add a query to a user pack, should allow.
 	sqr := scheduleQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", scheduleQueryRequest{
-		PackID:   globalPackID,
+		PackID:   userPackID,
 		QueryID:  cqr4.Query.ID,
 		Interval: 60,
 	}, http.StatusOK, &sqr)
@@ -3196,9 +3209,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to remove a query from the global schedule, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), deleteScheduledQueryRequest{}, http.StatusOK, &scheduleQueryResponse{})
 
-	// Attempt to read the global schedule, should allow.
-	// This is an exception to the "write only" nature of gitops (packs can be viewed by gitops).
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
+	// Attempt to read the global schedule, should disallow.
+	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
 
 	// Attempt to create a pack, should allow.
 	cpr := createPackResponse{}
@@ -3391,12 +3403,22 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	s.setTokenForTest(t, "gitops2@example.com", test.GoodPassword)
 
-	// Attempt to create queries, should allow.
+	// Attempt to create queries in global domain, should fail.
 	tcqr := createQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo600"),
 			Query: ptr.String("SELECT * from orbit_info;"),
+		},
+	}, http.StatusForbidden, &tcqr)
+
+	// Attempt to create queries in its team, should allow.
+	tcqr = createQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:   ptr.String("foo600"),
+			Query:  ptr.String("SELECT * from orbit_info;"),
+			TeamID: &t1.ID,
 		},
 	}, http.StatusOK, &tcqr)
 
@@ -3431,19 +3453,28 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to read other team's schedule, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
 
-	// Attempt to add a query to the global schedule, should fail.
+	// Attempt to add a query to a user pack, should fail.
 	tsqr := scheduleQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", scheduleQueryRequest{
-		PackID:   globalPackID,
+		PackID:   userPackID,
 		QueryID:  cqr4.Query.ID,
 		Interval: 60,
 	}, http.StatusForbidden, &tsqr)
 
 	// Attempt to add a query to the team's schedule, should allow.
+	cqrt1 := createQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:   ptr.String("foo8"),
+			Query:  ptr.String("SELECT * from managed_policies;"),
+			TeamID: &t1.ID,
+		},
+	}, http.StatusOK, &cqrt1)
 	ttsqr := teamScheduleQueryResponse{}
+	// Add a schedule with the deprecated APIs (by referencing a global query).
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), teamScheduleQueryRequest{
 		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
-			QueryID:  ptr.Uint(cqr4.Query.ID),
+			QueryID:  ptr.Uint(q1.ID),
 			Interval: ptr.Uint(60),
 		},
 	}, http.StatusOK, &ttsqr)

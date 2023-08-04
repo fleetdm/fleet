@@ -191,7 +191,13 @@ without necessarily having a billing card.`
       type: 'string',
       description: 'The reason this user signed up for a fleetdm.com account',
       isIn: ['Try Fleet Sandbox', 'Buy a license'],
-    }
+    },
+
+    inSandboxWaitlist: {
+      type: 'boolean',
+      description: 'whether this user is on the Fleet Sandbox waitlist.',
+      defaultsTo: false
+    },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

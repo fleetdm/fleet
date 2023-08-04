@@ -1151,7 +1151,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			},
 		)
 	}
-	if err := task.RecordScheduledQueryStats(ctx, host.ID, packStats, time.Now()); err != nil {
+	if err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, packStats, time.Now()); err != nil {
 		return ctxerr.Wrap(ctx, err, "record host pack stats")
 	}
 
@@ -1541,7 +1541,7 @@ func directIngestMacOSProfiles(
 	return ds.UpdateVerificationHostMacOSProfiles(ctx, host, mapping)
 }
 
-//go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md
+// go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,

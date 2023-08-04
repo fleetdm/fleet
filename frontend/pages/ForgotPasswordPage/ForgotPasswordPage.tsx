@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-
+import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import formatErrorResponse from "utilities/format_error_response";
@@ -12,7 +12,11 @@ import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 
-const ForgotPasswordPage = () => {
+interface IForgotPasswordPage {
+  router: InjectedRouter;
+}
+
+const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
   const [email, setEmail] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +85,7 @@ const ForgotPasswordPage = () => {
 
   return (
     <AuthenticationFormWrapper>
-      <StackedWhiteBoxes previousLocation={PATHS.LOGIN}>
+      <StackedWhiteBoxes previousLocation={PATHS.LOGIN} router={router}>
         <div className={baseClass}>{renderContent()}</div>
       </StackedWhiteBoxes>
     </AuthenticationFormWrapper>

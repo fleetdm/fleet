@@ -261,7 +261,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		for _, tt := range cases {
 			t.Run(tt.name, func(t *testing.T) {
 				ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-					return nil, &notFoundError{}
+					return nil, newNotFoundError()
 				}
 
 				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

@@ -12,7 +12,10 @@ import statusAPI from "services/entities/status";
 import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { IQueryFormData, IQuery, IStoredQueryResponse } from "interfaces/query";
+import {
+  IGetQueryResponse,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import { ITarget } from "interfaces/target";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -23,12 +26,15 @@ import CustomLink from "components/CustomLink";
 
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
 import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 interface IQueryPageProps {
   router: InjectedRouter;
   params: Params;
   location: {
-    query: { host_ids: string };
+    pathname: string;
+    query: { host_ids: string; team_id?: string };
+    search: string;
   };
 }
 
@@ -37,9 +43,18 @@ const baseClass = "query-page";
 const QueryPage = ({
   router,
   params: { id: paramsQueryId },
-  location: { query: URLQuerySearch },
+  location,
 }: IQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const {
+    currentTeamName: teamNameForQuery,
+    teamIdForApi: apiTeamIdForQuery,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   const handlePageError = useErrorHandler();
   const {
@@ -57,6 +72,10 @@ const QueryPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
+    setLastEditedQueryFrequency,
+    setLastEditedQueryLoggingType,
+    setLastEditedQueryMinOsqueryVersion,
+    setLastEditedQueryPlatforms,
   } = useContext(QueryContext);
 
   const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
@@ -78,19 +97,23 @@ const QueryPage = ({
     isLoading: isStoredQueryLoading,
     data: storedQuery,
     error: storedQueryError,
-  } = useQuery<IStoredQueryResponse, Error, IQuery>(
+  } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
     ["query", queryId],
     () => queryAPI.load(queryId as number),
     {
       enabled: !!queryId,
       refetchOnWindowFocus: false,
-      select: (data: IStoredQueryResponse) => data.query,
+      select: (data) => data.query,
       onSuccess: (returnedQuery) => {
         setLastEditedQueryId(returnedQuery.id);
         setLastEditedQueryName(returnedQuery.name);
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
+        setLastEditedQueryFrequency(returnedQuery.interval);
+        setLastEditedQueryPlatforms(returnedQuery.platform);
+        setLastEditedQueryLoggingType(returnedQuery.logging);
+        setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
       },
       onError: (error) => handlePageError(error),
     }
@@ -99,9 +122,9 @@ const QueryPage = ({
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
     () =>
-      hostAPI.loadHostDetails(parseInt(URLQuerySearch.host_ids as string, 10)),
+      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
     {
-      enabled: !!URLQuerySearch.host_ids && !queryParamHostsAdded,
+      enabled: !!location.query.host_ids && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
         setTargetedHosts((prevHosts) =>
@@ -119,10 +142,6 @@ const QueryPage = ({
     }
   );
 
-  const { mutateAsync: createQuery } = useMutation((formData: IQueryFormData) =>
-    queryAPI.create(formData)
-  );
-
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
@@ -131,12 +150,18 @@ const QueryPage = ({
 
   useEffect(() => {
     detectIsFleetQueryRunnable();
-    setLastEditedQueryId(DEFAULT_QUERY.id);
-    setLastEditedQueryName(DEFAULT_QUERY.name);
-    setLastEditedQueryDescription(DEFAULT_QUERY.description);
-    setLastEditedQueryBody(DEFAULT_QUERY.query);
-    setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
-  }, []);
+    if (!queryId) {
+      setLastEditedQueryId(DEFAULT_QUERY.id);
+      setLastEditedQueryName(DEFAULT_QUERY.name);
+      setLastEditedQueryDescription(DEFAULT_QUERY.description);
+      setLastEditedQueryBody(DEFAULT_QUERY.query);
+      setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
+      setLastEditedQueryFrequency(DEFAULT_QUERY.interval);
+      setLastEditedQueryLoggingType(DEFAULT_QUERY.logging);
+      setLastEditedQueryMinOsqueryVersion(DEFAULT_QUERY.min_osquery_version);
+      setLastEditedQueryPlatforms(DEFAULT_QUERY.platform);
+    }
+  }, [queryId]);
 
   useEffect(() => {
     setShowOpenSchemaActionText(!isSidebarOpen);
@@ -179,22 +204,23 @@ const QueryPage = ({
   const goToQueryEditor = useCallback(() => setStep(QUERIES_PAGE_STEPS[1]), []);
 
   const renderScreen = () => {
-    const step1Opts = {
+    const step1Props = {
       router,
       baseClass,
       queryIdForEdit: queryId,
+      teamNameForQuery,
+      apiTeamIdForQuery,
       showOpenSchemaActionText,
       storedQuery,
       isStoredQueryLoading,
       storedQueryError,
-      createQuery,
       onOsqueryTableSelect,
       goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
     };
 
-    const step2Opts = {
+    const step2Props = {
       baseClass,
       queryId,
       selectedTargets,
@@ -211,7 +237,7 @@ const QueryPage = ({
       setTargetsTotalCount,
     };
 
-    const step3Opts = {
+    const step3Props = {
       queryId,
       selectedTargets,
       storedQuery,
@@ -222,11 +248,11 @@ const QueryPage = ({
 
     switch (step) {
       case QUERIES_PAGE_STEPS[2]:
-        return <SelectTargets {...step2Opts} />;
+        return <SelectTargets {...step2Props} />;
       case QUERIES_PAGE_STEPS[3]:
-        return <RunQuery {...step3Opts} />;
+        return <RunQuery {...step3Props} />;
       default:
-        return <QueryEditor {...step1Opts} />;
+        return <QueryEditor {...step1Props} />;
     }
   };
 

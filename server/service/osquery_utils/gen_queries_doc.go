@@ -34,7 +34,7 @@ func main() {
 	var b strings.Builder
 
 	b.WriteString(`<!-- DO NOT EDIT. This document is automatically generated. -->
-# Detail Queries Summary
+# Understanding host vitals
 
 Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
 
@@ -63,13 +63,13 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 		}
 		fmt.Fprintf(&b, "- Platforms: %s\n\n", platforms)
 		if q.detailQuery.Discovery != "" {
-			fmt.Fprintf(&b, "- Discovery query:\n\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Discovery))
+			fmt.Fprintf(&b, "- Discovery query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Discovery))
 		}
-		fmt.Fprintf(&b, "- Query:\n\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Query))
+		fmt.Fprintf(&b, "- Query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Query))
 	}
 
 	b.WriteString(`
-
+<meta name="navSection" value="Dig deeper">
 <meta name="pageOrderInSection" value="1600">`)
 
 	if err := os.WriteFile(os.Args[1], []byte(b.String()), 0600); err != nil {

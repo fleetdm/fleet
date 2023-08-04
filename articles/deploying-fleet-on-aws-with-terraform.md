@@ -37,6 +37,16 @@ you'd like to deploy Fleet into, you could opt to use the `byo-vpc` module, supp
 
 ##### Bring your own nothing
 ```hcl
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
 module "fleet" {
   source = "github.com/fleetdm/fleet//terraform?ref=main"
 }
@@ -135,6 +145,15 @@ in order to create the database from a previous snapshot.
 We're going to deploy Fleet using the module system with a few configurations. First start off by creating `fleet.tf` or naming it whatever you like.
 
 ```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
 module "fleet" {
   source = "github.com/fleetdm/fleet//terraform?ref=main"
 
@@ -202,6 +221,15 @@ module "migrations" {
 
 All together this looks like:
 ```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
 module "fleet" {
   source          = "github.com/fleetdm/fleet//terraform?ref=main"
   certificate_arn = module.acm.acm_certificate_arn
