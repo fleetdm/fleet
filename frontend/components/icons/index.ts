@@ -9,6 +9,7 @@ import CriticalPolicy from "./CriticalPolicy";
 import Disable from "./Disable";
 import DownCaret from "./DownCaret";
 import Ex from "./Ex";
+import ExCircled from "./ExCircled";
 import EmptyHosts from "./EmptyHosts";
 import EmptyIntegrations from "./EmptyIntegrations";
 import EmptyMembers from "./EmptyMembers";
@@ -83,6 +84,7 @@ export const ICON_MAP = {
   disable: Disable,
   "down-caret": DownCaret,
   ex: Ex,
+  "ex-circled": ExCircled,
   "empty-hosts": EmptyHosts,
   "empty-integrations": EmptyIntegrations,
   "empty-members": EmptyMembers,
