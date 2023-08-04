@@ -3,6 +3,32 @@
 Fleet's [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) style of communication and the [tools we use](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) are part of the company's DNA and essential to moving Fleet into the future.
 
 
+## Vision for dept handbook pages
+
+
+- (#) Top-level page title/ file name
+    
+  - (##) Short section on _departmentally specific philosophy_ and the purpose of the page: If philosophy applies to more than your department, **pull it out**, make it easier for contributors to find.
+  - **Nice to have:** Tiny little link/sentence/button with call-to-action that links you to intake or intake options)
+
+- (##) How can I… (outward facing first: e.g.non-Fleetie contributor)
+    
+  - e.g. (###) CEO flaws
+  - e.g. (###) Scheduling with the CEO
+  - e.g. (###) Summoning the CEO (travel)
+
+- (##) How-tos (Inward facing e.g. Fleetie)
+  - 
+- (##) Rituals
+  
+- (##) Slack channels 
+
+- (##) Intake
+
+- (##) Kanban
+
+
+
 ## Meetings
 
 Plan to join meetings on time. At Fleet, we start on time and do not wait for folks to join.  
@@ -24,7 +50,7 @@ In an all-remote company, “face time” matters.
    - Is there another way to distribute this info or align on a course of action that _doesn't_ take valuable time away from customers, projects, or personal time? Could you create a [Google Doc](https://docs.google.com/document/d/1TaZ654gTwadWGDYhP3zuAzWe0eiY0s9NhaU9KLCokgw/edit) and share it with would-be attendees? If the info can be documented it should be. Could the info be sent in Slack or by email? 
    
 2. Do I have all the information needed to schedule this meeting?
-
+   -TODO 
 
 
 ### Internal meeting scheduling
