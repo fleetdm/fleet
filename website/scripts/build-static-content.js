@@ -25,6 +25,19 @@ module.exports = {
     // The data we're compiling will get built into this dictionary and then written on top of the .sailsrc file.
     let builtStaticContent = {};
 
+    let baseHeadersForGithubRequests;
+    if(!skipGithubRequests){
+      let baseHeadersForGithubRequests = {
+        'User-Agent': 'Fleet-Standard-Query-Library',
+        'Accept': 'application/vnd.github.v3+json',
+      };
+
+      if(githubAccessToken) {
+        // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
+        baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
+      }
+    }
+
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse query library from YAML and prepare to bake them into the Sails app's configuration.
         let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml';
@@ -121,15 +134,6 @@ module.exports = {
           }
         } else {// If the --skipGithubRequests flag was not provided, we'll query GitHub's API to get additional information about each contributor.
 
-          let baseHeadersForGithubRequests = {
-            'User-Agent': 'Fleet-Standard-Query-Library',
-            'Accept': 'application/vnd.github.v3+json',
-          };
-
-          if(githubAccessToken) {
-            // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
-            baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
-          }
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
@@ -732,17 +736,6 @@ module.exports = {
           return _.endsWith(filePath, 'rituals.yml');
         });
 
-        if(!skipGithubRequests){
-          let baseHeadersForGithubRequests = {
-            'User-Agent': 'Fleet-ritual-validation',
-            'Accept': 'application/vnd.github.v3+json',
-          };
-          if(githubAccessToken) {
-            // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
-            baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
-          }
-        }
-
         let githubLabelsToCheck = [];
         let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly'];
         // Process each rituals YAML file. These will be added to the builtStaticContent as JSON
@@ -782,7 +775,7 @@ module.exports = {
                   if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
                     throw new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
                   } else if(err.raw.statusCode === 404) {// If the GitHub API responds with a 404, we'll throw an error with a message about the invalid GitHub username.
-                    throw new Error(`Could not build rituals from ${userInfo.ritualsYamlFilePath}. The DRI value of a ritual (${ritual.task}) contains an invalid GitHub username (${ritual.dri}). To resolve, make sure the DRI value for this ritual is a valid GitHub username.`);
+                    throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. The DRI value of a ritual (${ritual.task}) contains an invalid GitHub username (${ritual.dri}). To resolve, make sure the DRI value for this ritual is a valid GitHub username.`);
                   } else {// If the error was not a 404 and not because of the user's API rate limit, we'll display the full error
                     throw err;
                   }
@@ -794,7 +787,7 @@ module.exports = {
               // Check each label in the labels array
               for(let label of ritual.autoIssue.labels) {
                 if(typeof label !== 'string') {
-                  throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual (${ritual.task}) in the YAML file contains an invalid value in the labels array of the autoIssue value. To resolve, ensure every value in the nested labels array of the autoIssue value is a string.`)
+                  throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual (${ritual.task}) in the YAML file contains an invalid value in the labels array of the autoIssue value. To resolve, ensure every value in the nested labels array of the autoIssue value is a string.`);
                 }
                 // Add this label to the array of labels to check. We'll check to see if all labels are valid at the after we've processed all rituals YAML files.
                 githubLabelsToCheck.push({
@@ -825,7 +818,7 @@ module.exports = {
             return pageOfLabels.length < 100;
           });
           // Get an array containing only the names of labels.
-          allLabelNames = _.pluck(allExistingLabelsInFleetRepo, 'name');
+          let allLabelNames = _.pluck(allExistingLabelsInFleetRepo, 'name');
           // Validate each label, if a label does not exist in the fleetdm/fleet repo, throw an error.
           await sails.helpers.flow.simultaneouslyForEach(githubLabelsToCheck, async(labelInfo)=>{
             if(!_.contains(allLabelNames, labelInfo.label)){
