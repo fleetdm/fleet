@@ -138,7 +138,7 @@ module.exports.custom = {
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
-    // 'handbook/product/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
+    // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront

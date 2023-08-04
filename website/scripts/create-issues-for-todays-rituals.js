@@ -38,23 +38,6 @@ module.exports = {
       }
 
 
-      // Validate rituals
-      for (let ritual of rituals) {
-
-        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly'];//TODO: others
-        if (ritual.autoIssue && !KNOWN_AUTOMATABLE_FREQUENCIES.includes(ritual.frequency)) {
-          throw new Error(`Invalid ritual: "${ritual.task}" indicates frequency "${ritual.frequency}", but that isn't supported with automations turned on.  Supported frequencies: ${KNOWN_AUTOMATABLE_FREQUENCIES}`);
-        }
-
-        // TODO: validate task
-        // TODO: validate description
-        // TODO: validate DRI (github username)
-        // TODO: validate ritual.autoIssue
-        // TODO: validate ritual.autoIssue.labels
-
-        // TODO: other validations
-
-      }//∞
 
       for (let ritual of rituals) {
 
