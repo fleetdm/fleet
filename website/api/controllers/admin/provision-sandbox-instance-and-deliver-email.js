@@ -85,7 +85,7 @@ module.exports = {
       if(healthCheckResponse) {
         return true;
       }
-    }, 10000)
+    }, 10000)//∞
     .intercept('tookTooLong', ()=>{
       return new Error('This newly provisioned Fleet Sandbox instance (for '+userToRemoveFromSandboxWaitlist.emailAddress+') is taking too long to respond with a 2xx status code, even after repeatedly polling the health check endpoint.  Note that failed requests and non-2xx responses from the health check endpoint were ignored during polling.  Search for a bit of non-dynamic text from this error message in the fleetdm.com source code for more info on exactly how this polling works.');
     });
