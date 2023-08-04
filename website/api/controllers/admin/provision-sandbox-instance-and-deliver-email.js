@@ -33,7 +33,7 @@ module.exports = {
     let userToRemoveFromSandboxWaitlist = await User.findOne({id: userId});
 
     if(!userToRemoveFromSandboxWaitlist.inSandboxWaitlist) {
-      throw new Error(`When attempting to provision a Fleet Sandbox instance for a user (id:${userId}) who is on the Sandbox Waitlist, the user account associated with the provided ID has already been removed from the waitlist.`);
+      throw new Error(`When attempting to provision a Fleet Sandbox instance for a user (id:${userId}) who is on the waitlist, the user account associated with the provided ID has already been removed from the waitlist.`);
     }
 
     const FIVE_DAYS_IN_MS = (5*24*60*60*1000);
