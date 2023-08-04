@@ -83,8 +83,6 @@ graph LR;
 | Package tooling for Linux `.rpm`     | ✅      |
 | Package tooling for Windows `.msi`   | ✅      |
 | Manage/update osquery extensions     | ✅      |
-| Manage cgroups for Linux performance | 🔜      |
-
 
 ## Packaging
 
