@@ -795,14 +795,14 @@ module.exports = {
                   ritualUsingLabel: ritual.task,
                   ritualsYamlFilePath: relativeRepoPathForThisRitualsFile
                 });
-              }
+              }//∞
             }
 
           }
           // Add the rituals from this file to the rituals dictionary, using the file's relativeRepoPath (e.g, handbook/company/rituals.md) as a key.
           rituals[relativeRepoPathForThisRitualsFile] = ritualsFromRitualTableYaml;
 
-        }
+        }//∞
         // Validate all GitHub labels used in all ritual yaml files. Note: We check these here to minimize requests to the GitHub API. We'll send requests to get all existing labels in the Fleet repo, and will throw an error if a label in a rituals YAML file does not exist in the repo.
         if(!skipGithubRequests) {
           let allExistingLabelsInFleetRepo = [];
@@ -816,7 +816,7 @@ module.exports = {
             allExistingLabelsInFleetRepo = allExistingLabelsInFleetRepo.concat(pageOfLabels);
             pageOfResultsReturned++;
             return pageOfLabels.length < 100;
-          });
+          });//∞
           // Get an array containing only the names of labels.
           let allLabelNames = _.pluck(allExistingLabelsInFleetRepo, 'name');
           // Validate each label, if a label does not exist in the fleetdm/fleet repo, throw an error.
@@ -825,7 +825,7 @@ module.exports = {
               throw new Error(`Could not build rituals from ${labelInfo.ritualsYamlFilePath}. The labels array nested within the autoIssue value of a ritual (${labelInfo.ritualUsingLabel}) contains an invalid GitHub label (${labelInfo.label}). To resolve, make sure all labels in the labels array are labels that exist in the fleetdm/fleet repo.`);
             }
           });//∞
-        }
+        }//ﬁ
 
         // Add the rituals dictionary to builtStaticContent.rituals
         builtStaticContent.rituals = rituals;
