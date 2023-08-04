@@ -68,7 +68,7 @@ module.exports = {
     });
 
     if(!cloudProvisionerResponseData.URL) {
-      // If we didn't receive a URL in the response from the cloud provisioner API, we'll throwing an error before we save the new user record and the user will need to try to sign up again.
+      // If we didn't receive a URL in the response from the cloud provisioner API, we'll throw an error before we save the new user record and the user will need to try to sign up again.
       throw new Error(
         `When provisioning a Fleet Sandbox instance for a user on the Fleet Sandbox waitlist (${userToRemoveFromSandboxWaitlist.emailAddress}), the response data from the cloud provisioner API was malformed. It did not contain a valid Fleet Sandbox instance URL in its expected "URL" property.
         Here is the malformed response data (parsed response body) from the cloud provisioner API: ${cloudProvisionerResponseData}`
