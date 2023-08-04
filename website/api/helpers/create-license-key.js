@@ -56,7 +56,7 @@ module.exports = {
         devices: numberOfHosts,
         note: 'Created with Fleet License key dispenser',
         tier: 'premium',
-        partner: partnerName
+        partner: partnerName // If this value is undefined, it will not be included in the generated token.
       },
       {
         key: sails.config.custom.licenseKeyGeneratorPrivateKey,
