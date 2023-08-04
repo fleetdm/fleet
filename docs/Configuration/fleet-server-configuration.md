@@ -2813,7 +2813,9 @@ The content of the PEM-encoded private key for the Simple Certificate Enrollment
 
 ##### mdm.apple_scep_challenge
 
-An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Should be 32 characters in length and only include alphanumeric characters.
+An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Define a unique, static secret 32 characters in length and only include alphanumeric characters.
+
+> SCEP is commonly applied to a number of certificate use cases. Notably, Mobile Device Management (MDM) systems like Microsoft Intune and Apple MDM use SCEP for PKI certificate enrollment.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_CHALLENGE`

@@ -14,9 +14,112 @@ In addition to the customization above, Fleet automatically installs the fleetd 
 
 MacOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](./MDM-setup.md#apple-business-manager-abm).
 
-## End user authentication
+## End user authentication and EULA
 
-> This feature is currently in development.
+Using Fleet, you can require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
+
+To require end user authentication, we will do the following steps:
+
+1. Connect Fleet to your IdP
+2. Upload a EULA to Fleet (optional)
+3. Enable end user authentication
+
+### Step 1: connect Fleet to your IdP
+
+Fleet UI:
+
+1. Head to the **Settings > Integrations > Automatic enrollment** page.
+
+2. Under **End user authentication**, enter your IdP credentials and select **Save**.
+
+fleetctl CLI:
+
+1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    end_user_authentication:
+      identity_provider_name: "Okta"
+      entity_id: 123
+      issuer_url: "https://example.com"
+      metadata_url: "https://example.com"
+  ...
+```
+
+2. Fill in the relevant information from your IdP under the `mdm.end_user_authentication` key. 
+
+3. Run the fleetctl `apply -f fleet-config.yml` command to add your IdP credentials.
+
+4. Confirm that your IdP credentials were saved by running `fleetctl get config`.
+
+### Step 2: upload a EULA to Fleet
+
+1. Head to the **Settings > Integrations > Automatic enrollment** page.
+
+2. Under **End user license agreement (EULA)**, select **Upload** and choose your EULA.
+
+> Uploading a EULA is optional. If you don't upload a EULA, the end user will skip this step and continue to the next step of the new Mac setup experience after they authenticate with your IdP.
+
+### Step 3: enable end user authentication
+
+You can enable end user authentication using the Fleet UI or fleetctl command-line tool.
+
+Fleet UI:
+
+1. Head to the **Controls > macOS settings > macOS setup > End user authentication** page.
+
+2. Choose which team you want to enable end user authentication for by selecting the desired team in the teams dropdown in the upper left corner.
+
+3. Select the **On** checkbox and select **Save**.
+
+fleetctl CLI: 
+
+1. Choose which team you want to enable end user authentication on.
+
+   In this example, we'll enable end user authentication on the "Workstations (canary)" team so that the authentication is only required for hosts that automatically enroll to this team.
+
+2. Create a `workstations-canary-config.yaml` file:
+
+```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Workstations (canary)
+    mdm:
+      macos_setup:
+        enable_end_user_authentication: true
+    ...
+```
+
+Learn more about team configurations options [here](./configuration-files/README.md#teams).
+
+If you want to enable authentication on hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_setup:
+      enable_end_user_authentication: true
+  ...
+```
+
+Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
+
+3. Add an `mdm.macos_setup.enable_end_user_authentication` key to your YAML document. This key accepts a boolean value.
+
+4. Run the `fleetctl apply -f workstations-canary-config.yml` command to enable authentication for this team.
+
+5. Confirm that end user authentication is enabled by running the `fleetctl get teams --name=Workstations --yaml` command.
+
+If you enabled authentication on "No team," run `fleetctl get config`.
+
+You should see a `true` value for `mdm.macos_setup.enable_end_user_authentication`.
 
 ## Bootstrap package
 
@@ -95,7 +198,17 @@ In the output you should see that package has a "signed" status.
 
 ### Step 3: upload the package to Fleet
 
-1. Upload the package to a storage location (ex. S3 or GitHub). During step 4, Fleet will retrieve the package from this storage location and host it for deloyment.
+Fleet UI:
+
+1. Head to the **Controls > macOS settings > macOS setup > Bootstrap package** page.
+
+2. Choose which team you want to add the bootstrap package to by selecting the desired team in the teams dropdown in the upper left corner.
+
+3. Select **Upload** and choose your bootstrap package.
+
+fleetctl CLI:
+
+1. Upload the package to a storage location (ex. S3 or GitHub). During step 4, Fleet will retrieve the package from this storage location and host it for deployment.
 
 > The URL must be accessible by the computer that uploads the package to Fleet.
 > * This could be your local computer or the computer that runs your CI/CD workflow.
@@ -138,15 +251,11 @@ Learn more about "No team" configuration options [here](./configuration-files/RE
 
 4. Run the fleetctl `apply -f workstations-canary-config.yml` command to upload your bootstrap package to Fleet.
 
-### Step 4: confirm package is uploaded
-
-Confirm that your bootstrap package was uploaded to Fleet:
-
-If you uploaded the package to a team, run `fleetctl get teams --name=Workstations --yaml`.
+5. Confirm that your bootstrap package was uploaded to Fleet by running the `fleetctl get teams --name=Workstations --yaml` command.
 
 If you uploaded the package to "No team," run `fleetctl get config`.
 
-You should see the URL for your bootstrap package as the value for `mdm.macos_setup.bootstrap_package`. 
+You should see the URL for your bootstrap package as the value for `mdm.macos_setup.bootstrap_package`.
 
 ## macOS Setup Assistant
 
