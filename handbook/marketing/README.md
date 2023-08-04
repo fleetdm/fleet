@@ -305,9 +305,6 @@ See [📖Product#Working with Figma](https://fleetdm.com/handbook/product#workin
 
 **Marketing assets.** Product screenshots and artwork for social media, articles, and other marketing assets can be found in [Collateral](https://www.figma.com/files/project/20798819).
 
-### Content style guide
-
-Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more. [Read the content style guide](./content-style-guide).
 
 ### Publishing Fleet content
 
@@ -489,6 +486,14 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-swag`                | Drew Baker                                                          |
 | `#oooh-websites`            | Michael Thomas                                                         |
 | `#help-p1`		                | Mike McNeil                                                         |
+
+
+## Stubs
+
+### Content style guide
+
+Please see [handbook/company/communications/content-style-guide](https//fleetdm.com/handbook/company/communications/content-style-guide).
+
 
 
 <meta name="maintainedBy" value="jarodreyes">
