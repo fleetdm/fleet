@@ -11,6 +11,7 @@ import CustomLink from "components/CustomLink";
 interface IFleetMarkdownProps {
   markdown: string;
   className?: string;
+  name?: string;
 }
 
 const baseClass = "fleet-markdown";
@@ -18,7 +19,7 @@ const baseClass = "fleet-markdown";
 /** This will give us sensible defaults for how we render markdown across the fleet application.
  * NOTE: can be extended later to take custom components, but dont need that at the moment.
  */
-const FleetMarkdown = ({ markdown, className }: IFleetMarkdownProps) => {
+const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
   const classNames = classnames(baseClass, className);
 
   return (
@@ -65,6 +66,7 @@ const FleetMarkdown = ({ markdown, className }: IFleetMarkdownProps) => {
               style={{ border: "none" }}
               wrapEnabled
               readOnly
+              name={name}
             />
           );
         },

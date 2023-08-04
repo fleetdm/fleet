@@ -230,7 +230,7 @@ That means:
 3. Including a situation where a user has to wait longer than 5 seconds during signup on fleetdm.com  (or any time we breach an agreed upon response time guarantee)
 4. Including when a scheduled job fails and we aren't sure yet whether or not any real users are affected.
 
-## Why don't we sell like everyone else?
+## Why _don't_ we sell like everyone else?
 
 Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
 - **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
@@ -240,6 +240,40 @@ Many companies encourage salespeople to "spray and pray" email blasts, and to do
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
 - **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵fair to competitors](https://fleetdm.com/handbook/company#objectivity).
 - **Step up.** We look at the [🟠big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
+
+
+## Why _don't_ we track leads differently?
+
+There are about as many "MQL" definitions as there are sales orgs in the world. Exaggerating here, but only somewhat.
+
+Fleet documents all KPI's with clear definitions that are simple to evaluate, easy to track, and highly iterable.
+
+- **Lead** == A "Lead" row in Salesforce.
+  
+- **MQL** == a human from a 1000+ employee org that meets these parameters:
+  - The org is _NOT_ already a customer at the time of lead creation (even if they're from a different department).
+  - _NOT_ an existing open opportunity in the pipeline at the time of lead creation.
+  - The human has taken action in some way (e.g. signup on the website, showing up at the Fleet booth and doing a badge scan, or met a minimum threshold of engagement from LinkedIn outbound (threshold TBD-- for now they are excluded altogether)).
+    
+  - Multiple leads from the same org each count as _separate_ MQLs. However, Once the opportunity is created for an account, all MQLs associated with that account become "converted". Meaning they no longer count towards "open MQLs", though they still count as MQLs created. 
+
+  - When an account converts to an opportunity, all subsequent new leads created for that account are ***NOT*** MQLs (i.e. do not count towards "MQLs created".). If an opportunity is marked "closed lost", then it is _no longer_ open. 
+
+  - Any new leads which are created for a closed opportunity are considered new MQLs created and open MQLs, as long as they ***actually qualify*** as fresh new action taken.
+
+- **Open MQL** == An MQL whose lead status is not _"disqualified" nor "converted"_.
+  
+- **SQL** == An MQL whose lead status in Salesforce has exceeded a _certain threshold_, for **any** reason, from **any** source (threshold TBD: we aren't reporting these yet in KPIs)
+  
+- **Lead source** == where a lead came from. To determine attribution, we will consider the lead source. (e.g. sales-sourced vs. marketing-sourced vs. misc-sourced leads can be determined by looking at the lead source. No need to establish any other *QL or change these.).
+
+  - Instead of saying _"outbound lead"_ or _"inbound lead"_, you can say _"a lead from a badge scan at an event"_ or _"a lead from LinkedIn cold outboud"_ or _"a lead from a customer referral"_ or _"a lead from the website"_.
+
+- **Opportunity** == A _"Opportunity"_ row in Salesforce.
+
+- **Open opportunity** == An opportunity whose stats is not _"closed lost"_ nor _"closed won"_.
+
+
 
 ## Why does Fleet support query packs?
 

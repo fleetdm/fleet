@@ -878,10 +878,6 @@ Older equipment results in lost productivity of Fleeties and should be considere
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
-##### Open positions
-
-Please see [handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
-
 ##### Email relays
 ##### Meetings
 ##### Scheduling a meeting
@@ -894,7 +890,11 @@ Please see [handbook/company#open-positions](https://fleetdm.com/handbook/compan
 ##### Zoom
 ##### Slack
 
-Please see [handbook/company/communications](https://fleetdm.com/handbook/company/communications) for all sections
+Please see [handbook/company/communications](https://fleetdm.com/handbook/company/communications) for all sections above.
+
+##### Open positions
+
+Please see [handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
 
 ##### Weekly updates
 
