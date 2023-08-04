@@ -273,21 +273,6 @@ Marking as _"private"_ in Gong doesn't limit access, instead, use this process:
     - Include in the doc "link to transcript:"
 
 
-
-## Rituals
-(Who will...)
-
-
-
-## Slack channels
-
-| Channel | Purpose | Standard Operating P | DRI |
-| ------- | ------- | ---------------------------- | --- |
-| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) | Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) | Reach out to the AttC with requests or to add an item on the 🐈‍⬛🗣️ [CEO office minutes](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) | [@sampfluger]([https://github.com/sampfluger88](https://fleetdm.slack.com/archives/D05DW7BT2GY)) |
-| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | [@sampfluger]([https://github.com/sampfluger88](https://fleetdm.slack.com/archives/D05DW7BT2GY)) |
-
-
-     
 ### Why not mention the CEO in Slack threads?
 Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
 
@@ -296,7 +281,6 @@ Everyone else who works at Fleet is expected to read and reply (or acknowledge w
 From Mike:
 
 <blockquote purpose="large-quote">
-
   Staying on top of your Slack mentions (including in threads!) is very important. Please use them. 
 But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
 
@@ -311,7 +295,6 @@ Keep in mind I am often in meetings all day, and may not be able to reply prompt
   
 When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
 Thank you so much!" 🙇
-
 </blockquote> 
 
 
@@ -334,10 +317,8 @@ Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.z
 
 | Channel | Purpose | Standard Operating Procedure | DRI |
 | ------- | ------- | ---------------------------- | --- |
-| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV)  
-| Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) 
-| Reach out to the AttC with requests or to add an item on the  | AttC |
-| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | AttC |
+| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) | Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) | Reach out to the AttC with requests or to add an item on the  | Sampfluger88 |
+| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | Sampfluger88 |
 
 
 
