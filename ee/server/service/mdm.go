@@ -890,8 +890,8 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 				EnableDiskEncryption: true,
 			},
 			MacOSSetup: &fleet.MacOSSetup{
-				// // NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
-				// // instead by CopyDefaultMDMAppleBootstrapPackage below
+				// NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
+				// instead by CopyDefaultMDMAppleBootstrapPackage below
 				// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
 				EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
 			},

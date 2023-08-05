@@ -4172,6 +4172,54 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	checkStoredBP(teamID, nil, true, defaultBP2)
 	// confirm bootstrap package url was set in team config to match app config
 	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg")
+
+	// test some edge cases
+
+	// delete the team bootstrap package doesn't affect the team config
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, teamID)
+	require.NoError(t, err)
+	checkStoredBP(teamID, sql.ErrNoRows, false, nil)
+	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg")
+
+	// set other team config values so we can confirm they are not affected by bootstrap package changes
+	tc, err := ds.Team(ctx, teamID)
+	require.NoError(t, err)
+	tc.Config.MDM.MacOSSetup.MacOSSetupAssistant = optjson.SetString("/path/to/setupassistant")
+	tc.Config.MDM.MacOSUpdates.Deadline = optjson.SetString("2024-01-01")
+	tc.Config.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("10.15.4")
+	tc.Config.WebhookSettings.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{
+		Enable:         true,
+		DestinationURL: "https://example.com/webhook",
+	}
+	tc.Config.Features.EnableHostUsers = false
+	savedTeam, err := ds.SaveTeam(ctx, tc)
+	require.NoError(t, err)
+	require.Equal(t, tc.Config, savedTeam.Config)
+
+	// change the default bootstrap package url
+	ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("https://example.com/bs.pkg")
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+	checkAppConfig("https://example.com/bs.pkg")
+	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg") // team config is unchanged
+
+	// copy default bootstrap package succeeds when there is no team bootstrap package
+	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, teamID)
+	require.NoError(t, err)
+	// confirm team bootstrap package gets new token and otherwise matches default bootstrap package
+	checkStoredBP(teamID, nil, true, defaultBP2)
+	// confirm bootstrap package url was set in team config to match app config
+	checkTeamConfig(teamID, "https://example.com/bs.pkg")
+
+	// confirm other team config values are unchanged
+	tc, err = ds.Team(ctx, teamID)
+	require.NoError(t, err)
+	require.Equal(t, tc.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value, "/path/to/setupassistant")
+	require.Equal(t, tc.Config.MDM.MacOSUpdates.Deadline.Value, "2024-01-01")
+	require.Equal(t, tc.Config.MDM.MacOSUpdates.MinimumVersion.Value, "10.15.4")
+	require.Equal(t, tc.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL, "https://example.com/webhook")
+	require.Equal(t, tc.Config.WebhookSettings.FailingPoliciesWebhook.Enable, true)
+	require.Equal(t, tc.Config.Features.EnableHostUsers, false)
 }
 
 func TestHostDEPAssignments(t *testing.T) {

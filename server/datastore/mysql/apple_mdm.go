@@ -2220,7 +2220,7 @@ WHERE team_id = 0
 		if url != "" {
 			updateConfigStmt := `
 UPDATE teams 
-SET config = JSON_MERGE_PATCH(config, '{ "mdm": { "macos_setup": { "bootstrap_package": "%s" } } }') 
+SET config = JSON_SET(config, '$.mdm.macos_setup.bootstrap_package', '%s') 
 WHERE id = ?
 `
 			_, err = tx.ExecContext(ctx, fmt.Sprintf(updateConfigStmt, url), toTeamID)
