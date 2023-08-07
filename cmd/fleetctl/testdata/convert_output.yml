@@ -51,7 +51,7 @@ spec:
   min_osquery_version: 1.4.7
   name: disk_info
   observer_can_run: false
-  platform: windows,chrome
+  platform: chrome,windows
   query: select * from disk_info;
   team: ""
 ---
@@ -319,7 +319,7 @@ spec:
   min_osquery_version: 1.4.7
   name: user groups (windows,chrome)
   observer_can_run: false
-  platform: windows,chrome
+  platform: chrome,windows
   query: select * from user_groups;
   team: ""
 ---

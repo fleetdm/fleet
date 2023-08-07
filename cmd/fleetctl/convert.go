@@ -40,8 +40,6 @@ var platformMapping = map[string][]string{
 }
 
 func convertPlatforms(platformsIn string) (string, error) {
-	resultOrder := []string{"darwin", "linux", "windows", "chrome"}
-
 	splitPlatformsIn := strings.Split(platformsIn, ",")
 
 	// validate and convert each substring
@@ -59,11 +57,13 @@ func convertPlatforms(platformsIn string) (string, error) {
 
 	// convert set to slice
 	result := make([]string, 0, len(mapped))
-	for _, p := range resultOrder {
-		if _, ok := mapped[p]; ok {
-			result = append(result, p)
-		}
+
+	for p := range mapped {
+		result = append(result, p)
 	}
+
+	// sort for deterministic output
+	sort.Strings(result)
 
 	resultString := strings.Join(result, ",")
 
