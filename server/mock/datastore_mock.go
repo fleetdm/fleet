@@ -610,6 +610,8 @@ type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*f
 
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error
 
+type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
+
 type DeleteMDMAppleBootstrapPackageFunc func(ctx context.Context, teamID uint) error
 
 type GetMDMAppleBootstrapPackageMetaFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error)
@@ -1546,6 +1548,9 @@ type DataStore struct {
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
+
+	CopyDefaultMDMAppleBootstrapPackageFunc        CopyDefaultMDMAppleBootstrapPackageFunc
+	CopyDefaultMDMAppleBootstrapPackageFuncInvoked bool
 
 	DeleteMDMAppleBootstrapPackageFunc        DeleteMDMAppleBootstrapPackageFunc
 	DeleteMDMAppleBootstrapPackageFuncInvoked bool
@@ -3692,6 +3697,13 @@ func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *flee
 	s.InsertMDMAppleBootstrapPackageFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertMDMAppleBootstrapPackageFunc(ctx, bp)
+}
+
+func (s *DataStore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
+	s.mu.Lock()
+	s.CopyDefaultMDMAppleBootstrapPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.CopyDefaultMDMAppleBootstrapPackageFunc(ctx, ac, toTeamID)
 }
 
 func (s *DataStore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
