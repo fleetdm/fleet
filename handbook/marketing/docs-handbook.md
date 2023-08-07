@@ -76,7 +76,7 @@ When creating a pull request for Markdown changes in the docs, request a review 
 
 The Fleet docs are written in Markdown. Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo.
 
-See the [Markdown guide](./markdown-guide) for help formatting Fleet-flavored Markdown.
+See the [Markdown guide](https://fleetdm.com/handbook/company/communications#writing-in-fleet-flavored-markdown) for help formatting Fleet-flavored Markdown.
 
 ## Links
 
