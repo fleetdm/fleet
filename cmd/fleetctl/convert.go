@@ -19,27 +19,27 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func convertPlatform(platformsIn string) (*string, error) {
-	// mappings based on https://github.com/osquery/osquery/blob/b87a4b5f1567415a72acd5ecd0e9e7ab75754959/tools/codegen/genwebsitejson.py#L38C18-L38C18
-	platformMapping := map[string][]string{
-		"darwin":    {"darwin"},
-		"linux":     {"linux"},
-		"windows":   {"windows"},
-		"chrome":    {"chrome"},
-		"specs":     {"darwin", "linux", "windows"},
-		"utility":   {"darwin", "linux", "windows"},
-		"yara":      {"darwin", "linux", "windows"},
-		"smart":     {"darwin", "linux"},
-		"kernel":    {"darwin"},
-		"linwin":    {"linux", "windows"},
-		"macwin":    {"darwin", "windows"},
-		"posix":     {"darwin", "linux"},
-		"sleuthkit": {"darwin", "linux"},
-		"any":       {""},
-		"all":       {""},
-		"":          {""},
-	}
+// mappings based on https://github.com/osquery/osquery/blob/b87a4b5f1567415a72acd5ecd0e9e7ab75754959/tools/codegen/genwebsitejson.py#L38C18-L38C18
+var platformMapping = map[string][]string{
+	"darwin":    {"darwin"},
+	"linux":     {"linux"},
+	"windows":   {"windows"},
+	"chrome":    {"chrome"},
+	"specs":     {"darwin", "linux", "windows"},
+	"utility":   {"darwin", "linux", "windows"},
+	"yara":      {"darwin", "linux", "windows"},
+	"smart":     {"darwin", "linux"},
+	"kernel":    {"darwin"},
+	"linwin":    {"linux", "windows"},
+	"macwin":    {"darwin", "windows"},
+	"posix":     {"darwin", "linux"},
+	"sleuthkit": {"darwin", "linux"},
+	"any":       {""},
+	"all":       {""},
+	"":          {""},
+}
 
+func convertPlatform(platformsIn string) (string, error) {
 	resultOrder := []string{"darwin", "linux", "windows", "chrome"}
 
 	splitPlatformsIn := strings.Split(platformsIn, ",")
@@ -50,7 +50,7 @@ func convertPlatform(platformsIn string) (*string, error) {
 		mappedSubstring, ok := platformMapping[substring]
 		// validate substring
 		if !ok {
-			return nil, fmt.Errorf("unsupported platform: %s", substring)
+			return "", fmt.Errorf("unsupported platform: %s", substring)
 		}
 		for _, p := range mappedSubstring {
 			mapped[p] = struct{}{}
@@ -58,7 +58,7 @@ func convertPlatform(platformsIn string) (*string, error) {
 	}
 
 	// convert set to slice
-	result := []string{}
+	result := make([]string, 0, len(mapped))
 	for _, p := range resultOrder {
 		if _, ok := mapped[p]; ok {
 			result = append(result, p)
@@ -67,7 +67,7 @@ func convertPlatform(platformsIn string) (*string, error) {
 
 	resultString := strings.Join(result, ",")
 
-	return &resultString, nil
+	return resultString, nil
 }
 
 func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spec.Group, error) {
@@ -102,7 +102,13 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 			interval = uint(i)
 		}
 
-		convertedPlatforms, err := convertPlatform(*query.Platform)
+		var queryPlatform string
+		if query.Platform != nil {
+			queryPlatform = *query.Platform
+		} else {
+			queryPlatform = ""
+		}
+		convertedPlatforms, err := convertPlatform(queryPlatform)
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +118,7 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 			Description:       query.Description,
 			Query:             query.Query,
 			Interval:          interval,
-			Platform:          *convertedPlatforms,
+			Platform:          convertedPlatforms,
 			MinOsqueryVersion: *query.Version,
 		}
 
@@ -129,7 +135,7 @@ func convertCommand() *cli.Command {
 	)
 	return &cli.Command{
 		Name:      "convert",
-		Usage:     "Convert osquery packs into decomposed fleet configs",
+		Usage:     "Convert osquery packs into Fleet queries",
 		UsageText: `fleetctl convert [options]`,
 		Flags: []cli.Flag{
 			configFlag(),
