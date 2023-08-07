@@ -120,9 +120,9 @@
     }
 
     // table header content responsive styles
-    // NOTE: 1100px is a custom breakpoint to deal with responsiveness of the
+    // NOTE: 1140px is a custom breakpoint to deal with responsiveness of the
     // table controls. 990px doesnt work for us in this case.
-    @media (max-width: 1100px) {
+    @media (max-width: 1140px) {
       &__header {
         flex-direction: column;
       }
@@ -134,6 +134,10 @@
 
         .table-container__search-input {
           margin-left: 0;
+
+          .input-with-icon {
+            width: 100%;
+          }
 
           & .search-field__input-wrapper {
             width: auto;
@@ -234,7 +238,7 @@
   &__status_dropdown {
     width: 165px;
 
-    @media (min-width: 1100px) {
+    @media (min-width: 1140px) {
       width: 180px;
     }
 

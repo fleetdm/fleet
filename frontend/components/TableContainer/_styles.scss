@@ -10,6 +10,7 @@
     justify-content: space-between;
     align-items: center;
     padding-bottom: $pad-medium;
+    gap: $pad-small;
 
     &.stack-table-controls {
       flex-direction: column-reverse;
@@ -82,10 +83,6 @@
     cursor: pointer;
     text-decoration: underline;
     color: $core-vibrant-blue-over;
-  }
-
-  &__search {
-    margin-left: $pad-small;
   }
 
   &__search-input {
