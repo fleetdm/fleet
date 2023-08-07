@@ -16,7 +16,7 @@ describe("LoginForm - component", () => {
   it("renders the base error", () => {
     render(
       <LoginForm
-        serverErrors={{ base: baseError }}
+        baseError={baseError}
         handleSubmit={submitSpy}
         ssoSettings={settings}
       />
@@ -34,7 +34,7 @@ describe("LoginForm - component", () => {
   it("renders 2 InputField components", () => {
     render(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
 
-    expect(screen.getByRole("textbox", { name: "Email" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Email")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Password")).toBeInTheDocument();
   });
 
@@ -69,7 +69,7 @@ describe("LoginForm - component", () => {
       <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
     );
 
-    await user.type(screen.getByRole("textbox", { name: "Email" }), validEmail);
+    await user.type(screen.getByPlaceholderText("Email"), validEmail);
 
     // try to log in without entering a password
     await user.click(screen.getByRole("button", { name: "Login" }));
@@ -95,7 +95,7 @@ describe("LoginForm - component", () => {
       <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
     );
 
-    await user.type(screen.getByRole("textbox", { name: "Email" }), validEmail);
+    await user.type(screen.getByPlaceholderText("Email"), validEmail);
     await user.type(screen.getByPlaceholderText("Password"), password);
     await user.click(screen.getByRole("button", { name: "Login" }));
 

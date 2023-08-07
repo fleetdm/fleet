@@ -1,0 +1,64 @@
+#sandbox-waitlist {
+  padding-top: 80px;
+  padding-bottom: 80px;
+  [purpose='approve-button'] {
+    display: flex;
+    padding: 2px 8px;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 21px;
+  }
+  [purpose='table-container'] {
+    padding-top: 40px;
+    width: 100%;
+    [purpose='waitlist-table'] {
+      border-radius: 6px;
+      border: none;
+      td {
+        border: none;
+        padding: 12px 24px;
+        vertical-align: middle;
+      }
+      thead {
+        font-weight: 600;
+        background-color: @ui-off-white;
+        border-radius: 6px;
+        border-bottom-right-radius: 0px;
+        border-bottom-left-radius: 0px;
+        outline: 1px solid #E2E4EA;
+        box-shadow: 0 0 0 1px #E2E4EA;
+        tr {
+          td:first-child {
+            border-top-left-radius: 6px;
+          }
+          td:last-child {
+            border-top-right-radius: 6px;
+          }
+        }
+      }
+      tbody {
+        color: #515774;
+        border-radius: 6px;
+        border-top-right-radius: 0px;
+        border-top-left-radius: 0px;
+        outline: 1px solid #E2E4EA;
+        box-shadow: 0 0 0 1px #E2E4EA;
+        tr {
+          border-top: 1px solid @core-vibrant-blue-15;
+        }
+        tr:last-child {
+          td:first-child {
+            border-bottom-left-radius: 6px;
+          }
+          td:last-child {
+            border-bottom-right-radius: 6px;
+          }
+        }
+      }
+    }
+  }
+
+}

@@ -50,14 +50,14 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 						q.author_id,
 						q.saved,
 						q.observer_can_run,
-						sq.id       AS scheduled_query_id,
-						sq.interval AS scheduled_query_interval,
-						sq.snapshot AS scheduled_query_snapshot,
-						sq.removed  AS scheduled_query_removed,
-						sq.platform AS scheduled_query_platform,
-						sq.version  AS scheduled_query_version,
-						sq.created_at AS scheduled_created_at,
-						p.pack_type AS pack_type
+						sq.id                     AS scheduled_query_id,
+						sq.interval               AS scheduled_query_interval,
+						sq.snapshot               AS scheduled_query_snapshot,
+						sq.removed                AS scheduled_query_removed,
+						COALESCE(sq.platform, '') AS scheduled_query_platform,
+						COALESCE(sq.version, '')  AS scheduled_query_version,
+						sq.created_at             AS scheduled_created_at,
+						p.pack_type               AS pack_type
 		FROM queries q
 				INNER JOIN scheduled_queries sq ON q.name = sq.query_name
 				INNER JOIN packs p ON sq.pack_id = p.id
@@ -161,14 +161,14 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 						q.author_id,
 						q.saved,
 						q.observer_can_run,
-						sq.id         AS scheduled_query_id,
-						sq.interval   AS scheduled_query_interval,
-						sq.snapshot   AS scheduled_query_snapshot,
-						sq.removed    AS scheduled_query_removed,
-						sq.platform   AS scheduled_query_platform,
-						sq.version    AS scheduled_query_version,
-						sq.created_at AS scheduled_created_at,
-						p.pack_type   AS pack_type
+						sq.id                      AS scheduled_query_id,
+						sq.interval                AS scheduled_query_interval,
+						sq.snapshot                AS scheduled_query_snapshot,
+						sq.removed                 AS scheduled_query_removed,
+						COALESCE(sq.platform, '')  AS scheduled_query_platform,
+						COALESCE(sq.version, '')   AS scheduled_query_version,
+						sq.created_at              AS scheduled_created_at,
+						p.pack_type                AS pack_type
 		FROM queries q
 				INNER JOIN scheduled_queries sq ON q.team_id IS NULL AND q.name = sq.query_name
 				INNER JOIN packs p ON sq.pack_id = p.id
