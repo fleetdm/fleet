@@ -2,35 +2,32 @@
 
 Fleet's [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) style of communication and the [tools we use](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) are part of the company's DNA and essential to moving Fleet into the future.
 
+## Zoom
 
-## Vision for dept handbook pages
+We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
+By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
+Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
 
-The idea here is to get this vision implemented on a single departmental handbook page first, starting with handbook/company/ceo.  It's hard to know what the philosophy should be until we can see it.  So we need to shorten the feedback loop so we can see it change live in one place.  That way we can iterate in one place instead of having things go a bunch of different directions, and adding in all the complexity of extra redirects to keep track of and all that stuff.  Then once we've got that looking good and have iterated a bit, we'll spread it out.
 
-Another thing is that we need to get a better intuitive understanding of who these pages are designed to serve.  So in order to put ourselves in their shoes (get behind their eyeballs), we need something to look at.  So doing a particular page first provides us with that canvas.
+## Slack
 
-- (h1) Top-level page title/ file name
-    
-  - (h2) Short section on _departmentally specific philosophy_ and the purpose of the page: If philosophy applies to more than your department, **pull it out**, make it easier for contributors to find.
-  - **Nice to have:** Tiny little link/sentence/button with call-to-action that links you to intake or intake options)
+At Fleet, we do not send internal emails to each other. Instead, we prefer to use [Slack](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/) to communicate with other folks who work at Fleet.
+We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
+We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 
-- (h2) How can I… (outward facing first: e.g.non-Fleetie contributor)
-    
-  - e.g. (h3) CEO flaws
-  - e.g. (h3) Scheduling with the CEO
-  - e.g. (h3) Summoning the CEO (travel)
+### Slack channel prefixes
+We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
+We use these prefixes to organize the Fleet Slack:
+ * ***g-***: for team/group channels *(Note: "g-" is short for "grupo" or "group")*.
+ * ***oooh-***: used to discuss and share interesting information about a topic.
+ * ***help-***: for asking for help on specific topics.
+ * ***at*** or ***fleet-at***: for customer channels.
+ * ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
 
-- (h2) How-tos (Inward facing e.g. Fleetie)
-  - e.g. (h2) Process CEO email
-
-- (h2) Intake
-
-- (h2) Kanban
-
-- (h2) Rituals
-  
-- (h2) Slack channels
-
+#### Slack communications and best practices
+In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc). 
+      1. What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from. 
+      2. Why does this matter? Great question! The Fleet [culture](https://fleetdm.com/handbook/company#culture) is pretty simple: think of others, and remember the company [Values](https://fleetdm.com/handbook/company#values).
 
 
 ## Meetings
@@ -103,33 +100,64 @@ maintaining an expressive labeling system. For example, instead of a label calle
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 
+## Writing
 
-## Zoom
+- **Writing style**
 
-We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
-By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
-Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
+- Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
+- Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. 
+- Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. 
+- Don’t sound formal, sound welcoming so that anyone can understand. Translate "puffery" into "ease of use" or "readability". 
+- Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). 
+- Create heading(s) that make good permalinks, use links and add missing links. Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”). 
+- Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. 
+- A big goal is to be able to link directly to this stuff when something comes up as a gentle way to remind and train using the foundation we've already built. 
+- Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere). 
+- Read your PRs, check it carefully with each change and edit until the diff looks good.
+- Check preview mode in GitHub to make sure the format renders correctly. If you look at your diff and notice unintentional changes, remove them.
 
 
-## Slack
 
-At Fleet, we do not send internal emails to each other. Instead, we prefer to use [Slack](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/) to communicate with other folks who work at Fleet.
-We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
-We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
+## Writing in Markdown
 
-### Slack channel prefixes
-We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
-We use these prefixes to organize the Fleet Slack:
- * ***g-***: for team/group channels *(Note: "g-" is short for "grupo" or "group")*.
- * ***oooh-***: used to discuss and share interesting information about a topic.
- * ***help-***: for asking for help on specific topics.
- * ***at*** or ***fleet-at***: for customer channels.
- * ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
 
-#### Slack communications and best practices
-In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc). 
-      1. What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from. 
-      2. Why does this matter? Great question! The Fleet [culture](https://fleetdm.com/handbook/company#culture) is pretty simple: think of others, and remember the company [Values](https://fleetdm.com/handbook/company#values).
+
+
+
+
+## Vision for dept handbook pages
+
+The idea here is to get this vision implemented on a single departmental handbook page first, starting with handbook/company/ceo.  It's hard to know what the philosophy should be until we can see it.  So we need to shorten the feedback loop so we can see it change live in one place.  That way we can iterate in one place instead of having things go a bunch of different directions, and adding in all the complexity of extra redirects to keep track of and all that stuff.  Then once we've got that looking good and have iterated a bit, we'll spread it out.
+
+Another thing is that we need to get a better intuitive understanding of who these pages are designed to serve.  So in order to put ourselves in their shoes (get behind their eyeballs), we need something to look at.  So doing a particular page first provides us with that canvas.
+
+- (h1) Top-level page title/ file name
+    
+  - (h2) Short section on _departmentally specific philosophy_ and the purpose of the page: If philosophy applies to more than your department, **pull it out**, make it easier for contributors to find.
+  - **Nice to have:** Tiny little link/sentence/button with call-to-action that links you to intake or intake options)
+
+- (h2) How can I… (outward facing first: e.g.non-Fleetie contributor)
+    
+  - e.g. (h3) CEO flaws
+  - e.g. (h3) Scheduling with the CEO
+  - e.g. (h3) Summoning the CEO (travel)
+
+- (h2) How-tos (Inward facing e.g. Fleetie)
+  - e.g. (h2) Process CEO email
+
+- (h2) Intake
+
+- (h2) Kanban
+
+- (h2) Rituals
+  
+- (h2) Slack channels
+
+
+
+
+
+
 
 
 
