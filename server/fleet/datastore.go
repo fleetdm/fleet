@@ -922,6 +922,9 @@ type Datastore interface {
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the database
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage) error
+	// CopyMDMAppleBootstrapPackage copies the bootstrap package specified in the app config (if any)
+	// specified team (and a new token is assigned). It also updates the team config with the default bootstrap package URL.
+	CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *AppConfig, toTeamID uint) error
 	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id
 	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
 	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap package for a team
