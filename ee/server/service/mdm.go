@@ -220,7 +220,10 @@ func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAp
 }
 
 func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
-	ac, err := svc.AppConfigObfuscated(ctx)
+	// appconfig is only used internally, it's fine to read it unobfuscated
+	// (svc.AppConfigObfuscated must not be used because the write-only users
+	// such as gitops will fail to access it).
+	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -265,7 +268,10 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 }
 
 func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
-	ac, err := svc.AppConfigObfuscated(ctx)
+	// appconfig is only used internally, it's fine to read it unobfuscated
+	// (svc.AppConfigObfuscated must not be used because the write-only users
+	// such as gitops will fail to access it).
+	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
