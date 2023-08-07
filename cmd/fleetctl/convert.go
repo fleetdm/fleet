@@ -39,7 +39,7 @@ var platformMapping = map[string][]string{
 	"":          {""},
 }
 
-func convertPlatform(platformsIn string) (string, error) {
+func convertPlatforms(platformsIn string) (string, error) {
 	resultOrder := []string{"darwin", "linux", "windows", "chrome"}
 
 	splitPlatformsIn := strings.Split(platformsIn, ",")
@@ -102,15 +102,24 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 			interval = uint(i)
 		}
 
-		var queryPlatform string
+		// handle nil query.Platform
+		var queryPlatforms string
 		if query.Platform != nil {
-			queryPlatform = *query.Platform
+			queryPlatforms = *query.Platform
 		} else {
-			queryPlatform = ""
+			queryPlatforms = ""
 		}
-		convertedPlatforms, err := convertPlatform(queryPlatform)
+		convertedPlatforms, err := convertPlatforms(queryPlatforms)
 		if err != nil {
 			return nil, err
+		}
+
+		// handle nil query.Version
+		var minOsqueryVersion string
+		if query.Version != nil {
+			minOsqueryVersion = *query.Version
+		} else {
+			minOsqueryVersion = ""
 		}
 
 		spec := &fleet.QuerySpec{
@@ -119,7 +128,7 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 			Query:             query.Query,
 			Interval:          interval,
 			Platform:          convertedPlatforms,
-			MinOsqueryVersion: *query.Version,
+			MinOsqueryVersion: minOsqueryVersion,
 		}
 
 		specs.Queries = append(specs.Queries, spec)

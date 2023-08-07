@@ -261,7 +261,7 @@ spec:
   interval: 3600
   logging: ""
   min_osquery_version: ""
-  name: user groups (empty, no version)
+  name: user groups (empty string platform, empty string version)
   observer_can_run: false
   platform: ""
   query: select * from user_groups;
@@ -278,6 +278,34 @@ spec:
   name: user groups (linux,darwin)
   observer_can_run: false
   platform: darwin,linux
+  query: select * from user_groups;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: List of all user groups.
+  interval: 3600
+  logging: ""
+  min_osquery_version: 1.4.7
+  name: user groups (missing platform)
+  observer_can_run: false
+  platform: ""
+  query: select * from user_groups;
+  team: ""
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: List of all user groups.
+  interval: 3600
+  logging: ""
+  min_osquery_version: ""
+  name: user groups (missing version)
+  observer_can_run: false
+  platform: darwin
   query: select * from user_groups;
   team: ""
 ---
