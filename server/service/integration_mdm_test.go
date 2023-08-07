@@ -4882,6 +4882,17 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
 
+	// Attempt to setup Apple MDM, will fail but the important thing is that it
+	// fails with 422 (cannot enable end user auth because no IdP is configured)
+	// and not 403 forbidden.
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
+		fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusUnprocessableEntity)
+
+	// Attempt to update the Apple MDM settings but with no change, just to
+	// validate the access.
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{}, http.StatusNoContent)
+
 	// Attempt to set profile batch globally, should allow.
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "I1"),
