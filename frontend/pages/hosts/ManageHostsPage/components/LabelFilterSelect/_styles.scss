@@ -12,6 +12,12 @@
         stroke: $core-vibrant-blue;
       }
     }
+
+    .filter-icon {
+      & path {
+        fill: $core-vibrant-blue;
+      }
+    }
   }
 
   .label-filter-select__control {
@@ -28,25 +34,24 @@
     }
     &--is-focused,
     &--menu-is-open {
-      svg {
-        transform: rotate(180deg);
-        transition: transform 0.25s ease;
+      .custom-dropdown-indicator {
+        svg {
+          transform: rotate(180deg);
+          transition: transform 0.25s ease;
+        }
+      }
+      .filter-icon {
+        & path {
+          fill: $core-vibrant-blue;
+        }
       }
     }
   }
 
   .label-filter-select__value-container {
-    margin-left: 10px;
-    padding-left: 27px;
-
-    &::before {
-      display: inline-block;
-      position: absolute;
-      content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
-      transform: scale(0.5);
-      left: -6px;
-      margin-top: 4px;
-    }
+    display: flex;
+    gap: $pad-small;
+    margin-left: $pad-xsmall;
   }
 
   .label-filter-select__single-value,

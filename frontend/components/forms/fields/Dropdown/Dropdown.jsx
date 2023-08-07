@@ -35,6 +35,7 @@ class Dropdown extends Component {
     parseTarget: PropTypes.bool,
     tooltip: PropTypes.string,
     autoFocus: PropTypes.bool,
+    tableFilterDropdown: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -50,6 +51,7 @@ class Dropdown extends Component {
     parseTarget: false,
     tooltip: "",
     autoFocus: false,
+    tableFilterDropdown: false,
   };
 
   onMenuOpen = () => {
@@ -119,6 +121,15 @@ class Dropdown extends Component {
     );
   };
 
+  renderCustomTableDropdownValue = () => {
+    return (
+      <div className={`${baseClass}__custom-value`}>
+        <Icon name="filter" className={`${baseClass}__icon`} />
+        <div className={`${baseClass}__custom-value-label`}>Hi</div>
+      </div>
+    );
+  };
+
   render() {
     const {
       handleChange,
@@ -126,6 +137,7 @@ class Dropdown extends Component {
       onMenuOpen,
       onMenuClose,
       renderCustomDropdownArrow,
+      renderCustomTableDropdownValue,
     } = this;
     const {
       error,
@@ -140,6 +152,7 @@ class Dropdown extends Component {
       wrapperClassName,
       searchable,
       autoFocus,
+      tableFilterDropdown,
     } = this.props;
 
     const formFieldProps = pick(this.props, [
@@ -153,6 +166,7 @@ class Dropdown extends Component {
       [`${baseClass}__select--error`]: error,
     });
 
+    console.log("renderOption", renderOption);
     return (
       <FormField
         {...formFieldProps}
@@ -175,6 +189,9 @@ class Dropdown extends Component {
           onClose={onMenuClose}
           autoFocus={autoFocus}
           arrowRenderer={renderCustomDropdownArrow}
+          valueComponent={
+            tableFilterDropdown ? renderCustomTableDropdownValue : undefined
+          }
         />
       </FormField>
     );

@@ -20,6 +20,8 @@ import EmptySchedule from "./EmptySchedule";
 import EmptySoftware from "./EmptySoftware";
 import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
+import Filter from "./Filter";
+import FilterAlt from "./FilterAlt";
 import Issue from "./Issue";
 import More from "./More";
 import Plus from "./Plus";
@@ -95,6 +97,8 @@ export const ICON_MAP = {
   "empty-software": EmptySoftware,
   "empty-teams": EmptyTeams,
   "external-link": ExternalLink,
+  filter: Filter,
+  "filter-alt": FilterAlt,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
   lightbulb: Lightbulb,

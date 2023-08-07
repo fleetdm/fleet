@@ -109,6 +109,18 @@
         .manage-hosts__filter-dropdowns {
           display: flex;
           margin-left: $pad-medium;
+
+          // Dropdown height matches search bar height
+          .manage-hosts__status_dropdown {
+            .Select-control,
+            .Select-input {
+              height: 33px;
+            }
+            .Select-value {
+              line-height: 38px;
+            }
+          }
+
           .manage-hosts__status-dropdown-sandbox {
             width: auto;
             .Select-control {
@@ -253,16 +265,6 @@
     .Select-value {
       padding-left: $pad-medium;
       padding-right: $pad-medium;
-
-      &::before {
-        display: inline-block;
-        position: absolute;
-        padding: 5px 0 0 0; // centers spin
-        content: url(../assets/images/icon-filter-black-16x16@2x.png);
-        transform: scale(0.5);
-        height: 26px;
-        left: 2px;
-      }
     }
     .Select-value-label {
       padding-left: $pad-large;

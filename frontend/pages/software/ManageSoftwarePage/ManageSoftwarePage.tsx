@@ -550,6 +550,7 @@ const ManageSoftwarePage = ({
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
         onChange={handleVulnFilterDropdownChange}
+        tableFilterDropdown
       />
     );
   };
