@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'Generate license key',// FUTURE: Rename this to avoid confusion w/ generators.  For example: 'Build license key'
+  friendlyName: 'Build license key',
 
 
-  description: 'Generate and return a Fleet Premium license key.',
+  description: 'Build and return a Fleet Premium license key.',
 
 
   inputs: {
@@ -22,6 +22,11 @@ module.exports = {
       type: 'number',
       required: true,
       description: 'A JS timestamp representing when this license will expire.',
+    },
+
+    partnerName: {
+      type: 'string',
+      description: 'The name of the partner that will be reselling the generated license.',
     }
   },
 
@@ -34,12 +39,13 @@ module.exports = {
   },
 
 
-  fn: async function ({numberOfHosts, organization, expiresAt}) {
+  fn: async function ({numberOfHosts, organization, expiresAt, partnerName}) {
 
     let licenseKey = await sails.helpers.createLicenseKey.with({
       numberOfHosts: numberOfHosts,
       organization: organization,
-      expiresAt: expiresAt
+      expiresAt: expiresAt,
+      partnerName: partnerName,
     });
 
     return licenseKey;

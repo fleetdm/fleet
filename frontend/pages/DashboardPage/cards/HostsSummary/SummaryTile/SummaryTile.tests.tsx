@@ -15,7 +15,7 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI={false} // tested
         title={"Windows hosts"}
-        iconName={"windows-blue"}
+        iconName={"windows-circled"}
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -33,7 +33,7 @@ describe("SummaryTile - component", () => {
         isLoading // tested
         showUI
         title={"Windows hosts"}
-        iconName={"windows-blue"}
+        iconName={"windows-circled"}
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -52,7 +52,7 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"} // tested
-        iconName={"windows-blue"} // tested
+        iconName={"windows-circled"} // tested
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -74,7 +74,7 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"}
-        iconName={"windows-blue"}
+        iconName={"windows-circled"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
@@ -91,7 +91,7 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"}
-        iconName={"windows-blue"}
+        iconName={"windows-circled"}
         tooltip={"Hosts on any Windows device"} // tested
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -109,7 +109,7 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"}
-        iconName={"windows-blue"}
+        iconName={"windows-circled"}
         tooltip={"Hosts on any Windows device"} // tested
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />

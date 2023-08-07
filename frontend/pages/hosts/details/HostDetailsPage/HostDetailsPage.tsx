@@ -486,7 +486,9 @@ const HostDetailsPage = ({
   };
 
   const onQueryHostCustom = () => {
-    router.push(PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host?.id));
+    router.push(
+      PATHS.NEW_QUERY() + TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+    );
   };
 
   const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {

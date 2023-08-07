@@ -50,7 +50,6 @@ The CEO is the [directly responsible](https://fleetdm.com/handbook/company/why-t
 - **Note** When the CEO is out of office, these responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 
-
 ## How can I...
 
 
@@ -85,18 +84,31 @@ Last-minute changes or cancellations must be communicated to Mike via [direct me
 ## Tasks
 (How to...)
 
+- ***Time-sensitive tasks*** (⏰) require reminders to be created and set for the following times (CT):
+  - 9:30 /before start of business
+  - 12:30 /begging of "reserved block"
+  - 3:30 /prior to afternoon meetings
+  - 6:00 /post-mortem days meetings
 
-### Process the CEO's inbox
 
-The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for processing all email traffic prior to CEO review. The [AttC](#team) will reduce the scope of Mike's inbox to only include necessary and actionable communication.
- -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
- -  Escalate actionable sales communication and update Mike directly.
- -  Ensure all calendar invites have the necessary documents included.
+### Schedule and adjust CEO meetings
+
+- ⏰ If Mike agrees to a meeting at 9 am or earlier, the Apprentice will schedule a "DOTO: Mike" on his calendar the night before reminding him that he has a meeting before 9 am Central the following day.
+
+Morning times should be held for team members and external folks whose time zones make it harder for them to meet later in the day.
+ - The Apprentice to the CEO will confirm that recipients have accepted invites. 
+ - If a recipient has not accepted, the Apprentice to the CEO will reach out to confirm attendance at least 24 hours before the meeting is scheduled to begin.
+
+Do not schedule over:
+- Design reviews
+- Puppet show
+- E-group
+- ❌Reserved until day of (extreme prejudice)
 
 
 ### Process the CEO's calendar
 
-Time management for the CEO is essential at all times. 
+- ⏰ Time management for the CEO is essential at all times. 
 The AttC processes the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
 
 Prioritizing in order of importance:
@@ -121,22 +133,19 @@ In the notes document include:
      - Google Drive 
 Be sure to do this from Mike's browser so as to not lock him out of any meeting docs.
 
+### Process the CEO's inbox
 
-#### Schedule and adjust CEO meetings
+- ⏰ The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review.
+The [AttC](#team) will reduce the scope of Mike's inbox to only include necessary and actionable communication.
+ -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
+ -  Escalate actionable sales communication and update Mike directly.
+ -  Ensure all calendar invites have the necessary documents included.
 
-If Mike agrees to a meeting at 9 am or earlier, the Apprentice will schedule a "DOTO: Mike" on his calendar the night before reminding him that he has a meeting before 9 am Central the following day.
-
-Morning times should be held for team members and external folks whose time zones make it harder for them to meet later in the day.
- - The Apprentice to the CEO will confirm that recipients have accepted invites. 
- - If a recipient has not accepted, the Apprentice to the CEO will reach out to confirm attendance at least 24 hours before the meeting is scheduled to begin.
-
-Don't schedule over the Weekly E-group call unless approved by Mike.
- - Refer to Mike's list of priorities in the [Priority calls](https://docs.google.com/document/d/1kYbRUMiGgOtrl1Lh6HWRc64p3rLhwvgTZD6CSONbGEo/edit#) (internal doc). 
 
 ### Send the weekly update
 
 We like to be open about milestones and announcements.
-  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
+  - ⏰ Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
   - Friday nights, the AttC will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
     - A link to view KPIs
     - Who was on-call that week
@@ -163,7 +172,7 @@ We like to be open about milestones and announcements.
 
 ### Schedule travel for the CEO
 
-Preferences for flights, in descending order of importance are:
+The AttC schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
   - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
   - Select a non-middle seat, whenever possible
   - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
@@ -175,7 +184,7 @@ Preferences for flights, in descending order of importance are:
 
 ### Prepare for the All hands
 
-Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+- ⏰ Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
   3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
@@ -234,7 +243,7 @@ After each meeting, the CEO's apprentice makes a copy of the original document a
 
 ### Post-e-group archival  
 
-Immediately after every e-group the AttC duplicates the e-group agenda doc as a backup copy saved to ["Classified" shared drive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).  Rename it to "YYYY-MM-DD backup of e-group agenda".  Then clear out all agenda items from the e-group doc (the ones that people add, not the standard fixtures), and replace them with a single item:  `Sam: FYI: Agenda from last time (YYYY-MM-DD):` [LINK](link)
+- ⏰ Immediately after every e-group the AttC duplicates the e-group agenda doc as a backup copy saved to ["Classified" shared drive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).  Rename it to "YYYY-MM-DD backup of e-group agenda".  Then clear out all agenda items from the e-group doc (the ones that people add, not the standard fixtures), and replace them with a single item:  `Sam: FYI: Agenda from last time (YYYY-MM-DD):` [LINK](link)
 
 
 ### Unroll a Slack thread
@@ -299,6 +308,7 @@ Thank you so much!" 🙇
 
 
 ## Intake
+
 To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
  
  

@@ -8,6 +8,7 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import classnames from "classnames";
+import { Colors } from "styles/var/colors";
 
 interface ISummaryTileProps {
   count: number;
@@ -15,6 +16,7 @@ interface ISummaryTileProps {
   showUI: boolean;
   title: string;
   iconName: IconNames;
+  iconColor?: Colors;
   path: string;
   tooltip?: string;
   isSandboxMode?: boolean;
@@ -30,6 +32,7 @@ const SummaryTile = ({
   showUI, // false on first load only
   title,
   iconName,
+  iconColor,
   path,
   tooltip,
   isSandboxMode = false,
@@ -61,7 +64,11 @@ const SummaryTile = ({
         disabled={notSupported}
       >
         <>
-          <Icon name={iconName} className={`${baseClass}__tile-icon`} />
+          <Icon
+            name={iconName}
+            color={iconColor}
+            className={`${baseClass}__tile-icon`}
+          />
           <div>
             {notSupported ? (
               <div className={`${baseClass}__not-supported-text`}>
