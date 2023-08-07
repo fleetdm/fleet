@@ -102,47 +102,6 @@ maintaining an expressive labeling system. For example, instead of a label calle
 
 ## Writing
 
-You don’t have to be a “writer” to write documentation. Nobody knows Fleet better than the people who are building our product. 
-### Remember the reader
-People come from different backgrounds. New users may not know terms that are common knowledge for seasoned developers. Since Fleet has users all over the world, English may not be their first language. Your writing must be easy for any user to understand.
-- **Think of every user.** Define technical terms in your writing or include a link.
-- **Strive for simplicity.** Avoid complex sentences and long paragraphs.
-- **Be approachable.** Write like you’re meeting a new member of your team.
-
-### Answer the question
-It’s what we’re all about at Fleet. People read docs in order to accomplish their goals. Those goals can vary from learning about Fleet for the first time to looking for troubleshooting tips. Make sure your doc meets the specific need of the user at that moment.
-
-- **Understand the question.** Be clear about the topic you’re discussing.
-- **Narrow your focus.** Avoid explanations that distract from the main topic.
-- **No more, no less.** Use just enough information to give an accurate answer.
-
-### Follow a framework
-Starting with a blank page can be scary. That’s why it helps to have a framework for your writing. Follow these four steps to write your docs: introduction, explanation, reference, and troubleshooting.
-
-#### Introduction
-Give an overview of the topic. You don’t need to mention everything at the beginning. Briefly establish the question you’re addressing. People want to get to the answer A.S.A.P.
-
-#### Explanation
-You’ve let users know why they’re reading your doc. It’s time to make sure they understand the topic. This will be most of your documentation. Don’t shy away from details.
-
-#### Reference
-Support your explanation with relevant references. This shows users how to put your explanation into practice. Such material will keep users coming back.
-
-#### Troubleshooting
-Nothing is perfect. Your readers understand this. Users will appreciate it if you identify common problems — and provide solutions — before they encounter these issues later.
-
-### Document every change
-Any change to Fleet’s code should be documented, from adding patches to building features. This allows users and Fleeties to stay up to date with improvements to our product.
-
-You don’t need to wait until a change has been made to write a new doc. Starting with documentation can help you discover ways to make Fleet even better.
-
-Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before committing a line of code.
-
-You don’t need to wait until a change has been made to write a new doc. Starting with documentation can help you discover ways to make Fleet even better.
-
-Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before committing a line of code.
-
-
 ### Writing style
   - Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
   - Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. 
@@ -254,31 +213,31 @@ They’re great! Don’t be afraid to use them. They’ll help your writing soun
 #### Commas 
 When listing three or more things, use commas to separate the words. This is called a serial comma.
 
-✅**Do:** Fleet is for IT professionals, client platform engineers, and security practitioners.
+✅ **Do:** Fleet is for IT professionals, client platform engineers, and security practitioners.
 
-❌**Don’t:** Fleet is for IT professionals, client platform engineers and security practitioners.
+❌ **Don’t:** Fleet is for IT professionals, client platform engineers and security practitioners.
 
 Aside from the serial comma, use commas, as usual, to break up your sentences. If you’re unsure whether you need a comma, saying the sentence aloud can give you a clue. If you pause or take a breath, that’s when you probably need a comma.
 
 #### Hyphens
-✅**Do** use a hyphen to indicate a range:
+✅ **Do** use a hyphen to indicate a range:
 - Monday-Friday
 
-✅**Do** use a hyphen for compound modifiers. This is when 2 or more words function as one adjective. Compound modifiers precede the noun they modify:
+✅ **Do** use a hyphen for compound modifiers. This is when 2 or more words function as one adjective. Compound modifiers precede the noun they modify:
 - We release Fleet on a three-week cadence.
 - Osquery is an open-source agent.
 
-❌**Don’t** use a hyphen when modifying words follow the noun:
+❌ **Don’t** use a hyphen when modifying words follow the noun:
 - Fleet is released every three weeks.
 - Osquery is open source.
 
 #### Colons 
 Colons introduce one or more elements that add detail to the idea before the colon. 
 
-✅**Do** use a colon to introduce a list:
+✅ **Do** use a colon to introduce a list:
 - The Fleet product has 4 interfaces: Fleet UI, REST API, fleetctl CLI, and Fleet Desktop.
 
-✅**Do** use a colon to introduce a phrase (Only capitalize the first word following a colon if it’s a proper noun):
+✅ **Do** use a colon to introduce a phrase (Only capitalize the first word following a colon if it’s a proper noun):
 - Introducing Sandbox: the fastest way to play with Fleet.
 
 #### Exclamation points 
@@ -337,29 +296,29 @@ If you find your list running long, or if each item contains several sentences, 
 Use a numbered list if it follows a specific order or includes a set number of items. Otherwise, use bullet points.
 
 #### How to introduce a list 
-✅**Do** use a colon if you introduce a list with a complete sentence.
+✅ **Do** use a colon if you introduce a list with a complete sentence.
 
-❌**Don’t** use a colon if you start a list right after a heading.
+❌ **Don’t** use a colon if you start a list right after a heading.
 
 #### How to use end punctuation with list items
 End punctuation refers to punctuation marks that are used to end sentences, such as periods, question marks, and exclamation points.
 
-✅**Do** use end punctuation if your list items are complete sentences:
+✅ **Do** use end punctuation if your list items are complete sentences:
 - Project confidence and be informative.
 - Educate users about security threats positively.
 - We never use fear as a marketing tactic.
 
-❌**Don’t** use end punctuation if your list items are sentence fragments, single words, or short phrases:
+❌ **Don’t** use end punctuation if your list items are sentence fragments, single words, or short phrases:
 - Policies
 - Enterprise support
 - Self-hosted agent auto-updates
 
-❌**Don’t** mix complete sentences with sentence fragments, single words, or short phrases. Consistent formatting makes lists easier to read.
+❌ **Don’t** mix complete sentences with sentence fragments, single words, or short phrases. Consistent formatting makes lists easier to read.
 
-❌**Don’t** use commas or semicolons to end bullet points.
+❌ **Don’t** use commas or semicolons to end bullet points.
 
 #### How to capitalize list items
-✅**Do** use a capital letter at the beginning of every bullet point. The only exceptions are words that follow specific style guides (e.g., macOS).
+✅ **Do** use a capital letter at the beginning of every bullet point. The only exceptions are words that follow specific style guides (e.g., macOS).
 
 ### Web elements
 
@@ -370,10 +329,207 @@ When adding SQL statements, all SQL reserved words should be uppercase, and all 
 `SELECT days, hours, total_seconds FROM uptime;`
 
 
-## Writing in Markdown
-Markdown is a simple formatting syntax used to write content on the web. In order to publish content like articles, docs, or handbook entries, you must format your content in Markdown. 
+## Writing in Fleet-flavored Markdown
 
+Markdown is a simple formatting syntax used to write content on the web. In order to publish content like [docs](https://fleetdm.com/docs), [handbook entries](https://fleetdm.com/handbook), and [articles](https://fleetdm.com/articles), you must format your content in Markdown. 
 
+### Headings
+Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
+| Markdown | Rendered heading |
+|:--------------------|:-----------------------------|
+| `# Heading 1` | <h1>Heading 1</h1> |
+| `## Heading 2` | <h2>Heading 2</h2> |
+| `### Heading 3` | <h3>Heading 3</h3> |
+| `#### Heading 4` | <h4>Heading 4</h4> |
+
+### Emphasis
+| Markdown | Rendered text |
+|:--------------------|:-----------------------------|
+| `**Bold**` | <strong>Bold</strong> |
+| `*Italic*` | <em>Italic</em> |
+| `***Bold italic***` | <em><strong>Bold italic</strong></em> |
+| `~~Strikethrough~~` | <s>Strikethrough</s> |
+
+### Line breaks and new lines
+Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines. Otherwise, they will render as the same HTML element.
+
+For example, if you were adding this section:
+
+```
+line one
+line two
+```
+
+The Markdown would render on the Fleet website as
+
+line one
+line two
+
+To make sure formatting is consistent across GitHub and the Fleet website, you need to add a new line anywhere you want a line break. For example, if we separate the lines with a new line:
+
+```
+line one
+
+line two
+```
+
+The Markdown will render correctly as
+
+line one
+
+line two
+
+## Lists
+
+### Ordered lists
+| Markdown | Rendered list |
+|:-------------|:-----------------------------|
+| <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
+| <pre>1. Line one<br>1. Indent one<br>2. Line two<br>3. Line three<br>1. Indent one<br>2. Indent two<br>4. Line four</pre> | 1. Line one<br>&nbsp;1. Indent one<br>2. Line two<br>3. Line three<br>&nbsp;1. Indent one<br>&nbsp;2. Indent two<br>4. Line four |
+
+Content nested within an ordered list needs to be indented. If the list is not formatted correctly, the number will reset on each list item, as shown in the example below.
+
+**Markdown:**
+
+```
+1. Item one
+
+Paragraph about item one
+
+2. Item two
+```
+
+**Rendered output:**
+
+1. Item one
+
+Paragraph about item one
+
+2. Item two
+
+To make sure that ordered lists increment correctly, you can indent the content nested within the list. For example, the same ordered list with indentation:
+
+**Markdown:**
+
+```
+1. Item one
+
+   Paragraph about item one
+
+2. Item two
+```
+
+**Rendered output:**
+
+1. Item one
+
+   Paragraph about item one
+
+2. Item two
+
+### Unordered lists
+| Markdown | Rendered list |
+|:-------------|:-----------------------------|
+| <pre>- Line one<br>- Line two  <br>- Line three<br>- Line four</pre> | - Line one<br>- Line two<br>- Line three<br>- Line four |
+| <pre>- Line one<br> - Indent one<br>- Line two<br>- Line three<br> - Indent one<br> - Indent two<br>- Line four</pre> | - Line one<br>&nbsp;- Indent one<br>- Line two<br>- Line three<br>&nbsp;- Indent one<br>&nbsp;- Indent two<br>- Line four |
+
+### Links
+The Fleet website currently supports the following Markdown link types.
+
+#### Inline link
+It's a classic.
+- **Markdown:** `[This is an inline link](https://domain.com/example.md)`
+- **Rendered output:** [This is an inline link](https://domain.com/example.md)
+
+#### Link with a tooltip
+Adding a tooltip to your link is a great way to provide additional information.
+- **Markdown:** `[This is link with a tooltip](https://domain.com/example.md "You're awesome!")`
+- **Rendered output:** [This is link with a tooltip](https://domain.com/example.md "You're awesome!")
+
+### URLs
+Add angle brackets "< >" around a URL to turn it into a link.
+- **Markdown:** `<https://fleetdm.com>`
+- **Rendered output:** <https://fleetdm.com>
+
+### Emails
+To create a mailto link... oh wait, I'm not going to tell you.
+- ***Important: To avoid spam, we **NEVER** use mailto links.***
+
+### Tables
+To create a table, start with the header by separating rows with pipes (" | ").
+Use dashes (at least 3) to separate the header, and add colons to align the text in the table columns.
+
+- **Markdown:**
+```
+| Category one | Category two | Category three |
+|:---|---:|:---:|
+| Left alignment | Right alignment | Center Alignment |
+```
+
+- **Rendered output:**
+
+| Category one | Category two | Category three |
+|:---|---:|:---:|
+| Left alignment | Right alignment | Center Alignment |
+
+### Blockquotes
+To add a tip blockquote, start a line with ">" and end the blockquote with a blank newline.
+
+#### Tip blockquotes
+Tip blockquotes are the default blockquote style in our Markdown content.
+
+- **Markdown:**
+```
+> This is a tip blockquote.
+This line is rendered inside of the tip blockquote.
+
+This line is rendered outside of the tip blockquote.
+```
+
+- **Rendered output:**
+> This is a tip blockquote.
+This line is rendered inside of the tip blockquote.
+
+This line is rendered outside of the tip blockquote.
+
+#### Quote blockquotes
+To add a quote blockquote, add a `<blockquote>` HTML element with `purpose="quote"`.
+
+- **Markdown:**
+```
+<blockquote purpose="quote">
+This is a quote blockquote.
+
+Lines seperated by a blank newline will be rendered on a different line in the blockquote.
+</blockquote>
+```
+
+- **Rendered output:**
+<blockquote purpose="quote">
+This is a quote blockquote.
+
+Lines seperated by a blank newline will be rendered on a different line in the blockquote.
+</blockquote>
+
+#### Large quote blockquote
+
+You can add a large quote blockquote by adding a `<blockquote>` HTML element with `purpose="large-quote"`.
+
+- **Markdown:**
+```
+<blockquote purpose="large-quote"> 
+This is a large blockquote.
+
+You can use a large quote blockquote to reduce the font size and line height of the rendered text.
+</blockquote>
+```
+
+- **Rendered output:**
+<blockquote purpose="large-quote"> 
+This is a large blockquote.
+
+You can use a large quote blockquote to reduce the font size and line height of the rendered text.
+</blockquote>
 
 
 ## Vision for dept handbook pages
