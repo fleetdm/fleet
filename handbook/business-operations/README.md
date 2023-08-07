@@ -1,7 +1,7 @@
 # Business Operations
 Welcome to the Business Operations (or BizOps) handbook! The BizOps handbook serves as an informational, how-to guide for Fleeties, and supports Fleet's mission by enabling team members to make meaningful contributions in alignment with our values. If you can not find what you are looking for please use the [intake process](https://fleetdm.com/handbook/business-operations#intake) to make a request of the team.
 
-The BizOps group works together as one team, made up of [People Operations (POps)](https://fleetdm.com/handbook/business-operations/people-operations), Finance Operations (FinOps), Legal Operations (LegalOps), IT Operations (ITOps), and Revenue Operations (RevOps).
+The BizOps department works together as one team, made up of these traditional functions: [People](https://fleetdm.com/handbook/business-operations/people-operations), Finance, Legal, IT, and Revenue Operations (RevOps).
 
 ## Intake
 To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
