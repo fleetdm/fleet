@@ -230,7 +230,7 @@ That means:
 3. Including a situation where a user has to wait longer than 5 seconds during signup on fleetdm.com  (or any time we breach an agreed upon response time guarantee)
 4. Including when a scheduled job fails and we aren't sure yet whether or not any real users are affected.
 
-## Why _don't_ we sell like everyone else?
+## Why don't we sell like everyone else?
 
 Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
 - **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
@@ -242,7 +242,7 @@ Many companies encourage salespeople to "spray and pray" email blasts, and to do
 - **Step up.** We look at the [🟠big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
 
-## Why _don't_ we track leads differently?
+## Why don't we track leads differently?
 
 There are about as many "MQL" definitions as there are sales orgs in the world. Exaggerating here, but only somewhat.
 
