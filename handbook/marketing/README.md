@@ -351,7 +351,7 @@ Check the [Editor's page](./editor-guide) for everything you need to know to rea
 
 ### Commonly used terms
 
-If you find yourself feeling a little overwhelmed by all the industry terms within our space, or if you just need to look something up, our glossary of [commonly used terms](./commonly-used-terms) is here to help.
+If you find yourself feeling a little overwhelmed by all the industry terms within our space, or if you just need to look something up, our glossary of [commonly used terms](https://fleetdm.com/handbook/company/communications#commonly-used-terms) is here to help.
 
 ### Email blasts
 
