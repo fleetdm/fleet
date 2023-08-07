@@ -672,11 +672,15 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm4.ID))
 
 	// preassign the MDM host to prof1 and prof4, should match existing team tm2
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm1", HostUUID: mdmHost.UUID, Profile: prof1, Group: "g1"}}, http.StatusNoContent)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm1", HostUUID: mdmHost.UUID, Profile: prof4, Group: "g4"}}, http.StatusNoContent)
+	//
+	// additionally, use external host identifiers with different
+	// suffixes to simulate real world distributed scenarios where more
+	// than one puppet server might be running at the time.
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler06.test.example.com", HostUUID: mdmHost.UUID, Profile: prof1, Group: "g1"}}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler01.test.example.com", HostUUID: mdmHost.UUID, Profile: prof4, Group: "g4"}}, http.StatusNoContent)
 
 	// match with the mdm host succeeds and assigns it to tm2
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "mdm1"}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler03.test.example.com"}, http.StatusNoContent)
 
 	// the host is now part of that team
 	h, err = s.ds.Host(ctx, mdmHost.ID)
@@ -2468,7 +2472,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
 
 	// verified status for host 1
-	require.NoError(t, s.ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[0], []*fleet.HostMacOSProfile{{Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, hosts[0], map[string]*fleet.HostMacOSProfile{prof.Identifier: {Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp, "team_id", strconv.Itoa(int(tm.ID)))
 	require.Equal(t, uint(2), fvsResp.Verifying)
@@ -3329,8 +3333,8 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	})
 
 	// h1 verified one of the profiles
-	require.NoError(t, s.ds.UpdateVerificationHostMacOSProfiles(context.Background(), h1, []*fleet.HostMacOSProfile{
-		{Identifier: "G2b", DisplayName: "G2b", InstallDate: time.Now()},
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, h1, map[string]*fleet.HostMacOSProfile{
+		"G2b": {Identifier: "G2b", DisplayName: "G2b", InstallDate: time.Now()},
 	}))
 	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
