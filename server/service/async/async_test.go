@@ -97,7 +97,7 @@ func TestRecord(t *testing.T) {
 	ds.AsyncBatchUpdatePolicyTimestampFunc = func(ctx context.Context, ids []uint, ts time.Time) error {
 		return nil
 	}
-	ds.SaveHostPackStatsFunc = func(ctx context.Context, hid uint, stats []fleet.PackStats) error {
+	ds.SaveHostPackStatsFunc = func(ctx context.Context, teamID *uint, hid uint, stats []fleet.PackStats) error {
 		return nil
 	}
 	ds.AsyncBatchSaveHostsScheduledQueryStatsFunc = func(ctx context.Context, batch map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {

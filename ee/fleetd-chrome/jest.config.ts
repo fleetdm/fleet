@@ -35,6 +35,11 @@ export default {
   // Define additional global variables
   globals: {
     // Neither jest nor jsdom include the chrome global, so we need to define it here.
-    chrome: { runtime: {} },
+    chrome: {
+      runtime: {},
+      privacy: { network: {}, services: {}, websites: {} },
+      idle: {},
+      system: { storage: {} },
+    },
   },
 };

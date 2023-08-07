@@ -1,4 +1,11 @@
 .dropdown {
+  &__custom-arrow {
+    display: flex;
+
+    svg {
+      transition: transform 0.25s ease;
+    }
+  }
   &__label {
     display: block;
     font-size: $small;
@@ -113,16 +120,6 @@
     }
   }
 
-  .Select-arrow {
-    content: url("../assets/images/icon-chevron-black-16x16@2x.png");
-    height: 16px;
-    width: 16px;
-    vertical-align: middle;
-    margin-top: -1px;
-    margin-left: -4px;
-    border: none;
-  }
-
   &.is-focused {
     &.dropdown__select {
       border: 1px solid $core-vibrant-blue;
@@ -137,34 +134,35 @@
   }
 
   &.is-open {
+    .dropdown__icon {
+      svg {
+        transform: rotate(180deg);
+        transition: transform 0.25s ease;
+        path {
+          stroke: $core-vibrant-blue-over;
+        }
+      }
+    }
     .Select-control {
       border-radius: $border-radius;
-
-      .Select-arrow {
-        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-        height: 16px;
-        width: 16px;
-        margin-left: -4px;
-        border: none;
-        top: 0px;
-      }
     }
   }
   :hover {
-    .Select-arrow {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      height: 16px;
-      width: 16px;
-      margin-left: -4px;
-      border: none;
+    .dropdown__icon {
+      svg {
+        path {
+          stroke: $core-vibrant-blue-over;
+        }
+      }
     }
+
     &.is-open {
-      .Select-arrow {
-        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-        height: 16px;
-        width: 16px;
-        margin-left: -4px;
-        border: none;
+      .dropdown__icon {
+        svg {
+          path {
+            stroke: $core-vibrant-blue-over;
+          }
+        }
       }
     }
   }
@@ -277,7 +275,7 @@
     }
 
     .Select-arrow-zone {
-      display: block;
+      display: flex;
     }
 
     .Select-option {

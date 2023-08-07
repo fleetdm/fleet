@@ -42,7 +42,7 @@ This workflow outlines the process that sales and customer success can follow wh
     - They complete the AE tasks listed at the top of the issue.
     - Then they assign the issue to BizOps and the Head of Customer Success (CS).
     - AE completes the Business Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
-    - Solution Architect completes the Technical Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
+    - Solutions Consultant completes the Technical Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
     - AE moves the {Account Name} folder within Opportunities to the Sales> Account Plans folder.
     - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
     - Prepare to review the following from the Account Plan:
@@ -270,7 +270,7 @@ When creating a new issue, make sure the following:
 
 ### Assistance from engineering
 
-Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
+Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack. Additional help can be obtained by messaging your friendly Solutions Consultant in the `#help-solutions-consulting` channel.
 
 ## Runbook
 
@@ -293,7 +293,7 @@ Occasionally, we will need to track public issues for customers that wish to rem
 ## Generating a trial license key
 1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
     - [Here is a tutorial on using the self-service method](https://www.loom.com/share/b519e6a42a7d479fa628e394ee1d1517) (internal video)
-    - Pre-sales license key DRI is the Director of Solutions Architecture
+    - Pre-sales license key DRI is the Director of Solutions Consulting
     - Post-sales license key DRI is the VP of Customer Success
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
@@ -355,7 +355,7 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 **Outreach software**
 
-At Fleet we use Outreach for sending emails to community members based on triggers or as part of campaigns. To get access to Outreach ask for a license in `#g-business-operations` [Internal video](https://www.loom.com/share/16bdb5dce92649f79aecb89112d95745)(Internal doc).
+At Fleet we use Outreach for sending emails to community members based on triggers or as part of campaigns. To get access to Outreach ask for a license in `#g-business-operations` [Internal video](https://www.loom.com/share/16bdb5dce92649f79aecb89112d95745)(Internal doc). We also use LinkedIn to connect and communicate with community members, prospects and customers. The CEO is DRI for all outbound messaging efforts with the CRO as backup. Fleeties please confer with the CRO before engaging in any outbound messaging.
 
 ### Outreach one-pager
 
@@ -506,7 +506,7 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 | Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
 | Opportunity pipeline review | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps, amounts, dates, and status (including choosing Closed Lost if no communications for >= 45 days). | Alex Mitchell
 [Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Taylor Hughes |
-| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell |
+| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. Clean up Open MQL list. Ask CRO if questions. | Alex Mitchell |
 | Dripify review | Daily | Review responses to Dripify sequencing, respond to standard messages, escalate urgent messages in `#help-CEO`. | Brad Macdowall
 
 
@@ -519,6 +519,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#fleet-at-*` _(customer channels)_ | Kathy Satterlee                                                     |
 | `#g-sales`                     | Alex Mitchell |
 | `#_from-prospective-customers` | Alex Mitchell |
+| `#help-solutions-consulting` | Dave Herder |
 
 
 <meta name="maintainedBy" value="alexmitchelliii">

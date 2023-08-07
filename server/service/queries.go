@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -39,11 +37,16 @@ func getQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 }
 
 func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
+	// Load query first to get its teamID.
+	query, err := svc.ds.Query(ctx, id)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get query from datastore")
+	}
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-
-	return svc.ds.Query(ctx, id)
+	return query, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -52,6 +55,8 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 
 type listQueriesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
+	// TeamID url argument set to 0 means global.
+	TeamID uint `query:"team_id,optional"`
 }
 
 type listQueriesResponse struct {
@@ -63,29 +68,42 @@ func (r listQueriesResponse) error() error { return r.Err }
 
 func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listQueriesRequest)
-	queries, err := svc.ListQueries(ctx, req.ListOptions)
+
+	var teamID *uint
+	if req.TeamID != 0 {
+		teamID = &req.TeamID
+	}
+
+	queries, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil)
 	if err != nil {
 		return listQueriesResponse{Err: err}, nil
 	}
 
-	resp := listQueriesResponse{Queries: []fleet.Query{}}
+	respQueries := make([]fleet.Query, 0, len(queries))
 	for _, query := range queries {
-		resp.Queries = append(resp.Queries, *query)
+		respQueries = append(respQueries, *query)
 	}
-	return resp, nil
+	return listQueriesResponse{
+		Queries: respQueries,
+	}, nil
 }
 
-func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Query, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
+func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool) ([]*fleet.Query, error) {
+	// Check the user is allowed to list queries on the given team.
+	if err := svc.authz.Authorize(ctx, &fleet.Query{
+		TeamID: teamID,
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	user := authz.UserFromContext(ctx)
-	onlyShowObserverCanRun := onlyShowObserverCanRunQueries(user)
+	onlyShowObserverCanRun := onlyShowObserverCanRunQueries(user, teamID)
 
 	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
 		ListOptions:        opt,
 		OnlyObserverCanRun: onlyShowObserverCanRun,
+		TeamID:             teamID,
+		IsScheduled:        scheduled,
 	})
 	if err != nil {
 		return nil, err
@@ -94,20 +112,14 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions) ([]*
 	return queries, nil
 }
 
-func onlyShowObserverCanRunQueries(user *fleet.User) bool {
+func onlyShowObserverCanRunQueries(user *fleet.User, teamID *uint) bool {
 	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleObserver {
 		return true
-	} else if len(user.Teams) > 0 {
-		allObserver := true
-		for _, team := range user.Teams {
-			if team.Role != fleet.RoleObserver {
-				allObserver = false
-				break
-			}
-		}
-		return allObserver
 	}
-	return false
+
+	return teamID != nil && user.TeamMembership(func(ut fleet.UserTeam) bool {
+		return ut.Role == fleet.RoleObserver
+	})[*teamID]
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,12 +147,10 @@ func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
-	user := authz.UserFromContext(ctx)
-	q := &fleet.Query{}
-	if user != nil {
-		q.AuthorID = ptr.Uint(user.ID)
-	}
-	if err := svc.authz.Authorize(ctx, q, fleet.ActionWrite); err != nil {
+	// Check the user is allowed to create a new query on the team.
+	if err := svc.authz.Authorize(ctx, fleet.Query{
+		TeamID: p.TeamID,
+	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -150,25 +160,41 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		})
 	}
 
-	query := &fleet.Query{Saved: true}
+	query := &fleet.Query{
+		Saved: true,
+
+		TeamID: p.TeamID,
+	}
 
 	if p.Name != nil {
 		query.Name = *p.Name
 	}
-
 	if p.Description != nil {
 		query.Description = *p.Description
 	}
-
 	if p.Query != nil {
 		query.Query = *p.Query
 	}
-
-	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
-
+	if p.Interval != nil {
+		query.Interval = *p.Interval
+	}
+	if p.Platform != nil {
+		query.Platform = *p.Platform
+	}
+	if p.MinOsqueryVersion != nil {
+		query.MinOsqueryVersion = *p.MinOsqueryVersion
+	}
+	if p.AutomationsEnabled != nil {
+		query.AutomationsEnabled = *p.AutomationsEnabled
+	}
+	if p.Logging != nil {
+		query.Logging = *p.Logging
+	}
 	if p.ObserverCanRun != nil {
 		query.ObserverCanRun = *p.ObserverCanRun
 	}
+
+	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
@@ -222,12 +248,12 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
+	// Load query first to determine if the user can modify it.
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
 	}
-
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -241,20 +267,32 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	if p.Name != nil {
 		query.Name = *p.Name
 	}
-
 	if p.Description != nil {
 		query.Description = *p.Description
 	}
-
 	if p.Query != nil {
 		query.Query = *p.Query
 	}
-
-	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
-
+	if p.Interval != nil {
+		query.Interval = *p.Interval
+	}
+	if p.Platform != nil {
+		query.Platform = *p.Platform
+	}
+	if p.MinOsqueryVersion != nil {
+		query.MinOsqueryVersion = *p.MinOsqueryVersion
+	}
+	if p.AutomationsEnabled != nil {
+		query.AutomationsEnabled = *p.AutomationsEnabled
+	}
+	if p.Logging != nil {
+		query.Logging = *p.Logging
+	}
 	if p.ObserverCanRun != nil {
 		query.ObserverCanRun = *p.ObserverCanRun
 	}
+
+	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
 	if err := svc.ds.SaveQuery(ctx, query); err != nil {
 		return nil, err
@@ -280,6 +318,8 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 
 type deleteQueryRequest struct {
 	Name string `url:"name"`
+	// TeamID if not set is assumed to be 0 (global).
+	TeamID uint `url:"team_id,optional"`
 }
 
 type deleteQueryResponse struct {
@@ -290,25 +330,29 @@ func (r deleteQueryResponse) error() error { return r.Err }
 
 func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteQueryRequest)
-	err := svc.DeleteQuery(ctx, req.Name)
+	var teamID *uint
+	if req.TeamID != 0 {
+		teamID = &req.TeamID
+	}
+	err := svc.DeleteQuery(ctx, teamID, req.Name)
 	if err != nil {
 		return deleteQueryResponse{Err: err}, nil
 	}
 	return deleteQueryResponse{}, nil
 }
 
-func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
-	query, err := svc.ds.QueryByName(ctx, name)
+func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
+	// Load query first to determine if the user can delete it.
+	query, err := svc.ds.QueryByName(ctx, teamID, name)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return err
 	}
-
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	if err := svc.ds.DeleteQuery(ctx, name); err != nil {
+	if err := svc.ds.DeleteQuery(ctx, teamID, name); err != nil {
 		return err
 	}
 
@@ -348,17 +392,17 @@ func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
+	// Load query first to determine if the user can delete it.
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return ctxerr.Wrap(ctx, err, "lookup query by ID")
 	}
-
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	if err := svc.ds.DeleteQuery(ctx, query.Name); err != nil {
+	if err := svc.ds.DeleteQuery(ctx, query.TeamID, query.Name); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 
@@ -399,13 +443,13 @@ func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
+	// Verify that the user is allowed to delete all the requested queries.
 	for _, id := range ids {
 		query, err := svc.ds.Query(ctx, id)
 		if err != nil {
 			setAuthCheckedOnPreAuthErr(ctx)
 			return 0, ctxerr.Wrap(ctx, err, "lookup query by ID")
 		}
-
 		if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 			return 0, err
 		}
@@ -429,7 +473,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Apply Query Spec
+// Apply Query Specs
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyQuerySpecsRequest struct {
@@ -452,38 +496,32 @@ func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
+	// 1. Turn specs into queries.
 	queries := []*fleet.Query{}
 	for _, spec := range specs {
-		queries = append(queries, queryFromSpec(spec))
+		query, err := svc.queryFromSpec(ctx, spec)
+		if err != nil {
+			setAuthCheckedOnPreAuthErr(ctx)
+			return ctxerr.Wrap(ctx, err, "creating query from spec")
+		}
+		queries = append(queries, query)
 	}
-
+	// 2. Run authorization checks and verify their fields.
 	for _, query := range queries {
+		if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+			return err
+		}
 		if err := query.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("query payload verification: %s", err),
 			})
 		}
-
-		// check that the user can update the query if it already exists
-		query, err := svc.ds.QueryByName(ctx, query.Name)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return err
-		} else if err == nil {
-			if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
-				return err
-			}
-		}
 	}
-
+	// 3. Apply the queries.
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return ctxerr.New(ctx, "user must be authenticated to apply queries")
 	}
-
 	err := svc.ds.ApplyQueries(ctx, vc.UserID(), queries)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "applying queries")
@@ -501,12 +539,28 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 	return nil
 }
 
-func queryFromSpec(spec *fleet.QuerySpec) *fleet.Query {
+func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*fleet.Query, error) {
+	var teamID *uint
+	if spec.TeamName != "" {
+		team, err := svc.ds.TeamByName(ctx, spec.TeamName)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team by name")
+		}
+		teamID = &team.ID
+	}
 	return &fleet.Query{
 		Name:        spec.Name,
 		Description: spec.Description,
 		Query:       spec.Query,
-	}
+
+		TeamID:             teamID,
+		Interval:           spec.Interval,
+		ObserverCanRun:     spec.ObserverCanRun,
+		Platform:           spec.Platform,
+		MinOsqueryVersion:  spec.MinOsqueryVersion,
+		AutomationsEnabled: spec.AutomationsEnabled,
+		Logging:            spec.Logging,
+	}, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -518,39 +572,65 @@ type getQuerySpecsResponse struct {
 	Err   error              `json:"error,omitempty"`
 }
 
+type getQuerySpecsRequest struct {
+	TeamID uint `url:"team_id,optional"`
+}
+
 func (r getQuerySpecsResponse) error() error { return r.Err }
 
 func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	specs, err := svc.GetQuerySpecs(ctx)
+	req := request.(*getQuerySpecsRequest)
+	var teamID *uint
+	if req.TeamID != 0 {
+		teamID = &req.TeamID
+	}
+	specs, err := svc.GetQuerySpecs(ctx, teamID)
 	if err != nil {
 		return getQuerySpecsResponse{Err: err}, nil
 	}
 	return getQuerySpecsResponse{Specs: specs}, nil
 }
 
-func (svc *Service) GetQuerySpecs(ctx context.Context) ([]*fleet.QuerySpec, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{})
+func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.QuerySpec, error) {
+	queries, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting queries")
 	}
 
-	specs := []*fleet.QuerySpec{}
+	// Turn queries into specs.
+	var specs []*fleet.QuerySpec
 	for _, query := range queries {
-		specs = append(specs, specFromQuery(query))
+		spec, err := svc.specFromQuery(ctx, query)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create spec from query")
+		}
+		specs = append(specs, spec)
 	}
 	return specs, nil
 }
 
-func specFromQuery(query *fleet.Query) *fleet.QuerySpec {
+func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fleet.QuerySpec, error) {
+	var teamName string
+	if query.TeamID != nil {
+		team, err := svc.ds.Team(ctx, *query.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team from id")
+		}
+		teamName = team.Name
+	}
 	return &fleet.QuerySpec{
 		Name:        query.Name,
 		Description: query.Description,
 		Query:       query.Query,
-	}
+
+		TeamName:           teamName,
+		Interval:           query.Interval,
+		ObserverCanRun:     query.ObserverCanRun,
+		Platform:           query.Platform,
+		MinOsqueryVersion:  query.MinOsqueryVersion,
+		AutomationsEnabled: query.AutomationsEnabled,
+		Logging:            query.Logging,
+	}, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -562,25 +642,41 @@ type getQuerySpecResponse struct {
 	Err  error            `json:"error,omitempty"`
 }
 
+type getQuerySpecRequest struct {
+	Name   string `url:"name"`
+	TeamID uint   `query:"team_id,optional"`
+}
+
 func (r getQuerySpecResponse) error() error { return r.Err }
 
 func getQuerySpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*getGenericSpecRequest)
-	spec, err := svc.GetQuerySpec(ctx, req.Name)
+	req := request.(*getQuerySpecRequest)
+	var teamID *uint
+	if req.TeamID != 0 {
+		teamID = &req.TeamID
+	}
+	spec, err := svc.GetQuerySpec(ctx, teamID, req.Name)
 	if err != nil {
 		return getQuerySpecResponse{Err: err}, nil
 	}
 	return getQuerySpecResponse{Spec: spec}, nil
 }
 
-func (svc *Service) GetQuerySpec(ctx context.Context, name string) (*fleet.QuerySpec, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
+func (svc *Service) GetQuerySpec(ctx context.Context, teamID *uint, name string) (*fleet.QuerySpec, error) {
+	// Check the user is allowed to get the query on the requested team.
+	if err := svc.authz.Authorize(ctx, &fleet.Query{
+		TeamID: teamID,
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	query, err := svc.ds.QueryByName(ctx, name)
+	query, err := svc.ds.QueryByName(ctx, teamID, name)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "get query by name")
 	}
-	return specFromQuery(query), nil
+	spec, err := svc.specFromQuery(ctx, query)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create spec from query")
+	}
+	return spec, nil
 }

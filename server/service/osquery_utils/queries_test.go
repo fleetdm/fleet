@@ -55,7 +55,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{EnableAsyncHostProcessing: "false"})
 
 	var gotPackStats []fleet.PackStats
-	ds.SaveHostPackStatsFunc = func(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
+	ds.SaveHostPackStatsFunc = func(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
 		if hostID != host.ID {
 			return errors.New("not found")
 		}
@@ -549,23 +549,106 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
-		require.True(t, enrolled)
-		require.True(t, installedFromDep)
-		require.True(t, isServer)
-		require.NotEmpty(t, serverURL)
-		return nil
+	cases := []struct {
+		name                 string
+		data                 []map[string]string
+		wantEnrolled         bool
+		wantInstalledFromDep bool
+		wantIsServer         bool
+		wantServerURL        string
+	}{
+		{
+			name: "off empty server URL",
+			data: []map[string]string{
+				{"key": "discovery_service_url", "value": ""},
+				{"key": "is_federated", "value": "1"},
+				{"key": "provider_id", "value": "Some_ID"},
+				{"key": "installation_type", "value": "Client"},
+			},
+			wantEnrolled:         false,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "",
+		},
+		{
+			name: "off missing is_federated and server url",
+			data: []map[string]string{
+				{"key": "provider_id", "value": "Some_ID"},
+				{"key": "installation_type", "value": "Client"},
+			},
+			wantEnrolled:         false,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "",
+		},
+		{
+			name: "on automatic",
+			data: []map[string]string{
+				{"key": "discovery_service_url", "value": "https://example.com"},
+				{"key": "is_federated", "value": "1"},
+				{"key": "provider_id", "value": "Some_ID"},
+				{"key": "installation_type", "value": "Client"},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: true,
+			wantIsServer:         false,
+			wantServerURL:        "https://example.com",
+		},
+		{
+			name: "on manual",
+			data: []map[string]string{
+				{"key": "discovery_service_url", "value": "https://example.com"},
+				{"key": "is_federated", "value": "0"},
+				{"key": "provider_id", "value": "Local_Management"},
+				{"key": "installation_type", "value": "Client"},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://example.com",
+		},
+		{
+			name: "on manual missing is_federated",
+			data: []map[string]string{
+				{"key": "discovery_service_url", "value": "https://example.com"},
+				{"key": "provider_id", "value": "Some_ID"},
+				{"key": "installation_type", "value": "Client"},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://example.com",
+		},
+		{
+			name: "is_server",
+			data: []map[string]string{
+				{"key": "discovery_service_url", "value": "https://example.com"},
+				{"key": "is_federated", "value": "1"},
+				{"key": "provider_id", "value": "Some_ID"},
+				{"key": "installation_type", "value": "Windows SeRvEr 99.9"},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: true,
+			wantIsServer:         true,
+			wantServerURL:        "https://example.com",
+		},
 	}
 
-	var host fleet.Host
-	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
-		{"key": "discovery_service_url", "value": "some url"},
-		{"key": "autopilot", "value": "true"},
-		{"key": "provider_id", "value": "1337"},
-		{"key": "installation_type", "value": "Windows SeRvEr 99.9"},
-	})
-	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+				require.Equal(t, c.wantEnrolled, enrolled)
+				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
+				require.Equal(t, c.wantIsServer, isServer)
+				require.Equal(t, c.wantServerURL, serverURL)
+				return nil
+			}
+		})
+		err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, c.data)
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+		ds.SetOrUpdateMDMDataFuncInvoked = false
+	}
 }
 
 func TestDirectIngestChromeProfiles(t *testing.T) {

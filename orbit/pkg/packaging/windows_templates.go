@@ -54,6 +54,9 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />
     <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
 
+    <Property Id="FLEET_URL" Value="{{ if .FleetURL }}'{{ .FleetURL }}'{{ end }}"/>
+    <Property Id="FLEET_SECRET" Value="dummy"/>
+
     <MediaTemplate EmbedCab="yes" />
 
     <Property Id="POWERSHELLEXE">
@@ -96,7 +99,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Start="auto"
                   Type="ownProcess"
                   Description="This service runs Fleet's osquery runtime and autoupdater (Orbit)."
-                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log"{{ if .FleetURL }} --fleet-url "{{ .FleetURL }}"{{ end }}{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .UpdateTLSServerCertificate }} --update-tls-certificate "[ORBITROOT]update.pem"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }}{{ if .Desktop }} --fleet-desktop --desktop-channel {{ .DesktopChannel }}{{ if .FleetDesktopAlternativeBrowserHost }} --fleet-desktop-alternative-browser-host {{ .FleetDesktopAlternativeBrowserHost }}{{ end }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}"'
+                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" --fleet-url "[FLEET_URL]"{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .UpdateTLSServerCertificate }} --update-tls-certificate "[ORBITROOT]update.pem"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }}{{ if .Desktop }} --fleet-desktop --desktop-channel {{ .DesktopChannel }}{{ if .FleetDesktopAlternativeBrowserHost }} --fleet-desktop-alternative-browser-host {{ .FleetDesktopAlternativeBrowserHost }}{{ end }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}"'
                 >
                   <util:ServiceConfig
                     FirstFailureActionType="restart"
@@ -142,11 +145,24 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   DllEntry="WixQuietExec64"
                   Execute="deferred"
                   Return="check"
-                  Impersonate="no" />  
+                  Impersonate="no" />
+
+   <SetProperty Id="CA_UpdateSecret"
+                 Before ="CA_UpdateSecret"
+                 Sequence="execute"
+                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]installer_utils.ps1" -updateSecret "[FLEET_SECRET]"' />
+
+    <CustomAction Id="CA_UpdateSecret"
+                  BinaryKey="WixCA"
+                  DllEntry="WixQuietExec64"
+                  Execute="deferred"
+                  Return="check"
+                  Impersonate="no" />                    
 
     <InstallExecuteSequence>
       <Custom Action='CA_RemoveOrbit' Before='RemoveFiles'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom> <!-- Only happens during uninstall -->
       <Custom Action='CA_UninstallOsquery' After='InstallFiles'>NOT Installed AND NOT WIX_UPGRADE_DETECTED</Custom> <!-- Only happens during first install -->
+      <Custom Action='CA_UpdateSecret' Before='InstallServices'>NOT Installed</Custom> <!-- It happens just before service creation -->      
     </InstallExecuteSequence>
 
     <Feature Id="Orbit" Title="Fleet osquery" Level="1" Display="hidden">
@@ -223,6 +239,7 @@ var windowsPSInstallerUtils = template.Must(template.New("").Option("missingkey=
   [switch] $uninstallOsquery = $false,
   [switch] $uninstallOrbit = $false,
   [switch] $stopOrbit = $false,
+  [string] $updateSecret = "",  
   [switch] $help = $false
 )
 
@@ -434,13 +451,14 @@ function Test-Administrator
 function Do-Help {
   $programName = (Get-Item $PSCommandPath ).Name
   
-  Write-Host "Usage: $programName (-uninstallOsquery|-uninstallOrbit|-stopOrbit|-help)" -foregroundcolor Yellow
+  Write-Host "Usage: $programName (-uninstallOsquery|-uninstallOrbit|-stopOrbit|-updateSecret|-help)" -foregroundcolor Yellow
   Write-Host ""
   Write-Host "  Only one of the following options can be used. Using multiple will result in "
   Write-Host "  options being ignored."
   Write-Host "    -uninstallOsquery         Uninstall Osquery"
   Write-Host "    -uninstallOrbit           Uninstall Orbit"
   Write-Host "    -stopOrbit                Stop Orbit"
+  Write-Host "    -updateSecret <secret>    Update Orbit secret"  
   Write-Host "    -help                     Shows this help screen"
   
   Exit 1
@@ -487,6 +505,20 @@ function Stop-Orbit {
   Get-Process -Name "osqueryd" -ErrorAction "SilentlyContinue" | Stop-Process -Force
   Get-Process -Name "fleet-desktop" -ErrorAction "SilentlyContinue" | Stop-Process -Force
   Start-Sleep -Milliseconds 1000
+}
+
+#Updates Orbit secret
+function Update-OrbitSecret {
+
+  # Ensuring secret file is not empty
+  if (-not ([string]::IsNullOrEmpty($updateSecret)) -and ($updateSecret -ne "dummy"))
+  {
+    Write-Host "Updating secret"    
+    $targetSecretFile = $Env:Programfiles + "\\Orbit\\secret.txt"    
+    Set-Content -NoNewline -Path $targetSecretFile -Value $updateSecret
+
+    Start-Sleep -Milliseconds 1000    
+  }
 }
 
 
@@ -717,6 +749,14 @@ function Main {
       Write-Host "Orbit was stopped." -foregroundcolor Cyan
       Exit 0
 
+    } elseif (-not ([string]::IsNullOrEmpty($updateSecret))) {
+      Write-Host "About to update Orbit secret." -foregroundcolor Yellow
+
+      Update-OrbitSecret
+
+      Write-Host "Orbit secret update was called." -foregroundcolor Cyan
+      Exit 0
+      
     } else {
       Write-Host "Invalid option selected: please see -help for usage details." -foregroundcolor Red
       Do-Help

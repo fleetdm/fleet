@@ -1,7 +1,7 @@
 ---
-name: 📰 Release Article
+name: 📰 Release article
 about: Propose a new feature or enhancement in Fleet.
-title: 'Release Article: vXXX.YYY.ZZZ'
+title: 'Release article: vXXX.YYY.ZZZ'
 labels: ':improve documentation'
 assignees: 'spokanemac'
 

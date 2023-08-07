@@ -9,7 +9,7 @@ import { IHost } from "interfaces/host";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIssueCell/LiveQueryIssueCell";
 import StatusIndicator from "components/StatusIndicator";
-import RemoveIcon from "../../../../assets/images/icon-action-remove-20x20@2x.png";
+import Icon from "components/Icon/Icon";
 
 interface ICellProps {
   cell: {
@@ -32,7 +32,7 @@ export const generateTableHeaders = (
           Header: "",
           Cell: (cellProps: { row: Row }): JSX.Element => (
             <div onClick={() => handleRowRemove(cellProps.row)}>
-              <img alt="Remove" src={RemoveIcon} />
+              <Icon name="ex-circled" />
             </div>
           ),
           disableHidden: true,

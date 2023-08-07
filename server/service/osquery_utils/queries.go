@@ -447,8 +447,8 @@ var extraDetailQueries = map[string]DetailQuery{
 			)
 			UNION ALL
 			SELECT * FROM (
-				SELECT "autopilot" AS "key", 1=1 AS "value" FROM registry
-				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache'
+				SELECT "is_federated" AS "key", data as "value" FROM registry 
+				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
 				LIMIT 1
 			)
 			UNION ALL
@@ -1151,7 +1151,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			},
 		)
 	}
-	if err := task.RecordScheduledQueryStats(ctx, host.ID, packStats, time.Now()); err != nil {
+	if err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, packStats, time.Now()); err != nil {
 		return ctxerr.Wrap(ctx, err, "record host pack stats")
 	}
 
@@ -1341,10 +1341,14 @@ func deduceMDMNameMacOS(row map[string]string) string {
 }
 
 func deduceMDMNameWindows(data map[string]string) string {
+	serverURL := data["discovery_service_url"]
+	if serverURL == "" {
+		return ""
+	}
 	if name := data["provider_id"]; name != "" {
 		return name
 	}
-	return fleet.MDMNameFromServerURL(data["discovery_service_url"])
+	return fleet.MDMNameFromServerURL(serverURL)
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1352,15 +1356,26 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	for _, r := range rows {
 		data[r["key"]] = r["value"]
 	}
-	_, autoPilot := data["autopilot"]
+	var enrolled bool
+	var automatic bool
+	serverURL := data["discovery_service_url"]
+	if serverURL != "" {
+		enrolled = true
+		if isFederated := data["is_federated"]; isFederated == "1" {
+			// NOTE: We intentionally nest this condition to eliminate `enrolled == false && automatic == true`
+			// as a possible status for Windows hosts (which would be otherwise be categorized as
+			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
+			automatic = true
+		}
+	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
-	_, enrolled := data["provider_id"]
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		isServer,
 		enrolled,
-		data["discovery_service_url"],
-		autoPilot,
+		serverURL,
+		automatic,
 		deduceMDMNameWindows(data),
 	)
 }
@@ -1526,7 +1541,7 @@ func directIngestMacOSProfiles(
 	return ds.UpdateVerificationHostMacOSProfiles(ctx, host, mapping)
 }
 
-//go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md
+// go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,

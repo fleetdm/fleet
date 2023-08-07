@@ -28,10 +28,10 @@ func testCollectScheduledQueryStats(t *testing.T, ds *mysql.Datastore, pool flee
 	p2 := test.NewPack(t, ds, "p2")
 	p3 := test.NewPack(t, ds, "p3")
 
-	q1 := test.NewQuery(t, ds, "q1", "select 1", user.ID, true)
-	q2 := test.NewQuery(t, ds, "q2", "select 2", user.ID, true)
-	q3 := test.NewQuery(t, ds, "q3", "select 3", user.ID, true)
-	q4 := test.NewQuery(t, ds, "q4", "select 4", user.ID, true)
+	q1 := test.NewQuery(t, ds, nil, "q1", "select 1", user.ID, true)
+	q2 := test.NewQuery(t, ds, nil, "q2", "select 2", user.ID, true)
+	q3 := test.NewQuery(t, ds, nil, "q3", "select 3", user.ID, true)
+	q4 := test.NewQuery(t, ds, nil, "q4", "select 4", user.ID, true)
 
 	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "sq1")
 	sq2 := test.NewScheduledQuery(t, ds, p2.ID, q2.ID, 60, false, false, "sq2")
@@ -125,7 +125,7 @@ func testCollectScheduledQueryStats(t *testing.T, ds *mysql.Datastore, pool flee
 	setupTest := func(t *testing.T, task *Task, data map[uint][]fleet.PackStats) collectorExecStats {
 		var wantStats collectorExecStats
 		for hid, stats := range data {
-			err := task.RecordScheduledQueryStats(ctx, hid, stats, time.Now())
+			err := task.RecordScheduledQueryStats(ctx, nil, hid, stats, time.Now())
 			require.NoError(t, err)
 		}
 		wantStats.Keys = len(data)
@@ -177,7 +177,7 @@ func testRecordScheduledQueryStatsSync(t *testing.T, ds *mock.Store, pool fleet.
 
 	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{})
 
-	err := task.RecordScheduledQueryStats(ctx, host.ID, stats, now)
+	err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, stats, now)
 	require.NoError(t, err)
 	require.True(t, ds.SaveHostPackStatsFuncInvoked)
 	ds.SaveHostPackStatsFuncInvoked = false
@@ -222,7 +222,7 @@ func testRecordScheduledQueryStatsAsync(t *testing.T, ds *mock.Store, pool fleet
 		AsyncHostRedisScanKeysCount: 10,
 	})
 
-	err := task.RecordScheduledQueryStats(ctx, host.ID, stats, now)
+	err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, stats, now)
 	require.NoError(t, err)
 	require.False(t, ds.SaveHostPackStatsFuncInvoked)
 
@@ -269,7 +269,7 @@ func testRecordScheduledQueryStatsAsync(t *testing.T, ds *mock.Store, pool fleet
 			PackName: "p1", QueryStats: []fleet.ScheduledQueryStats{},
 		},
 	}
-	err = task.RecordScheduledQueryStats(ctx, host.ID, stats, now)
+	err = task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, stats, now)
 	require.NoError(t, err)
 	require.False(t, ds.SaveHostPackStatsFuncInvoked)
 
