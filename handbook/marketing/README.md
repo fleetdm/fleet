@@ -345,9 +345,31 @@ Detail the minimum time needed for new or updated content to be live (published)
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
 | Decks | **Instant**. Sales typically creates decks. The Brand team shouldn't be a blocker. | **Feedback** | three business days |
 
-### For editors
 
-Check the [Editor's page](./editor-guide) for everything you need to know to reach editor bliss at Fleet.
+#### How to edit Markdown pull requests for the docs
+
+- When someone creates a pull request for a doc that affects Markdown files, they’ll need to request a review from the editor. 
+- If no edits are needed, the editor will merge the PR. 
+- If an edit changes the meaning, or if unsure, the editor should request a review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) and remove themselves as a reviewer.
+
+#### How to edit articles, release posts, and press releases
+
+Editing articles, release posts, and press releases usually comes in three flavors: a Google Docs draft, a new pull request, or an edit to an existing article.
+
+* For unpublished articles, please read the review process in [How to submit and publish an article](https://fleetdm.com/handbook/marketing/how-to-submit-and-publish-an-article#review-process).
+
+* To edit an existing article, see [How to make edits with GitHub](#how-to-make-edits-with-github).
+
+#### How to edit social media posts
+
+In the world of the Fleet editor, there are two types of social media posts; those scheduled to be published and those published already. 
+
+Making edits to published social media posts gets a little tricky. Twitter, for example, doesn't allow editing of tweets, so the only way to make an edit is to remove the tweet and post it again.
+
+1. Post the tweet in the #g-marketing Slack channel and tag the Brand team lead.
+2. Decide whether to remove the tweet. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
+3. Suggest edits in the Slack thread for the Marketing team to include and re-post.
+
 
 ### Commonly used terms
 
