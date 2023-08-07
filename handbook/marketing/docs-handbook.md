@@ -2,6 +2,48 @@
 
 This page details processes related to maintaining and updating the ([Fleet docs](https://fleetdm.com/docs)).
 
+## Writing documentation
+You don’t have to be a “writer” to write documentation. Nobody knows Fleet better than the people who are building our product. That puts developers in the perfect position to show users what Fleet can do.
+
+This guide will help you write docs that help users achieve their goals with Fleet.
+
+### Remember the reader
+People come from different backgrounds. New users may not know terms that are common knowledge for seasoned developers. Since Fleet has users all over the world, English may not be their first language. Your writing must be easy for any user to understand.
+
+- **Think of every user.** Define technical terms in the doc or include a link.
+- **Strive for simplicity.** Avoid complex sentences and long paragraphs.
+- **Be approachable.** Write like you’re meeting a new member of your team.
+
+### Answer the question
+It’s what we’re all about at Fleet. People read docs in order to accomplish their goals. Those goals can vary from learning about Fleet for the first time to looking for troubleshooting tips. Make sure your doc meets the specific need of the user at that moment.
+
+- **Understand the question.** Be clear about the topic you’re discussing.
+- **Narrow your focus.** Avoid explanations that distract from the main topic.
+- **No more, no less.** Use just enough information to give an accurate answer.
+
+### Follow a framework
+Starting with a blank page can be scary. That’s why it helps to have a framework for your writing. Follow these four steps to write your docs: introduction, explanation, reference, and troubleshooting.
+
+#### Introduction
+Give an overview of the topic. You don’t need to mention everything at the beginning. Briefly establish the question you’re addressing. People want to get to the answer A.S.A.P.
+
+#### Explanation
+You’ve let users know why they’re reading your doc. It’s time to make sure they understand the topic. This will be most of your documentation. Don’t shy away from details.
+
+#### Reference
+Support your explanation with relevant references. This shows users how to put your explanation into practice. Such material will keep users coming back.
+
+#### Troubleshooting
+Nothing is perfect. Your readers understand this. Users will appreciate it if you identify common problems — and provide solutions — before they encounter these issues later.
+
+### Document every change
+Any change to Fleet’s code should be documented, from adding patches to building features. This allows users and Fleeties to stay up to date with improvements to our product.
+
+You don’t need to wait until a change has been made to write a new doc. Starting with documentation can help you discover ways to make Fleet even better.
+
+Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before committing a line of code.
+
+
 ## Responsibilities
 
 The [website group](https://fleetdm.com/handbook/company/product-groups#website-group) is responsible for maintaining the Fleet documentation.
