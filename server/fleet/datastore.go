@@ -698,7 +698,10 @@ type Datastore interface {
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 
 	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
-	UpdateVerificationHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
+	UpdateHostMDMProfilesVerification(ctx context.Context, host *Host, verified, failed []string) error
+	// GetHostMDMProfilesExpected returns the expected MDM profiles for a given host. The map is
+	// keyed by the profile identifier.
+	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *Host) (map[string]*ExpectedMDMProfile, error)
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
