@@ -330,10 +330,16 @@ In those cases, we recommend a slow rollout by partially enabling the feature by
 
 There are many challenges to generating .msi packages on any OS but Windows. Errors will frequently resolve after multiple attempts and we've added retries by default in recent versions of `fleetctl package`.  Package creation is much more reliable on Intel Macs, Linux and Windows.
 
-### Where did Packs go?
+### Where did the "Packs" page go?
 
-Packs are a function of osquery that provide a portable format to import /export queries in and out of platforms like Fleet. These osquery packs still exist, but have been removed from the Fleet UI. Access via API is still available for backwards compatibility.
-Within Fleet we've introduced the concept of teams in Fleet premium to target specific groups of hosts, but you can also still use scheduled queries in Fleet free (works like packs) to target all your hosts.
+Packs are a function of osquery that provide a portable format to import/export queries in and out of platforms like Fleet. The "Packs" section of the UI that began with `kolide/fleet` c. 2017 was an early attempt at fulfilling this vision, but it soon became clear that it wasn't the right interface for segmenting and targeting hosts in Fleet. 
+
+Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features, and (in Fleet premium) can target specific groups of hosts via teams. 
+
+The "Packs" section of the UI has been removed, but access via the API and CLI is still available for backwards compatibility. The `fleetctl upgrade-packs` command can be used to convert existing 2017 "packs" to queries.
+
+Read more about osquery packs and Fleet's commitment to supporting them [here](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs).
+
 
 ### What happens when I turn off MDM?
 
