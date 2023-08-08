@@ -49,8 +49,8 @@ resource "aws_cloudwatch_event_target" "ecs_scheduled_task" {
     task_definition_arn = var.task_definition.arn
     launch_type         = "FARGATE"
     network_configuration {
-      subnets         = var.ecs_service.network_configuration.subnets
-      security_groups = var.ecs_service.network_configuration.security_groups
+      subnets         = var.ecs_service.network_configuration[0].subnets
+      security_groups = var.ecs_service.network_configuration[0].security_groups
     }
   }
 
