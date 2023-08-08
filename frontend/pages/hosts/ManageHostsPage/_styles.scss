@@ -248,15 +248,15 @@
   }
 
   &__status_dropdown {
-    width: 165px;
+    width: 175px;
 
     @media (min-width: 1140px) {
-      width: 180px;
+      width: 190px;
     }
 
     .Select-menu-outer {
       width: 364px;
-      max-height: 310px;
+      max-height: 325px;
 
       .Select-menu {
         max-height: none;

@@ -35,6 +35,7 @@ class Dropdown extends Component {
     parseTarget: PropTypes.bool,
     tooltip: PropTypes.string,
     autoFocus: PropTypes.bool,
+    /** Includes styled filter icon */
     tableFilterDropdown: PropTypes.bool,
   };
 
@@ -121,11 +122,17 @@ class Dropdown extends Component {
     );
   };
 
-  renderCustomTableDropdownValue = () => {
+  // Adds styled filter icon to dropdown
+  renderCustomTableFilter = () => {
+    const { options, value } = this.props;
+    const customLabel = options
+      .filter((option) => option.value === value)
+      .map((option) => option.label);
+
     return (
       <div className={`${baseClass}__custom-value`}>
         <Icon name="filter" className={`${baseClass}__icon`} />
-        <div className={`${baseClass}__custom-value-label`}>Hi</div>
+        <div className={`${baseClass}__custom-value-label`}>{customLabel}</div>
       </div>
     );
   };
@@ -137,7 +144,7 @@ class Dropdown extends Component {
       onMenuOpen,
       onMenuClose,
       renderCustomDropdownArrow,
-      renderCustomTableDropdownValue,
+      renderCustomTableFilter,
     } = this;
     const {
       error,
@@ -166,7 +173,6 @@ class Dropdown extends Component {
       [`${baseClass}__select--error`]: error,
     });
 
-    console.log("renderOption", renderOption);
     return (
       <FormField
         {...formFieldProps}
@@ -190,7 +196,7 @@ class Dropdown extends Component {
           autoFocus={autoFocus}
           arrowRenderer={renderCustomDropdownArrow}
           valueComponent={
-            tableFilterDropdown ? renderCustomTableDropdownValue : undefined
+            tableFilterDropdown ? renderCustomTableFilter : undefined
           }
         />
       </FormField>
