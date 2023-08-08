@@ -106,8 +106,6 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 		var queryPlatforms string
 		if query.Platform != nil {
 			queryPlatforms = *query.Platform
-		} else {
-			queryPlatforms = ""
 		}
 		convertedPlatforms, err := convertPlatforms(queryPlatforms)
 		if err != nil {
@@ -118,8 +116,6 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 		var minOsqueryVersion string
 		if query.Version != nil {
 			minOsqueryVersion = *query.Version
-		} else {
-			minOsqueryVersion = ""
 		}
 
 		spec := &fleet.QuerySpec{
