@@ -37,7 +37,7 @@ Fleet is currently hiring for the following positions:
 ### Is it any good?
 
 Here are a few reasons to work at Fleet:
-- Work from anywhere with good internet. ([We're 100% remote](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/), No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.  Organize your workday to fit your lifestyle.  Take breaks.  Go to the dentist.
+- Work from anywhere with good internet. ([We're 100% remote](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/), No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.  Organize your workday to [fit your lifestyle](https://mikesolin.com/2023/08/05/finding-balance-while-working-remotely/).  Take breaks.  Go to the dentist.
 - Fleet can offer you a competitive salary, significant equity, and an independent, outsider-friendly culture. Work with helpful, kind, and motivated people who know what they're doing.
 - At Fleet, we value focus, iteration, and meaningful results – not [60 hour work weeks](https://fleetdm.com/handbook/company#results). We are non-judgmental and laser-focused on growing the company.
 - Work closely with experienced, well-funded founders and a great team, including the people who created osquery and Sails. We care about openness and transparency.
