@@ -66,7 +66,7 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 ### 🟠 Ownership
 It takes a fully-activated mind to achieve ambitious goals, and remote work requires self-discipline.  Think like an owner of the company.
 
-- **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Arrive in meetings [on time](https://fleetdm.com/handbook/company/communications#meetings).  Follow handbooked processes and [decisions](https://fleetdm.com/handbook/company/why-this-way).
+- **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Arrive in meetings [on time](https://fleetdm.com/handbook/company/communications#meetings).  Follow handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way).
 - **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
 - **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
 - **Think long term.** Understand [Fleet's priorities](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit), beyond your department's goals. Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose). <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy).  -->
