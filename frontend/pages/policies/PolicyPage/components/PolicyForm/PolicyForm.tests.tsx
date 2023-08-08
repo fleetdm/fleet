@@ -65,7 +65,7 @@ describe("PolicyForm - component", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
-  it("disables save and run button for missing policy platforms", async () => {
+  it("disables save and run button with tooltip for missing policy platforms", async () => {
     const render = createCustomRenderer({
       context: {
         policy: {
@@ -76,7 +76,7 @@ describe("PolicyForm - component", () => {
           lastEditedQueryBody: mockPolicy.query,
           lastEditedQueryResolution: mockPolicy.resolution,
           lastEditedQueryCritical: mockPolicy.critical,
-          lastEditedQueryPlatform: "", // missing policy platforms
+          lastEditedQueryPlatform: undefined, // missing policy platforms
           defaultPolicy: false,
           setLastEditedQueryName: jest.fn(),
           setLastEditedQueryDescription: jest.fn(),
@@ -97,11 +97,11 @@ describe("PolicyForm - component", () => {
       },
     });
 
-    const { user } = render(
+    const { container, user } = render(
       <PolicyForm
         policyIdForEdit={mockPolicy.id}
         showOpenSchemaActionText={false}
-        storedPolicy={createMockPolicy({ platform: "" })}
+        storedPolicy={createMockPolicy({ platform: undefined })}
         isStoredPolicyLoading={false}
         isTeamAdmin={false}
         isTeamMaintainer={false}
@@ -122,70 +122,11 @@ describe("PolicyForm - component", () => {
 
     await user.hover(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.findByText(/to save or run the policy/g)).toBeInTheDocument(); // Line of tooltip
+    expect(
+      container.querySelector("#policy-form__button-wrap--tooltip")
+    ).toHaveTextContent(/to save or run the policy/i);
   });
 
-  it("disables save for sql error", async () => {
-    const render = createCustomRenderer({
-      context: {
-        policy: {
-          policyTeamId: undefined,
-          lastEditedQueryId: mockPolicy.id,
-          lastEditedQueryName: mockPolicy.name,
-          lastEditedQueryDescription: mockPolicy.description,
-          lastEditedQueryBody: "select ** from users;",
-          lastEditedQueryResolution: mockPolicy.resolution,
-          lastEditedQueryCritical: mockPolicy.critical,
-          lastEditedQueryPlatform: "", // missing policy platforms
-          defaultPolicy: false,
-          setLastEditedQueryName: jest.fn(),
-          setLastEditedQueryDescription: jest.fn(),
-          setLastEditedQueryBody: jest.fn(),
-          setLastEditedQueryResolution: jest.fn(),
-          setLastEditedQueryCritical: jest.fn(),
-          setLastEditedQueryPlatform: jest.fn(),
-        },
-        app: {
-          currentUser: createMockUser(),
-          isGlobalObserver: false,
-          isGlobalAdmin: true,
-          isGlobalMaintainer: false,
-          isOnGlobalTeam: true,
-          isPremiumTier: true,
-          isSandboxMode: false,
-        },
-      },
-    });
-
-    render(
-      <PolicyForm
-        policyIdForEdit={mockPolicy.id}
-        showOpenSchemaActionText={false}
-        storedPolicy={createMockPolicy({ query: "select ** from users;" })} // sql error
-        isStoredPolicyLoading={false}
-        isTeamAdmin={false}
-        isTeamMaintainer={false}
-        isTeamObserver={false}
-        isUpdatingPolicy={false}
-        onCreatePolicy={jest.fn()}
-        onOsqueryTableSelect={jest.fn()}
-        goToSelectTargets={jest.fn()}
-        onUpdate={jest.fn()}
-        onOpenSchemaSidebar={jest.fn()}
-        renderLiveQueryWarning={jest.fn()}
-        backendValidators={{}}
-      />
-    );
-
-    // TODO: How to modify ace editor using react testing library
-
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
-  });
+  // TODO: Consider testing save button is disabled for a sql error
+  // Trickiness is in modifying react-ace using react-testing library
 });
-
-// await user.hover(screen.getByRole("button", { name: "Save" }));
-
-// expect(
-//   await screen.findByText("Password must be present")
-// ).toBeInTheDocument();
