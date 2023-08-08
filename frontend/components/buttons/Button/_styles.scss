@@ -225,6 +225,12 @@ $base-class: "button";
     &:hover,
     &:focus {
       color: $core-vibrant-blue-over;
+
+      svg {
+        path {
+          fill: $core-vibrant-blue-over;
+        }
+      }
     }
 
     // globally styled gap between text and icon

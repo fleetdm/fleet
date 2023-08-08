@@ -1,6 +1,6 @@
 # FAQ
 
-## Using Fleet 
+## Using Fleet
 
 ### How can I switch to Fleet from Kolide Fleet?
 
@@ -89,7 +89,7 @@ Don't worry, this behavior is expected; it's part of how osquery works.
 Fleet and osquery work together by communicating with heartbeats. Depending on how close the next heartbeat is, Fleet might return results a few seconds faster or slower.
 >By the way, to get around a phenomena called the "thundering herd problem", these heartbeats aren't exactly the same number of seconds apart each time. osquery implements a "splay", a few ± milliseconds that are added to or subtracted from the heartbeat interval to prevent these thundering herds. This helps prevent situations where many thousands of devices might unnecessarily attempt to communicate with the Fleet server at exactly the same time. (If you've ever used Socket.io, a similar phenomena can occur with that tool's automatic WebSocket reconnects.)
 
-### Why don't my query results appear sorted based upon the ORDER BY clause I specified in my SQL query? 
+### Why don't my query results appear sorted based upon the ORDER BY clause I specified in my SQL query?
 
 When a query executes in Fleet, the query is sent to all hosts at the same time, but results are returned from hosts at different times. In Fleet, results are shown as soon as Fleet receives a response from a host. Fleet does not sort the overall results across all hosts (the sort UI toggle is used for this). Instead, Fleet prioritizes speed when displaying the results.  This means that if you use an `ORDER BY` clause selection criteria in a query, the results may not initially appear with your desired order, however, the sort UI toggle allows you to sort by ascending or descending order for any of the displayed columns.
 
@@ -335,6 +335,8 @@ There are many challenges to generating .msi packages on any OS but Windows. Err
 Packs are a function of osquery that provide a portable format to import /export queries in and out of platforms like Fleet. These osquery packs still exist, but have been removed from the Fleet UI. Access via API is still available for backwards compatibility.
 Within Fleet we've introduced the concept of teams in Fleet premium to target specific groups of hosts, but you can also still use scheduled queries in Fleet free (works like packs) to target all your hosts.
 
+The `fleetctl upgrade-packs` command can be used to convert existing packs to queries.
+
 ### What happens when I turn off MDM?
 
 In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn off MDM** on the **Host details** page.
@@ -451,7 +453,7 @@ Absolutely! If you're updating from the current major release of Fleet (v4), you
 
 If you're updating from an older version (we'll use Fleet v3 as an example), it's best to take some stops along the way:
 
-1. Back up your database. 
+1. Back up your database.
 2. Upgrade to the last release of of v3 - [3.13.0](https://github.com/fleetdm/fleet/releases/tag/3.13.0).
 3. Migrate the database.
 4. Test
@@ -461,9 +463,9 @@ If you're updating from an older version (we'll use Fleet v3 as an example), it'
 8. Test
 9. Upgrade to the [current release](https://github.com/fleetdm/fleet/releases/latest).
 10. One last migration.
-11. Test again for good measure. 
+11. Test again for good measure.
 
-Taking it a bit slower on major releases gives you an opportunity to better track down where any issues may have been introduced. 
+Taking it a bit slower on major releases gives you an opportunity to better track down where any issues may have been introduced.
 
 ### I upgraded my database, but Fleet is still running slowly. What could be going on?
 
@@ -531,7 +533,7 @@ If you would like to manage hosts that can travel outside your VPN or intranet w
 - `/api/osquery`
 - `/api/v1/osquery`
 
-If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies. 
+If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies.
 
 For full Fleet Desktop functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
@@ -551,7 +553,7 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
   download an enrollment profile.
 
 > The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
-> are not RESTful, and are not intended for use by API clients or browsers. 
+> are not RESTful, and are not intended for use by API clients or browsers.
 
 ### What is the minimum version of MySQL required by Fleet?
 
@@ -567,6 +569,14 @@ Fleet is tested with Redis 5.0.14 and 6.2.7. Any version Redis after version 5 w
 ### Will my older version of Fleet work with Redis 6?
 
 Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups.
+
+## What happened to the "Schedule" page? 
+Scheduled queries are not gone! Instead the concept of a scheduled query has been merged with a saved query. 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and pack into the new merged query concept.
+
+Before 4.35, a scheduled query was a separate item treated at the same level as a query. After 4.35, there will only be one page of queries and a query can be scheduled or it can simply be saved to be run ad-hoc. Queries can now belong to teams or they can be a global query which every team inherits.
+
+After upgrading to 4.35, any global scheduled query will have its query be converted into a global query with the relevant schedule characteristics (frequency, min. osquery version, logging, etc.). Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
+
 
 
 <meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community.">

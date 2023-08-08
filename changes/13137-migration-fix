@@ -1,0 +1,1 @@
+* Fixed a migration to account for columns with NULL values as a result of either creating schedules via the API without providing all values or by a race condition with database replicas.

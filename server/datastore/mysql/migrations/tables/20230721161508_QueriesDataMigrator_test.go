@@ -55,12 +55,15 @@ func TestUp_20230721161508(t *testing.T) {
 
 			-- Global pack
 			(7,'2023-07-21 20:34:46','2023-07-21 20:34:46',1,2,86400,1,0,'','',NULL,'per_query_perf','per_query_perf','',NULL,''),
-			(8,'2023-07-21 20:34:51','2023-07-21 20:34:51',1,2,86400,1,0,'','',NULL,'per_query_perf','per_query_perf-1','',NULL,''),
+			-- NULL platform
+			(8,'2023-07-21 20:34:51','2023-07-21 20:34:51',1,2,86400,1,0,NULL,'',NULL,'per_query_perf','per_query_perf-1','',NULL,''),
 
 			-- Team-1 pack
 			(9,'2023-07-21 20:36:08','2023-07-21 20:36:08',3,6,86400,1,0,'','',NULL,'User 1 Query','User 1 Query','',NULL,''),
-			(10,'2023-07-21 20:36:13','2023-07-21 20:36:13',3,6,86400,1,0,'','',NULL,'User 1 Query','User 1 Query-1','',NULL,''),
-			(11,'2023-07-21 20:36:25','2023-07-21 20:36:25',3,2,86400,1,0,'','',NULL,'per_query_perf','per_query_perf','',NULL,''),
+			-- NULL version
+			(10,'2023-07-21 20:36:13','2023-07-21 20:36:13',3,6,86400,1,0,'',NULL,NULL,'User 1 Query','User 1 Query-1','',NULL,''),
+			-- NULL platform
+			(11,'2023-07-21 20:36:25','2023-07-21 20:36:25',3,2,86400,1,0,NULL,'',NULL,'per_query_perf','per_query_perf','',NULL,''),
 
 			-- Team-2 pack
 			(12,'2023-07-21 20:36:50','2023-07-21 20:36:50',4,5,86400,1,0,'','',NULL,'backup_tool_perf','backup_tool_perf','',NULL,'');

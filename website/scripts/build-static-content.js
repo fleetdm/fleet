@@ -25,6 +25,19 @@ module.exports = {
     // The data we're compiling will get built into this dictionary and then written on top of the .sailsrc file.
     let builtStaticContent = {};
 
+    let baseHeadersForGithubRequests;
+    if(!skipGithubRequests){
+      baseHeadersForGithubRequests = {
+        'User-Agent': 'Fleet-Standard-Query-Library',
+        'Accept': 'application/vnd.github.v3+json',
+      };
+
+      if(githubAccessToken) {
+        // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
+        baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
+      }
+    }
+
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse query library from YAML and prepare to bake them into the Sails app's configuration.
         let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml';
@@ -121,15 +134,6 @@ module.exports = {
           }
         } else {// If the --skipGithubRequests flag was not provided, we'll query GitHub's API to get additional information about each contributor.
 
-          let baseHeadersForGithubRequests = {
-            'User-Agent': 'Fleet-Standard-Query-Library',
-            'Accept': 'application/vnd.github.v3+json',
-          };
-
-          if(githubAccessToken) {
-            // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
-            baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
-          }
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
@@ -687,7 +691,7 @@ module.exports = {
       },
       async()=>{
         // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
-        let RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO = 'handbook/product/pricing-features-table.yml';// TODO: Is there a better home for this file?
+        let RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO = 'handbook/company/pricing-features-table.yml';
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find pricing table features YAML file at "${RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let pricingTableCategories = YAML.parse(yaml, {prettyErrors: true});
 
@@ -719,6 +723,112 @@ module.exports = {
           }
         }
         builtStaticContent.pricingTable = pricingTableCategories;
+      },
+      async()=>{
+        let rituals = {};
+        // Find all the files in the top level /handbook folder and it's sub-folders
+        let FILES_IN_HANDBOOK_FOLDER = await sails.helpers.fs.ls.with({
+          dir: path.join(topLvlRepoPath, '/handbook'),
+          depth: 3
+        });
+        // Filter the list of filenames to get the rituals YAML files.
+        let ritualTablesYamlFiles = FILES_IN_HANDBOOK_FOLDER.filter((filePath)=>{
+          return _.endsWith(filePath, 'rituals.yml');
+        });
+
+        let githubLabelsToCheck = [];
+        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly'];
+        // Process each rituals YAML file. These will be added to the builtStaticContent as JSON
+        for(let ritualsYamlFilePath of ritualTablesYamlFiles){
+          // Get this rituals.yml file's parent folder name, we'll use this as the key for this section's rituals in the ritualsTables dictionary
+          let relativeRepoPathForThisRitualsFile = path.relative(topLvlRepoPath, ritualsYamlFilePath);
+          // Parse the rituals YAML file.
+          let yaml = await sails.helpers.fs.read(ritualsYamlFilePath);
+          let ritualsFromRitualTableYaml = YAML.parse(yaml, {prettyErrors: true});
+
+          // Make sure each ritual in the rituals YAML file has a task, startedOn, frequency, description, and DRI.
+          for(let ritual of ritualsFromRitualTableYaml){
+            if(!ritual.task){ // Throw an error if a ritual is missing a task
+              throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual in the YAML file is missing a task. To resolve add a task value (the name of the ritual) and try running this script again`);
+            }
+            if(!ritual.startedOn){// Throw an error if a ritual is missing a startedOn value.
+              throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual in the YAML file is missing a startedOn. To resolve add a startedOn value to the "${ritual.task}" ritual and try running this script again`);
+            }
+            if(!ritual.frequency){// Throw an error if a ritual is missing a frequency value.
+              throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual in the YAML file is missing a frequency. To resolve add a frequency value to the "${ritual.task}" ritual and try running this script again`);
+            }
+            if(!ritual.description){// Throw an error if a ritual is missing a description value.
+              throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual in the YAML file is missing a description. To resolve add a description value to the "${ritual.task}" ritual and try running this script again`);
+            }
+            if(!ritual.dri){// Throw an error if a ritual is missing a dri value.
+              throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual in the YAML file is missing a DRI. To resolve add a DRI value to the "${ritual.task}" ritual and try running this script again`);
+            }
+            if (ritual.autoIssue) { // If this ritual has an autoIssue value, we'll check to make sure the frequency is supported, and that the autoIssue value has a label value (an array of strings).
+              if (!KNOWN_AUTOMATABLE_FREQUENCIES.includes(ritual.frequency)) {
+                throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. Invalid ritual: "${ritual.task}" indicates frequency "${ritual.frequency}", but that isn't supported with automations turned on.  Supported frequencies: ${KNOWN_AUTOMATABLE_FREQUENCIES}`);
+              }
+              if(!skipGithubRequests){ // If the ritual has an autoIssue value, we'll validate that the DRI value is a GitHub username.
+                await sails.helpers.http.get.with({
+                  url: 'https://api.github.com/users/' + encodeURIComponent(ritual.dri),
+                  headers: baseHeadersForGithubRequests
+                }).intercept((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
+                  if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
+                    return new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
+                  } else if(err.raw.statusCode === 404) {// If the GitHub API responds with a 404, we'll throw an error with a message about the invalid GitHub username.
+                    return new Error(`Could not build rituals from ${ritualsYamlFilePath}. The DRI value of a ritual (${ritual.task}) contains an invalid GitHub username (${ritual.dri}). To resolve, make sure the DRI value for this ritual is a valid GitHub username.`);
+                  } else {// If the error was not a 404 and not because of the user's API rate limit, we'll display the full error
+                    return err;
+                  }
+                });
+              }
+              if(!ritual.autoIssue.labels || !_.isArray(ritual.autoIssue.labels)){ // If the autoIssue value exists, but does not contain an array of labels, throw an error
+                throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" contains an invalid autoIssue value. To resolve, add a "labels" value (An array of strings) to the autoIssue value.`);
+              }
+              // Check each label in the labels array
+              for(let label of ritual.autoIssue.labels) {
+                if(typeof label !== 'string') {
+                  throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual (${ritual.task}) in the YAML file contains an invalid value in the labels array of the autoIssue value. To resolve, ensure every value in the nested labels array of the autoIssue value is a string.`);
+                }
+                // Add this label to the array of labels to check. We'll check to see if all labels are valid at the after we've processed all rituals YAML files.
+                githubLabelsToCheck.push({
+                  label: label,
+                  ritualUsingLabel: ritual.task,
+                  ritualsYamlFilePath: relativeRepoPathForThisRitualsFile
+                });
+              }//∞
+            }
+
+          }
+          // Add the rituals from this file to the rituals dictionary, using the file's relativeRepoPath (e.g, handbook/company/rituals.md) as a key.
+          rituals[relativeRepoPathForThisRitualsFile] = ritualsFromRitualTableYaml;
+
+        }//∞
+        // Validate all GitHub labels used in all ritual yaml files. Note: We check these here to minimize requests to the GitHub API. We'll send requests to get all existing labels in the Fleet repo, and will throw an error if a label in a rituals YAML file does not exist in the repo.
+        if(!skipGithubRequests) {
+          let allExistingLabelsInFleetRepo = [];
+          let pageOfResultsReturned = 1;
+          // Get all the labels in the fleetdm/fleet repo. Note: We use sails.helpers.flow.until() here so we can build
+          await sails.helpers.flow.until(async ()=>{
+            let pageOfLabels = await sails.helpers.http.get.with({
+              url: `https://api.github.com/repos/fleetdm/fleet/labels?per_page=100&page=${pageOfResultsReturned}`,
+              headers: baseHeadersForGithubRequests
+            });
+            allExistingLabelsInFleetRepo = allExistingLabelsInFleetRepo.concat(pageOfLabels);
+            pageOfResultsReturned++;
+            return pageOfLabels.length < 100;
+          });//∞
+          // Get an array containing only the names of labels.
+          let allLabelNames = _.pluck(allExistingLabelsInFleetRepo, 'name');
+          // Validate each label, if a label does not exist in the fleetdm/fleet repo, throw an error.
+          await sails.helpers.flow.simultaneouslyForEach(githubLabelsToCheck, async(labelInfo)=>{
+            if(!_.contains(allLabelNames, labelInfo.label)){
+              throw new Error(`Could not build rituals from ${labelInfo.ritualsYamlFilePath}. The labels array nested within the autoIssue value of a ritual (${labelInfo.ritualUsingLabel}) contains an invalid GitHub label (${labelInfo.label}). To resolve, make sure all labels in the labels array are labels that exist in the fleetdm/fleet repo.`);
+            }
+          });//∞
+        }//ﬁ
+
+        // Add the rituals dictionary to builtStaticContent.rituals
+        builtStaticContent.rituals = rituals;
       },
 
     ]);
