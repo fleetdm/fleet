@@ -48,10 +48,12 @@ Our scrum boards are exclusively composed of four types of scrum items:
 - [Goals](#goals)
 - [Principles](#principles)
 - [Sprint ceremonies](#sprint-ceremonies)
+- [User story discovery](#user-story-discovery)
 - [Eng together](#eng-together)
 - [Group weeklies](#group-weeklies)
 - [Eng leadership weekly](#eng-leadership)
-- [Eng product weekly](#eng-product-weekly)
+- [Eng product bi-weekly](#eng-product-bi-weekly)
+- [Product development process review](#product-development-process-review)
 
 ### Goals
 
@@ -66,9 +68,28 @@ Our scrum boards are exclusively composed of four types of scrum items:
 - Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening or what was decided, without needing to attend every meeting (i.e., if a person is sick or on vacation or just life happened.)
 - If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
 
-### Eng Together
+### User story discovery
 
-This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held monthly for one hour.
+User story discovery meetings are scheduled as needed to align on large or complicated user stories. Before a discovery meeting is scheduled, the user story must be prioritized for product drafting and go through the design and specification process. When the user story is ready to be estimated, a user story discovery meeting may be scheduled to provide more dedicated, synchronous time for the team to discuss the user story than is available during weekly estimation sessions.
+
+All participants are expected to review the user story and associated designs and specifications before the discovery meeting.
+
+#### Participants
+
+- Product Manager
+- Product Designer
+- Engineering Manager
+- Backend Software Engineer
+- Frontend Software Engineer
+- Product Quality Specialist
+
+#### Agenda
+
+- Product Manager: Why this story has been prioritized
+- Product Designer: Walk through user journey wireframes
+- Engineering Manager: Review specifications and any defined sub-tasks
+- Software Engineers: Clarifying questions and implementation details
+- Product Quality Specialist: Testing plan
 
 #### Participants
 
@@ -84,6 +105,24 @@ Everyone at the company is welcome to attend. All engineers are asked to attend.
 - Social
   - Structured and/or unstructured social activities
 
+### Eng together
+
+This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held monthly for one hour.
+
+#### Participants
+
+Everyone at the company is welcome to attend. All engineers are asked to attend. The subject matter is focused on engineering.
+
+#### Agenda
+
+- Announcements
+- Engineering KPIs review
+- “Tech talks”
+  - At least one engineer from each product group demos or discusses a technical aspect of their recent work.
+  - Everyone is welcome to present on a technical topic, add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
+- Social
+  - Structured and/or unstructured social activities
+
 ### Group weeklies
 
 A chance for deeper, synchronous discussion on topics relevant across product groups like “Frontend weekly”, “Backend weekly”, etc.
@@ -92,7 +131,7 @@ A chance for deeper, synchronous discussion on topics relevant across product gr
 
 Anyone who wishes to participate.
 
-#### Sample Agenda (Frontend weekly)
+#### Sample agenda (Frontend weekly)
 
 - Discuss common patterns and conventions in the codebase
 - Review difficult frontend bugs
@@ -105,8 +144,8 @@ Engineering leaders discuss topics of importance that week. Prepare agenda, anno
 #### Participants
 
 - Engineering Managers
-- CTO
 - Director of Product Development
+- CTO
 
 #### Sample agenda
 
@@ -114,9 +153,9 @@ Engineering leaders discuss topics of importance that week. Prepare agenda, anno
 - Engineering process discussion
 - Review engineering KPIs
 
-### Eng product weekly
+### Eng product bi-weekly
 
-Engineering and product weekly sync to discuss process, roadmap, and scheduling.
+Engineering and product bi-weekly sync to discuss process, roadmap, and scheduling.
 
 #### Participants
 
@@ -131,6 +170,24 @@ Engineering and product weekly sync to discuss process, roadmap, and scheduling.
 - Product to engineering handoff process
 - Q4 product roadmap
 - Optimizing development processes
+
+### Product development process review
+
+A once-per-sprint review of the bugs, drafting, and sprint boards to make sure that the current state of the boards reflects the process as defined in the handbook, or if any changes are needed to the documented process. 
+
+#### Participants
+
+- CEO
+- Head of Product
+- Product Operations
+- Director of Product Development
+
+#### Sample agenda
+
+- Review bugs board
+- Review drafting board
+- Review sprint boards
+- How is the process working? Are any changes needed? 
 
 ## Engineering-initiated stories
 
