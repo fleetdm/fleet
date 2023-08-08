@@ -68,6 +68,24 @@ Our scrum boards are exclusively composed of four types of scrum items:
 - Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening or what was decided, without needing to attend every meeting (i.e., if a person is sick or on vacation or just life happened.)
 - If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
 
+### Eng Together
+
+This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held monthly for one hour.
+
+#### Participants
+
+Everyone at the company is welcome to attend. All engineers are asked to attend. The subject matter is focused on engineering.
+
+#### Agenda
+
+- Announcements
+- Engineering KPIs review
+- “Tech talks”
+  - At least one engineer from each product group demos or discusses a technical aspect of their recent work.
+  - Everyone is welcome to present on a technical topic. Add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
+- Social
+  - Structured and/or unstructured social activities
+
 ### User story discovery
 
 User story discovery meetings are scheduled as needed to align on large or complicated user stories. Before a discovery meeting is scheduled, the user story must be prioritized for product drafting and go through the design and specification process. When the user story is ready to be estimated, a user story discovery meeting may be scheduled to provide more dedicated, synchronous time for the team to discuss the user story than is available during weekly estimation sessions.
