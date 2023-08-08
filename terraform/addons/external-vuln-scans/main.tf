@@ -58,7 +58,7 @@ resource "aws_cloudwatch_event_target" "ecs_scheduled_task" {
     containerOverrides = [
       {
         name    = "fleet",
-        command = ["vuln_processing"]
+        command = ["fleet", "vuln_processing"]
       }
     ]
   })
