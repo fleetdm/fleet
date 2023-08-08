@@ -85,10 +85,9 @@ Last-minute changes or cancellations must be communicated to Mike via [direct me
 (How to...)
 
 - ***Time-sensitive tasks*** (⏰) require reminders to be created and set for the following times (CT):
-  - 9:30 /before start of business
-  - 12:30 /begging of "reserved block"
-  - 3:30 /prior to afternoon meetings
-  - 6:00 /post-mortem days meetings
+  - 9:30 AM /before start of business
+  - 12:30 PM /begging of "reserved block"
+  - 6:30 PM /post-mortem days meetings
 
 
 ### Schedule and adjust CEO meetings
