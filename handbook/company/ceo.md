@@ -144,7 +144,7 @@ The [AttC](#team) will reduce the scope of Mike's inbox to only include necessar
 ### Send the weekly update
 
 We like to be open about milestones and announcements.
-  - ⏰ Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
+  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
   - Friday nights, the AttC will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
     - A link to view KPIs
     - Who was on-call that week
@@ -183,7 +183,7 @@ The AttC schedules all travel arrangements for the CEO including flights, hotel,
 
 ### Prepare for the All hands
 
-- ⏰ Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
   3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
@@ -242,7 +242,7 @@ After each meeting, the CEO's apprentice makes a copy of the original document a
 
 ### Post-e-group archival  
 
-- ⏰ Immediately after every e-group the AttC duplicates the e-group agenda doc as a backup copy saved to ["Classified" shared drive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).  Rename it to "YYYY-MM-DD backup of e-group agenda".  Then clear out all agenda items from the e-group doc (the ones that people add, not the standard fixtures), and replace them with a single item:  `Sam: FYI: Agenda from last time (YYYY-MM-DD):` [LINK](link)
+- Immediately after every e-group the AttC duplicates the e-group agenda doc as a backup copy saved to ["Classified" shared drive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).  Rename it to "YYYY-MM-DD backup of e-group agenda".  Then clear out all agenda items from the e-group doc (the ones that people add, not the standard fixtures), and replace them with a single item:  `Sam: FYI: Agenda from last time (YYYY-MM-DD):` [LINK](link)
 
 
 ### Unroll a Slack thread
