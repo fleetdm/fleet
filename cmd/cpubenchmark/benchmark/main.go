@@ -16,7 +16,7 @@ func main() {
 
 	numArgs := len(args) - 1
 	if numArgs != 2 {
-		fmt.Printf("Expecting two arguments. Path of queries files, and Path of Orbit")
+		fmt.Printf("Expecting two arguments. \nPath of queries files, \nPath of Orbit")
 	}
 
 	// Open the queries file
@@ -37,7 +37,7 @@ func main() {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// If we encounter the separator "======", print the current section
+		// If we encounter the separator "===", run the current query
 		// and reset it for the next section.
 		if strings.TrimSpace(line) == "===" {
 			if len(section) > 0 {
@@ -61,9 +61,9 @@ func main() {
 	}
 }
 
-// Function to print a section (lines separated by "======")
-func runQuery(orbitPath string, section []string) {
-	query := strings.Join(section, "\n")
+// Function to run a query
+func runQuery(orbitPath string, queryLines []string) {
+	query := strings.Join(queryLines, "\n")
 	fmt.Println("Runningquery: " + query)
 
 	cmd := exec.Command(orbitPath, "shell", query)
