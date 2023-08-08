@@ -2,11 +2,14 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import FileSaver from "file-saver";
+import { InjectedRouter } from "react-router";
 
+import PATHS from "router/paths";
 import { IMdmAppleBm } from "interfaces/mdm";
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 import { readableDate } from "utilities/helpers";
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -16,6 +19,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner/Spinner";
 
 import EditTeamModal from "../EditTeamModal";
+import WindowsAutomaticEnrollmentCard from "./components/WindowsAutomaticEnrollmentCard/WindowsAutomaticEnrollmentCard";
 
 const baseClass = "apple-business-manager-section";
 
@@ -24,10 +28,17 @@ interface IABMKeys {
   decodedPrivate: string;
 }
 
-const AppleBusinessManagerSection = () => {
+interface IAppleBusinessManagerSectionProps {
+  router: InjectedRouter;
+}
+
+const AppleBusinessManagerSection = ({
+  router,
+}: IAppleBusinessManagerSectionProps) => {
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [defaultTeamName, setDefaultTeamName] = useState("No team");
   const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
 
   const {
     data: mdmAppleBm,
@@ -56,6 +67,10 @@ const AppleBusinessManagerSection = () => {
 
   const toggleEditTeamModal = () => {
     setShowEditTeamModal(!showEditTeamModal);
+  };
+
+  const navigateToWindowsAutomaticEnrollment = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS);
   };
 
   const onDownloadKeys = (evt: React.MouseEvent) => {
@@ -219,6 +234,11 @@ const AppleBusinessManagerSection = () => {
     <div className={baseClass}>
       <h2>Apple Business Manager</h2>
       {isLoadingMdmAppleBm ? <Spinner /> : renderAppleBMInfo()}
+      {config?.mdm_enabled && (
+        <WindowsAutomaticEnrollmentCard
+          viewDetails={navigateToWindowsAutomaticEnrollment}
+        />
+      )}
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
