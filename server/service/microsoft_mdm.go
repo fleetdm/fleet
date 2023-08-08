@@ -18,6 +18,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1163,9 +1164,23 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 	return resSyncMLmsg, nil
 }
 
+func getTemplate(templatePath string) (*template.Template, error) {
+	templateData, err := bindata.Asset(templatePath)
+	if err != nil {
+		return nil, err
+	}
+
+	t, err := template.New("microsoft-tos").Parse(string(templateData))
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
 // GetMDMWindowsTOSContent returns valid TOC content
 func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
-	tmpl, err := template.ParseFiles("frontend/templates/windowsTOS.html")
+	tmpl, err := getTemplate("frontend/templates/windowsTOS.html")
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
 	}
