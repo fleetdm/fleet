@@ -1,66 +1,3 @@
-// package main
-
-// import (
-// 	"fmt"
-// 	"os"
-// 	"os/exec"
-// 	"time"
-// )
-
-// func main() {
-// 	// Run the external executable
-// 	if len(os.Args) < 2 {
-// 		fmt.Println("Usage: go run main.go <path/to/executable>")
-// 		return
-// 	}
-
-// 	cmd := exec.Command(os.Args[1], os.Args[2:]...)
-// 	cmd.Stdout = os.Stdout
-// 	cmd.Stderr = os.Stderr
-
-// 	// // Get the initial CPU time
-// 	// initialCPUTime, err := cpuTimes()
-// 	// if err != nil {
-// 	// 	fmt.Println("Error getting CPU time:", err)
-// 	// }
-
-// 	startTime := time.Now()
-
-// 	err := cmd.Start()
-// 	if err != nil {
-// 		fmt.Println("Error:", err)
-// 		return
-// 	}
-
-// 	// Wait for the process to finish
-// 	err = cmd.Wait()
-// 	if err != nil {
-// 		fmt.Println("Error waiting for process:", err)
-// 	}
-
-// 	endTime := time.Now()
-// 	elapsedTime := endTime.Sub(startTime)
-// 	fmt.Printf("Elapsed time: %v\n", elapsedTime)
-
-// 	// // Get the final CPU time
-// 	// finalCPUTime, err := cpuTimes()
-// 	// if err != nil {
-// 	// 	fmt.Println("Error getting CPU time:", err)
-// 	// }
-
-// 	// // Calculate and print CPU usage
-// 	// cpuUsage := finalCPUTime - initialCPUTime
-// 	// fmt.Printf("CPU usage: %.2f%%\n", cpuUsage*100)
-// }
-
-// // func cpuTimes() (float64, error) {
-// // 	percent, err := cpu.Percent(0, false)
-// // 	if err != nil {
-// // 		return 0, err
-// // 	}
-// // 	return percent[0] / 100.0, nil
-// // }
-
 package main
 
 import (
@@ -68,13 +5,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
 func main() {
 	// Open the file
-	file, err := os.Open("./comandlines.txt")
+
+	queriesPath := filepath.Join(".", "comandlines.txt")
+	file, err := os.Open(queriesPath)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
@@ -95,7 +35,7 @@ func main() {
 		// and reset it for the next section.
 		if strings.TrimSpace(line) == "===" {
 			if len(section) > 0 {
-				printSection(section)
+				runQuery(section)
 			}
 			section = nil
 		} else {
@@ -106,7 +46,7 @@ func main() {
 
 	// Print the last section (if there's any left after reading the file).
 	if len(section) > 0 {
-		printSection(section)
+		runQuery(section)
 	}
 
 	// Check for any errors during scanning
@@ -116,7 +56,7 @@ func main() {
 }
 
 // Function to print a section (lines separated by "======")
-func printSection(section []string) {
+func runQuery(section []string) {
 	query := strings.Join(section, "\n")
 	fmt.Println("Runningquery: " + query)
 
@@ -142,3 +82,18 @@ func printSection(section []string) {
 	elapsedTime := endTime.Sub(startTime)
 	fmt.Printf("Elapsed time: %v\n", elapsedTime)
 }
+
+// // func cpuTimes() (float64, error) {
+// // 	percent, err := cpu.Percent(0, false)
+// // 	if err != nil {
+// // 		return 0, err
+// // 	}
+// // 	return percent[0] / 100.0, nil
+// // }
+
+// 	// initialCPUTime, err := cpuTimes()
+// DO SOMETHING
+// 	// finalCPUTime, err := cpuTimes()
+
+// 	// cpuUsage := finalCPUTime - initialCPUTime
+// 	// fmt.Printf("CPU usage: %.2f%%\n", cpuUsage*100)
