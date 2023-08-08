@@ -1,7 +1,7 @@
 data "aws_region" "current" {}
 
 resource "aws_cloudwatch_event_rule" "main" {
-  schedule_expression = "rate(1h)"
+  schedule_expression = "rate(1 hour)"
 }
 
 data "aws_iam_policy_document" "assume_role" {
