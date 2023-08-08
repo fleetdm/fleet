@@ -307,6 +307,9 @@ func main() {
 						IsUnmanaged: sum.Notifications.RenewEnrollmentProfile,
 					})
 
+					// TODO: Use profiles.CheckAssignedEnrollmentProfile here as a
+					// condition of enabling the menu item?
+
 					// enable tray items
 					migrateMDMItem.Enable()
 					migrateMDMItem.Show()
@@ -326,7 +329,6 @@ func main() {
 					migrateMDMItem.Hide()
 				}
 			}
-
 		}()
 
 		go func() {
