@@ -10,11 +10,11 @@ import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink/CustomLink";
 
 const generateMdmTermsOfUseUrl = (domain: string) => {
-  return `${domain}/api/v1/fleet/mdm/microsoft/terms_of_use`;
+  return `${domain}/api/mdm/microsoft/tos`;
 };
 
 const generateMdmDiscoveryUrl = (domain: string) => {
-  return `${domain}/api/v1/fleet/mdm/microsoft/discovery`;
+  return `${domain}/api/mdm/microsoft/discovery`;
 };
 
 const baseClass = "windows-automatic-enrollment-page";
