@@ -222,6 +222,13 @@ module.exports.routes = {
     },
   },
 
+  'GET /admin/sandbox-waitlist': {
+    action: 'admin/view-sandbox-waitlist',
+    locals: {
+      layout: 'layouts/layout-customer'
+    },
+  },
+
   'GET /tables/:tableName': {
     action: 'view-osquery-table-details',
     locals: {
@@ -400,6 +407,7 @@ module.exports.routes = {
   'GET /platform': '/',
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
   'GET /handbook/business-operations/ceo-handbook': '/handbook/company/ceo-handbook',
+  'GET /handbook/business-operations#people-operations': '/handbook/business-operations/people-operations',
 
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
@@ -539,11 +547,12 @@ module.exports.routes = {
   'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
-  'POST /api/v1/admin/generate-license-key': { action: 'admin/generate-license-key' },
+  'POST /api/v1/admin/build-license-key': { action: 'admin/build-license-key' },
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
   'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
   'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
+  'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
 };

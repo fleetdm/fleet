@@ -3,6 +3,36 @@
 Fleet's [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) style of communication and the [tools we use](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) are part of the company's DNA and essential to moving Fleet into the future.
 
 
+## Vision for dept handbook pages
+
+The idea here is to get this vision implemented on a single departmental handbook page first, starting with handbook/company/ceo.  It's hard to know what the philosophy should be until we can see it.  So we need to shorten the feedback loop so we can see it change live in one place.  That way we can iterate in one place instead of having things go a bunch of different directions, and adding in all the complexity of extra redirects to keep track of and all that stuff.  Then once we've got that looking good and have iterated a bit, we'll spread it out.
+
+Another thing is that we need to get a better intuitive understanding of who these pages are designed to serve.  So in order to put ourselves in their shoes (get behind their eyeballs), we need something to look at.  So doing a particular page first provides us with that canvas.
+
+- (h1) Top-level page title/ file name
+    
+  - (h2) Short section on _departmentally specific philosophy_ and the purpose of the page: If philosophy applies to more than your department, **pull it out**, make it easier for contributors to find.
+  - **Nice to have:** Tiny little link/sentence/button with call-to-action that links you to intake or intake options)
+
+- (h2) How can I… (outward facing first: e.g.non-Fleetie contributor)
+    
+  - e.g. (h3) CEO flaws
+  - e.g. (h3) Scheduling with the CEO
+  - e.g. (h3) Summoning the CEO (travel)
+
+- (h2) How-tos (Inward facing e.g. Fleetie)
+  - e.g. (h2) Process CEO email
+
+- (h2) Intake
+
+- (h2) Kanban
+
+- (h2) Rituals
+  
+- (h2) Slack channels
+
+
+
 ## Meetings
 
 Plan to join meetings on time. At Fleet, we start on time and do not wait for folks to join.  
@@ -24,7 +54,7 @@ In an all-remote company, “face time” matters.
    - Is there another way to distribute this info or align on a course of action that _doesn't_ take valuable time away from customers, projects, or personal time? Could you create a [Google Doc](https://docs.google.com/document/d/1TaZ654gTwadWGDYhP3zuAzWe0eiY0s9NhaU9KLCokgw/edit) and share it with would-be attendees? If the info can be documented it should be. Could the info be sent in Slack or by email? 
    
 2. Do I have all the information needed to schedule this meeting?
-
+   -TODO 
 
 
 ### Internal meeting scheduling
