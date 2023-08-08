@@ -5,15 +5,21 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 )
 
 func main() {
-	// Open the file
+	args := os.Args
+	queriesPath := args[1]
+	orbitPath := args[2]
 
-	queriesPath := filepath.Join(".", "comandlines.txt")
+	numArgs := len(args) - 1
+	if numArgs != 2 {
+		fmt.Printf("Expecting two arguments. Path of queries files, and Path of Orbit")
+	}
+
+	// Open the queries file
 	file, err := os.Open(queriesPath)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
@@ -35,7 +41,7 @@ func main() {
 		// and reset it for the next section.
 		if strings.TrimSpace(line) == "===" {
 			if len(section) > 0 {
-				runQuery(section)
+				runQuery(orbitPath, section)
 			}
 			section = nil
 		} else {
@@ -46,7 +52,7 @@ func main() {
 
 	// Print the last section (if there's any left after reading the file).
 	if len(section) > 0 {
-		runQuery(section)
+		runQuery(orbitPath, section)
 	}
 
 	// Check for any errors during scanning
@@ -56,11 +62,11 @@ func main() {
 }
 
 // Function to print a section (lines separated by "======")
-func runQuery(section []string) {
+func runQuery(orbitPath string, section []string) {
 	query := strings.Join(section, "\n")
 	fmt.Println("Runningquery: " + query)
 
-	cmd := exec.Command("orbit", "shell", query)
+	cmd := exec.Command(orbitPath, "shell", query)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -82,18 +88,3 @@ func runQuery(section []string) {
 	elapsedTime := endTime.Sub(startTime)
 	fmt.Printf("Elapsed time: %v\n", elapsedTime)
 }
-
-// // func cpuTimes() (float64, error) {
-// // 	percent, err := cpu.Percent(0, false)
-// // 	if err != nil {
-// // 		return 0, err
-// // 	}
-// // 	return percent[0] / 100.0, nil
-// // }
-
-// 	// initialCPUTime, err := cpuTimes()
-// DO SOMETHING
-// 	// finalCPUTime, err := cpuTimes()
-
-// 	// cpuUsage := finalCPUTime - initialCPUTime
-// 	// fmt.Printf("CPU usage: %.2f%%\n", cpuUsage*100)
