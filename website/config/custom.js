@@ -149,13 +149,21 @@ module.exports.custom = {
     'website/config/custom.js': 'mikermcneil',
 
     // 🦿 Handbook
-    'handbook/company/ceo.md': 'sampfluger88',
-    'handbook/company': 'mikermcneil',
-    'handbook/business-operations': 'mikermcneil',// TODO: Transfer to joanne once the philosophical stuff is moved into the new "Communication" page (similar to GitLab's)
-    'handbook/engineering': 'lukeheath',
-    'handbook/product': 'zhumo',
-    'handbook/customers': 'alexmitchelliii',
-    'handbook/marketing': 'jarodreyes',
+      'handbook/': 'mikermcneil',
+    // Everyone can contribute to the handbook, and page DRIs are expected to keep their pages up to date.  
+    // To shape and absorb changes, and learn from how GitLab evolved its handbook as that company grew, 
+    // CEO will ALSO review all PRs that change the handbook before they are merged. 
+    // (Background: As of mid-2023, there are only ≤3 handbook PRs per weekday on the busiest of weeks.  
+    // If this increases dramatically, or when time allows the company to prioritize writing down the 
+    // content design, structure, and vision for the evolution of the handbook, we'll change )
+    
+    //'handbook/company/ceo.md': 'sampfluger88',
+    //'handbook/company': 'mikermcneil',
+    //'handbook/business-operations': 'mikermcneil',// TODO: Transfer to joanne once the philosophical stuff is moved into the new "Communication" page (similar to GitLab's)
+    //'handbook/engineering': 'lukeheath',
+    //'handbook/product': 'zhumo',
+    //'handbook/customers': 'alexmitchelliii',
+    //'handbook/marketing': 'jarodreyes',
 
     // 🦿 GitHub issue templates
     '.github/ISSUE_TEMPLATE': 'mikermcneil',//« GitHub issue templates
@@ -225,14 +233,22 @@ module.exports.custom = {
     'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     // Handbook
-    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
-    'handbook/company': 'mikermcneil',
-    'handbook/company/ceo.md': ['sampfluger88', 'mikermcneil'],
-    'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
-    'handbook/engineering': ['zwass', 'lukeheath'],
-    'handbook/product': ['noahtalerman', 'zhumo'],
-    'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
-    'handbook/marketing': ['jarodreyes', 'mike-j-thomas', 'spokanemac'],
+     'handbook/': 'mikermcneil',
+    // Everyone can contribute to the handbook, and page DRIs are expected to keep their pages up to date.  
+    // To shape and absorb changes, and learn from how GitLab evolved its handbook as that company grew, 
+    // CEO will ALSO review all PRs that change the handbook before they are merged. 
+    // (Background: As of mid-2023, there are only ≤3 handbook PRs per weekday on the busiest of weeks.  
+    // If this increases dramatically, or when time allows the company to prioritize writing down the 
+    // content design, structure, and vision for the evolution of the handbook, we'll change )
+    
+    //'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
+    //'handbook/company': 'mikermcneil',
+    //'handbook/company/ceo.md': ['sampfluger88', 'mikermcneil'],
+    //'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
+    //'handbook/engineering': ['zwass', 'lukeheath'],
+    //'handbook/product': ['noahtalerman', 'zhumo'],
+    //'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
+    //'handbook/marketing': ['jarodreyes', 'mike-j-thomas', 'spokanemac'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
