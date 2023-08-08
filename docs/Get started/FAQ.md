@@ -341,8 +341,6 @@ The "Packs" section of the UI has been removed, but access via the API and CLI i
 Read more about osquery packs and Fleet's commitment to supporting them [here](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs).
 
 
-The `fleetctl upgrade-packs` command can be used to convert existing packs to queries.
-
 ### What happens when I turn off MDM?
 
 In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn off MDM** on the **Host details** page.
