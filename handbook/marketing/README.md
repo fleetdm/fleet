@@ -6,7 +6,7 @@ To show organizations how Fleet is the best way to keep their employees and thei
 
 ### Positioning
 
-See [📖Company#Positioning](https://fleetdm.com/handbook/company#positioning).
+See [📖 Company#Positioning](https://fleetdm.com/handbook/company#positioning).
 
 ### Marketing Qualified Opportunities (MQOs)
 
