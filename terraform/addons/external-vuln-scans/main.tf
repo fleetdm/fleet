@@ -59,6 +59,18 @@ resource "aws_cloudwatch_event_target" "ecs_scheduled_task" {
       {
         name    = "fleet",
         command = ["fleet", "vuln_processing"]
+      },
+      {
+        resourceRequirements = [
+          {
+            type  = "VCPU",
+            value = "1"
+          },
+          {
+            type  = "MEMORY",
+            value = "4096"
+          }
+        ]
       }
     ]
   })
