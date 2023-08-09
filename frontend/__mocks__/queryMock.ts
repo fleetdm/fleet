@@ -19,7 +19,13 @@ const DEFAULT_QUERY_MOCK: ISchedulableQuery = {
   min_osquery_version: "",
   automations_enabled: false,
   logging: "snapshot",
-  stats: undefined,
+  stats: {
+    user_time_p50: 0,
+    user_time_p95: 2,
+    system_time_p50: 0,
+    system_time_p95: 1,
+    total_executions: 6,
+  },
 };
 
 const createMockQuery = (
