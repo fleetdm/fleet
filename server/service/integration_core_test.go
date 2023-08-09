@@ -3360,7 +3360,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
 		ID:       u.ID,
-	}, http.StatusInternalServerError, &perfPwdResetResp) // TODO: should be 40?, see #4406
+	}, http.StatusForbidden, &perfPwdResetResp)
 	s.token = s.getTestAdminToken()
 
 	// login as that user to verify that the new password is active (userRawPwd was updated to the new pwd)

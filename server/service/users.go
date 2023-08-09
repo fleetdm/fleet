@@ -835,6 +835,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 		return nil, fleet.ErrNoContext
 	}
 	if !vc.CanPerformPasswordReset() {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, fleet.NewPermissionError("cannot reset password")
 	}
 	user := vc.User
@@ -847,7 +848,10 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 		return nil, ctxerr.New(ctx, "password reset for single sign on user not allowed")
 	}
 	if !user.IsAdminForcedPasswordReset() {
-		return nil, ctxerr.New(ctx, "user does not require password reset")
+		// should never happen because this would get caught by the
+		// CanPerformPasswordReset check above
+		err := fleet.NewPermissionError("cannot reset password")
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	// prevent setting the same password
