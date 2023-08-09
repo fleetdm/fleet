@@ -845,7 +845,10 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 
 	if user.SSOEnabled {
-		return nil, ctxerr.New(ctx, "password reset for single sign on user not allowed")
+		// should never happen because this would get caught by the
+		// CanPerformPasswordReset check above
+		err := fleet.NewPermissionError("password reset for single sign on user not allowed")
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	if !user.IsAdminForcedPasswordReset() {
 		// should never happen because this would get caught by the
