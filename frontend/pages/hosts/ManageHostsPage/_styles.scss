@@ -132,9 +132,9 @@
     }
 
     // table header content responsive styles
-    // NOTE: 1140px is a custom breakpoint to deal with responsiveness of the
+    // NOTE: 1150px is a custom breakpoint to deal with responsiveness of the
     // table controls. 990px doesnt work for us in this case.
-    @media (max-width: 1140px) {
+    @media (max-width: 1150px) {
       &__header {
         flex-direction: column;
       }
@@ -169,14 +169,13 @@
 
         .controls {
           order: 1;
-          margin-bottom: $pad-large;
+          margin-bottom: $pad-medium;
 
           .manage-hosts__filter-dropdowns {
             flex: 1;
 
             .form-field--dropdown,
             .manage-hosts__label-filter-dropdown {
-              max-width: 366px;
               flex: 1;
             }
 
@@ -250,7 +249,7 @@
   &__status_dropdown {
     width: 175px;
 
-    @media (min-width: 1140px) {
+    @media (min-width: 1150px) {
       width: 190px;
     }
 

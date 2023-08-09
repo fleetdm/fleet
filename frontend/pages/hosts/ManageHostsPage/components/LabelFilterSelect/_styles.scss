@@ -61,12 +61,12 @@
   }
 
   .label-filter-select__placeholder {
-    width: 75px;
+    width: 75px; // Truncates text for smaller filter width
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    @media (max-width: $break-md) {
+    @media (max-width: 1150px) {
       width: auto;
     }
   }

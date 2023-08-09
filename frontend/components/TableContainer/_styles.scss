@@ -9,7 +9,6 @@
     width: 100%;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: $pad-medium;
     gap: $pad-small;
 
     &.stack-table-controls {
@@ -49,15 +48,23 @@
         align-items: center;
       }
     }
+
+    .Select-multi-value-wrapper {
+      height: 38px; // Fixes overlap with .Select outline
+    }
+  }
+  .results-count {
+    height: 40px; // Match height of search/filters
   }
 
   &__results-count {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
     margin: 0;
+    height: 40px;
 
     :first-child {
       margin-right: $pad-small;
@@ -68,14 +75,6 @@
     }
     .count-loading {
       color: $ui-fleet-black-50;
-    }
-
-    &.stack-table-controls {
-      padding-top: $pad-large;
-
-      @media (min-width: $break-md) {
-        padding-top: 0;
-      }
     }
   }
 
@@ -91,14 +90,8 @@
     width: 100%;
 
     .input-with-icon {
-      width: 250px;
-      margin-bottom: 0;
-      @media (min-width: $break-xs) {
-        width: 300px;
-      }
-      @media (min-width: $break-md) {
-        width: 344px;
-      }
+      width: 100%;
+      min-width: 250px;
     }
 
     &.stack-table-controls {
@@ -126,6 +119,7 @@
 
   .table-container__search-input.wide-search {
     margin-left: 0;
+    margin-bottom: $pad-small;
   }
 
   #search-tooltip {

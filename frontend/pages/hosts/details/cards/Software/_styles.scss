@@ -38,6 +38,10 @@
     }
   }
 
+  .table-container__search-input {
+    width: 325px; // Custom to fit placeholder text
+  }
+
   .data-table-block {
     .last_used_tooltip {
       text-align: center;
@@ -196,6 +200,10 @@
   // NOTE: 990px is a custom breakpoint to deal with responsiveness of the
   // table controls.
   @media (max-width: $break-md) {
+    .table-container__search-input {
+      width: 100%; // Override custom placeholder width
+    }
+
     thead .name__header {
       width: $col-md;
       min-width: 252px;
