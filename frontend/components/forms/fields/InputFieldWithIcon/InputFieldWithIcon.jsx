@@ -106,7 +106,6 @@ class InputFieldWithIcon extends InputField {
     return (
       <div className={wrapperClasses}>
         {this.props.label && this.renderHeading()}
-        {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
         <input
           id={name}
           name={name}
@@ -122,6 +121,7 @@ class InputFieldWithIcon extends InputField {
           disabled={disabled}
           {...inputOptions}
         />
+        {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
         {iconName && <FleetIcon name={iconName} className={iconClasses} />}
         {renderHint()}
       </div>
