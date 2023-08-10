@@ -644,7 +644,7 @@ type SetMDMAppleDefaultSetupAssistantProfileUUIDFunc func(ctx context.Context, t
 
 type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
 
-type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]struct{}, error)
+type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]*fleet.Host, error)
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
 
@@ -3818,7 +3818,7 @@ func (s *DataStore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID
 	return s.GetMDMAppleDefaultSetupAssistantFunc(ctx, teamID)
 }
 
-func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error) {
+func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
 	s.mu.Lock()
 	s.GetMatchingHostSerialsFuncInvoked = true
 	s.mu.Unlock()
