@@ -9133,25 +9133,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Allow Windows Ink Workspace' is set to 'Enabled: On, but disallow access above lock' OR 'Disabled' but not 'Enabled: On'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting determines whether Windows Ink items are allowed above the lock screen.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled: On, but disallow access above lock' OR 'Disabled':
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Ink Workspace\Allow Windows Ink Workspace'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsInkWorkspace.admx/adml that is included with the Microsoft Windows 10 Release 1607 & Server 2016 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsInkWorkspace\AllowWindowsInkWorkspace' AND (data = 0 OR data = 1));
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.89.2
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Allow user control over installs' is set to 'Disabled'
   platforms: win10
   platform: windows
@@ -9244,25 +9225,6 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging\\EnableScriptBlockLogging' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.100.1
-  contributors: marcosd4h
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Turn on PowerShell Transcription' is set to 'Disabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This Policy setting lets you capture the input and output of Windows PowerShell commands into text-based transcripts.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows PowerShell\Turn on PowerShell Transcription'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template PowerShellExecutionPolicy.admx that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription\\EnableTranscripting' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.100.2
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -9606,6 +9568,44 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.108.4.3
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow Windows Ink Workspace' is set to 'Enabled: On, but disallow access above lock' OR 'Enabled: Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether Windows Ink items are allowed above the lock screen.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: On, but disallow access above lock' OR 'Enabled: Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Ink Workspace\Allow Windows Ink Workspace'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsInkWorkspace.admx/adml that is included with the Microsoft Windows 10 Release 1607 & Server 2016 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsInkWorkspace\AllowWindowsInkWorkspace' AND (data = 0 OR data = 1));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.10.80.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn on PowerShell Transcription' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This Policy setting lets you capture the input and output of Windows PowerShell commands into text-based transcripts.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows PowerShell\Turn on PowerShell Transcription'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template PowerShellExecutionPolicy.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription\\EnableTranscripting' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.10.87.2
   contributors: marcosd4h
 ---
 apiVersion: v1
