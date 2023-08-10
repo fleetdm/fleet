@@ -169,7 +169,7 @@ Add URLs to your logos that looks good on dark background and light backgrounds 
     * If you don’t see the yellow banner or the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. 
     * If you still don't see the **Turn on MDM** button or the **My device** page presents you with an error, please contact your IT administrator.
 
-## Migration report
+## Check migration progress
 
 To see a report of which hosts have successfully migrated to Fleet, have MDM features off, or are still enrolled to your old MDM solution head to the **Dashboard** page by clicking the icon on the left side of the top navigation bar. 
 
