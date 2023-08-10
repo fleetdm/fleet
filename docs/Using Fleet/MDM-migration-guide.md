@@ -66,7 +66,7 @@ The end user migration workflow allows the end user to kick-off migration by une
 1. In your old MDM solution, unenroll the hosts to be migrated. MacOS does not allow multiple MDMs to be installed at once.
 
 2. Send [these guided instructions](#how-to-turn-on-mdm-default) to your end users to complete the final few steps via Fleet Desktop.
-  * Note that there will be a gap in MDM coverage between when the host is unenrolled from the old MDM and when the host turns on MDM in Fleet.
+    * Note that there will be a gap in MDM coverage between when the host is unenrolled from the old MDM and when the host turns on MDM in Fleet.
 
 ##### End user experience
 
