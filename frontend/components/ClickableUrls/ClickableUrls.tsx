@@ -14,8 +14,8 @@ const ClickableUrls = ({ text, className }: IClickableUrls): JSX.Element => {
 
   // Regex to find case insensitive URLs and replace with link
   const replacedLinks = text.replaceAll(
-    /(^|[^a-z0-9.\-/])(https?:\/\/[A-Za-z0-9.\-/]+)([^A-Za-z0-9.\-/]|$)/g,
-    '$1<a href="$2" target="_blank">$2</a>$3'
+    /(^|[^a-z0-9.\-/])((https?)?(:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))([^A-Za-z0-9.\-/]|$)/g,
+    '$1<a href="$2" target="_blank">$2</a> '
   );
 
   const sanitizedResolutionContent = DOMPurify.sanitize(replacedLinks, {
