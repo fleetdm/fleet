@@ -67,7 +67,6 @@ func TestGetFleetdConfig(t *testing.T) {
 		}
 		require.Equal(t, c.wantOut, out)
 	}
-
 }
 
 func TestIsEnrolledIntoMatchingURL(t *testing.T) {
@@ -137,5 +136,93 @@ MDM server: https://valid.com/mdm/apple/mdm
 		}
 		require.Equal(t, c.wantOut, out)
 	}
+}
 
+func TestCheckAssignedEnrollmentProfile(t *testing.T) {
+	fleetURL := "https://valid.com"
+	cases := []struct {
+		name    string
+		cmdOut  *string
+		cmdErr  error
+		wantOut bool
+		wantErr error
+	}{
+		{
+			"command error",
+			nil,
+			errors.New("some command error"),
+			false,
+			errors.New("some command error"),
+		},
+		{
+			"empty output",
+			ptr.String(""),
+			nil,
+			false,
+			errors.New("parsing profiles output: expected at least 2 lines but got 1"),
+		},
+		{
+			"null profile",
+			ptr.String(`Device Enrollment configuration:
+(null)
+		`),
+			nil,
+			false,
+			errors.New("parsing profiles output: received null device enrollment configuration"),
+		},
+		{
+			"mismatch profile",
+			ptr.String(`Device Enrollment configuration:
+{
+    AllowPairing = 1;
+	AutoAdvanceSetup = 0;
+	AwaitDeviceConfigured = 0;
+	ConfigurationURL = "https://test.example.com/mdm/apple/enroll?token=1234";
+	ConfigurationWebURL = "https://test.example.com/mdm/apple/enroll?token=1234";
+	...
+}
+			`),
+			nil,
+			false,
+			errors.New(`configuration web url: expected 'valid.com' but found 'test.example.com'`),
+		},
+		{
+			"match profile",
+			ptr.String(`Device Enrollment configuration:
+{
+    AllowPairing = 1;
+	AutoAdvanceSetup = 0;
+	AwaitDeviceConfigured = 0;
+	ConfigurationURL = "https://test.example.com/mdm/apple/enroll?token=1234";
+	ConfigurationWebURL = "https://valid.com?token=1234";
+	...
+}
+			`),
+			nil,
+			false,
+			nil,
+		},
+	}
+
+	origCmd := showEnrollmentProfileCmd
+	t.Cleanup(func() { showEnrollmentProfileCmd = origCmd })
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			showEnrollmentProfileCmd = func() ([]byte, error) {
+				if c.cmdOut == nil {
+					return nil, c.cmdErr
+				}
+				var buf bytes.Buffer
+				buf.WriteString(*c.cmdOut)
+				return []byte(*c.cmdOut), nil
+			}
+
+			err := CheckAssignedEnrollmentProfile(fleetURL)
+			if c.wantErr != nil {
+				require.ErrorContains(t, err, c.wantErr.Error())
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
