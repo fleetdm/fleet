@@ -85,8 +85,8 @@ The end user migration workflow allows the end user to kick-off migration by une
 ![Fleet icon in menu bar](https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
 
 2. On your **My device** page, select **Turn on MDM** the button in the yellow banner and follow the instructions. 
-  - If you don’t see the yellow banner or the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. 
-  - If you still don't see the **Turn on MDM** button or the **My device** page presents you with an error, please contact your IT administrator.
+    * If you don’t see the yellow banner or the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. 
+    * If you still don't see the **Turn on MDM** button or the **My device** page presents you with an error, please contact your IT administrator.
 
 <img width="1400" alt="My device page - turn on MDM" src="https://user-images.githubusercontent.com/5359586/229950406-98343bf7-9653-4117-a8f5-c03359ba0d86.png">
 
@@ -162,8 +162,8 @@ Add URLs to your logo that looks good on dark background and light backgrounds i
 2. Select **Start** in the **Migrate to Fleet** popup. 
 
 2. On your **My device** page, select **Turn on MDM** the button in the yellow banner and follow the instructions. 
-  - If you don’t see the yellow banner or the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. 
-  - If you still don't see the **Turn on MDM** button or the **My device** page presents you with an error, please contact your IT administrator.
+    * If you don’t see the yellow banner or the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. 
+    * If you still don't see the **Turn on MDM** button or the **My device** page presents you with an error, please contact your IT administrator.
 
 ## Migration report
 
