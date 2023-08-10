@@ -203,7 +203,6 @@ When writing copy, consider whether additional information is necessary before a
 
 When writing the time in the UI using "am" and "pm" abbreviations, write them **without space** between time and abbreviation, with **no punctuation**, and use **lowercase** letters (e.g. Working hours are 8am to 5pm).
 
-
 ## Release 
 
 This section outlines the communication between the product, marketing, and customer success teams prior to a release of Fleet.
