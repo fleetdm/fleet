@@ -4664,6 +4664,25 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure RPC packet level privacy setting for incoming connections' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls packet level privacy for Remote Procedure Call (RPC) incoming connections.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Configure RPC packet level privacy setting for incoming connections'
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (SecGuide.admx/adml) is required - it is available from Microsoft.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Print\\RpcAuthnLevelPrivacyEnabled' AND (data = 1));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.4.2
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)' is set to 'Enabled: Highest protection, source routing is completely disabled'
   platforms: win10
   platform: windows
@@ -9569,6 +9588,25 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.108.4.3
   contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Disable Internet Explorer 11 as a standalone browser' is set to 'Enabled: Always'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting restricts the launching of Internet Explorer as a standalone browser.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Always':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Internet Explorer\Disable Internet Explorer 11 as a standalone browser'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template InetRes.admx/adml that is included with the Microsoft Windows 10 Release 21H1 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Internet Explorer\\Main\\NotifyDisableIEOptions' AND (data = 1));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.35.1
+  contributors: defensivedepth
 ---
 apiVersion: v1
 kind: policy
