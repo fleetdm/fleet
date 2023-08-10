@@ -354,13 +354,13 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
 3. **Schedule CEO interview:** Book a quick chat so our CEO can get to know the future Fleetie.
    - No need to check with the CEO first.  You can [book the meeting directly](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) on the CEO's calendar during a time they and the candidate are both available.
-   - Make a copy of the "[¶¶ CEO interview template (questions for final interview)](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy)"
-     - Change file name and heading of doc to "¶¶ `Canadite Name` (`Canadite Title`) <> Mike McNeil, CEO final interview (`interview date`)".
-     - Add canidates personal email in the "👥" attendees section at the top of the doc.
-     - add canidates [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people&origin=HISTORY&sid=Rqe) on the first bullet for Mike.  
-   - Set the Google Calendar description of the calendar event to: `Agenda: https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy`.
+   - [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
+     - Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
+     - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
+     - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
+   - Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
    - The personal email you use for the candidate in this calendar event is where they will receive their offer or rejection email.
-5. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
+4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
    - _Share_ this single document with the Head of Business Operations via email.
      - Share only _one, single Google Doc, please_; with a short, formulaic name that's easy to understand in an instant from just an email subject line.  For example, you could title it:
@@ -388,10 +388,10 @@ After receiving the interview packet, the Head of Business Operations uses the f
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
    - Cc: Zach Wasserman and Head of Business Operations _(neither participate in the email thread until after the offer is accepted)_
    - Subject: "Full time?"
-   - Body: _(The offer email is copied verbatim from Google doc into Gmail as the body of the message, formatting and all.
-     - Check all links in offer letter for accuracy(e.g. LinkeIn profile of hiring manager ect.).
-     - Click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before.
-     - Re-read the offer email one last time, and especially double-check that salary, number of shares, and start date match the equity plan.)_
+   - Body: _Copy the offer email verbatim from the Google doc into Gmail as the body of the message, formatting and all, then:_
+     - _Check all links in offer letter for accuracy (e.g. LinkedIn profile of hiring manager, etc.)_
+     - _Click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before._
+     - _Re-read the offer email one last time, and especially double-check that the salary, number of shares, and start date match the numbers that are currently in the equity plan._
 5. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
    - _Grant the candidate "edit" access_ to their "exit scenarios" spreadsheet.
    - _Send_ the email.
@@ -446,4 +446,4 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 
 
 <meta name="maintainedBy" value="jostableford">
-<meta name="title" value="People Operation">
+<meta name="title" value="People Operations">
