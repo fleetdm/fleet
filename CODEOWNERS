@@ -81,8 +81,8 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /handbook                   @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
-CODEOWNERS                                   @mikermcneil # « CEO is DRI for CODEOWNERS
-/.github/ISSUE_TEMPLATE                               @mikermcneil # « CEO is DRI for ISSUE_TEMPLATE
+/CODEOWNERS                 @mikermcneil
+/.github/ISSUE_TEMPLATE     @mikermcneil
 
 
 # ℹ️ But wait, there's more!
