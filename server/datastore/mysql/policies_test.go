@@ -1241,7 +1241,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 1 from updated;",
 			Description: "query1 desc updated",
 			Resolution:  "some resolution updated",
-			Team:        "", // TODO(lucas): no effect.
+			Team:        "", // No error, team did not change
 			Platform:    "",
 		},
 		{
@@ -1249,7 +1249,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 2 from updated;",
 			Description: "query2 desc updated",
 			Resolution:  "some other resolution updated",
-			Team:        "team1", // TODO(lucas): no effect.
+			Team:        "team1", // No error, team did not change
 			Platform:    "windows",
 		},
 	}))
@@ -1279,6 +1279,18 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
 	assert.Equal(t, "windows", teamPolicies[0].Platform)
+
+	// Test error when modifying team on existing policy
+	require.Error(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:        "query1",
+			Query:       "select 1 from updated again;",
+			Description: "query1 desc updated again",
+			Resolution:  "some resolution updated again",
+			Team:        "team1", // Modifying teams on existing policies is not allowed
+			Platform:    "",
+		},
+	}))
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {
@@ -2173,4 +2185,45 @@ func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
 	batch, err = ds.OutdatedAutomationBatch(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
+}
+
+func TestTeamIDByPolicyName(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
+	ctx := context.Background()
+
+	t.Run("global policy returns nil", func(t *testing.T) {
+		gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+			Name:        "global query no teamID",
+			Query:       "select 1;",
+			Description: "global query desc",
+			Resolution:  "global query resolution",
+		})
+		require.NoError(t, err)
+
+		teamID, err := ds.TeamIDByPolicyName(ctx, gp.Name)
+		require.Error(t, err)
+		assert.Nil(t, teamID)
+	})
+
+	t.Run("no policy returns nil", func(t *testing.T) {
+		teamID, err := ds.TeamIDByPolicyName(ctx, "no policy")
+		require.Error(t, err)
+		assert.Nil(t, teamID)
+	})
+
+	t.Run("team policy returns teamID", func(t *testing.T) {
+		team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+		tp, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+			Name:        "team query no with teamID",
+			Query:       "select 1;",
+			Description: "team query desc",
+			Resolution:  "team query resolution",
+		})
+		require.NoError(t, err)
+
+		teamID, err := ds.TeamIDByPolicyName(ctx, tp.Name)
+		require.NoError(t, err)
+		assert.Equal(t, team1.ID, *teamID)
+	})
 }

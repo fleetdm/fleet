@@ -465,6 +465,16 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 	return policyDB(ctx, ds.reader(ctx), policyID, &teamID)
 }
 
+func (ds *Datastore) TeamIDByPolicyName(ctx context.Context, policyName string) (*uint, error) {
+	var teamID uint
+	q := ds.reader(ctx)
+	err := sqlx.GetContext(ctx, q, &teamID, "SELECT team_id FROM policies WHERE name = ?", policyName)
+	if err != nil {
+		return nil, err
+	}
+	return &teamID, nil
+}
+
 // ApplyPolicySpecs applies the given policy specs, creating new policies and updating the ones that
 // already exist (a policy is identified by its name).
 //
@@ -495,6 +505,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			critical = VALUES(critical)
 		`
 		for _, spec := range specs {
+
 			res, err := tx.ExecContext(ctx,
 				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
 			)
