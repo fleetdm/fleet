@@ -113,9 +113,13 @@ If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#cr
 
 If a bug is not addressed within 6 weeks, [it is sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). During the sprint kickoff review ritual, each product group PM should review every bug which is marked in this way with the Head of Product and recommended whether a bug should be kept for the next sprint or de-prioritized. A de-prioritized bugs might include action items such as documentation of the defect. The Head of Product then reviews the bug recommendations with the CEO in the bug de-prioritization review ritual. 
 
-If a bug should be kept for the next sprint, the group PM should
+If a bug should be kept for the next sprint, the group PM should:
 - Remove the :product label.
 - Move the bug to the "Inbox" column on the bugs board and assign it to the appropriate EM.
+
+If a bug may be prioritized but might not be addressed in the next sprint, Product Operations should: 
+- Remove the :product and bug labels.
+- Assign the orange 'needs prioritization' label.  
 
 ## Writing user stories
 Product Managers [write user stories](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
