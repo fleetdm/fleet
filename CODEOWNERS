@@ -80,7 +80,7 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook                   @mikermcneil  # See [https://github.com/fleetdm/fleet/pull/13195](https://github.com/fleetdm/fleet/pull/13195)
+/handbook                   @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
 
 
 
