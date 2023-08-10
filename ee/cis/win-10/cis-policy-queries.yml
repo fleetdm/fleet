@@ -4600,25 +4600,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Limits print driver installation to Administrators' is set to 'Enabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting controls whether users that aren't Administrators can install print drivers on the system.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled.
-    'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Limits print driver installation to Administrators'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (SecGuide.admx/adml) is required - it is available from Microsoft at this link (https://techcommunity.microsoft.com/t5/microsoft-security-baselines/security-baseline-final-for-windows-10-v1903-and-windows-server/ba-p/701084).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\PointAndPrint\RestrictDriverInstallationToAdministrators' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.5, CIS_group_policy_template_required
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'NetBT NodeType configuration' is set to 'Enabled: P-node (recommended)'
   platforms: win10
   platform: windows
@@ -5153,6 +5134,25 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows\\CurrentVersion\\PushNotifications\NoCloudApplicationNotification' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.7.1.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Limits print driver installation to Administrators' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether users that aren't Administrators can install print drivers on the system.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled.
+    'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Limits print driver installation to Administrators'
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (SecGuide.admx/adml) is required - it is available from Microsoft at this link (https://techcommunity.microsoft.com/t5/microsoft-security-baselines/security-baseline-final-for-windows-10-v1903-and-windows-server/ba-p/701084).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\PointAndPrint\RestrictDriverInstallationToAdministrators' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.7.8, CIS_group_policy_template_required
   contributors: rachelelysia
 ---
 apiVersion: v1
