@@ -499,10 +499,10 @@ What is it like to be a Solutions Consultant at Fleet? What do you do every day?
 * Review [gong](gong.io) calls.
 * Get trained on [Demo2Win](https://2winglobal.com/about-you/pre-sales/)
 
-#### First 60 days -- synthesize
+#### Within 60 days -- synthesize
 * Take what you've learned in Demo2Win training and build out some killer enterprise demo workflows / playbooks. See below for video content.
 * Build video content with [Consensus](https://app.goconsensus.com/). Aim to produce a video per week. 
-* Supplemental domain training. Checkout [DFIR Diva](https://training.dfirdiva.com/) and block time in your calendar appropriately for learning about one new topic per month.
+* Supplemental domain training. Checkout [DFIR Diva](https://training.dfirdiva.com/) and [Cybrary - SecurityOnion](https://app.cybrary.it/browse/course/security-onion) and block time in your calendar appropriately for learning about one new topic per month.
 * Get involved in the community. Are there any local meetups that you can attend?
 
 #### Within 90 days + -- contribute
