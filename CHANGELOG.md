@@ -1,3 +1,7 @@
+## Fleet 4.35.2 (Aug 10, 2023)
+
+* Fixed a bug that set a wrong Fleet URL in Windows installers.
+
 ## Fleet 4.35.1 (Aug 4, 2023)
 
 * Fixed a migration to account for columns with NULL values as a result of either creating schedules via the API without providing all values or by a race condition with database replicas.
