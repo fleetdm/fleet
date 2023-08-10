@@ -157,9 +157,6 @@ Start off cross-platform for every option, setting, and feature. If we **prove**
    - Figma:
 https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?type=design&node-id=17819%3A222919&t=kBHyWO7TXGpkylzS-1 
 
-
-
-
 We have certain design conventions that we include in Fleet. We will document more of these over time.
 
 > TODO: Link to style guide here instead, and deduplicate all of this content (or as much as possible).
@@ -189,6 +186,14 @@ There are two types of tooltips. The two types of tooltips have some unique styl
 1. Tooltips for text (column headers, input titles, inline text) appear when hovering over any text with a dashed underline. These tooltips use left-aligned text.
 
 2. Tooltips for buttons, bubbles, table row elements, and other non-text elements appear when hovering over the element. These tooltips use center-aligned text. These tooltips include a centered arrow.
+
+**Bold text**
+
+For copy in the Fleet UI and Fleet documentation, use bold text when referencing UI elements such as buttons, links, column names, form field names, page names, and section names. For an example, check out the bold text in the docs [here](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#step-1-enforce-disk-encryption).
+
+This way, if a user is scanning instructions, the bold text tells them what UI element they should look for.
+
+In the docs, if a UI element is part of a section title (already bold) use double quotes. For an example, see this section title [here](https://fleetdm.com/docs/get-started/faq#what-happened-to-the-schedule-page).
 
 ## Release 
 

@@ -209,28 +209,35 @@ The Fleet product is released every three weeks. By syncing the whole company to
 
 ## Why spend so much energy responding to every potential production incident?
 
-At Fleet, we consider every 5xx error, timeout, or errored scheduled job a P1 incident.  We create an outage issue for it, no matter the environment, as soon as the issue is detected, even before we understand.  We always determine impact quickly, reach out to affected users to acknowledge their problem, and determine the root cause. Why?
+At Fleet, every 5xx response, timed-out request, and failed scheduled job is a P1 outage.
 
-- It helps us learn.
-- You never know whether an error like this is a real issue until you take a close look.  Even if you think it probably isn't.
-- It incentivizes us to fix the root cause sooner.
-- It keeps the number of errors low.
-- It ensures the team understands exactly what errors are happening.
-- It helps us fix bugs sooner, preventing them from stacking and bleeding into one another and making fixes harder.
-- It gets everyone on the same page about what an issue is.
-- It prevents stoppage of information about bugs and problems.  Every outage is visible.
-- It allows us to reach out to affected users ASAP and acknowledge their challenge, showing them that Fleet takes quality and stability seriously.
+As soon as the outage is detected in any production environment (including fleetdm.com, Fleet Sandbox, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
 
-### What is a P1?
-Every 5xx error, timeout, or failed scheduled job is a P1.  
+Then, we determine impact quickly. We take a close look right away, even if we think it might not matter.  If there is any chance of it affecting even one user, we keep digging.  We reach out to affected users to acknowledge their problem, provide them with a workaround or some other way to make their day less painful.
 
-That means:
-1. It gets a postmortem issue created within the production issue response time SLA, even before we know the impact, the root cause, or even what the error message says.
-2. It gets a close look right away, even if we think it might not matter.  If there is any chance of it affecting even one user, we keep digging.
-3. Including a situation where a user has to wait longer than 5 seconds during signup on fleetdm.com  (or any time we breach an agreed upon response time guarantee)
-4. Including when a scheduled job fails and we aren't sure yet whether or not any real users are affected.
+Finally, we determine the root cause, and we make sure a resolution for it is filed as a bug, with attention from the appropriate contributors.  Then, we close the issue.
 
-## Why _don't_ we sell like everyone else?
+Why bother with all that?  And why do it in this particular order?
+- **Avoids slip-ups.** When every outage is visible, information about production problems flows more freely.  It is harder to accidentally overlook a production issue, or accidentally deprioritize a major issue.  You never know whether an error like this is a real issue until you take a close look.  Even if you think it probably isn't.
+- **Faster diagnosis.** Prioritizing outages gets everyone on the same page about exactly what errors are happening as soon as possible, and gets subject matter experts involved faster.
+- **Helps us measure.** When outage issues are created as soon as the outage occured, the time of issue creation and closing give us useful metrics about the outage, with minimal extra effort.
+- **Better customer experience.** Understanding the impact of every production issue means we can reach out to affected users ASAP and acknowledge their challenge, showing them that Fleet takes quality and stability seriously.  This kind of customer support is rare and memorable.
+- **It helps us prevent future outages.** By finding outages sooner, we incentivize ourselves to fix the root cause sooner.  And by fixing bugs sooner, we prevent them from stacking and bleeding into one another, and we prevent ourselves from implementing future fixes and improvements on top of shaky foundations.  This makes contributions less risky and reduces the number of outages.
+
+## Why make it obvious when stuff breaks?
+
+At Fleet, we detect and fix bugs as quickly as possible.  
+
+Breaking loudly means we can fix the break sooner and improve how fast and certain we are about making future changes.  Especially in an all-remote environment, this provides contributors with discipline around quality and stability of the main branch.  This is ["good annoying"](https://agilehope.blogspot.com/2014/12/diy-build-light-indicator.html).
+
+When contributing to Fleet, for every PR, the person submitting the PR tests it by hand before it is merged, regardless who else tested it, or who else reviewed the code.  Thanks to this, we should normally never end up in a situation where a merged PR causes a broken contributor experience, because the person submitting it would have experienced that broken contributor experience when testing.
+
+If that happens by mistake, first priority is merging a fix, then notifying the contributor who made the mistake so they're aware for future changes.  (This is not about blame; it's about clarity.)  We always prioritize fixing bugs, because bugs are the best early sign of misunderstandings, stale assumptions, and impactful coding mistakes that can fundamentally damage Fleet's long-term development speed, contributor experience, and code base complexity.
+
+> Here is [an example of a deliberate decision to make broken images in Fleet fail more loudly](https://github.com/fleetdm/fleet/issues/12305#issuecomment-1671924257) so that they can't be overlooked, even though this might slow down short-term development.
+
+
+## Why don't we sell like everyone else?
 
 Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
 - **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
@@ -242,7 +249,7 @@ Many companies encourage salespeople to "spray and pray" email blasts, and to do
 - **Step up.** We look at the [🟠big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
 
-## Why _don't_ we track leads differently?
+## Why don't we track leads differently?
 
 There are about as many "MQL" definitions as there are sales orgs in the world. Exaggerating here, but only somewhat.
 
@@ -323,6 +330,8 @@ Please see [handbook/company/why-this-way#why-direct-responsibility](https://fle
 ##### Reviewers
 Please see [handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
 
+##### What is a P1?
+Please see [handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">

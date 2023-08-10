@@ -434,13 +434,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           }
         : undefined,
     actionUrl: selectedPlatform === "all" ? MANAGE_HOSTS : undefined,
-    total_host_count: (() => {
-      if (!isHostSummaryFetching && !errorHosts) {
-        return `${hostSummaryData?.totals_hosts_count}` || undefined;
-      }
-
-      return undefined;
-    })(),
+    total_host_count:
+      !isHostSummaryFetching && !errorHosts
+        ? hostSummaryData?.totals_hosts_count
+        : undefined,
     showTitle: true,
     children: (
       <HostsSummary

@@ -13,10 +13,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -194,6 +197,70 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 		}
 		return false
 	})
+}
+
+func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
+	// ensure that on exit, the admin token is used
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	t := s.T()
+
+	// create a non-SSO user
+	var createResp createUserResponse
+	userRawPwd := test.GoodPassword
+	params := fleet.UserPayload{
+		Name:       ptr.String("extra"),
+		Email:      ptr.String("extra@asd.com"),
+		Password:   ptr.String(userRawPwd),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.User.ID)
+	assert.True(t, createResp.User.AdminForcedPasswordReset)
+	nonSSOUser := *createResp.User
+
+	// enable SSO
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+		}
+	}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	// perform a required password change using the non-SSO user, works
+	s.token = s.getTestToken(nonSSOUser.Email, userRawPwd)
+	perfPwdResetResp := performRequiredPasswordResetResponse{}
+	newRawPwd := "new_password2!"
+	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+		Password: newRawPwd,
+		ID:       nonSSOUser.ID,
+	}, http.StatusOK, &perfPwdResetResp)
+	require.False(t, perfPwdResetResp.User.AdminForcedPasswordReset)
+
+	// trick the user into one with SSO enabled (we could create that user but it
+	// won't have a password nor an API token to use for the request, so we mock
+	// it in the DB)
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			"UPDATE users SET sso_enabled = 1, admin_forced_password_reset = 1 WHERE id = ?",
+			nonSSOUser.ID,
+		)
+		return err
+	})
+
+	// perform a required password change using the mocked SSO user, disallowed
+	perfPwdResetResp = performRequiredPasswordResetResponse{}
+	newRawPwd = "new_password2!"
+	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+		Password: newRawPwd,
+		ID:       nonSSOUser.ID,
+	}, http.StatusForbidden, &perfPwdResetResp)
 }
 
 func inflate(t *testing.T, s string) *sso.AuthnRequest {
