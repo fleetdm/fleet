@@ -186,10 +186,10 @@ module.exports.custom = {
     'ee/tools/puppet': ['roperzh', 'gillespi314', 'mna', 'georgekarrv'],
 
     // Reference, config surface, built-in queries, API, and other documentation
-    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
-    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h','rachaelshaw'],// (Osquery table schema)
-    'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia'],
+    'docs': ['rachaelshaw'],// (default for docs)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
+    'schema': ['rachaelshaw'],// (Osquery table schema)
+    'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia', 'rachaelshaw'],
 
     // Articles and release notes
     'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
