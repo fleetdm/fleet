@@ -1,7 +1,7 @@
 # Business Operations
 Welcome to the Business Operations (or BizOps) handbook! The BizOps handbook serves as an informational, how-to guide for Fleeties, and supports Fleet's mission by enabling team members to make meaningful contributions in alignment with our values. If you can not find what you are looking for please use the [intake process](https://fleetdm.com/handbook/business-operations#intake) to make a request of the team.
 
-The BizOps group works together as one team, made up of [People Operations (POps)](https://fleetdm.com/handbook/business-operations/people-operations), Finance Operations (FinOps), Legal Operations (LegalOps), IT Operations (ITOps), and Revenue Operations (RevOps).
+The BizOps department works together as one team, made up of these traditional functions: [People](https://fleetdm.com/handbook/business-operations/people-operations), Finance, Legal, IT, and Revenue Operations (RevOps).
 
 ## Intake
 To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
@@ -111,6 +111,7 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 ###### Attending conferences or company travel
 When attending a conference or traveling for Fleet, keep the following in mind:
 - $100 allowance per day for your own personal food and beverage. **(There are many good reasons to make exceptions to this guideline, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#intake).**
+- Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
 - We highly recommend you order a physical Brex card if you do not have one before attending the conference.
 - The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as travel.  You can [request that here](https://fleetdm.com/handbook/business-operations#intake) by providing the following information:
   - The start and end dates for your trip.
@@ -390,6 +391,10 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
 #### Namecheap
 
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
+
+#### Vetty
+
+Fleet team members with access to Fleet's infrastructure undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
 
 
 ### Equipment

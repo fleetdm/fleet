@@ -145,20 +145,21 @@ module.exports.custom = {
     'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
 
     // 🦿 Repo automation and change control settings
-    'CODEOWNERS': 'mikermcneil',
+    // 'CODEOWNERS': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
     'website/config/custom.js': 'mikermcneil',
 
     // 🦿 Handbook
-    'handbook/company/ceo.md': 'sampfluger88',
-    'handbook/company': 'mikermcneil',
-    'handbook/business-operations': 'mikermcneil',// TODO: Transfer to joanne once the philosophical stuff is moved into the new "Communication" page (similar to GitLab's)
-    'handbook/engineering': 'lukeheath',
-    'handbook/product': 'zhumo',
-    'handbook/customers': 'alexmitchelliii',
-    'handbook/marketing': 'jarodreyes',
+    'handbook/': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
+    //'handbook/company/ceo.md': 'sampfluger88',
+    //'handbook/company': 'mikermcneil',
+    //'handbook/business-operations': 'mikermcneil',
+    //'handbook/engineering': 'lukeheath',
+    //'handbook/product': 'zhumo',
+    //'handbook/customers': 'alexmitchelliii',
+    //'handbook/marketing': 'jarodreyes',
 
     // 🦿 GitHub issue templates
-    '.github/ISSUE_TEMPLATE': 'mikermcneil',//« GitHub issue templates
+    // '.github/ISSUE_TEMPLATE': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
 
   },
 
@@ -186,10 +187,10 @@ module.exports.custom = {
     'ee/tools/puppet': ['roperzh', 'gillespi314', 'mna', 'georgekarrv'],
 
     // Reference, config surface, built-in queries, API, and other documentation
-    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
-    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h','rachaelshaw'],// (Osquery table schema)
-    'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia'],
+    'docs': ['rachaelshaw'],// (default for docs)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
+    'schema': ['rachaelshaw'],// (Osquery table schema)
+    'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia', 'rachaelshaw'],
 
     // Articles and release notes
     'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
@@ -225,14 +226,15 @@ module.exports.custom = {
     'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     // Handbook
-    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
+    'handbook/README.md': 'mikermcneil',
     'handbook/company': 'mikermcneil',
-    'handbook/company/ceo.md': ['sampfluger88', 'mikermcneil'],
-    'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
-    'handbook/engineering': ['zwass', 'lukeheath'],
-    'handbook/product': ['noahtalerman', 'zhumo'],
-    'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
-    'handbook/marketing': ['jarodreyes', 'mike-j-thomas', 'spokanemac'],
+    // See https://github.com/fleetdm/fleet/pull/13195
+    //'handbook/company/ceo.md': ['sampfluger88'],
+    //'handbook/business-operations': ['jostableford'],
+    //'handbook/engineering': ['lukeheath'],
+    //'handbook/product': ['zhumo'],
+    //'handbook/customers': ['alexmitchelliii'],
+    //'handbook/marketing': ['jarodreyes'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
