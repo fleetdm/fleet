@@ -155,7 +155,7 @@ Add URLs to your logo that looks good on dark background and light backgrounds i
 
 6. Send [these guided instructions](#how-to-turn-on-mdm-end-user) to your end users to complete the final few steps via Fleet Desktop.
 
-#### How to turn on MDM (end user)
+##### How to turn on MDM (end user)
 
 1. Select the Fleet icon in your menu bar and select **Migrate to Fleet**.
 
