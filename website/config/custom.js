@@ -145,7 +145,7 @@ module.exports.custom = {
     'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
 
     // 🦿 Repo automation and change control settings
-    'CODEOWNERS': 'mikermcneil',
+    // 'CODEOWNERS': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
     'website/config/custom.js': 'mikermcneil',
 
     // 🦿 Handbook
@@ -159,7 +159,7 @@ module.exports.custom = {
     //'handbook/marketing': 'jarodreyes',
 
     // 🦿 GitHub issue templates
-    '.github/ISSUE_TEMPLATE': 'mikermcneil',//« GitHub issue templates
+    // '.github/ISSUE_TEMPLATE': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
 
   },
 
