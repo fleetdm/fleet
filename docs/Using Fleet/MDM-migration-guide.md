@@ -57,9 +57,11 @@ To migrate automatically enrolled hosts, we will do the following steps:
 
 There are two migration workflows in Fleet: default and end user.
 
-The default migration workflow requires that the IT admin unenrolls hosts from the old MDM solution before the end user can complete migration. No additional set up is needed for this workflow.
+The default migration workflow requires that the IT admin unenrolls hosts from the old MDM solution before the end user can complete migration. This will result in a gap in MDM coverage until the end user completes migration.
 
 The end user migration workflow allows the end user to kick-off migration by unenrolling from the old MDM solution on their own. Once the user is unenrolled, they're nagged to turn on MDM features in Fleet. This reduces the gap in MDM coverage.
+
+Configuring the end user migration workflow requires a few additional steps.
 
 #### Default workflow
 
