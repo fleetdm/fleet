@@ -7132,7 +7132,15 @@ func testHostsListHostsLiteByUUIDs(t *testing.T, ds *Datastore) {
 func testGetMatchingHostSerials(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	serials := []string{"foo", "bar", "baz"}
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
 	for i, serial := range serials {
+		var tmID *uint
+		if serial == "bar" {
+			tmID = &team.ID
+		}
 		_, err := ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -7145,6 +7153,7 @@ func testGetMatchingHostSerials(t *testing.T, ds *Datastore) {
 			PrimaryIP:       "192.168.1.1",
 			PrimaryMac:      "30-65-EC-6F-C4-58",
 			HardwareSerial:  serial,
+			TeamID:          tmID,
 		})
 		require.NoError(t, err)
 	}
@@ -7152,13 +7161,29 @@ func testGetMatchingHostSerials(t *testing.T, ds *Datastore) {
 	cases := []struct {
 		name string
 		in   []string
-		want map[string]struct{}
+		want map[string]*fleet.Host
 		err  string
 	}{
-		{"no serials provided", []string{}, map[string]struct{}{}, ""},
-		{"no matching serials", []string{"oof", "rab"}, map[string]struct{}{}, ""},
-		{"partial matches", []string{"foo", "rab"}, map[string]struct{}{"foo": {}}, ""},
-		{"all matching", []string{"foo", "bar", "baz"}, map[string]struct{}{"foo": {}, "bar": {}, "baz": {}}, ""},
+		{"no serials provided", []string{}, map[string]*fleet.Host{}, ""},
+		{"no matching serials", []string{"oof", "rab"}, map[string]*fleet.Host{}, ""},
+		{
+			"partial matches",
+			[]string{"foo", "rab"},
+			map[string]*fleet.Host{
+				"foo": {HardwareSerial: "foo", TeamID: nil},
+			},
+			"",
+		},
+		{
+			"all matching",
+			[]string{"foo", "bar", "baz"},
+			map[string]*fleet.Host{
+				"foo": {HardwareSerial: "foo", TeamID: nil},
+				"bar": {HardwareSerial: "bar", TeamID: &team.ID},
+				"baz": {HardwareSerial: "baz", TeamID: nil},
+			},
+			"",
+		},
 	}
 
 	for _, tt := range cases {
