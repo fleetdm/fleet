@@ -1,6 +1,9 @@
 package fleet
 
-import "strings"
+import (
+	"strings"
+	"sync"
+)
 
 // Capability represents a concrete feature of Fleet.
 type Capability string
@@ -8,9 +11,14 @@ type Capability string
 // CapabilityMap is an utility type to represent a set of capabilities.
 type CapabilityMap map[Capability]struct{}
 
+// mu is used to allow for safe access to the capability map.
+var mu sync.Mutex
+
 // PopulateFromString populates the CapabilityMap from a comma separated string.
 // Example: "foo,bar,baz" => {"foo": struct{}, "bar": struct{}, "baz": struct{}}
 func (c *CapabilityMap) PopulateFromString(s string) {
+	mu.Lock()
+	defer mu.Unlock()
 	*c = make(CapabilityMap)
 
 	if s == "" {
@@ -25,6 +33,8 @@ func (c *CapabilityMap) PopulateFromString(s string) {
 // String returns a comma separated string with the capabilities in the map.
 // Example: {"foo": struct{}, "bar": struct{}, "baz": struct{}} => "foo,bar,baz"
 func (c *CapabilityMap) String() string {
+	mu.Lock()
+	defer mu.Unlock()
 	idx := 0
 	capabilities := make([]string, len(*c))
 	for capability := range *c {
@@ -36,6 +46,8 @@ func (c *CapabilityMap) String() string {
 
 // Has returns true if the CapabilityMap contains the given capability.
 func (c CapabilityMap) Has(capability Capability) bool {
+	mu.Lock()
+	defer mu.Unlock()
 	_, ok := c[capability]
 	return ok
 }

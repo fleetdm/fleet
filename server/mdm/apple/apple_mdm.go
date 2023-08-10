@@ -433,7 +433,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
 	}
 
-	n, tmID, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices)
+	n, defaultABMTeamID, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices)
 	switch {
 	case err != nil:
 		level.Error(kitlog.With(d.logger)).Log("err", err)
@@ -446,11 +446,83 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 
 	// at this point, the hosts rows are created for the devices, with the
 	// correct team_id, so we know what team-specific profile needs to be applied.
+	//
+	// collect a map of all the profiles => serials we need to assign.
+	profileToSerials := map[string][]string{}
+
+	// each new device should be assigned the DEP profile of the default
+	// ABM team as configured by the IT admin.
+	if len(addedDevices) > 0 {
+		level.Info(kitlog.With(d.logger)).Log("msg", "gathering added serials to assign devices", "len", len(addedDevices))
+		profUUID, err := d.getProfileUUIDForTeam(ctx, defaultABMTeamID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "getting profile for default team with id: %v", defaultABMTeamID)
+		}
+
+		var addedSerials []string
+		for _, d := range addedDevices {
+			addedSerials = append(addedSerials, d.SerialNumber)
+		}
+		profileToSerials[profUUID] = addedSerials
+	} else {
+		level.Info(kitlog.With(d.logger)).Log("msg", "no added devices to assign DEP profiles")
+	}
+
+	// for all other hosts we received, find out the right DEP profile to assign, based on the team.
+	if len(existingSerials) > 0 {
+		level.Info(kitlog.With(d.logger)).Log("msg", "gathering existing serials to assign devices", "len", len(existingSerials))
+		serialsByTeam := map[*uint][]string{}
+		for _, host := range existingSerials {
+			if serialsByTeam[host.TeamID] == nil {
+				serialsByTeam[host.TeamID] = []string{}
+			}
+			serialsByTeam[host.TeamID] = append(serialsByTeam[host.TeamID], host.HardwareSerial)
+		}
+		for team, serials := range serialsByTeam {
+			profUUID, err := d.getProfileUUIDForTeam(ctx, team)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
+			}
+			if profileToSerials[profUUID] == nil {
+				profileToSerials[profUUID] = []string{}
+			}
+			profileToSerials[profUUID] = append(profileToSerials[profUUID], serials...)
+
+		}
+	} else {
+		level.Info(kitlog.With(d.logger)).Log("msg", "no existing devices to assign DEP profiles")
+	}
+
+	for profUUID, serials := range profileToSerials {
+		logger := kitlog.With(d.logger, "profile_uuid", profUUID)
+		level.Info(logger).Log("msg", "calling DEP client to assign profile", "profile_uuid", profUUID)
+		apiResp, err := depClient.AssignProfile(ctx, DEPName, profUUID, serials...)
+		if err != nil {
+			level.Info(logger).Log(
+				"msg", "assign profile",
+				"devices", len(serials),
+				"err", err,
+			)
+			return fmt.Errorf("assign profile: %w", err)
+		}
+
+		logs := []interface{}{
+			"msg", "profile assigned",
+			"devices", len(serials),
+		}
+		logs = append(logs, logCountsForResults(apiResp.Devices)...)
+		level.Info(logger).Log(logs...)
+	}
+
+	return nil
+}
+
+func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint) (string, error) {
 	var appleBMTeam *fleet.Team
 	if tmID != nil {
 		tm, err := d.ds.Team(ctx, *tmID)
 		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "get team")
+			return "", ctxerr.Wrap(ctx, err, "get team")
 		}
 		appleBMTeam = tm
 	}
@@ -458,53 +530,16 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 	// get profile uuid of team or default
 	profUUID, _, err := d.EnsureCustomSetupAssistantIfExists(ctx, appleBMTeam)
 	if err != nil {
-		return fmt.Errorf("ensure setup assistant for team %v: %w", tmID, err)
+		return "", fmt.Errorf("ensure setup assistant for team %v: %w", tmID, err)
 	}
 	if profUUID == "" {
 		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx, appleBMTeam)
 		if err != nil {
-			return fmt.Errorf("ensure default setup assistant: %w", err)
+			return "", fmt.Errorf("ensure default setup assistant: %w", err)
 		}
 	}
 
-	if profUUID == "" {
-		level.Debug(d.logger).Log("msg", "empty assigner profile UUID")
-		return nil
-	}
-
-	logger := kitlog.With(d.logger, "profile_uuid", profUUID)
-
-	if len(addedDevices) < 1 {
-		level.Debug(logger).Log(
-			"msg", "no serials to assign",
-			"devices", len(resp.Devices),
-		)
-		return nil
-	}
-
-	var addedSerials []string
-	for _, d := range addedDevices {
-		addedSerials = append(addedSerials, d.SerialNumber)
-	}
-
-	apiResp, err := depClient.AssignProfile(ctx, DEPName, profUUID, addedSerials...)
-	if err != nil {
-		level.Info(logger).Log(
-			"msg", "assign profile",
-			"devices", len(addedSerials),
-			"err", err,
-		)
-		return fmt.Errorf("assign profile: %w", err)
-	}
-
-	logs := []interface{}{
-		"msg", "profile assigned",
-		"devices", len(addedSerials),
-	}
-	logs = append(logs, logCountsForResults(apiResp.Devices)...)
-	level.Info(logger).Log(logs...)
-
-	return nil
+	return profUUID, nil
 }
 
 // logCountsForResults tries to aggregate the result types and log the counts.
