@@ -34,6 +34,8 @@ type InitialStateType = {
   setSelectedOsqueryTable: (tableName: string) => void;
 };
 
+export type IQueryContext = InitialStateType;
+
 const initialState = {
   selectedOsqueryTable:
     find(osqueryTables, { name: "users" }) || DEFAULT_OSQUERY_TABLE,
