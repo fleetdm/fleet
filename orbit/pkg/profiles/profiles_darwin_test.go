@@ -138,7 +138,7 @@ MDM server: https://valid.com/mdm/apple/mdm
 	}
 }
 
-func TestAssignedEnrollmentProfile(t *testing.T) {
+func TestCheckAssignedEnrollmentProfile(t *testing.T) {
 	fleetURL := "https://valid.com"
 	cases := []struct {
 		name    string
