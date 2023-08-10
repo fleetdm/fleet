@@ -985,24 +985,6 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Accounts Administrator account status' is set to 'Disabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting enables or disables the Administrator account during normal operation.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Accounts: Administrator account status'
-  query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_EnableAdministratorAccountStatus</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.1.1
-  contributors: marcosd4h
----
-apiVersion: v1
-kind: policy
-spec:
   name: CIS - Ensure 'Accounts Block Microsoft accounts' is set to 'Users can't add or log on with Microsoft accounts'
   platforms: win10
   platform: windows
@@ -4929,26 +4911,6 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.13, CIS_group_policy_template_required
   contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Configure DNS over HTTPS (DoH) name resolution' is set to 'Enabled: Allow DoH' or higher
-  platforms: win11
-  platform: windows
-  description: |
-    This policy is meant for Windows 11.
-    This setting determines if DNS over HTTPS (DoH) is used by the system. DNS over HTTPS (DoH) is a protocol for performing remote Domain Name System (DNS) resolution over the Hypertext Transfer Protocol Secure (HTTPS). For additional information on DNS over HTTPS (DoH), visit: Secure DNS Client over HTTPS (DoH) on Windows Server 2022 | Microsoft Docs.
-    The recommended state for this setting is: 'Enabled: Allow DoH'. Configuring this setting to 'Enabled: Require DoH' also conforms to the benchmark.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled: Allow DoH (configuring to Enabled: Require DoH also conforms to the benchmark):
-    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Configure DNS over HTTPS (DoH) name resolution'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\DoHPolicy' AND data = 2);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.4.1
-  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
