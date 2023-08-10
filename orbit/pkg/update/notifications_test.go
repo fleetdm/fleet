@@ -2,6 +2,7 @@ package update
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -98,7 +99,7 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 		checkAssignedEnrollmentProfileFn: func(url string) error {
 			<-chProceed // will be unblocked only when allowed
 			if !isAssigned {
-				return fmt.Errorf("not assigned")
+				return errors.New("not assigned")
 			}
 			return nil
 		},
