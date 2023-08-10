@@ -80,13 +80,7 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook                   @mikermcneil  # Everyone can contribute to the handbook, and page DRIs are expected to keep their pages up to date.    
-                                          # To shape and absorb changes, and learn from how GitLab evolved its handbook as that company grew, 
-                                          # CEO will ALSO review all PRs that change the handbook before they are merged. 
-                                          # (Background: As of mid-2023, there are only ≤3 handbook PRs per weekday on the busiest of weeks.  
-                                          # If this increases dramatically, or when time allows the company to prioritize writing down the content design, 
-                                          # structure, and vision for the evolution of the handbook, we'll change this.)
-
+/handbook                   @mikermcneil  # See [https://github.com/fleetdm/fleet/pull/13195](https://github.com/fleetdm/fleet/pull/13195)
 
 
 
