@@ -2,10 +2,10 @@ apiVersion: v1
 entries:
   fleet:
   - apiVersion: v1
-    appVersion: v4.35.1
-    created: "2023-08-04T22:34:49.44686169Z"
+    appVersion: v4.35.2
+    created: "2023-08-10T18:32:47.793961016Z"
     description: A Helm chart for Fleet
-    digest: 447c3d0d2f6fc4b13c5f6c8a8997c04789cc44f788fcc5302e52213e33211a09
+    digest: 99f34682551edb1f110dbb50e56b87db148fe9139a4891da0965715b7bfd662b
     home: https://github.com/fleetdm/fleet
     keywords:
     - fleet
@@ -781,4 +781,4 @@ entries:
     urls:
     - https://fleetdm.github.io/fleet/charts/fleet-3.9.0.tgz
     version: 3.9.0
-generated: "2023-08-04T22:34:49.444470785Z"
+generated: "2023-08-10T18:32:47.792574301Z"
