@@ -392,7 +392,7 @@ module.exports.routes = {
   'GET /handbook/digital-experience': '/handbook/marketing#digital-experience',
   'GET /handbook/digital-experience/article-formatting-guide': '/handbook/marketing/article-formatting-guide',
   'GET /handbook/digital-experience/commonly-used-terms': '/handbook/marketing/commonly-used-terms',
-  'GET /handbook/marketing/commonly-used-terms',: '/handbook/company/communications#commonly-used-terms',
+  'GET /handbook/marketing/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
   'GET /handbook/digital-experience/how-to-submit-and-publish-an-article': '/handbook/marketing/how-to-submit-and-publish-an-article',
   'GET /handbook/digital-experience/markdown-guide': '/handbook/marketing/markdown-guide',
   'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
