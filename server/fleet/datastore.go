@@ -698,7 +698,10 @@ type Datastore interface {
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 
 	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
-	UpdateVerificationHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
+	UpdateHostMDMProfilesVerification(ctx context.Context, host *Host, verified, failed []string) error
+	// GetHostMDMProfilesExpected returns the expected MDM profiles for a given host. The map is
+	// keyed by the profile identifier.
+	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *Host) (map[string]*ExpectedMDMProfile, error)
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
@@ -922,6 +925,9 @@ type Datastore interface {
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the database
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage) error
+	// CopyMDMAppleBootstrapPackage copies the bootstrap package specified in the app config (if any)
+	// specified team (and a new token is assigned). It also updates the team config with the default bootstrap package URL.
+	CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *AppConfig, toTeamID uint) error
 	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id
 	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
 	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap package for a team

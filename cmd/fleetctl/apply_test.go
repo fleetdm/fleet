@@ -887,6 +887,11 @@ spec:
         pack_delimiter: /
     overrides: {}
 `)
+
+	// test applying with dry-run flag
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// test applying for real
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
 
@@ -914,6 +919,11 @@ spec:
       macos_setup_assistant: %s
     windows_enabled_and_configured: true
 `, mobileConfigPath, emptySetupAsst))
+
+	// first apply with dry-run
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
@@ -945,6 +955,11 @@ spec:
     macos_setup:
       bootstrap_package: %s
 `, bootstrapURL))
+
+	// first apply with dry-run
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
@@ -988,6 +1003,10 @@ spec:
       - secret: BBB
 `, mobileConfigPath))
 
+	// first apply with dry-run
+	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
 	assert.Equal(t, fleet.TeamMDM{
@@ -1015,6 +1034,11 @@ spec:
       macos_setup:
         macos_setup_assistant: %s
 `, emptySetupAsst))
+
+	// first apply with dry-run
+	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
@@ -1045,6 +1069,11 @@ spec:
       macos_setup:
         bootstrap_package: %s
 `, bootstrapURL))
+
+	// first apply with dry-run
+	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// all left untouched, only bootstrap package added
 	assert.Equal(t, fleet.TeamMDM{

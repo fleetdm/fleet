@@ -1681,12 +1681,8 @@ func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MD
 	// for now, assume all settings require premium (this is true for the first
 	// supported setting, enable_disk_encryption. Adjust as needed in the future
 	// if this is not always the case).
-	license, err := svc.License(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return err
-	}
-	if !license.IsPremium() {
+	lic, _ := license.FromContext(ctx)
+	if lic == nil || !lic.IsPremium() {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 		return ErrMissingLicense
 	}
@@ -1706,7 +1702,10 @@ func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MD
 }
 
 func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
-	ac, err := svc.AppConfigObfuscated(ctx)
+	// appconfig is only used internally, it's fine to read it unobfuscated
+	// (svc.AppConfigObfuscated must not be used because the write-only users
+	// such as gitops will fail to access it).
+	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}

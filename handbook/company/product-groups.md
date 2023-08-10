@@ -50,7 +50,7 @@ The goal of the customer experience (CX) group is to make users and customers ha
 | Engineering manager               | Sharon Katz
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Mo Zhu
-| Software engineers (developers)   | Jacob Shandling, Juan Fernandez, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Martin Angers
+| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Martin Angers, Tim Lee
 
 > The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
@@ -120,6 +120,8 @@ A user story is considered ready for implementation once:
 - [ ] [Designs revised and approved](#design-reviews)
 - [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
 - [ ] [Scheduled](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) for development
+
+> All user stories intended for the next sprint are estimated by the last estimation session before the sprint begins. This makes sure contributors have adequate time to complete the current sprint and provide accurate estimates for the next sprint.
 
 #### Writing a good user story
 Good user stories are short, with clear, unambiguous language.

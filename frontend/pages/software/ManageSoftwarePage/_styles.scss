@@ -58,7 +58,16 @@
 
   &__table {
     .table-container {
+      &__header {
+        flex-direction: column-reverse; // Search bar on top
+
+        @media (min-width: $break-md) {
+          flex-direction: row;
+        }
+      }
+
       &__header-left {
+        flex-direction: row; // Filter dropdown aligned with count
         .controls {
           .form-field--dropdown {
             margin: 0;
@@ -92,15 +101,16 @@
           }
         }
       }
+      &__search-input,
       &__search {
-        width: 100%;
-        .search-field__input-wrapper {
+        width: 100%; // Search bar across entire table
+        .input-icon-field__input {
           width: 100%;
         }
-        @media (min-width: $break-xs) {
+        @media (min-width: $break-md) {
           width: auto;
-          .search-field__input-wrapper {
-            width: 411px;
+          .input-icon-field__input {
+            width: 375px;
           }
         }
       }
