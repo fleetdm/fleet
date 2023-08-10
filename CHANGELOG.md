@@ -1,3 +1,9 @@
+## Fleet 4.35.1 (Aug 4, 2023)
+
+* Fixed a migration to account for columns with NULL values as a result of either creating schedules via the API without providing all values or by a race condition with database replicas.
+
+* Fixed a bug that occurred when a user tried to create a custom query from the "query" action on a host's details page.
+
 ## Fleet 4.35.0 (Jul 31, 2023)
 
 * Combined the query and schedule features to provide a single interface for creating, scheduling, and tweaking queries at the global and team level.
