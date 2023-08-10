@@ -1,3 +1,12 @@
+---
+name: 🦟  Bug report
+about: Report a bug to help us improve.
+title: ''
+labels: 'bug,:reproduce'
+assignees: ''
+
+---
+
 **Fleet version**: _(head to the "My account" page in the Fleet UI or run `fleetctl --version`)_
 
 **Web browser and operating system**: _(e.g. Chrome 88.0.4324 running on macOS)_
