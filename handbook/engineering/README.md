@@ -109,20 +109,6 @@ All participants are expected to review the user story and associated designs an
 - Software Engineers: Clarifying questions and implementation details
 - Product Quality Specialist: Testing plan
 
-#### Participants
-
-Everyone at the company is welcome to attend. All engineers are asked to attend. The subject matter is focused on engineering.
-
-#### Agenda
-
-- Announcements
-- Engineering KPIs review
-- “Tech talks”
-  - At least one engineer from each product group demos or discusses a technical aspect of their recent work.
-  - Everyone is welcome to present on a technical topic. Add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
-- Social
-  - Structured and/or unstructured social activities
-
 ### Group weeklies
 
 A chance for deeper, synchronous discussion on topics relevant across product groups like “Frontend weekly”, “Backend weekly”, etc.
