@@ -123,24 +123,6 @@ Everyone at the company is welcome to attend. All engineers are asked to attend.
 - Social
   - Structured and/or unstructured social activities
 
-### Eng together
-
-This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held monthly for one hour.
-
-#### Participants
-
-Everyone at the company is welcome to attend. All engineers are asked to attend. The subject matter is focused on engineering.
-
-#### Agenda
-
-- Announcements
-- Engineering KPIs review
-- “Tech talks”
-  - At least one engineer from each product group demos or discusses a technical aspect of their recent work.
-  - Everyone is welcome to present on a technical topic, add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
-- Social
-  - Structured and/or unstructured social activities
-
 ### Group weeklies
 
 A chance for deeper, synchronous discussion on topics relevant across product groups like “Frontend weekly”, “Backend weekly”, etc.
