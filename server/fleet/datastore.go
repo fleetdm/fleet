@@ -497,6 +497,10 @@ type Datastore interface {
 	// and new policies are created.
 	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
 
+	// TeamNameByPolicyName returns the name of the team that owns the policy with the given name.
+	// Used for validating that a policy cannot change teams.
+	TeamNameByPolicyName(ctx context.Context, policyName string) (rowFound bool, isGlobal bool, teamName string, err error)
+
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	// SavePolicy updates some fields of the given policy on the datastore.
