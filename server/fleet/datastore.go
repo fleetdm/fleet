@@ -980,8 +980,8 @@ type Datastore interface {
 	GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
 
 	// GetMatchingHostSerials receives a list of serial numbers and returns
-	// a map with all the matching serial numbers in the database.
-	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error)
+	// a map that only contains the serials that have a matching row in the `hosts` table.
+	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*Host, error)
 
 	// DeleteHostDEPAssignments marks as deleted entries in
 	// host_dep_assignments for host with matching serials.
