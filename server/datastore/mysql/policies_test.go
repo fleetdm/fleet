@@ -2218,6 +2218,7 @@ func testTeamNameByPolicyName(t *testing.T, ds *Datastore) {
 
 	t.Run("team policy exists", func(t *testing.T) {
 		team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+		require.NoError(t, err)
 		tp, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 			Name:        "team query no with teamID",
 			Query:       "select 1;",
