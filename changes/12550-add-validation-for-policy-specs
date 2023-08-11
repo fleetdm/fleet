@@ -1,0 +1,1 @@
+- add validation when running `fleetctl apply` on policies.  Fixes issue 12550
