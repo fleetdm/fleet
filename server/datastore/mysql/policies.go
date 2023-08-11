@@ -503,7 +503,7 @@ func (ds *Datastore) TeamNameByPolicyName(ctx context.Context, policyName string
 // Currently ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		sqlString := `
+		sql := `
 		INSERT INTO policies (
 			name,
 			query,
@@ -537,7 +537,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			}
 
 			res, err := tx.ExecContext(ctx,
-				sqlString, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
+				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
