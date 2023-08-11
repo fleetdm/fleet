@@ -60,8 +60,8 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 
 - **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and [assume](https://about.gitlab.com/handbook/values/#assume-positive-intent) others are doing the same.
 - **Be a helper.** Take care of customers first. But give hospitality and [service with a smile](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy) to everyone you can.
-- **Read what you write.**  [Shorten](http://www.paulgraham.com/writing44.html) it. [Repeat](http://www.paulgraham.com/useful.html).
-- **Get curious.**  Wonder about things. Ask people genuine questions, and listen closely. <!-- Roleplay. Use your imagination to see situations from different perspectives. -->
+- **Read what you write.**  [Shorten](http://www.paulgraham.com/writing44.html) it. [Repeat](http://www.paulgraham.com/useful.html). <!-- Roleplay. Use your imagination to see situations from different perspectives. -->
+- **Get curious.**  Wonder about things. Ask people genuine questions, and listen closely. Notice things.
 
 ### 🟠 Ownership
 It takes a fully-activated mind to achieve ambitious goals, and remote work requires self-discipline.  Think like an owner of the company.
