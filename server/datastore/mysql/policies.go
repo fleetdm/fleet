@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -532,8 +531,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 			// If the policy already exists, error if the spec is attempting to change the team
 			if rowFound && ((isGlobal && spec.Team != "") || (!isGlobal && spec.Team != teamName)) {
-				err := errors.New("cannot update the team of an existing policy")
-				return ctxerr.Wrap(ctx, err, "ApplyPolicySpecs validation")
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("cannot change the team of an existing policy"),
+				})
 			}
 
 			res, err := tx.ExecContext(ctx,
