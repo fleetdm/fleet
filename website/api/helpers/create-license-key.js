@@ -23,6 +23,12 @@ module.exports = {
       type: 'number',
       required: true,
       description: 'A JS timestamp representing when this license will expire.'
+    },
+
+    partnerName: {
+      type: 'string',
+      description: 'The name of the partner who will be reselling this genereated license.',
+      extendedDescription: 'This input is only used by the admin license generator tool.',
     }
 
   },
@@ -37,7 +43,7 @@ module.exports = {
   },
 
 
-  fn: async function ({numberOfHosts, organization, expiresAt}) {
+  fn: async function ({numberOfHosts, organization, expiresAt, partnerName}) {
 
     let jwt = require('jsonwebtoken');
 
@@ -50,6 +56,7 @@ module.exports = {
         devices: numberOfHosts,
         note: 'Created with Fleet License key dispenser',
         tier: 'premium',
+        partner: partnerName // If this value is undefined, it will not be included in the generated token.
       },
       {
         key: sails.config.custom.licenseKeyGeneratorPrivateKey,

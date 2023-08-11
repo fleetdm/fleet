@@ -672,11 +672,15 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm4.ID))
 
 	// preassign the MDM host to prof1 and prof4, should match existing team tm2
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm1", HostUUID: mdmHost.UUID, Profile: prof1, Group: "g1"}}, http.StatusNoContent)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm1", HostUUID: mdmHost.UUID, Profile: prof4, Group: "g4"}}, http.StatusNoContent)
+	//
+	// additionally, use external host identifiers with different
+	// suffixes to simulate real world distributed scenarios where more
+	// than one puppet server might be running at the time.
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler06.test.example.com", HostUUID: mdmHost.UUID, Profile: prof1, Group: "g1"}}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler01.test.example.com", HostUUID: mdmHost.UUID, Profile: prof4, Group: "g4"}}, http.StatusNoContent)
 
 	// match with the mdm host succeeds and assigns it to tm2
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "mdm1"}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler03.test.example.com"}, http.StatusNoContent)
 
 	// the host is now part of that team
 	h, err = s.ds.Host(ctx, mdmHost.ID)
@@ -1157,7 +1161,14 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: uuid.New().String(), Model: "MacBook Mini", OS: "osx", OpType: "modified"},
 	}
 
+	type profileAssignmentReq struct {
+		ProfileUUID string   `json:"profile_uuid"`
+		Devices     []string `json:"devices"`
+	}
+	profileAssignmentReqs := []profileAssignmentReq{}
+
 	runDEPSchedule := func() {
+		profileAssignmentReqs = []profileAssignmentReq{}
 		ch := make(chan bool)
 		s.onDEPScheduleDone = func() { close(ch) }
 		_, err := s.depSchedule.Trigger()
@@ -1216,7 +1227,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
 			require.NoError(t, err)
 		case "/profile":
-			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
 			require.NoError(t, err)
 		case "/server/devices":
 			// This endpoint  is used to get an initial list of
@@ -1229,6 +1240,11 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			err := encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"})
 			require.NoError(t, err)
 		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			profileAssignmentReqs = append(profileAssignmentReqs, prof)
 			_, _ = w.Write([]byte(`{}`))
 		default:
 			_, _ = w.Write([]byte(`{}`))
@@ -1257,6 +1273,12 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		require.NoError(t, err)
 	}
 	require.ElementsMatch(t, wantSerials, gotSerials)
+	// called two times:
+	// - one when we get the initial list of devices (/server/devices)
+	// - one when we do the device sync (/device/sync)
+	require.Len(t, profileAssignmentReqs, 2)
+	require.Len(t, profileAssignmentReqs[0].Devices, 1)
+	require.Len(t, profileAssignmentReqs[1].Devices, len(devices))
 
 	// create a new host
 	nonDEPHost := createHostAndDeviceToken(t, s.ds, "not-dep")
@@ -1309,6 +1331,23 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	}
 	require.True(t, found)
 
+	// add devices[1].SerialNumber to a team
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc team1",
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+	for _, h := range listHostsRes.Hosts {
+		if h.HardwareSerial == devices[1].SerialNumber {
+			err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{h.ID})
+			require.NoError(t, err)
+		}
+	}
+
 	// modify the response and trigger another sync to include:
 	//
 	// 1. A repeated device with "added"
@@ -1344,6 +1383,21 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		}
 	}
 	require.ElementsMatch(t, wantSerials, gotSerials)
+	require.Len(t, profileAssignmentReqs, 3)
+
+	// first request to get a list of profiles
+	// TODO: seems like we're doing this request on each loop?
+	require.Len(t, profileAssignmentReqs[0].Devices, 1)
+	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[0].Devices[0])
+	// - existing device with "added"
+	// - new device with "added"
+	require.Len(t, profileAssignmentReqs[1].Devices, 2)
+	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[1].Devices[0])
+	require.Equal(t, addedSerial, profileAssignmentReqs[1].Devices[1])
+
+	// - existing device with "modified" and a different team (thus different profile request)
+	require.Len(t, profileAssignmentReqs[2].Devices, 1)
+	require.Equal(t, devices[1].SerialNumber, profileAssignmentReqs[2].Devices[0])
 
 	// entries for all hosts except for the one with OpType = "deleted"
 	assignment, err := s.ds.GetHostDEPAssignment(ctx, deletedHostID)
@@ -2468,7 +2522,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
 
 	// verified status for host 1
-	require.NoError(t, s.ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[0], []*fleet.HostMacOSProfile{{Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, hosts[0], map[string]*fleet.HostMacOSProfile{prof.Identifier: {Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp, "team_id", strconv.Itoa(int(tm.ID)))
 	require.Equal(t, uint(2), fvsResp.Verifying)
@@ -3329,8 +3383,8 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	})
 
 	// h1 verified one of the profiles
-	require.NoError(t, s.ds.UpdateVerificationHostMacOSProfiles(context.Background(), h1, []*fleet.HostMacOSProfile{
-		{Identifier: "G2b", DisplayName: "G2b", InstallDate: time.Now()},
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, h1, map[string]*fleet.HostMacOSProfile{
+		"G2b": {Identifier: "G2b", DisplayName: "G2b", InstallDate: time.Now()},
 	}))
 	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
@@ -4877,6 +4931,17 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// Attempt to setup Apple MDM, will fail but the important thing is that it
+	// fails with 422 (cannot enable end user auth because no IdP is configured)
+	// and not 403 forbidden.
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
+		fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusUnprocessableEntity)
+
+	// Attempt to update the Apple MDM settings but with no change, just to
+	// validate the access.
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{}, http.StatusNoContent)
 
 	// Attempt to set profile batch globally, should allow.
 	globalProfiles := [][]byte{

@@ -18,6 +18,11 @@ const (
 	// must be reasonably longer than the expected time to make all
 	// PreassignProfile calls and the final matcher call.
 	preassignKeyExpiration = 1 * time.Hour
+	// in distributed scenarios, the external host identifier might come up
+	// with a suffix that varies from server to server. To account for that
+	// we only take into account the first 36 runes from the identifier.
+	// See https://github.com/fleetdm/fleet/issues/12483 for more info.
+	preassignKeySuffixMaxLen = 36
 )
 
 type profileMatcher struct {
@@ -151,5 +156,17 @@ func (p *profileMatcher) RetrieveProfiles(ctx context.Context, externalHostIdent
 }
 
 func keyForExternalHostIdentifier(externalHostIdentifier string) string {
-	return preassignKeyPrefix + externalHostIdentifier
+	return preassignKeyPrefix + firstNRunes(externalHostIdentifier, preassignKeySuffixMaxLen)
+}
+
+// firstNRunes grabs the first N runes from the provided string
+func firstNRunes(s string, n int) string {
+	i := 0
+	for j := range s {
+		if i == n {
+			return s[:j]
+		}
+		i++
+	}
+	return s
 }

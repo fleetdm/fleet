@@ -50,7 +50,6 @@ The CEO is the [directly responsible](https://fleetdm.com/handbook/company/why-t
 - **Note** When the CEO is out of office, these responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 
-
 ## How can I...
 
 
@@ -85,18 +84,30 @@ Last-minute changes or cancellations must be communicated to Mike via [direct me
 ## Tasks
 (How to...)
 
+- ***Time-sensitive tasks*** (⏰) require reminders to be created and set for the following times (CT):
+  - 9:30 AM /before start of business
+  - 12:30 PM /begging of "reserved block"
+  - 6:30 PM /post-mortem days meetings
 
-### Process the CEO's email
 
-The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for processing all email traffic prior to CEO review. The [AttC](#team) will reduce the scope of Mike's inbox to only include necessary and actionable communication.
- -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
- -  Escalate actionable sales communication and update Mike directly.
- -  Ensure all calendar invites have the necessary documents included.
+### Schedule and adjust CEO meetings
+
+- ⏰ If Mike agrees to a meeting at 9 am or earlier, the Apprentice will schedule a "DOTO: Mike" on his calendar the night before reminding him that he has a meeting before 9 am Central the following day.
+
+Morning times should be held for team members and external folks whose time zones make it harder for them to meet later in the day.
+ - The Apprentice to the CEO will confirm that recipients have accepted invites. 
+ - If a recipient has not accepted, the Apprentice to the CEO will reach out to confirm attendance at least 24 hours before the meeting is scheduled to begin.
+
+Do not schedule over:
+- Design reviews
+- Puppet show
+- E-group
+- ❌Reserved until day of (extreme prejudice)
 
 
 ### Process the CEO's calendar
 
-Time management for the CEO is essential at all times. 
+- ⏰ Time management for the CEO is essential at all times. 
 The AttC processes the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
 
 Prioritizing in order of importance:
@@ -121,17 +132,14 @@ In the notes document include:
      - Google Drive 
 Be sure to do this from Mike's browser so as to not lock him out of any meeting docs.
 
+### Process the CEO's inbox
 
-#### Schedule and adjust CEO meetings
+- ⏰ The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review.
+The [AttC](#team) will reduce the scope of Mike's inbox to only include necessary and actionable communication.
+ -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
+ -  Escalate actionable sales communication and update Mike directly.
+ -  Ensure all calendar invites have the necessary documents included.
 
-If Mike agrees to a meeting at 9 am or earlier, the Apprentice will schedule a "DOTO: Mike" on his calendar the night before reminding him that he has a meeting before 9 am Central the following day.
-
-Morning times should be held for team members and external folks whose time zones make it harder for them to meet later in the day.
- - The Apprentice to the CEO will confirm that recipients have accepted invites. 
- - If a recipient has not accepted, the Apprentice to the CEO will reach out to confirm attendance at least 24 hours before the meeting is scheduled to begin.
-
-Don't schedule over the Weekly E-group call unless approved by Mike.
- - Refer to Mike's list of priorities in the [Priority calls](https://docs.google.com/document/d/1kYbRUMiGgOtrl1Lh6HWRc64p3rLhwvgTZD6CSONbGEo/edit#) (internal doc). 
 
 ### Send the weekly update
 
@@ -163,7 +171,7 @@ We like to be open about milestones and announcements.
 
 ### Schedule travel for the CEO
 
-Preferences for flights, in descending order of importance are:
+The AttC schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
   - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
   - Select a non-middle seat, whenever possible
   - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
@@ -234,7 +242,7 @@ After each meeting, the CEO's apprentice makes a copy of the original document a
 
 ### Post-e-group archival  
 
-Immediately after every e-group the AttC duplicates the e-group agenda doc as a backup copy saved to ["Classified" shared drive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).  Rename it to "YYYY-MM-DD backup of e-group agenda".  Then clear out all agenda items from the e-group doc (the ones that people add, not the standard fixtures), and replace them with a single item:  `Sam: FYI: Agenda from last time (YYYY-MM-DD):` [LINK](link)
+- Immediately after every e-group the AttC duplicates the e-group agenda doc as a backup copy saved to ["Classified" shared drive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).  Rename it to "YYYY-MM-DD backup of e-group agenda".  Then clear out all agenda items from the e-group doc (the ones that people add, not the standard fixtures), and replace them with a single item:  `Sam: FYI: Agenda from last time (YYYY-MM-DD):` [LINK](link)
 
 
 ### Unroll a Slack thread
@@ -273,19 +281,6 @@ Marking as _"private"_ in Gong doesn't limit access, instead, use this process:
     - Include in the doc "link to transcript:"
 
 
-## Rituals
-(Who will...)
-
-
-
-## Slack channels
-
-| Channel | Purpose | Standard Operating Procedure | DRI |
-| ------- | ------- | ---------------------------- | --- |
-| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) | Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) | Reach out to the AttC with requests or to add an item on the 🐈‍⬛🗣️ [CEO office minutes](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) | [@sampfluger]([https://github.com/sampfluger88](https://fleetdm.slack.com/archives/D05DW7BT2GY)) |
-| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | [@sampfluger]([https://github.com/sampfluger88](https://fleetdm.slack.com/archives/D05DW7BT2GY)) |
-
-     
 ### Why not mention the CEO in Slack threads?
 Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
 
@@ -293,25 +288,46 @@ Everyone else who works at Fleet is expected to read and reply (or acknowledge w
 
 From Mike:
 
-<blockquote purpose="large-quote">Staying on top of your Slack mentions (including in threads!) is very important.  Please use them. 
+<blockquote purpose="large-quote">
+  Staying on top of your Slack mentions (including in threads!) is very important. Please use them. 
 But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
+
 I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
+
  What do I still read?
+ 
  - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
  - If you send me a direct message, I'll see and read that ASAP.
+
 Keep in mind I am often in meetings all day, and may not be able to reply promptly.
+  
 When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
-Thank you so much!" 🙇</blockquote> 
+Thank you so much!" 🙇
+</blockquote> 
 
 
+## Intake
+
+To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
+ 
+ 
 ## Kanban
 
 Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this department, including pending tasks in the active sprint and any new or pending requests.
 
 
-## Intake
-To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
+## Rituals
+(Who will...)
 
+<rituals :rituals="rituals['handbook/company/rituals.yml']"></rituals>
+
+
+## Slack channels
+
+| Channel | Purpose | Standard Operating Procedure | DRI |
+| ------- | ------- | ---------------------------- | --- |
+| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) | Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) | Reach out to the AttC with requests or to add an item on the  | Sampfluger88 |
+| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | Sampfluger88 |
 
 
 

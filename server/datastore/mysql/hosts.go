@@ -4162,8 +4162,8 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 	return counts, nil
 }
 
-func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error) {
-	result := map[string]struct{}{}
+func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
+	result := map[string]*fleet.Host{}
 	if len(serials) == 0 {
 		return result, nil
 	}
@@ -4172,17 +4172,17 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 	for _, serial := range serials {
 		args = append(args, serial)
 	}
-	stmt, args, err := sqlx.In("SELECT hardware_serial FROM hosts WHERE hardware_serial IN (?)", args)
+	stmt, args, err := sqlx.In("SELECT hardware_serial, team_id FROM hosts WHERE hardware_serial IN (?)", args)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building IN statement for matching hosts")
 	}
-	var matchingSerials []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingSerials, stmt, args...); err != nil {
+	var matchingHosts []*fleet.Host
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingHosts, stmt, args...); err != nil {
 		return nil, err
 	}
 
-	for _, serial := range matchingSerials {
-		result[serial] = struct{}{}
+	for _, host := range matchingHosts {
+		result[host.HardwareSerial] = host
 	}
 
 	return result, nil

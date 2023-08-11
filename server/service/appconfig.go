@@ -363,8 +363,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if legacyUsedWarning != nil {
 			return nil, legacyUsedWarning
 		}
-		// must reload to get the unchanged app config
-		return svc.AppConfigObfuscated(ctx)
+
+		// must reload to get the unchanged app config (retrieve with obfuscated secrets)
+		obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		obfuscatedAppConfig.Obfuscate()
+		return obfuscatedAppConfig, nil
 	}
 
 	// Perform validation of the applied SMTP settings.

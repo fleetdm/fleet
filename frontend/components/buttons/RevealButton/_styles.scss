@@ -2,4 +2,23 @@
   display: inline-flex;
   align-items: center;
   padding: $pad-small $pad-xxsmall; // larger clickable area
+
+  svg {
+    path {
+      fill: none; // Chevron icon uses stroke color
+    }
+  }
+
+  &:hover,
+  &:focus {
+    .component__tooltip-wrapper__element {
+      color: $core-vibrant-blue-over;
+    }
+
+    svg {
+      path {
+        stroke: $core-vibrant-blue-over;
+      }
+    }
+  }
 }

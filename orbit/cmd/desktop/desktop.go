@@ -326,7 +326,6 @@ func main() {
 					migrateMDMItem.Hide()
 				}
 			}
-
 		}()
 
 		go func() {

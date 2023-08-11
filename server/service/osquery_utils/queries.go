@@ -1525,20 +1525,38 @@ func directIngestMacOSProfiles(
 		return nil
 	}
 
-	mapping := make([]*fleet.HostMacOSProfile, 0, len(rows))
+	installed := make(map[string]*fleet.HostMacOSProfile, len(rows))
 	for _, row := range rows {
 		installDate, err := time.Parse("2006-01-02 15:04:05 -0700", row["install_date"])
 		if err != nil {
 			return err
 		}
-		mapping = append(mapping, &fleet.HostMacOSProfile{
+		if installDate.IsZero() {
+			// this should never happen, but if it does, we should log it
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "directIngestMacOSProfiles",
+				"msg", "profile install date is zero value",
+				"host", host.Hostname,
+			)
+		}
+		if _, ok := installed[row["identifier"]]; ok {
+			// this should never happen, but if it does, we should log it
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "directIngestMacOSProfiles",
+				"msg", "duplicate profile identifier",
+				"host", host.Hostname,
+				"identifier", row["identifier"],
+			)
+		}
+		installed[row["identifier"]] = &fleet.HostMacOSProfile{
 			DisplayName: row["display_name"],
 			Identifier:  row["identifier"],
 			InstallDate: installDate,
-		})
+		}
 	}
-
-	return ds.UpdateVerificationHostMacOSProfiles(ctx, host, mapping)
+	return apple_mdm.VerifyHostMDMProfiles(ctx, ds, host, installed)
 }
 
 // go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
