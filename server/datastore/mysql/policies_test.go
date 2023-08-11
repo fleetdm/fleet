@@ -47,6 +47,7 @@ func TestPolicies(t *testing.T) {
 		{"PolicyViolationDays", testPolicyViolationDays},
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
+		{"TestTeamNameByPolicyName", testTeamNameByPolicyName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2187,12 +2188,11 @@ func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
 }
 
-func TestTeamIDByPolicyName(t *testing.T) {
-	ds := CreateMySQLDS(t)
+func testTeamNameByPolicyName(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
 	ctx := context.Background()
 
-	t.Run("global policy returns nil", func(t *testing.T) {
+	t.Run("global policy exists", func(t *testing.T) {
 		gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
 			Name:        "global query no teamID",
 			Query:       "select 1;",
@@ -2201,18 +2201,22 @@ func TestTeamIDByPolicyName(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		teamID, err := ds.TeamIDByPolicyName(ctx, gp.Name)
-		require.Error(t, err)
-		assert.Nil(t, teamID)
+		rowFound, isGlobal, teamName, err := ds.TeamNameByPolicyName(ctx, gp.Name)
+		assert.True(t, rowFound)
+		assert.True(t, isGlobal)
+		assert.Empty(t, teamName)
+		assert.NoError(t, err)
 	})
 
-	t.Run("no policy returns nil", func(t *testing.T) {
-		teamID, err := ds.TeamIDByPolicyName(ctx, "no policy")
-		require.Error(t, err)
-		assert.Nil(t, teamID)
+	t.Run("no policy found", func(t *testing.T) {
+		rowFound, isGlobal, teamName, err := ds.TeamNameByPolicyName(ctx, "no policy")
+		assert.False(t, rowFound)
+		assert.False(t, isGlobal)
+		assert.Empty(t, teamName)
+		assert.NoError(t, err)
 	})
 
-	t.Run("team policy returns teamID", func(t *testing.T) {
+	t.Run("team policy exists", func(t *testing.T) {
 		team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 		tp, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 			Name:        "team query no with teamID",
@@ -2222,8 +2226,10 @@ func TestTeamIDByPolicyName(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		teamID, err := ds.TeamIDByPolicyName(ctx, tp.Name)
-		require.NoError(t, err)
-		assert.Equal(t, team1.ID, *teamID)
+		rowFound, isGlobal, teamName, err := ds.TeamNameByPolicyName(ctx, tp.Name)
+		assert.True(t, rowFound)
+		assert.False(t, isGlobal)
+		assert.Equal(t, team1.Name, teamName)
+		assert.NoError(t, err)
 	})
 }

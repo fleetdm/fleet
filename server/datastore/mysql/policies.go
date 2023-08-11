@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -465,14 +466,32 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 	return policyDB(ctx, ds.reader(ctx), policyID, &teamID)
 }
 
-func (ds *Datastore) TeamIDByPolicyName(ctx context.Context, policyName string) (*uint, error) {
-	var teamID uint
+func (ds *Datastore) TeamNameByPolicyName(ctx context.Context, policyName string) (rowFound bool, isGlobal bool, teamName string, err error) {
 	q := ds.reader(ctx)
-	err := sqlx.GetContext(ctx, q, &teamID, "SELECT team_id FROM policies WHERE name = ?", policyName)
-	if err != nil {
-		return nil, err
+	type RowResult struct {
+		TeamID   sql.NullInt64 `db:"team_id"`
+		TeamName *string       `db:"team_name"`
 	}
-	return &teamID, nil
+	query := `
+		SELECT
+			p.team_id,
+			t.name AS team_name
+			FROM policies p
+			LEFT JOIN teams t ON p.team_id = t.id
+			WHERE p.name = ?
+		`
+	var row RowResult
+	err = sqlx.GetContext(ctx, q, &row, query, policyName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, false, "", nil
+		}
+		return false, false, "", ctxerr.Wrap(ctx, err, "fetching team name by policy name")
+	}
+	if row.TeamID.Valid {
+		return true, false, *row.TeamName, nil
+	}
+	return true, true, "", nil
 }
 
 // ApplyPolicySpecs applies the given policy specs, creating new policies and updating the ones that
@@ -484,7 +503,7 @@ func (ds *Datastore) TeamIDByPolicyName(ctx context.Context, policyName string) 
 // Currently ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		sql := `
+		sqlString := `
 		INSERT INTO policies (
 			name,
 			query,
@@ -506,8 +525,19 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		`
 		for _, spec := range specs {
 
+			rowFound, isGlobal, teamName, err := ds.TeamNameByPolicyName(ctx, spec.Name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "Error fetching team by policy name")
+			}
+
+			// If the policy already exists, error if the spec is attempting to change the team
+			if rowFound && ((isGlobal && spec.Team != "") || (!isGlobal && spec.Team != teamName)) {
+				err := errors.New("cannot update the team of an existing policy")
+				return ctxerr.Wrap(ctx, err, "ApplyPolicySpecs validation")
+			}
+
 			res, err := tx.ExecContext(ctx,
-				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
+				sqlString, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
