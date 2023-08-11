@@ -47,5 +47,11 @@ In order for osqueryd clients to connect, the connection to Fleet must use TLS. 
 - If self-signed certificates are used, the full certificate chain must be provided to osquery via the `--tls_server_certs` flag.
 - If Fleet terminates TLS, consider using an ECDSA (rather than RSA) certificate, as RSA certificates have been associated with [performance problems in Fleet due to Go's standard library TLS implementation](https://github.com/fleetdm/fleet/issues/655).
 
+## Community projects
+
+Below are some projects created by Fleet community members. These projects provide additional solutions for deploying Fleet. Please submit a pull request if you'd like your project featured.
+
+- [CptOfEvilMinions/FleetDM-Automation](https://github.com/CptOfEvilMinions/FleetDM-Automation) - Ansible and Docker code to set up Fleet
+
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="Learn about Fleet's architecture and infrastructure dependencies.">
