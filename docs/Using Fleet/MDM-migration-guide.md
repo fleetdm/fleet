@@ -137,7 +137,7 @@ spec:
 
 To learn about each option, in the Fleet UI, select the avatar on the right side of the top navigation, select **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
 
-3. During the end user migration workflow, the window will show the Fleet logo on top of the dark and light background (appearance configured by end user).
+3. During the end user migration workflow, the window will show the Fleet logo on top of a dark and light background (appearance configured by end user).
 
 If want to add a your organization's logo, you can optionally set a logo for each background:
 
@@ -151,7 +151,7 @@ spec:
   ...
 ```
 
-Add URLs to your logos that looks good on dark background and light backgrounds in the `org_logo_url` and `org_logo_url_light_background` keys respectively. If you don't set a logo for either, the Fleet logo will be used.
+Add URLs to your logos that look good on a dark background and light background in the `org_logo_url` and `org_logo_url_light_background` keys respectively. If you only set a logo for one, the Fleet logo will be used for the other.
 
 4. Run the fleetctl `apply -f fleet-config.yml` command to add your configuration.
 
