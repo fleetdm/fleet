@@ -78,7 +78,7 @@ export const roleOptions = ({
   ];
 
   if (isPremiumTier) {
-    roles.unshift({
+    roles.splice(1, 0, {
       disabled: false,
       label: "Observer+",
       value: "observer_plus",

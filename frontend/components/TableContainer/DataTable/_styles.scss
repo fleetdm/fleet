@@ -216,7 +216,9 @@ $shadow-transition-width: 10px;
         .link-cell,
         .text-cell {
           display: block;
+          overflow: hidden;
           white-space: nowrap;
+          text-overflow: ellipsis;
           margin: 0;
           .__react_component_tooltip {
             white-space: normal;
