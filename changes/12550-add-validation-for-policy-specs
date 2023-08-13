@@ -1,1 +1,1 @@
-- add validation when running `fleetctl apply` on policies.  Fixes issue 12550
+- added validation to `fleetctl apply` for duplicate policy names in the yml file and attempting to change the team of an existing policy
