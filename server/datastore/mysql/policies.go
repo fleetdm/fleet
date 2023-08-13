@@ -67,7 +67,7 @@ func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Poli
 		WHERE p.name=?`), name)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, notFound("Policy").WithName(name)
+			return nil, err
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting policy")
 	}
@@ -522,7 +522,7 @@ func (ds *Datastore) TeamNameByPolicyName(ctx context.Context, policyName string
 // Currently ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		sql := `
+		query := `
 		INSERT INTO policies (
 			name,
 			query,
@@ -544,20 +544,14 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		`
 		for _, spec := range specs {
 
-			rowFound, isGlobal, teamName, err := ds.TeamNameByPolicyName(ctx, spec.Name)
+			// Validate that the team is not being changed
+			err := validatePolicyTeamChange(ctx, ds, spec)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "Error fetching team by policy name")
-			}
-
-			// If the policy already exists, error if the spec is attempting to change the team
-			if rowFound && ((isGlobal && spec.Team != "") || (!isGlobal && spec.Team != teamName)) {
-				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-					Message: fmt.Sprintf("cannot change the team of an existing policy"),
-				})
+				return err
 			}
 
 			res, err := tx.ExecContext(ctx,
-				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
+				query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -575,6 +569,44 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		}
 		return nil
 	})
+}
+
+// Changing the team of a policy is not allowed, so check if the policy exists
+// and return an error if the team is changing
+func validatePolicyTeamChange(ctx context.Context, ds *Datastore, spec *fleet.PolicySpec) error {
+	policy, err := ds.PolicyByName(ctx, spec.Name)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return ctxerr.Wrap(ctx, err, "Error fetching policy by name")
+		}
+		// If no rows found there is no policy to validate against
+		return nil
+	}
+
+	// If the policy exists
+	if policy != nil {
+		// Check if the policy is global
+		if policy.TeamID == nil {
+			if spec.Team != "" {
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("cannot change the team of an existing global policy"),
+				})
+			}
+		} else {
+			// If it's not global, fetch the team name and compare
+			team, err := ds.Team(ctx, *policy.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "Error fetching team by ID")
+			}
+
+			if spec.Team != team.Name {
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("cannot change the team of an existing policy"),
+				})
+			}
+		}
+	}
+	return nil
 }
 
 func amountPoliciesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
