@@ -48,7 +48,6 @@ func TestPolicies(t *testing.T) {
 		{"PolicyViolationDays", testPolicyViolationDays},
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
-		{"TestTeamNameByPolicyName", testTeamNameByPolicyName},
 		{"TestPolicyIDsByName", testPolicyByName},
 	}
 	for _, c := range cases {
@@ -2209,51 +2208,4 @@ func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
 	batch, err = ds.OutdatedAutomationBatch(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
-}
-
-func testTeamNameByPolicyName(t *testing.T, ds *Datastore) {
-	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
-	ctx := context.Background()
-
-	t.Run("global policy exists", func(t *testing.T) {
-		gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-			Name:        "global query no teamID",
-			Query:       "select 1;",
-			Description: "global query desc",
-			Resolution:  "global query resolution",
-		})
-		require.NoError(t, err)
-
-		rowFound, isGlobal, teamName, err := ds.TeamNameByPolicyName(ctx, gp.Name)
-		assert.True(t, rowFound)
-		assert.True(t, isGlobal)
-		assert.Empty(t, teamName)
-		assert.NoError(t, err)
-	})
-
-	t.Run("no policy found", func(t *testing.T) {
-		rowFound, isGlobal, teamName, err := ds.TeamNameByPolicyName(ctx, "no policy")
-		assert.False(t, rowFound)
-		assert.False(t, isGlobal)
-		assert.Empty(t, teamName)
-		assert.NoError(t, err)
-	})
-
-	t.Run("team policy exists", func(t *testing.T) {
-		team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
-		require.NoError(t, err)
-		tp, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
-			Name:        "team query no with teamID",
-			Query:       "select 1;",
-			Description: "team query desc",
-			Resolution:  "team query resolution",
-		})
-		require.NoError(t, err)
-
-		rowFound, isGlobal, teamName, err := ds.TeamNameByPolicyName(ctx, tp.Name)
-		assert.True(t, rowFound)
-		assert.False(t, isGlobal)
-		assert.Equal(t, team1.Name, teamName)
-		assert.NoError(t, err)
-	})
 }

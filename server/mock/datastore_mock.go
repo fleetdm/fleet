@@ -364,11 +364,11 @@ type CleanupStatisticsFunc func(ctx context.Context) error
 
 type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
 
-type TeamNameByPolicyNameFunc func(ctx context.Context, policyName string) (rowFound bool, isGlobal bool, teamName string, err error)
-
 type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
+
+type PolicyByNameFunc func(ctx context.Context, name string) (*fleet.Policy, error)
 
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
 
@@ -1182,14 +1182,14 @@ type DataStore struct {
 	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
 	ApplyPolicySpecsFuncInvoked bool
 
-	TeamNameByPolicyNameFunc        TeamNameByPolicyNameFunc
-	TeamNameByPolicyNameFuncInvoked bool
-
 	NewGlobalPolicyFunc        NewGlobalPolicyFunc
 	NewGlobalPolicyFuncInvoked bool
 
 	PolicyFunc        PolicyFunc
 	PolicyFuncInvoked bool
+
+	PolicyByNameFunc        PolicyByNameFunc
+	PolicyByNameFuncInvoked bool
 
 	SavePolicyFunc        SavePolicyFunc
 	SavePolicyFuncInvoked bool
@@ -2843,13 +2843,6 @@ func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs [
 	return s.ApplyPolicySpecsFunc(ctx, authorID, specs)
 }
 
-func (s *DataStore) TeamNameByPolicyName(ctx context.Context, policyName string) (rowFound bool, isGlobal bool, teamName string, err error) {
-	s.mu.Lock()
-	s.TeamNameByPolicyNameFuncInvoked = true
-	s.mu.Unlock()
-	return s.TeamNameByPolicyNameFunc(ctx, policyName)
-}
-
 func (s *DataStore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	s.mu.Lock()
 	s.NewGlobalPolicyFuncInvoked = true
@@ -2862,6 +2855,13 @@ func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) 
 	s.PolicyFuncInvoked = true
 	s.mu.Unlock()
 	return s.PolicyFunc(ctx, id)
+}
+
+func (s *DataStore) PolicyByName(ctx context.Context, name string) (*fleet.Policy, error) {
+	s.mu.Lock()
+	s.PolicyByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.PolicyByNameFunc(ctx, name)
 }
 
 func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {

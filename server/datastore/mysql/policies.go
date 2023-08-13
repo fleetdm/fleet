@@ -485,34 +485,6 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 	return policyDB(ctx, ds.reader(ctx), policyID, &teamID)
 }
 
-func (ds *Datastore) TeamNameByPolicyName(ctx context.Context, policyName string) (rowFound bool, isGlobal bool, teamName string, err error) {
-	q := ds.reader(ctx)
-	type RowResult struct {
-		TeamID   sql.NullInt64 `db:"team_id"`
-		TeamName *string       `db:"team_name"`
-	}
-	query := `
-		SELECT
-			p.team_id,
-			t.name AS team_name
-			FROM policies p
-			LEFT JOIN teams t ON p.team_id = t.id
-			WHERE p.name = ?
-		`
-	var row RowResult
-	err = sqlx.GetContext(ctx, q, &row, query, policyName)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, false, "", nil
-		}
-		return false, false, "", ctxerr.Wrap(ctx, err, "fetching team name by policy name")
-	}
-	if row.TeamID.Valid {
-		return true, false, *row.TeamName, nil
-	}
-	return true, true, "", nil
-}
-
 // ApplyPolicySpecs applies the given policy specs, creating new policies and updating the ones that
 // already exist (a policy is identified by its name).
 //
