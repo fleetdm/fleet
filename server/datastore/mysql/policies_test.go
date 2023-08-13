@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sort"
@@ -48,6 +49,7 @@ func TestPolicies(t *testing.T) {
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 		{"TestTeamNameByPolicyName", testTeamNameByPolicyName},
+		{"TestPolicyIDsByName", testPolicyByName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1404,6 +1406,27 @@ func testPoliciesDelUser(t *testing.T, ds *Datastore) {
 	assert.Nil(t, gp.AuthorID)
 	assert.Equal(t, "<deleted>", gp.AuthorName)
 	assert.Empty(t, gp.AuthorEmail)
+}
+
+func testPolicyByName(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
+	ctx := context.Background()
+
+	gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "global query",
+		Query:       "select 1;",
+		Description: "global query desc",
+		Resolution:  "global query resolution",
+	})
+	require.NoError(t, err)
+
+	policy, err := ds.PolicyByName(ctx, "global query")
+	require.NoError(t, err)
+	assert.Equal(t, gp.ID, policy.ID)
+
+	policy, err = ds.PolicyByName(ctx, "non-existent")
+	require.Error(t, sql.ErrNoRows, err)
+	assert.Nil(t, policy)
 }
 
 func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {

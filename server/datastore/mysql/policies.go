@@ -54,6 +54,26 @@ func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error)
 	return policyDB(ctx, ds.reader(ctx), id, nil)
 }
 
+func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Policy, error) {
+	var policy fleet.Policy
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy,
+		fmt.Sprint(`SELECT `+policyCols+`,
+		COALESCE(u.name, '<deleted>') AS author_name,
+		COALESCE(u.email, '') AS author_email,
+		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+		FROM policies p
+		LEFT JOIN users u ON p.author_id = u.id
+		WHERE p.name=?`), name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFound("Policy").WithName(name)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting policy")
+	}
+	return &policy, nil
+}
+
 func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint) (*fleet.Policy, error) {
 	teamWhere := "TRUE"
 	args := []interface{}{id}
