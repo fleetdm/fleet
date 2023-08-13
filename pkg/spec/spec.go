@@ -142,12 +142,12 @@ func SplitYaml(in string) []string {
 // Returns the name of the first duplicate Policy spec name,
 // or empty string if no duplicates
 func (g *Group) FirstDuplicatePolicySpecName() string {
-	seen := make(map[string]bool)
+	seen := make(map[string]struct{})
 	for _, policy := range g.Policies {
-		if seen[policy.Name] {
+		if _, ok := seen[policy.Name]; ok {
 			return policy.Name
 		}
-		seen[policy.Name] = true
+		seen[policy.Name] = struct{}{}
 	}
 	return ""
 }
