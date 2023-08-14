@@ -64,6 +64,7 @@ import Icon from "components/Icon/Icon";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
@@ -97,7 +98,6 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "../components/TransferHostModal";
 import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
-import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
 
@@ -1470,24 +1470,19 @@ const ManageHostsPage = ({
       ((canEnrollHosts && noTeamEnrollSecrets) ||
         (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
       showNoEnrollSecretBanner && (
-        <div className={`${baseClass}__no-enroll-secret-banner`}>
+        <InfoBanner
+          className={`${baseClass}__no-enroll-secret-banner`}
+          pageLevel
+          closable
+          color="grey"
+        >
           <div>
             <span>
               You have no enroll secrets. Manage enroll secrets to enroll hosts
               to <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
             </span>
           </div>
-          <div className={`dismiss-banner-button`}>
-            <Button
-              variant="unstyled"
-              onClick={() =>
-                setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
-              }
-            >
-              <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-            </Button>
-          </div>
-        </div>
+        </InfoBanner>
       )
     );
   };
