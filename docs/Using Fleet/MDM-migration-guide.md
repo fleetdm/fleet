@@ -151,7 +151,7 @@ spec:
   ...
 ```
 
-Add URLs to your logos that look good on a dark background and light background in the `org_logo_url` and `org_logo_url_light_background` keys respectively. If you only set a logo for one, the Fleet logo will be used for the other.
+Add URLs to your logos that are visible on a dark background and light background in the `org_logo_url` and `org_logo_url_light_background` keys respectively. If you only set a logo for one, the Fleet logo will be used for the other.
 
 4. Run the fleetctl `apply -f fleet-config.yml` command to add your configuration.
 
