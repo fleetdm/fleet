@@ -165,7 +165,7 @@ Add URLs to your logos that are visible on a dark background and light backgroun
 
 2. Select **Start** in the **Migrate to Fleet** popup. 
 
-2. On your **My device** page, select **Turn on MDM** the button in the yellow banner and follow the instructions. 
+2. On your **My device** page, select the **Turn on MDM** button in the yellow banner and follow the instructions. 
     * If you don’t see the yellow banner or the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. 
     * If you still don't see the **Turn on MDM** button or the **My device** page presents you with an error, please contact your IT administrator.
 
