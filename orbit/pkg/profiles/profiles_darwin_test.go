@@ -138,6 +138,79 @@ MDM server: https://valid.com/mdm/apple/mdm
 	}
 }
 
+func TestIsEnrolledInMDM(t *testing.T) {
+	cases := []struct {
+		cmdOut       *string
+		cmdErr       error
+		wantEnrolled bool
+		wantURL      string
+		wantErr      bool
+	}{
+		{nil, errors.New("test error"), false, "", true},
+		{ptr.String(""), nil, false, "", false},
+		{ptr.String(`
+Enrolled via DEP: No
+MDM enrollment: No
+		`), nil, false, "", false},
+		{
+			ptr.String(`
+Enrolled via DEP: Yes
+MDM enrollment: Yes
+MDM server: https://test.example.com
+			`),
+			nil,
+			true,
+			"https://test.example.com",
+			false,
+		},
+		{
+			ptr.String(`
+Enrolled via DEP: Yes
+MDM enrollment: Yes
+MDM server /  https://test.example.com
+			`),
+			nil,
+			true,
+			"",
+			false,
+		},
+		{
+			ptr.String(`
+Enrolled via DEP: Yes
+MDM enrollment: Yes
+MDM server: https://valid.com/mdm/apple/mdm
+			`),
+			nil,
+			true,
+			"https://valid.com/mdm/apple/mdm",
+			false,
+		},
+	}
+
+	origCmd := getMDMInfoFromProfilesCmd
+	t.Cleanup(func() { getMDMInfoFromProfilesCmd = origCmd })
+	for _, c := range cases {
+		getMDMInfoFromProfilesCmd = func() ([]byte, error) {
+			if c.cmdOut == nil {
+				return nil, c.cmdErr
+			}
+
+			var buf bytes.Buffer
+			buf.WriteString(*c.cmdOut)
+			return []byte(*c.cmdOut), nil
+		}
+
+		enrolled, url, err := IsEnrolledInMDM()
+		if c.wantErr {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		require.Equal(t, c.wantEnrolled, enrolled)
+		require.Equal(t, c.wantURL, url)
+	}
+}
+
 func TestCheckAssignedEnrollmentProfile(t *testing.T) {
 	fleetURL := "https://valid.com"
 	cases := []struct {

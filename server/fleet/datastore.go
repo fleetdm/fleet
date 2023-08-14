@@ -840,6 +840,10 @@ type Datastore interface {
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
+	// UpsertMDMAppleHostDEPAssignments ensures there's an entry in
+	// `host_dep_assignments` for all the provided hosts.
+	UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []Host) error
+
 	// IngestMDMAppleDevicesFromDEPSync creates new Fleet host records for MDM-enrolled devices that are
 	// not already enrolled in Fleet. It returns the number of hosts created, the team id that they
 	// joined (nil for no team), and an error.
