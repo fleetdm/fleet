@@ -67,7 +67,7 @@ func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Poli
 		WHERE p.name=?`), name)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithName(name))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting policy")
 	}
@@ -548,7 +548,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 func validatePolicyTeamChange(ctx context.Context, ds *Datastore, spec *fleet.PolicySpec) error {
 	policy, err := ds.PolicyByName(ctx, spec.Name)
 	if err != nil {
-		if err != sql.ErrNoRows {
+		if !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "Error fetching policy by name")
 		}
 		// If no rows found there is no policy to validate against
