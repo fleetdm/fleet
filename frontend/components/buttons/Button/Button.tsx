@@ -15,16 +15,13 @@ export type ButtonVariant =
   | "label"
   | "text-link"
   | "text-icon"
-  | "icon" // Buttons without text
-  | "small-icon" // Buttons without text
   | "inverse"
   | "inverse-alert"
   | "block"
   | "unstyled"
   | "unstyled-modal-query"
   | "contextual-nav-item"
-  | "small-text-icon"
-  | "oversized";
+  | "small-text-icon";
 
 export interface IButtonProps {
   autofocus?: boolean;
@@ -115,7 +112,6 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       variant === "text-link" ||
       variant === "inverse" ||
       variant === "text-icon" ||
-      variant === "icon" ||
       variant === "label";
 
     return (

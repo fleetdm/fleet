@@ -40,7 +40,7 @@ describe("Reveal button", () => {
       />
     );
 
-    const icon = screen.queryByTestId("icon");
+    const icon = screen.queryByTestId("chevron-icon");
 
     expect(icon).toBeNull();
   });
@@ -55,7 +55,7 @@ describe("Reveal button", () => {
       />
     );
 
-    const icon = screen.queryByTestId("icon");
+    const icon = screen.queryByTestId("chevron-icon");
     expect(icon?.nextSibling).toHaveTextContent(SHOW_TEXT);
   });
 
@@ -69,7 +69,7 @@ describe("Reveal button", () => {
       />
     );
 
-    const icon = screen.queryByTestId("icon");
+    const icon = screen.queryByTestId("chevron-icon");
 
     expect(icon?.previousSibling).toHaveTextContent(SHOW_TEXT);
   });
