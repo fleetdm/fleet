@@ -76,17 +76,21 @@ go.mod @fleetdm/go
 /handbook/company/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for features table
 
 ##############################################################################################
+# 🦿 Repo automation and change control settings
+##############################################################################################
+/CODEOWNERS                 @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
+
+##############################################################################################
 # 🦿 Handbook
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/product-groups.md                   @mikermcneil
-/handbook/company/why-this-way.md                     @mikermcneil
-/handbook/company/README.md                           @mikermcneil
-/handbook/README.md                                   @mikermcneil  # « This is the "Table of contents" landing page
+/handbook                   @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
 
-
-
+##############################################################################################
+# 🦿 GitHub issue templates
+##############################################################################################
+/.github/ISSUE_TEMPLATE     @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

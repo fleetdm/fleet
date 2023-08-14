@@ -34,7 +34,7 @@ const AdminWrapper = ({
   const settingsSubNav: ISettingSubNavItem[] = [
     {
       name: "Organization settings",
-      pathname: PATHS.ADMIN_SETTINGS_INFO,
+      pathname: PATHS.ADMIN_ORGANIZATION,
       exclude: isSandboxMode,
     },
     {
