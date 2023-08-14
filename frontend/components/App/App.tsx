@@ -53,6 +53,46 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   const [isLoading, setIsLoading] = useState(false);
 
+  const titleMap = [
+    { path: "/dashboard", title: "Dashboard | Fleet for osquery" },
+    { path: "/hosts/manage", title: "Manage hosts | Fleet for osquery" },
+    {
+      path: "/controls/mac-os-updates",
+      title: "Manage macOS MDM controls | Fleet for osquery",
+    },
+    { path: "/software/manage", title: "Manage software | Fleet for osquery" },
+    { path: "/queries/manage", title: "Manage queries | Fleet for osquery" },
+    { path: "/policies/manage", title: "Manage policies | Fleet for osquery" },
+    {
+      path: "/settings/organization",
+      title: "Manage organization settings | Fleet for osquery",
+    },
+    {
+      path: "/settings/integration",
+      title: "Manage integration settings | Fleet for osquery",
+    },
+    {
+      path: "/settings/users",
+      title: "Manage user settings | Fleet for osquery",
+    },
+    {
+      path: "/settings/teams",
+      title: "Manage team settings | Fleet for osquery",
+    },
+    {
+      path: "/settings/teams/members",
+      title: "Manage team members | Fleet for osquery",
+    },
+    {
+      path: "/settings/teams/options",
+      title: "Manage team options | Fleet for osquery",
+    },
+    {
+      path: "/profile",
+      title: "Manage my account | Fleet for osquery",
+    },
+  ];
+
   const fetchConfig = async () => {
     try {
       const config = await configAPI.loadAll();
@@ -100,6 +140,14 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     }
   }, [location?.pathname]);
 
+  useEffect(() => {
+    const curTitle = titleMap.find((item) => item.path === location?.pathname);
+    if (curTitle && curTitle.title) {
+      document.title = curTitle.title;
+    }
+  }, [location]);
+
+  console.log("LOCATION", location);
   useDeepEffect(() => {
     const canGetEnrollSecret =
       currentUser &&

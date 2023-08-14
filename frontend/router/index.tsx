@@ -74,13 +74,14 @@ import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
 interface IAppWrapperProps {
   children: JSX.Element;
+  location?: any;
 }
 
 // App.tsx needs the context for user and config
-const AppWrapper = ({ children }: IAppWrapperProps) => (
+const AppWrapper = ({ children, location }: IAppWrapperProps) => (
   <AppProvider>
     <RoutingProvider>
-      <App>{children}</App>
+      <App location={location}>{children}</App>
     </RoutingProvider>
   </AppProvider>
 );
