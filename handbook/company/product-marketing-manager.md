@@ -36,7 +36,10 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
 - 💡 Excellent communication and collaboration skills, with the ability to work closely with product, sales, and engineering teams.
 - 👥 A educator mindset, able to translate technical and complicated concepts into value-driven language that makes sense to broad audiences.
+- ✍️ Comfortable authoring brand blurbs across multiple fronts using specific and non-generic language.
+- 🧠 You are obsessed with understanding our customers pain points and business needs by listening to calls, interviewing customers and embedding yourself in the community.
 
+  
 ### You can "walk the walk":
 
 - 🤝 Collaboration: You work best in a participatory, team-based environment.
