@@ -59,7 +59,7 @@ There are two migration workflows in Fleet: default and end user.
 
 The default migration workflow requires that the IT admin unenrolls hosts from the old MDM solution before the end user can complete migration. This will result in a gap in MDM coverage until the end user completes migration.
 
-The end user migration workflow allows the end user to kick-off migration by unenrolling from the old MDM solution on their own. Once the user is unenrolled, they're nagged to turn on MDM features in Fleet. This reduces the gap in MDM coverage.
+The end user migration workflow allows the end user to kick-off migration by unenrolling from the old MDM solution on their own. Once the user is unenrolled, they're prompted to turn on MDM features in Fleet. This reduces the gap in MDM coverage.
 
 Configuring the end user migration workflow requires a few additional steps.
 
@@ -74,9 +74,9 @@ Configuring the end user migration workflow requires a few additional steps.
 
 1. The end user will receive a "Device Enrollment: &lt;organization&gt; can automatically configure your Mac." system notification within the macOS Notifications Center. 
    
-2. After the end user clicks on the system notification, macOS will open the "Profiles" System Setting and ask the user to "Allow Device Enrollment: &lt;organization&gt; can automatically configure your Mac based on settings provided by your System Administrator."
+2. After the end user clicks on the system notification, macOS will open the **System Setting > Profiles** and ask the user to "Allow Device Enrollment: &lt;organization&gt; can automatically configure your Mac based on settings provided by your System Administrator."
   
-3. If the end user does not install the profile, the system notification will continue to nag the end user until the setting has been allowed.
+3. If the end user does not install the profile, the system notification will continue to prompt the end user until the setting has been allowed.
    
 4. Once this setting has been approved, the MDM enrollment profile cannot be removed by the end user.
 
@@ -86,7 +86,7 @@ Configuring the end user migration workflow requires a few additional steps.
 
 ![Fleet icon in menu bar](https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
 
-2. On your **My device** page, select **Turn on MDM** the button in the yellow banner and follow the instructions. 
+2. On your **My device** page, select the **Turn on MDM** button in the yellow banner and follow the instructions. 
     * If you don’t see the yellow banner or the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. 
     * If you still don't see the **Turn on MDM** button or the **My device** page presents you with an error, please contact your IT administrator.
 
@@ -98,7 +98,7 @@ Configuring the end user migration workflow requires a few additional steps.
 
 The end user migration workflow is supported for automatically enrolled (DEP) hosts.
 
-To watch a GIF that walks through the end user experience for the end user migration workflow, in the Fleet UI, head to **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
+To watch a GIF that walks through the end user experience during the migration workflow, in the Fleet UI, head to **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
 
 In Fleet, you can configure the end user workflow using the Fleet UI or fleetctl command-line tool.
 
