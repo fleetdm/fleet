@@ -85,7 +85,6 @@ import {
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
-  ManageHostsPageQueryParams,
 } from "./HostsPageConfig";
 import { isAcceptableStatus } from "./helpers";
 
