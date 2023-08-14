@@ -19,7 +19,7 @@ This section provides instructions for migrating your hosts away from your old M
 
 1. On their **My device** page, once an end user's device is unenrolled from the old MDM solution, the end user will be given the option to manually download the MDM enrollment profile.
    
-2. Once downloaded, the user will receive a system notification that the Device Enrollment profile has been needs to be installed in the System Settings &gt; Profiles section. 
+2. Once downloaded, the user will receive a system notification that the Device Enrollment profile needs to be installed in their **System Settings > Profiles** section. 
    
 3. After installation, the MDM enrollment profile can be removed by the end user at any time.
 
