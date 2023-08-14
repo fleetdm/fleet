@@ -50,8 +50,8 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 					cmdGotCalled = true
 					return c.cmdErr
 				},
-				checkEnrollmentFn: func(url string) (bool, error) {
-					return false, nil
+				checkEnrollmentFn: func() (bool, string, error) {
+					return false, "", nil
 				},
 				checkAssignedEnrollmentProfileFn: func(url string) error {
 					depAssignedCheckGotCalled = true
@@ -92,9 +92,9 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 			cmdCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
 			return nil
 		},
-		checkEnrollmentFn: func(url string) (bool, error) {
+		checkEnrollmentFn: func() (bool, string, error) {
 			<-chProceed // will be unblocked only when allowed
-			return isEnrolled, nil
+			return isEnrolled, "", nil
 		},
 		checkAssignedEnrollmentProfileFn: func(url string) error {
 			<-chProceed // will be unblocked only when allowed
