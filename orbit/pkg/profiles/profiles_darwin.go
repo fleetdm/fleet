@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 )
@@ -55,27 +54,6 @@ var execScript = func(script string) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	return &outBuf, nil
-}
-
-// IsEnrolledIntoMatchingURL runs the `profiles` command to get the current MDM
-// enrollment information and reports if the hostname of the MDM server
-// supervising the device matches the hostname of the provided URL.
-func IsEnrolledIntoMatchingURL(serverURL string) (bool, error) {
-	enrolled, currentURL, err := IsEnrolledInMDM()
-	if err != nil {
-		return false, fmt.Errorf("getting enrollment info: %w", err)
-	}
-
-	if !enrolled {
-		return false, nil
-	}
-
-	matches, err := fleethttp.HostnamesMatch(serverURL, currentURL)
-	if err != nil {
-		return false, fmt.Errorf("comparing URLs: %w", err)
-	}
-
-	return matches, nil
 }
 
 // IsEnrolledInMDM runs the `profiles` command to get the current MDM
