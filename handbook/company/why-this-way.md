@@ -309,7 +309,7 @@ The reason for sentence case at Fleet is that everyone capitalizes differently i
 ## Why radical humility?
 Radical humility is about respect for others. Setting aside the ego, radical humility allows [🔵self-awareness](https://fleetdm.com/handbook/company#objectivity), [🟢adaptability](https://fleetdm.com/handbook/company#results), [🔴empathy](https://fleetdm.com/handbook/company#empathy), [🟠accountability](https://fleetdm.com/handbook/company#ownership), and [🟣collaboration](https://fleetdm.com/handbook/company#openness). 
 
-**Top 10 reasons to use radical humility:** 
+**Top 10 reasons to communicate with radical humility:** 
 
 - **Relationship Building.** By approaching interactions with humility, we show that we are approachable, empathetic, and willing to collaborate, fostering strong company/client relationships.
  
@@ -343,23 +343,32 @@ Radical humility is about respect for others. Setting aside the ego, radical hum
 
 - **[🔵Objectivity](https://fleetdm.com/handbook/company#objectivity).** By dismissing ego and embracing radical humility, we create a space for more objective problem-solving. We are more likely to objectively assess situations, evaluate different perspectives, and find balanced solutions that benefit all parties involved.
 
-**How to use radical humility:**
+**How to communicate with radical humility:**
 
-- Never assume prior knowledge. 
-  - Explain step by step.
-  - Use straightforward and easily understandable language.
+- **General tips:**
+  - Never assume prior knowledge.
+  - Explain thoroughly, without condescending, step-by-step.
+  - Acknowledge user expertise by tying new information to things they are already familiar with.
+  - Use simple and concise writing.
+  - Delete extra words which do not specifically build clear understanding of the topic.
+  - Keep sentences short.
+  - Give short examples when possible.
+  - Break down each idea into simple and easily understandable chunks.
+  - Use active voice.
+    > Mike wrote the code. **NOT** The code was written by Mike.
 
-- Acknowledge expertise.
-  - Use phrases like:
-    - “I’m guessing you already know a thing or two about [BLANK]”
-    - “I’ll just summarize to make sure I’m understanding the issue and the steps you’ve taken”
-  - Allow clients the opportunity to skip information they already know.
-  - Ask them where they would like you to start.
-  - Ask them how much detail they would like.
-
-- Make it easy.
-  - When possible, show with simple examples, illustrating how easy it is to use.
-  - Simplify the words and steps as much as possible.
+- **Specific expectations:**
+  - Phrase the title as a question.
+  - Begin the body with a brief explaination/answer.
+  - Include white space between sections and paragraphs.
+  - Use a bulleted list to break down the reasoning for this answer if there are greater than two points.
+    - To format this list:
+       - Begin with a word or phrase which sums up the point of the bullet point.
+         - Follow with a period
+         - Make Bold
+       - Expand on this answer to clearly explain the point.
+   - Use a personable tone, as if you are trying to encourage a friend.
+   - With your words, try to show them how easy Fleet is to use.
 
 
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
