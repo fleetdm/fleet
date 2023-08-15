@@ -74,9 +74,9 @@ const SoftwareDetailsPage = ({
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // e.g., Software horizon, 5.2.0 details | Fleet for osquery
-    document.title = `Software ${
+    document.title = `Software details | ${
       software && renderName(software)
-    } details | Fleet for osquery`;
+    } | Fleet for osquery`;
   }, [location.pathname, software]);
 
   if (!software || isPremiumTier === undefined) {
