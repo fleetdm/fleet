@@ -195,6 +195,14 @@ This way, if a user is scanning instructions, the bold text tells them what UI e
 
 In the docs, if a UI element is part of a section title (already bold) use double quotes. For an example, see this section title [here](https://fleetdm.com/docs/get-started/faq#what-happened-to-the-schedule-page).
 
+**Copy in parentheses (additional information)**
+
+When writing copy, consider whether additional information is necessary before adding it as a new sentence or in parentheses. If the information is needed, use parentheses with an incomplete sentence to keep the copy shorter.
+
+**Writing the time**
+
+When writing the time in the UI using "am" and "pm" abbreviations, write them **without space** between time and abbreviation, with **no punctuation**, and use **lowercase** letters (e.g. Working hours are 8am to 5pm).
+
 ## Release 
 
 This section outlines the communication between the product, marketing, and customer success teams prior to a release of Fleet.
