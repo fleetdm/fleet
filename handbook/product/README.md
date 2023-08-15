@@ -114,14 +114,14 @@ If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#cr
 If a bug is not addressed within six weeks, it is [sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). Each sprint, the Head of Product meets with PMs to review these bugs (churned bug review). In this session, bugs are categorized as follows:
 - **Continue**: the bug should be prioritized in the next sprint.
 - **Needs prioritization**: the bug will likely not be worked on within the next six weeks, but it is still a valid bug.
-- **Deprioritized**: the issue will be closed and the necessary subsequent steps will be initiated. This might include updating documentation and informing the community.
+- **De-prioritized**: the issue will be closed and the necessary subsequent steps will be initiated. This might include updating documentation and informing the community.
 
 After aligning with PMs, the Head of Product meets with the CEO and Director of Product Development to discuss and finalize the outcomes for the churned bugs.
 
 Once outcomes have been approved by the CEO, Product Operations will complete the churned bug clean-up ritual. Below are the steps for each category:
 - **Continue**: Product Operations should remove the `:product` label and assign it to the appropriate group's Engineering Manager.
 - **Needs Prioritization**: Product Operations should remove both the `bug` and `:product` labels, then apply the orange `needs prioritization` label.
-- **Deprioritized**: Product Operations should close the issue and engage relevant teams for the necessary follow-up actions.
+- **De-prioritized**: Product Operations should close the issue and engage relevant teams for the necessary follow-up actions.
 
 
  
