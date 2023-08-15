@@ -44,16 +44,16 @@ CREATE TABLE host_script_results (
 
     PRIMARY KEY (id),
 
-    -- this index can be used to lookup results for a host or a specific
-    -- execution (host+execution ids, e.g. when updating the row for results)
-    UNIQUE KEY idx_host_script_results_host_exec_ids (host_id, execution_id),
+    -- this index can be used to lookup results for a specific
+    -- execution (execution ids, e.g. when updating the row for results)
+    UNIQUE KEY idx_host_script_results_execution_id (execution_id),
 
-    -- this index can be used to check if a host is currently executing a script
-    -- (by host_id and with exit_code = NULL), and an updated_at condition can be
-    -- added to dismiss a pending execution that's been running for too long (e.g. host
+    -- this index can be used to lookup results for a host, to check if a host is currently
+		-- executing a script (by host_id and with exit_code = NULL), and an created_at condition
+		-- can be added to dismiss a pending execution that's been running for too long (e.g. host
     -- was offline and never sent results, we should eventually start accepting a new
     -- script execution).
-    KEY idx_host_script_results_host_exit_updated (host_id, exit_code, updated_at)
+    KEY idx_host_script_results_host_exit_created (host_id, exit_code, created_at)
 )`)
 	if err != nil {
 		return fmt.Errorf("failed to create host_script_results table: %w", err)

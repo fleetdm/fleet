@@ -340,8 +340,8 @@ CREATE TABLE `host_script_results` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_host_script_results_host_exec_ids` (`host_id`,`execution_id`),
-  KEY `idx_host_script_results_host_exit_updated` (`host_id`,`exit_code`,`updated_at`)
+  UNIQUE KEY `idx_host_script_results_execution_id` (`execution_id`),
+  KEY `idx_host_script_results_host_exit_created` (`host_id`,`exit_code`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
