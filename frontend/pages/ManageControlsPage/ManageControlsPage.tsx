@@ -1,4 +1,4 @@
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useEffect } from "react";
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
 
@@ -98,6 +98,14 @@ const ManageControlsPage = ({
     },
     [location, router]
   );
+
+  // If MDM not configured, override title that shows up on browser tabs to generic title
+  useEffect(() => {
+    // e.g., Manage macOS hosts | Fleet for osquery
+    if (!config?.mdm.enabled_and_configured) {
+      document.title = "Manage macOS hosts | Fleet for osquery";
+    }
+  }, [location.pathname, config?.mdm.enabled_and_configured]);
 
   const onConnectClick = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
