@@ -4260,3 +4260,29 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 	}
 	return results, nil
 }
+
+func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, hostID uint, execID string) (*fleet.HostScriptResult, error) {
+	const getStmt = `
+  SELECT
+    id,
+    host_id,
+    execution_id,
+    script_contents,
+    output,
+    runtime,
+    exit_code
+  FROM
+    host_script_results
+  WHERE
+    host_id = ? AND
+    execution_id = ?`
+
+	var result fleet.HostScriptResult
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, getStmt, hostID, execID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host script result")
+	}
+	return &result, nil
+}

@@ -7275,19 +7275,24 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, pending)
 
-	// create a script execution request
-	script, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+	_, err = ds.GetHostScriptExecutionResult(ctx, 1, "abc")
+	require.Error(t, err)
+	var nfe *notFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// create a createdScript execution request
+	createdScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         1,
 		ExecutionID:    "abc",
 		ScriptContents: "echo",
 	})
 	require.NoError(t, err)
-	require.NotZero(t, script.ID)
-	require.Equal(t, uint(1), script.HostID)
-	require.Equal(t, "abc", script.ExecutionID)
-	require.Equal(t, "echo", script.ScriptContents)
-	require.False(t, script.ExitCode.Valid)
-	require.Empty(t, script.Output)
+	require.NotZero(t, createdScript.ID)
+	require.Equal(t, uint(1), createdScript.HostID)
+	require.Equal(t, "abc", createdScript.ExecutionID)
+	require.Equal(t, "echo", createdScript.ScriptContents)
+	require.False(t, createdScript.ExitCode.Valid)
+	require.Empty(t, createdScript.Output)
 
 	// using the same host and execution id fails due to unique constraint
 	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
@@ -7302,7 +7307,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, 10*time.Second)
 	require.NoError(t, err)
 	require.Len(t, pending, 1)
-	require.Equal(t, script.ID, pending[0].ID)
+	require.Equal(t, createdScript.ID, pending[0].ID)
 
 	// waiting for a second and an ignore of 0s ignores this script
 	time.Sleep(time.Second)
@@ -7325,13 +7330,27 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, pending)
 
-	// create a script execution request without an execution id automatically
-	// sets one.
-	script, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+	// the script result can be retrieved
+	script, err := ds.GetHostScriptExecutionResult(ctx, 1, "abc")
+	require.NoError(t, err)
+	expectScript := *createdScript
+	expectScript.Output = "foo"
+	expectScript.Runtime = 2
+	expectScript.ExitCode = sql.NullInt64{Int64: 0, Valid: true}
+	require.Equal(t, &expectScript, script)
+
+	// create another script execution request without an execution id
+	// automatically sets one.
+	createdScript, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         1,
-		ScriptContents: "echo",
+		ScriptContents: "echo2",
 	})
 	require.NoError(t, err)
-	require.NotZero(t, script.ID)
-	require.NotEmpty(t, script.ExecutionID)
+	require.NotZero(t, createdScript.ID)
+	require.NotEmpty(t, createdScript.ExecutionID)
+
+	// the script result can be retrieved even if it has no result yet
+	script, err = ds.GetHostScriptExecutionResult(ctx, 1, createdScript.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, createdScript, script)
 }

@@ -1588,3 +1588,69 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 
 	return key, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Run Script on a Host (async)
+////////////////////////////////////////////////////////////////////////////////
+
+type runScriptRequest struct {
+	HostID         uint   `json:"host_id"`
+	ScriptContents string `json:"script_contents"`
+}
+
+type runScriptResponse struct {
+	Err         error  `json:"error,omitempty"`
+	HostID      uint   `json:"host_id,omitempty"`
+	ExecutionID string `json:"execution_id,omitempty"`
+}
+
+func (r runScriptResponse) error() error { return r.Err }
+
+func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*runScriptRequest)
+
+	var noWait time.Duration
+	result, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         req.HostID,
+		ScriptContents: req.ScriptContents,
+	}, noWait)
+	if err != nil {
+		return runScriptResponse{Err: err}, nil
+	}
+	return runScriptResponse{HostID: result.HostID, ExecutionID: result.ExecutionID}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Run Script on a Host (sync)
+////////////////////////////////////////////////////////////////////////////////
+
+type runScriptSyncResponse struct {
+	Err error `json:"error,omitempty"`
+	*fleet.HostScriptResult
+}
+
+func (r runScriptSyncResponse) error() error { return r.Err }
+
+func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	const waitForResult = time.Minute
+
+	req := request.(*runScriptRequest)
+	result, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         req.HostID,
+		ScriptContents: req.ScriptContents,
+	}, waitForResult)
+	if err != nil {
+		return runScriptSyncResponse{Err: err}, nil
+	}
+	return runScriptSyncResponse{
+		HostScriptResult: result,
+	}, nil
+}
+
+func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
