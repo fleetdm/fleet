@@ -48,9 +48,18 @@
       color: $ui-fleet-black-50;
     }
 
-    &:focus {
+    &:focus,
+    &:hover {
       outline: none;
       border-color: $core-vibrant-blue;
+
+      + .icon {
+        svg {
+          path {
+            fill: $core-vibrant-blue;
+          }
+        }
+      }
     }
 
     &--disabled {

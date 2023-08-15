@@ -149,7 +149,7 @@ module.exports.custom = {
     'website/config/custom.js': 'mikermcneil',
 
     // 🦿 Handbook
-    'handbook/': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
+    'handbook': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     //'handbook/company/ceo.md': 'sampfluger88',
     //'handbook/company': 'mikermcneil',
     //'handbook/business-operations': 'mikermcneil',
@@ -226,9 +226,10 @@ module.exports.custom = {
     'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     // Handbook
-    'handbook/README.md': 'mikermcneil',
-    'handbook/company': 'mikermcneil',
+    'handbook': 'mikermcneil',
     // See https://github.com/fleetdm/fleet/pull/13195
+    //'handbook/README.md': 'mikermcneil',
+    //'handbook/company': 'mikermcneil',
     //'handbook/company/ceo.md': ['sampfluger88'],
     //'handbook/business-operations': ['jostableford'],
     //'handbook/engineering': ['lukeheath'],

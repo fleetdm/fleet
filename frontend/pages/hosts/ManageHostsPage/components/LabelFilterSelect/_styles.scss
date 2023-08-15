@@ -77,6 +77,9 @@
 
   .label-filter-select__indicator {
     color: $core-fleet-black;
+    // override react-select default styles to increase flexibility of dropdown styling
+    padding: 0;
+    padding-right: $pad-small;
   }
 
   .label-filter-select__menu {
