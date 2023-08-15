@@ -68,7 +68,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-after.C:
-			result, err := svc.ds.GetHostScriptExecutionResult(ctx, script.ID, script.ExecutionID)
+			result, err := svc.ds.GetHostScriptExecutionResult(ctx, script.ExecutionID)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get script execution result")
 			}

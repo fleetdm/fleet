@@ -7275,7 +7275,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, pending)
 
-	_, err = ds.GetHostScriptExecutionResult(ctx, 1, "abc")
+	_, err = ds.GetHostScriptExecutionResult(ctx, "abc")
 	require.Error(t, err)
 	var nfe *notFoundError
 	require.ErrorAs(t, err, &nfe)
@@ -7331,7 +7331,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Empty(t, pending)
 
 	// the script result can be retrieved
-	script, err := ds.GetHostScriptExecutionResult(ctx, 1, "abc")
+	script, err := ds.GetHostScriptExecutionResult(ctx, "abc")
 	require.NoError(t, err)
 	expectScript := *createdScript
 	expectScript.Output = "foo"
@@ -7350,7 +7350,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, createdScript.ExecutionID)
 
 	// the script result can be retrieved even if it has no result yet
-	script, err = ds.GetHostScriptExecutionResult(ctx, 1, createdScript.ExecutionID)
+	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
 	require.NoError(t, err)
 	require.Equal(t, createdScript, script)
 }
