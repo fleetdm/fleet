@@ -297,7 +297,7 @@ At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all r
 If a feature is not prioritized, it only means that the feature has been rejected _at that time_. It is up to the requestor to bring the request back again at another 🎁🗣 Feature Fest meeting.
 
 Requests are weighed by:
-- The completeness of the request (see [making a request](#making-a-request)
+- The completeness of the request (see [making a request](#making-a-request))
 - How urgent the need is for the customer
 - How much impact the request will have. This may be a wide impact across many customers and/or high impact on one
 - How well the request fits within Fleet's product vision and roadmap
