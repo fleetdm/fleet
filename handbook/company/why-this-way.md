@@ -306,6 +306,62 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
 
+## Why radical humility?
+Radical humility is about respect for others. Setting aside the ego, radical humility allows [🔵self-awareness](https://fleetdm.com/handbook/company#objectivity), [🟢adaptability](https://fleetdm.com/handbook/company#results), [🔴empathy](https://fleetdm.com/handbook/company#empathy), [🟠accountability](https://fleetdm.com/handbook/company#ownership), and [🟣collaboration](https://fleetdm.com/handbook/company#openness). 
+
+**Top 10 reasons to use radical humility:** 
+
+- **Relationship Building.** By approaching interactions with humility, we show that we are approachable, empathetic, and willing to collaborate, fostering strong company/client relationships.
+ 
+- **Trust.** Without condescension or superiority, radical humility is respectful and makes clients more likely to see us as genuine partners who value their input and opinions.
+  
+- **[🟣Openness](https://fleetdm.com/handbook/company#openness).** Radical humility encourages openness and candid communication. When clients see that we are [🔵willing to admit mistakes and learn from them](https://fleetdm.com/handbook/company#objectivity), they are more likely to be open about their own needs, challenges, and feedback.
+  
+- **Empowerment.** Clients are empowered through radical humility, knowing their imput and needs are integral parts of the collaboration. This empowerment can lead to a sense of [🟠Ownership](https://fleetdm.com/handbook/company#ownership) and investment in the projects we undertake together.
+  
+- **Encouragement.** Radical humility fosters an environment where clients feel [🔴encouraged and capable](https://fleetdm.com/handbook/company#empathy). By explaining complex concepts in understandable ways, we enable clients to navigate challenges with confidence, rather than feeling overwhelmed.
+  
+- **Confidence.** Radical humility allows for simple explainations and instructions, which are easily understandable by clients. When clients fully comprehend our products and services, they are more likely to feel confident about the value provided. 
+  
+- **Self-Efficacy.** Ultimately, our goal is to [🟢empower clients to use our tools and implement them independently](https://fleetdm.com/handbook/company#results). Radical humility acknowledges our clients' expertise and experience, providing them with the knowledge and support they need to succeed on their own terms.
+  
+- **Accessibility.** Radical humility makes our tools more accessible with clear and straightforward explainations of product implementation. 
+  
+- **Learning.** Radical humility acknowledges that [🔵we don't have all the answers and that there is always room for improvement](https://fleetdm.com/handbook/company#objectivity). This approach allows us to continuously evolve and adapt, leading to better products and services.
+  
+- **[🔴Empathy](https://fleetdm.com/handbook/company#empathy).** Radical humility is an embodiment of empathy. It's about putting ourselves in the customer's shoes, understanding their emotions and needs, and responding with genuine care and consideration. 
+
+**Five more reasons to use radical humility:**
+
+- **Customer-Centric.** Radical humility places the client's needs and perspectives at the forefront, actively listening to their feedback, concerns, and suggestions, demonstrating commitment to understanding their unique challenges and providing solutions that truly cater to their requirements.
+
+- **Reputation.** Clients appreciate transparency and honesty, and these qualities contribute to a positive image in the eyes of both our clients and the broader public as a company that values integrity and authenticity.
+
+- **Morale.** Embracing radical humility can have a positive impact on the morale of both our employees and clients. Both appreciate when they are treated with respect and consideration.
+
+- **[🟣Transparency](https://fleetdm.com/handbook/company#openness).** Radical humility promotes transparency by openly acknowledging our limitations and being upfront about challenges. This transparency not only builds trust but also allows clients to better understand our processes and the reasoning behind our decisions.
+
+- **[🔵Objectivity](https://fleetdm.com/handbook/company#objectivity).** By dismissing ego and embracing radical humility, we create a space for more objective problem-solving. We are more likely to objectively assess situations, evaluate different perspectives, and find balanced solutions that benefit all parties involved.
+
+**How to use radical humility:**
+
+- Never assume prior knowledge. 
+  - Explain step by step.
+  - Use straightforward and easily understandable language.
+
+- Acknowledge expertise.
+  - Use phrases like:
+    - “I’m guessing you already know a thing or two about [BLANK]”
+    - “I’ll just summarize to make sure I’m understanding the issue and the steps you’ve taken”
+  - Allow clients the opportunity to skip information they already know.
+  - Ask them where they would like you to start.
+  - Ask them how much detail they would like.
+
+- Make it easy.
+  - When possible, show with simple examples, illustrating how easy it is to use.
+  - Simplify the words and steps as much as possible.
+
+
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
 
 Fleet is more than an MDM (mobile device management) solution.
