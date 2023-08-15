@@ -27,6 +27,7 @@ The update frequency for labels is configurable with the [—osquery_label_updat
 ### Can I modify built-in labels?
 
 While it is possible to modify built-in labels using `fleetctl` or the REST API, doing so is not recommended because it can lead to errors in the Fleet UI.
+Find more information [here](https://github.com/fleetdm/fleet/issues/12479).
 
 ### How do I revoke the authorization tokens for a user?
 
