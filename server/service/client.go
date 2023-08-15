@@ -310,7 +310,7 @@ func (c *Client) ApplyGroup(
 			logfn("[!] ignoring policies, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			// Policy names must be unique, return error if duplicate policy names are found
-			if policyName := specs.FirstDuplicatePolicySpecName(); policyName != "" {
+			if policyName := fleet.FirstDuplicatePolicySpecName(specs.Policies); policyName != "" {
 				return fmt.Errorf("applying policies: policy names must be globally unique. Please correct policy %q and try again.", policyName)
 			}
 

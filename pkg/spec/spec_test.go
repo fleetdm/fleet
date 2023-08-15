@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -69,34 +68,4 @@ func TestGroupFromBytesWithWin10CISQueries(t *testing.T) {
 	g, err := GroupFromBytes(cisQueries)
 	require.NoError(t, err)
 	require.NotEmpty(t, g.Policies)
-}
-
-func TestFirstDuplicatePolicySpecName(t *testing.T) {
-	t.Run("duplicate policy names", func(t *testing.T) {
-		group := &Group{
-			Policies: []*fleet.PolicySpec{
-				{Name: "policy1"},
-				{Name: "policy2"},
-				{Name: "policy1"},
-			},
-		}
-
-		policyName := group.FirstDuplicatePolicySpecName()
-
-		require.NotEmpty(t, policyName)
-		require.Equal(t, "policy1", policyName)
-	})
-
-	t.Run("no duplicate policy names", func(t *testing.T) {
-		group := &Group{
-			Policies: []*fleet.PolicySpec{
-				{Name: "policy1"},
-				{Name: "policy2"},
-			},
-		}
-
-		policyName := group.FirstDuplicatePolicySpecName()
-
-		require.Empty(t, policyName)
-	})
 }
