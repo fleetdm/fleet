@@ -4245,7 +4245,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     id,
     host_id,
     execution_id,
-    script_contents,
+    script_contents
   FROM
     host_script_results
   WHERE

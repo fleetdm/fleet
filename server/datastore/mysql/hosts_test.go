@@ -151,6 +151,7 @@ func TestHosts(t *testing.T) {
 		{"ListHostsLiteByUUIDs", testHostsListHostsLiteByUUIDs},
 		{"GetMatchingHostSerials", testGetMatchingHostSerials},
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
+		{"HostScriptResult", testHostScriptResult},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -7264,4 +7265,73 @@ func testHostsListHostsLiteByIDs(t *testing.T, ds *Datastore) {
 			require.ElementsMatch(t, c.wantIDs, gotIDs)
 		})
 	}
+}
+
+func testHostScriptResult(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// no script saved yet
+	pending, err := ds.ListPendingHostScriptExecutions(ctx, 1, time.Second)
+	require.NoError(t, err)
+	require.Empty(t, pending)
+
+	// create a script execution request
+	script, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ExecutionID:    "abc",
+		ScriptContents: "echo",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, script.ID)
+	require.Equal(t, uint(1), script.HostID)
+	require.Equal(t, "abc", script.ExecutionID)
+	require.Equal(t, "echo", script.ScriptContents)
+	require.False(t, script.ExitCode.Valid)
+	require.Empty(t, script.Output)
+
+	// using the same host and execution id fails due to unique constraint
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ExecutionID:    "abc",
+		ScriptContents: "bar",
+	})
+	require.Error(t, err)
+	require.True(t, isDuplicate(err))
+
+	// the script execution is now listed as pending for this host
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, 10*time.Second)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	require.Equal(t, script.ID, pending[0].ID)
+
+	// waiting for a second and an ignore of 0s ignores this script
+	time.Sleep(time.Second)
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, 0)
+	require.NoError(t, err)
+	require.Empty(t, pending)
+
+	// record a result for this execution
+	err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: "abc",
+		Output:      "foo",
+		Runtime:     2,
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
+
+	// it is not pending anymore
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, 10*time.Second)
+	require.NoError(t, err)
+	require.Empty(t, pending)
+
+	// create a script execution request without an execution id automatically
+	// sets one.
+	script, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, script.ID)
+	require.NotEmpty(t, script.ExecutionID)
 }
