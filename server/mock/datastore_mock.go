@@ -568,6 +568,8 @@ type BatchSetMDMAppleProfilesFunc func(ctx context.Context, tmID *uint, profiles
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
+type UpsertMDMAppleHostDEPAssignmentsFunc func(ctx context.Context, hosts []fleet.Host) error
+
 type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device) (int64, *uint, error)
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
@@ -644,7 +646,7 @@ type SetMDMAppleDefaultSetupAssistantProfileUUIDFunc func(ctx context.Context, t
 
 type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
 
-type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]struct{}, error)
+type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]*fleet.Host, error)
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
 
@@ -1485,6 +1487,9 @@ type DataStore struct {
 
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
+
+	UpsertMDMAppleHostDEPAssignmentsFunc        UpsertMDMAppleHostDEPAssignmentsFunc
+	UpsertMDMAppleHostDEPAssignmentsFuncInvoked bool
 
 	IngestMDMAppleDevicesFromDEPSyncFunc        IngestMDMAppleDevicesFromDEPSyncFunc
 	IngestMDMAppleDevicesFromDEPSyncFuncInvoked bool
@@ -3552,6 +3557,13 @@ func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDe
 	return s.MDMAppleListDevicesFunc(ctx)
 }
 
+func (s *DataStore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host) error {
+	s.mu.Lock()
+	s.UpsertMDMAppleHostDEPAssignmentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertMDMAppleHostDEPAssignmentsFunc(ctx, hosts)
+}
+
 func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, *uint, error) {
 	s.mu.Lock()
 	s.IngestMDMAppleDevicesFromDEPSyncFuncInvoked = true
@@ -3818,7 +3830,7 @@ func (s *DataStore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID
 	return s.GetMDMAppleDefaultSetupAssistantFunc(ctx, teamID)
 }
 
-func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error) {
+func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
 	s.mu.Lock()
 	s.GetMatchingHostSerialsFuncInvoked = true
 	s.mu.Unlock()

@@ -2,6 +2,7 @@ package update
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -41,6 +42,7 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 			}
 
 			var cmdGotCalled bool
+			var depAssignedCheckGotCalled bool
 			renewFetcher := &renewEnrollmentProfileConfigFetcher{
 				Fetcher:   fetcher,
 				Frequency: time.Hour, // doesn't matter for this test
@@ -48,8 +50,12 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 					cmdGotCalled = true
 					return c.cmdErr
 				},
-				checkEnrollmentFn: func(url string) (bool, error) {
-					return false, nil
+				checkEnrollmentFn: func() (bool, string, error) {
+					return false, "", nil
+				},
+				checkAssignedEnrollmentProfileFn: func(url string) error {
+					depAssignedCheckGotCalled = true
+					return nil
 				},
 			}
 
@@ -58,6 +64,7 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 			require.Equal(t, fetcher.cfg, cfg) // the renew enrollment wrapper properly returns the expected config
 
 			require.Equal(t, c.wantCmdCalled, cmdGotCalled)
+			require.Equal(t, c.wantCmdCalled, depAssignedCheckGotCalled)
 			require.Contains(t, logBuf.String(), c.wantLog)
 		})
 	}
@@ -76,6 +83,7 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 
 	var cmdCallCount int
 	isEnrolled := false
+	isAssigned := true
 	chProceed := make(chan struct{})
 	renewFetcher := &renewEnrollmentProfileConfigFetcher{
 		Fetcher:   fetcher,
@@ -84,9 +92,16 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 			cmdCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
 			return nil
 		},
-		checkEnrollmentFn: func(url string) (bool, error) {
+		checkEnrollmentFn: func() (bool, string, error) {
 			<-chProceed // will be unblocked only when allowed
-			return isEnrolled, nil
+			return isEnrolled, "", nil
+		},
+		checkAssignedEnrollmentProfileFn: func(url string) error {
+			<-chProceed // will be unblocked only when allowed
+			if !isAssigned {
+				return errors.New("not assigned")
+			}
+			return nil
 		},
 	}
 
@@ -137,6 +152,25 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 	assertResult(cfg, err)
 
 	require.Equal(t, 2, cmdCallCount) // the initial call and the one after sleep
+
+	// wait for the fetcher's frequency to pass
+	time.Sleep(renewFetcher.Frequency)
+
+	// this call doesn't execute the command since the assigned profile check fails
+	isAssigned = false
+	isEnrolled = false
+	cfg, err = renewFetcher.GetConfig()
+	assertResult(cfg, err)
+
+	require.Equal(t, 2, cmdCallCount) // the initial call and the one after sleep
+
+	// wait for the fetcher's frequency to pass
+	time.Sleep(renewFetcher.Frequency)
+
+	// this next call won't execute the command because the backoff
+	// for a failed assigned check is always 2 minutes
+	cfg, err = renewFetcher.GetConfig()
+	assertResult(cfg, err)
 }
 
 func TestWindowsMDMEnrollment(t *testing.T) {

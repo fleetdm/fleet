@@ -21,13 +21,15 @@ What matters most is your results, which are driven by your focus, your availabi
 For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
 
 #### Taking time off
-When you take any time off, you should follow this process:
-- Let your manager and team know as soon as possible (i.e., post a message in your team's Slack channel with when and how long).
+When you need to take time off, follow this process:
+- Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
+- Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
-If you can’t complete the above because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
-If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
-This process is the same for any days you take off, whether it's a holiday or you just need a break.
+- If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
+- If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
+- This process is the same for any days you take off, whether it's a holiday or you just need a break.
+
    
 #### Holidays
 At Fleet, we have team members with various employment classifications in many different countries worldwide. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when to take time off.
@@ -276,8 +278,8 @@ Want to hire?  Here's how to open up a new position on the core team:
      - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.
 
 > _**Note:** The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser._
-
-3. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will start a `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
+3. **Link to pull request in "Fleeties:"** Include a link to your GitHub pull request in the "Job description" column for the new row you just added in "Fleeties".
+4. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will start a `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
 
 > _**Why bother with approvals?**  We avoid cancelling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
 
@@ -291,10 +293,10 @@ When review is requested on a proposal to open a new position, the 🐈‍⬛ CE
    - _Update team database:_ Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
      - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
-
 4. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
    - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager.
-   - _Publish opening:_ Approve and merge the pull request.  The job posting go live within ≤10 minutes.
+   - _Publish opening:_ Approve and merge the pull request.  The job posting will go live within ≤10 minutes.
+   - _Track as approved in "Fleeties":_ In the "Fleeties" spreadsheet, find the row for the new position and update the "Job description" column and replace the URL of the pull request that originally proposed this new position with the URL of the GitHub merge commit when that PR was merged.
    - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`):
      ```
      The new opening is now live!  Candidates can apply at fleetdm.com/handbook/company/railway-conductor.
@@ -351,8 +353,12 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
      > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
 2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
 3. **Schedule CEO interview:** Book a quick chat so our CEO can get to know the future Fleetie.
-   - No need to check with the CEO first.  You can [book the meeting directly](https://fleetdm.com/handbook/company/communitcation#internal-meeting-scheduling) on the CEO's calendar during a time they and the candidate are both available.
-   - Set the Google Calendar description of the calendar event to: `Agenda: https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/edit`.
+   - No need to check with the CEO first.  You can [book the meeting directly](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) on the CEO's calendar during a time they and the candidate are both available.
+   - [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
+     - Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
+     - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
+     - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
+   - Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
    - The personal email you use for the candidate in this calendar event is where they will receive their offer or rejection email.
 4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
@@ -382,7 +388,10 @@ After receiving the interview packet, the Head of Business Operations uses the f
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
    - Cc: Zach Wasserman and Head of Business Operations _(neither participate in the email thread until after the offer is accepted)_
    - Subject: "Full time?"
-   - Body: _(The offer email is copied verbatim from Google doc into Gmail as the body of the message, formatting and all.  Check all links in offer letter for accuracy, and also click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before.  Re-read the offer email one last time, and especially double-check that salary, number of shares, and start date match the equity plan.)_
+   - Body: _Copy the offer email verbatim from the Google doc into Gmail as the body of the message, formatting and all, then:_
+     - _Check all links in offer letter for accuracy (e.g. LinkedIn profile of hiring manager, etc.)_
+     - _Click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before._
+     - _Re-read the offer email one last time, and especially double-check that the salary, number of shares, and start date match the numbers that are currently in the equity plan._
 5. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
    - _Grant the candidate "edit" access_ to their "exit scenarios" spreadsheet.
    - _Send_ the email.
@@ -437,4 +446,4 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 
 
 <meta name="maintainedBy" value="jostableford">
-<meta name="title" value="People Operation">
+<meta name="title" value="People Operations">
