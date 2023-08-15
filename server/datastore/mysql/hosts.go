@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -464,6 +465,7 @@ var hostRefs = []string{
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
 	"host_dep_assignments",
+	"host_script_results",
 }
 
 // those host refs cannot be deleted using the host.id like the hostRefs above,
@@ -4186,4 +4188,39 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 	}
 
 	return result, nil
+}
+
+func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	const (
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output) VALUES (?, ?, ?, '')`
+		getStmt = `SELECT id, host_id, execution_id, script_contents FROM host_script_results WHERE id = ?`
+	)
+
+	execID := request.ExecutionID
+	if execID == "" {
+		execID = uuid.New().String()
+	}
+	result, err := ds.writer(ctx).ExecContext(ctx, insStmt,
+		request.HostID,
+		execID,
+		request.ScriptContents,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
+	}
+
+	var script fleet.HostScriptResult
+	id, _ := result.LastInsertId()
+	if err := ds.writer(ctx).GetContext(ctx, &script, getStmt, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting the created host script result to return")
+	}
+	return &script, nil
+}
+
+func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
+	panic("unimplemented")
+}
+
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
+	panic("unimplemented")
 }
