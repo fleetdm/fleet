@@ -107,13 +107,12 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     const curTitle = page_titles.find((item) =>
       location?.pathname.includes(item.path)
     );
-    console.log("curTitle", curTitle);
+
     if (curTitle && curTitle.title) {
       document.title = curTitle.title;
     }
   }, [location]);
 
-  console.log("LOCATION", location);
   useDeepEffect(() => {
     const canGetEnrollSecret =
       currentUser &&
