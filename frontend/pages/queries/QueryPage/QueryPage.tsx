@@ -163,6 +163,12 @@ const QueryPage = ({
     }
   }, [queryId]);
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Query details | Discover TLS certificates | Fleet for osquery
+    document.title = `Query details | ${storedQuery?.name} | Fleet for osquery`;
+  }, [location.pathname, storedQuery?.name]);
+
   useEffect(() => {
     setShowOpenSchemaActionText(!isSidebarOpen);
   }, [isSidebarOpen]);

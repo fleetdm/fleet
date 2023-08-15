@@ -343,6 +343,27 @@ const HostDetailsPage = ({
     });
   }, [usersSearchString, host?.users]);
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    const hostTab = () => {
+      if (location.pathname.includes("software")) {
+        return "software";
+      }
+      if (location.pathname.includes("schedule")) {
+        return "schedule";
+      }
+      if (location.pathname.includes("policies")) {
+        return "policies";
+      }
+      return "";
+    };
+
+    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
+    document.title = `Host ${hostTab()} details | ${
+      host?.display_name || "Unknown host"
+    } | Fleet for osquery`;
+  }, [location.pathname, host]);
+
   // Used for back to software pathname
   useEffect(() => {
     setPathname(location.pathname + location.search);

@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
 import { QueryClient, QueryClientProvider } from "react-query";
 
+import page_titles from "router/page_titles";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
@@ -53,46 +54,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const titleMap = [
-    { path: "/dashboard", title: "Dashboard | Fleet for osquery" },
-    { path: "/hosts/manage", title: "Manage hosts | Fleet for osquery" },
-    {
-      path: "/controls/mac-os-updates",
-      title: "Manage macOS MDM controls | Fleet for osquery",
-    },
-    { path: "/software/manage", title: "Manage software | Fleet for osquery" },
-    { path: "/queries/manage", title: "Manage queries | Fleet for osquery" },
-    { path: "/policies/manage", title: "Manage policies | Fleet for osquery" },
-    {
-      path: "/settings/organization",
-      title: "Manage organization settings | Fleet for osquery",
-    },
-    {
-      path: "/settings/integration",
-      title: "Manage integration settings | Fleet for osquery",
-    },
-    {
-      path: "/settings/users",
-      title: "Manage user settings | Fleet for osquery",
-    },
-    {
-      path: "/settings/teams",
-      title: "Manage team settings | Fleet for osquery",
-    },
-    {
-      path: "/settings/teams/members",
-      title: "Manage team members | Fleet for osquery",
-    },
-    {
-      path: "/settings/teams/options",
-      title: "Manage team options | Fleet for osquery",
-    },
-    {
-      path: "/profile",
-      title: "Manage my account | Fleet for osquery",
-    },
-  ];
-
   const fetchConfig = async () => {
     try {
       const config = await configAPI.loadAll();
@@ -140,8 +101,13 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     }
   }, [location?.pathname]);
 
+  // Updates title that shows up on browser tabs
   useEffect(() => {
-    const curTitle = titleMap.find((item) => item.path === location?.pathname);
+    // Also applies title to subpaths such as settings/organization/webaddress
+    const curTitle = page_titles.find((item) =>
+      location?.pathname.includes(item.path)
+    );
+    console.log("curTitle", curTitle);
     if (curTitle && curTitle.title) {
       document.title = curTitle.title;
     }
