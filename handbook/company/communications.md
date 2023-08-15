@@ -83,9 +83,20 @@ need a Calendly account, reach out to `mikermcneil` via Slack.
 
 ## Levels of confidentiality
 
-- *Public*   _(share with anyone, anywhere in the world)_
-- *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
-- *Classified*  _(share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring)_
+Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
+- **Public:**   _Share with anyone, anywhere in the world_
+- **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
+- **Classified:**  _Share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring_
+
+
+### Legend for Google doc titles
+
+Fleet uses these levels to standardize a commitment to minimal esotericism across the company. 
+- **"public":** _(Available to public, these are rare)_ 
+- **"👀":** _(Confidential - 0p, for Fleet eyes only)_     <!--_(No prefix needed, all Google docs are confidential by default)_-->
+- **"¶👀":** _(E-group - 1p, Direct reports the the CEO)_
+- **"¶¶👀":** _(Classified - 2p, Founders and BizOps)_
+- **"¶¶¶👀":** _(Board of directors - 3p, Founders and boardmembers)_
 
 
 ## Email relays
@@ -148,7 +159,7 @@ maintaining an expressive labeling system. For example, instead of a label calle
   - Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
   - Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. 
   - Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. 
-  - Don’t sound formal, sound welcoming so that anyone can understand. Translate "puffery" into "ease of use" or "readability". 
+  - Don’t sound formal, sound welcoming so that anyone can understand. Translate "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)" into "ease of use" or "readability". 
   - Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). 
   - Create headings that make good permalinks, use links and add missing links. Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”). 
   - Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. 
