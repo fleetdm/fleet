@@ -4218,9 +4218,45 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 }
 
 func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
-	panic("unimplemented")
+	const updStmt = `
+  UPDATE host_script_results SET
+    output = ?,
+    runtime = ?,
+    exit_code = ?
+  WHERE
+    host_id = ? AND
+    execution_id = ?`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, updStmt,
+		result.Output,
+		result.Runtime,
+		result.ExitCode,
+		result.HostID,
+		result.ExecutionID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "update host script result")
+	}
+	return nil
 }
 
 func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
-	panic("unimplemented")
+	const listStmt = `
+  SELECT
+    id,
+    host_id,
+    execution_id,
+    script_contents,
+  FROM
+    host_script_results
+  WHERE
+    host_id = ? AND
+    exit_code IS NULL AND
+    created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
+
+	var results []*fleet.HostScriptResult
+	seconds := int(ignoreOlder.Seconds())
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list pending host script results")
+	}
+	return results, nil
 }
