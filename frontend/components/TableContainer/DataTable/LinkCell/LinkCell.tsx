@@ -2,7 +2,7 @@ import React from "react";
 
 // using browserHistory directly because "router"
 // is difficult to pass as a prop
-import { browserHistory } from "react-router";
+import { browserHistory, Link } from "react-router";
 
 import Button from "components/buttons/Button/Button";
 
@@ -26,6 +26,11 @@ const LinkCell = ({
     browserHistory.push(path);
   };
 
+  return (
+    <Link className={`link-cell ${classes}`} to={path}>
+      {value}
+    </Link>
+  );
   return (
     <Button
       className={`link-cell ${classes}`}
