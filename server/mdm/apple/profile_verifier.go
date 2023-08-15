@@ -2,6 +2,7 @@ package apple_mdm
 
 import (
 	"context"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -9,6 +10,7 @@ import (
 // ProfileVerificationStore is the minimal interface required to get and update the verification
 // status of a host's MDM profiles. The Fleet Datastore satisfies this interface.
 type ProfileVerificationStore interface {
+	CheckHostMDMProfileCommandWithinGracePeriod(ctx context.Context, hostUUID string, period time.Duration) (bool, error)
 	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error)
 	UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, verified, failed []string) error
 }
@@ -23,11 +25,15 @@ func VerifyHostMDMProfiles(ctx context.Context, ds ProfileVerificationStore, hos
 	if err != nil {
 		return err
 	}
+	hostWithinGracePeriod, err := ds.CheckHostMDMProfileCommandWithinGracePeriod(ctx, host.UUID, 1*time.Hour)
+	if err != nil {
+		return err
+	}
 
 	failed := make([]string, 0, len(expected))
 	verified := make([]string, 0, len(expected))
 	for key, ep := range expected {
-		withinGracePeriod := ep.IsWithinGracePeriod(host.DetailUpdatedAt)
+		withinGracePeriod := hostWithinGracePeriod || ep.IsWithinGracePeriod(host.DetailUpdatedAt)
 		ip, ok := installed[key]
 		if !ok {
 			// expected profile is missing from host

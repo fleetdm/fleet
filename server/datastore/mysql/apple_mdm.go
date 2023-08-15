@@ -1661,14 +1661,14 @@ SET
 	status = ?
 WHERE
 	host_uuid = ?
-	AND status = ?
+	AND status IN(?)
 	AND operation_type = ?
 	AND profile_identifier IN(?)`
 
 	args := []interface{}{
 		fleet.MDMAppleDeliveryVerified,
 		host.UUID,
-		fleet.MDMAppleDeliveryVerifying,
+		[]interface{}{fleet.MDMAppleDeliveryVerifying, fleet.MDMAppleDeliveryFailed},
 		fleet.MDMAppleOperationTypeInstall,
 		identifiers,
 	}
@@ -1683,6 +1683,30 @@ WHERE
 	return nil
 }
 
+func (ds *Datastore) CheckHostMDMProfileCommandWithinGracePeriod(ctx context.Context, hostUUID string, gracePeriod time.Duration) (bool, error) {
+	var isWithinGracePeriod bool
+
+	stmt := `
+SELECT
+	1
+FROM
+	nano_enrollment_queue
+WHERE
+	id = ?
+	AND created_at > DATE_SUB(NOW(), INTERVAL ? SECOND)
+ORDER BY
+	priority,
+	created_at
+LIMIT 1`
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &isWithinGracePeriod, stmt, hostUUID, gracePeriod.Seconds())
+	if err != nil && err != sql.ErrNoRows {
+		return false, ctxerr.Wrap(ctx, err, "checking mdm grace period")
+	}
+
+	return isWithinGracePeriod, nil
+}
+
 func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
 	var teamID uint
 	if host.TeamID != nil {
@@ -1692,7 +1716,8 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 	stmt := `
 SELECT
 	identifier,
-	earliest_install_date
+	earliest_install_date,
+	command_last_updated_at,
 FROM
 	mdm_apple_configuration_profiles macp
 	JOIN (

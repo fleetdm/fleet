@@ -702,6 +702,9 @@ type Datastore interface {
 	// GetHostMDMProfilesExpected returns the expected MDM profiles for a given host. The map is
 	// keyed by the profile identifier.
 	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *Host) (map[string]*ExpectedMDMProfile, error)
+	// CheckHostMDMProfileCommandWithinGracePeriod checks if any MDM command was created within the
+	// immediately preceding period.
+	CheckHostMDMProfileCommandWithinGracePeriod(ctx context.Context, hostUUID string, period time.Duration) (bool, error)
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
