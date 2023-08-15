@@ -1,5 +1,5 @@
 import React from "react";
-import { InjectedRouter } from "react-router";
+import { InjectedRouter, Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 
 import { formatDistanceToNow } from "date-fns";
@@ -215,10 +215,19 @@ export const generateSoftwareTableHeaders = ({
         };
 
         return (
-          <Button onClick={onClickSoftware} variant="text-link">
+          <Link
+            className="link-cell"
+            to={PATHS.SOFTWARE_DETAILS(id.toString())}
+            onClick={onClickSoftware}
+          >
             {bundle ? renderBundleTooltip(name, bundle) : name}
-          </Button>
+          </Link>
         );
+        // return (
+        //   <Button onClick={onClickSoftware} variant="text-link">
+        //     {bundle ? renderBundleTooltip(name, bundle) : name}
+        //   </Button>
+        // );
       },
       sortType: "caseInsensitive",
     },
