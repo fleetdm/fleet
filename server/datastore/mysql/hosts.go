@@ -4172,7 +4172,7 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 	for _, serial := range serials {
 		args = append(args, serial)
 	}
-	stmt, args, err := sqlx.In("SELECT hardware_serial, team_id FROM hosts WHERE hardware_serial IN (?)", args)
+	stmt, args, err := sqlx.In("SELECT id, hardware_serial, team_id FROM hosts WHERE hardware_serial IN (?)", args)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building IN statement for matching hosts")
 	}

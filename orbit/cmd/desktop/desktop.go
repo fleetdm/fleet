@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/useraction"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -237,7 +239,6 @@ func main() {
 			)
 			mdmMigrator = useraction.NewMDMMigrator(
 				swiftDialogPath,
-				fleetURL,
 				15*time.Minute,
 				&mdmMigrationHandler{
 					client:      client,
@@ -297,28 +298,51 @@ func main() {
 				}
 				myDeviceItem.Enable()
 
-				if runtime.GOOS == "darwin" &&
-					(sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile) &&
-					mdmMigrator.CanRun() {
+				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
 
-					// update org info in case it changed
-					mdmMigrator.SetProps(useraction.MDMMigratorProps{
-						OrgInfo:     sum.Config.OrgInfo,
-						IsUnmanaged: sum.Notifications.RenewEnrollmentProfile,
-					})
+				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
+					enrolled, enrollURL, err := profiles.IsEnrolledInMDM()
+					if err != nil {
+						log.Error().Err(err).Msg("fetching enrollment status to show mdm migrator")
+						continue
+					}
 
-					// enable tray items
-					migrateMDMItem.Enable()
-					migrateMDMItem.Show()
+					// we perform this check locally on the client too to avoid showing the
+					// dialog if the client has already migrated but the Fleet server
+					// doesn't know about this state yet.
+					enrolledIntoFleet, err := fleethttp.HostnamesMatch(enrollURL, fleetURL)
+					if err != nil {
+						log.Error().Err(err).Msg("comparing MDM server URLs")
+						continue
+					}
+					if !enrolledIntoFleet {
+						// isUnmanaged captures two important bits of information:
+						//
+						// - The notification coming from the server, which is based on information that's
+						//   not available in the client (eg: is MDM configured? are migrations enabled?
+						//   is this device elegible for migration?)
+						// - The current enrollment status of the device.
+						isUnmanaged := sum.Notifications.RenewEnrollmentProfile && !enrolled
+						forceModeEnabled := sum.Notifications.NeedsMDMMigration &&
+							sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced
 
-					// if the device is unmanaged or we're
-					// in force mode and the device needs
-					// migration, enable aggressive mode.
-					if sum.Notifications.RenewEnrollmentProfile ||
-						(sum.Notifications.NeedsMDMMigration && sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced) {
-						log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
-						if err := mdmMigrator.ShowInterval(); err != nil {
-							log.Error().Err(err).Msg("showing MDM migration dialog at interval")
+						// update org info in case it changed
+						mdmMigrator.SetProps(useraction.MDMMigratorProps{
+							OrgInfo:     sum.Config.OrgInfo,
+							IsUnmanaged: isUnmanaged,
+						})
+
+						// enable tray items
+						migrateMDMItem.Enable()
+						migrateMDMItem.Show()
+
+						// if the device is unmanaged or we're in force mode and the device needs
+						// migration, enable aggressive mode.
+						if isUnmanaged || forceModeEnabled {
+							log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
+							if err := mdmMigrator.ShowInterval(); err != nil {
+								log.Error().Err(err).Msg("showing MDM migration dialog at interval")
+							}
 						}
 					}
 				} else {
