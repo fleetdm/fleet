@@ -32,30 +32,13 @@ Another thing is that we need to get a better intuitive understanding of who the
 - (h2) Slack channels
 
 
-
 ## Meetings
 
-Plan to join meetings on time. At Fleet, we start on time and do not wait for folks to join.  
-Our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  
-Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early.
-
-Spend the first few minutes of a meeting being present and making small talk. 
-Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  
-Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
-
-Turning on your camera allows for more complete and intuitive verbal and non-verbal communication. 
-Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting.
-In an all-remote company, “face time” matters. 
-
-***Before scheduling a meeting*** ask yourself:
-
-1. Can this information be presented [async](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy)?
-   
-   - Is there another way to distribute this info or align on a course of action that _doesn't_ take valuable time away from customers, projects, or personal time? Could you create a [Google Doc](https://docs.google.com/document/d/1TaZ654gTwadWGDYhP3zuAzWe0eiY0s9NhaU9KLCokgw/edit) and share it with would-be attendees? If the info can be documented it should be. Could the info be sent in Slack or by email? 
-   
-2. Do I have all the information needed to schedule this meeting?
-   -TODO 
-
+- Plan to join meetings on time. At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
+- It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
+- Turning on your camera allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
+- If you would prefer not to be on YouTube when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
+- In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.
 
 ### Internal meeting scheduling
 
