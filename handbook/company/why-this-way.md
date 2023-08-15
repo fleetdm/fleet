@@ -367,7 +367,7 @@ Radical humility is about respect for others. Setting aside the ego, radical hum
          - Follow with a period
          - Make Bold
        - Expand on this answer to clearly explain the point.
-   - Use a personable tone, as if you are trying to encourage a friend.
+   - Use a personable tone, as if you are trying to encourage a friend who is very smart, but doesn't know about this specific thing.
    - With your words, try to show them how easy Fleet is to use.
 
 
