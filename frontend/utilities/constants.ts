@@ -1,6 +1,7 @@
 import URL_PREFIX from "router/url_prefix";
-import { IOsqueryPlatform } from "interfaces/platform";
+import { OsqueryPlatform } from "interfaces/platform";
 import paths from "router/paths";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -23,7 +24,11 @@ export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
+  { value: 0, label: "Never" },
+  { value: 300, label: "Every 5 minutes" },
+  { value: 600, label: "Every 10 minutes" },
   { value: 900, label: "Every 15 minutes" },
+  { value: 1800, label: "Every 30 minutes" },
   { value: 3600, label: "Every hour" },
   { value: 21600, label: "Every 6 hours" },
   { value: 43200, label: "Every 12 hours" },
@@ -47,6 +52,10 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.8.2 +", value: "5.8.2" },
+  { label: "5.8.1 +", value: "5.8.1" },
+  { label: "5.7.0 +", value: "5.7.0" },
+  { label: "5.6.0 +", value: "5.6.0" },
   { label: "5.4.0 +", value: "5.4.0" },
   { label: "5.3.0 +", value: "5.3.0" },
   { label: "5.2.3 +", value: "5.2.4" },
@@ -90,20 +99,26 @@ export const QUERIES_PAGE_STEPS = {
   3: "RUN",
 };
 
-export const DEFAULT_QUERY = {
+export const DEFAULT_QUERY: ISchedulableQuery = {
   description: "",
   name: "",
   query: "SELECT * FROM osquery_info;",
   id: 0,
   interval: 0,
-  last_excuted: "",
   observer_can_run: false,
+  platform: "",
+  min_osquery_version: "",
+  automations_enabled: false,
+  logging: "snapshot",
   author_name: "",
   updated_at: "",
   created_at: "",
   saved: false,
   author_id: 0,
   packs: [],
+  team_id: 0,
+  author_email: "",
+  stats: {},
 };
 
 export const DEFAULT_CAMPAIGN = {
@@ -141,7 +156,7 @@ export const DEFAULT_CAMPAIGN_STATE = {
   campaign: { ...DEFAULT_CAMPAIGN },
 };
 
-export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
+export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
   darwin: "macOS",
   macOS: "macOS",
   windows: "Windows",
@@ -186,8 +201,8 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
 
 interface IPlatformDropdownOptions {
   label: "All" | "Windows" | "Linux" | "macOS" | "ChromeOS";
-  value: "all" | "windows" | "linux" | "darwin" | "chrome";
-  path: string;
+  value: "all" | "windows" | "linux" | "darwin" | "chrome" | "";
+  path?: string;
 }
 export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "All", value: "all", path: paths.DASHBOARD },
@@ -198,10 +213,12 @@ export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
 ];
 
 // Schedules does not support ChromeOS
-export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = PLATFORM_DROPDOWN_OPTIONS.slice(
-  0,
-  -1
-);
+export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
+  { label: "All", value: "" }, // API empty string runs on all platforms
+  { label: "macOS", value: "darwin" },
+  { label: "Windows", value: "windows" },
+  { label: "Linux", value: "linux" },
+];
 
 export const PLATFORM_NAME_TO_LABEL_NAME = {
   all: "",
@@ -235,7 +252,7 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
 
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string> = {
-  "On (automatic)": `<span>MDM was turned on automatically using Apple Automated Device Enrollment (DEP) or Windows Autopilot. Administrators can block end users from turning MDM off.</span>`,
+  "On (automatic)": `<span>MDM was turned on automatically using Apple Automated Device Enrollment (DEP), Windows Autopilot, or Windows Azure AD Join. Administrators can block end users from turning MDM off.</span>`,
   "On (manual)": `<span>MDM was turned on manually. End users can turn MDM off.</span>`,
   Off: `<span>Hosts with MDM off don&apos;t receive macOS <br /> settings and macOS update encouragement.</span>`,
   Pending: `<span>Hosts ordered via Apple Business Manager <br /> (ABM). These will automatically enroll to Fleet <br /> and turn on MDM when they&apos;re unboxed.</span>`,

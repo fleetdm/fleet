@@ -12,7 +12,7 @@ Here are some of Fleet's decisions about the best way to work, and the reasoning
 
 Fleet's source code, website, documentation, company handbook, and internal tools are [public](https://github.com/fleetdm/fleet) and accessible to everyone, including engineers, executives, and end users. (Even [paid features](https://fleetdm.com/pricing) are source-available.)
 
-Meanwhile, the [company behind Fleet](https://twitter.com/fleetctl) is built on the [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) business model.  Openness is one of our core [values](https://fleetdm.com/handbook/company#values), and everything we do is public by [default](https://about.gitlab.com/handbook/values/#public-by-default).  Even the [company handbook](https://fleetdm.com/handbook) is open to the world.
+Meanwhile, the [company behind Fleet](https://twitter.com/fleetctl) is built on the [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) business model.  Openness is one of our core [values](https://fleetdm.com/handbook/company#values), and everything we do is [public by default](https://handbook.gitlab.com/handbook/values/#public-by-default).  Even the [company handbook](https://fleetdm.com/handbook) is open to the world.
 
 Is open-source collaboration _really_ worth all that?  Is it any good?
 
@@ -41,6 +41,20 @@ Making changes to the handbook first [encourages](https://www.youtube.com/watch?
 To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company).
 
 
+## Why read documentation?
+
+There are three reasons for visiting [the docs](https://fleetdm.com/docs):
+- **Tire-kicking**: "I think this is cool, now is it something that I could ACTUALLY use? Does it ACTUALLY work? What all's in it?  What links can I share with my colleagues to help them see what I'm seeing?"
+- **Committed learning**: "I've decided to learn this. I need a curriculum to get me there; with content that makes it as easy as possible, surface-level as possible. I want to learn how Fleet works and how to do all the things."
+- **Quick reference**: "Is this thing broken or am I using it right? How do I use this?" Whether they just stumbled in from a search engine, an on-site search, or through the Fleet website navigation, visitors interested in quick reference are interested in getting to the correct answer quickly.  Quick referencers search for REST API pages, the config surface of the Fleet server, agent options, how to build YAML for `fleetctl apply`, the built-in MDM profiles, the table schema, the built-in queries, reference architectures and cost calculators for deploying your own Fleet instance.
+
+Everyone [can contribute](https://fleetdm.com/handbook/company#openness) to Fleet's documentation.  Here are a few principles to keep in mind:
+ 
+- **🚪 Start simple.** It's easier to learn when you aren't overwhelmed.  Good documentation pages and sections start _prescriptive, brief, and clear_; ideally with a short example.  You can always hedge and caveat further down the page. This makes the docs more [accessible and outsider-friendly](https://fleetdm.com/handbook/company#purpose).  For example, notice how [this page gets more complicated as you scroll down](https://sailsjs.com/documentation/reference/blueprint-api/destroy), or how [both](https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?schema) of [these sections](https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?seldomused-settings) start simple, with caveats pushed down to the end. 
+
+<!-- 🔌🚪🪟 -->
+
+
 ## Why the emphasis on training?
 Investing in people and providing generous, prioritized training, especially up front, helps contributors understand what is going on at Fleet. By making training a prerequisite at Fleet, we can:
 - help team members feel confident in the better decisions they make at work. 
@@ -57,25 +71,15 @@ Here are a few examples of how Fleet prioritizes training:
 ## Why direct responsibility?
 Like Apple and GitLab, Fleet uses the concept of [directly responsible individuals (DRIs)](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/) to know who is responsible for what. 
 
-A DRI is a person who is singularly responsble for a given aspect of the open-source project, the product, or the company.  A DRI is responsible for making decisions, accomplishing goals, and getting any resources necessary to make a given area of Fleet successful.
-
-For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals"). Changes are always approved by the DRI [first, before they become real](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
-
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.  This saves time by eliminating a requirement for consensus decisions or political presenteeism, enables faster decision-making, and ensures a single individual is aware of what to do next.
 
-### Reporting structure
-In addition to Fleet's [organizational chart](https://fleetdm.com/handbook/company#org-chart), the company also organizes [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups) to allow for faster collaboration and fewer roundtrips.
+- **What is a DRI?**: A DRI is a person who is singularly responsible for a given aspect of the open-source project, the product, or the company.  A DRI is responsible for making decisions, accomplishing goals, and getting any resources necessary to make a given area of Fleet successful.  For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals").
+- **Change control**: In keeping with Fleet's handbook-first philosophy and value of writing things down, changes are always approved by the DRI [first, before they become real](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Fleet aims to make picking the right reviewer for your change as easy and automatic as possible. 
+- **Picking a reviewer**: In most cases, you won't need to select a particular reviewer for your pull request.  (It will just happen automatically.)  Automatic PR review requests are driven by a combination of [custom repo automation](https://github.com/fleetdm/fleet/pull/12786) and [CODEOWNERS files](https://github.com/search?q=org%3Afleetdm+path%3ACODEOWNERS&type=code).  When in doubt, refer to the roles in the company's [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups), and (to a lesser degree) the job titles and reporting structure indicated by the [company's organizational chart](https://fleetdm.com/handbook/company#org-chart).
+- **"Maintained by" photo**: For [handbook pages](https://github.com/fleetdm/fleet/tree/main/handbook) and [articles](https://github.com/fleetdm/fleet/tree/main/articles), the "Maintained by" photo displayed on the website corresponds with the `name="maintainedBy"` tags at the very bottom of the raw markdown source for each page.  This photo should match the DRI who is auto-requested to approve changes.  (It is determined by the person's GitHub profile picture.)
+- **Multiple maintainers**: In some cases, multiple subject-matter experts called "maintainers" can merge changes to certain file paths, even though there is already a dedicated DRI configured as the "CODEOWNER".  For examples of this, see the auto-approval flows configured as `sails.config.custom.githubRepoMaintainersByPath` and related configuration in [`website/config/custom.js`](https://github.com/fleetdm/fleet/blob/main/website/config/custom.js).
 
 
-### Reviewers
-Fleet aims to make picking the right reviewer for your change as easy and automatic as possible.  In many cases, you won't need to select a particular reviewer for your pull request.  (It will just happen automatically.)
-
-To check out the right person to review a given piece of content or source code path, consider:
-1. The [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) files of the fleetdm/fleet and fleetdm/confidential repositories.
-2. The  `name="maintainedBy"` tags at the very bottom of the raw markdown source for [every handbook page](https://github.com/fleetdm/fleet/tree/main/handbook) and [individual article](https://github.com/fleetdm/fleet/tree/main/articles).
-3. The job titles and reporting structure indicated by the [company's organizational chart](https://fleetdm.com/handbook/company#org-chart) and the roles in our [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups).
-
-> In some cases, multiple subject-matter experts can merge changes to files even though there is a dedicated DRI configured as the "CODEOWNER".  For examples of this, see the auto-approval flows configured as `sails.config.custom.githubRepoDRIByPath` and `sails.config.custom.confidentialGithubRepoDRIByPath` in [`website/config/custom.js`](https://github.com/fleetdm/fleet/blob/main/website/config/custom.js).
 
 
 ## Why do we use a wireframe-first approach?
@@ -136,7 +140,7 @@ Here are a few of the drawbacks that we have experienced when generating docs vi
 - Markdown is more accessible. Anyone can edit Fleet's docs directly from our website without needing coding experience. 
 - A single Markdown file reduces the amount of surface area to manage that comes from spreading code comments across multiple files throughout the codebase. (see ["Why do we use one repo?"](#why-do-we-use-one-repo)).
 - Autogenerated docs can become just as outdated as handmade docs, except since they are siloed, they require more skills to edit.
-- When docs live at separate repo paths from source code, we are able to automate approval processes that allow contributors to make small improvements and notes, directly from the website.  This [leads to more contributions](https://github.com/balderdashy/sails-docs/network/members), since it lowers the barrier of entry for [becoming a contributor](https://fleetdm.com/docs/contributing/committing-changes).
+- When docs live at separate repo paths from source code, we are able to automate approval processes that allow contributors to make small improvements and notes, directly from the website.  This [leads to more contributions](https://github.com/balderdashy/sails-docs/network/members), since it lowers the barrier of entry for [becoming a contributor](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
 - Autogenerated docs are typically hosted on a subdomain. This means we have less control over a user's journey through our website and lose the SEO benefits of self-hosted documentation.
 - Autogenerating docs from code comments is not always the best way to make sure reference docs accurately reflect the API.
 - As the Fleet REST API, documentation, and tools mature, a more declarative format such as OpenAPI might become the source of truth, but only after investing in a format and processes to make it continually accurate as well as visible, accessible, and modifiable for all contributors.
@@ -205,37 +209,78 @@ The Fleet product is released every three weeks. By syncing the whole company to
 
 ## Why spend so much energy responding to every potential production incident?
 
-At Fleet, we consider every 5xx error, timeout, or errored scheduled job a P1 incident.  We create an outage issue for it, no matter the environment, as soon as the issue is detected, even before we understand.  We always determine impact quickly, reach out to affected users to acknowledge their problem, and determine the root cause. Why?
+At Fleet, every 5xx response, timed-out request, and failed scheduled job is a P1 outage.
 
-- It helps us learn.
-- You never know whether an error like this is a real issue until you take a close look.  Even if you think it probably isn't.
-- It incentivizes us to fix the root cause sooner.
-- It keeps the number of errors low.
-- It ensures the team understands exactly what errors are happening.
-- It helps us fix bugs sooner, preventing them from stacking and bleeding into one another and making fixes harder.
-- It gets everyone on the same page about what an issue is.
-- It prevents stoppage of information about bugs and problems.  Every outage is visible.
-- It allows us to reach out to affected users ASAP and acknowledge their challenge, showing them that Fleet takes quality and stability seriously.
+As soon as the outage is detected in any production environment (including fleetdm.com, Fleet Sandbox, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
 
-### What is a P1?
-Every 5xx error, timeout, or failed scheduled job is a P1.  
+Then, we determine impact quickly. We take a close look right away, even if we think it might not matter.  If there is any chance of it affecting even one user, we keep digging.  We reach out to affected users to acknowledge their problem, provide them with a workaround or some other way to make their day less painful.
 
-That means:
-1. It gets a postmortem issue created within the production issue response time SLA, even before we know the impact, the root cause, or even what the error message says.
-2. It gets a close look right away, even if we think it might not matter.  If there is any chance of it affecting even one user, we keep digging.
-3. Including a situation where a user has to wait longer than 5 seconds during signup on fleetdm.com  (or any time we breach an agreed upon response time guarantee)
-4. Including when a scheduled job fails and we aren't sure yet whether or not any real users are affected.
+Finally, we determine the root cause, and we make sure a resolution for it is filed as a bug, with attention from the appropriate contributors.  Then, we close the issue.
+
+Why bother with all that?  And why do it in this particular order?
+- **Avoids slip-ups.** When every outage is visible, information about production problems flows more freely.  It is harder to accidentally overlook a production issue, or accidentally deprioritize a major issue.  You never know whether an error like this is a real issue until you take a close look.  Even if you think it probably isn't.
+- **Faster diagnosis.** Prioritizing outages gets everyone on the same page about exactly what errors are happening as soon as possible, and gets subject matter experts involved faster.
+- **Helps us measure.** When outage issues are created as soon as the outage occured, the time of issue creation and closing give us useful metrics about the outage, with minimal extra effort.
+- **Better customer experience.** Understanding the impact of every production issue means we can reach out to affected users ASAP and acknowledge their challenge, showing them that Fleet takes quality and stability seriously.  This kind of customer support is rare and memorable.
+- **It helps us prevent future outages.** By finding outages sooner, we incentivize ourselves to fix the root cause sooner.  And by fixing bugs sooner, we prevent them from stacking and bleeding into one another, and we prevent ourselves from implementing future fixes and improvements on top of shaky foundations.  This makes contributions less risky and reduces the number of outages.
+
+## Why make it obvious when stuff breaks?
+
+At Fleet, we detect and fix bugs as quickly as possible.  
+
+Breaking loudly means we can fix the break sooner and improve how fast and certain we are about making future changes.  Especially in an all-remote environment, this provides contributors with discipline around quality and stability of the main branch.  This is ["good annoying"](https://agilehope.blogspot.com/2014/12/diy-build-light-indicator.html).
+
+When contributing to Fleet, for every PR, the person submitting the PR tests it by hand before it is merged, regardless who else tested it, or who else reviewed the code.  Thanks to this, we should normally never end up in a situation where a merged PR causes a broken contributor experience, because the person submitting it would have experienced that broken contributor experience when testing.
+
+If that happens by mistake, first priority is merging a fix, then notifying the contributor who made the mistake so they're aware for future changes.  (This is not about blame; it's about clarity.)  We always prioritize fixing bugs, because bugs are the best early sign of misunderstandings, stale assumptions, and impactful coding mistakes that can fundamentally damage Fleet's long-term development speed, contributor experience, and code base complexity.
+
+> Here is [an example of a deliberate decision to make broken images in Fleet fail more loudly](https://github.com/fleetdm/fleet/issues/12305#issuecomment-1671924257) so that they can't be overlooked, even though this might slow down short-term development.
+
 
 ## Why don't we sell like everyone else?
 
 Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
 - **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
-- **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for poeple is the way we win.
+- **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for people is the way we win.
 - **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
 - **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on prospect's plates at all costs.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [🟢keep things simple](https://fleetdm.com/handbook/company#results) and [write briefly](http://www.paulgraham.com/writing44.html).
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
 - **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵fair to competitors](https://fleetdm.com/handbook/company#objectivity).
 - **Step up.** We look at the [🟠big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
+
+
+## Why don't we track leads differently?
+
+There are about as many "MQL" definitions as there are sales orgs in the world. Exaggerating here, but only somewhat.
+
+Fleet documents all KPI's with clear definitions that are simple to evaluate, easy to track, and highly iterable.
+
+- **Lead** == A "Lead" row in Salesforce.
+  
+- **MQL** == a human from a 1000+ employee org that meets these parameters:
+  - The org is _NOT_ already a customer at the time of lead creation (even if they're from a different department).
+  - _NOT_ an existing open opportunity in the pipeline at the time of lead creation.
+  - The human has taken action in some way (e.g. signup on the website, showing up at the Fleet booth and doing a badge scan, or met a minimum threshold of engagement from LinkedIn outbound (threshold TBD-- for now they are excluded altogether)).
+    
+  - Multiple leads from the same org each count as _separate_ MQLs. However, Once the opportunity is created for an account, all MQLs associated with that account become "converted". Meaning they no longer count towards "open MQLs", though they still count as MQLs created. 
+
+  - When an account converts to an opportunity, all subsequent new leads created for that account are ***NOT*** MQLs (i.e. do not count towards "MQLs created".). If an opportunity is marked "closed lost", then it is _no longer_ open. 
+
+  - Any new leads which are created for a closed opportunity are considered new MQLs created and open MQLs, as long as they ***actually qualify*** as fresh new action taken.
+
+- **Open MQL** == An MQL whose lead status is not _"disqualified" nor "converted"_.
+  
+- **SQL** == An MQL whose lead status in Salesforce has exceeded a _certain threshold_, for **any** reason, from **any** source (threshold TBD: we aren't reporting these yet in KPIs)
+  
+- **Lead source** == where a lead came from. To determine attribution, we will consider the lead source. (e.g. sales-sourced vs. marketing-sourced vs. misc-sourced leads can be determined by looking at the lead source. No need to establish any other *QL or change these.).
+
+  - Instead of saying _"outbound lead"_ or _"inbound lead"_, you can say _"a lead from a badge scan at an event"_ or _"a lead from LinkedIn cold outboud"_ or _"a lead from a customer referral"_ or _"a lead from the website"_.
+
+- **Opportunity** == A _"Opportunity"_ row in Salesforce.
+
+- **Open opportunity** == An opportunity whose stats is not _"closed lost"_ nor _"closed won"_.
+
+
 
 ## Why does Fleet support query packs?
 
@@ -257,7 +302,7 @@ In sentence case, we write and capitalize words as if they were in sentences:
 
 > Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
 
-As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer" and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized.
+As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer") and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized.
 
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
 
@@ -272,6 +317,21 @@ Fleet also has MDM features that allow IT admins to enforce OS settings, OS upda
 Workspace ONE and other MDM solutions use "enroll" to mean both telemetry is being collecting and enforcement features are activated.
 
 Since Fleet is more than MDM, you can collect telemetry on your Windows servers and you can enforce OS settings on your Macs. Or you can collect telemetry for both without enforcing OS settings.
+
+
+
+
+#### Stubs
+The following stubs are included only so that old links continue to work (for backwards compatibility.)
+
+##### Reporting structure
+Please see [handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
+
+##### Reviewers
+Please see [handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
+
+##### What is a P1?
+Please see [handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">

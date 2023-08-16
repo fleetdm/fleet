@@ -16,24 +16,55 @@ The product team is responsible for product design tasks like drafting [changes 
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-* Take the top issue that is assigned to you in the "Prioritized" column of the drafting board.
+- Take the top issue that is assigned to you in the "Prioritized" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
+  
+- Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project. See [Working with Figma](https://fleetdm.com/handbook/product#working-with-figma) below for more details.
+  
+-  Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
 
-* Create a page in the [Fleet EE (scratchpad, dev-ready) Figma file](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-dev-ready%2C-scratchpad?node-id=3923%3A208793) and combine your issue's number and
-  title to name the Figma page.
+- Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
 
-* Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place
-  yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate
-  Figma page in Fleet EE (scratchpad, dev-ready).
+- While drafting, reach out to sales, customer success, and marketing for a business perspective.
 
-* While drafting, reach out to sales, customer success, and marketing for a business perspective.
+- While drafting, engage engineering to gain insight into technical costs and feasibility.
 
-* While drafting, engage engineering to gain insight into technical costs and feasibility.
+### Working with Figma
+
+#### Create a new file
+
+When starting a new draft:
+
+- Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project).
+- Right-click on the duplicated file, select "Share", and ensure **anyone with the link** can view the file.
+- Rename each Figma file to include the number and name of the corresponding issue on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). (e.g. # 11766 Instructions for Autopilot enrollment).
+-  The starter file includes 3 predefined pages: Cover, Ready, and Scratchpad.
+    -  **Cover.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
+    -  **Ready.** Use this page to communicate designs reviews and development.
+    -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
+
+
+#### Keep projects/files clean and up-to-date
+
+- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Designed" column.
+- After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
+
+#### Questions and missing information
+
+1. Take a screenshot of the area in Figma
+2. Start a thread in the #help-product Slack channel and paste in the screenshot
+
+Note: Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred.
+
+For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
 
 ### Scheduling design reviews
 
 - Prepare your draft in the user story issue.
 - Prepare the agenda for your design review meeting, which should be an empty document other than the proposed changes you will present.
-- Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/business-operations/ceo-handbook). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
+- Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/company/ceo). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
+- When introducing a story, clarify which review "mode" the CEO should operate in:
+  + **Final review** mode — you are 70% sure the design is 100% done.
+  + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback.
 - During the review meeting, take detailed notes of any feedback on the draft.
 - Address the feedback by modifying your draft.
 - Rinse and repeat at subsequent sessions until there is no more feedback.
@@ -43,7 +74,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 #### Estimating
 
 Once the draft has been approved: 
-* move it to the "Designed" column in the drafting board
+* move it to the "Designed" column in the drafting board and assign it to the appropriate engineering manager.
 * make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
@@ -107,6 +138,25 @@ Sprints are numbered according to the release version. For example, for the spri
 
 ### Product design conventions
 
+#### MDM behind-the-frame
+
+Behind every MDM [wireframe at Fleet](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach), there are 3 foundational design principles:  
+
+- **Use-case first.** Taking advantage of top-level features vs. per-platform options allows us to take advantage of similarities and avoid having two different ways to configure the same thing.
+Start off cross-platform for every option, setting, and feature. If we **prove** it's impossible, _then_ work backward making it platform-specific.
+
+- **Bridge the Mac and Windows gap.** Implement enough help text, links, guides, gifs, etc that a reasonably persistent human being can figure it out just by trying to use the UI.
+   Even if that means we have fewer features or slightly lower granularity (we can iterate and add more granularity later), Make it easy enough to understand. Whether they're experienced Mac admins people or career Windows folks (even if someone has never used a Windows tool) they should _"get it"_. 
+
+- **Control the noise.** Bring the needs surface level, tuck away things you don't need by default (when possible, given time). For example, hide Windows controls if there are no Windows devices (based on number of Windows hosts).
+
+##### Wireframes 
+
+- Showing these principles and ideas, to help remember the pros and cons and conceptualize the above visually.
+
+   - Figma:
+https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?type=design&node-id=17819%3A222919&t=kBHyWO7TXGpkylzS-1 
+
 We have certain design conventions that we include in Fleet. We will document more of these over time.
 
 > TODO: Link to style guide here instead, and deduplicate all of this content (or as much as possible).
@@ -136,6 +186,22 @@ There are two types of tooltips. The two types of tooltips have some unique styl
 1. Tooltips for text (column headers, input titles, inline text) appear when hovering over any text with a dashed underline. These tooltips use left-aligned text.
 
 2. Tooltips for buttons, bubbles, table row elements, and other non-text elements appear when hovering over the element. These tooltips use center-aligned text. These tooltips include a centered arrow.
+
+**Bold text**
+
+For copy in the Fleet UI and Fleet documentation, use bold text when referencing UI elements such as buttons, links, column names, form field names, page names, and section names. For an example, check out the bold text in the docs [here](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#step-1-enforce-disk-encryption).
+
+This way, if a user is scanning instructions, the bold text tells them what UI element they should look for.
+
+In the docs, if a UI element is part of a section title (already bold) use double quotes. For an example, see this section title [here](https://fleetdm.com/docs/get-started/faq#what-happened-to-the-schedule-page).
+
+**Copy in parentheses (additional information)**
+
+When writing copy, consider whether additional information is necessary before adding it as a new sentence or in parentheses. If the information is needed, use parentheses with an incomplete sentence to keep the copy shorter.
+
+**Writing the time**
+
+When writing the time in the UI using "am" and "pm" abbreviations, write them **without space** between time and abbreviation, with **no punctuation**, and use **lowercase** letters (e.g. Working hours are 8am to 5pm).
 
 ## Release 
 
@@ -239,7 +305,7 @@ At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all r
 If a feature is not prioritized, it only means that the feature has been rejected _at that time_. It is up to the requestor to bring the request back again at another 🎁🗣 Feature Fest meeting.
 
 Requests are weighed by:
-- The completeness of the request (see [making a request](#making-a-request)
+- The completeness of the request (see [making a request](#making-a-request))
 - How urgent the need is for the customer
 - How much impact the request will have. This may be a wide impact across many customers and/or high impact on one
 - How well the request fits within Fleet's product vision and roadmap
@@ -313,7 +379,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 | Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
-| Report number of estimated stories (CX) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Zay Hanlon |
+| Report number of estimated stories (CX) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Mo Zhu |
 | Report number of estimated stories (MDM) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Noah Talerman |
 
 | Bug de-prioritization | Sprintly  | CEO and Head of Product review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to continue into the next sprint and which can be de-prioritized. | Mo Zhu |

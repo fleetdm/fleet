@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -147,6 +146,30 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 	return nil
 }
 
+func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find host to list profiles")
+	}
+
+	var tmID uint
+	if host.TeamID != nil {
+		tmID = *host.TeamID
+	}
+
+	// NOTE: the service method also does all the right authorization checks
+	sums, err := svc.ListMDMAppleConfigProfiles(ctx, tmID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list config profiles")
+	}
+
+	return sums, nil
+}
+
 func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
 	cert, _, _, err := svc.config.MDM.AppleSCEP()
 	if err != nil {
@@ -196,7 +219,10 @@ func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAp
 }
 
 func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
-	ac, err := svc.AppConfigObfuscated(ctx)
+	// appconfig is only used internally, it's fine to read it unobfuscated
+	// (svc.AppConfigObfuscated must not be used because the write-only users
+	// such as gitops will fail to access it).
+	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -241,7 +267,10 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 }
 
 func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
-	ac, err := svc.AppConfigObfuscated(ctx)
+	// appconfig is only used internally, it's fine to read it unobfuscated
+	// (svc.AppConfigObfuscated must not be used because the write-only users
+	// such as gitops will fail to access it).
+	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -630,21 +659,40 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 	return idpURL, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) string {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
 	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
+	profileToken, enrollmentRef, eulaToken, err := svc.mdmSSOHandleCallbackAuth(ctx, auth)
+	if err != nil {
+		logging.WithErr(ctx, err)
+		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
+	}
+
+	q := url.Values{
+		"profile_token":        {profileToken},
+		"enrollment_reference": {enrollmentRef},
+	}
+
+	if eulaToken != "" {
+		q.Add("eula_token", eulaToken)
+	}
+
+	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
+}
+
+func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (string, string, string, error) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "get config for sso")
+		return "", "", "", ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
 	_, metadata, err := svc.ssoSessionStore.Fullfill(auth.RequestID())
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "validate request in session")
+		return "", "", "", ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
 	var ssoSettings fleet.SSOSettings
@@ -661,7 +709,7 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	)
 
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "validating sso response")
+		return "", "", "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}
 
 	// Store information for automatic account population/creation
@@ -681,35 +729,32 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		Fullname: auth.UserDisplayName(),
 	}
 	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
+		return "", "", "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
 	}
 
 	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
-		return "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
+		return "", "", "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
+	}
+
+	var eulaToken string
+	if eula != nil {
+		eulaToken = eula.Token
 	}
 
 	// get the automatic profile to access the authentication token.
 	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "listing profiles")
+		return "", "", "", ctxerr.Wrap(ctx, err, "listing profiles")
 	}
 
 	if depProf == nil {
-		return "", ctxerr.Wrap(ctx, err, "missing profile")
+		return "", "", "", ctxerr.Wrap(ctx, err, "missing profile")
 	}
 
-	q := url.Values{
-		"profile_token": {depProf.Token},
-		// using the idp token as a reference just because that's the
-		// only thing we're referencing later on during enrollment.
-		"enrollment_reference": {idpAcc.UUID},
-	}
-	if eula != nil {
-		q.Add("eula_token", eula.Token)
-	}
-
-	return appConfig.ServerSettings.ServerURL + "/mdm/sso/callback?" + q.Encode(), nil
+	// using the idp token as a reference just because that's the
+	// only thing we're referencing later on during enrollment.
+	return depProf.Token, idpAcc.UUID, eulaToken, nil
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
@@ -786,92 +831,97 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		return err
 	}
 
-	// Collect the profiles' hashes and look for a team with exactly that set.
-	// Also collect the profiles' groups in case we need to create a new team,
+	// Collect the profiles' groups in case we need to create a new team,
 	// and the list of raw profiles bytes.
-	hashes, groups, rawProfiles := make([]string, 0, len(profs.Profiles)),
-		make([]string, 0, len(profs.Profiles)),
+	groups, rawProfiles := make([]string, 0, len(profs.Profiles)),
 		make([][]byte, 0, len(profs.Profiles))
 	for _, prof := range profs.Profiles {
-		hashes = append(hashes, prof.HexMD5Hash)
-		rawProfiles = append(rawProfiles, prof.Profile)
 		if prof.Group != "" {
 			groups = append(groups, prof.Group)
 		}
+
+		if !prof.Exclude {
+			rawProfiles = append(rawProfiles, prof.Profile)
+		}
 	}
 
-	// find a team with exactly that set of profiles
-	teamIDs, err := svc.ds.MatchMDMAppleConfigProfiles(ctx, hashes)
+	team, err := svc.getOrCreatePreassignTeam(ctx, groups)
 	if err != nil {
 		return err
 	}
 
-	var targetTeamID uint
-	if len(teamIDs) > 0 {
-		// if the host is already in one of those valid teams, nothing to do.
-		if host.TeamID != nil {
-			for _, tmID := range teamIDs {
-				if *host.TeamID == tmID {
-					return nil
-				}
-			}
-		}
-		// else assign the host to the first valid team
-		targetTeamID = teamIDs[0]
+	// create profiles for that team via the service call, so that uniqueness
+	// of profile identifier/name is verified, activity created, etc.
+	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false); err != nil {
+		return err
+	}
 
-	} else {
-		// Create a new team with this set of profiles. Creating via the service
+	// assign host to that team via the service call, which will trigger
+	// deployment of the profiles.
+	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []string) (*fleet.Team, error) {
+	teamName := teamNameFromPreassignGroups(groups)
+	team, err := svc.ds.TeamByName(ctx, teamName)
+	if err != nil {
+		if !fleet.IsNotFound(err) {
+			return nil, err
+		}
+
+		// Create a new team for this set of groups. Creating via the service
 		// call so that it properly assigns the agent options and creates audit
 		// activities, etc.
-		teamName := teamNameFromPreassignGroups(groups)
 		payload := fleet.TeamPayload{Name: &teamName}
-		tm, err := svc.NewTeam(ctx, payload)
+		team, err = svc.NewTeam(ctx, payload)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// teams created by the match endpoint have disk encryption
-		// enabled by default.
-		// TODO: maybe make this configurable?
+		// Get default bootstrap package and end user auth settings for no team.
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+
 		payload.MDM = &fleet.TeamPayloadMDM{
 			MacOSSettings: &fleet.MacOSSettings{
+				// teams created by the match endpoint have disk encryption
+				// enabled by default.
+				// TODO: maybe make this configurable?
 				EnableDiskEncryption: true,
+			},
+			MacOSSetup: &fleet.MacOSSetup{
+				// NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
+				// instead by CopyDefaultMDMAppleBootstrapPackage below
+				// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
+				EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
 			},
 		}
 
 		// TODO: seems like we don't support enabling disk encryption
 		// on team creation?
 		// see https://github.com/fleetdm/fleet/issues/12220
-		tm, err = svc.ModifyTeam(ctx, tm.ID, payload)
+		team, err = svc.ModifyTeam(ctx, team.ID, payload)
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		// create profiles for that team via the service call, so that uniqueness
-		// of profile identifier/name is verified, activity created, etc.
-		// NOTE: this will use the read replica to load the team, which was just
-		// created above, could lead to not found issues with slow replication.
-		if err := svc.BatchSetMDMAppleProfiles(ctx, &tm.ID, nil, rawProfiles, false); err != nil {
-			return err
+		if err := svc.ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, team.ID); err != nil {
+			return nil, err
 		}
-
-		targetTeamID = tm.ID
 	}
-
-	// assign host to that team via the service call, which will trigger
-	// deployment of the profiles.
-	if err := svc.AddHostsToTeam(ctx, &targetTeamID, []uint{host.ID}); err != nil {
-		return err
-	}
-	return nil
+	return team, nil
 }
 
 // teamNameFromPreassignGroups returns the team name to use for a new team
 // created to match the set of profiles preassigned to a host. The team name is
 // derived from the "group" field provided with each request to pre-assign a
 // profile to a host (in fleet.MDMApplePreassignProfilePayload). That field is
-// optional, and empty groups are ignored. The current timestamp is appended to
-// the team's name to help avoid duplicates.
+// optional, and empty groups are ignored.
 func teamNameFromPreassignGroups(groups []string) string {
 	const defaultName = "default"
 
@@ -891,5 +941,5 @@ func teamNameFromPreassignGroups(groups []string) string {
 		groups = []string{defaultName}
 	}
 
-	return fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05.000"))
+	return strings.Join(groups, " - ")
 }

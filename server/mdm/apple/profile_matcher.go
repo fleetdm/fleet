@@ -18,6 +18,11 @@ const (
 	// must be reasonably longer than the expected time to make all
 	// PreassignProfile calls and the final matcher call.
 	preassignKeyExpiration = 1 * time.Hour
+	// in distributed scenarios, the external host identifier might come up
+	// with a suffix that varies from server to server. To account for that
+	// we only take into account the first 36 runes from the identifier.
+	// See https://github.com/fleetdm/fleet/issues/12483 for more info.
+	preassignKeySuffixMaxLen = 36
 )
 
 type profileMatcher struct {
@@ -61,7 +66,7 @@ func (p *profileMatcher) PreassignProfile(ctx context.Context, payload fleet.MDM
 
 	// 2 fields set if the top-level Redis hash key was newly created: host uuid
 	// and profile. If a group is provided, then it's 3 fields.
-	expectOnCreate := 2
+	expectOnCreate := 3
 	args := []any{
 		// key is the prefix + the external identifier, all of this host's profiles
 		// will be stored under that hash, keyed by the md5-hash.
@@ -75,6 +80,8 @@ func (p *profileMatcher) PreassignProfile(ctx context.Context, payload fleet.MDM
 		// the profile itself is stored under its md5-hash field, no-op if it
 		// already existed.
 		md5Hash, payload.Profile,
+
+		md5Hash + "_exclude", payload.Exclude,
 	}
 	if payload.Group != "" {
 		args = append(args, md5Hash+"_group", payload.Group)
@@ -124,7 +131,7 @@ func (p *profileMatcher) RetrieveProfiles(ctx context.Context, externalHostIdent
 	delete(profs, "host_uuid")
 
 	for k, v := range profs {
-		if strings.HasSuffix(k, "_group") || v == "" {
+		if strings.HasSuffix(k, "_group") || v == "" || strings.HasSuffix(k, "_exclude") {
 			// only look for profiles' hex hashes, the group information will be
 			// retrieved only when a profile is found. Ignore empty values (e.g.
 			// empty profile).
@@ -142,11 +149,24 @@ func (p *profileMatcher) RetrieveProfiles(ctx context.Context, externalHostIdent
 			Profile:    []byte(v),
 			Group:      profs[k+"_group"],
 			HexMD5Hash: k,
+			Exclude:    profs[k+"_exclude"] == "1",
 		})
 	}
 	return hostProfs, nil
 }
 
 func keyForExternalHostIdentifier(externalHostIdentifier string) string {
-	return preassignKeyPrefix + externalHostIdentifier
+	return preassignKeyPrefix + firstNRunes(externalHostIdentifier, preassignKeySuffixMaxLen)
+}
+
+// firstNRunes grabs the first N runes from the provided string
+func firstNRunes(s string, n int) string {
+	i := 0
+	for j := range s {
+		if i == n {
+			return s[:j]
+		}
+		i++
+	}
+	return s
 }

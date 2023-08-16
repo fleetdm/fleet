@@ -281,6 +281,8 @@ func (c *Client) ApplyGroup(
 			logf(format, args...)
 		}
 	}
+
+	// specs.Queries must be applied before specs.Packs because packs reference queries.
 	if len(specs.Queries) > 0 {
 		if opts.DryRun {
 			logfn("[!] ignoring queries, dry run mode only supported for 'config' and 'team' specs\n")

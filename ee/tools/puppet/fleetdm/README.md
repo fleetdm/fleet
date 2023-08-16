@@ -60,15 +60,50 @@ node default {
 }
 ```
 
+The `group` parameter is used to create/match profiles with teams in
+Fleet. In the example above, all devices will be assigned to a team named
+`workstations`.
+
+You can use this feature along with the `ensure` param to create teams that
+**don't** contain specific profiles, for example given the following manifest:
+
+```pp
+node default {
+  fleetdm::profile { 'com.apple.universalaccess':
+    template => template('fleetdm/profile-template.mobileconfig.erb'),
+    group    => 'workstations',
+  }
+
+  if $facts['architecture'] == 'x86_64' {
+      fleetdm::profile { 'my.arm.only.profile':
+        ensure => absent,
+        template => template('fleetdm/my-arm-only-profile.mobileconfig.erb'),
+        group    => 'amd64',
+      }
+  } else {
+      fleetdm::profile { 'my.arm.only.profile':
+        template => template('fleetdm/my-arm-only-profile.mobileconfig.erb'),
+        group    => 'workstations',
+      }
+  }
+}
+```
+
+Assuming you have devices with both architectures checking in, you'll end up
+with the following two teams in Fleet:
+
+- `workstations`: with two profiles, `com.apple.universalaccess` and `my.arm.only.profile`
+- `workstations - amd64`: with only one profile, `com.apple.universalaccess`
+
 ### Sending a custom MDM Command
 
 You can use the `fleetdm::command_xml` function to send any custom MDM command to the device:
 
-```
-  $host_uuid = $facts['system_profiler']['hardware_uuid']
-  $command_uuid = generate('/usr/bin/uuidgen').strip
+```pp
+$host_uuid = $facts['system_profiler']['hardware_uuid']
+$command_uuid = generate('/usr/bin/uuidgen').strip
 
-  $xml_data = "<?xml version='1.0' encoding='UTF-8'?>
+$xml_data = "<?xml version='1.0' encoding='UTF-8'?>
 <!DOCTYPE plist PUBLIC '-//Apple//DTD PLIST 1.0//EN' 'http://www.apple.com/DTDs/PropertyList-1.0.dtd'>
 <plist version='1.0'>
 <dict>
@@ -82,12 +117,12 @@ You can use the `fleetdm::command_xml` function to send any custom MDM command t
 </dict>
 </plist>"
 
-  $response = fleetdm::command_xml($host_uuid, $xml_data)
-  $err = $response['error']
+$response = fleetdm::command_xml($host_uuid, $xml_data)
+$err = $response['error']
 
-  if $err != '' {
-    notify { "Error sending MDM command: ${err}": }
-  }
+if $err != '' {
+  notify { "Error sending MDM command: ${err}": }
+}
 ```
 
 ### Releasing a device from await configuration
@@ -110,22 +145,6 @@ At the moment, this module only works for macOS devices.
 
 ## Development
 
-To trigger a puppet run locally:
-
-```
-puppet apply --debug --test --modulepath="$(pwd)/.." --reports=fleetdm  --hiera_config hiera.yaml examples/multiple-teams.pp
-```
-
-To lint/fix Puppet (`.pp`) files, use:
-
-```
-pdk bundle exec puppet-lint --fix .
-```
-
-To lint/fix Ruby (`.rb`) files, use:
-
-```
-pdk bundle exec rubocop -A
-```
+Information about how to contribute can be found in the [`CONTRIBUTING.md` file](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/CONTRIBUTING.md).
 
 [1]: https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user

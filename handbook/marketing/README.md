@@ -196,7 +196,7 @@ You will need to install the following tools to use it:
 
 There are several locations in Fleet's public and internal documentation that can be helpful when answering questions raised by the community:
 
-1. Find the frequently asked question (FAQ) documents in each section in the `/docs` folder. These documents are the [Using Fleet FAQ](./../../docs/Using-Fleet/FAQ.md), [Deploying FAQ](./../../docs/Deploying/FAQ.md), and [Contributing FAQ](./../../docs/Contributing/FAQ.md).
+1. Find the frequently asked question (FAQ) documents in each section in the `/docs` folder. These documents are the [Get started FAQ](https://fleetdm.com/docs/get-started/FAQ), and [Contributing FAQ (on GitHub)](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/FAQ.md).
 
 2. Use the [internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
@@ -294,7 +294,8 @@ We use Figma for most of our design work. This includes the Fleet product, our w
 
 ##### Which file should I use?
 
-**Fleet product** All product design work is done in the [Fleet EE (scratchpad)](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=9209%3A302838) Figma doc. Check out the [README](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=2750%3A67203) for how to use this doc.
+**Fleet product.** All product design work is done in the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project.  
+See [📖Product#Working with Figma](https://fleetdm.com/handbook/product#working-with-figma) for more details.
 
 **Fleet website.** All website design work is done in the [fleetdm.com (current, dev-ready)](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/%E2%9C%85-fleetdm.com-(current%2C-dev-ready)?node-id=794%3A373) Figma file.
 

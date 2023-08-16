@@ -54,6 +54,7 @@ func newBaseDialog(path string) *baseDialog {
 }
 
 func (b *baseDialog) CanRun() bool {
+	// check if swiftDialog has been downloaded
 	if _, err := os.Stat(b.path); err != nil {
 		return false
 	}
@@ -151,8 +152,33 @@ type swiftDialogMDMMigrator struct {
 	intervalMu sync.Mutex
 }
 
+/**
+ * Checks in macOS if the user is using dark mode. If we encounter an exit error this is because
+ * out command returned a non-zero exit code. In this case we can assume the user is NOT using dark
+ * mode as the "AppleInterfaceStyle" key is only set when dark mode has been set.
+ *
+ * More info can be found here:
+ * https://gist.github.com/jerblack/869a303d1a604171bf8f00bbbefa59c2#file-2-dark-monitor-go-L33-L41
+ */
+func isDarkMode() bool {
+	cmd := exec.Command("defaults", "read", "-g", "AppleInterfaceStyle")
+	if err := cmd.Run(); err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
 	icon := m.props.OrgInfo.OrgLogoURL
+
+	// If the user is using light mode we will set the icon to use the light background logo
+	if !isDarkMode() {
+		icon = m.props.OrgInfo.OrgLogoURLLightBackground
+	}
+
+	// If the user has not set an org logo url, we will use the default fleet logo.
 	if icon == "" {
 		icon = "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
 	}
@@ -199,7 +225,6 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 }
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
-
 	var message bytes.Buffer
 	if err := mdmMigrationTemplate.Execute(
 		&message,

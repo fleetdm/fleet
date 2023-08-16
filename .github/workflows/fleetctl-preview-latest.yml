@@ -50,7 +50,7 @@ jobs:
         #   - Unattended installation of Docker on macOS fails. (see
         #   https://github.com/docker/for-mac/issues/6450)
         os: [ubuntu-latest]
-        go-version: ['1.19.10']
+        go-version: ['1.19.11']
     runs-on: ${{ matrix.os }}
     steps:
 
@@ -70,7 +70,7 @@ jobs:
         ./build/fleetctl preview --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
         sleep 10
         ./build/fleetctl get hosts | tee hosts.txt
-        [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
+        [ $( cat hosts.txt | grep online | wc -l) -eq 9 ]
 
     - name: Get fleet logs
       run: |

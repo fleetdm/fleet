@@ -9,20 +9,26 @@
     width: 100%;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: $pad-medium;
+    gap: $pad-small;
 
     &.stack-table-controls {
       flex-direction: column-reverse;
       align-items: start;
 
-      @media (min-width: $break-768) {
+      @media (min-width: $break-xs) {
         flex-direction: row;
         align-items: end;
         justify-content: space-between;
       }
-      @media (min-width: $break-990) {
+      @media (min-width: $break-md) {
         align-items: center;
       }
+    }
+
+    // filter and search bar height
+    .dropdown__select,
+    .input-with-icon {
+      height: 40px;
     }
   }
 
@@ -36,21 +42,29 @@
       flex-direction: column-reverse;
       align-items: start;
 
-      @media (min-width: $break-990) {
+      @media (min-width: $break-md) {
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
       }
     }
+
+    .Select-multi-value-wrapper {
+      height: 38px; // Fixes overlap with .Select outline
+    }
+  }
+  .results-count {
+    height: 40px; // Match height of search/filters
   }
 
   &__results-count {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
     margin: 0;
+    height: 40px;
 
     :first-child {
       margin-right: $pad-small;
@@ -61,14 +75,6 @@
     }
     .count-loading {
       color: $ui-fleet-black-50;
-    }
-
-    &.stack-table-controls {
-      padding-top: $pad-large;
-
-      @media (min-width: $break-990) {
-        padding-top: 0;
-      }
     }
   }
 
@@ -82,38 +88,19 @@
     position: relative;
     color: $core-fleet-blue;
     width: 100%;
-    margin-left: $pad-small;
 
-    .search-field__input-wrapper {
-      width: 250px;
-      margin-bottom: 0;
-      @media (min-width: $break-768) {
-        width: 300px;
-      }
-      @media (min-width: $break-990) {
-        width: 344px;
-      }
+    .input-with-icon {
+      width: 100%;
+      min-width: 250px;
     }
 
     &.stack-table-controls {
       padding-bottom: $pad-large;
       margin-left: 0;
 
-      @media (min-width: $break-768) {
-        margin-left: $pad-medium;
+      @media (min-width: $break-xs) {
         padding-bottom: 0;
       }
-    }
-
-    &::before {
-      display: inline-block;
-      position: absolute;
-      padding: 5px 0 0 0; // centers spin
-      content: url(../assets/images/icon-search-fleet-black-16x16@2x.png);
-      transform: scale(0.5);
-      height: 20px;
-      top: 3px;
-      left: 8px;
     }
 
     .input-field {
@@ -132,12 +119,7 @@
 
   .table-container__search-input.wide-search {
     margin-left: 0;
-
-    .search-field__input-wrapper {
-      width: 100%;
-      margin-bottom: 0;
-      padding-bottom: $pad-medium;
-    }
+    margin-bottom: $pad-small;
   }
 
   #search-tooltip {

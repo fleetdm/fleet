@@ -33,7 +33,7 @@ import ManageSoftwarePage from "pages/software/ManageSoftwarePage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
-import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
+import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PolicyPage from "pages/policies/PolicyPage";
 import QueryPage from "pages/queries/QueryPage";
@@ -53,7 +53,9 @@ import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/
 import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
 import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
 import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
-import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage/WindowsMdmPage";
+import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
+import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
+import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
 
 import PATHS from "router/paths";
 
@@ -100,6 +102,7 @@ const routes = (
           />
           <Route path="login/forgot" component={ForgotPasswordPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
+          <Route path="login/denied" component={NoAccessPage} />
           <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
           <Route path="mdm/sso" component={MDMAppleSSOPage} />
         </Route>
@@ -138,6 +141,11 @@ const routes = (
               </Route>
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
+            <Route path="integrations/mdm/apple" component={MacOSMdmPage} />
+            <Route
+              path="integrations/automatic-enrollment/windows"
+              component={WindowsAutomaticEnrollmentPage}
+            />
             <Route path="teams" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
@@ -169,8 +177,8 @@ const routes = (
             <Route component={HostDetailsPage}>
               <Route path=":host_id" component={HostDetailsPage}>
                 <Route path="software" component={HostDetailsPage} />
-                <Route path="schedule" component={HostDetailsPage} />
                 <Route path="policies" component={HostDetailsPage} />
+                <Route path="schedule" component={HostDetailsPage} />
               </Route>
             </Route>
           </Route>
@@ -202,14 +210,6 @@ const routes = (
                 <IndexRoute component={EditPackPage} />
                 <Route path="edit" component={EditPackPage} />
               </Route>
-            </Route>
-          </Route>
-          <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-            <Route path="schedule">
-              <IndexRedirect to="manage" />
-              <Route path="manage" component={ManageSchedulePage} />
-              <Redirect from="manage/teams" to="manage" />
-              <Redirect from="manage/teams/:team_id" to="manage" />
             </Route>
           </Route>
           <Route path="queries">

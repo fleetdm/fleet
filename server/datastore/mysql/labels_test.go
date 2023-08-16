@@ -253,6 +253,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
+		Platform:        "darwin",
 	})
 	require.Nil(t, err)
 
@@ -265,6 +266,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
+		Platform:        "darwin",
 	})
 	require.Nil(t, err)
 
@@ -277,6 +279,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("3"),
 		UUID:            "3",
 		Hostname:        "baz.local",
+		Platform:        "darwin",
 	})
 	require.Nil(t, err)
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5))
@@ -926,8 +929,8 @@ func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
-	q2 := test.NewQuery(t, ds, "query2", "select 1", 0, true)
+	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
+	q2 := test.NewQuery(t, ds, nil, "query2", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
 		QueryID: &q.ID,
 	})

@@ -290,7 +290,7 @@ type MDMAppleConfigProfile struct {
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
 	// Checksum is an MD5 hash of the Mobileconfig bytes
-	Checksum  []byte    `db:"checksum" json:"-"`
+	Checksum  []byte    `db:"checksum" json:"checksum,omitempty"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
@@ -320,18 +320,6 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	}
 
 	return cp.Mobileconfig.ScreenPayloads()
-}
-
-// IsWithinGracePeriod returns true if the host is within the grace period for the profile.
-//
-// The grace period is defined as 1 hour after the profile was updated. It is checked against the
-// host's detail_updated_at timestamp to allow for the host to check in at least once before the
-// profile is considered failed. If the host is online, it should report detail queries hourly by
-// default. If the host is offline, it should report detail queries shortly after it comes back
-// online.
-func (cp MDMAppleConfigProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) bool {
-	gracePeriod := 1 * time.Hour
-	return hostDetailUpdatedAt.Before(cp.UpdatedAt.Add(gracePeriod))
 }
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
@@ -377,11 +365,15 @@ func (d HostMDMProfileDetail) Message() string {
 }
 
 type MDMAppleProfilePayload struct {
-	ProfileID         uint   `db:"profile_id"`
-	ProfileIdentifier string `db:"profile_identifier"`
-	ProfileName       string `db:"profile_name"`
-	HostUUID          string `db:"host_uuid"`
-	Checksum          []byte `db:"checksum"`
+	ProfileID         uint                    `db:"profile_id"`
+	ProfileIdentifier string                  `db:"profile_identifier"`
+	ProfileName       string                  `db:"profile_name"`
+	HostUUID          string                  `db:"host_uuid"`
+	Checksum          []byte                  `db:"checksum"`
+	Status            *MDMAppleDeliveryStatus `db:"status" json:"status"`
+	OperationType     MDMAppleOperationType   `db:"operation_type"`
+	Detail            string                  `db:"detail"`
+	CommandUUID       string                  `db:"command_uuid"`
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
@@ -459,6 +451,7 @@ type MDMApplePreassignProfilePayload struct {
 	HostUUID               string `json:"host_uuid"`
 	Profile                []byte `json:"profile"`
 	Group                  string `json:"group"`
+	Exclude                bool   `json:"exclude"`
 }
 
 // HexMD5Hash returns the hex-encoded MD5 hash of the profile. Note that MD5 is
@@ -484,6 +477,7 @@ type MDMApplePreassignProfile struct {
 	Profile    []byte
 	Group      string
 	HexMD5Hash string
+	Exclude    bool
 }
 
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
