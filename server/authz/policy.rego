@@ -819,10 +819,11 @@ allow {
 # Host Script Result (script execution and output)
 ##
 
-# Global admins, maintainers and gitops can write (execute) scripts.
+# Global admins and maintainers can write (execute) scripts (not gitops as this
+# is not something that relates to fleetctl apply).
 allow {
   object.type == "host_script_result"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer][_]
   action == write
 }
 
@@ -833,11 +834,12 @@ allow {
   action == read
 }
 
-# Team admin, maintainers and gitops can write (execute) scripts for their teams.
+# Team admin and maintainers can write (execute) scripts for their teams (not
+# gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_script_result"
   not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.team_id) == [admin, maintainer][_]
   action == write
 }
 

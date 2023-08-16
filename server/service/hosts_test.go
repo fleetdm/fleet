@@ -1150,8 +1150,8 @@ func TestHostRunScript(t *testing.T) {
 		{
 			name:                  "global gitops",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
-			shouldFailTeamWrite:   false,
-			shouldFailGlobalWrite: false,
+			shouldFailTeamWrite:   true,
+			shouldFailGlobalWrite: true,
 		},
 		{
 			name:                  "team admin, belongs to team",
@@ -1180,7 +1180,7 @@ func TestHostRunScript(t *testing.T) {
 		{
 			name:                  "team gitops, belongs to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
-			shouldFailTeamWrite:   false,
+			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
 		},
 		{

@@ -4224,8 +4224,20 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     host_id = ? AND
     execution_id = ?`
 
+	const maxOutputRuneLen = 10000
+	output := result.Output
+	if len(output) > utf8.UTFMax*maxOutputRuneLen {
+		// truncate the bytes as we know the output is too long, no point
+		// converting more bytes than needed to runes.
+		output = output[len(output)-utf8.UTFMax*maxOutputRuneLen:]
+	}
+	if utf8.RuneCountInString(output) > maxOutputRuneLen {
+		outputRunes := []rune(output)
+		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
+	}
+
 	if _, err := ds.writer(ctx).ExecContext(ctx, updStmt,
-		result.Output,
+		output,
 		result.Runtime,
 		result.ExitCode,
 		result.HostID,

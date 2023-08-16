@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -23,6 +25,8 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 }
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
+	const maxScriptRuneLen = 10000
+
 	// must load the host (lite is enough, just for the team) to authorize
 	// with the proper team id. We cannot first authorize if the user can list
 	// hosts, because the user could have a write-only role (e.g. gitops).
@@ -44,6 +48,16 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	if request.ScriptContents == "" {
 		return nil, fleet.NewInvalidArgumentError("script_contents", "a script to execute is required")
+	}
+	// look for the script length in bytes first, as rune counting a huge string
+	// can be expensive.
+	if len(request.ScriptContents) > utf8.UTFMax*maxScriptRuneLen {
+		return nil, fleet.NewInvalidArgumentError("script_contents", fmt.Sprintf("script is too long, must be at most %d characters", maxScriptRuneLen))
+	}
+	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
+	// we can safely count the runes for a precise check.
+	if utf8.RuneCountInString(request.ScriptContents) > maxScriptRuneLen {
+		return nil, fleet.NewInvalidArgumentError("script_contents", fmt.Sprintf("script is too long, must be at most %d characters", maxScriptRuneLen))
 	}
 
 	// create the script execution request

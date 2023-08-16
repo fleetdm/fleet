@@ -7287,6 +7287,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotZero(t, createdScript.ID)
+	require.NotEmpty(t, createdScript.ExecutionID)
 	require.Equal(t, uint(1), createdScript.HostID)
 	require.NotEmpty(t, createdScript.ExecutionID)
 	require.Equal(t, "echo", createdScript.ScriptContents)
@@ -7321,7 +7322,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Empty(t, pending)
 
 	// the script result can be retrieved
-	script, err := ds.GetHostScriptExecutionResult(ctx, "abc")
+	script, err := ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
 	require.NoError(t, err)
 	expectScript := *createdScript
 	expectScript.Output = "foo"
@@ -7329,8 +7330,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	expectScript.ExitCode = sql.NullInt64{Int64: 0, Valid: true}
 	require.Equal(t, &expectScript, script)
 
-	// create another script execution request without an execution id
-	// automatically sets one.
+	// create another script execution request
 	createdScript, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         1,
 		ScriptContents: "echo2",
@@ -7343,4 +7343,41 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
 	require.NoError(t, err)
 	require.Equal(t, createdScript, script)
+
+	// record a result for this execution, with an output that is too large
+	largeOutput := strings.Repeat("a", 1000) +
+		strings.Repeat("b", 1000) +
+		strings.Repeat("c", 1000) +
+		strings.Repeat("d", 1000) +
+		strings.Repeat("e", 1000) +
+		strings.Repeat("f", 1000) +
+		strings.Repeat("g", 1000) +
+		strings.Repeat("h", 1000) +
+		strings.Repeat("i", 1000) +
+		strings.Repeat("j", 1000) +
+		strings.Repeat("k", 1000)
+	expectedOutput := strings.Repeat("b", 1000) +
+		strings.Repeat("c", 1000) +
+		strings.Repeat("d", 1000) +
+		strings.Repeat("e", 1000) +
+		strings.Repeat("f", 1000) +
+		strings.Repeat("g", 1000) +
+		strings.Repeat("h", 1000) +
+		strings.Repeat("i", 1000) +
+		strings.Repeat("j", 1000) +
+		strings.Repeat("k", 1000)
+
+	err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: createdScript.ExecutionID,
+		Output:      largeOutput,
+		Runtime:     10,
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+
+	// the script result can be retrieved
+	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, expectedOutput, script.Output)
 }

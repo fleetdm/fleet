@@ -1847,9 +1847,9 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Script, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Script, action: read, allow: true},
 
-		{user: test.UserGitOps, object: globalScript, action: write, allow: true},
+		{user: test.UserGitOps, object: globalScript, action: write, allow: false},
 		{user: test.UserGitOps, object: globalScript, action: read, allow: false},
-		{user: test.UserGitOps, object: team1Script, action: write, allow: true},
+		{user: test.UserGitOps, object: team1Script, action: write, allow: false},
 		{user: test.UserGitOps, object: team1Script, action: read, allow: false},
 
 		{user: test.UserTeamAdminTeam1, object: globalScript, action: write, allow: false},
@@ -1894,7 +1894,7 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: globalScript, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: globalScript, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Script, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: team1Script, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: team1Script, action: read, allow: false},
 
 		{user: test.UserTeamGitOpsTeam2, object: globalScript, action: write, allow: false},
