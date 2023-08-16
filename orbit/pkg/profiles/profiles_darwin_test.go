@@ -69,75 +69,6 @@ func TestGetFleetdConfig(t *testing.T) {
 	}
 }
 
-func TestIsEnrolledIntoMatchingURL(t *testing.T) {
-	fleetURL := "https://valid.com"
-	cases := []struct {
-		cmdOut  *string
-		cmdErr  error
-		wantOut bool
-		wantErr bool
-	}{
-		{nil, errors.New("test error"), false, true},
-		{ptr.String(""), nil, false, false},
-		{ptr.String(`
-Enrolled via DEP: No
-MDM enrollment: No
-		`), nil, false, false},
-		{
-			ptr.String(`
-Enrolled via DEP: Yes
-MDM enrollment: Yes
-MDM server: https://test.example.com
-			`),
-			nil,
-			false,
-			false,
-		},
-		{
-			ptr.String(`
-Enrolled via DEP: Yes
-MDM enrollment: Yes
-MDM server /  https://test.example.com
-			`),
-			nil,
-			false,
-			false,
-		},
-		{
-			ptr.String(`
-Enrolled via DEP: Yes
-MDM enrollment: Yes
-MDM server: https://valid.com/mdm/apple/mdm
-			`),
-			nil,
-			true,
-			false,
-		},
-	}
-
-	origCmd := getMDMInfoFromProfilesCmd
-	t.Cleanup(func() { getMDMInfoFromProfilesCmd = origCmd })
-	for _, c := range cases {
-		getMDMInfoFromProfilesCmd = func() ([]byte, error) {
-			if c.cmdOut == nil {
-				return nil, c.cmdErr
-			}
-
-			var buf bytes.Buffer
-			buf.WriteString(*c.cmdOut)
-			return []byte(*c.cmdOut), nil
-		}
-
-		out, err := IsEnrolledIntoMatchingURL(fleetURL)
-		if c.wantErr {
-			require.Error(t, err)
-		} else {
-			require.NoError(t, err)
-		}
-		require.Equal(t, c.wantOut, out)
-	}
-}
-
 func TestIsEnrolledInMDM(t *testing.T) {
 	cases := []struct {
 		cmdOut       *string
@@ -171,7 +102,7 @@ MDM server /  https://test.example.com
 			`),
 			nil,
 			true,
-			"",
+			"//test.example.com",
 			false,
 		},
 		{
@@ -268,6 +199,22 @@ func TestCheckAssignedEnrollmentProfile(t *testing.T) {
 	AwaitDeviceConfigured = 0;
 	ConfigurationURL = "https://test.example.com/mdm/apple/enroll?token=1234";
 	ConfigurationWebURL = "https://valid.com?token=1234";
+	...
+}
+			`),
+			nil,
+			false,
+			nil,
+		},
+		{
+			"mixed case match",
+			ptr.String(`Device Enrollment configuration:
+{
+    AllowPairing = 1;
+	AutoAdvanceSetup = 0;
+	AwaitDeviceConfigured = 0;
+	ConfigurationURL = "https://test.ExaMplE.com/mdm/apple/enroll?token=1234";
+	ConfigurationWebURL = "https://vaLiD.com?tOken=1234";
 	...
 }
 			`),

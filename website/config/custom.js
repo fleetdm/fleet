@@ -149,7 +149,7 @@ module.exports.custom = {
     'website/config/custom.js': 'mikermcneil',
 
     // 🦿 Handbook
-    'handbook/': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
+    'handbook': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     //'handbook/company/ceo.md': 'sampfluger88',
     //'handbook/company': 'mikermcneil',
     //'handbook/business-operations': 'mikermcneil',
