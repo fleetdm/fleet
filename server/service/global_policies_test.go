@@ -222,3 +222,37 @@ func TestRemoveGlobalPoliciesFromWebhookConfig(t *testing.T) {
 		})
 	}
 }
+
+// test ApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs
+func TestApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs(t *testing.T) {
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	req := []*fleet.PolicySpec{
+		{
+			Name:     "query1",
+			Query:    "select 1;",
+			Platform: "windows",
+		},
+		{
+			Name:     "query1",
+			Query:    "select 1;",
+			Platform: "windows",
+		},
+	}
+
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	err := svc.ApplyPolicySpecs(ctx, req)
+
+	badRequestError := &fleet.BadRequestError{
+		Message: "duplicate policy names not allowed",
+	}
+
+	require.ErrorAs(t, err, &badRequestError)
+}
