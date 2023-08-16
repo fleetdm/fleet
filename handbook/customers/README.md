@@ -504,6 +504,7 @@ What is it like to be a Solutions Consultant at Fleet? What do you do every day?
 * Build video content with [Consensus](https://app.goconsensus.com/). Aim to produce a video per week. 
 * Supplemental domain training. Checkout [DFIR Diva](https://training.dfirdiva.com/) and [Cybrary - SecurityOnion](https://app.cybrary.it/browse/course/security-onion) and block time in your calendar appropriately for learning about one new topic per month.
 * Get involved in the community. Are there any local meetups that you can attend?
+* Work the Slack support channels alongside the Customer Success Engineers.
 
 #### Within 90 days + -- contribute
 * Build and maintain [success criteria documentation](https://docs.google.com/document/d/1TNhUMgxXHDuuuH8rirtwZs_TF9iVUiOrL9r2kJ6sWZA/edit?usp=drive_link) with all prospects. 
@@ -515,7 +516,7 @@ What is it like to be a Solutions Consultant at Fleet? What do you do every day?
 * Ensure you have a backup source of power. Not just your laptop battery.
 * Multiple monitors are your friend.
 * Demo from a clean "demo" browser profile. Clear your desktop.
-* Pause desktop notifications
+* Pause desktop notifications.
 
 #### Avoid these demo gotchas
 * Showing absolutely everything the product does before you've done a technical discovery. Sometimes even a brief discovery prior to demo will hone your focus for the demo.
