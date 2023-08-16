@@ -18,6 +18,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1165,34 +1166,7 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 
 // GetMDMWindowsTOSContent returns valid TOC content
 func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
-	tmpl, err := template.New("").Parse(`
-	<html>
-	<head>
-	<style>
-	  button {
-		background-color: #008CBA;
-		color: white;
-		padding: 10px 60px;
-		border: none;
-		cursor: pointer;
-	  }
-	</style>
-	</head>
-	<body>
-	  <center>
-		<img src="https://fleetdm.com/images/logo-blue-162x92@2x.png">
-		<br>
-		<h2>Terms and conditions</h2>
-		<br> Terms and Conditions PDF content should go here <center>
-		  <br>
-		  <button type="button" onClick="acceptBtn()">Accept</button>
-		  <script>
-			function acceptBtn() {
-			  window.location = "{{.RedirectURL}}" + "?IsAccepted=true&OpaqueBlob={{.ClientData}}";
-			}
-		  </script>
-	</body>
-	</html>`)
+	tmpl, err := server.GetTemplate("frontend/templates/windowsTOS.html", "windows-tos")
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
 	}

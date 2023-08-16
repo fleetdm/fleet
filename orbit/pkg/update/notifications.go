@@ -12,7 +12,9 @@ import (
 
 type runCmdFunc func() error
 
-type checkEnrollmentFunc func(url string) (bool, error)
+type checkEnrollmentFunc func() (bool, string, error)
+
+type checkAssignedEnrollmentProfileFunc func(url string) error
 
 // renewEnrollmentProfileConfigFetcher is a kind of middleware that wraps an
 // OrbitConfigFetcher and detects if the fleet server sent a notification to
@@ -37,6 +39,9 @@ type renewEnrollmentProfileConfigFetcher struct {
 	// for tests, to be able to mock the function that checks for Fleet
 	// enrollment
 	checkEnrollmentFn checkEnrollmentFunc
+
+	// for tests, to be able to mock the function that checks for the assigned enrollment profile
+	checkAssignedEnrollmentProfileFn checkAssignedEnrollmentProfileFunc
 
 	// ensures only one command runs at a time, protects access to lastRun
 	cmdMu   sync.Mutex
@@ -66,20 +71,35 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 			// See https://github.com/fleetdm/fleet/pull/9409#discussion_r1084382455
 			if time.Since(h.lastRun) > h.Frequency {
 				// we perform this check locally on the client too to avoid showing the
-				// dialog if the client has already migrated but the Fleet server
-				// doesn't know about this state yet.
+				// dialog if the client is enrolled to an MDM server.
 				enrollFn := h.checkEnrollmentFn
 				if enrollFn == nil {
-					enrollFn = profiles.IsEnrolledIntoMatchingURL
+					enrollFn = profiles.IsEnrolledInMDM
 				}
-				enrolled, err := enrollFn(h.fleetURL)
+				enrolled, mdmServerURL, err := enrollFn()
 				if err != nil {
 					log.Error().Err(err).Msg("fetching enrollment status")
 					return cfg, nil
 				}
 				if enrolled {
-					log.Info().Msg("a request to renew the enrollment profile was processed but not executed because the host is already enrolled into Fleet.")
-					h.lastRun = time.Now()
+					log.Info().Msgf("a request to renew the enrollment profile was processed but not executed because the host is enrolled into an MDM server with URL: %s", mdmServerURL)
+					h.lastRun = time.Now().Add(-h.Frequency).Add(2 * time.Minute)
+					return cfg, nil
+				}
+
+				// we perform this check locally on the client too to avoid showing the
+				// dialog if the Fleet enrollment profile has not been assigned to the device in
+				// Apple Business Manager.
+				assignedFn := h.checkAssignedEnrollmentProfileFn
+				if assignedFn == nil {
+					assignedFn = profiles.CheckAssignedEnrollmentProfile
+				}
+				if err := assignedFn(h.fleetURL); err != nil {
+					log.Error().Err(err).Msg("checking assigned enrollment profile")
+					log.Info().Msg("a request to renew the enrollment profile was processed but not executed because there was an error checking the assigned enrollment profile.")
+					// TODO: Design a better way to backoff `profiles show` so that the device doesn't get rate
+					// limited by Apple. For now, wait at least 2 minutes before retrying.
+					h.lastRun = time.Now().Add(-h.Frequency).Add(2 * time.Minute)
 					return cfg, nil
 				}
 
@@ -88,6 +108,9 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 					fn = runRenewEnrollmentProfile
 				}
 				if err := fn(); err != nil {
+					// TODO: Look into whether we should increment lastRun here or implement a
+					// backoff to avoid unnecessary user notification popups and mitigate rate
+					// limiting by Apple.
 					log.Info().Err(err).Msg("calling /usr/bin/profiles to renew enrollment profile failed")
 				} else {
 					h.lastRun = time.Now()

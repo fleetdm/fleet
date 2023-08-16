@@ -871,6 +871,12 @@ func TestGetPacks(t *testing.T) {
 +-------+----------+-------------+----------+
 | pack1 | darwin   | some desc   | false    |
 +-------+----------+-------------+----------+
+Found 1 2017 "Packs".
+
+Querying in Fleet is becoming more powerful. To learn more, visit:
+https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs
+
+To retrieve "Pack" data in a portable format for upgrading, run ` + "`fleetctl upgrade-packs`" + `.
 `
 	expectedYaml := `---
 apiVersion: v1
@@ -906,6 +912,17 @@ spec:
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
 	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
 	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
+
+	// test output when there are no packs
+	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
+		return nil, nil
+	}
+
+	expected = `No 2017 "Packs" found.
+`
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
+	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--yaml"}))
+	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--json"}))
 }
 
 func TestGetPack(t *testing.T) {
@@ -970,6 +987,23 @@ spec:
 	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
 	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
 	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
+
+	expectedEmptyYaml := `---
+apiVersion: v1
+kind: pack
+spec: null
+`
+
+	expectedEmptyJson := `
+{
+  "kind": "pack",
+  "apiVersion": "v1",
+  "spec": null
+}`
+
+	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "no-such-pack"}))
+	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "no-such-pack"}))
+	assert.JSONEq(t, expectedEmptyJson, runAppForTest(t, []string{"get", "packs", "--json", "no-such-pack"}))
 }
 
 func TestGetQueries(t *testing.T) {

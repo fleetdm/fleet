@@ -549,7 +549,7 @@ func (h *Host) IsEligibleForDEPMigration() bool {
 // NeedsDEPEnrollment returns true if the host should be DEP enrolled into
 // fleet but it's currently unenrolled.
 func (h *Host) NeedsDEPEnrollment() bool {
-	return !h.MDMInfo.IsDEPFleetEnrolled() &&
+	return h.MDMInfo != nil && !h.MDMInfo.IsDEPFleetEnrolled() &&
 		!h.MDMInfo.IsManualFleetEnrolled() &&
 		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
 		h.IsDEPAssignedToFleet()

@@ -107,7 +107,9 @@ const useInfoCard = ({
             <div className={`${baseClass}__section-title-group`}>
               <div className={`${baseClass}__section-title`}>
                 <h2>{title}</h2>
-                {total_host_count && <span>{total_host_count}</span>}
+                {total_host_count !== undefined && (
+                  <span>{total_host_count}</span>
+                )}
               </div>
               {titleDetail && (
                 <div className={`${baseClass}__section-title-detail`}>

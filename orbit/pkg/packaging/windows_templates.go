@@ -54,7 +54,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />
     <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
 
-    <Property Id="FLEET_URL" Value="{{ if .FleetURL }}'{{ .FleetURL }}'{{ end }}"/>
+    <Property Id="FLEET_URL" Value="{{ if .FleetURL }}{{ .FleetURL }}{{ end }}"/>
     <Property Id="FLEET_SECRET" Value="dummy"/>
 
     <MediaTemplate EmbedCab="yes" />

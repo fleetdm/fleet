@@ -37,7 +37,7 @@ Fleet is currently hiring for the following positions:
 ### Is it any good?
 
 Here are a few reasons to work at Fleet:
-- Work from anywhere with good internet. ([We're 100% remote](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/), No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.  Organize your workday to fit your lifestyle.  Take breaks.  Go to the dentist.
+- Work from anywhere with good internet. ([We're 100% remote](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/), No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.  Organize your workday to [fit your lifestyle](https://mikesolin.com/2023/08/05/finding-balance-while-working-remotely/).  Take breaks.  Go to the dentist.
 - Fleet can offer you a competitive salary, significant equity, and an independent, outsider-friendly culture. Work with helpful, kind, and motivated people who know what they're doing.
 - At Fleet, we value focus, iteration, and meaningful results – not [60 hour work weeks](https://fleetdm.com/handbook/company#results). We are non-judgmental and laser-focused on growing the company.
 - Work closely with experienced, well-funded founders and a great team, including the people who created osquery and Sails. We care about openness and transparency.
@@ -60,13 +60,13 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 
 - **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and [assume](https://about.gitlab.com/handbook/values/#assume-positive-intent) others are doing the same.
 - **Be a helper.** Take care of customers first. But give hospitality and [service with a smile](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy) to everyone you can.
-- **Read what you write.**  [Shorten](http://www.paulgraham.com/writing44.html) it. [Repeat](http://www.paulgraham.com/useful.html).
-- **Get curious.**  Wonder about things. Ask people genuine questions, and listen closely. <!-- Roleplay. Use your imagination to see situations from different perspectives. -->
+- **Read what you write.**  [Shorten](http://www.paulgraham.com/writing44.html) it. [Repeat](http://www.paulgraham.com/useful.html). <!-- Roleplay. Use your imagination to see situations from different perspectives. -->
+- **Get curious.**  Wonder about things. Ask people genuine questions, and listen closely. Notice things.
 
 ### 🟠 Ownership
-It takes a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
+It takes a fully-activated mind to achieve ambitious goals, and remote work requires self-discipline.  Think like an owner of the company.
 
-- **Be reliable.**  Reply quickly to email, Slack, and GitHub mentions.  Arrive in meetings on time.  <!-- even if you can't take immediate action. -->
+- **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Arrive in meetings [on time](https://fleetdm.com/handbook/company/communications#meetings).  Follow handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way).
 - **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
 - **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
 - **Think long term.** Understand [Fleet's priorities](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit), beyond your department's goals. Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose). <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy).  -->
