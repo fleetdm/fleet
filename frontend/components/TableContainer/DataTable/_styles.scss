@@ -242,7 +242,7 @@ $shadow-transition-width: 10px;
         }
         // css to properly style link-cell with tooltip
         .link-cell-tooltip {
-          overflow: visible; // fixes tooltip cut off within cell
+          overflow: visible; // fixes tooltip overflow cut off by cell
           .component__tooltip-wrapper {
             display: block;
             white-space: nowrap; // single line
