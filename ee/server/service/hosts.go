@@ -25,7 +25,10 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 }
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
-	const maxScriptRuneLen = 10000
+	const (
+		maxScriptRuneLen    = 10000
+		maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
+	)
 
 	// must load the host (lite is enough, just for the team) to authorize
 	// with the proper team id. We cannot first authorize if the user can list
@@ -60,6 +63,22 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("script_contents", fmt.Sprintf("script is too long, must be at most %d characters", maxScriptRuneLen))
 	}
 
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, maxPendingScriptAge)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
+	}
+	if len(pending) > 0 {
+		// TODO(mna): there are a number of issues with that validation: it only
+		// really says that there was a script execution _request_ that was made < 1m
+		// ago, and that blocks executing any more scripts on that host, but the
+		// host may not even have received the previous script for execution yet,
+		// so if we accept more scripts after 1m, we may end up having multiple
+		// scripts to execute on the host at the same time (or more likely in
+		// sequence, but still). This may be good enough for now, I think the whole
+		// idea of locking if a script is pending is meant to be temporary anyway.
+		return nil, fleet.NewInvalidArgumentError("script_contents", "a script is currently executing on the host")
+	}
+
 	// create the script execution request
 	script, err := svc.ds.NewHostScriptExecutionRequest(ctx, request)
 	if err != nil {
@@ -76,15 +95,23 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	ctx, cancel := context.WithTimeout(ctx, waitForResult)
 	defer cancel()
 
+	// if waiting for a result times out, we still want to return the script's
+	// execution request information along with the error, so that the caller can
+	// use the execution id for later checks.
+	timeoutResult := script
 	checkInterval := time.Second
 	after := time.NewTimer(checkInterval)
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return timeoutResult, ctx.Err()
 		case <-after.C:
 			result, err := svc.ds.GetHostScriptExecutionResult(ctx, script.ExecutionID)
 			if err != nil {
+				// is that due to the context being canceled during the DB access?
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					return timeoutResult, ctxErr
+				}
 				return nil, ctxerr.Wrap(ctx, err, "get script execution result")
 			}
 			if result.ExitCode.Valid {

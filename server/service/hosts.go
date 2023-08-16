@@ -1606,6 +1606,7 @@ type runScriptResponse struct {
 }
 
 func (r runScriptResponse) error() error { return r.Err }
+func (r runScriptResponse) Status() int  { return http.StatusAccepted }
 
 func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runScriptRequest)
@@ -1616,9 +1617,6 @@ func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		ScriptContents: req.ScriptContents,
 	}, noWait)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			err = fleet.NewGatewayTimeoutError("script execution timed out waiting for a result", err)
-		}
 		return runScriptResponse{Err: err}, nil
 	}
 	return runScriptResponse{HostID: result.HostID, ExecutionID: result.ExecutionID}, nil
@@ -1635,8 +1633,14 @@ type runScriptSyncResponse struct {
 
 func (r runScriptSyncResponse) error() error { return r.Err }
 
+// this is to be used only by tests, to be able to use a shorter timeout.
+var testRunScriptWaitForResult time.Duration
+
 func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	const waitForResult = time.Minute
+	waitForResult := time.Minute
+	if testRunScriptWaitForResult != 0 {
+		waitForResult = testRunScriptWaitForResult
+	}
 
 	req := request.(*runScriptRequest)
 	result, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{
@@ -1644,6 +1648,15 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		ScriptContents: req.ScriptContents,
 	}, waitForResult)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			err = fleet.NewGatewayTimeoutError("script execution timed out waiting for a result", err)
+			// it should still return the execution id and host id,
+			// so the user knows what script request to look at in the UI.
+			return runScriptSyncResponse{
+				Err:              err,
+				HostScriptResult: result,
+			}, nil
+		}
 		return runScriptSyncResponse{Err: err}, nil
 	}
 	return runScriptSyncResponse{
