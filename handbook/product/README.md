@@ -120,7 +120,7 @@ After aligning with PMs, the Head of Product meets with the CEO and Director of 
 
 Once outcomes have been approved by the CEO, Product Operations will complete the churned bug clean-up ritual. Below are the steps for each category:
 - **Continue**: Product Operations should remove the `:product` label and assign it to the appropriate group's Engineering Manager.
-- **Needs Prioritization**: Product Operations should remove both the `bug` and `:product` labels, then apply the orange `needs prioritization` label.
+- **Needs Prioritization**: Product Operations should remove both the `bug` and `:product` labels, then apply the `needs prioritization` label.
 - **De-prioritized**: Product Operations should close the issue and engage relevant teams for the necessary follow-up actions.
 
 
