@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -1615,6 +1616,9 @@ func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		ScriptContents: req.ScriptContents,
 	}, noWait)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			err = fleet.NewGatewayTimeoutError("script execution timed out waiting for a result", err)
+		}
 		return runScriptResponse{Err: err}, nil
 	}
 	return runScriptResponse{HostID: result.HostID, ExecutionID: result.ExecutionID}, nil
