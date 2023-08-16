@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -3719,15 +3718,56 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// create a valid sync script execution request, fails because the
 	// request will time-out waiting for a result.
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusGatewayTimeout)
-	body, _ := io.ReadAll(res.Body)
-	errMsg = extractServerErrorText(bytes.NewReader(body))
-	require.Contains(t, errMsg, "script execution timed out waiting for a result")
-
-	// it also returns the script's execution request information
 	runSyncResp = runScriptSyncResponse{}
-	err = json.Unmarshal(body, &runSyncResp)
-	require.NoError(t, err)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusGatewayTimeout, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
+	require.Contains(t, runSyncResp.ErrorMessage, "script execution timed out waiting for a result")
+
+	// simulate a result being returned for that pending script
+	err = s.ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: runSyncResp.ExecutionID,
+		ExitCode:    0,
+		Output:      "ok",
+	})
+	require.NoError(t, err)
+
+	// create a valid sync script execution request, and simulate a result
+	// arriving before timeout.
+	testRunScriptWaitForResult = 5 * time.Second
+	ctx, cancel := context.WithTimeout(ctx, testRunScriptWaitForResult)
+	defer cancel()
+
+	go func() {
+		for range time.Tick(300 * time.Millisecond) {
+			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, 10*time.Second)
+			if err != nil {
+				t.Log(err)
+				return
+			}
+			if len(pending) > 0 {
+				// ignoring errors in this goroutine, the HTTP request below will fail if this fails
+				err = s.ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+					HostID:      host.ID,
+					ExecutionID: pending[0].ExecutionID,
+					Output:      "ok",
+					Runtime:     1,
+					ExitCode:    0,
+				})
+				if err != nil {
+					t.Log(err)
+				}
+				return
+			}
+		}
+	}()
+
+	runSyncResp = runScriptSyncResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusOK, &runSyncResp)
+	require.Equal(t, host.ID, runSyncResp.HostID)
+	require.NotEmpty(t, runSyncResp.ExecutionID)
+	require.Equal(t, "ok", runSyncResp.Output)
+	require.Equal(t, int64(0), runSyncResp.ExitCode.Int64)
+	require.Empty(t, runSyncResp.ErrorMessage)
 }
