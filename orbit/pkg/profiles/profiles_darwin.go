@@ -171,7 +171,7 @@ func CheckAssignedEnrollmentProfile(expectedURL string) error {
 		return fmt.Errorf("parsing profiles output: unable to parse configuration web url: %w", err)
 	}
 
-	if assigned.Hostname() != expected.Hostname() {
+	if !strings.EqualFold(assigned.Hostname(), expected.Hostname()) {
 		return fmt.Errorf(`matching configuration web url: expected '%s' but found '%s'`, expected.Hostname(), assigned.Hostname())
 	}
 
