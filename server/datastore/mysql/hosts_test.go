@@ -7283,25 +7283,15 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	// create a createdScript execution request
 	createdScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         1,
-		ExecutionID:    "abc",
 		ScriptContents: "echo",
 	})
 	require.NoError(t, err)
 	require.NotZero(t, createdScript.ID)
 	require.Equal(t, uint(1), createdScript.HostID)
-	require.Equal(t, "abc", createdScript.ExecutionID)
+	require.NotEmpty(t, createdScript.ExecutionID)
 	require.Equal(t, "echo", createdScript.ScriptContents)
 	require.False(t, createdScript.ExitCode.Valid)
 	require.Empty(t, createdScript.Output)
-
-	// using the same host and execution id fails due to unique constraint
-	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
-		HostID:         1,
-		ExecutionID:    "abc",
-		ScriptContents: "bar",
-	})
-	require.Error(t, err)
-	require.True(t, isDuplicate(err))
 
 	// the script execution is now listed as pending for this host
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, 10*time.Second)
@@ -7318,7 +7308,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	// record a result for this execution
 	err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      1,
-		ExecutionID: "abc",
+		ExecutionID: createdScript.ExecutionID,
 		Output:      "foo",
 		Runtime:     2,
 		ExitCode:    0,

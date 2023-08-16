@@ -4196,10 +4196,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 		getStmt = `SELECT id, host_id, execution_id, script_contents FROM host_script_results WHERE id = ?`
 	)
 
-	execID := request.ExecutionID
-	if execID == "" {
-		execID = uuid.New().String()
-	}
+	execID := uuid.New().String()
 	result, err := ds.writer(ctx).ExecContext(ctx, insStmt,
 		request.HostID,
 		execID,

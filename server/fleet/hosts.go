@@ -1075,7 +1075,6 @@ type HostMacOSProfile struct {
 
 type HostScriptRequestPayload struct {
 	HostID         uint   `json:"host_id"`
-	ExecutionID    string `json:"execution_id"`
 	ScriptContents string `json:"script_contents"`
 }
 
