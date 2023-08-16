@@ -81,6 +81,7 @@ module.exports = {
       'sampfluger88',
       'ireedy',
       'mostlikelee',
+      'willmayhone88',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -319,60 +320,59 @@ module.exports = {
         //   > History: https://github.com/fleetdm/fleet/pull/12786)
         let expectedReviewers = [];//« GitHub usernames of people who we expect reviews from.
 
+        // Look up already-requested reviewers
+        // (for use later in minimizing extra notifications for editing PRs to contain new changes
+        // while also still doing appropriate review requests.  Also for determining whether
+        // to apply the #g-ceo label)
+        //
+        // The "requested_reviewers" key in the pull request object:
+        //   - https://developer.github.com/v3/activity/events/types
+        //   - https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
+        //   - https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
+        let alreadyRequestedReviewers = _.isArray(issueOrPr.requested_reviewers) ? _.pluck(issueOrPr.requested_reviewers, 'login') : [];
+        alreadyRequestedReviewers = alreadyRequestedReviewers.map((username) => username.toLowerCase());// « make sure they are all lowercased
+
+        // Look up paths
+        // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
+        let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
+          per_page: 100,//eslint-disable-line camelcase
+        }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
+
+        // For each changed file, decide what reviewer to request, if any…
+        for (let changedPath of changedPaths) {
+          changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
+          sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
+
+          let reviewer = undefined;//« whether to request review for this change
+          let exactMatchDri = DRI_BY_PATH[changedPath];
+          if (exactMatchDri) {// « If we've found our DRI, then we'll stop looking (for *this* changed path, anyway)
+            reviewer = exactMatchDri;
+          } else {// If there's no DRI for this *exact* file path, then check ancestral paths for the nearest DRI
+            let numRemainingPathsToCheck = changedPath.split('/').length - 1;
+            while (numRemainingPathsToCheck > 0) {
+              let ancestralPath = changedPath.split('/').slice(0, numRemainingPathsToCheck).join('/');
+              sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path "${changedPath}"`);
+              let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
+              if (nearestAncestralDri) {// Otherwise, if we have our DRI, we can stop here.
+                reviewer = nearestAncestralDri;
+                break;
+              }//ﬁ
+              numRemainingPathsToCheck--;
+            }//∞
+          }
+
+          if (reviewer) {
+            expectedReviewers.push(reviewer);
+            expectedReviewers = _.uniq(expectedReviewers);// « avoid attempting to request review from the same person twice
+          }//ﬁ
+
+        }//∞
+
+        // Now, if reviews should be requested for this PR, do so.
+        //
+        // > Note: Should we automatically remove reviewers?  Nah, we excluded this on purpose, to avoid removing deliberate
+        // > custom review requests sent by real humans humans.
         if (!issueOrPr.draft) {// « (Draft PRs are skipped)
-
-          // Look up already-requested reviewers
-          // (for use later in minimizing extra notifications for editing PRs to contain new changes
-          // while also still doing appropriate review requests.  Also for determining whether
-          // to apply the #g-ceo label)
-          //
-          // The "requested_reviewers" key in the pull request object:
-          //   - https://developer.github.com/v3/activity/events/types
-          //   - https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
-          //   - https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
-          let alreadyRequestedReviewers = _.isArray(issueOrPr.requested_reviewers) ? _.pluck(issueOrPr.requested_reviewers, 'login') : [];
-          alreadyRequestedReviewers = alreadyRequestedReviewers.map((username) => username.toLowerCase());// « make sure they are all lowercased
-
-          // Look up paths
-          // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
-          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
-            per_page: 100,//eslint-disable-line camelcase
-          }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
-
-          // For each changed file, decide what reviewer to request, if any…
-          for (let changedPath of changedPaths) {
-            changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
-            sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
-
-            let reviewer = undefined;//« whether to request review for this change
-            let exactMatchDri = DRI_BY_PATH[changedPath];
-            if (exactMatchDri) {// « If we've found our DRI, then we'll stop looking (for *this* changed path, anyway)
-              reviewer = exactMatchDri;
-            } else {// If there's no DRI for this *exact* file path, then check ancestral paths for the nearest DRI
-              let numRemainingPathsToCheck = changedPath.split('/').length - 1;
-              while (numRemainingPathsToCheck > 0) {
-                let ancestralPath = changedPath.split('/').slice(0, numRemainingPathsToCheck).join('/');
-                sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path "${changedPath}"`);
-                let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
-                if (nearestAncestralDri) {// Otherwise, if we have our DRI, we can stop here.
-                  reviewer = nearestAncestralDri;
-                  break;
-                }//ﬁ
-                numRemainingPathsToCheck--;
-              }//∞
-            }
-
-            if (reviewer) {
-              expectedReviewers.push(reviewer);
-              expectedReviewers = _.uniq(expectedReviewers);// « avoid attempting to request review from the same person twice
-            }//ﬁ
-
-          }//∞
-
-          // Now, if reviews should be requested for this PR, do so.
-          //
-          // > Note: Should we automatically remove reviewers?  Nah, we excluded this on purpose, to avoid removing deliberate
-          // > custom review requests sent by real humans humans.
           let newReviewers;
           newReviewers = _.difference(expectedReviewers, alreadyRequestedReviewers);// « Don't request review from people whose review has already been requested.
           newReviewers = _.difference(newReviewers, [// « If the original PR author OR you, the sender (current PR author/editor) are the DRI, then don't request review.  No need to request review from yourself, and you CAN'T request review from the author (or the GitHub API will respond with an error.)
@@ -385,7 +385,6 @@ module.exports = {
               reviewers: newReviewers,
             }, baseHeaders);
           }//ﬁ
-
         }//ﬁ
 
         //  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐  ┬  ┌─┐┌┐ ┌─┐┬  ┌─┐
