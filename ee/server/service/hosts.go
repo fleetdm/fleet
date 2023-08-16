@@ -51,6 +51,9 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create script execution request")
 	}
+	// TODO(mna): figure out how to send this to the host, either something to do
+	// here or via the DB checking if there are pending scripts for the host when
+	// sending queries or notifications.
 	if waitForResult <= 0 {
 		// async execution, return
 		return script, nil
@@ -59,10 +62,8 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	ctx, cancel := context.WithTimeout(ctx, waitForResult)
 	defer cancel()
 
-	// check quickly for a result (1/100 of the wait), then every 1/10 of the
-	// wait.
-	initialDelay, checkInterval := waitForResult/100, waitForResult/10
-	after := time.NewTimer(initialDelay)
+	checkInterval := time.Second
+	after := time.NewTimer(checkInterval)
 	for {
 		select {
 		case <-ctx.Done():
@@ -75,6 +76,11 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			if result.ExitCode.Valid {
 				// a result was received from the host, return
 				return result, nil
+			}
+
+			// at a second to every attempt, until it reaches 5s (then check every 5s)
+			if checkInterval < 5*time.Second {
+				checkInterval += time.Second
 			}
 			after.Reset(checkInterval)
 		}
