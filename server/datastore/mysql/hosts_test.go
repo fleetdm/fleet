@@ -7154,6 +7154,7 @@ func testGetMatchingHostSerials(t *testing.T, ds *Datastore) {
 			PrimaryMac:      "30-65-EC-6F-C4-58",
 			HardwareSerial:  serial,
 			TeamID:          tmID,
+			ID:              uint(i),
 		})
 		require.NoError(t, err)
 	}
@@ -7170,7 +7171,7 @@ func testGetMatchingHostSerials(t *testing.T, ds *Datastore) {
 			"partial matches",
 			[]string{"foo", "rab"},
 			map[string]*fleet.Host{
-				"foo": {HardwareSerial: "foo", TeamID: nil},
+				"foo": {HardwareSerial: "foo", TeamID: nil, ID: 1},
 			},
 			"",
 		},
@@ -7178,9 +7179,9 @@ func testGetMatchingHostSerials(t *testing.T, ds *Datastore) {
 			"all matching",
 			[]string{"foo", "bar", "baz"},
 			map[string]*fleet.Host{
-				"foo": {HardwareSerial: "foo", TeamID: nil},
-				"bar": {HardwareSerial: "bar", TeamID: &team.ID},
-				"baz": {HardwareSerial: "baz", TeamID: nil},
+				"foo": {HardwareSerial: "foo", TeamID: nil, ID: 1},
+				"bar": {HardwareSerial: "bar", TeamID: &team.ID, ID: 2},
+				"baz": {HardwareSerial: "baz", TeamID: nil, ID: 3},
 			},
 			"",
 		},

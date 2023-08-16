@@ -56,13 +56,13 @@ var execScript = func(script string) (*bytes.Buffer, error) {
 	return &outBuf, nil
 }
 
-// IsEnrolledIntoMatchingURL runs the `profiles` command to get the current MDM
-// enrollment information and reports if the hostname of the MDM server
-// supervising the device matches the hostname of the provided URL.
-func IsEnrolledIntoMatchingURL(serverURL string) (bool, error) {
+// IsEnrolledInMDM runs the `profiles` command to get the current MDM
+// enrollment information and reports if the host is enrolled, and the URL of
+// the MDM server (if enrolled)
+func IsEnrolledInMDM() (bool, string, error) {
 	out, err := getMDMInfoFromProfilesCmd()
 	if err != nil {
-		return false, fmt.Errorf("calling /usr/bin/profiles: %w", err)
+		return false, "", fmt.Errorf("calling /usr/bin/profiles: %w", err)
 	}
 
 	// The output of the command is in the form:
@@ -80,25 +80,17 @@ func IsEnrolledIntoMatchingURL(serverURL string) (bool, error) {
 	// 2. The last row matches our server URL
 	lines := bytes.Split(bytes.TrimSpace(out), []byte("\n"))
 	if len(lines) < 3 {
-		return false, nil
+		return false, "", nil
 	}
 
 	parts := bytes.SplitN(lines[2], []byte(":"), 2)
 	if len(parts) < 2 {
-		return false, fmt.Errorf("splitting profiles output to get MDM server URL: %w", err)
+		return false, "", fmt.Errorf("splitting profiles output to get MDM server URL: %w", err)
 	}
 
-	u, err := url.Parse(string(bytes.TrimSpace(parts[1])))
-	if err != nil {
-		return false, fmt.Errorf("parsing URL from profiles command: %w", err)
-	}
+	enrollmentURL := string(bytes.TrimSpace(parts[1]))
 
-	fu, err := url.Parse(serverURL)
-	if err != nil {
-		return false, fmt.Errorf("parsing provided Fleet URL: %w", err)
-	}
-
-	return u.Hostname() == fu.Hostname(), nil
+	return true, enrollmentURL, nil
 }
 
 // getMDMInfoFromProfilesCmd is declared as a variable so it can be overwritten by tests.
@@ -179,7 +171,7 @@ func CheckAssignedEnrollmentProfile(expectedURL string) error {
 		return fmt.Errorf("parsing profiles output: unable to parse configuration web url: %w", err)
 	}
 
-	if assigned.Hostname() != expected.Hostname() {
+	if !strings.EqualFold(assigned.Hostname(), expected.Hostname()) {
 		return fmt.Errorf(`matching configuration web url: expected '%s' but found '%s'`, expected.Hostname(), assigned.Hostname())
 	}
 
