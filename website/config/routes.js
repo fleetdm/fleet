@@ -398,6 +398,7 @@ module.exports.routes = {
   'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
   'GET /handbook/marketing/content-style-guide': '/handbook/company/communications#writing',
   'GET /handbook/marketing/editor-guide/': '/handbook/company/communications#github',
+  'GET /handbook/marketing/docs-handbook/': '/handbook/marketing/website-handbook',
   'GET /handbook/quality': '/handbook/engineering#quality',
   'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
