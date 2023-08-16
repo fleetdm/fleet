@@ -439,9 +439,6 @@ Once you have the above follow these steps:
 
 Read the [Website handbook](./website-handbook) for detailed information and processes specific to the Fleet website. Including the website roadmap, how to request changes, and processes related to QA, deploying changes, and marketing experimentation.
 
-## Documentation
-
-The [Docs handbook](./docs-handbook) details processes specific to updating and maintaining the Fleet docs. 
 
 ## Rituals
 
@@ -513,6 +510,10 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 ## Stubs
 
 ### Content style guide
+
+Please see [handbook/company/communications/content-style-guide](https//fleetdm.com/handbook/company/communications/content-style-guide).
+
+### Documentation
 
 Please see [handbook/company/communications/content-style-guide](https//fleetdm.com/handbook/company/communications/content-style-guide).
 
