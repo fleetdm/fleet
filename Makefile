@@ -376,6 +376,18 @@ ifneq ($(shell uname), Darwin)
 	@echo "Makefile target swift-dialog-app-tar-gz is only supported on macOS"
 	@exit 1
 endif
+
+	# locking the version of swiftDialog to 2.2.1-4591 until issues with
+	# SVG displays are fixed (see https://github.com/bartreardon/swiftDialog/issues/296)
+ifneq ($(version), 2.1.0)
+	@echo "Version is locked at 2.1.0, see comments in Makefile target for details"
+	@exit 1
+endif
+
+ifneq ($(build), 4148)
+	@echo "Build version is locked at 4148, see comments in Makefile target for details"
+	@exit 1
+endif
 	$(eval TMP_DIR := $(shell mktemp -d))
 	curl -L https://github.com/bartreardon/swiftDialog/releases/download/v$(version)/dialog-$(version)-$(build).pkg --output $(TMP_DIR)/swiftDialog-$(version).pkg
 	pkgutil --expand $(TMP_DIR)/swiftDialog-$(version).pkg $(TMP_DIR)/swiftDialog_pkg_expanded
