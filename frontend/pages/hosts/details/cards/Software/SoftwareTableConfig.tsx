@@ -1,5 +1,5 @@
 import React from "react";
-import { InjectedRouter, Link } from "react-router";
+import { InjectedRouter } from "react-router";
 import ReactTooltip from "react-tooltip";
 
 import { formatDistanceToNow } from "date-fns";
@@ -7,9 +7,9 @@ import { formatDistanceToNow } from "date-fns";
 import { ISoftware } from "interfaces/software";
 import PATHS from "router/paths";
 
-import Button from "components/buttons/Button";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -215,19 +215,13 @@ export const generateSoftwareTableHeaders = ({
         };
 
         return (
-          <Link
-            className="link-cell"
-            to={PATHS.SOFTWARE_DETAILS(id.toString())}
-            onClick={onClickSoftware}
-          >
-            {bundle ? renderBundleTooltip(name, bundle) : name}
-          </Link>
+          <LinkCell
+            path={PATHS.SOFTWARE_DETAILS(id.toString())}
+            customOnClick={onClickSoftware}
+            value={bundle ? renderBundleTooltip(name, bundle) : name}
+            withTooltip={!!bundle}
+          />
         );
-        // return (
-        //   <Button onClick={onClickSoftware} variant="text-link">
-        //     {bundle ? renderBundleTooltip(name, bundle) : name}
-        //   </Button>
-        // );
       },
       sortType: "caseInsensitive",
     },
