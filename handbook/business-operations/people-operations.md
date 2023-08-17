@@ -438,10 +438,9 @@ Now what happens?  🔦 Business Operations will then follow the steps in the "H
 
 ### Communicating departures
 Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
-1. **Departing teammate:** Please notify Head of Business operations (`@jostableford`) of your departure via email, and cc your manager.
-2. **Departing team member's manager:** If you are notified of departure verbally prior to written notice, please direct your team member to inform business operations about the departure via email.
+1. **Departing team member's manager:** Inform the Head of Business Operations about the departure via email and cc your manager. The Head of Business Operations will coordinate the team member's last day, offboarding, and exit meeting.
 3. **Business Operations**: Will then create and begin completing [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md), to include coordinating team member's last day, offboarding, and exit meeting.
-   > After finding out about the departure, Business Operations will post in `#g-e` to inform the E-group of the team member's departure and ask E-group members will inform any other managers on their teams.
+   > After finding out about the departure, the Head of Business Operations will post in #g-e to inform the E-group of the team member's departure, asking E-group members to inform any other managers on their teams.
 4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 <meta name="maintainedBy" value="jostableford">
