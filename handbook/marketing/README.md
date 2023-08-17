@@ -455,10 +455,10 @@ The following table lists the Marketing, Brand, and Community group's rituals, f
 | Enrich Salesforce leads      | Weekly | Follow the Salesforce lead enrichment process every Friday    | Drew Baker        |
 | Outside contributions        | Weekly | Check pull requests for outside contributions every Monday | Drew Baker|
 | Weekly article               | Weekly | Publish an article and promote it on social media | Drew Baker|
-| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Jarod Reyes          |
+| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Mike McNeil          |
 | Podcast outreach             | Weekly | Conduct podcast outreach twice a week     | Drew Baker        |
 | Weekly update                | Weekly | Update the marketing KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) | Drew Baker        |
-| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Jarod Reyes        |
+| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Mike McNeil        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month | Drew Baker|
 | Freshen up pinned posts      | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page | Drew Baker | 
 | Tweet review | Daily | Review tweets for tone and brand consistency | Mike Thomas |
@@ -497,11 +497,11 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-marketing`              | Jarod Reyes                                                            |
+| `#g-marketing`              | Mike McNeil                                                            |
 | `#g-website`                | Michael Thomas                                                            |
-| `#fleet-mindshare-pr`       | Jarod Reyes                                                            |
-| `#help-public-relations`    | Jarod Reyes                                                            |
-| `#help-promote`             | Jarod Reyes                                                            |
+| `#fleet-mindshare-pr`       | Drew Baker                                                           |
+| `#help-public-relations`    | Mike McNeil                                                            |
+| `#help-promote`             | Mike McNeil                                                            |
 | `#help-swag`                | Drew Baker                                                          |
 | `#oooh-websites`            | Michael Thomas                                                         |
 | `#help-p1`		                | Mike McNeil                                                         |
