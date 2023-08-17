@@ -671,7 +671,7 @@ spec:
   resolution: "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault."
   platform: darwin
 `
-	duplicatePolicySpec = `---
+	duplicateTeamPolicySpec = `---
 apiVersion: v1
 kind: policy
 spec:
@@ -691,6 +691,25 @@ spec:
   resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
   platform: darwin
   team: Team1
+`
+	duplicateGlobalPolicySpec = `---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  platform: darwin
 `
 	enrollSecretsSpec = `---
 apiVersion: v1
@@ -764,9 +783,14 @@ func TestApplyPolicies(t *testing.T) {
 }
 
 func TestApplyPoliciesValidation(t *testing.T) {
-	filename := writeTmpYml(t, duplicatePolicySpec)
+	// Team Policy Spec
+	filename := writeTmpYml(t, duplicateTeamPolicySpec)
 	errorMsg := `applying policies: policy names must be globally unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
+	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
 
+	// Global Policy Spec
+	filename = writeTmpYml(t, duplicateGlobalPolicySpec)
+	errorMsg = `applying policies: policy names must be globally unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
 	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
 }
 
