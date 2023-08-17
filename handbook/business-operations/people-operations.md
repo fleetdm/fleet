@@ -242,7 +242,7 @@ There are some defaults that we use for these agreements:
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#help-classified` channel.
 
-Once the agreement is signed and in the appropriate folder, you will need to onboard the consultant in Gusto for payments, then proceed to ["Steps after an offer is accepted"](https://fleetdm.com/handbook/business-operations/people-operations#steps-after-an-offer-is-accepted), and complete all relevant activities.
+Once the agreement is signed and in the appropriate folder, you will then proceed to ["Steps after an offer is accepted"](https://fleetdm.com/handbook/business-operations/people-operations#steps-after-an-offer-is-accepted), and complete all relevant activities.
 
 #### Updating a consultant's fee
  - Direct message Mike McNeil with hourly rate change information.
