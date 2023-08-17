@@ -80,11 +80,11 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 ### Legend for Google doc titles
 
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company. 
-- **"public":** _(Available to public, these are rare)_ 
-- **"👀":** _(Confidential - 0p, for Fleet eyes only)_     <!--_(No prefix needed, all Google docs are confidential by default)_-->
-- **"¶👀":** _(E-group - 1p, Direct reports the the CEO)_
-- **"¶¶👀":** _(Classified - 2p, Founders and BizOps)_
-- **"¶¶¶👀":** _(Board of directors - 3p, Founders and boardmembers)_
+- **"Public":** _(Available to public)_ 
+- _(Confidential - for Fleet eyes only)_     
+- **"¶":** _(E-group - Direct reports the the CEO)_
+- **"¶¶":** _(Classified - Founders and BizOps)_
+- **"¶¶¶":** _(Founders and board members)_
 
 
 ## Email relays
@@ -95,17 +95,17 @@ There are several special email addresses that automatically relay messages to t
 ## Github
 
 ### Making a pull request
+
 Our handbook and docs pages are written in Markdown and are editable from our website (via GitHub). Follow the instructions below to propose an edit to the handbook or docs.
-1. Click the "Edit page" button from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub editor).
-2. Make your suggested edits in the GitHub editor.
-3. From the Propose changes dialog, at the bottom of the page, give your proposed edit a title and optional description (these help page maintainers quickly understand the proposed changes).
-4. Hit Propose change which will open a new pull request (PR).
+1. Click the _"Edit page"_ button from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub browser).
+2. Make your suggested edits in the GitHub.
+3. Click _"Commit changes...."_
+4. Give your proposed change a title or _["Commit message"](https://about.gitlab.com/topics/version-control/version-control-best-practices/#write-descriptive-commit-messages)_ and optional _"Extended description"_ (good commit messages help page maintainers quickly understand the proposed changes).
+ - **Note:** _Keep commit messages short and clear. (e.g. "Add DRI automation")_ 
+4. Click _"Propose changes"_
 5. Request a review from the page maintainer, and finally, press “Create pull request.”
 6. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
-
-> Keep PR titles short and clear. E.g., "Edit to handbook Product group" 
->
-> Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
+8. Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
 ### Merging changes
 When merging a PR to the master branch of the [Fleet repo](https://github.com/fleetdm/fleet), remember that whatever you merge gets deployed live immediately. Ensure that the appropriate quality checks have been completed before merging. [Learn about the website QA process](#quality).
@@ -115,8 +115,6 @@ When merging changes to the [docs](https://fleetdm.com/docs), [handbook](https:/
 ### Editing a merged pull requests 
 
 We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
-
-> **Note:** Contributors are not required to request reviews from editors for handbook changes.
 
 1. Check that the previous day's edits are formatted correctly on the website (more on this in the note below.)
 2. Use the [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) feed in GitHub to see a list of changes made to the handbook.
