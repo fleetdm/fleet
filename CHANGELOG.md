@@ -1,3 +1,54 @@
+## Fleet 4.36.0 (Aug 17, 2023)
+
+* Added the `fleetctl upgrade-packs` command to migrate 2017 packs to the new combined schedule and query concept.
+
+* Updated `fleetctl convert` to convert packs to the new combined schedule and query format.
+
+* Updated the `POST /mdm/apple/profiles/match` endpoint to set the bootstrap package and enable end user authentication settings for each new team created via the endpoint to the corresponding values specified in the app config as of the time the applicable team is created.
+
+* Added enroll secret for a new team created with `fleetctl apply` if none is provided.
+
+* Improved SQL autocomplete with dynamic column, table names, and shown metadata.
+
+* Cleaned up styling around table search bars.
+
+* Updated MDM profile verification to fix issue where profiles were marked as failed when a host 
+is transferred to a newly created team that has an identical profile as an older team.
+
+* Added windows MDM automatic enrollment setup pages to Fleet UI.
+
+* (Beta) Allowed configuring Windows MDM certificates using their contents.
+
+* Updated the icons on the dashboard to new grey designs.
+
+* Ensured DEP profiles are assigned even for devices that already exist and have an op type = "modified".
+
+* Disabled save button for invalid query or policy SQL & missing name.
+
+* Users with no global or team role cannot access the UI.
+
+* Text cells truncate with ellipses if longer than column width.
+  
+**Bug Fixes:**
+
+* Fixed styling issue of the active settings tab.
+
+* Fixed response status code to 403 when a user cannot change their password either because they were not requested to by the admin or they have Single-Sign-On (SSO) enabled.
+
+* Fixed issues with end user migration flow.
+
+* Fixed login form cut off when viewport is too short.
+
+* Fixed bug where `os_version` endpoint returned 404 for `no teams` on controls page.
+
+* Fixed delays applying profiles when the Puppet module is used in distributed scenarios.
+
+* Fixed a style issue in the filter host by status dropdown.
+
+* Fixed an issue when a user with `gitops` role was used to validate a configuration with `fleetctl apply --dry-run`.
+
+* Fixed jumping text on the host page label filter dropdown at low viewport widths.
+
 ## Fleet 4.35.2 (Aug 10, 2023)
 
 * Fixed a bug that set a wrong Fleet URL in Windows installers.
