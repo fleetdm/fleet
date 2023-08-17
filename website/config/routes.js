@@ -392,8 +392,14 @@ module.exports.routes = {
   'GET /handbook/digital-experience': '/handbook/marketing#digital-experience',
   'GET /handbook/digital-experience/article-formatting-guide': '/handbook/marketing/article-formatting-guide',
   'GET /handbook/digital-experience/commonly-used-terms': '/handbook/marketing/commonly-used-terms',
+  'GET /handbook/marketing/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
   'GET /handbook/digital-experience/how-to-submit-and-publish-an-article': '/handbook/marketing/how-to-submit-and-publish-an-article',
   'GET /handbook/digital-experience/markdown-guide': '/handbook/marketing/markdown-guide',
+  'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
+  'GET /handbook/marketing/content-style-guide': '/handbook/company/communications#writing',
+  'GET /handbook/marketing/editor-guide/': '/handbook/company/communications#github',
+  'GET /handbook/marketing/docs-handbook/': '/handbook/company/communications',
+  'GET /handbook/marketing/website-handbook/': '/handbook/company/communications',
   'GET /handbook/quality': '/handbook/engineering#quality',
   'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
@@ -451,6 +457,7 @@ module.exports.routes = {
   'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
   'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
   'GET /handbook/company/ceo-handbook': '/handbook/company/ceo',
+  'GET /docs/deploy/server-installation': '/docs/deploy/introduction',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
