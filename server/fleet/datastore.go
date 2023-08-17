@@ -67,13 +67,13 @@ type Datastore interface {
 	// ApplyQueries applies a list of queries (likely from a yaml file) to the datastore. Existing queries are updated,
 	// and new queries are created.
 	ApplyQueries(ctx context.Context, authorID uint, queries []*Query) error
-
 	// NewQuery creates a new query object in thie datastore. The returned query should have the ID updated.
 	NewQuery(ctx context.Context, query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
 	SaveQuery(ctx context.Context, query *Query) error
-	// DeleteQuery deletes an existing query object.
-	DeleteQuery(ctx context.Context, name string) error
+	// DeleteQuery deletes an existing query object on a team. If teamID is nil, then the query is
+	// looked up in the 'global' team.
+	DeleteQuery(ctx context.Context, teamID *uint, name string) error
 	// DeleteQueries deletes the existing query objects with the provided IDs. The number of deleted queries is returned
 	// along with any error.
 	DeleteQueries(ctx context.Context, ids []uint) (uint, error)
@@ -82,8 +82,12 @@ type Datastore interface {
 	// ListQueries returns a list of queries with the provided sorting and paging options. Associated packs should also
 	// be loaded.
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
-	// QueryByName looks up a query by name.
-	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
+	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
+	// given teamID. If teamID is nil, then all scheduled queries for the 'global' team are returned.
+	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*Query, error)
+	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
+	// the 'global' team.
+	QueryByName(ctx context.Context, teamID *uint, name string, opts ...OptionalArg) (*Query, error)
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
@@ -139,14 +143,8 @@ type Datastore interface {
 	// PackByName fetches pack if it exists, if the pack exists the bool return value is true
 	PackByName(ctx context.Context, name string, opts ...OptionalArg) (*Pack, bool, error)
 
-	// ListPacksForHost lists the packs that a host should execute.
+	// ListPacksForHost lists the "user packs" that a host should execute.
 	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
-
-	// EnsureGlobalPack gets or inserts a pack with type global
-	EnsureGlobalPack(ctx context.Context) (*Pack, error)
-
-	// EnsureTeamPack gets or inserts a pack with type global
-	EnsureTeamPack(ctx context.Context, teamID uint) (*Pack, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// LabelStore
@@ -586,7 +584,6 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Aggregated Stats
 
-	UpdateScheduledQueryAggregatedStats(ctx context.Context) error
 	UpdateQueryAggregatedStats(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -625,7 +622,7 @@ type Datastore interface {
 	TeamMDMConfig(ctx context.Context, teamID uint) (*TeamMDM, error)
 
 	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
-	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
+	SaveHostPackStats(ctx context.Context, teamID *uint, hostID uint, stats []PackStats) error
 	// AsyncBatchSaveHostsScheduledQueryStats efficiently saves a batch of hosts'
 	// pack stats of scheduled queries. It is the async and batch version of
 	// SaveHostPackStats. It returns the number of INSERT-ON DUPLICATE UPDATE
@@ -701,7 +698,10 @@ type Datastore interface {
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 
 	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
-	UpdateVerificationHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
+	UpdateHostMDMProfilesVerification(ctx context.Context, host *Host, verified, failed []string) error
+	// GetHostMDMProfilesExpected returns the expected MDM profiles for a given host. The map is
+	// keyed by the profile identifier.
+	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *Host) (map[string]*ExpectedMDMProfile, error)
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
@@ -840,6 +840,10 @@ type Datastore interface {
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
+	// UpsertMDMAppleHostDEPAssignments ensures there's an entry in
+	// `host_dep_assignments` for all the provided hosts.
+	UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []Host) error
+
 	// IngestMDMAppleDevicesFromDEPSync creates new Fleet host records for MDM-enrolled devices that are
 	// not already enrolled in Fleet. It returns the number of hosts created, the team id that they
 	// joined (nil for no team), and an error.
@@ -925,6 +929,9 @@ type Datastore interface {
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the database
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage) error
+	// CopyMDMAppleBootstrapPackage copies the bootstrap package specified in the app config (if any)
+	// specified team (and a new token is assigned). It also updates the team config with the default bootstrap package URL.
+	CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *AppConfig, toTeamID uint) error
 	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id
 	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
 	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap package for a team
@@ -977,8 +984,8 @@ type Datastore interface {
 	GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
 
 	// GetMatchingHostSerials receives a list of serial numbers and returns
-	// a map with all the matching serial numbers in the database.
-	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error)
+	// a map that only contains the serials that have a matching row in the `hosts` table.
+	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*Host, error)
 
 	// DeleteHostDEPAssignments marks as deleted entries in
 	// host_dep_assignments for host with matching serials.

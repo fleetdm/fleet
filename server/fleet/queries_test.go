@@ -3,9 +3,88 @@ package fleet
 import (
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGetSnapshot(t *testing.T) {
+	testCases := []struct {
+		query    *Query
+		expected *bool
+	}{
+		{
+			query:    nil,
+			expected: nil,
+		},
+		{
+			query:    &Query{Logging: "snapshot"},
+			expected: ptr.Bool(true),
+		},
+		{
+			query:    &Query{Logging: "differential"},
+			expected: nil,
+		},
+		{
+			query:    &Query{Logging: "differential_ignore_removals"},
+			expected: nil,
+		},
+	}
+	for _, tCase := range testCases {
+		require.Equal(t, tCase.expected, tCase.query.GetSnapshot())
+	}
+}
+
+func TestGetRemoved(t *testing.T) {
+	testCases := []struct {
+		query    *Query
+		expected *bool
+	}{
+		{
+			query:    nil,
+			expected: nil,
+		},
+		{
+			query:    &Query{Logging: "snapshot"},
+			expected: nil,
+		},
+		{
+			query:    &Query{Logging: "differential"},
+			expected: ptr.Bool(true),
+		},
+		{
+			query:    &Query{Logging: "differential_ignore_removals"},
+			expected: ptr.Bool(false),
+		},
+	}
+	for i, tCase := range testCases {
+		require.Equal(t, tCase.expected, tCase.query.GetRemoved(), i)
+	}
+}
+
+func TestTeamIDStr(t *testing.T) {
+	testCases := []struct {
+		query    *Query
+		expected string
+	}{
+		{
+			query:    nil,
+			expected: "",
+		},
+		{
+			query:    &Query{},
+			expected: "",
+		},
+		{
+			query:    &Query{TeamID: ptr.Uint(10)},
+			expected: "10",
+		},
+	}
+
+	for _, tCase := range testCases {
+		require.Equal(t, tCase.expected, tCase.query.TeamIDStr())
+	}
+}
 
 func TestLoadQueriesFromYamlStrings(t *testing.T) {
 	testCases := []struct {

@@ -3,4 +3,12 @@
   align-items: center;
   padding: $pad-small $pad-xxsmall; // larger clickable area
   gap: $pad-xsmall;
+
+  &:hover {
+    svg {
+      path {
+        stroke: $core-vibrant-blue-over;
+      }
+    }
+  }
 }

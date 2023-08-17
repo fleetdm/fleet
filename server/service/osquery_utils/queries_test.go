@@ -55,7 +55,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{EnableAsyncHostProcessing: "false"})
 
 	var gotPackStats []fleet.PackStats
-	ds.SaveHostPackStatsFunc = func(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
+	ds.SaveHostPackStatsFunc = func(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
 		if hostID != host.ID {
 			return errors.New("not found")
 		}
@@ -1206,29 +1206,6 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	logger := log.NewNopLogger()
 	h := &fleet.Host{ID: 1}
 
-	var expectedProfiles []*fleet.HostMacOSProfile
-	ds.UpdateVerificationHostMacOSProfilesFunc = func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
-		require.Equal(t, h.ID, host.ID)
-		require.Len(t, installedProfiles, len(expectedProfiles))
-		expectedByIdentifier := make(map[string]*fleet.HostMacOSProfile, len(expectedProfiles))
-		for _, ep := range expectedProfiles {
-			expectedByIdentifier[ep.Identifier] = ep
-		}
-		for _, ip := range installedProfiles {
-			ep, ok := expectedByIdentifier[ip.Identifier]
-			require.True(t, ok)
-			require.Equal(t, *ep, *ip)
-		}
-
-		return nil
-	}
-	expectedProfiles = []*fleet.HostMacOSProfile{
-		{
-			Identifier:  "com.example.test",
-			DisplayName: "Test Profile",
-			InstallDate: time.Now().Truncate(time.Second),
-		},
-	}
 	toRows := func(profs []*fleet.HostMacOSProfile) []map[string]string {
 		rows := make([]map[string]string, len(profs))
 		for i, p := range profs {
@@ -1241,17 +1218,46 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 		return rows
 	}
 
+	var installedProfiles []*fleet.HostMacOSProfile
+	ds.GetHostMDMProfilesExpectedForVerificationFunc = func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
+		require.Equal(t, h.ID, host.ID)
+		expected := make(map[string]*fleet.ExpectedMDMProfile, len(installedProfiles))
+		for _, p := range installedProfiles {
+			expected[p.Identifier] = &fleet.ExpectedMDMProfile{
+				Identifier:          p.Identifier,
+				EarliestInstallDate: p.InstallDate,
+			}
+		}
+		return expected, nil
+	}
+	ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, verified, failed []string) error {
+		require.Equal(t, h.ID, host.ID)
+		require.Equal(t, len(installedProfiles), len(verified))
+		require.Len(t, failed, 0)
+		for _, p := range installedProfiles {
+			require.Contains(t, verified, p.Identifier)
+		}
+		return nil
+	}
+
 	// expect no error: happy path
-	rows := toRows(expectedProfiles)
+	installedProfiles = []*fleet.HostMacOSProfile{
+		{
+			Identifier:  "com.example.test",
+			DisplayName: "Test Profile",
+			InstallDate: time.Now().Truncate(time.Second),
+		},
+	}
+	rows := toRows(installedProfiles)
 	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows))
 
 	// expect no error: identifer or display name is empty
-	expectedProfiles = append(expectedProfiles, &fleet.HostMacOSProfile{
+	installedProfiles = append(installedProfiles, &fleet.HostMacOSProfile{
 		Identifier:  "",
 		DisplayName: "",
 		InstallDate: time.Now().Truncate(time.Second),
 	})
-	rows = toRows(expectedProfiles)
+	rows = toRows(installedProfiles)
 	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows))
 
 	// expect no error: empty rows

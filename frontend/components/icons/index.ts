@@ -9,6 +9,7 @@ import CriticalPolicy from "./CriticalPolicy";
 import Disable from "./Disable";
 import DownCaret from "./DownCaret";
 import Ex from "./Ex";
+import ExCircled from "./ExCircled";
 import EmptyHosts from "./EmptyHosts";
 import EmptyIntegrations from "./EmptyIntegrations";
 import EmptyMembers from "./EmptyMembers";
@@ -19,6 +20,8 @@ import EmptySchedule from "./EmptySchedule";
 import EmptySoftware from "./EmptySoftware";
 import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
+import Filter from "./Filter";
+import FilterAlt from "./FilterAlt";
 import Issue from "./Issue";
 import More from "./More";
 import Plus from "./Plus";
@@ -39,10 +42,10 @@ import Ubuntu from "./Ubuntu";
 import Chrome from "./Chrome";
 
 // Encircled
-import ApplePurple from "./ApplePurple";
-import LinuxGreen from "./LinuxGreen";
-import WindowsBlue from "./WindowsBlue";
-import RedEncircledChrome from "./RedEncircledChrome";
+import AppleCircled from "./AppleCircled";
+import LinuxCircled from "./LinuxCircled";
+import WindowsCircled from "./WindowsCircled";
+import ChromeCircled from "./ChromeCircled";
 
 // Status Icons
 import Success from "./Success";
@@ -51,6 +54,8 @@ import Pending from "./Pending";
 import PendingPartial from "./PendingPartial";
 import ErrorOutline from "./ErrorOutline";
 import Error from "./Error";
+import Warning from "./Warning";
+import Clock from "./Clock";
 
 import Copy from "./Copy";
 import Eye from "./Eye";
@@ -81,6 +86,7 @@ export const ICON_MAP = {
   disable: Disable,
   "down-caret": DownCaret,
   ex: Ex,
+  "ex-circled": ExCircled,
   "empty-hosts": EmptyHosts,
   "empty-integrations": EmptyIntegrations,
   "empty-members": EmptyMembers,
@@ -91,6 +97,8 @@ export const ICON_MAP = {
   "empty-software": EmptySoftware,
   "empty-teams": EmptyTeams,
   "external-link": ExternalLink,
+  filter: Filter,
+  "filter-alt": FilterAlt,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
   lightbulb: Lightbulb,
@@ -110,6 +118,8 @@ export const ICON_MAP = {
   "pending-partial": PendingPartial,
   error: Error,
   "error-outline": ErrorOutline,
+  warning: Warning,
+  clock: Clock,
   darwin: Apple,
   macOS: Apple,
   windows: Windows,
@@ -122,10 +132,10 @@ export const ICON_MAP = {
   chrome: Chrome,
   ChromeOS: Chrome,
   "premium-feature": PremiumFeature,
-  "darwin-purple": ApplePurple,
-  "windows-blue": WindowsBlue,
-  "linux-green": LinuxGreen,
-  "chrome-red": RedEncircledChrome,
+  "apple-circled": AppleCircled,
+  "windows-circled": WindowsCircled,
+  "linux-circled": LinuxCircled,
+  "chrome-circled": ChromeCircled,
   profile: Profile,
   download: Download,
   files: Files,

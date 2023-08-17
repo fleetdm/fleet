@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -102,11 +101,6 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM packs WHERE pack_type=?`, teamSchedulePackTypeByID(tid))
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting team global packs for team %d", tid)
-		}
-
 		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id=?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_configuration_profiles for team %d", tid)
@@ -124,7 +118,7 @@ func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, 
 	team := &fleet.Team{}
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, name); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Team").WithName(name))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select team")
@@ -233,20 +227,12 @@ WHERE
 		if err := saveUsersForTeamDB(ctx, tx, team); err != nil {
 			return err
 		}
-
-		return updateTeamScheduleDB(ctx, tx, team)
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	return team, nil
-}
-
-func updateTeamScheduleDB(ctx context.Context, exec sqlx.ExecerContext, team *fleet.Team) error {
-	_, err := exec.ExecContext(ctx,
-		`UPDATE packs SET name = ? WHERE pack_type = ?`, teamScheduleName(team), teamSchedulePackType(team),
-	)
-	return ctxerr.Wrap(ctx, err, "update packs")
 }
 
 // ListTeams lists all teams with limit, sort and offset passed in with

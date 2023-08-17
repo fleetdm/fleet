@@ -1285,6 +1285,8 @@ const ManageHostsPage = ({
       `${baseClass}__status_dropdown`,
       { [`${baseClass}__status-dropdown-sandbox`]: isSandboxMode }
     );
+
+    console.log("status", status);
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
@@ -1293,6 +1295,7 @@ const ManageHostsPage = ({
           options={getHostSelectStatuses(isSandboxMode)}
           searchable={false}
           onChange={handleStatusDropdownChange}
+          tableFilterDropdown
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}
