@@ -33,6 +33,12 @@
     - name: Update apps on macOS computers
       tier: Premium
       comingSoon: true
+    - name: Map macOS settings to computers with Puppet module
+      tier: Premium
+      comingSoon: false
+    - name: Reduce gap in coverage with end-user-driven migration
+      tier: Premium
+      comingSoon: false
 - categoryName: Support
   features:
     - name: Public issue tracker (GitHub)
