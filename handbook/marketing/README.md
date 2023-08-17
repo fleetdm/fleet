@@ -507,15 +507,15 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-p1`		                | Mike McNeil                                                         |
 
 
-## Stubs
+#### Stubs
 
-### Content style guide
+##### Content style guide
 
-Please see [handbook/company/communications/content-style-guide](https//fleetdm.com/handbook/company/communications/content-style-guide).
+Please see 📖[handbook/company/communications/content-style-guide](https//fleetdm.com/handbook/company/communications/content-style-guide).
 
-### Documentation
+##### Documentation
 
-Please see [handbook/company/communications/content-style-guide](https//fleetdm.com/handbook/company/communications/content-style-guide).
+Please see 📖[handbook/company/communications/content-style-guide](https//fleetdm.com/handbook/company/communications/content-style-guide).
 
 
 
