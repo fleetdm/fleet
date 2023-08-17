@@ -250,9 +250,7 @@ func TestApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs(t *testing.T)
 
 	err := svc.ApplyPolicySpecs(ctx, req)
 
-	badRequestError := &fleet.BadRequestError{
-		Message: "duplicate policy names not allowed",
-	}
-
+	badRequestError := &fleet.BadRequestError{}
 	require.ErrorAs(t, err, &badRequestError)
+	require.Equal(t, "duplicate policy names not allowed", badRequestError.Message)
 }
