@@ -75,7 +75,6 @@ module.exports = {
       'zayhanlon',
       'bradmacd',
       'alexmitchelliii',
-      'jarodreyes',
       'jostableford',
       'jinny321',
       'sampfluger88',
