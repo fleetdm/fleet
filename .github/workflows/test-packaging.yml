@@ -17,6 +17,7 @@ on:
       - 'server/context/**.go'
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
+      - 'Dockerfile-desktop-linux'
       - 'tools/fleetctl-docker/**'
       - 'tools/wix-docker/**'
       - 'tools/bomutils-docker/**'
