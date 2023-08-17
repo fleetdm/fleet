@@ -199,6 +199,8 @@ maintaining an expressive labeling system. For example, instead of a label calle
 
 ## Writing
 
+Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more.
+
 ### Writing style
   - Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
   - Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. 
