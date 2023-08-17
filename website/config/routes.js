@@ -451,6 +451,7 @@ module.exports.routes = {
   'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
   'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
   'GET /handbook/company/ceo-handbook': '/handbook/company/ceo',
+  'GET /handbook/company/ceo': '/handbook/ceo',
   'GET /docs/deploy/server-installation': '/docs/deploy/introduction',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
