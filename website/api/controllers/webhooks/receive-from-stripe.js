@@ -65,8 +65,26 @@ module.exports = {
     let subscriptionIdToFind = stripeEventData.subscription;
     let subscriptionForThisEvent = await Subscription.findOne({stripeSubscriptionId: subscriptionIdToFind}).populate('user');
 
+    let STRIPE_EVENTS_SENT_BEFORE_A_SUBSCRIPTION_RECORD_EXISTS = [
+      'invoice.created',
+      'invoice.finalized',
+      'invoice.paid',
+      'invoice.payment_succeeded',
+    ];
+
+    // If this event is for a subscription that was just created, we won't have a matching Subscription record in the database. This is because we wait until the subscription's invoice is paid to create the record in our database.
+    // To handle cases like this, we'll check to see if a User with the provided stripe customer ID exists, and throw an error if it does not exist.
     if(!subscriptionForThisEvent) {
-      throw new Error(`The Stripe subscription events webhook received a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
+      if(!_.contains(STRIPE_EVENTS_SENT_BEFORE_A_SUBSCRIPTION_RECORD_EXISTS, type)) {
+        throw new Error(`The Stripe subscription events webhook received a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
+      } else {// If the event type is in the array of stripe events sent before a subscription record exists, check to see if a user record exists with the stripe customer id referenced in the event.
+        let userReferencedInStripeEvent = await User.findOne({stripeCustomerId: stripeEventData.customer});
+        if(!userReferencedInStripeEvent){ // If no user was found with the provided Stripe customer ID, throw an error
+          throw new Error(`The receive-from-stripe webhook received an event for an invoice (type: ${type}) for a subscription (stripeSubscriptionId: ${subscriptionIdToFind}) but no matching Subscription or User record (stripeCustomerId: ${stripeEventData.customer}) was found in our databse.`);
+        } else {// If we found a matching user for this event, but the subscription record does not exist, we'll return a 200 response.
+          return;
+        }
+      }
     }
 
     let userForThisSubscription = subscriptionForThisEvent.user;
