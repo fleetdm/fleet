@@ -19,6 +19,20 @@ brew install gnuplot ripgrep
 
 We are going to use the fleetd tables as an extension so that it is also monitored by the watchdog.
 
+```mermaid
+graph LR;
+    subgraph Device
+
+        osquery_watchdog[osqueryd\nwatchdog process];
+        osqueryd_worker[osqueryd\nworker process];
+        fleetd_tables[fleetd_tables\nextension process];
+
+        osquery_watchdog -- monitors\nCPU and memory --> osqueryd_worker;
+        osquery_watchdog -- monitors\nCPU and memory --> fleetd_tables;
+    end
+```
+
+Here's how to build the fleetd_tables extension:
 ```sh
 make fleetd-tables-darwin-universal
 sudo cp fleetd_tables_darwin_universal.ext /usr/local/osquery_extensions/fleetd_tables.ext
