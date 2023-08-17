@@ -1,4 +1,4 @@
-# CEO handbook
+# CEO 
 This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. 
 
 Need quick Answers?
@@ -453,4 +453,4 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
  -->
  
 <meta name="maintainedBy" value="Sampfluger88">
-<meta name="title" value="CEO handbook">
+<meta name="title" value="🐈‍⬛ CEO">
