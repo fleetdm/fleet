@@ -121,7 +121,7 @@ module.exports.custom = {
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, Marcos, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
-    'articles': 'mike-j-thomas',
+    'articles': 'spokanemac',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
