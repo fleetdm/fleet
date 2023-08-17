@@ -1,0 +1,1 @@
+Updating docker base for linux desktop builder to use debian 12 which includes glibc2.36 as the base.
