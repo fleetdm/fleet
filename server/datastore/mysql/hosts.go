@@ -163,7 +163,7 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 				}
 				scheduledQueriesArgs = append(scheduledQueriesArgs,
 					teamIDArg,
-					query.QueryName,
+					query.ScheduledQueryName,
 
 					hostID,
 					query.AverageMemory,
