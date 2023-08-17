@@ -56,6 +56,9 @@ Your Brex card may be used for up to $500 USD per month in coworking costs. Plea
 ## Compensation
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
 
+### Payroll dates
+US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
+
 ### Compensation changes
 Fleet evaluates and (if necessary) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The process for that evaluation and update is:
 - On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of teammates celebrating anniversaries over the next month.
@@ -438,12 +441,10 @@ Now what happens?  🔦 Business Operations will then follow the steps in the "H
 
 ### Communicating departures
 Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
-1. **Departing team member's manager:** Before speaking further with the team member, inform business operations about the departure via direct message in Slack to the acting Head of People (`@mikermcneil`), who will coordinate the team member's last day, offboarding, and exit meeting.
-2. **Business Operations**: Create and begin completing [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md).
-   > After finding out at the next standup (or sooner), Business Operations will post in `#g-e` to inform the E-group of the team member's departure and ask E-group members will inform any other managers on their teams.
-3. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
-
-
+1. **Departing team member's manager:** Inform the Head of Business Operations about the departure via email and cc your manager. The Head of Business Operations will coordinate the team member's last day, offboarding, and exit meeting.
+3. **Business Operations**: Will then create and begin completing [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md), to include coordinating team member's last day, offboarding, and exit meeting.
+   > After finding out about the departure, the Head of Business Operations will post in #g-e to inform the E-group of the team member's departure, asking E-group members to inform any other managers on their teams.
+4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 <meta name="maintainedBy" value="jostableford">
 <meta name="title" value="People Operations">
