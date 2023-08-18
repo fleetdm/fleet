@@ -121,3 +121,17 @@ graph LR;
     api --> server;
     server -- Query stored in DB--> db;
 ```
+### 2 - Agent gets config file (with the scheduled query)
+```mermaid
+graph LR;
+    agent[Osquery Agent];
+
+    subgraph Cloud
+        server(Server);
+        db[DB];
+    end
+
+    agent <-- request download config file --> server;
+    server -- teams and global cfg are merged --> agent;
+    server -- ask for cfg file --> db;
+```
