@@ -7,7 +7,11 @@ set -e
 #   - gnuplot 
 
 # Get PID of the osquery worker process.
-osquery_pid=$(ps aux | grep -E "osqueryd\s*$" | awk {'print $2'})
+if [ -n "$OSQUERYD_PID" ]; then
+	osquery_pid=$OSQUERYD_PID
+else
+	osquery_pid=$(ps aux | grep -E "osqueryd\s*$" | awk {'print $2'})
+fi
 
 # Extract CPU and memory data points from logs.
 rg " (\d\d:\d\d:\d\d).* pid: $osquery_pid, cpu: (\d+)ms/\d+ms, memory: ([\d.]+)" -or '$1 $2 $3' /tmp/osqueryd.log > /tmp/osqueryd.dat
