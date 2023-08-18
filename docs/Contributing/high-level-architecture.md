@@ -65,7 +65,7 @@ graph LR;
 
 ## The path of Live Query
 
-### IT person initiates the query
+### 1 - IT person initiates the query
 ```mermaid
 graph LR;
     it_person[IT person<br>Starts a live query];
@@ -86,7 +86,7 @@ graph LR;
 
 ```
 
-### Agent returns results
+### 2 - Agent returns results
 ```mermaid
 graph LR;
     osquery[osquery agent];
