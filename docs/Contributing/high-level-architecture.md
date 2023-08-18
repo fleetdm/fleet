@@ -68,7 +68,7 @@ graph LR;
 ```mermaid
 graph LR;
     it_person[IT perso<br>Starts a live query];
-    api[API Client (Frontend or Fleetctl)];
+    api[API Client Frontend or Fleetctl];
 
     subgraph Fleet Server
         loadbalancer[Load<br>Balancer];
@@ -81,8 +81,8 @@ graph LR;
         dbredis[DB  Redis];
     end
 
-
     it_person <==> api;
+    api ==> it_person;
 
 ```
 
