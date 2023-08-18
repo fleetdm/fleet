@@ -245,7 +245,7 @@ Recurring monthly or annual expenses are tracked as recurring, non-personnel exp
   - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
   - Total amount of Fleet customers at the end of the previous quarter.
   - Gross margin % 
-    - How to calculate: total revenue for the quarter - cost of goods sold for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
+    - How to calculate: (total revenue for the quarter - cost of goods sold for the quarter)/total revenue for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
   - Net dollar retention rate
     - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
   - Cash burn

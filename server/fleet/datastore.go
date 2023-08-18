@@ -840,6 +840,10 @@ type Datastore interface {
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
+	// UpsertMDMAppleHostDEPAssignments ensures there's an entry in
+	// `host_dep_assignments` for all the provided hosts.
+	UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []Host) error
+
 	// IngestMDMAppleDevicesFromDEPSync creates new Fleet host records for MDM-enrolled devices that are
 	// not already enrolled in Fleet. It returns the number of hosts created, the team id that they
 	// joined (nil for no team), and an error.
@@ -980,8 +984,8 @@ type Datastore interface {
 	GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
 
 	// GetMatchingHostSerials receives a list of serial numbers and returns
-	// a map with all the matching serial numbers in the database.
-	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error)
+	// a map that only contains the serials that have a matching row in the `hosts` table.
+	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*Host, error)
 
 	// DeleteHostDEPAssignments marks as deleted entries in
 	// host_dep_assignments for host with matching serials.

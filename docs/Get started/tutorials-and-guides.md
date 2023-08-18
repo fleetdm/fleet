@@ -1,5 +1,7 @@
 # Tutorials and guides
 
+A collections of guides to help you get up and running with Fleet.
+
 ## Deployment guides
 
 - [Deploy Fleet on Render](http://fleetdm.com/deploy/deploying-fleet-on-render)
@@ -8,6 +10,13 @@
 
 - [Deploy Fleet on Hetzner Cloud](http://fleetdm.com/deploy/deploy-fleet-on-hetzner-cloud)
 
+- [Deploy Fleet on AWS ECS](https://fleetdm.com/docs/deploy/deploy-fleet-on-aws-ecs)
+
+- [Deploy Fleet on CentOS](https://fleetdm.com/docs/deploy/deploy-fleet-on-centos)
+
+- [Deploy Fleet on Cloud.gov](https://fleetdm.com/docs/deploy/cloudgov)
+
+- [Deploy Fleet on Kubernetes](https://fleetdm.com/docs/deploy/deploy-fleet-on-kubernetes)
 
 ## How-to guides
 

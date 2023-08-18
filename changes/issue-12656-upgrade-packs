@@ -1,1 +1,0 @@
-* Added the `fleetctl upgrade-packs` command to migrate 2017 packs to the new combined schedule and query concept.

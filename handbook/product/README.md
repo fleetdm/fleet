@@ -195,6 +195,14 @@ This way, if a user is scanning instructions, the bold text tells them what UI e
 
 In the docs, if a UI element is part of a section title (already bold) use double quotes. For an example, see this section title [here](https://fleetdm.com/docs/get-started/faq#what-happened-to-the-schedule-page).
 
+**Copy in parentheses (additional information)**
+
+When writing copy, consider whether additional information is necessary before adding it as a new sentence or in parentheses. If the information is needed, use parentheses with an incomplete sentence to keep the copy shorter.
+
+**Writing the time**
+
+When writing the time in the UI using "am" and "pm" abbreviations, write them **without space** between time and abbreviation, with **no punctuation**, and use **lowercase** letters (e.g. Working hours are 8am to 5pm).
+
 ## Release 
 
 This section outlines the communication between the product, marketing, and customer success teams prior to a release of Fleet.
@@ -297,7 +305,7 @@ At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all r
 If a feature is not prioritized, it only means that the feature has been rejected _at that time_. It is up to the requestor to bring the request back again at another 🎁🗣 Feature Fest meeting.
 
 Requests are weighed by:
-- The completeness of the request (see [making a request](#making-a-request)
+- The completeness of the request (see [making a request](#making-a-request))
 - How urgent the need is for the customer
 - How much impact the request will have. This may be a wide impact across many customers and/or high impact on one
 - How well the request fits within Fleet's product vision and roadmap
@@ -373,8 +381,11 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
 | Report number of estimated stories (CX) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Mo Zhu |
 | Report number of estimated stories (MDM) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Noah Talerman |
-
-| Bug de-prioritization | Sprintly  | CEO and Head of Product review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to continue into the next sprint and which can be de-prioritized. | Mo Zhu |
+| Bug de-prioritization | Sprintly  | CEO, Head of Product, and Director of Product Development review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to continue into the next sprint and which can be de-prioritized. | Mo Zhu |
+| Product confirm and celebrate                 | Weekly (Wednesday)       | The Head of Product meets with the designers and product managers to discuss completed user stories. They also verify all updates to documentation, communications, guides, and the pricing and transparency pages, ensuring everything is set for the next steps.                                      | Mo Zhu            |
+| Pre-sprint prioritization call (CX)           | Sprintly (Monday)        | The product manager and engineering manager meet to confirm alignment on prioritization for the upcoming sprint.                                                                                                                                                                | Mo Zhu            |
+| Bug review (CX)                               | Weekly (Tuesday)         | The product manager meets with the engineering manager and a product quality engineer to ensure synchronization on bug prioritization and actions preceding CX estimation sessions.                                                                                                         | Mo Zhu            |
+| Churned bug review                            | Sprintly (Wednesday)     | The Head of Product meets with the group product managers to examine churned bugs and categorize them as either continue, needs prioritization, or de-prioritize.                                                                                                                                     | Mo Zhu            |
 
 ## Slack channels
 

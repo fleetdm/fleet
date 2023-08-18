@@ -3,11 +3,11 @@
 ## Relocating
 When Fleeties relocate, there are vendors that need to be notified of the change. 
 
-Before relocating, please [let the company know in advance](#intake) by following the directions listed in the relevant issue template ("Moving").
+Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/business-operations#intake) by following the directions listed in the relevant issue template ("Moving").
 
 ## People Operations rituals
 ### Celebrations
-At Fleet we like to celebrate sinificant milestones for our teammates! We do this in a variety of ways including company-wide slack messaging. If you would prefer we didn't celebrate your milestone, please submit an [intake issue](#intake) to ensure the team has record of your preference.
+At Fleet we like to celebrate sinificant milestones for our teammates! We do this in a variety of ways including company-wide slack messaging. If you would prefer we didn't celebrate your milestone, please submit an [intake issue](https://fleetdm.com/handbook/business-operations#intake) to ensure the team has record of your preference.
 
 #### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The POps team will post in Slack to highlight your dedication and contribution to Fleet, giving an opportunity for teammates to thare their appreciation of your contribution!
@@ -51,10 +51,13 @@ Commencing in August 2023, Fleet offers the ability for US based team members to
 Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
 
 ### Coworking
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](#intake).
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](https://fleetdm.com/handbook/business-operations#intake).
 
 ## Compensation
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
+
+### Payroll dates
+US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
 
 ### Compensation changes
 Fleet evaluates and (if necessary) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The process for that evaluation and update is:
@@ -199,7 +202,7 @@ Consultants:
 
 Consultants [track time using the company's tools](#tracking-hours) and sign [Fleet's consulting agreement](#sending-a-consulting-agreement).
 
-To hire a consultant, [submit a custom request](#intake) to the business operations team.
+To hire a consultant, [submit a custom request](https://fleetdm.com/handbook/business-operations#intake) to the business operations team.
 
 > TODO: replace this w/  issue template (see also commented-out notes in hiring.md for some other steps)
 
@@ -221,7 +224,7 @@ Consultants aren't required to do any of those things.
 
 #### Sending a consulting agreement
 
-To hire a non-US consultant, please [submit a custom request](#intake).
+To hire a non-US consultant, please [submit a custom request](https://fleetdm.com/handbook/business-operations#intake).
 
 To hire a US-based consultant, send them an agreement using the "Contractor agreement (US)" template in [DocuSign](https://www.docusign.com/).
 (This template is located in the "¶¶ Classified templates" folder, which is only accessible via certain Docusign accounts in 1Password.)
@@ -236,8 +239,11 @@ There are some defaults that we use for these agreements:
    - Work will commence and complete by dates: Start date and end of term date
    - Fee: Get from the consultant.
    - Hours: Default to 10 hr/week.
+   - All US consultants track their hours weekly in Gusto.
 
-Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#help-classified` channel.
+Then hit send!  After all of the signatures are there in Docusign, automation will trigger that uploads the completed document to the appropriate Google Drive folder, and that makes a Slack message appear in the `#help-classified` channel.
+
+Finally, create a [custom request](https://fleetdm.com/handbook/business-operations#intake) titled "New US consultant: _____________" and request that this new consultant be registered with Fleet.  (Business Operations will receive this request and take care of next steps, which include things like providing a place for the company to report their hours weekly in the KPIs sheet, and providing access to Slack and any relevant company tools.)
 
 #### Updating a consultant's fee
  - Direct message Mike McNeil with hourly rate change information.
@@ -278,8 +284,8 @@ Want to hire?  Here's how to open up a new position on the core team:
      - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.
 
 > _**Note:** The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser._
-
-3. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will start a `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
+3. **Link to pull request in "Fleeties:"** Include a link to your GitHub pull request in the "Job description" column for the new row you just added in "Fleeties".
+4. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will start a `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
 
 > _**Why bother with approvals?**  We avoid cancelling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
 
@@ -293,10 +299,10 @@ When review is requested on a proposal to open a new position, the 🐈‍⬛ CE
    - _Update team database:_ Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
      - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
-
 4. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
    - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager.
-   - _Publish opening:_ Approve and merge the pull request.  The job posting go live within ≤10 minutes.
+   - _Publish opening:_ Approve and merge the pull request.  The job posting will go live within ≤10 minutes.
+   - _Track as approved in "Fleeties":_ In the "Fleeties" spreadsheet, find the row for the new position and update the "Job description" column and replace the URL of the pull request that originally proposed this new position with the URL of the GitHub merge commit when that PR was merged.
    - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`):
      ```
      The new opening is now live!  Candidates can apply at fleetdm.com/handbook/company/railway-conductor.
@@ -438,12 +444,10 @@ Now what happens?  🔦 Business Operations will then follow the steps in the "H
 
 ### Communicating departures
 Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
-1. **Departing team member's manager:** Before speaking further with the team member, inform business operations about the departure via direct message in Slack to the acting Head of People (`@mikermcneil`), who will coordinate the team member's last day, offboarding, and exit meeting.
-2. **Business Operations**: Create and begin completing [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md).
-   > After finding out at the next standup (or sooner), Business Operations will post in `#g-e` to inform the E-group of the team member's departure and ask E-group members will inform any other managers on their teams.
-3. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
-
-
+1. **Departing team member's manager:** Inform the Head of Business Operations about the departure via email and cc your manager. The Head of Business Operations will coordinate the team member's last day, offboarding, and exit meeting.
+3. **Business Operations**: Will then create and begin completing [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md), to include coordinating team member's last day, offboarding, and exit meeting.
+   > After finding out about the departure, the Head of Business Operations will post in #g-e to inform the E-group of the team member's departure, asking E-group members to inform any other managers on their teams.
+4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 <meta name="maintainedBy" value="jostableford">
 <meta name="title" value="People Operations">

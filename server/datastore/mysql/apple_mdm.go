@@ -774,6 +774,16 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	return createdCount, teamID, err
 }
 
+func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert host DEP assignments")
+		}
+
+		return nil
+	})
+}
+
 func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts []fleet.Host) error {
 	if len(hosts) == 0 {
 		return nil
@@ -1651,14 +1661,14 @@ SET
 	status = ?
 WHERE
 	host_uuid = ?
-	AND status = ?
+	AND status IN(?)
 	AND operation_type = ?
 	AND profile_identifier IN(?)`
 
 	args := []interface{}{
 		fleet.MDMAppleDeliveryVerified,
 		host.UUID,
-		fleet.MDMAppleDeliveryVerifying,
+		[]interface{}{fleet.MDMAppleDeliveryVerifying, fleet.MDMAppleDeliveryFailed},
 		fleet.MDMAppleOperationTypeInstall,
 		identifiers,
 	}

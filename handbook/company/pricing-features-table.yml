@@ -106,7 +106,7 @@
       comingSoon: false
     - name: Programmable audit log
       tier: Premium
-      comingSoon: true
+      comingSoon: false
     - name: Just-in-time (JIT) provisioning
       tier: Premium
       comingSoon: false
