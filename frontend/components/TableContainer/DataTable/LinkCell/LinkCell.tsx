@@ -11,6 +11,7 @@ interface ILinkCellProps {
   customOnClick?: (e: React.MouseEvent) => void;
   /** allows viewing overflow for tooltip */
   withTooltip?: boolean;
+  title?: string;
 }
 
 const baseClass = "link-cell";
@@ -21,6 +22,7 @@ const LinkCell = ({
   className,
   customOnClick,
   withTooltip,
+  title,
 }: ILinkCellProps): JSX.Element => {
   const cellClasses = classnames(
     baseClass,
@@ -33,7 +35,7 @@ const LinkCell = ({
   };
 
   return (
-    <Link className={cellClasses} to={path} onClick={onClick}>
+    <Link className={cellClasses} to={path} onClick={onClick} title={title}>
       {value}
     </Link>
   );
