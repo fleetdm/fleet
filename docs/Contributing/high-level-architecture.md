@@ -73,7 +73,7 @@ graph LR;
 
     fleet_server <== "Read/Write" ==> db;
     fleet_server <== "Read/Write" ==> redis;
-    redis <== ==> db;
+    redis <==> db;
 
 
 ```
