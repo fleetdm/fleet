@@ -155,9 +155,11 @@ graph LR;
 1 - Config TLS refresh 
 (Typical period10 secs) OSQuery pulls down a config file that includes instructions for Scheduled Queries. 
 If both GLOBAL and TEAM is configured, there will be a config merge done on the Server side. 
+
 2 - Logger TLS
 (Typical period10 secs) Frequency of sending the results. (different than the frequency of running the queries)
 To be improved: Currently the config file gets downloaded every time even if no change was done.
+
 3 - Distributed (Typical interval 10 sec)
 (Typical period10 secs) OSQuery asks for any Live query to run.
 
