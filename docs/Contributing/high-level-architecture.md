@@ -135,3 +135,17 @@ graph LR;
     agent <-- teams and global cfg are merged --> server;
     server -- ask for cfg file--> db;
 ```
+
+### 3 - Agent returns results to be (optionally) logged
+```mermaid
+graph LR;
+    agent[Osquery Agent<br>Runs query and sends results];
+
+    subgraph Cloud
+        server(Server);
+        log[Optional External Log<br>e.g. S3];
+    end
+
+    agent --> server;
+    server --> log
+```
