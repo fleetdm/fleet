@@ -15,27 +15,21 @@ graph LR;
     fleet_server[Fleet<br>Server];
 
     subgraph Agent
-        orbit[orbit];
-        desktop[Fleet Desktop<br>Tray App];
-        osqueryd[osqueryd];
-
-        desktop_browser[Fleet Desktop<br> from Browser];
+        aaa[aaa];
+        bbb[bbb];
+        ccc[ccc];
+        ddd[dd<br> dd];
     end
 
     subgraph Customer Cloud
-        orbit[orbit];
-        desktop[Fleet Desktop<br>Tray App];
-        osqueryd[osqueryd];
-
-        desktop_browser[Fleet Desktop<br> from Browser];
+        hhh[hhh];
+        jjj[jjj];
+        kkk[kkk];
+        lll[ll<br> ll];
     end
 
     subgraph FleetDM Cloud
-        orbit[orbit];
-        desktop[Fleet Desktop<br>Tray App];
-        osqueryd[osqueryd];
-
-        desktop_browser[Fleet Desktop<br> from Browser];
+        qqq[qqq];
     end
 
     orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
