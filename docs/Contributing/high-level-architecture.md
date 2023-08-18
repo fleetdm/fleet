@@ -81,7 +81,7 @@ graph LR;
     api -- "1 - Initiate Campaign. Get ID" --> server;
     api -- "2 - Initiate Campaign. Get ID" --> server;
     api <== "WEB SOCKET" ==> server;
-    dbredis == "Notifications" ==> server;
+    server == "Notifications" == dbredis;
 
 ```
 
