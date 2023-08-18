@@ -9,7 +9,6 @@ Add text
 
 ## Main System Components
 
-
 ```mermaid
 graph LR;
     fleet_release_owner[Fleet Release<br>Owner];
@@ -64,7 +63,27 @@ graph LR;
 
 
 
-## Capabilities
+## The path of Live Query
 
-| Capability                           | Status |
-| ------------------------------------ | ------ |
+```mermaid
+graph LR;
+    it_person[IT perso<br>Starts a live query];
+    api[API Client (Frontend or Fleetctl)];
+
+    subgraph Fleet Server
+        loadbalancer[Load<br>Balancer];
+        server1[server 1];
+        server2[server 2];
+        serverN[server N];
+    end
+
+    subgraph DB/REDIS
+        dbredis[DB / Redis];
+    end
+
+
+    it_person ==> api;
+    api ==> it_person;
+
+```
+
