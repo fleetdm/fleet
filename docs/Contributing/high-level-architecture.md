@@ -70,24 +70,18 @@ graph LR;
     it_person[IT person<br>Starts a live query];
     api[API Client Frontend or Fleetctl];
 
-    subgraph Fleet Server
-        loadbalancer[Load<br>Balancer];
-        server1(server 1);
-        server2(server 2);
-        serverN(server N);
-    end
-
-    subgraph DB REDIS
-        dbredis[DB  Redis];
+    subgraph Cloud
+        server(Server);
+        dbredis[DB / Redis];
     end
 
     it_person ==> api;
     api ==> it_person;
 
-    api -- "1 - Initiate Campaign. Get ID" --> loadbalancer;
-    api -- "2 - Initiate Campaign. Get ID" --> loadbalancer;
-    api <== "WEB SOCKET" ==> loadbalancer;
-    serverN <--> loadbalancer;
+    api -- "1 - Initiate Campaign. Get ID" --> server;
+    api -- "2 - Initiate Campaign. Get ID" --> server;
+    api <== "WEB SOCKET" ==> server;
+    dbredis <== "WEB SOCKET" ==> server;
 
 ```
 
