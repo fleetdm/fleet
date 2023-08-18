@@ -1,7 +1,7 @@
 # High level architecture
 
 - [Overview](#overview)
-- [Main System Components](#main system components)
+- [Main System Components](#main_system_components)
 
 ## Overview
 
