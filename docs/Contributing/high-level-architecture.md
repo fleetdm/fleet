@@ -79,6 +79,7 @@ graph LR;
     fleet_server -- "metrics" --> heroku;
     fleet_server -- "queries results" --> log;
 
+    frontend -- "API" --> fleet_server;
 
 ```
 
