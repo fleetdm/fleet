@@ -33,26 +33,33 @@ graph LR;
 
 ```mermaid
 graph LR;
-    tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
-    fleet_server[Fleet<br>Server];
+    fleet_release_owner[Fleet Release<br>Owner];
 
     subgraph Agent
-        aaa[aaa];
-        bbb[bbb];
-        ccc[ccc];
-        ddd[dd<br> dd];
+        orbit[orbit];
+        desktop[Fleet Desktop<br>Tray App];
+        osqueryd[osqueryd];
+        desktop_browser[Fleet Desktop<br> from Browser];
     end
 
     subgraph Customer Cloud
-        hhh[hhh];
-        jjj[jjj];
-        kkk[kkk];
-        lll[ll<br> ll];
+        fleet_server[Fleet<br>Server];
+        db[DB];
+        redis[Redis<br>Live queries' results <br>go here];
+        prometheus[Prometheus Server];
     end
 
     subgraph FleetDM Cloud
-        qqq[qq];
+        tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
+        datadog[DataDog metrics]
+        heroku[Usage Analytics<br>Heroku]
+        log[Optional Log Location<br>Store logs here]
     end
+
+    subgraph Customer Admin
+        frontend[frontend code]
+    end
+
 
     orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
     desktop -- "Fleet Desktop API (TLS)" --> fleet_server;
