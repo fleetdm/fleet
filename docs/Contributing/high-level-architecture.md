@@ -99,9 +99,7 @@ graph LR;
     osquery --> server;
     server --> osquery;
 
-    osquery -- "1 - ask for queries" --> server;
-    osquery -- "2 - return results" --> server;
-    dbredis -- "1 - DB returns query if found" --> server;
-    server -- "2 - put results in Redis" --> dbredis;
+    osquery <-- 1 - ask for queries<br>2 - return results --> server;
+
 
 ```
