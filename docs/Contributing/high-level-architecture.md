@@ -75,6 +75,8 @@ graph LR;
     fleet_server <== "Read/Write" ==> redis;
     redis <==> db;
 
+    prometheus ==> fleet_server;
+
 
 ```
 
