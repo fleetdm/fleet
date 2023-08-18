@@ -67,14 +67,14 @@ graph LR;
 
 ```mermaid
 graph LR;
-    it_person[IT perso<br>Starts a live query];
+    it_person[IT person<br>Starts a live query];
     api[API Client Frontend or Fleetctl];
 
     subgraph Fleet Server
         loadbalancer[Load<br>Balancer];
-        server1[server 1];
-        server2[server 2];
-        serverN[server N];
+        server1(server 1);
+        server2(server 2);
+        serverN(server N);
     end
 
     subgraph DB REDIS
@@ -83,6 +83,10 @@ graph LR;
 
     it_person ==> api;
     api ==> it_person;
+
+    api -- "1 - Initiate Campaign. Get ID" --> loadbalancer;
+    api -- "2 - Initiate Campaign. Get ID" --> loadbalancer;
+    api <== "WEB SOCKET" ==> loadbalancer;
 
 ```
 
