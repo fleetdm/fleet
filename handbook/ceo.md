@@ -1,4 +1,4 @@
-# CEO handbook
+# CEO 
 This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. 
 
 Need quick Answers?
@@ -28,21 +28,6 @@ The 🦿 CEO support team is made up of these people:
 - I can be quick to criticism, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
 - I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
 - When ideas differ I start at "what I would do", then talk myself backward toward the original idea
-
-
-#### Writing style
-
-- Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
-- Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. 
-- Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. 
-- Don’t sound formal, sound welcoming so that anyone can understand. Translate "puffery" into "ease of use" or "readability". 
-- Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). 
-- Create heading(s) that make good permalinks, use links and add missing links. Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”). 
-- Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. 
-- A big goal is to be able to link directly to this stuff when something comes up as a gentle way to remind and train using the foundation we've already built. 
-- Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere). 
-- Read your PRs, check it carefully with each change and edit until the diff looks good.
-- Check preview mode in GitHub to make sure the format renders correctly. If you look at your diff and notice unintentional changes, remove them.
 
 
 ## Responsibilities
@@ -453,4 +438,4 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
  -->
  
 <meta name="maintainedBy" value="Sampfluger88">
-<meta name="title" value="CEO handbook">
+<meta name="title" value="🐈‍⬛ CEO">
