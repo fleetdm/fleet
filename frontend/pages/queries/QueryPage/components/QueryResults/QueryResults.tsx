@@ -38,26 +38,11 @@ const NAV_TITLES = {
   ERRORS: "Errors",
 };
 
-const reorderCSVFields = (fields: string[]) => {
-  const result = fields.filter((field) => field !== "host_display_name");
+const reorderCSVFields = (tableHeaders: string[]) => {
+  const result = tableHeaders.filter((field) => field !== "host_display_name");
   result.unshift("host_display_name");
 
   return result;
-};
-
-const generateExportCSVFile = (rows: Row[], filename: string) => {
-  return new global.window.File(
-    [
-      convertToCSV(
-        rows.map((r) => r.original),
-        reorderCSVFields
-      ),
-    ],
-    filename,
-    {
-      type: "text/csv",
-    }
-  );
 };
 
 const generateExportFilename = (descriptor: string) => {
@@ -82,13 +67,30 @@ const QueryResults = ({
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
-  const [tableHeaders, setTableHeaders] = useState<null | Column[]>([]);
+  const [tableHeaders, setTableHeaders] = useState<null | Column[]>([]); // NOW SETS CORRECT TABLE HEADERS
   const [errorTableHeaders, setErrorTableHeaders] = useState<null | Column[]>(
     []
   );
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
+
+  const generateExportCSVFile = (rows: Row[], filename: string) => {
+    console.log("generateExportCSVFile rows", rows);
+    return new global.window.File(
+      [
+        convertToCSV(
+          rows.map((r) => r.original),
+          reorderCSVFields,
+          tableHeaders
+        ),
+      ],
+      filename,
+      {
+        type: "text/csv",
+      }
+    );
+  };
 
   // immediately reset results
   const onRunAgain = useCallback(() => {
@@ -102,6 +104,7 @@ const QueryResults = ({
     { maxWait: 2000 }
   );
 
+  // This is throwing an error not to use hook within a useEffect
   useEffect(() => {
     debounceQueryResults(queryResults);
   }, [queryResults, debounceQueryResults]);
@@ -110,20 +113,38 @@ const QueryResults = ({
   // instead of memoizing tableHeaders, since we know the conditions exactly under which we want to
   // set these
   useEffect(() => {
-    if (tableHeaders?.length === 0 && !!queryResults?.length) {
-      setTableHeaders(generateResultsTableHeaders(queryResults));
+    console.log("USEEFFECT TO SET TABLE HEADERS IS CALLED");
+    console.log("tableHeaders", tableHeaders);
+    console.log("queryResults", queryResults);
+    if (queryResults && queryResults.length > 0) {
+      const generatedTableHeaders = generateResultsTableHeaders(queryResults);
+      console.log("generatedTableHeaders", generatedTableHeaders);
+      // Update tableHeaders if new headers are found
+      if (generatedTableHeaders !== tableHeaders) {
+        console.log("tableHeaders updated", tableHeaders);
+        setTableHeaders(generatedTableHeaders);
+      }
     }
-  }, [tableHeaders, queryResults]);
+  }, [queryResults]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
 
   useEffect(() => {
     if (errorTableHeaders?.length === 0 && !!errors?.length) {
       setErrorTableHeaders(generateResultsTableHeaders(errors));
+
+      if (errorTableHeaders && errorTableHeaders.length > 0) {
+        const generatedErrorTableHeaders = generateResultsTableHeaders(errors);
+
+        // Update errorTableHeaders if new headers are found
+        if (generatedErrorTableHeaders !== tableHeaders) {
+          setErrorTableHeaders(generatedErrorTableHeaders);
+        }
+      }
     }
-  }, [errorTableHeaders, errors]);
+  }, [errors]); // Cannot use errorTableHeaders as it will cause infinite loop with setErrorTableHeaders
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
-
+    console.log("filteredResults", filteredResults);
     FileSaver.saveAs(
       generateExportCSVFile(
         filteredResults,

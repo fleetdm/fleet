@@ -47,28 +47,26 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
   return newHeaders;
 };
 
-const generateResultsTableHeaders = (results: unknown[]): Column[] => {
-  // Table headers are derived from the shape of the first result.
-  // Note: It is possible that results may vary from the shape of the first result.
-  // For example, different versions of osquery may have new columns in a table
-  // However, this is believed to be a very unlikely scenario and there have been
-  // no reported issues.
-  const shape = results[0];
-  const keys =
-    shape && typeof shape === "object" && isPlainObject(shape)
-      ? Object.keys(shape)
-      : [];
+const generateResultsTableHeaders = (results: any[]): Column[] => {
+  const keys = Array.from(
+    results.reduce(
+      (s, o) => Object.keys(o).reduce((t, k) => t.add(k), s),
+      new Set() // Set prevents listing duplicate headers
+    )
+  );
+  console.log("keys", keys);
+
   const headers = keys.map((key) => {
     return {
-      id: key,
-      title: key,
+      id: key as string,
+      title: key as string,
       Header: (headerProps: IHeaderProps) => (
         <HeaderCell
           value={headerProps.column.title || headerProps.column.id}
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: key,
+      accessor: key as string,
       Cell: (cellProps: ICellProps) => cellProps?.cell?.value || null,
       Filter: DefaultColumnFilter,
       // filterType: "text",

@@ -63,41 +63,41 @@ const QueryResults = ({
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (hostsOnline) {
-      const hostsExport = hostsOnline.map((host) => {
-        return {
-          host: host.display_name,
-          status:
-            host.query_results && host.query_results.length ? "yes" : "no",
-        };
-      });
-      const csv = convertToCSV(hostsExport);
-      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-      const filename = `${policyName || CSV_TITLE} (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
+    // if (hostsOnline) {
+    //   const hostsExport = hostsOnline.map((host) => {
+    //     return {
+    //       host: host.display_name,
+    //       status:
+    //         host.query_results && host.query_results.length ? "yes" : "no",
+    //     };
+    //   });
+    //   const csv = convertToCSV(hostsExport);
+    //   const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
+    //   const filename = `${policyName || CSV_TITLE} (${formattedTime}).csv`;
+    //   const file = new global.window.File([csv], filename, {
+    //     type: "text/csv",
+    //   });
 
-      FileSaver.saveAs(file);
-    }
+    //   FileSaver.saveAs(file);
+    // }
   };
 
   const onExportErrorsResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (errors) {
-      const csv = convertToCSV(errors);
+    // if (errors) {
+    //   const csv = convertToCSV(errors);
 
-      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-      const filename = `${
-        policyName || CSV_TITLE
-      } Errors (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
+    //   const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
+    //   const filename = `${
+    //     policyName || CSV_TITLE
+    //   } Errors (${formattedTime}).csv`;
+    //   const file = new global.window.File([csv], filename, {
+    //     type: "text/csv",
+    //   });
 
-      FileSaver.saveAs(file);
-    }
+    //   FileSaver.saveAs(file);
+    // }
   };
 
   const onShowQueryModal = () => {
