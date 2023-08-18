@@ -71,7 +71,7 @@ graph LR;
 
     heroku -- "Metrics from all customers" --> datadog;
 
-    fleet_server <== "Read/Write" ==>> db;
+    fleet_server <== "Read/Write" ==> db;
 
 
 ```
