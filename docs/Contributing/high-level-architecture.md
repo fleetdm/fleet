@@ -82,8 +82,7 @@ graph LR;
     end
 
 
-    it_person ==> api;
-    api ==> it_person;
+    it_person <==> api;
 
 ```
 
