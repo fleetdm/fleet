@@ -61,12 +61,14 @@ graph LR;
     end
 
 
+    fleet_release_owner -- "Release Process" --> tuf;
     orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
+    orbit -- "Auto Update (TLS)" --> tuf;
+
     desktop -- "Fleet Desktop API (TLS)" --> fleet_server;
     osqueryd -- "osquery<br>remote API (TLS)" --> fleet_server;
     desktop_browser -- "My Device API (TLS)" --> fleet_server;
 
-    orbit -- "Auto Update (TLS)" --> tuf;
 ```
 
 
