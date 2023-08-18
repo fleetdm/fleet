@@ -65,6 +65,7 @@ graph LR;
 
 ## The path of Live Query
 
+### IT person initiates the query
 ```mermaid
 graph LR;
     it_person[IT person<br>Starts a live query];
@@ -85,3 +86,22 @@ graph LR;
 
 ```
 
+### Agent returns results
+```mermaid
+graph LR;
+    osquery[osquery agent];
+
+    subgraph Cloud
+        server(Server);
+        dbredis[DB / Redis];
+    end
+
+    osquery --> server;
+    server --> osquery;
+
+    osquery -- "1 - ask for queries" --> server;
+    osquery -- "2 - return results" --> server;
+    dbredis -- "1 - DB returns query if found" --> server;
+    server -- "2 - put results in Redis --> dbredis;
+
+```
