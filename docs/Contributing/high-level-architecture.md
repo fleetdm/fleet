@@ -11,7 +11,10 @@ Add text
 
 ```mermaid
 graph LR;
-    fleet_release_owner[Fleet Release<br>Owner];
+    
+    subgraph Agent
+        fleet_release_owner[Fleet Release<br>Owner];
+    end
 
     subgraph Agent
         orbit[orbit];
