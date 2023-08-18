@@ -29,7 +29,7 @@ graph LR;
     end
 
     subgraph FleetDM Cloud
-        qqq[qqq];
+        qqq{qqq};
     end
 
     orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
