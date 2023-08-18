@@ -14,7 +14,23 @@ graph LR;
     tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
     fleet_server[Fleet<br>Server];
 
-    subgraph Fleetd
+    subgraph Agent
+        orbit[orbit];
+        desktop[Fleet Desktop<br>Tray App];
+        osqueryd[osqueryd];
+
+        desktop_browser[Fleet Desktop<br> from Browser];
+    end
+
+    subgraph Customer Cloud
+        orbit[orbit];
+        desktop[Fleet Desktop<br>Tray App];
+        osqueryd[osqueryd];
+
+        desktop_browser[Fleet Desktop<br> from Browser];
+    end
+
+    subgraph FleetDM Cloud
         orbit[orbit];
         desktop[Fleet Desktop<br>Tray App];
         osqueryd[osqueryd];
