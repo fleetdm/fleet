@@ -132,6 +132,6 @@ graph LR;
     end
 
     agent -- request download config file --> server;
-    server -- teams and global cfg are merged --> agent;
-    server -- ask for cfg file --> db;
+    agent -- teams and global cfg are merged -- server;
+    server -- ask for cfg file--> db;
 ```
