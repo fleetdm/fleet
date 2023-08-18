@@ -103,3 +103,21 @@ graph LR;
     server -- 2 put results in Redis --> dbredis;
 
 ```
+
+## The path of a scheduled Query
+
+### 1 - IT person initiates the query
+```mermaid
+graph LR;
+    it_person[IT person<br>Creates a scheduked<br>for a team / global];
+    api[API Client Frontend or Fleetctl];
+
+    subgraph Cloud
+        server(Server);
+        db[DB];
+    end
+
+    it_person --> api;
+    api --> server;
+    server -- Query stored in DB--> db;
+```
