@@ -76,6 +76,8 @@ graph LR;
     redis <==> db;
 
     prometheus ==> fleet_server;
+    fleet_server -- "metrics" --> heroku;
+    fleet_server -- "queries results" --> log;
 
 
 ```
