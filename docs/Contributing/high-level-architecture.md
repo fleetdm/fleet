@@ -87,6 +87,7 @@ graph LR;
     api -- "1 - Initiate Campaign. Get ID" --> loadbalancer;
     api -- "2 - Initiate Campaign. Get ID" --> loadbalancer;
     api <== "WEB SOCKET" ==> loadbalancer;
+    serverN <--> loadbalancer;
 
 ```
 
