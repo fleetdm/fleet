@@ -580,8 +580,9 @@ Scheduled queries are not gone! Instead the concept of a scheduled query has bee
 To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and pack into the new merged query concept: 
 - Any global scheduled query will have its query converted into a global query with the relevant schedule attributes (frequency, min. osquery version, logging, etc.).
 - Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
-- Any query that is referenced by a pack will be converted into a global query and the pack will reference it. Packs should continue functioning as before. 
-- Because a query must have a unique name within its team, to avoid naming conflicts, we have added a timestamp after each migrated query. If you are using gitops, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files.
+- Any query that is referenced by a pack will be converted into a global query and the pack will reference it. Packs should continue functioning as before.
+
+Important: To avoid naming conflicts, queries must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names. 
 
 For any automated workflows that use the schedule endpoints on the API, we recommend consolidating to the query endpoints, which now accept the scheduled query attributes. The schedule endpoints in the API still function but are deprecated. To accommodate the new unified query concept, the schedule endpoints behave differently under-the-hood:
 - The POST endpoints will create a new query with the specified attributes
