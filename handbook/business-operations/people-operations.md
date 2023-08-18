@@ -239,10 +239,11 @@ There are some defaults that we use for these agreements:
    - Work will commence and complete by dates: Start date and end of term date
    - Fee: Get from the consultant.
    - Hours: Default to 10 hr/week.
+   - All US consultants track their hours weekly in Gusto.
 
-Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#help-classified` channel.
+Then hit send!  After all of the signatures are there in Docusign, automation will trigger that uploads the completed document to the appropriate Google Drive folder, and that makes a Slack message appear in the `#help-classified` channel.
 
-Once the agreement is signed and in the appropriate folder, an [issue](https://fleetdm.com/handbook/business-operations#intake) is created to provide access to Slack and any relevant company tools.
+Finally, create a [custom request](https://fleetdm.com/handbook/business-operations#intake) titled "New US consultant: _____________" and request that this new consultant be registered with Fleet.  (Business Operations will receive this request and take care of next steps, which include things like providing a place for the company to report their hours weekly in the KPIs sheet, and providing access to Slack and any relevant company tools.)
 
 #### Updating a consultant's fee
  - Direct message Mike McNeil with hourly rate change information.
