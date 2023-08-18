@@ -79,7 +79,7 @@ graph LR;
     api --> it_person;
 
     api -- "1 - Initiate Campaign. Get ID" --> server;
-    api -- "2 - Initiate Campaign. Get ID" --> server;
+    api -- "2 - Register to notifications with ID" --> server;
     api <-- "WEB SOCKET" --> server;
     server <-- Notifications --> dbredis;
 
