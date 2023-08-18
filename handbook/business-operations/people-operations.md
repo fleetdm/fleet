@@ -3,11 +3,11 @@
 ## Relocating
 When Fleeties relocate, there are vendors that need to be notified of the change. 
 
-Before relocating, please [let the company know in advance](#intake) by following the directions listed in the relevant issue template ("Moving").
+Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/business-operations#intake) by following the directions listed in the relevant issue template ("Moving").
 
 ## People Operations rituals
 ### Celebrations
-At Fleet we like to celebrate sinificant milestones for our teammates! We do this in a variety of ways including company-wide slack messaging. If you would prefer we didn't celebrate your milestone, please submit an [intake issue](#intake) to ensure the team has record of your preference.
+At Fleet we like to celebrate sinificant milestones for our teammates! We do this in a variety of ways including company-wide slack messaging. If you would prefer we didn't celebrate your milestone, please submit an [intake issue](https://fleetdm.com/handbook/business-operations#intake) to ensure the team has record of your preference.
 
 #### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The POps team will post in Slack to highlight your dedication and contribution to Fleet, giving an opportunity for teammates to thare their appreciation of your contribution!
@@ -51,7 +51,7 @@ Commencing in August 2023, Fleet offers the ability for US based team members to
 Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
 
 ### Coworking
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](#intake).
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](https://fleetdm.com/handbook/business-operations#intake).
 
 ## Compensation
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
@@ -202,7 +202,7 @@ Consultants:
 
 Consultants [track time using the company's tools](#tracking-hours) and sign [Fleet's consulting agreement](#sending-a-consulting-agreement).
 
-To hire a consultant, [submit a custom request](#intake) to the business operations team.
+To hire a consultant, [submit a custom request](https://fleetdm.com/handbook/business-operations#intake) to the business operations team.
 
 > TODO: replace this w/  issue template (see also commented-out notes in hiring.md for some other steps)
 
@@ -224,7 +224,7 @@ Consultants aren't required to do any of those things.
 
 #### Sending a consulting agreement
 
-To hire a non-US consultant, please [submit a custom request](#intake).
+To hire a non-US consultant, please [submit a custom request](https://fleetdm.com/handbook/business-operations#intake).
 
 To hire a US-based consultant, send them an agreement using the "Contractor agreement (US)" template in [DocuSign](https://www.docusign.com/).
 (This template is located in the "¶¶ Classified templates" folder, which is only accessible via certain Docusign accounts in 1Password.)
@@ -242,7 +242,7 @@ There are some defaults that we use for these agreements:
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#help-classified` channel.
 
-Once the agreement is signed and in the appropriate folder, you will then proceed to ["Steps after an offer is accepted"](https://fleetdm.com/handbook/business-operations/people-operations#steps-after-an-offer-is-accepted), and complete all relevant activities.
+Once the agreement is signed and in the appropriate folder, an [issue](https://fleetdm.com/handbook/business-operations#intake) is created to provide access to Slack and any relevant company tools.
 
 #### Updating a consultant's fee
  - Direct message Mike McNeil with hourly rate change information.
