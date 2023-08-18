@@ -77,8 +77,8 @@ graph LR;
         serverN[server N];
     end
 
-    subgraph DB/REDIS
-        dbredis[DB / Redis];
+    subgraph DB REDIS
+        dbredis[DB  Redis];
     end
 
 
