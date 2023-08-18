@@ -27,13 +27,9 @@ func main() {
 	}
 	defer file.Close()
 
-	// Create a new scanner to read the file line by line
+	// Go through the queries and run them one by one
 	scanner := bufio.NewScanner(file)
-
-	// Create a variable to hold the current section
 	var section []string
-
-	// Loop through each line and process the sections
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -50,7 +46,7 @@ func main() {
 		}
 	}
 
-	// Print the last section (if there's any left after reading the file).
+	// run any last query if not ended with "==="
 	if len(section) > 0 {
 		runQuery(orbitPath, section)
 	}
