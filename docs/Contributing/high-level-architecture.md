@@ -12,7 +12,7 @@ Add text
 ```mermaid
 graph LR;
     
-    subgraph Agent
+    subgraph Development
         fleet_release_owner[Fleet Release<br>Owner];
     end
 
