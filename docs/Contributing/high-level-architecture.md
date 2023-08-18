@@ -131,7 +131,7 @@ graph LR;
         db[DB];
     end
 
-    agent <-- request download config file --> server;
+    agent -- request download config file --> server;
     server -- teams and global cfg are merged --> agent;
     server -- ask for cfg file --> db;
 ```
