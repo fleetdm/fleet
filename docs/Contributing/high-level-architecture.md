@@ -99,7 +99,7 @@ graph LR;
     osquery --> server;
     server --> osquery;
 
-    osquery <-- 1 - ask for queries<br>2 - return results --> server;
+    server <-- 1 - ask for queries<br>2 - return results --> dbredis;
 
 
 ```
