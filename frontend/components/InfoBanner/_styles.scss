@@ -15,6 +15,11 @@
     border-color: $ui-yellow-banner-outline;
   }
 
+  &__grey {
+    background-color: $ui-off-white;
+    border-color: $ui-fleet-black-50;
+  }
+
   &__page-banner {
     padding: $pad-large $pad-xlarge;
     margin-bottom: $pad-large;
@@ -40,6 +45,10 @@
 
     &:hover {
       cursor: pointer;
+
+      svg path {
+        stroke: $core-vibrant-blue;
+      }
     }
   }
 }
