@@ -81,7 +81,7 @@ graph LR;
         dbredis[DB  Redis];
     end
 
-    it_person <==> api;
+    it_person ==> api;
     api ==> it_person;
 
 ```
