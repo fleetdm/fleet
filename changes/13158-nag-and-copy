@@ -1,2 +1,1 @@
-* Updated the copy/screenshot of the MDM migration modal
-* Reduced the timer to re-prompt the migration modal when the user is unenrolled or in force mode from 15 minutes to 5 minutes
+* Updated the copy and image displayed on the MDM migration modal

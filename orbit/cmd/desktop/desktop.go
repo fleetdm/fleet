@@ -239,7 +239,7 @@ func main() {
 			)
 			mdmMigrator = useraction.NewMDMMigrator(
 				swiftDialogPath,
-				5*time.Minute,
+				15*time.Minute,
 				&mdmMigrationHandler{
 					client:      client,
 					tokenReader: &tokenReader,
