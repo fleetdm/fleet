@@ -42,6 +42,8 @@ module.exports = {
 
   fn: async function ({id, type, data, webhookSecret}) {
 
+    let assert = require('assert');
+
     if(!this.req.get('stripe-signature')) {
       throw 'missingStripeHeader';
     }
@@ -60,6 +62,7 @@ module.exports = {
     if(!stripeEventData.subscription) {
       return;
     }
+    assert(stripeEventData.customer !== undefined);
 
     // Find the subscription record for this event.
     let subscriptionIdToFind = stripeEventData.subscription;
@@ -77,11 +80,11 @@ module.exports = {
     if(!subscriptionForThisEvent) {
       if(!_.contains(STRIPE_EVENTS_SENT_BEFORE_A_SUBSCRIPTION_RECORD_EXISTS, type)) {
         throw new Error(`The Stripe subscription events webhook received a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
-      } else {// If the event type is in the array of stripe events sent before a subscription record exists, check to see if a user record exists with the stripe customer id referenced in the event.
+      } else {
         let userReferencedInStripeEvent = await User.findOne({stripeCustomerId: stripeEventData.customer});
-        if(!userReferencedInStripeEvent){ // If no user was found with the provided Stripe customer ID, throw an error
+        if(!userReferencedInStripeEvent){
           throw new Error(`The receive-from-stripe webhook received an event for an invoice (type: ${type}) for a subscription (stripeSubscriptionId: ${subscriptionIdToFind}) but no matching Subscription or User record (stripeCustomerId: ${stripeEventData.customer}) was found in our databse.`);
-        } else {// If we found a matching user for this event, but the subscription record does not exist, we'll return a 200 response.
+        } else {
           return;
         }
       }
