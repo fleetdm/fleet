@@ -75,13 +75,13 @@ graph LR;
         dbredis[DB / Redis];
     end
 
-    it_person ==> api;
-    api ==> it_person;
+    it_person --> api;
+    api --> it_person;
 
     api -- "1 - Initiate Campaign. Get ID" --> server;
     api -- "2 - Initiate Campaign. Get ID" --> server;
-    api <== "WEB SOCKET" ==> server;
-    server -- Notifications -- dbredis;
+    api <-- "WEB SOCKET" --> server;
+    server <-- Notifications --> dbredis;
 
 ```
 
