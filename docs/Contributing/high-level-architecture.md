@@ -96,10 +96,10 @@ graph LR;
         dbredis[DB / Redis];
     end
 
-    osquery --> server;
-    server --> osquery;
+    osquery -- 1 ask for queries --> server;
+    osquery -- 2 return results --> server;
 
-    server <-- 1 - ask for queries<br>2 - return results --> dbredis;
-
+    server <-- 1 return queries if found --> dbredis;
+    server -- 2 put results in Redis --> dbredis;
 
 ```
