@@ -1,6 +1,6 @@
 # Communications
 
-Fleet's [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) style of communication and the [tools we use](https://fleetdm.com/handbook/business-operations#tools-we-use) are part of the company's DNA and essential to moving Fleet into the future.
+Fleet's [open-core](https://fleetdm.com/handbook/company/why-this-way#why-open-source) style of communication and the [tools we use](https://fleetdm.com/handbook/business-operations#tools-we-use) are part of the company's DNA and essential to moving Fleet into the future.
 
 
 ## Email relays
