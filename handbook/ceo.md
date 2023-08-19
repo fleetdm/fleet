@@ -1,11 +1,13 @@
 # CEO 
 This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. 
 
+<!-- 
 * [How can I...](#how-can-i)
 * [How to...(#Tasks)](#tasks)
 * [Who will...(#Rituals)](#rituals)
 
 > Need to create a [GitHub issue](#intake)?
+-->
 
 ## What we do
 The CEO is the [directly responsible individual](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [final review of UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company. 
@@ -21,17 +23,20 @@ The 🦿 CEO support team is made up of these people:
 | Sam Pfluger ([@sampfluger88](https://github.com/sampfluger88)) | [Apprentice to the CEO (AttC)](https://www.linkedin.com/in/sampfluger88/)
 
 
-## Contact the CEO
+## Contact us
 
-If urgent or personal, send a Slack direct message (DM) right away. 
-If you mention the CEO from within a Slack thread, he will not read your message.
-Please find a different way to get in touch:
-- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the [Attc](https://fleetdm.com/handbook/company/ceo#team) in the  [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
-- Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO?
-- Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.)
+- If you mention the CEO from within a Slack thread, he will not read your message.
+- If urgent or personal, send a Slack direct message (DM) to `@mikermcneil` right away.
+- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the [Attc](https://fleetdm.com/handbook/ceo#team) in the  [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
+- Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
+
+<!-- ## Contact the CEO -->
+<!-- - Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO? -->
+<!-- - To make a request of the CEO, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&title=Request%3A+_______________________) and someone will reply within 1 business day. -->
+<!-- - Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.) -->
 
 
-## Schedule time with the CEO
+### Schedule time with the CEO
 
 All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meeting-scheduling) are welcomed and a top priority for the CEO to get on the calendar quickly. 
 
@@ -49,6 +54,33 @@ All items on Mike's calendar are subject to change by the CEO to better serve th
 Last-minute changes or cancellations must be communicated to Mike via [direct message (DM) only](#why-not-mention-the-ceo-in-slack-threads).
 
 
+### Why not mention the CEO in Slack threads?
+Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
+
+[Too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) the CEO gets mentioned.
+
+From Mike:
+
+<blockquote purpose="large-quote">
+  Staying on top of your Slack mentions (including in threads!) is very important. Please use them. 
+But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
+
+I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
+
+ What do I still read?
+ 
+ - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
+ - If you send me a direct message, I'll see and read that ASAP.
+
+Keep in mind I am often in meetings all day, and may not be able to reply promptly.
+  
+When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
+Thank you so much!" 🙇
+</blockquote> 
+
+
+
+
 ## CEO flaws
 
 [![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
@@ -58,7 +90,10 @@ Last-minute changes or cancellations must be communicated to Mike via [direct me
 - I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
 - I can be quick to criticism, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
 - I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
+
+<!--
 - When ideas differ I start at "what I would do", then talk myself backward toward the original idea
+-->
 
 
 
@@ -68,8 +103,7 @@ Last-minute changes or cancellations must be communicated to Mike via [direct me
 
 ### Process the CEO's calendar
 
-- Time management for the CEO is essential.
-The AttC processes the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
+Time management for the CEO is essential.  The AttC processes the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
 
 Prioritizing in order of importance:
  - Travel and personal commitments
@@ -165,6 +199,7 @@ Every month the Apprentice will do the prep work for the monthly "✌️ All han
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
 #### After the All hands
+TODO: rename to imperative mood (see rituals.yml)
 
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
@@ -190,15 +225,16 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/b
 
 📬 **Send it!**
 
-### Connect on osquery and MacAdmins Slack
+### Connect with recently active community members
 
-Go through (live) 3 recent questions asked in [osquery](https://osquery.slack.com/archives/C01DXJL16D8) or [MacAdmins](https://macadmins.slack.com/archives/C19MR7EM9) Slack.  Find the contributor on [LinkedIn](https://www.linkedin.com/search/results/all/?sid=54z). 
-Send connect request (blank), Then jump into the conversation in Slack, based on what we learned from LinkedIn.
+Read the three 3 most recent questions asked in [osquery](https://osquery.slack.com/archives/C01DXJL16D8) and [MacAdmins](https://macadmins.slack.com/archives/C19MR7EM9) Slack.  Find each contributor on [LinkedIn](https://www.linkedin.com/search/results/all/?sid=54z). 
+Send connect request (blank).
 
-Goal: chum up the water.  No one else is currently LinkedIn connecting with community Slack participants. 
+Goal: No one else is currently LinkedIn connecting with community Slack participants.  This puts a face to the project and welcomes them to Fleet.
 
 
 ### 💻 Sid : Mike
+TODO: rename to imperative mood (see rituals.yml)
 
 Every two weeks, our CEO Mike has a 1:1 meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
 
@@ -207,6 +243,7 @@ After each meeting, the CEO's apprentice makes a copy of the original document a
 <img width="364" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/2781ec0c-4f8b-49ca-9586-87ebdc2c71dc">
 
 ### Post-e-group archival  
+TODO: rename to imperative mood (see rituals.yml)
 
 - Immediately after every e-group the AttC duplicates the e-group agenda doc as a backup copy saved to ["Classified" shared drive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).  Rename it to "YYYY-MM-DD backup of e-group agenda".  Then clear out all agenda items from the e-group doc (the ones that people add, not the standard fixtures), and replace them with a single item:  `Sam: FYI: Agenda from last time (YYYY-MM-DD):` [LINK](link)
 
@@ -235,58 +272,27 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
 - Always check back to ensure the recording **and** transcript were both deleted.
 
 
+### Process the #help-being-ceo channel
+The [#help-being-ceo Slack channel](https://fleetdm.slack.com/archives/C03U703J0G5) is a private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information.
 
-### Why not mention the CEO in Slack threads?
-Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
-
-[Too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) the CEO gets mentioned.
-
-From Mike:
-
-<blockquote purpose="large-quote">
-  Staying on top of your Slack mentions (including in threads!) is very important. Please use them. 
-But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
-
-I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
-
- What do I still read?
- 
- - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
- - If you send me a direct message, I'll see and read that ASAP.
-
-Keep in mind I am often in meetings all day, and may not be able to reply promptly.
-  
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
-Thank you so much!" 🙇
-</blockquote> 
-
-
-## Intake
-
-To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
- 
- 
-## Kanban
-
-Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this department, including pending tasks in the active sprint and any new or pending requests.
+When processing new requests from this channel, consider this:
+- Be extremely careful about confidentiality, especially tiny details in the text and screenshots.
+- Include screenshots and other images sent.
+- When creating a GitHub issue: <!-- - TODO: Extrapolate this as specified in https://github.com/fleetdm/classified/issues/280 -->
+  - Use the issue description rather than comments.
+  - Write an issue as a single-sentence user story is very helpful.  _(As the CEO, I want to X, so that Y.)_
+  - Don't assume people will scroll down. Put big honking screenshots at the bottom of the description, when possible (or make them smaller), rather than including them first above other text in the description.
+  - Any link can be lost in the internet space time continuum, and "website time machine" doesn't always work. For ALL social media links, and maybe some other links, if the external content is necessary to understand the goal of the issue, include a copy of it in the issue description.
 
 
 ## Rituals
 
-- Note: Some rituals are especially time-sensitive and require attention multiple times per day (⏰).  Set reminders for the following times (CT):_
+- Note: Some rituals are especially time-sensitive and require attention multiple times per day (⏰).  Set reminders for the following times (CT):
   - 9:30 AM /before start of business
   - 12:30 PM /beginning of "reserved block"
   - 6:30 PM /post-mortem days meetings
 
 <rituals :rituals="rituals['handbook/company/rituals.yml']"></rituals>
-
-
-## Slack channels
-
-| Channel | Purpose | Standard Operating Procedure | DRI |
-| ------- | ------- | ---------------------------- | --- |
-| [g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) | Open line of communication for Fleeties to make requests of the 🦿 [CEO support team](https://fleetdm.com/handbook/company/ceo#team) | Reach out to the AttC with requests or to add an item on the  | Sampfluger88 |
-| [help-being-ceo](https://fleetdm.slack.com/archives/C03U703J0G5) | Private [hallway](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format/#hallway) for the CEO to drop tasks and personal scheduling information | - Mark items with 👀 (emoji reaction) to indicate that you are working on the task. - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task | Sampfluger88 |
 
 
 
