@@ -239,31 +239,20 @@ From time to time the CEO will ask the Apprentice to the CEO to unroll a Slack t
   4. Reapply formatting manually (be mindful of quotes, links, and images).
       - To copy images right-click+copy and then paste in the doc (some resizing may be necessary to fit the page).
 
-### Gong
 
-#### Delete accidental Gong recordings and transcripts
+### Delete an accidental meeting recording
+It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use these steps:
 
-- [Sign in to Gong](https://us-65885.app.gong.io/deals?company-id=2676443513846037003&workspace-id=9148397688380544352&board-id=8761946992754097113&view-mode=DEALS&tab-idx=0&account-activity=true&owner-ids=&owner-team-ids=5778354842532790437&timespan-id=34&sort-by=DealActivity&sort-field=%7B%22type%22%3A%22RegularField%22%2C%22name%22%3A%22DealActivity%22%7D&sort-order=DESC&owner-id=5778354842532790437&include-team=true) trough the CEO's browser
+- Wait for at least 30 minutes after the meeting has ended to ensure the recording and transcript exist and can be deleted.
+- [Sign in to Gong](https://us-65885.app.gong.io/deals?company-id=2676443513846037003&workspace-id=9148397688380544352&board-id=8761946992754097113&view-mode=DEALS&tab-idx=0&account-activity=true&owner-ids=&owner-team-ids=5778354842532790437&timespan-id=34&sort-by=DealActivity&sort-field=%7B%22type%22%3A%22RegularField%22%2C%22name%22%3A%22DealActivity%22%7D&sort-order=DESC&owner-id=5778354842532790437&include-team=true) through the CEO's browser.
 - Click `Conversations`
 - Select the call recording no longer needed
 - Click the "hotdog" menu in the right-hand corner
 <img width="264" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/86948d02-a972-42ef-9a2d-1d93f24a1780">
-  
 - `Delete recording`
-- Always check back to ensure the recording **and** transcript were both deleted
+- Search for the title of the meeting Google Drive and delete the auto-generated Google Doc containing the transcript. 
+- Always check back to ensure the recording **and** transcript were both deleted.
 
-
-#### File Gong recordings
-
-Marking as _"private"_ in Gong doesn't limit access, instead, use this process:
-  1. Move to ¶¶ recording in google drive.
-  2. Download video from Gong, then delete it from Gong (promptly) and instead upload mp4 to appropriate ¶¶ folder in google drive.
-  3. Move generated transcript doc in google drive (promptly) instead into appropriate ¶¶ folder in google drive.
-  4. **For both video and transcript**: Double-checked permissions to make sure they are only ¶¶ viewers.
-  5. Include the links to ¶¶ video and transcript here in this doc:
-    - If appropriate, make this doc "¶¶," plus fleeties who were on the call.
-    - Include in the doc "link to video:"
-    - Include in the doc "link to transcript:"
 
 
 ### Why not mention the CEO in Slack threads?
