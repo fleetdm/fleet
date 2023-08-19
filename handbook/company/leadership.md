@@ -304,28 +304,6 @@ This applies to anyone who gets paid by the hour, including consultants and hour
 
 > _**Note:** If a contributor uses their own time-tracking process or tools, then it is OK to track the extra time spent tracking!  Contributors at Fleet are evaluated based on their results, not the number of hours they work._
 
-### Informing managers about hours worked
-Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
-
-Here's how:
-- For every hourly core team member in Gusto or Pilot.co, look up their manager ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
-- If any direct report is hourly in Pilot.co and does not submit their hours until the end of the month, still list them, but explain.  (See example below.)
-- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is.
-
-Then, send **the CEO** and **each manager** a direct message in Slack by copying and pasting the following template:
-
-> Here are the hours worked by your direct reports since last Saturday at midnight (YYYY-MM-DD):
-> - 🧑‍🚀 Alice Bobberson: 21.25
-> - 🧑‍🚀 Charles David: 3.5
-> - 🧑‍🚀 Philippe Timebender: (this person's hours will not be available until they invoice at the end of the month)
->
-> And here are the hours worked by consultants:
-> - 💁 Bombalurina: 0
-> - 💁 Jennyanydots: 0
-> - 💁 Skimbleshanks: 19
-> - 💁 Grizabella: 0
-> 
-> More info: https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked
 
 ## Communicating departures
 Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
