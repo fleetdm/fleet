@@ -66,32 +66,21 @@ Last-minute changes or cancellations must be communicated to Mike via [direct me
 ## Responsibilities
 
 
-### Schedule and adjust CEO meetings
-
-- If Mike agrees to a meeting at 9 am or earlier, the Apprentice will schedule a "DOTO: Mike" on his calendar the night before reminding him that he has a meeting before 9 am Central the following day.
-
-Morning times should be held for team members and external folks whose time zones make it harder for them to meet later in the day.
- - The Apprentice to the CEO will confirm that recipients have accepted invites. 
- - If a recipient has not accepted, the Apprentice to the CEO will reach out to confirm attendance at least 24 hours before the meeting is scheduled to begin.
-
-Do not schedule over:
-- Design reviews
-- Puppet show
-- E-group
-- ❌Reserved until day of (extreme prejudice)
-
-
 ### Process the CEO's calendar
 
-- Time management for the CEO is essential at all times. 
+- Time management for the CEO is essential.
 The AttC processes the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
 
 Prioritizing in order of importance:
- - External meetings
  - Travel and personal commitments
- - Investor meetings (eg Sid)
- - Additional product design review sessions
- - Opportunities to support teams on customer calls
+ - External meetings
+ - Board meetings
+ - Priority design reviews
+ - E-group
+ - ❌ Reserved until day of
+ - Customer or prospect calls _(up to the first 4 hours per week)_
+ - Design reviews
+ - Puppet show 
 
 _External meetings, travel, and personal commitments cannot be moved without the CEO's approval._ 
 
@@ -107,6 +96,7 @@ In the notes document include:
      - LinkedIn messages (careful not to mark things as read!)
      - Google Drive 
 Be sure to do this from Mike's browser so as to not lock him out of any meeting docs.
+
 
 ### Process the CEO's inbox
 
@@ -282,7 +272,11 @@ Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.z
 
 
 ## Rituals
-(Who will...)
+
+- Note: Some rituals are especially time-sensitive and require attention multiple times per day (⏰).  Set reminders for the following times (CT):_
+  - 9:30 AM /before start of business
+  - 12:30 PM /beginning of "reserved block"
+  - 6:30 PM /post-mortem days meetings
 
 <rituals :rituals="rituals['handbook/company/rituals.yml']"></rituals>
 
