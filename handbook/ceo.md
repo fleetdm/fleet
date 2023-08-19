@@ -72,7 +72,7 @@ Thank you so much!" 🙇
 
 ## CEO flaws
 
-Openness and candor are part of our values and I want to live them by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is not them but my fault. The second one is so I can improve, I hope that listing them lets people know I appreciate when people speak up about them.
+Openness is one of [Fleet's values](https://fleetdm.com/handbook/company#values) and I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is not them but my fault. The second one is so I can improve, I hope that listing them lets people know I appreciate when people speak up about them.
 
 - I often need to talk to think.
 - I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
