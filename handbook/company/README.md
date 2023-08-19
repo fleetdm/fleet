@@ -137,17 +137,6 @@ While most improvements at Fleet are driven by informal conversations with custo
 [Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/ceo).)
 
 
-## Slack channels
-
-The following Slack channels are maintained by Fleet's founders:
-
-| Slack channel               | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)|
-|:----------------------------|:--------------------------------------------------------------------|
-| `#general`                  | N/A _(announce something company-wide)_
-| `#thanks`                   | N/A _(say thank you)_
-| `#random`                   | N/A _(be random)_
-
-
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
