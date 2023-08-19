@@ -421,11 +421,11 @@ Please see 📖[handbook/company#open-positions](https://fleetdm.com/handbook/co
 
 ##### Weekly updates
 
-Please see 📖[handbook/company/ceo#weekly-updates](https://fleetdm.com/handbook/company/ceo-handbook#send-the-weekly-update)
+Please see 📖[handbook/ceo#weekly-updates](https://fleetdm.com/handbook/ceo#send-the-weekly-update)
 
 ##### Directly responsible individuals
 
-Please read 📖["Why direct responsibility?"](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
+Please see 📖[handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
 
 
 <meta name="maintainedBy" value="jostableford">
