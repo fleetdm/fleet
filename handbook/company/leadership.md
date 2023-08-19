@@ -5,27 +5,26 @@ The idea here is to get this vision implemented on a single departmental handboo
 
 Another thing is that we need to get a better intuitive understanding of who these pages are designed to serve.  So in order to put ourselves in their shoes (get behind their eyeballs), we need something to look at.  So doing a particular page first provides us with that canvas.
 
-- (h1) Top-level page title/ file name
+- `# Name of department`
+  - Short sentence on the departmentally specific purpose of the page. 
     
-  - (h2) Short section on _departmentally specific philosophy_ and the purpose of the page: If philosophy applies to more than your department, **pull it out**, make it easier for contributors to find.
-  - **Nice to have:** Tiny little link/sentence/button with call-to-action that links you to intake or intake options)
+  - `## What we do`
+    - Outline the specific responsibilities of the department.  
 
-- (h2) How can I… (outward facing first: e.g.non-Fleetie contributor)
-    
-  - e.g. (h3) CEO flaws
-  - e.g. (h3) Scheduling with the CEO
-  - e.g. (h3) Summoning the CEO (travel)
+  - `## Team`
+    - Table that displays each position and the team member(s) that fill that position, linking the Fleetie's LinkedIn to their name and GitHub to GiHub user name. See [handbook/ceo#team](https://fleetdm.com/handbook/ceo#team) for example.
 
-- (h2) How-tos (Inward facing e.g. Fleetie)
-  - e.g. (h2) Process CEO email
+  - `## Contact us`
+    - How to make requests of this department
+    - Link to kanban board
 
-- (h2) Intake
+  - `## Philosophical topic`
+    -e.g. "CEO flaws"
 
-- (h2) Kanban
+- `## Responsaabilities`
+  - e.g. "Process CEO inbox"
 
-- (h2) Rituals
-  
-- (h2) Slack channels
+- `## Rituals`
 
 
 ### Key reviews
