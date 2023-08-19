@@ -825,6 +825,7 @@ To add a tip blockquote, start a line with ">" and end the blockquote with a bla
 Tip blockquotes are the default blockquote style in our Markdown content.
 
 - **Markdown:**
+
 ```
 > This is a tip blockquote.
 This line is rendered inside of the tip blockquote.
@@ -833,6 +834,7 @@ This line is rendered outside of the tip blockquote.
 ```
 
 - **Rendered output:**
+  
 > This is a tip blockquote.
 This line is rendered inside of the tip blockquote.
 
@@ -842,6 +844,7 @@ This line is rendered outside of the tip blockquote.
 To add a quote blockquote, add a `<blockquote>` HTML element with `purpose="quote"`.
 
 - **Markdown:**
+
 ```
 <blockquote purpose="quote">
 This is a quote blockquote.
@@ -851,6 +854,7 @@ Lines seperated by a blank newline will be rendered on a different line in the b
 ```
 
 - **Rendered output:**
+  
 <blockquote purpose="quote">
 This is a quote blockquote.
 
@@ -862,6 +866,7 @@ Lines seperated by a blank newline will be rendered on a different line in the b
 You can add a large quote blockquote by adding a `<blockquote>` HTML element with `purpose="large-quote"`.
 
 - **Markdown:**
+  
 ```
 <blockquote purpose="large-quote"> 
 This is a large blockquote.
@@ -871,6 +876,7 @@ You can use a large quote blockquote to reduce the font size and line height of 
 ```
 
 - **Rendered output:**
+  
 <blockquote purpose="large-quote"> 
 This is a large blockquote.
 
