@@ -19,9 +19,13 @@ Fleet Device Management Inc. is an all-remote company with 40+ team members spre
 ### Open source
 The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
+### Communications
+We’re an all-remote company that allows people to work from almost anywhere in the world. We hire great people regardless of where they live, it’s important for us to practice clear communication in ways that help us stay connected and work more efficiently. You can read more about Fleet's [open-core](https://fleetdm.com/handbook/company/why-this-way#why-open-source) style communication and suggest improvements in 📖[company/communications](https://fleetdm.com/handbook/company/communications)
+
 
 ## Why this way?
 At Fleet, we write things down.  Even when we might be wrong.  This helps us move quickly, provides clarity, and enables asynchronous work.  The "Why this way?" page in the handbook discusses some of our most important decisions about the best way to work and the reasoning for them.  For example: _"Why open source?"_, _"Why do we use a wireframe-first approach?"_, _"Why direct responsibility?_, and _"Why handbook-first strategy?"_  You can read more about these principles and suggest improvements in ["📖Company/Why this way?"](https://fleetdm.com/handbook/company/why-this-way)
+
 
 ## Open positions
 
@@ -108,7 +112,7 @@ A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security
 When Kolide's attention shifted away from Fleet, and towards their separate, user-focused SaaS offering, the Fleet community took over maintenance of the open source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
 
 ### 2020: Fleet was incorporated
-Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/company/ceo), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
+Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/ceo), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
 ### 2022: Millions of hosts
 Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
@@ -118,6 +122,16 @@ Fleet raised its Series A funding round.  The world now has at least 1.65 millio
 
 ## Org chart
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and every manager has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
+
+
+### CEO
+This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet, and is intended to be helpful. If there are things that seem pretentious or overbearing please raise them so we can remove or adapt them. Many items on this page are guidelines for Fleet's Executive group (E-group). You can suggest improvements to the page and read more about Fleet's CEO in 📖[handnook/ceo](https://fleetdm.com/handbook/ceo)
+
+### Leadership
+
+You can suggest improvements to the page and read more about Fleet's leadership style in 📖[handnook/company/leadership](https://fleetdm.com/handbook/company/leadership)
+
+
 
 ## Product groups
 Above and beyond the organizational chart, Fleet organizes cross-functional groups focused on particular business goals.  This helps product development teams move more quickly by eliminating roundtrips spent waiting for feedback and answers from people in other departments. Product groups include a designer, a product quality lead, developers, a product manager, and an engineering manager.  For more information, check out the ["Product groups"](./development-groups.md) page.
@@ -147,24 +161,15 @@ The following stubs are included only to make links backward compatible.
 
 ##### Levels of confidentiality
 
-Please see [📖Business Operations#levels-of-confidentiality](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality).
+Please see [📖handbook/company/communications#levels-0f-confidentiality](https://fleetdm.com/handbook/communtications#levels-of-confidentiality).
 
 ##### Email relays
 
-Please see [📖Business Operations#email-relays](https://fleetdm.com/handbook/business-operations#email-relays).
-
+Please see [📖handbook/company/communications#email-relays](https://fleetdm.com/handbook/communtications#email-realys).
 
 ##### Tools we use
 
 Please see [📖Business Operations#tools-we-use](https://fleetdm.com/handbook/business-operations#tools-we-use).
-
-##### Positioning
-
-Please see [📖Company#strategy](#strategy).
-
-##### CEO handbook
-
-Please see [📖Company#CEO](https://fleetdm.com/handbook/company/ceo).
 
 
 <meta name="maintainedBy" value="mikermcneil">
