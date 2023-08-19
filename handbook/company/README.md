@@ -123,17 +123,13 @@ Fleet raised its Series A funding round.  The world now has at least 1.65 millio
 ## Org chart
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and every manager has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
+### Leadership
+To understand the expectations of Fleet's leadership, read 📖[handbook/company/leadership](https://fleetdm.com/handbook/company/leadership).
 
 ### CEO
-This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet, and is intended to be helpful. If there are things that seem pretentious or overbearing please raise them so we can remove or adapt them. Many items on this page are guidelines for Fleet's Executive group (E-group). You can suggest improvements to the page and read more about Fleet's CEO in 📖[handnook/ceo](https://fleetdm.com/handbook/ceo)
+Get to know Fleet's CEO and tips for collaborating with him in 📖[handbook/ceo](https://fleetdm.com/handbook/ceo).
 
-### Leadership
-
-You can suggest improvements to the page and read more about Fleet's leadership style in 📖[handnook/company/leadership](https://fleetdm.com/handbook/company/leadership)
-
-
-
-## Product groups
+### Product groups
 Above and beyond the organizational chart, Fleet organizes cross-functional groups focused on particular business goals.  This helps product development teams move more quickly by eliminating roundtrips spent waiting for feedback and answers from people in other departments. Product groups include a designer, a product quality lead, developers, a product manager, and an engineering manager.  For more information, check out the ["Product groups"](./development-groups.md) page.
 
 ## Advisors
