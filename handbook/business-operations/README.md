@@ -53,18 +53,6 @@ Note: These are out of date, but retained for future reference:
 
 -->
 
-### Security
-Security policies are best when they're alive, in context in how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
-
-Here are a few different entry points for a tour of Fleet's security policies and best practices:
-1. [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
-2. [Human resources security policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
-3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
-4. [Personal mobile devices](https://fleetdm.com/handbook/security#personal-mobile-devices)
-5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
-6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
-
-
 ## Slack channels
 These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels):
 
@@ -104,6 +92,30 @@ In CorpNet, select "place an order for an existing business" we’ll need to hav
   - You can do this between you and CorpNet by selecting "Foreign Qualification," placing the order and emailing the confirmation to the rep for Payroll registration (this is a short turnaround).
   - You can do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online, you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
 For more information, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit?usp=sharing&ouid=102440584423243016963&rtpof=true&sd=true).
+
+
+#### Informing managers about hours worked
+Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
+
+Here's how:
+- For every hourly core team member in Gusto or Pilot.co, look up their manager ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
+- If any direct report is hourly in Pilot.co and does not submit their hours until the end of the month, still list them, but explain.  (See example below.)
+- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is.
+
+Then, send **the CEO** and **each manager** a direct message in Slack by copying and pasting the following template:
+
+> Here are the hours worked by your direct reports since last Saturday at midnight (YYYY-MM-DD):
+> - 🧑‍🚀 Alice Bobberson: 21.25
+> - 🧑‍🚀 Charles David: 3.5
+> - 🧑‍🚀 Philippe Timebender: (this person's hours will not be available until they invoice at the end of the month)
+>
+> And here are the hours worked by consultants:
+> - 💁 Bombalurina: 0
+> - 💁 Jennyanydots: 0
+> - 💁 Skimbleshanks: 19
+> - 💁 Grizabella: 0
+> 
+> More info: https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked
 
 ### Finance rituals
 
@@ -209,37 +221,6 @@ For the status of stock option grants, exercises, and all other _common stock_ i
 Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook/business-operations#intake).
 > **Note:** Escalate first-of-its-kind agreements to the CEO. Mike will review business terms and consult with lawyers as necessary.
 
-
-### Getting a contract signed
-
-If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
-
-When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
-
-The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
-
-> _**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
-
-### Getting a contract reviewed
-
-> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented above.
-
-To get a contract reviewed, upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
-
-Complete the [contract review issue template in GitHub](https://fleetdm.com/handbook/business-operations#intake), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
-
-Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
-
-The SLA for contract review is **2 business days**.
-
-Once the review is complete, the issue will be closed.
-
-If an agreement requires an additional review during the negotiation process, the requestor will need to follow these steps again. Uploading the new draft and creating a new issue in GitHub. 
-
-When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature.
-
-### Vendor questionnaires 
-In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](./vendor-questionnaires.md) 
 
 ## IT Operations
 
@@ -413,19 +394,28 @@ Please see 📖[handbook/company/leadership](https://fleetdm.com/handbook/compan
 ##### Informing managers about hours worked
 ##### Departures
 ##### Communicating departures
-Please see 📖[handbook/company/leadership](https://fleetdm.com/handbook/company/leadership) for all sections below.
+Please see 📖[handbook/company/leadership](https://fleetdm.com/handbook/company/leadership) for all sections above.
 
 ##### Open positions
-
 Please see 📖[handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
 
 ##### Weekly updates
-
 Please see 📖[handbook/ceo#weekly-updates](https://fleetdm.com/handbook/ceo#send-the-weekly-update)
 
 ##### Directly responsible individuals
-
 Please see 📖[handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
+
+##### Security
+Please see [📖handbook/company/communications#security](https://fleetdm.com/handbook/company/communications#security).
+
+##### Vendor questionnaires
+Please see [📖handbook/company/communications#vendor-questionnaires](https://fleetdm.com/handbook/company/communications#vendor-questionnaires)
+
+##### Getting a contract signed
+Please see [📖handbook/company/communications#getting-a-contract-signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed)
+
+##### Getting a contract reviewed
+Please see [📖handbook/company/communications#getting-a-contract-reviewed](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed)
 
 
 <meta name="maintainedBy" value="jostableford">
