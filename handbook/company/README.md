@@ -19,8 +19,8 @@ Fleet Device Management Inc. is an all-remote company with 40+ team members spre
 ### Open source
 The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
-### Communications
-We’re an all-remote company that allows people to work from almost anywhere in the world. We hire great people regardless of where they live, it’s important for us to practice clear communication in ways that help us stay connected and work more efficiently. You can read more about Fleet's [open-core](https://fleetdm.com/handbook/company/why-this-way#why-open-source) style communication and suggest improvements in 📖[company/communications](https://fleetdm.com/handbook/company/communications)
+### Every day
+When something is written down in the handbook, we actually mean it.  This helps us know what to expect from one another.  You can read more about what it's like to work at Fleet in ["📖Company/Communications"](https://fleetdm.com/handbook/company/communications).
 
 
 ## Why this way?
