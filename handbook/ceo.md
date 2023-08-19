@@ -1,13 +1,5 @@
 # CEO 
-This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. 
-
-<!-- 
-* [How can I...](#how-can-i)
-* [How to...(#Tasks)](#tasks)
-* [Who will...(#Rituals)](#rituals)
-
-> Need to create a [GitHub issue](#intake)?
--->
+This page details processes specific to working with Mike McNeil, co-founder and Chief Executive Officer of Fleet, and the 🦿 CEO support team.
 
 ## What we do
 The CEO is the [directly responsible individual](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [final review of UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company. 
@@ -15,19 +7,17 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 ## Team
 
-The 🦿 CEO support team is made up of these people:
-
-| Contributor                                    | Role
+| Role                                           | Contributor(s)
 |:-----------------------------------------------|:----------------------------------------------------------------------|
-| Mike McNeil ([@mikermcneil](https://github.com/mikermcneil))  | [CEO](https://www.linkedin.com/in/mikermcneil/)
-| Sam Pfluger ([@sampfluger88](https://github.com/sampfluger88)) | [Apprentice to the CEO (AttC)](https://www.linkedin.com/in/sampfluger88/)
+| CEO                                            | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) ([@mikermcneil](https://github.com/mikermcneil))
+| Apprentice to the CEO (AttC)                   | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) ([@sampfluger88](https://github.com/sampfluger88))
 
 
 ## Contact us
 
 - If you mention the CEO from within a Slack thread, he will not read your message.
 - If urgent or personal, send a Slack direct message (DM) to `@mikermcneil` right away.
-- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the [Attc](https://fleetdm.com/handbook/ceo#team) in the  [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
+- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the [Attc](https://fleetdm.com/handbook/ceo#team) in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
 - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
 
 <!-- ## Contact the CEO -->
