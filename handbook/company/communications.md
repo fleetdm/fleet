@@ -3,7 +3,9 @@
 This page covers the things every team member needs to know to effectively contribute at Fleet.
 
 ## Strategy
-You can read about the [company's positioning ("👑 Crown jewels")](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#) or review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide ["All hands" meetings](https://fleetdm.com/handbook/business-operations#all-hands).
+You can read about the company's positioning and product strategy in ["👑 Crown jewels" (private google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
+
+To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide ["All hands" meetings](https://fleetdm.com/handbook/business-operations#all-hands).
 
 ## Email relays
 There are [several special email addresses](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#) that automatically relay messages to the appropriate people in Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.
@@ -17,8 +19,15 @@ Settings that have a lock icon next to them have been locked by an administrator
 
 ## Slack
 At Fleet, we do not send internal emails to each other. Instead, we prefer to use [Slack](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/) to communicate with other folks who work at Fleet.
-We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
-We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
+
+### Key Slack channels
+The following Slack channels are useful for every Fleetie:
+
+| Slack channel               | Purpose |
+|:----------------------------|:--------------------------------------------------------------------|
+| `#general`                  | Read company-wide announcements.
+| `#thanks`                   | Say thank you.
+| `#random`                   | Be random.
 
 ### Slack channel prefixes
 - We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
@@ -29,10 +38,10 @@ We use these prefixes to organize the Fleet Slack:
  * ***at*** or ***fleet-at***: for customer channels.
  * ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
 
-#### Slack communications and best practices
-In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc). 
-      1. What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from. 
-      2. Why does this matter? Great question! The Fleet [culture](https://fleetdm.com/handbook/company#culture) is pretty simple: think of others, and remember the company [Values](https://fleetdm.com/handbook/company#values).
+### Slack communications and best practices
+- We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
+- We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
+- In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
 
 ## Levels of confidentiality
