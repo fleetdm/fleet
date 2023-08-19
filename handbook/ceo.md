@@ -1,16 +1,19 @@
 # CEO 
 This page details processes specific to Mike McNeil, co-founder and Chief Executive Officer of Fleet. 
 
-Need quick Answers?
 * [How can I...](#how-can-i)
 * [How to...(#Tasks)](#tasks)
 * [Who will...(#Rituals)](#rituals)
-Need to create a [GitHub issue](#intake)?
+
+> Need to create a [GitHub issue](#intake)?
+
+## What we do
+The CEO is the [directly responsible individual](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [final review of UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company. 
+- **Note** When the CEO is out of office, these responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 ## Team
 
 The 🦿 CEO support team is made up of these people:
-
 
 | Contributor                                    | Role
 |:-----------------------------------------------|:----------------------------------------------------------------------|
@@ -18,27 +21,7 @@ The 🦿 CEO support team is made up of these people:
 | Sam Pfluger ([@sampfluger88](https://github.com/sampfluger88)) | [Apprentice to the CEO (AttC)](https://www.linkedin.com/in/sampfluger88/)
 
 
-### Flaws and feedback
-
-[![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
-
-"[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc."
-- I talk to think.
-- I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
-- I can be quick to criticism, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
-- I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
-- When ideas differ I start at "what I would do", then talk myself backward toward the original idea
-
-
-## Responsibilities
-The CEO is the [directly responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [final review of UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company. 
-- **Note** When the CEO is out of office, these responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
-
-
-## How can I...
-
-
-### Contact the CEO
+## Contact the CEO
 
 If urgent or personal, send a Slack direct message (DM) right away. 
 If you mention the CEO from within a Slack thread, he will not read your message.
@@ -48,7 +31,7 @@ Please find a different way to get in touch:
 - Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.)
 
 
-### Schedule time with the CEO
+## Schedule time with the CEO
 
 All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meeting-scheduling) are welcomed and a top priority for the CEO to get on the calendar quickly. 
 
@@ -66,18 +49,26 @@ All items on Mike's calendar are subject to change by the CEO to better serve th
 Last-minute changes or cancellations must be communicated to Mike via [direct message (DM) only](#why-not-mention-the-ceo-in-slack-threads).
 
 
-## Tasks
-(How to...)
+## CEO flaws
 
-- ***Time-sensitive tasks*** (⏰) require reminders to be created and set for the following times (CT):
-  - 9:30 AM /before start of business
-  - 12:30 PM /begging of "reserved block"
-  - 6:30 PM /post-mortem days meetings
+[![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
+
+"[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc."
+- I talk to think.
+- I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
+- I can be quick to criticism, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
+- I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
+- When ideas differ I start at "what I would do", then talk myself backward toward the original idea
+
+
+
+
+## Responsibilities
 
 
 ### Schedule and adjust CEO meetings
 
-- ⏰ If Mike agrees to a meeting at 9 am or earlier, the Apprentice will schedule a "DOTO: Mike" on his calendar the night before reminding him that he has a meeting before 9 am Central the following day.
+- If Mike agrees to a meeting at 9 am or earlier, the Apprentice will schedule a "DOTO: Mike" on his calendar the night before reminding him that he has a meeting before 9 am Central the following day.
 
 Morning times should be held for team members and external folks whose time zones make it harder for them to meet later in the day.
  - The Apprentice to the CEO will confirm that recipients have accepted invites. 
@@ -92,7 +83,7 @@ Do not schedule over:
 
 ### Process the CEO's calendar
 
-- ⏰ Time management for the CEO is essential at all times. 
+- Time management for the CEO is essential at all times. 
 The AttC processes the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
 
 Prioritizing in order of importance:
@@ -119,7 +110,7 @@ Be sure to do this from Mike's browser so as to not lock him out of any meeting 
 
 ### Process the CEO's inbox
 
-- ⏰ The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review.
+- The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review.
 The [AttC](#team) will reduce the scope of Mike's inbox to only include necessary and actionable communication.
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
@@ -305,126 +296,5 @@ Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.z
 
 
 
-<!-- 
-# Participation in the CEO shadow program
-This section explains more about the CEO shadow program.
-
-> I commented out this section on 2023-02-28.  I also removed the issue template here: https://github.com/fleetdm/confidential/pull/2059#issue-1603849677  This was because CEO shadowing at Fleet is still evolving and we're experimenting with the right way to implement it at our scale.  -Mike
-
-#### In this section
-- [Eligibility](#eligibility)
-- [How to apply](#how-to-apply)
-- [Parental participation](#parental-participation)
-- [Rotation rhythm](#rotation-rhythm)
-- [Preparing for the program](#preparing-for-the-program)
-- [Important things to note](#important-things-to-note)
-- [What to wear](#what-to-wear)
-- [Pre-program tasks](#pre-program-tasks)
-- [What to expect during the program](#what-to-expect-during-the-program)
-- [Preparing for meetings and events](#preparing-for-meetings-and-events)
-- [CEO's Calendar](#ceos-calendar)
-- [Responsibilities](#responsibilities)
-- [Considerations for other companies starting CEO shadow programs](#considerations-for-other-companies-starting-ceo-shadow-programs)
-- [Alumni](#alumni)
-
-### Eligibility
-All Fleet team members are eligibile to apply for the CEO Shadow Program. Eligibility starts after you've been at Fleet for at least 6 months. 
-
-### How to apply
- 1. Create a pull request to add yourself to the [rotation schedule](https://github.com/fleetdm/fleet/edit/main/handbook/people/ceo-handbook.md#rotation-schedule).
- 2. Assign your manager and ask them to approve (but not merge) the pull request.
- 3. Once your manager approves the pull request, assign the pull request to `mikermcneil`, link to the pull request in the #help-ceo-shadow channel, and tag `@mikermcneil`.
-
-### Parental participation 
-To allow flexibility for parents to participate, there will be some rotations identified as "parent-friendly" weeks. These are weeks when Mike doesn't need a shadow for the full 5 workdays or where the program is split so the weeks are not consecutive.
-
-### Rotation rhythm
- 1. See one, you are trained by the outgoing person.
- 2. Teach one, you train the incoming person.
- The shadow should be available for the full two weeks.
-
-### Preparing for the program
-#### Important things to note
- 1. This is not a performance evaluation.
- 2. Plan to observe and ask questions.
- 3. Don't plan to do any of your usual work.
- 4. Be ready to add a number of [handbook](https://fleetdm.com/handbook) updates during your shadow period.
- 5. Participating in the shadow program is a privilege that will expose you to confidential information.
-
-#### What to wear
- Casual. You do not need to dress formally; business casual clothes are also appropriate.
-
-#### Pre-program tasks
- 1. Create an [onboarding issue](https://github.com/fleetdm/confidential/blob/main/ceo-shadow-onboarding.md). Outgoing shadows are responsible for training incoming shadows. We currently track onboarding and offboarding in the [ceo-shadow project](https://github.com/orgs/fleetdm/projects/49/views/1).
- 2. Consider creating goals. For inspiration, here is [an example](https://gitlab.com/nmccorrison/ceo-shadow/-/issues/1#my-goals) of a CEO Shadow who added goals to their onboarding issue.
- 3. Practice your introduction. See [CEO Shadow Introductions](https://about.gitlab.com/handbook/ceo/shadow/#ceo-shadow-introductions) for specifics.
- 4. Coffee chat with co-shadow. Try to schedule coffee chats with your co-shadow before you start the program.
- 5. Coffee Chat with CEO shadow alumni. Feel free to schedule a coffee chat with any of the [CEO Shadow Alumni](https://fleetdm.com/handbook/people/ceo-handbook#alumni).
- 6. Explore the [CEO shadow project](https://github.com/orgs/fleetdm/projects/49/views/1)
- 7. Review the CEO's calendar. Anticipate your week. Look ahead in the schedule and plan accordingly. 
- 8. Review the CEO handbook (TODO: insert link here)
- 9. Review acronyms 
- If you're not familiar with some of the business acronyms, take a bit of time to review them.
- - [KPI (Key Performance Indicator)](https://fleetdm.com/handbook/product#objectives-and-key-results)
- - [OKRs (Objectives and Key Results)](https://fleetdm.com/handbook/product#objectives-and-key-results)
- - Revenue definitions such as [ARR (Annual Recurring Revenue)](https://www.investopedia.com/terms/a/arr.asp)
- - Keep a [finance dictionary](https://www.investopedia.com/financial-term-dictionary-4769738) handy
-
-> This list is not meant to be exhaustive and should not become a glossary. While we strive to be handbook first, you may find that we are using acronyms without a clear handbook definition. If you can't find it in the handbook or find a standard definition on Google, ask someone what the acronym means. Not being able to find it could be a sign that we need to do a better job with documentation.
-
-### What to expect during the program 
-The value of the CEO Shadow Program comes from the broader context you'll gain and the interesting conversations you'll witness.
-Since your rotation is over a short period of time, there are no long-term tasks you can take on. However, there are many short-term administrative tasks you'll be asked to perform as a shadow. 
-
-Here are some examples:
-1. Make handbook updates.
-2. Solve urgent issues. For example, help solve a complaint from a customer or coordinate the response to a technical issue.
-3. Go through open pull requests and work towards merging or closing any that have not been merged.
-4. Go through open issues in the CEO shadow project and work towards closing or creating a subsequent merge request to close out.
-5. Iterate and complete small tasks as they come up. Clear them out immediately to allow for rapid iteration on more crucial tasks.
-6. Provide training to the incoming CEO Shadow(s).
-
-Here are some examples for meetings:
-1. Prepare for, take notes during, and follow up on meetings. See more details below about your meeting responsibilities as a shadow.
-2. Share thanks in the #thanks channel in Slack when it comes from a customer or wider community member in a meeting.
-
-
-### Preparing for meetings and events
-#### CEO's calendar
- 1. Review the [CEO's calendar](https://calendar.google.com/calendar/u/0/r/week).
- 2. As a reminder, you should have your title updated within your last name on zoom. During the Shadow rotation update your title to "CEO Shadow".
- 3. Add the CEO's calendar to your Google Calendar by clicking the + next to "Other Calendars". Then click Subscribe to Calendar, search for the CEO's name, and click enter.
- 4. Some meetings you will not be required to shadow, those are indicated with "[no shadows]" in the event title.
- 5. Meetings with those outside of Fleet may not be on Zoom. Prior to the call, check the CEO's calendar and load any other conferencing programs that may be needed. It may be necessary to dial in via phone for audio conferences.
-
-#### Zoom information
-You'll have an opportunity to join many calls and meet new people along the way. Fleet asks that you change your Zoom name to reflect "[CEO shadow - your name]" so that everyone on the call knows who you are and why you are participating. 
-
-#### Responsibilities
-Meetings come in many different formats. Your responsibilities may change slightly based on the kind of meeting.
-Here are the responsibilities shadows have during meetings:
-| Meeting type | Notes? | Timekeeping? |
-| ----------- | ----------- | --------- |
-| Key Reviews | No notes | Timekeeping in chat |
-| Internal meeting (CEO not host) | Notes optional | Timekeeping |
-| Customer Meeting | Yes, please use the externally-shared collaboration doc | Timekeeping |
-| Anything else (unless specified)	| Yes, take notes | Timekeeping |
-
-### After the CEO shadow program
-#### Alumni 
-CEO Shadow program alumni are welcome to join the #ceo-shadow-alumni Slack channel to stay in touch after the program.
-| Start date | End date | Name | Title | Takeaways |
-| ---------- | -------- | ---- | ----- | --------- |
-|  date      |  date    | name | title | takeaways |
-
-
-### Considerations for other companies starting CEO shadow programs
-GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livestream](https://youtu.be/ExG8_bnIAMI) from Sam Altman, as the two discussed considerations for implementing a CEO Shadow program in other organizations. Key takeaways are documented below.
- 1. CEOs should not optimize meetings for Shadows. They  learn by being in the room, either in-person or virtual, and it's OK if the Shadow doesn't fully understand everything.
- 2. A well-designed CEO Shadow program shouldn't burden a CEO; in fact, Shadows should actively make a CEO's day easier by assisting with notes and changing relevant portions of the company handbook upon request.
- 3. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni can translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
- 4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
- -->
- 
 <meta name="maintainedBy" value="Sampfluger88">
 <meta name="title" value="🐈‍⬛ CEO">
