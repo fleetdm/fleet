@@ -6,7 +6,7 @@ The idea here is to get this vision implemented on a single departmental handboo
 Another thing is that we need to get a better intuitive understanding of who these pages are designed to serve.  So in order to put ourselves in their shoes (get behind their eyeballs), we need something to look at.  So doing a particular page first provides us with that canvas.
 
 - `# Name of department`
-  - Short sentence on the departmentally specific purpose of the page. 
+  - "This handbook page details processes specific to working `[with](fleetdm.com/handbook/company/nameOfDepartment#contact-us)` and `[within](fleetdm.com/handbook/company/nameOfDepartment#)` the (Name of dpartment) department." 
     
   - `## What we do`
     - Outline the specific responsibilities of the department.  
@@ -22,6 +22,7 @@ Another thing is that we need to get a better intuitive understanding of who the
     -e.g. "CEO flaws"
 
 - `## Responsaabilities`
+  - All headings written in imparative mood
   - e.g. "Process CEO inbox"
 
 - `## Rituals`
