@@ -166,10 +166,62 @@ When attending a conference or traveling for Fleet, keep the following in mind:
   - The price of the admission fees if attending a conference.
 - Please use your personal credit card for movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
 
+
+## Vendor questionnaires 
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires) 
+
+## Getting a contract signed
+
+If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
+
+When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
+
+The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
+
+> _**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
+
+## Getting a contract reviewed
+
+> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented above.
+
+To get a contract reviewed, upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
+
+Complete the [contract review issue template in GitHub](https://fleetdm.com/handbook/business-operations#intake), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
+
+Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
+
+The SLA for contract review is **2 business days**.
+
+Once the review is complete, the issue will be closed.
+
+If an agreement requires an additional review during the negotiation process, the requestor will need to follow these steps again. Uploading the new draft and creating a new issue in GitHub. 
+
+When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature.
+
+> **Note:** Please submit other legal questions and requests to [Business Operations department](https://fleetdm.com/handbook/business-operations#intake).
+
 ## Trust
 Fleet is successful because of our customers and community, and those relationships are built on trust.
 
-### Holidays
+### Security
+Security policies are best when they're alive, in context of how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
+
+Here are a few different entry points for a tour of Fleet's security policies and best practices:
+1. [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
+2. [Human resources security policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
+3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
+4. [Personal mobile devices](https://fleetdm.com/handbook/security#personal-mobile-devices)
+5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
+6. More details about internal security processes at Fleet are located on [the Security page](https://fleetdm.com/handbook/business-operations/security).
+
+## Benefits
+In this section, you can find information about Fleet's benefit strategies and decisions.
+
+### Paid time off
+What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
+For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
+
+#### Holidays
 At Fleet, we have team members with various employment classifications in many different countries worldwide. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when to take time off.
 When a team member joins Fleet, they pick one of the following holiday schedules:
  - **Traditional**: This is based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
@@ -178,24 +230,8 @@ When a team member joins Fleet, they pick one of the following holiday schedules
 
 Either way, it's up to you to make sure that your responsibilities are covered, and that your team knows you're out of the office.
 
-### Relocating
-When Fleeties relocate, there are vendors that need to be notified of the change. 
-
-Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/business-operations#intake) by following the directions listed in the relevant issue template ("Moving").
-
-### Celebrations
-At Fleet we like to celebrate sinificant milestones for our teammates! We do this in a variety of ways including company-wide slack messaging. If you would prefer we didn't celebrate your milestone, please submit an [intake issue](https://fleetdm.com/handbook/business-operations#intake) to ensure the team has record of your preference.
-
-### Workiversaries
-We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The POps team will post in Slack to highlight your dedication and contribution to Fleet, giving an opportunity for teammates to thare their appreciation of your contribution!
-Fleet also [evaluates and (if necessary) updates compensation decisions yearly](#compensation-changes), shortly after the anniversary of a team member's start date.
-
-## Benefits
-In this section, you can find information about Fleet's benefit strategies and decisions.
-
-### Paid time off
-What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
-For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
+#### New parent leave
+Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
 
 #### Taking time off
 When you need to take time off, follow this process:
@@ -208,10 +244,6 @@ When you need to take time off, follow this process:
 - This process is the same for any days you take off, whether it's a holiday or you just need a break.
 
 
-
-### New parent leave
-Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
-
 ### Retirement contributions
 #### US based team members
 Commencing in August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 1% contribution unless they opt out or change their contribution amount within 30 days of commencement. Fleet currently does not match any contributions made by team members to 401(k) plans.
@@ -222,11 +254,17 @@ Fleet meets the relevant country's retirement contribution requirements for team
 ### Coworking
 Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](https://fleetdm.com/handbook/business-operations#intake).
 
+
 ## Compensation
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
 
 ### Payroll dates
 US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
+
+### Workiversaries
+We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The  team will post in Slack to highlight your dedication and contribution to Fleet, giving an opportunity for teammates to share their appreciation of your contribution!
+
+Fleet also [evaluates and (if necessary) updates compensation decisions yearly](#compensation-changes), shortly after the anniversary of a team member's start date.
 
 ### Compensation changes
 Fleet evaluates and (if necessary) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The process for that evaluation and update is:
@@ -238,6 +276,13 @@ Fleet evaluates and (if necessary) updates compensation decisions yearly, shortl
 - If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
 - Head of BizOps updates the respective payroll platform (Gusto or Plane) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
 - If an additional equity grant is part of this compensation change, the previous equity and new situation is noted in detail in the "Notes" column of the equity plan, and the "Grant started?" column is set back to "todo" to add it to the queue for the next time grants are processed (quarterly).
+
+### Relocating
+When Fleeties relocate, there are vendors that need to be notified of the change. 
+
+Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/business-operations#intake) by following the directions listed in the relevant issue template ("Moving").
+
+
 
 ## Team member onboarding
 
