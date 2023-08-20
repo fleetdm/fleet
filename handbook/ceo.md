@@ -39,7 +39,7 @@ Meetings and blocked time can sometimes be moved to make room. External meetings
 
 - **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](#process-the-ceos-calendar).
 - **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar, unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
-- **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike via [direct message (DM).](#why-not-mention-the-ceo-in-slack-threads).
+- **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](#why-not-mention-the-ceo-in-slack-threads).
 
 
 ## Why not mention the CEO in Slack threads?
