@@ -9,8 +9,8 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 | Role                                           | Contributor(s)
 |:-----------------------------------------------|:----------------------------------------------------------------------|
-| CEO                                            | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) ([@mikermcneil](https://github.com/mikermcneil))
-| Apprentice to the CEO (AttC)                   | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) ([@sampfluger88](https://github.com/sampfluger88))
+| CEO                                            | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Apprentice to the CEO (AttC)                   | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
 ## Contact us
