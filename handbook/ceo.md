@@ -88,6 +88,25 @@ Openness is one of [Fleet's values](https://fleetdm.com/handbook/company#values)
 "[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc."
 -->
 
+## Automated filing of signed documents
+We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
+When the final signature is added to an envelope in DocuSign, it is marked as completed and sent to Zapier, where it goes through these steps:
+1. Zapier sends the following information about the DocuSign envelope to our Hydroplane webhook:
+   - **`emailSubject`** - The subject of the envelope sent by DocuSign. Our DocuSign templates are configured to format the email subject as `[type of document] for [signer's name]`.
+   - **`emailCsv`** - A comma-separated list of signers' email addresses.
+2. The Hydroplane webhook matches the document type to the correct Google Drive folder, orders the list of signers, creates a timestamp, and sends that data back to Zapier as
+   - **`destinationFolderID`** - The slug for the Google Drive folder where we store this type of document.
+   - **`emailCsv`** - A sorted list of signers' email addresses.
+   - **`date`** - The date the document was completed in DocuSign, formatted YYYY-MM-DD.
+3. Zapier uses this information to upload the file to the matched Google Drive folder, with the filename formatted as `[date] - [emailSubject] - [emailCvs].PDF`.
+4. Once the file is uploaded, Zapier uses the Slack integration to post in the #help-classified channel with the message:
+   ```
+   Now complete with all signatures:
+      [email subject]
+      link: drive.google.com/[destinationFolderID]
+   ```
+
+
 
 
 ## Responsibilities
