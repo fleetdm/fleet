@@ -15,7 +15,7 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 ## Contact us
 
-- If you mention the CEO from within a Slack thread, he will not read your message.
+- If you mention the CEO from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
 - If urgent or personal, send a Slack direct message (DM) to `@mikermcneil` right away.
 - If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the [Attc](https://fleetdm.com/handbook/ceo#team) in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
 - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
@@ -28,26 +28,24 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 ### Schedule time with the CEO
 
-All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meeting-scheduling) are welcomed and a top priority for the CEO to get on the calendar quickly. 
+All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meeting-scheduling) are welcomed and a top priority for the CEO to consider getting on the calendar quickly. 
 
-To grab time with the CEO @mention the [AttC](#team) in the [#-meetings channel](https://fleetdm.slack.com/archives/C01BQKMTJNR) with the following details:
+To grab time with the CEO @mention the [AttC](#team) in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
 - Proposed date and time
-- Reason for meeting e.g. include customer names or related GitHub issues 
-  - **Note:** Product design reviews and 🐋Sales meetings are top priority for the CEO.
-Other internal meetings and blocked time can always be moved to make room. External meetings, travel, and personal commitments cannot be moved.
-
-All meetings on Mike's calendar are reviewed and scheduled by the AttC. 
-Please ***do not*** directly schedule a meeting onto Mike's calendar without confirming with the Apprentice first unless requested directly from Mike.
-
-All meetings with the CEO should originate from his calendar and Zoom account. 
-All items on Mike's calendar are subject to change by the CEO to better serve the company. 
-Last-minute changes or cancellations must be communicated to Mike via [direct message (DM) only](#why-not-mention-the-ceo-in-slack-threads).
+- Reason for meeting _(e.g. include customer names or a related GitHub issue)_
 
 
-### Why not mention the CEO in Slack threads?
-Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
+Meetings and blocked time can sometimes be moved to make room. External meetings, travel, and personal commitments can rarely be moved.
 
-[Too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) the CEO gets mentioned.
+- **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](#process-the-ceos-calendar).
+- **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar, unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
+- **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](#why-not-mention-the-ceo-in-slack-threads).
+
+
+## Why not mention the CEO in Slack threads?
+Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
+
+Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
 
 From Mike:
 
@@ -127,7 +125,7 @@ Prioritizing in order of importance:
  - Design reviews
  - Puppet show 
 
-_External meetings, travel, and personal commitments cannot be moved without the CEO's approval._ 
+_Please do not move external meetings, travel, and personal commitments without asking the CEO first._ 
 
 [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
 
