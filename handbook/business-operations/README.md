@@ -5,27 +5,20 @@ This handbook page details processes specific to working [with](#contact-us) and
 The BizOps department is directly responsible for these traditional functions: People, Finance, Legal, IT, and Revenue Operations (RevOps).  
 
 ## Team
-TODO
+| Role                          | Contributor(s)           |
+|:------------------------------|:------------------------------------------------------------------------------------------------------------------------|
+| Head of Business Operations   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
+| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
+| Head of Revenue Operations    | [Taylor Hughes](https://www.linkedin.com/in/taylorhughes834/) _([@hughestaylor](https://github.com/hughestaylor))_
+
 
 ## Contact us
-- Submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook/business-operations#intake).  (Business Operations will escalate first-of-its-kind agreements to the CEO.  The CEO will review business terms and consult with lawyers as necessary.)
-- To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
-  - If you're not sure that your request can wait that long, then please ask for urgent help in our group Slack channel: `#g-business-operations`.  Only use this approach or at-mention contributors in business operations directly in urgent situations.  Otherwise, create an issue.
+- Submit legal questions and requests to Business Operations department.  (Business Operations will escalate first-of-its-kind agreements to the CEO.  The CEO will review business terms and consult with lawyers as necessary.)
+- If urgent, ask in [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH).
+- If you need help during onbaording ask in [#help-onboarding](https://fleetdm.slack.com/archives/C02QG7P5571).
+- For all questions related to your company credit card, ask in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP).
+- To make any other request of the Business Operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
 - Any Fleet team member can [view the 🔦#g-business-operations kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) (confidential) for this department, including pending tasks in the active sprint and any new requests.
-
-
-## Slack channels
-These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels):
-
-| Slack channel                           | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)    |
-|:----------------------------------------|:--------------------------------------------------------------------|
-| `#g-business-operations`                | Joanne Stableford
-| `#help-brex`                            | Nathan Holliday
-| `#help-classified` _(¶¶)_               | Joanne Stableford
-| `#help-onboarding`                      | Mike McNeil
-| `#help-manage`                          | Mike McNeil
-| `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
-| `#_security`                            | Zach Wasserman
 
 
 ## Tools we use
