@@ -2174,3 +2174,39 @@ func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
 }
+
+func TestListGlobalPoliciesCanPaginate(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	// create 30 policies
+	for i := 0; i < 30; i++ {
+		_, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
+		require.NoError(t, err)
+	}
+
+	// Page 0 contains 20 policies
+	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{
+		Page:    0,
+		PerPage: 20,
+	})
+
+	assert.Equal(t, "policy0", policies[0].Name)
+	assert.Len(t, policies, 20)
+	require.NoError(t, err)
+
+	// Page 1 contains 10 policies
+	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{
+		Page:    1,
+		PerPage: 20,
+	})
+
+	assert.Equal(t, "policy20", policies[0].Name)
+	assert.Len(t, policies, 10)
+	require.NoError(t, err)
+
+	// No list options returns all policies
+	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{})
+	assert.Len(t, policies, 30)
+	require.NoError(t, err)
+}

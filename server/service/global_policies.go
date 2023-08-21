@@ -32,6 +32,10 @@ type globalPolicyResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
+type ListGlobalPoliciesRequest struct {
+	Opts fleet.ListOptions
+}
+
 func (r globalPolicyResponse) error() error { return r.Err }
 
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -95,8 +99,8 @@ type listGlobalPoliciesResponse struct {
 func (r listGlobalPoliciesResponse) error() error { return r.Err }
 
 func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*fleet.ListGlobalPoliciesRequest)
-	resp, err := svc.ListGlobalPolicies(ctx, req.ListOptions)
+	req := request.(*ListGlobalPoliciesRequest)
+	resp, err := svc.ListGlobalPolicies(ctx, req.Opts)
 	if err != nil {
 		return listGlobalPoliciesResponse{Err: err}, nil
 	}
