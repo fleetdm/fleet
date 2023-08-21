@@ -141,7 +141,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx)
+	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
 		var globalPolicyIDs []uint
