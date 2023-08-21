@@ -33,7 +33,7 @@ type globalPolicyResponse struct {
 }
 
 type ListGlobalPoliciesRequest struct {
-	Opts fleet.ListOptions
+	Opts fleet.ListOptions `url:"list_options"`
 }
 
 func (r globalPolicyResponse) error() error { return r.Err }
