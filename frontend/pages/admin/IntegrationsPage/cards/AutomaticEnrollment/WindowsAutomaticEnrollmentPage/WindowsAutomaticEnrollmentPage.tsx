@@ -41,8 +41,12 @@ const WindowsAutomaticEnrollmentPage = () => {
             url="https://fleetdm.com/docs/using-fleet/windows-mdm-setup"
           />
         </p>
+        {/* Ideally we'd use the native browser list styles and css to display
+        the list numbers but this does not allow us to style the list items as we'd
+        like so we write the numbers in the JSX instead. */}
         <ol className={`${baseClass}__setup-list`}>
           <li>
+            <span>1.</span>
             <CustomLink
               newTab
               text="Sign in to Azure portal"
@@ -50,96 +54,142 @@ const WindowsAutomaticEnrollmentPage = () => {
             />
           </li>
           <li>
-            Select <b>Azure Active Directory &gt; Custom domain names</b>, then
-            select <b>+ Add custom domain</b>, type your organization&apos;s
-            domain name (e.g. acme.com), and select <b>Add domain</b>.
+            <span>2.</span>
+            <p>
+              Select <b>Azure Active Directory &gt; Custom domain names</b>,
+              then select <b>+ Add custom domain</b>, type your
+              organization&apos;s domain name (e.g. acme.com), and select{" "}
+              <b>Add domain</b>.
+            </p>
           </li>
           <li>
-            Use the information presented in Azure AD to create a new TXT/MX
-            record with your domain registrar, then select <b>Verify</b>.
+            <span>3.</span>
+            <p>
+              Use the information presented in Azure AD to create a new TXT/MX
+              record with your domain registrar, then select <b>Verify</b>.
+            </p>
           </li>
           <li>
-            Select <b>Azure Active Directory &gt; Mobility (MDM and MAM)</b> (or
-            search for “Mobility” at the top of the page).
+            <span>4.</span>
+            <p>
+              Select <b>Azure Active Directory &gt; Mobility (MDM and MAM)</b>{" "}
+              (or search for “Mobility” at the top of the page).
+            </p>
           </li>
           <li>
-            Select <b>+ Add application</b>, then select{" "}
-            <b>+ Create your own application</b>.
+            <span>5.</span>
+            <p>
+              Select <b>+ Add application</b>, then select{" "}
+              <b>+ Create your own application</b>.
+            </p>
           </li>
           <li>
+            <span>6.</span>
             Enter “Fleet” as the name of your application and select{" "}
             <b>Create</b>.
           </li>
           <li>
-            Set MDM user scope to <b>All</b>, then copy the URLs below, paste
-            them in Azure AD, and select <b>Save</b>.
-            <div className={`${baseClass}__url-inputs-wrapper`}>
-              <InputField
-                inputWrapperClass={`${baseClass}__url-input`}
-                label="MDM terms of use URL"
-                name="mdmTermsOfUseUrl"
-                tooltip="The terms of use URL is used to display the terms of service to end users
-                before turning on MDM their host. The terms of use text informs users about
-                policies that will be enforced on the host."
-                value={generateMdmTermsOfUseUrl(
-                  config?.server_settings.server_url || ""
-                )}
-                enableCopy
-              />
-              <InputField
-                inputWrapperClass={`${baseClass}__url-input`}
-                label="MDM discovery URL"
-                name="mdmDiscoveryUrl"
-                tooltip="The enrollment URL is used to connect hosts with the MDM service."
-                value={generateMdmDiscoveryUrl(
-                  config?.server_settings.server_url || ""
-                )}
-                enableCopy
-              />
+            <span>7.</span>
+            <div>
+              <p>
+                Set MDM user scope to <b>All</b>, then copy the URLs below,
+                paste them in Azure AD, and select <b>Save</b>.
+              </p>
+              <div className={`${baseClass}__url-inputs-wrapper`}>
+                <InputField
+                  inputWrapperClass={`${baseClass}__url-input`}
+                  label="MDM terms of use URL"
+                  name="mdmTermsOfUseUrl"
+                  tooltip="The terms of use URL is used to display the terms of service to end users
+                  before turning on MDM their host. The terms of use text informs users about
+                  policies that will be enforced on the host."
+                  value={generateMdmTermsOfUseUrl(
+                    config?.server_settings.server_url || ""
+                  )}
+                  enableCopy
+                />
+                <InputField
+                  inputWrapperClass={`${baseClass}__url-input`}
+                  label="MDM discovery URL"
+                  name="mdmDiscoveryUrl"
+                  tooltip="The enrollment URL is used to connect hosts with the MDM service."
+                  value={generateMdmDiscoveryUrl(
+                    config?.server_settings.server_url || ""
+                  )}
+                  enableCopy
+                />
+              </div>
             </div>
           </li>
           <li>
-            Go back to <b>Mobility (MDM and MAM)</b>, refresh the page, then
-            open newly created app and select{" "}
-            <b>On-premises MDM application settings</b>.
+            <span>8.</span>
+            <p>
+              Go back to <b>Mobility (MDM and MAM)</b>, refresh the page, then
+              open newly created app and select{" "}
+              <b>On-premises MDM application settings</b>.
+            </p>
           </li>
           <li>
-            Select the link under <b>Application ID URI</b>, then select{" "}
-            <b>Edit</b> button next to the Application ID URI input.
+            <span>9.</span>
+            <p>
+              Select the link under <b>Application ID URI</b>, then select{" "}
+              <b>Edit</b> button next to the Application ID URI input.
+            </p>
           </li>
           <li>
-            Use your organization&apos;s domain you added in the first step, and
-            select <b>Save</b>.
+            <span>10.</span>
+            <p>
+              Use your organization&apos;s domain you added in the first step,
+              and select <b>Save</b>.
+            </p>
           </li>
           <li>
-            Select <b>API permissions</b> from the sidebar, then select{" "}
-            <b>+ Add permissions</b>.
+            <span>11.</span>
+            <p>
+              Select <b>API permissions</b> from the sidebar, then select{" "}
+              <b>+ Add permissions</b>.
+            </p>
           </li>
           <li>
-            Select <b>Microsoft Graph</b>, then select{" "}
-            <b>Delegated permissions</b>, and select{" "}
-            <b>Group &gt; Group.Read.All</b> and{" "}
-            <b>Group &gt; Group.ReadWrite.All</b>.
+            <span>12.</span>
+            <p>
+              Select <b>Microsoft Graph</b>, then select{" "}
+              <b>Delegated permissions</b>, and select{" "}
+              <b>Group &gt; Group.Read.All</b> and{" "}
+              <b>Group &gt; Group.ReadWrite.All</b>.
+            </p>
           </li>
           <li>
-            Select <b>Application permissions</b>, then select following:
-            <ul className={`${baseClass}__permissions-list`}>
-              <li>Device.Read.All</li>
-              <li>Device &gt; Device.ReadWrite.All</li>
-              <li>Directory &gt; Directory.Read.All</li>
-              <li>Group &gt; Group.Read.All</li>
-              <li>User &gt; User.Read.All</li>
-            </ul>
+            <span>13.</span>
+            <div>
+              Select <b>Application permissions</b>, then select following:
+              <ul className={`${baseClass}__permissions-list`}>
+                <li>Device.Read.All</li>
+                <li>Device &gt; Device.ReadWrite.All</li>
+                <li>Directory &gt; Directory.Read.All</li>
+                <li>Group &gt; Group.Read.All</li>
+                <li>User &gt; User.Read.All</li>
+              </ul>
+            </div>
           </li>
           <li>
-            Select <b>Add permissions</b>.
+            <span>14.</span>
+            <p>
+              Select <b>Add permissions</b>.
+            </p>
           </li>
           <li>
-            Select <b>Grant admin consent for &lt;your tenant name&gt;</b>, and
-            confirm.
+            <span>15.</span>
+            <p>
+              Select <b>Grant admin consent for &lt;your tenant name&gt;</b>,
+              and confirm.
+            </p>
           </li>
           <li>
-            You&apos;re ready to automatically enroll Windows hosts to Fleet.
+            <span>16.</span>
+            <p>
+              You&apos;re ready to automatically enroll Windows hosts to Fleet.
+            </p>
           </li>
         </ol>
       </>

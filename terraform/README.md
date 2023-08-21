@@ -1,7 +1,12 @@
 This module provides a basic Fleet setup. This assumes that you bring nothing to the installation.
 If you want to bring your own VPC/database/cache nodes/ECS cluster, then use one of the submodules provided.
 
-The following is the module layout so you can navigate to the module that you want:
+To quickly list all available module versions you can run:
+```shell
+git tag |grep '^tf'
+```
+
+The following is the module layout, so you can navigate to the module that you want:
 
 * Root module (use this to get a Fleet instance ASAP with minimal setup)
     * BYO-VPC (use this if you want to install Fleet inside an existing VPC)

@@ -75,12 +75,12 @@ module.exports = {
       'zayhanlon',
       'bradmacd',
       'alexmitchelliii',
-      'jarodreyes',
       'jostableford',
       'jinny321',
       'sampfluger88',
       'ireedy',
       'mostlikelee',
+      'willmayhone88',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -410,13 +410,13 @@ module.exports = {
 
         // Add the appropriate label to PRs awaiting review from the CEO so that these PRs show up in kanban.
         // [?] https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
-        let isPRStillDependentOnCeoReview = expectedReviewers.includes('mikermcneil');
-        if (isPRStillDependentOnCeoReview && !existingLabels.includes('#g-ceo')) {
+        let isPRStillDependentOnAndReadyForCeoReview = expectedReviewers.includes('mikermcneil') && !issueOrPr.draft;
+        if (isPRStillDependentOnAndReadyForCeoReview && !existingLabels.includes('#g-ceo')) {
           // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
             labels: ['#g-ceo']
           }, baseHeaders);
-        } else if (!isPRStillDependentOnCeoReview && existingLabels.includes('#g-ceo')) {
+        } else if (!isPRStillDependentOnAndReadyForCeoReview && existingLabels.includes('#g-ceo')) {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#g-ceo')}`, {}, baseHeaders);
         }//ﬁ

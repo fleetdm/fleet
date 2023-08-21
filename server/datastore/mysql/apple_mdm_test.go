@@ -4838,7 +4838,7 @@ func TestMDMProfileVerification(t *testing.T) {
 			{
 				name:           "FailedThenFoundExpected",
 				initialStatus:  fleet.MDMAppleDeliveryFailed,
-				expectedStatus: fleet.MDMAppleDeliveryFailed, // no change
+				expectedStatus: fleet.MDMAppleDeliveryVerified, // failed can become verified if found later
 				expectedDetail: "",
 			},
 		}
@@ -4901,7 +4901,7 @@ func TestMDMProfileVerification(t *testing.T) {
 			{
 				name:           "FailedThenFoundExpectedAndUnexpected",
 				initialStatus:  fleet.MDMAppleDeliveryFailed,
-				expectedStatus: fleet.MDMAppleDeliveryFailed, // no change
+				expectedStatus: fleet.MDMAppleDeliveryVerified, // failed can become verified if found later
 				expectedDetail: "",
 			},
 		}

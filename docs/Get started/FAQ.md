@@ -347,7 +347,7 @@ In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn o
 
 When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-the-osquery-agent) with the end user.
 
-To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. To turn MDM on, share [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#instructions-for-end-users) with the end user. Turning MDM back on for a host requires end user action.
+To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
 
 ### What does "package root files: heat failed" mean?
 We've found this error when you try to build an MSI on Docker 4.17. The underlying issue has been fixed in Docker 4.18, so we recommend upgrading. More information [here](https://github.com/fleetdm/fleet/issues/10700)
@@ -575,11 +575,21 @@ Fleet is tested with Redis 5.0.14 and 6.2.7. Any version Redis after version 5 w
 Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups.
 
 ## What happened to the "Schedule" page? 
-Scheduled queries are not gone! Instead the concept of a scheduled query has been merged with a saved query. 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and pack into the new merged query concept.
+Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval," "platform") or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query which every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept. 
 
-Before 4.35, a scheduled query was a separate item treated at the same level as a query. After 4.35, there will only be one page of queries and a query can be scheduled or it can simply be saved to be run ad-hoc. Queries can now belong to teams or they can be a global query which every team inherits.
+To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged query concept: 
+- Any global scheduled query will have its query converted into a global query with the relevant schedule attributes (frequency, min. osquery version, logging, etc.).
+- Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
+- Any query that is referenced by a 2017 pack will be converted into a global query and the 2017 pack will reference it. The 2017 packs should continue functioning as before.
 
-After upgrading to 4.35, any global scheduled query will have its query be converted into a global query with the relevant schedule characteristics (frequency, min. osquery version, logging, etc.). Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
+Important: To avoid naming conflicts, a query must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names. 
+
+For any automated workflows that use the schedule endpoints on the API, we recommend consolidating to the query endpoints, which now accept the scheduled query attributes. The schedule endpoints in the API still function but are deprecated. To accommodate the new unified query concept, the schedule endpoints behave differently under-the-hood:
+- The POST endpoints will create a new query with the specified attributes
+- The PATCH endpoint will modify the specified query with the specified attributes
+- The DELETE endpoint will delete the specified query. 
+
+Finally, "shard" has been retired as an option for queries. In its place we recommend using a canary team or a live query to test the impact of a query before deploying it more broadly. 
 
 
 

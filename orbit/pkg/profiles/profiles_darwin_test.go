@@ -102,7 +102,7 @@ MDM server /  https://test.example.com
 			`),
 			nil,
 			true,
-			"",
+			"//test.example.com",
 			false,
 		},
 		{
@@ -199,6 +199,22 @@ func TestCheckAssignedEnrollmentProfile(t *testing.T) {
 	AwaitDeviceConfigured = 0;
 	ConfigurationURL = "https://test.example.com/mdm/apple/enroll?token=1234";
 	ConfigurationWebURL = "https://valid.com?token=1234";
+	...
+}
+			`),
+			nil,
+			false,
+			nil,
+		},
+		{
+			"mixed case match",
+			ptr.String(`Device Enrollment configuration:
+{
+    AllowPairing = 1;
+	AutoAdvanceSetup = 0;
+	AwaitDeviceConfigured = 0;
+	ConfigurationURL = "https://test.ExaMplE.com/mdm/apple/enroll?token=1234";
+	ConfigurationWebURL = "https://vaLiD.com?tOken=1234";
 	...
 }
 			`),
