@@ -1,6 +1,6 @@
 # Upgrading Fleet
 
-This guide explains how to upgrade your Fleet instance to the latest version in order to get the latest features and bug fixes. For initial installation instructions, see [Installing Fleet](https://fleetdm.com/docs/deploying/server-installation#installing-fleet).
+This guide explains how to upgrade your Fleet instance to the latest version in order to get the latest features and bug fixes. For initial installation instructions, see [Installing Fleet](https://fleetdm.com/docs/deploy/deploy-fleet-on-centos#installing-fleet).
 
 There are three steps to perform a typical Fleet upgrade:
 
