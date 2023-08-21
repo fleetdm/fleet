@@ -416,7 +416,7 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 
 type orbitPostScriptResultRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
-	*fleet.HostScriptResult
+	*fleet.HostScriptResultPayload
 }
 
 // interface implementation required by the OrbitClient
@@ -437,13 +437,13 @@ func (r orbitPostScriptResultResponse) error() error { return r.Err }
 
 func postOrbitScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*orbitPostScriptResultRequest)
-	if err := svc.SaveHostScriptResult(ctx, req.HostScriptResult); err != nil {
+	if err := svc.SaveHostScriptResult(ctx, req.HostScriptResultPayload); err != nil {
 		return orbitPostScriptResultResponse{Err: err}, nil
 	}
 	return orbitPostScriptResultResponse{}, nil
 }
 
-func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.HostScriptResult) error {
+func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
