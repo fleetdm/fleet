@@ -63,6 +63,8 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("script_contents", fmt.Sprintf("script is too long, must be at most %d characters", maxScriptRuneLen))
 	}
 
+	// TODO(mna): any other validation we want to apply to the script? What is the "must be bash/powershell" check?
+
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, maxPendingScriptAge)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
