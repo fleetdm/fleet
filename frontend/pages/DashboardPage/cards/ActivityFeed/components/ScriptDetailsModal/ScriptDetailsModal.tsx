@@ -1,10 +1,13 @@
 import React from "react";
+import { useQuery } from "react-query";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import Textarea from "components/Textarea";
+import DataError from "components/DataError/DataError";
+import Spinner from "components/Spinner/Spinner";
 
 const baseClass = "script-details-modal";
 
@@ -124,10 +127,51 @@ interface IScriptDetailsModalProps {
 const ScriptDetailsModal = ({ onCancel }: IScriptDetailsModalProps) => {
   const TEST_DATA = {
     script_contents: "test contentsss",
-    exit_code: 1,
+    exit_code: 0,
     output: "test output",
     message: "test message",
-    runtime: 40,
+    runtime: 20,
+  };
+
+  const { data, isLoading, isError } = useQuery<any>(
+    ["scriptDetailsModal"],
+    () => {
+      return new Promise((resolve) => resolve(TEST_DATA));
+    },
+    { refetchOnWindowFocus: false }
+  );
+
+  const renderContent = () => {
+    let content: JSX.Element;
+
+    if (isLoading) {
+      content = <Spinner />;
+    } else if (isError) {
+      content = <DataError description="Close this modal and try again." />;
+    } else {
+      content = (
+        <>
+          <ScriptContent content={data.script_contents} />
+          <ScriptResult
+            exitCode={data.exit_code}
+            message={data.message}
+            output={data.output}
+            runtime={data.runtime}
+          />
+        </>
+      );
+    }
+
+    return (
+      <>
+        <div className={`${baseClass}__modal-content`}>{content}</div>
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="brand">
+            Done
+          </Button>
+        </div>
+      </>
+    );
   };
 
   return (
@@ -137,22 +181,7 @@ const ScriptDetailsModal = ({ onCancel }: IScriptDetailsModalProps) => {
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          <ScriptContent content={TEST_DATA.script_contents} />
-          <ScriptResult
-            exitCode={TEST_DATA.exit_code}
-            message={TEST_DATA.message}
-            output={TEST_DATA.output}
-            runtime={TEST_DATA.runtime}
-          />
-        </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
-        </div>
-      </>
+      {renderContent()}
     </Modal>
   );
 };
