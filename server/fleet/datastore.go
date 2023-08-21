@@ -1009,6 +1009,25 @@ type Datastore interface {
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
 	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Host Script Results
+
+	// NewHostScriptExecutionRequest creates a new host script result entry with
+	// just the script to run information (result is not yet available).
+	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
+	// SetHostScriptExecutionResult stores the result of a host script execution.
+	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) error
+	// GetHostScriptExecutionResult returns the result of a host script
+	// execution. It returns the host script results even if no results have been
+	// received, it is the caller's responsibility to check if that was the case
+	// (with ExitCode being null).
+	GetHostScriptExecutionResult(ctx context.Context, execID string) (*HostScriptResult, error)
+	// ListPendingHostScriptExecutions returns all the pending host script
+	// executions, which are those that have yet to record a result. Entries
+	// older than the ignoreOlder duration are ignored, considered too old to be
+	// pending.
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*HostScriptResult, error)
 }
 
 const (
