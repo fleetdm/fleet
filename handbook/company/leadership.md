@@ -5,6 +5,29 @@ The idea here is to get this vision implemented on a single departmental handboo
 
 Another thing is that we need to get a better intuitive understanding of who these pages are designed to serve.  So in order to put ourselves in their shoes (get behind their eyeballs), we need something to look at.  So doing a particular page first provides us with that canvas.
 
+From Mike - 2023-08-21
+
+<blockquote purpose="large-quote">
+Biggest learning is that we federated carte blanche edit permissions a bit too early back in 2021, and it’s resulted in the need for a lot of cleanup as different people have had their hands in the content prior to introducing a framework for organizing that content.  
+
+  For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and are dealing with the consequences.
+It meant that until recently, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re probably down to only 25% now, and falling!)
+Joanne and team did some planning during the bizops offsite, and Sam and I took that and applied it to the ceo and bizops handbook pages yesterday.
+
+We’re going to do the same thing gradually for marketing, then sales, then engineering, then product.
+Content related to onboarding and policies like vacation is now in: https://fleetdm.com/handbook/company#every-day
+
+The audience for the “Communications” page is every fleetie.
+
+The audience for the “Leadership” page is every manager.
+
+The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first)
+This pass through the handbook has also eliminated several pages in favor of getting more onto single pages.  This is because there is still a lot of duplication, and it’s easier to deal with when everything is on a single page.
+
+Dear onboardees: could you update broken links in the onboarding issue template as you find them? Everything should still redirect correctly, or provide a path to get to the right place through “Stubs”, but it’s helpful to have the links point directly to the right place.
+If you have any questions or feedback, please contact us: https://fleetdm.com/handbook/ceo#contact-us
+</blockquote>
+
 - `# Name of department`
   - "This handbook page details processes specific to working `[with](fleetdm.com/handbook/company/nameOfDepartment#contact-us)` and `[within](fleetdm.com/handbook/company/nameOfDepartment#)` the (Name of dpartment) department." 
     
