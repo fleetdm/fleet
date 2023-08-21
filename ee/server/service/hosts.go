@@ -81,14 +81,13 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("script_contents", "a script is currently executing on the host")
 	}
 
-	// create the script execution request
+	// create the script execution request, the host will be notified of the
+	// script execution request via the orbit config's Notifications mechanism.
 	script, err := svc.ds.NewHostScriptExecutionRequest(ctx, request)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create script execution request")
 	}
-	// TODO(mna): figure out how to send this to the host, either something to do
-	// here or via the DB checking if there are pending scripts for the host when
-	// sending queries or notifications.
+
 	if waitForResult <= 0 {
 		// async execution, return
 		return script, nil
