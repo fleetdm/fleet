@@ -165,7 +165,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "imageTag"
-    value = "v4.33.1"
+    value = "v4.36.0"
   }
 
   set {
@@ -211,6 +211,16 @@ resource "helm_release" "main" {
   set {
     name  = "apm.token"
     value = var.apm_token
+  }
+
+  set {
+    name  = "resources.limits.memory"
+    value = "512Mi"
+  }
+
+  set {
+    name  = "resources.requests.memory"
+    value = "512Mi"
   }
 }
 

@@ -60,7 +60,6 @@ Additionally, Orbit aims to tackle problems out of scope for Launcher:
 - Manage osquery startup flags from a remote (Fleet) server.
 - Support for deploying and updating osquery extensions (🔜).
 - Manage osquery versions from a remote (Fleet) server (🔜).
-- Further control of osquery performance via cgroups (🔜).
 
 ### Is Orbit Free?
 

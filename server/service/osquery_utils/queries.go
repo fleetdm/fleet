@@ -447,8 +447,8 @@ var extraDetailQueries = map[string]DetailQuery{
 			)
 			UNION ALL
 			SELECT * FROM (
-				SELECT "autopilot" AS "key", 1=1 AS "value" FROM registry
-				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache'
+				SELECT "is_federated" AS "key", data as "value" FROM registry 
+				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
 				LIMIT 1
 			)
 			UNION ALL
@@ -1151,7 +1151,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			},
 		)
 	}
-	if err := task.RecordScheduledQueryStats(ctx, host.ID, packStats, time.Now()); err != nil {
+	if err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, packStats, time.Now()); err != nil {
 		return ctxerr.Wrap(ctx, err, "record host pack stats")
 	}
 
@@ -1281,6 +1281,8 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 
 func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
+		logger.Log("component", "service", "method", "ingestMDM", "warn",
+			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 		// assume the extension is not there
 		return nil
 	}
@@ -1339,10 +1341,14 @@ func deduceMDMNameMacOS(row map[string]string) string {
 }
 
 func deduceMDMNameWindows(data map[string]string) string {
+	serverURL := data["discovery_service_url"]
+	if serverURL == "" {
+		return ""
+	}
 	if name := data["provider_id"]; name != "" {
 		return name
 	}
-	return fleet.MDMNameFromServerURL(data["discovery_service_url"])
+	return fleet.MDMNameFromServerURL(serverURL)
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1350,15 +1356,26 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	for _, r := range rows {
 		data[r["key"]] = r["value"]
 	}
-	_, autoPilot := data["autopilot"]
+	var enrolled bool
+	var automatic bool
+	serverURL := data["discovery_service_url"]
+	if serverURL != "" {
+		enrolled = true
+		if isFederated := data["is_federated"]; isFederated == "1" {
+			// NOTE: We intentionally nest this condition to eliminate `enrolled == false && automatic == true`
+			// as a possible status for Windows hosts (which would be otherwise be categorized as
+			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
+			automatic = true
+		}
+	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
-	_, enrolled := data["provider_id"]
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		isServer,
 		enrolled,
-		data["discovery_service_url"],
-		autoPilot,
+		serverURL,
+		automatic,
 		deduceMDMNameWindows(data),
 	)
 }
@@ -1508,23 +1525,41 @@ func directIngestMacOSProfiles(
 		return nil
 	}
 
-	mapping := make([]*fleet.HostMacOSProfile, 0, len(rows))
+	installed := make(map[string]*fleet.HostMacOSProfile, len(rows))
 	for _, row := range rows {
 		installDate, err := time.Parse("2006-01-02 15:04:05 -0700", row["install_date"])
 		if err != nil {
 			return err
 		}
-		mapping = append(mapping, &fleet.HostMacOSProfile{
+		if installDate.IsZero() {
+			// this should never happen, but if it does, we should log it
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "directIngestMacOSProfiles",
+				"msg", "profile install date is zero value",
+				"host", host.Hostname,
+			)
+		}
+		if _, ok := installed[row["identifier"]]; ok {
+			// this should never happen, but if it does, we should log it
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "directIngestMacOSProfiles",
+				"msg", "duplicate profile identifier",
+				"host", host.Hostname,
+				"identifier", row["identifier"],
+			)
+		}
+		installed[row["identifier"]] = &fleet.HostMacOSProfile{
 			DisplayName: row["display_name"],
 			Identifier:  row["identifier"],
 			InstallDate: installDate,
-		})
+		}
 	}
-
-	return ds.UpdateVerificationHostMacOSProfiles(ctx, host, mapping)
+	return apple_mdm.VerifyHostMDMProfiles(ctx, ds, host, installed)
 }
 
-//go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md
+// go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,

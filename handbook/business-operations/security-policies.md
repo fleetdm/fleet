@@ -150,7 +150,17 @@ Fleet policy requires that:
 
 #### Line of Succession
 
-The following order of succession to make sure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Executive Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering cannot function as the overall authority or choose to delegate this responsibility to a successor, the board of directors shall serve as that authority or choose an alternative delegate. 
+The following order of succession to make sure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Executive Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering cannot function as the overall authority or choose to delegate this responsibility to a successor, the board of directors shall serve as that authority or choose an alternative delegate.
+
+For technical incidents:
+1. CTO (Zach Wasserman)
+2. Director of Product Engineering (Luke Heath)
+3. CEO (Mike McNeil)
+
+For business/operational incidents:
+1. CEO (Mike McNeil)
+2. Head of Business Operations (Joanne Stableford)
+3. CTO (Zach Wasserman)
 
 ### Response Teams and Responsibilities
 
@@ -172,7 +182,7 @@ Current Fleet continuity leadership team members include the CEO and CTO.
 
 #### Notification and Activation Phase
 
-This phase addresses the initial actions taken to detect and assess the damage inflicted by a disruption to Fleet Device Management or the Fleet automatic updater service. Based on the assessment of the Event, sometimes, according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be triggered by the Head of Security in the event of a cyber disaster.
+This phase addresses the initial actions taken to detect and assess the damage inflicted by a disruption to Fleet Device Management. Based on the assessment of the Event, sometimes, according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be triggered by the Head of Security in the event of a cyber disaster.
 
 The notification sequence is listed below:
 
@@ -193,7 +203,7 @@ The notification sequence is listed below:
 
 #### Reconstitution Phase
 
-This section discusses activities necessary for restoring full Fleet automatic updater service operations at the original or new site. The goal is to restore full operations within 24 hours of a disaster or outage. The goal is to provide a seamless transition of operations.
+This section discusses activities necessary for restoring full Fleet operations at the original or new site. The goal is to restore full operations within 24 hours of a disaster or outage. The goal is to provide a seamless transition of operations.
 
 1. Contact Partners and Customers affected to begin initial communication - CTO
 2. Assess damage to the environment - Infrastructure
@@ -208,7 +218,7 @@ This section discusses activities necessary for restoring full Fleet automatic u
 
 #### Plan Deactivation
 
-If the Fleet automatic updater environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service or both, make sure that any leftover systems created temporarily are destroyed.
+If the Fleet environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service or both, make sure that any leftover systems created temporarily are destroyed.
 
 ## Data management policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
@@ -363,6 +373,12 @@ Encryption and key management for local disk encryption of end-user devices foll
 
 4. Transmission encryption keys are limited to use for one year and then must be regenerated.
 
+### Authorized Sub-Processors for Fleet Cloud services
+
+| Sub-processor Name | Purpose | Location |
+| ------------------ | ------- | -------- |
+| Amazon Web Services, Inc. and sub-processors located at https://aws.amazon.com/compliance/sub-processors/ | Database hosting platform | USA |
+
 ## Human resources security policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
@@ -377,7 +393,7 @@ Fleet policy requires all workforce members to comply with the HR Security Polic
 
 Fleet policy requires that:
 
-1. Background verification checks on candidates for employees and contractors with production access to the Fleet automatic updater service must be carried out in accordance with relevant laws, regulations, and ethics. These checks should be proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
+1. Background verification checks on candidates for employees and contractors with production access to the Fleet infrastructure resources must be carried out in accordance with relevant laws, regulations, and ethics. These checks should be proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
 
 2. Employees, contractors, and third-party users must agree to and sign the terms and conditions of their employment contract and comply with acceptable use.
 
@@ -397,7 +413,7 @@ Fleet policy requires that:
 
 10. Fleet will publish job descriptions for available positions and conduct interviews to assess a candidate's technical skills as well as soft skills prior to hiring.
 
-11. Background checks of an employee or contractor must be performed by operations and/or the hiring team before we grant the new employee or contractor access to the Fleet automatic updater environment.
+11. Background checks of an employee or contractor must be performed by operations and/or the hiring team before we grant the new employee or contractor access to the Fleet production environment.
 
 12. A list of employees and contractors will be maintained, including their titles and managers, and made available to everyone internally.
 

@@ -35,7 +35,7 @@
             width: $col-sm;
           }
 
-          @media (max-width: $tooltip-break-1000) {
+          @media (max-width: $tooltip-break-md) {
             .cisa_known_exploit__header {
               .component__tooltip-wrapper__tip-text {
                 max-width: 200px; // Prevents horizontal scrolling off viewport

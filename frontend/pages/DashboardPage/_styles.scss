@@ -1,5 +1,7 @@
 .dashboard-page {
   background-color: $ui-off-white;
+  overflow: initial; // auto causes double scroll bar  but still needed for other pages .main-content div
+  padding-bottom: 60px; // replaces white padding on off-white page
 
   .data-error {
     &__inner {
@@ -79,7 +81,7 @@
     display: grid;
     row-gap: $pad-medium;
 
-    @media screen and (min-width: 990px) {
+    @media screen and (min-width: $break-md) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       column-gap: $pad-medium;
 

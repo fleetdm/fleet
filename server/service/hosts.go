@@ -1496,7 +1496,7 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)
 	if err != nil && fleet.IsNotFound(err) {
 		// differentiate case where team was added after UpdateOSVersions last ran
-		if teamID != nil {
+		if teamID != nil && *teamID > 0 {
 			// most of the time, team should exist so checking here saves unnecessary db calls
 			_, err := svc.ds.Team(ctx, *teamID)
 			if err != nil {

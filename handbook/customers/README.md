@@ -42,7 +42,7 @@ This workflow outlines the process that sales and customer success can follow wh
     - They complete the AE tasks listed at the top of the issue.
     - Then they assign the issue to BizOps and the Head of Customer Success (CS).
     - AE completes the Business Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
-    - Solution Architect completes the Technical Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
+    - Solutions Consultant completes the Technical Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
     - AE moves the {Account Name} folder within Opportunities to the Sales> Account Plans folder.
     - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
     - Prepare to review the following from the Account Plan:
@@ -66,9 +66,12 @@ This workflow outlines the process that sales and customer success can follow wh
     - Schedule the customer onboarding kickoff call
     - Collect deployment details (if not completed during POC)
     - Schedule the recurring customer check-in
-    - Owns running the meeting, note taking, TODO follow up, etc. 
+    - Owns running the meeting, note taking, TODO follow up, etc.
 
 
+> Due to legislation by the U.S. Department of Commerce, we are unable to initiate business with [certain countries and territories including specific U.S. sanction programs.](https://ofac.treasury.gov/sanctions-programs-and-country-information)
+
+ 
 ## Fleet's W-9
 
 A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
@@ -267,7 +270,7 @@ When creating a new issue, make sure the following:
 
 ### Assistance from engineering
 
-Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
+Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack. Additional help can be obtained by messaging your friendly Solutions Consultant in the `#help-solutions-consulting` channel.
 
 ## Runbook
 
@@ -290,7 +293,7 @@ Occasionally, we will need to track public issues for customers that wish to rem
 ## Generating a trial license key
 1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
     - [Here is a tutorial on using the self-service method](https://www.loom.com/share/b519e6a42a7d479fa628e394ee1d1517) (internal video)
-    - Pre-sales license key DRI is the Director of Solutions Architecture
+    - Pre-sales license key DRI is the Director of Solutions Consulting
     - Post-sales license key DRI is the VP of Customer Success
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
@@ -352,7 +355,7 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 **Outreach software**
 
-At Fleet we use Outreach for sending emails to community members based on triggers or as part of campaigns. To get access to Outreach ask for a license in `#g-business-operations` [Internal video](https://www.loom.com/share/16bdb5dce92649f79aecb89112d95745)(Internal doc).
+At Fleet we use Outreach for sending emails to community members based on triggers or as part of campaigns. To get access to Outreach ask for a license in `#g-business-operations` [Internal video](https://www.loom.com/share/16bdb5dce92649f79aecb89112d95745)(Internal doc). We also use LinkedIn to connect and communicate with community members, prospects and customers. The CEO is DRI for all outbound messaging efforts with the CRO as backup. Fleeties please confer with the CRO before engaging in any outbound messaging.
 
 ### Outreach one-pager
 
@@ -457,9 +460,8 @@ In order to maintain a consistent contributor experience in Salesforce, we log i
 2. Click the accounts tab and check for the following: 
 
 * The default filter is Customers when you click on the accounts tab. Click on an account to continue.
-* Click on a customer and make sure billing address, parent account, LinkedIn company URL, CISO employees (#), employees, and industry appear first at the top of the account.
-* "Looking for meeting notes" reminder should appear on the right of the screen.  
-* Useful links section should include links to Purchase Orders (POs), signed subscription agreements, invoices sent, meeting notes, and signed NDA. Clicking these links should search the appropriate repository for the requested information pertaining to the customer.
+* Click on a customer and make sure billing address, parent account, LinkedIn company URL, CISO employees (#), employees, and industry appear first at the top of the account. 
+* Useful links section should appear in the top right section of the account page. It includes links to purchase orders (POs), signed subscription agreements, invoices sent, meeting notes, and signed NDA. Clicking these links should search the appropriate repository for the requested information pertaining to the customer. All meeting notes should be saved in the [Meeting notes](https://drive.google.com/drive/folders/18e-rVadHG0T5w98OKMngM-yv-K9SXaOq) folder in Google Drive with the account name and date in the title. We do not use the notes feature on "accounts" or "opportunities" in Salesforce. 
 * Additional information section should include fields for account (customer) name first, account rating, LinkedIn sales navigator URL, LinkedIn company URL, and my LinkedIn overlaps. Make sure the LinkedIn links work.
 * Accounting section should include the following fields: invoice sent (latest), the payment received on (latest), subscription end date (latest), press approval field, license key, total opportunities (#), deals won (#), close date (first deal), cumulative revenue, payment terms, billing address, and shipping address. 
 * Opportunities, meeting notes, and activity feed should appear on the right.  
@@ -485,6 +487,44 @@ In order to maintain a consistent contributor experience in Salesforce, we log i
 * Default filter should be all leads. Open a lead to continue.
 * There should be fields for name, lead source, lead status, and rating.
 
+### Solutions consulting
+What is it like to be a Solutions Consultant at Fleet? What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? 
+
+#### Within 30 days -- assess and absorb information
+* Being new to the company, you have fresh eyes. Document everything that seems odd to you (process, product). 
+* Begin working on domain and product knowledge acquisition. Complete guides found at https://fleetdm.com/guides.
+* Be a prospect. Sign up for a sandbox trial. What makes sense? What doesn't? Document. 
+* Understand Fleet value drivers. Why do Fleet Community users want to give us money to upgrade to Premium? 
+* Complete consensus training videos (see the "Description" field in the `#help-consensus-tool` slack channel.
+* Review [gong](gong.io) calls.
+* Get trained on [Demo2Win](https://2winglobal.com/about-you/pre-sales/)
+
+#### Within 60 days -- synthesize
+* Take what you've learned in Demo2Win training and build out some killer enterprise demo workflows / playbooks. See below for video content.
+* Build video content with [Consensus](https://app.goconsensus.com/). Aim to produce a video per week. 
+* Supplemental domain training. Checkout [DFIR Diva](https://training.dfirdiva.com/) and [Cybrary - SecurityOnion](https://app.cybrary.it/browse/course/security-onion) and block time in your calendar appropriately for learning about one new topic per month.
+* Get involved in the community. Are there any local meetups that you can attend?
+* Work the Slack support channels alongside the Customer Success Engineers.
+
+#### Within 90 days + -- contribute
+* Build and maintain [success criteria documentation](https://docs.google.com/document/d/1TNhUMgxXHDuuuH8rirtwZs_TF9iVUiOrL9r2kJ6sWZA/edit?usp=drive_link) with all prospects. 
+* Expand "Deployment Guides" to include steps for GCP and Azure.
+* Interesting integrations / collaborations to work on.
+
+#### Demo environment
+* Have a quiet place available.
+* Ensure you have a backup source of power. Not just your laptop battery.
+* Multiple monitors are your friend.
+* Demo from a clean "demo" browser profile. Clear your desktop.
+* Pause desktop notifications.
+
+#### Avoid these demo gotchas
+* Showing absolutely everything the product does before you've done a technical discovery. Sometimes even a brief discovery prior to demo will hone your focus for the demo.
+* Arriving to the demo without a plan. Ensure that you have a pre-call strategy meeting with your AE prior to the external call. Understand who you are presenting to. [Look at some tips on walnut.io](https://www.walnut.io/post/7-sales-demo-mistakes-and-how-to-avoid-them)
+* Conducting a product training
+* Live troubleshooting. We all love to solve problems, but don't get de-railed from showing value to your audience.
+* Talking over your prospect. [Just don't do it](https://emissary.io/cardinal-sins-of-sales-demos/). 
+
 
 ## Rituals
 
@@ -502,9 +542,9 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 | 🗣️ Product Feature Requests | Weekly | Present and advocate for requests and ideas brought to Fleet's attention by customers that are interesting from a product perspective. | Kathy Satterlee |
 | Customer meetings | Weekly | Check-in on how product and company are performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Kathy Satterlee |
 | Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
-| Sales huddle | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps. | Alex Mitchell
-[Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
-| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell |
+| Opportunity pipeline review | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps, amounts, dates, and status (including choosing Closed Lost if no communications for >= 45 days). | Alex Mitchell
+[Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Taylor Hughes |
+| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. Clean up Open MQL list. Ask CRO if questions. | Alex Mitchell |
 | Dripify review | Daily | Review responses to Dripify sequencing, respond to standard messages, escalate urgent messages in `#help-CEO`. | Brad Macdowall
 
 
@@ -517,6 +557,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#fleet-at-*` _(customer channels)_ | Kathy Satterlee                                                     |
 | `#g-sales`                     | Alex Mitchell |
 | `#_from-prospective-customers` | Alex Mitchell |
+| `#help-solutions-consulting` | Dave Herder |
 
 
 <meta name="maintainedBy" value="alexmitchelliii">

@@ -22,7 +22,7 @@ const TAGGED_TEMPLATES = {
 };
 
 const DEFAULT_SORT_DIRECTION = "asc";
-const DEFAULT_SORT_HEADER = "updated_at";
+const DEFAULT_SORT_HEADER = "name";
 
 interface IPoliciesTableProps {
   policiesList: IPolicyStats[];

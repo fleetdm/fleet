@@ -1,21 +1,41 @@
-import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
+import React, {
+  useState,
+  useContext,
+  useEffect,
+  KeyboardEvent,
+  useCallback,
+} from "react";
 import { InjectedRouter } from "react-router";
-import { size } from "lodash";
+import { pull, size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
+import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import { addGravatarUrlToResource } from "utilities/helpers";
+import {
+  FREQUENCY_DROPDOWN_OPTIONS,
+  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
+  MIN_OSQUERY_VERSION_OPTIONS,
+  LOGGING_TYPE_OPTIONS,
+} from "utilities/constants";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import { IApiError } from "interfaces/errors";
-import { IQuery, IQueryFormData } from "interfaces/query";
+import {
+  ISchedulableQuery,
+  ICreateQueryRequestBody,
+  QueryLoggingOption,
+} from "interfaces/schedulable_query";
+import { SelectedPlatformString } from "interfaces/platform";
 import queryAPI from "services/entities/queries";
 
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
+import { parseSqlTables } from "utilities/sql_tools";
+
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
 // @ts-ignore
@@ -23,10 +43,12 @@ import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
-import NewQueryModal from "../NewQueryModal";
+import SaveQueryModal from "../SaveQueryModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form";
@@ -34,15 +56,17 @@ const baseClass = "query-form";
 interface IQueryFormProps {
   router: InjectedRouter;
   queryIdForEdit: number | null;
+  apiTeamIdForQuery?: number;
+  teamNameForQuery?: string;
   showOpenSchemaActionText: boolean;
-  storedQuery: IQuery | undefined;
+  storedQuery: ISchedulableQuery | undefined;
   isStoredQueryLoading: boolean;
   isQuerySaving: boolean;
   isQueryUpdating: boolean;
-  onCreateQuery: (formData: IQueryFormData) => void;
+  saveQuery: (formData: ICreateQueryRequestBody) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
-  onUpdate: (formData: IQueryFormData) => void;
+  onUpdate: (formData: ICreateQueryRequestBody) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
@@ -63,12 +87,14 @@ const validateQuerySQL = (query: string) => {
 const QueryForm = ({
   router,
   queryIdForEdit,
+  apiTeamIdForQuery,
+  teamNameForQuery,
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
   isQuerySaving,
   isQueryUpdating,
-  onCreateQuery,
+  saveQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
   onUpdate,
@@ -84,10 +110,18 @@ const QueryForm = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
+    lastEditedQueryFrequency,
+    lastEditedQueryPlatforms,
+    lastEditedQueryMinOsqueryVersion,
+    lastEditedQueryLoggingType,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
+    setLastEditedQueryFrequency,
+    setLastEditedQueryPlatforms,
+    setLastEditedQueryMinOsqueryVersion,
+    setLastEditedQueryLoggingType,
   } = useContext(QueryContext);
 
   const {
@@ -104,13 +138,14 @@ const QueryForm = ({
 
   const savedQueryMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [showSaveQueryModal, setShowSaveQueryModal] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
   );
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
@@ -131,9 +166,8 @@ const QueryForm = ({
     if (!isStoredQueryLoading && queryIdForEdit === lastEditedQueryId) {
       setCompatiblePlatforms(lastEditedQueryBody);
     }
-
     debounceSQL(lastEditedQueryBody);
-  }, [lastEditedQueryBody, lastEditedQueryId]);
+  }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
 
   const hasTeamMaintainerPermissions = savedQueryMode
     ? isAnyTeamMaintainerOrTeamAdmin &&
@@ -142,7 +176,9 @@ const QueryForm = ({
       storedQuery.author_id === currentUser.id
     : isAnyTeamMaintainerOrTeamAdmin;
 
-  const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
+  const toggleSaveQueryModal = () => {
+    setShowSaveQueryModal(!showSaveQueryModal);
+  };
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -175,6 +211,50 @@ const QueryForm = ({
     }
   };
 
+  const onChangeSelectFrequency = useCallback(
+    (value: number) => {
+      setLastEditedQueryFrequency(value);
+    },
+    [setLastEditedQueryFrequency]
+  );
+
+  const toggleAdvancedOptions = () => {
+    setShowAdvancedOptions(!showAdvancedOptions);
+  };
+
+  const onChangeSelectPlatformOptions = useCallback(
+    (values: string) => {
+      const valArray = values.split(",");
+
+      // Remove All if another OS is chosen
+      // else if Remove OS if All is chosen
+      if (valArray.indexOf("") === 0 && valArray.length > 1) {
+        setLastEditedQueryPlatforms(
+          pull(valArray, "").join(",") as SelectedPlatformString
+        );
+      } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
+        setLastEditedQueryPlatforms("");
+      } else {
+        setLastEditedQueryPlatforms(values as SelectedPlatformString);
+      }
+    },
+    [setLastEditedQueryPlatforms]
+  );
+
+  const onChangeMinOsqueryVersionOptions = useCallback(
+    (value: string) => {
+      setLastEditedQueryMinOsqueryVersion(value);
+    },
+    [setLastEditedQueryMinOsqueryVersion]
+  );
+
+  const onChangeSelectLoggingType = useCallback(
+    (value: QueryLoggingOption) => {
+      setLastEditedQueryLoggingType(value);
+    },
+    [setLastEditedQueryLoggingType]
+  );
+
   const promptSaveAsNewQuery = () => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
@@ -194,17 +274,21 @@ const QueryForm = ({
 
     if (valid) {
       setIsSaveAsNewLoading(true);
-
       queryAPI
         .create({
           name: lastEditedQueryName,
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
+          team_id: apiTeamIdForQuery,
           observer_can_run: lastEditedQueryObserverCanRun,
+          interval: lastEditedQueryFrequency,
+          platform: lastEditedQueryPlatforms,
+          min_osquery_version: lastEditedQueryMinOsqueryVersion,
+          logging: lastEditedQueryLoggingType,
         })
-        .then((response: { query: IQuery }) => {
+        .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
-          router.push(PATHS.EDIT_QUERY(response.query));
+          router.push(PATHS.EDIT_QUERY(response.query.id));
           renderFlash("success", `Successfully added query.`);
         })
         .catch((createError: { data: IApiError }) => {
@@ -214,11 +298,16 @@ const QueryForm = ({
                 name: `Copy of ${lastEditedQueryName}`,
                 description: lastEditedQueryDescription,
                 query: lastEditedQueryBody,
+                team_id: apiTeamIdForQuery,
                 observer_can_run: lastEditedQueryObserverCanRun,
+                interval: lastEditedQueryFrequency,
+                platform: lastEditedQueryPlatforms,
+                min_osquery_version: lastEditedQueryMinOsqueryVersion,
+                logging: lastEditedQueryLoggingType,
               })
-              .then((response: { query: IQuery }) => {
+              .then((response: { query: ISchedulableQuery }) => {
                 setIsSaveAsNewLoading(false);
-                router.push(PATHS.EDIT_QUERY(response.query));
+                router.push(PATHS.EDIT_QUERY(response.query.id));
                 renderFlash(
                   "success",
                   `Successfully added query as "Copy of ${lastEditedQueryName}".`
@@ -230,9 +319,19 @@ const QueryForm = ({
                     "already exists"
                   )
                 ) {
+                  let teamErrorText;
+                  if (apiTeamIdForQuery !== 0) {
+                    if (teamNameForQuery) {
+                      teamErrorText = `the ${teamNameForQuery} team`;
+                    } else {
+                      teamErrorText = "this team";
+                    }
+                  } else {
+                    teamErrorText = "all teams";
+                  }
                   renderFlash(
                     "error",
-                    `"Copy of ${lastEditedQueryName}" already exists. Please rename your query and try again.`
+                    `A query called "Copy of ${lastEditedQueryName}" already exists for ${teamErrorText}.`
                   );
                 }
                 setIsSaveAsNewLoading(false);
@@ -262,13 +361,17 @@ const QueryForm = ({
 
     if (valid) {
       if (!savedQueryMode) {
-        setIsSaveModalOpen(true);
+        setShowSaveQueryModal(true);
       } else {
         onUpdate({
           name: lastEditedQueryName,
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
+          interval: lastEditedQueryFrequency,
+          platform: lastEditedQueryPlatforms,
+          min_osquery_version: lastEditedQueryMinOsqueryVersion,
+          logging: lastEditedQueryLoggingType,
         });
       }
     }
@@ -396,7 +499,8 @@ const QueryForm = ({
     return null;
   };
 
-  const renderRunForObserver = (
+  // Observers and observer+ of existing query
+  const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
         <div className="name-description">
@@ -429,6 +533,7 @@ const QueryForm = ({
           }
           labelActionComponent={isObserverPlus && renderLabelComponent()}
           wrapEnabled
+          data-testid="ace-editor"
         />
       )}
       <span className={`${baseClass}__platform-compatibility`}>
@@ -446,151 +551,217 @@ const QueryForm = ({
             variant="blue-green"
             onClick={goToSelectTargets}
           >
-            Run query
+            Live query
           </Button>
         </div>
       )}
     </form>
   );
 
-  const renderForGlobalAdminOrAnyMaintainer = (
-    <>
-      <form className={`${baseClass}__wrapper`} autoComplete="off">
-        <div className={`${baseClass}__title-bar`}>
-          <div className="name-description">
-            {renderName()}
-            {renderDescription()}
+  const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
+
+  // Global admin, any maintainer, any observer+ on new query
+  const renderEditableQueryForm = () => {
+    // Save disabled for team maintainer/admins viewing global queries
+    const disableSavePermissionDenied =
+      isAnyTeamMaintainerOrTeamAdmin &&
+      !storedQuery?.team_id &&
+      !!queryIdForEdit;
+
+    // Save and save as new disabled for query name blank on existing query or sql errors
+    const disableSaveFormErrors =
+      (lastEditedQueryName === "" && !!lastEditedQueryId) || !!size(errors);
+
+    return (
+      <>
+        <form className={`${baseClass}__wrapper`} autoComplete="off">
+          <div className={`${baseClass}__title-bar`}>
+            <div className="name-description">
+              {renderName()}
+              {renderDescription()}
+            </div>
+            <div className="author">{savedQueryMode && renderAuthor()}</div>
           </div>
-          <div className="author">{savedQueryMode && renderAuthor()}</div>
-        </div>
-        <FleetAce
-          value={lastEditedQueryBody}
-          error={errors.query}
-          label="Query"
-          labelActionComponent={renderLabelComponent()}
-          name="query editor"
-          onLoad={onLoad}
-          wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={onChangeQuery}
-          handleSubmit={promptSaveQuery}
-          wrapEnabled
-          focus={!savedQueryMode}
-        />
-        <span className={`${baseClass}__platform-compatibility`}>
-          {renderPlatformCompatibility()}
-        </span>
-        {savedQueryMode && (
-          <>
-            <Checkbox
-              value={lastEditedQueryObserverCanRun}
-              onChange={(value: boolean) =>
-                setLastEditedQueryObserverCanRun(value)
-              }
-              wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
-            >
-              Observers can run
-            </Checkbox>
-            <p>
-              Users with the Observer role will be able to run this query on
-              hosts where they have access.
-            </p>
-          </>
-        )}
-        {renderLiveQueryWarning()}
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-        >
-          {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
-            <>
-              {savedQueryMode && (
-                <Button
-                  variant="text-link"
-                  onClick={promptSaveAsNewQuery()}
-                  disabled={false}
-                  className="save-as-new-loading"
-                  isLoading={isSaveAsNewLoading}
-                >
-                  Save as new
-                </Button>
-              )}
-              <div className="query-form__button-wrap--save-query-button">
-                <div
-                  data-tip
-                  data-for="save-query-button"
-                  data-tip-disable={
-                    !(
-                      isAnyTeamMaintainerOrTeamAdmin &&
-                      !hasTeamMaintainerPermissions
-                    )
-                  }
-                >
-                  <Button
-                    className="save-loading"
-                    variant="brand"
-                    onClick={promptSaveQuery()}
-                    disabled={
-                      isAnyTeamMaintainerOrTeamAdmin &&
-                      !hasTeamMaintainerPermissions
-                    }
-                    isLoading={isQueryUpdating}
-                  >
-                    Save
-                  </Button>
-                </div>{" "}
-                <ReactTooltip
-                  className={`save-query-button-tooltip`}
-                  place="bottom"
-                  effect="solid"
-                  backgroundColor="#3e4771"
-                  id="save-query-button"
-                  data-html
-                >
-                  <>
-                    You can only save
-                    <br /> changes to a query if you
-                    <br /> are the author.
-                  </>
-                </ReactTooltip>
+          <FleetAce
+            value={lastEditedQueryBody}
+            error={errors.query}
+            label="Query"
+            labelActionComponent={renderLabelComponent()}
+            name="query editor"
+            onLoad={onLoad}
+            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            onChange={onChangeQuery}
+            handleSubmit={promptSaveQuery}
+            wrapEnabled
+            focus={!savedQueryMode}
+          />
+          <span className={`${baseClass}__platform-compatibility`}>
+            {renderPlatformCompatibility()}
+          </span>
+          {savedQueryMode && (
+            <div className={`${baseClass}__edit-options`}>
+              <div className={`${baseClass}__frequency`}>
+                <Dropdown
+                  searchable={false}
+                  options={FREQUENCY_DROPDOWN_OPTIONS}
+                  onChange={onChangeSelectFrequency}
+                  placeholder={"Every day"}
+                  value={lastEditedQueryFrequency}
+                  label={"Frequency"}
+                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+                />
+                If automations are on, this is how often your query collects
+                data.
               </div>
-            </>
+              <div className={`${baseClass}__observers-can-run`}>
+                <Checkbox
+                  value={lastEditedQueryObserverCanRun}
+                  onChange={(value: boolean) =>
+                    setLastEditedQueryObserverCanRun(value)
+                  }
+                  wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
+                >
+                  Observers can run
+                </Checkbox>
+                <p>
+                  Users with the observer role will be able to run this query on
+                  hosts where they have access.
+                </p>
+              </div>
+              <RevealButton
+                isShowing={showAdvancedOptions}
+                className={baseClass}
+                hideText={"Hide advanced options"}
+                showText={"Show advanced options"}
+                caretPosition={"after"}
+                onClick={toggleAdvancedOptions}
+              />
+              {showAdvancedOptions && (
+                <div className={`${baseClass}__advanced-options`}>
+                  <Dropdown
+                    options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
+                    placeholder="Select"
+                    label="Platform"
+                    onChange={onChangeSelectPlatformOptions}
+                    value={lastEditedQueryPlatforms}
+                    multi
+                    wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+                  />
+                  <Dropdown
+                    options={MIN_OSQUERY_VERSION_OPTIONS}
+                    onChange={onChangeMinOsqueryVersionOptions}
+                    placeholder="Select"
+                    value={lastEditedQueryMinOsqueryVersion}
+                    label="Minimum osquery version"
+                    wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
+                  />
+                  <Dropdown
+                    options={LOGGING_TYPE_OPTIONS}
+                    onChange={onChangeSelectLoggingType}
+                    placeholder="Select"
+                    value={lastEditedQueryLoggingType}
+                    label="Logging"
+                    wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+                  />
+                </div>
+              )}
+            </div>
           )}
-          <Button
-            className={`${baseClass}__run`}
-            variant="blue-green"
-            onClick={goToSelectTargets}
+          {renderLiveQueryWarning()}
+          <div
+            className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
           >
-            Run query
-          </Button>
-        </div>
-      </form>
-      {isSaveModalOpen && (
-        <NewQueryModal
-          baseClass={baseClass}
-          queryValue={lastEditedQueryBody}
-          onCreateQuery={onCreateQuery}
-          setIsSaveModalOpen={setIsSaveModalOpen}
-          backendValidators={backendValidators}
-          isLoading={isQuerySaving}
-        />
-      )}
-    </>
-  );
+            {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
+              <>
+                {savedQueryMode && (
+                  <Button
+                    variant="text-link"
+                    onClick={promptSaveAsNewQuery()}
+                    disabled={disableSaveFormErrors}
+                    className="save-as-new-loading"
+                    isLoading={isSaveAsNewLoading}
+                  >
+                    Save as new
+                  </Button>
+                )}
+                <div className="query-form__button-wrap--save-query-button">
+                  <div
+                    data-tip
+                    data-for="save-query-button"
+                    // Tooltip shows for team maintainer/admins viewing global queries
+                    data-tip-disable={!disableSavePermissionDenied}
+                  >
+                    <Button
+                      className="save-loading"
+                      variant="brand"
+                      onClick={promptSaveQuery()}
+                      // Button disabled for team maintainer/admins viewing global queries
+                      disabled={
+                        disableSavePermissionDenied || disableSaveFormErrors
+                      }
+                      isLoading={isQueryUpdating}
+                    >
+                      Save
+                    </Button>
+                  </div>{" "}
+                  <ReactTooltip
+                    className={`save-query-button-tooltip`}
+                    place="top"
+                    effect="solid"
+                    backgroundColor={COLORS["tooltip-bg"]}
+                    id="save-query-button"
+                    data-html
+                  >
+                    <>
+                      You can only save changes
+                      <br /> to a team level query.
+                    </>
+                  </ReactTooltip>
+                </div>
+              </>
+            )}
+            <Button
+              className={`${baseClass}__run`}
+              variant="blue-green"
+              onClick={goToSelectTargets}
+            >
+              Live query
+            </Button>
+          </div>
+        </form>
+        {showSaveQueryModal && (
+          <SaveQueryModal
+            queryValue={lastEditedQueryBody}
+            apiTeamIdForQuery={apiTeamIdForQuery}
+            saveQuery={saveQuery}
+            toggleSaveQueryModal={toggleSaveQueryModal}
+            backendValidators={backendValidators}
+            isLoading={isQuerySaving}
+          />
+        )}
+      </>
+    );
+  };
 
   if (isStoredQueryLoading) {
     return <Spinner />;
   }
 
-  if (
-    (isOnlyObserver ||
-      isGlobalObserver ||
-      isObserverPlus ||
-      isAnyTeamObserverPlus) &&
-    !isAnyTeamMaintainerOrTeamAdmin
-  ) {
-    return renderRunForObserver;
+  const noEditPermissions =
+    (isGlobalObserver && !isObserverPlus) || // Global observer but not Observer+
+    (isObserverPlus && queryIdForEdit !== 0) || // Global observer+ on existing query
+    (isOnlyObserver && !isAnyTeamObserverPlus && !isGlobalObserver) || // Only team observer but not team Observer+
+    (isAnyTeamObserverPlus && // Team Observer+ on existing query
+      !isAnyTeamMaintainerOrTeamAdmin &&
+      queryIdForEdit !== 0);
+
+  // Render non-editable form only
+  if (noEditPermissions) {
+    return renderNonEditableForm;
   }
 
-  return renderForGlobalAdminOrAnyMaintainer;
+  // Render default editable form
+  return renderEditableQueryForm();
 };
 
 export default QueryForm;

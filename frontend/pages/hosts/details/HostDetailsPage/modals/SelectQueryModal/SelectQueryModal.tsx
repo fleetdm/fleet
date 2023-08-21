@@ -1,22 +1,22 @@
 import React, { useState, useCallback, useContext } from "react";
 
 import { filter, includes } from "lodash";
-import { IQuery } from "interfaces/query";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 
 import DataError from "components/DataError";
 import permissions from "utilities/permissions";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
 
 export interface ISelectQueryModalProps {
   onCancel: () => void;
   onQueryHostCustom: () => void;
-  onQueryHostSaved: (selectedQuery: IQuery) => void;
-  queries: IQuery[] | [];
+  onQueryHostSaved: (selectedQuery: ISchedulableQuery) => void;
+  queries: ISchedulableQuery[] | [];
   queryErrors: Error | null;
   isOnlyObserver?: boolean;
   hostsTeamId: number | null;
@@ -135,12 +135,14 @@ const SelectQueryModal = ({
         <div>
           <div className={`${baseClass}__filter-create-wrapper`}>
             <div className={`${baseClass}__filter-queries`}>
-              <InputField
+              <InputFieldWithIcon
                 name="query-filter"
                 onChange={onFilterQueries}
                 placeholder="Filter queries"
                 value={queriesFilter}
                 autofocus
+                iconSvg="search"
+                iconPosition="start"
               />
             </div>
             {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (
@@ -160,12 +162,14 @@ const SelectQueryModal = ({
         <div>
           <div className={`${baseClass}__filter-create-wrapper`}>
             <div className={`${baseClass}__filter-queries`}>
-              <InputField
+              <InputFieldWithIcon
                 name="query-filter"
                 onChange={onFilterQueries}
                 placeholder="Filter queries"
                 value={queriesFilter}
                 autofocus
+                iconSvg="search"
+                iconPosition="start"
               />
             </div>
             {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (

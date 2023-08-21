@@ -3,9 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -605,14 +603,6 @@ func (svc *Service) teamByIDOrName(ctx context.Context, id *uint, name *string) 
 	} else if name != nil {
 		tm, err = svc.ds.TeamByName(ctx, *name)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// this should really be handled in TeamByName so that it returns a
-				// notFound error as is usually the case for this scenario, but
-				// changing it causes a number of test failures that indicates this
-				// might be tricky and even maybe a breaking change in some places. For
-				// now, handling it here.
-				return nil, notFoundError{}
-			}
 			return nil, err
 		}
 	}
@@ -635,7 +625,7 @@ func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fle
 	for _, spec := range specs {
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
 		if err != nil {
-			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
+			if fleet.IsNotFound(err) {
 				// Can the user create a new team?
 				if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 					return err
@@ -688,7 +678,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		switch {
 		case err == nil:
 			// OK
-		case ctxerr.Cause(err) == sql.ErrNoRows:
+		case fleet.IsNotFound(err):
 			if spec.Name == "" {
 				return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
 			}
@@ -716,6 +706,18 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		if create {
+
+			// create a new team enroll secret if none is provided for a new team.
+			if len(secrets) == 0 {
+				secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
+				}
+				secrets = append(secrets, &fleet.EnrollSecret{
+					Secret: secret,
+				})
+			}
+
 			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts.DryRun)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating team from spec")

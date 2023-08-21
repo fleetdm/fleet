@@ -128,7 +128,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		team, ok := teamsByName[name]
 		if !ok {
-			return nil, sql.ErrNoRows
+			return nil, &notFoundError{}
 		}
 		return team, nil
 	}
@@ -887,6 +887,11 @@ spec:
         pack_delimiter: /
     overrides: {}
 `)
+
+	// test applying with dry-run flag
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// test applying for real
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
 
@@ -914,6 +919,11 @@ spec:
       macos_setup_assistant: %s
     windows_enabled_and_configured: true
 `, mobileConfigPath, emptySetupAsst))
+
+	// first apply with dry-run
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
@@ -945,6 +955,11 @@ spec:
     macos_setup:
       bootstrap_package: %s
 `, bootstrapURL))
+
+	// first apply with dry-run
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
@@ -988,6 +1003,10 @@ spec:
       - secret: BBB
 `, mobileConfigPath))
 
+	// first apply with dry-run
+	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
 	assert.Equal(t, fleet.TeamMDM{
@@ -1015,6 +1034,11 @@ spec:
       macos_setup:
         macos_setup_assistant: %s
 `, emptySetupAsst))
+
+	// first apply with dry-run
+	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
@@ -1045,6 +1069,11 @@ spec:
       macos_setup:
         bootstrap_package: %s
 `, bootstrapURL))
+
+	// first apply with dry-run
+	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// all left untouched, only bootstrap package added
 	assert.Equal(t, fleet.TeamMDM{
@@ -1122,7 +1151,7 @@ spec:
 
 	// Apply queries.
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return nil, sql.ErrNoRows
 	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
@@ -1223,7 +1252,7 @@ func TestApplyQueries(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return nil, sql.ErrNoRows
 	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
@@ -1344,11 +1373,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
 			if !ok {
-				// TeamByName in the real Datastore does not return notFoundError, it
-				// returns ErrNoRows directly, we're a bit inconsistent with that at
-				// the moment. This is important as ApplyTeamSpecs checks if TeamByName
-				// returns an error that wraps ErrNoRows (and not an IsNotFound).
-				return nil, sql.ErrNoRows
+				return nil, &notFoundError{}
 			}
 			clone := *team
 			return &clone, nil
@@ -2052,7 +2077,7 @@ func TestApplySpecs(t *testing.T) {
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
 			if !ok {
-				return nil, sql.ErrNoRows
+				return nil, &notFoundError{}
 			}
 			return team, nil
 		}

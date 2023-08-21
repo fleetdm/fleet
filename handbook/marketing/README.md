@@ -196,7 +196,7 @@ You will need to install the following tools to use it:
 
 There are several locations in Fleet's public and internal documentation that can be helpful when answering questions raised by the community:
 
-1. Find the frequently asked question (FAQ) documents in each section in the `/docs` folder. These documents are the [Using Fleet FAQ](./../../docs/Using-Fleet/FAQ.md), [Deploying FAQ](./../../docs/Deploying/FAQ.md), and [Contributing FAQ](./../../docs/Contributing/FAQ.md).
+1. Find the frequently asked question (FAQ) documents in each section in the `/docs` folder. These documents are the [Get started FAQ](https://fleetdm.com/docs/get-started/FAQ), and [Contributing FAQ (on GitHub)](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/FAQ.md).
 
 2. Use the [internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
@@ -234,7 +234,7 @@ When a new pull request is submitted by a community contributor (someone not a m
     - Additions or fixes to the Standard Query Library (as long as the SQL works properly and is attributed correctly).
 
   - If a review is needed:
-    - Request a review from the [Product DRI](../people/README.md#directly-responsible-individuals). They should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
+    - Request a review from the [Product DRI](../people/README.md#directly-responsible-individuals). They should approve extensive changes and new features. Ask in the [#help-product](https://fleetdm.slack.com/archives/C02A8BRABB5) channel in Fleet's Slack for more information.
     - Tag the DRI and the contributor in a comment on the PR, letting everyone know why an additional review is needed. Make sure to say thanks!
     - Find any related open issues and make a note in the comments.
 
@@ -294,7 +294,8 @@ We use Figma for most of our design work. This includes the Fleet product, our w
 
 ##### Which file should I use?
 
-**Fleet product** All product design work is done in the [Fleet EE (scratchpad)](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=9209%3A302838) Figma doc. Check out the [README](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=2750%3A67203) for how to use this doc.
+**Fleet product.** All product design work is done in the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project.  
+See [📖Product#Working with Figma](https://fleetdm.com/handbook/product#working-with-figma) for more details.
 
 **Fleet website.** All website design work is done in the [fleetdm.com (current, dev-ready)](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/%E2%9C%85-fleetdm.com-(current%2C-dev-ready)?node-id=794%3A373) Figma file.
 
@@ -304,9 +305,6 @@ We use Figma for most of our design work. This includes the Fleet product, our w
 
 **Marketing assets.** Product screenshots and artwork for social media, articles, and other marketing assets can be found in [Collateral](https://www.figma.com/files/project/20798819).
 
-### Content style guide
-
-Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more. [Read the content style guide](./content-style-guide).
 
 ### Publishing Fleet content
 
@@ -347,13 +345,35 @@ Detail the minimum time needed for new or updated content to be live (published)
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
 | Decks | **Instant**. Sales typically creates decks. The Brand team shouldn't be a blocker. | **Feedback** | three business days |
 
-### For editors
 
-Check the [Editor's page](./editor-guide) for everything you need to know to reach editor bliss at Fleet.
+#### How to edit Markdown pull requests for the docs
+
+- When someone creates a pull request for a doc that affects Markdown files, they’ll need to request a review from the editor. 
+- If no edits are needed, the editor will merge the PR. 
+- If an edit changes the meaning, or if unsure, the editor should request a review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) and remove themselves as a reviewer.
+
+#### How to edit articles, release posts, and press releases
+
+Editing articles, release posts, and press releases usually comes in three flavors: a Google Docs draft, a new pull request, or an edit to an existing article.
+
+* For unpublished articles, please read the review process in [How to submit and publish an article](https://fleetdm.com/handbook/marketing/how-to-submit-and-publish-an-article#review-process).
+
+* To edit an existing article, see [How to make edits with GitHub](#how-to-make-edits-with-github).
+
+#### How to edit social media posts
+
+In the world of the Fleet editor, there are two types of social media posts; those scheduled to be published and those published already. 
+
+Making edits to published social media posts gets a little tricky. Twitter, for example, doesn't allow editing of tweets, so the only way to make an edit is to remove the tweet and post it again.
+
+1. Post the tweet in the #g-marketing Slack channel and tag the Brand team lead.
+2. Decide whether to remove the tweet. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
+3. Suggest edits in the Slack thread for the Marketing team to include and re-post.
+
 
 ### Commonly used terms
 
-If you find yourself feeling a little overwhelmed by all the industry terms within our space, or if you just need to look something up, our glossary of [commonly used terms](./commonly-used-terms) is here to help.
+If you find yourself feeling a little overwhelmed by all the industry terms within our space, or if you just need to look something up, our glossary of [commonly used terms](https://fleetdm.com/handbook/company/communications#commonly-used-terms) is here to help.
 
 ### Email blasts
 
@@ -419,9 +439,6 @@ Once you have the above follow these steps:
 
 Read the [Website handbook](./website-handbook) for detailed information and processes specific to the Fleet website. Including the website roadmap, how to request changes, and processes related to QA, deploying changes, and marketing experimentation.
 
-## Documentation
-
-The [Docs handbook](./docs-handbook) details processes specific to updating and maintaining the Fleet docs. 
 
 ## Rituals
 
@@ -438,10 +455,10 @@ The following table lists the Marketing, Brand, and Community group's rituals, f
 | Enrich Salesforce leads      | Weekly | Follow the Salesforce lead enrichment process every Friday    | Drew Baker        |
 | Outside contributions        | Weekly | Check pull requests for outside contributions every Monday | Drew Baker|
 | Weekly article               | Weekly | Publish an article and promote it on social media | Drew Baker|
-| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Jarod Reyes          |
+| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Mike McNeil          |
 | Podcast outreach             | Weekly | Conduct podcast outreach twice a week     | Drew Baker        |
 | Weekly update                | Weekly | Update the marketing KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) | Drew Baker        |
-| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Jarod Reyes        |
+| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Mike McNeil        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month | Drew Baker|
 | Freshen up pinned posts      | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page | Drew Baker | 
 | Tweet review | Daily | Review tweets for tone and brand consistency | Mike Thomas |
@@ -480,15 +497,27 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-marketing`              | Jarod Reyes                                                            |
+| `#g-marketing`              | Mike McNeil                                                            |
 | `#g-website`                | Michael Thomas                                                            |
-| `#fleet-mindshare-pr`       | Jarod Reyes                                                            |
-| `#help-public-relations`    | Jarod Reyes                                                            |
-| `#help-promote`             | Jarod Reyes                                                            |
+| `#fleet-mindshare-pr`       | Drew Baker                                                           |
+| `#help-public-relations`    | Mike McNeil                                                            |
+| `#help-promote`             | Mike McNeil                                                            |
 | `#help-swag`                | Drew Baker                                                          |
 | `#oooh-websites`            | Michael Thomas                                                         |
 | `#help-p1`		                | Mike McNeil                                                         |
 
 
-<meta name="maintainedBy" value="jarodreyes">
+#### Stubs
+
+##### Content style guide
+
+Please see 📖[handbook/company/communications/content-style-guide](https//fleetdm.com/handbook/company/communications/content-style-guide).
+
+##### Documentation
+
+Please see 📖[handbook/company/communications/content-style-guide](https//fleetdm.com/handbook/company/communications/content-style-guide).
+
+
+
+<meta name="maintainedBy" value="drewbakerfdm">
 <meta name="title" value="🫧 Community">

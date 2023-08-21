@@ -291,21 +291,6 @@ allow {
 # Queries
 ##
 
-# Global admins, maintainers, observer_plus and observers can read queries.
-allow {
-  object.type == "query"
-  subject.global_role == [admin, maintainer, observer_plus, observer][_]
-  action == read
-}
-
-# Team admins, maintainers, observer_plus and observers can read queries.
-allow {
-	object.type == "query"
-  # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
-	action == read
-}
-
 # Global admins, maintainers and gitops can write queries.
 allow {
   object.type == "query"
@@ -313,58 +298,107 @@ allow {
   action == write
 }
 
-# Team admins, maintainers and gitops can create new queries
+# Global admins, maintainers, observer_plus and observers can read queries.
 allow {
-  object.id == 0 # new queries have ID zero
   object.type == "query"
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, observer_plus, observer][_]
+  action == read
+}
+
+# Team admin, maintainers and gitops can write queries for their teams.
+allow {
+  object.type == "query"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == write
 }
 
-# Team admins, maintainers and gitops can edit and delete only their own queries
+# Team admins, maintainers, observer_plus and observers can read queries for their teams.
 allow {
-  object.author_id == subject.id
   object.type == "query"
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
-  action == write
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
+  action == read
 }
 
-# Global admins, maintainers and observer_plus can run any query (saved and new).
+# Team admins, maintainers, observer_plus and observers can read global queries.
+allow {
+  object.type == "query"
+  is_null(object.team_id)
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+  action == read
+}
+
+# Global admins, maintainers and observer_plus can run any query saved query.
 allow {
   object.type == "targeted_query"
   subject.global_role == [admin, maintainer, observer_plus][_]
   action = run
 }
+
+# Global admins, maintainers and observer_plus can run any new query.
 allow {
   object.type == "query"
   subject.global_role == [admin, maintainer, observer_plus][_]
   action = run_new
 }
 
-# Team admin, maintainer and observer_plus running a non-observers_can_run query must have the targets
-# filtered to only teams that they maintain.
+# Team admin, maintainer and observer_plus running a global non-observers_can_run query
+# must have the targets filtered to only teams that they maintain.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == false
   is_null(subject.global_role)
   action == run
+  
+  is_null(object.team_id)
 
   not is_null(object.host_targets.teams)
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, observer_plus][_] }
   count(ok_teams) == count(object.host_targets.teams)
 }
 
-# Team admin, maintainer and observer_plus running a non-observers_can_run query when no target teams are specified.
+# Team admin, maintainer and observer_plus running a non-observers_can_run query that belongs to their team
+# must have the targets filtered to only teams that they maintain.
+allow {
+  object.type == "targeted_query"
+  object.observer_can_run == false
+  is_null(subject.global_role)
+  action == run
+  
+  team_role(subject, object.team_id) == [admin, maintainer, observer_plus][_]
+
+  not is_null(object.host_targets.teams)
+  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, observer_plus][_] }
+  count(ok_teams) == count(object.host_targets.teams)
+}
+
+# Team admin, maintainer and observer_plus running a global non-observers_can_run query when no target teams are specified.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == false
   is_null(subject.global_role)
   action == run
 
+  is_null(object.team_id)
+
   # If role is admin, maintainer or observer_plus on any team.
   team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus][_]
 
   # and there are no team targets
+  is_null(object.host_targets.teams)
+}
+
+# Team admin, maintainer and observer_plus running a non-observers_can_run query that belongs to their team when no target teams are specified.
+allow {
+  object.type == "targeted_query"
+  object.observer_can_run == false
+  is_null(subject.global_role)
+  action == run
+  
+  team_role(subject, object.team_id) == [admin, maintainer, observer_plus][_]
+
+  # there are no team targets
   is_null(object.host_targets.teams)
 }
 
@@ -384,30 +418,62 @@ allow {
   action = run
 }
 
-# Team admin, maintainer, observer_plus and observer running a observers_can_run query must have the targets
+# Team admin, maintainer, observer_plus and observer running a global observers_can_run query must have the targets
 # filtered to only teams that they observe.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
   is_null(subject.global_role)
   action == run
+  
+  is_null(object.team_id)
 
   not is_null(object.host_targets.teams)
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, observer_plus, observer][_] }
   count(ok_teams) == count(object.host_targets.teams)
 }
 
-# Team admin, maintainer, observer_plus and observer running a observers_can_run query and there are no target teams.
+# Team admin, maintainer, observer_plus and observer running an observers_can_run query that belongs to their team must have the targets
+# filtered to only teams that they observe.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
   is_null(subject.global_role)
   action == run
+  
+  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
+
+  not is_null(object.host_targets.teams)
+  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, observer_plus, observer][_] }
+  count(ok_teams) == count(object.host_targets.teams)
+}
+
+# Team admin, maintainer, observer_plus and observer running a global observers_can_run query and there are no target teams.
+allow {
+  object.type == "targeted_query"
+  object.observer_can_run == true
+  is_null(subject.global_role)
+  action == run
+  
+  is_null(object.team_id)
 
   # If role is admin, maintainer, observer_plus or observer on any team.
   team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
 
   # and there are no team targets
+  is_null(object.host_targets.teams)
+}
+
+# Team admin, maintainer, observer_plus and observer running an observers_can_run query that belongs to their team and there are no target teams.
+allow {
+  object.type == "targeted_query"
+  object.observer_can_run == true
+  is_null(subject.global_role)
+  action == run
+  
+  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
+
+  # there are no team targets
   is_null(object.host_targets.teams)
 }
 
@@ -431,53 +497,14 @@ allow {
 }
 
 ##
-# Packs
+# 2017 Packs (deprecated)
 ##
 
-# Global admins, maintainers and gitops can read/write all types of packs.
+# Global admins, maintainers and gitops can read/write 2017 packs.
 allow {
   object.type == "pack"
   subject.global_role == [admin, maintainer, gitops][_]
   action == [read, write][_]
-}
-
-# Global admins, maintainers, observers and observer_plus can read the global pack.
-allow {
-  object.type == "pack"
-  object.is_global_pack == true
-  subject.global_role == [admin, maintainer, observer, observer_plus][_]
-  action == read
-}
-
-# Team admins, maintainers, observer_plus and observers can read the global pack.
-allow {
-	object.type == "pack"
-  object.is_global_pack == true
-  # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
-	action == read
-}
-
-# Team admins, maintainers, observers, observer_plus can read their team's pack.
-#
-# NOTE: Action "read" on a team's pack includes listing its scheduled queries.
-allow {
-  object.type == "pack"
-  not is_null(object.pack_team_id)
-  team_role(subject, object.pack_team_id) == [admin, maintainer, observer, observer_plus][_]
-  action == read
-}
-
-# Team admins, maintainers and gitops can add/remove scheduled queries from/to their team's pack.
-#
-# NOTE: The team's pack is not editable per-se, it's a special pack to group
-# all the team's scheduled queries. So the "write" operation only covers
-# adding/removing scheduled queries from the pack.
-allow {
-  object.type == "pack"
-  not is_null(object.pack_team_id)
-  team_role(subject, object.pack_team_id) == [admin, maintainer, gitops][_]
-  action == write
 }
 
 ##

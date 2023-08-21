@@ -6,6 +6,18 @@
       border: 1px solid $ui-vibrant-blue-10;
       border-right: 0;
     }
+    &:focus:has(+ .dropdown-button__options--opened) {
+      .icon {
+        svg {
+          transform: rotate(180deg);
+          transition: transform 0.25s ease;
+        }
+      }
+    }
+
+    svg {
+      transition: transform 0.25s ease;
+    }
   }
 
   .dropdown-button__options {

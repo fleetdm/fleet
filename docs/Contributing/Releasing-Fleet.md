@@ -33,7 +33,7 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
    - [fleetctl package.json](https://github.com/fleetdm/fleet/blob/main/tools/fleetctl-npm/package.json) (do not yet `npm publish`)
    - [Helm chart.yaml](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml) and [values file](https://github.com/fleetdm/fleet/blob/main/charts/fleet/values.yaml)
    - Terraform variables ([AWS](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/variables.tf)/[GCP](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/gcp/variables.tf))
-   - [Kubernetes `deployment.yml` example file](https://github.com/fleetdm/fleet/blob/main/docs/Deploying/Server-Installation.md#deploying-fleet-on-kubernetes)
+   - [Kubernetes `deployment.yml` example file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/Deploying-Fleet-on-Kubernetes.md)
 
    Commit these changes via Pull Request and pull the changes on the `main` branch locally. Check that
    `HEAD` of the `main` branch points to the commit with these changes.
@@ -145,3 +145,4 @@ A patch release is required when a critical bug is found. Critical bugs are defi
    TODO [#2850](https://github.com/fleetdm/fleet/issues/2850): Improve docs/tooling for this.
 
 <meta name="pageOrderInSection" value="500">
+<meta name="description" value="Learn how new versions of Fleet are tested and released.">

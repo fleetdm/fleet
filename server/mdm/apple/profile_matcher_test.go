@@ -62,6 +62,7 @@ func TestPreassignProfile(t *testing.T) {
 			ExternalHostIdentifier: "abcd",
 			HostUUID:               "1234",
 			Profile:                generateProfile("p3", "p3", "Configuration", "p3"),
+			Exclude:                true,
 		}
 		err = matcher.PreassignProfile(ctx, p3)
 		require.NoError(t, err)
@@ -108,21 +109,25 @@ func TestPreassignProfile(t *testing.T) {
 		profs, err := redigo.StringMap(conn.Do("HGETALL", keyForExternalHostIdentifier("abcd")))
 		require.NoError(t, err)
 		require.Equal(t, map[string]string{
-			"host_uuid":                "1234",
-			p1.HexMD5Hash():            string(p1.Profile),
-			p1.HexMD5Hash() + "_group": "g1",
-			p2.HexMD5Hash():            string(p2.Profile),
-			p2.HexMD5Hash() + "_group": "g2",
-			p3.HexMD5Hash():            string(p3.Profile),
+			"host_uuid":                  "1234",
+			p1.HexMD5Hash():              string(p1.Profile),
+			p1.HexMD5Hash() + "_group":   "g1",
+			p1.HexMD5Hash() + "_exclude": "0",
+			p2.HexMD5Hash():              string(p2.Profile),
+			p2.HexMD5Hash() + "_group":   "g2",
+			p2.HexMD5Hash() + "_exclude": "0",
+			p3.HexMD5Hash():              string(p3.Profile),
+			p3.HexMD5Hash() + "_exclude": "1",
 		}, profs)
 
 		// stored 1 profile in new host
 		profs, err = redigo.StringMap(conn.Do("HGETALL", keyForExternalHostIdentifier("efgh")))
 		require.NoError(t, err)
 		require.Equal(t, map[string]string{
-			"host_uuid":                "5678",
-			p4.HexMD5Hash():            string(p4.Profile),
-			p4.HexMD5Hash() + "_group": "g4",
+			"host_uuid":                  "5678",
+			p4.HexMD5Hash():              string(p4.Profile),
+			p4.HexMD5Hash() + "_group":   "g4",
+			p4.HexMD5Hash() + "_exclude": "0",
 		}, profs)
 	}
 
@@ -318,6 +323,23 @@ func TestPreassignProfileValidation(t *testing.T) {
 				require.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestKeyForExternalHostIdentifier(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"", ""},
+		{"abcd", "abcd"},
+		{"6f36ab2c-1a40-429b-9c9d-07c9029f4aa8", "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8"},
+		{"6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler06.test.example.com", "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8"},
+	}
+
+	for _, c := range cases {
+		got := keyForExternalHostIdentifier(c.in)
+		require.Equal(t, preassignKeyPrefix+c.want, got)
 	}
 }
 

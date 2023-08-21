@@ -7,7 +7,6 @@
     position: absolute;
     right: 6px;
     top: 28px;
-    font-size: 18px;
     color: $core-fleet-blue;
 
     &--active {
@@ -21,12 +20,27 @@
     }
   }
 
+  // Refactor to include svg icons
+  &--icon-start {
+    margin-top: 0;
+
+    .input-icon-field__icon {
+      position: absolute;
+      left: 12px;
+      top: 13px;
+      width: 16px;
+      font-size: $x-small;
+      color: $core-fleet-blue;
+      z-index: 1;
+    }
+  }
+
   &__input {
     border: 1px solid $ui-fleet-black-10;
     background-color: $ui-light-grey;
     border-radius: $border-radius;
     padding: 9px 30px 9px $pad-medium;
-    font-size: $small;
+    font-size: $x-small;
     text-indent: 1px;
     position: relative;
     width: 100%;
@@ -42,6 +56,15 @@
     &:hover,
     &:focus {
       border: 1px solid $core-vibrant-blue;
+
+      // Icon color matches border color on focus and on hover
+      + .input-icon-field__icon {
+        svg {
+          path {
+            fill: $core-vibrant-blue;
+          }
+        }
+      }
     }
 
     &:focus {
@@ -95,7 +118,7 @@
   // overwrite icon position and input padding
   &--icon-start {
     input {
-      padding: 9px 1rem 9px 3rem;
+      padding: 9.5px 12px 9.5px 36px; // New figma styling
     }
     .fleeticon {
       right: auto;

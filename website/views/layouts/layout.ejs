@@ -293,7 +293,7 @@
               </div>
               <div class="flex-column">
                 <a href="/pricing" class="d-block px-md-5 px-sm-3 pb-2">Pricing</a>
-                <a href="/customers/dashboard" class="d-block px-md-5 px-sm-3 pb-2">Get your license</a>
+                <a href="/customers/register" class="d-block px-md-5 px-sm-3 pb-2">Get your license</a>
                 <a href="/handbook" class="d-block px-md-5 px-sm-3 pb-2">Handbook</a>
                 <a href="/logos" class="d-block px-md-5 px-sm-3 pb-2 pb-xl-0">Logos/artwork</a>
               </div>
@@ -422,6 +422,7 @@
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
+    <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
@@ -431,6 +432,7 @@
     <script src="/js/pages/admin/email-preview.page.js"></script>
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
+    <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/compliance.page.js"></script>
@@ -450,7 +452,9 @@
     <script src="/js/pages/get-started.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
+    <script src="/js/pages/imagine/defcon-31.page.js"></script>
     <script src="/js/pages/imagine/higher-education.page.js"></script>
+    <script src="/js/pages/imagine/jamf-alternative.page.js"></script>
     <script src="/js/pages/imagine/launch-party.page.js"></script>
     <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
@@ -471,6 +475,7 @@
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
+    <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/upgrade.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
     <script src="/js/pages/vulnerability-management.page.js"></script>
@@ -493,12 +498,12 @@
         //    - https://github.com/lancedikson/bowser/tree/1fb99ced0e8834fd9662604bad7e0f0c3eba2786#rendering-engine-flags
         // --------------------------------------------------------------------
         var LATEST_SUPPORTED_VERSION_BY_OS = {
-          iOS: '11',//« earliest version that suppports the hubspot chatbot.
+          iOS: '12',//« earliest version that suppports the hubspot chatbot.
           Android: '7' // « earliest version we can test for compatibility issues with on browserstack
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
           msedge: '80',//« earliest version to support the backdrop filter css property.
-          safari: '11',//« earliest version that suppports the hubspot chatbot.
+          safari: '12',//« earliest version that suppports the hubspot chatbot.
           firefox: '102',//« earliest version to support the backdrop filter css property.
           chrome: '76',//« earliest version to support the backdrop filter css property.
           opera: '64',//« earliest version to support the backdrop filter css property.

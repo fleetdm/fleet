@@ -1,11 +1,11 @@
 import React from "react";
 
-import { IOsqueryPlatform } from "interfaces/platform";
+import { OsqueryPlatform } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 import Icon from "components/Icon";
 
 interface IPLatformListItemProps {
-  platform: IOsqueryPlatform;
+  platform: OsqueryPlatform;
 }
 
 const baseClassListItem = "platform-list-item";
@@ -20,7 +20,7 @@ const PlatformListItem = ({ platform }: IPLatformListItemProps) => {
 };
 
 // TODO: remove when freebsd is removed
-type IPlatformsWithFreebsd = IOsqueryPlatform | "freebsd";
+type IPlatformsWithFreebsd = OsqueryPlatform | "freebsd";
 
 interface IQueryTablePlatformsProps {
   platforms: IPlatformsWithFreebsd[];
@@ -38,7 +38,7 @@ const QueryTablePlatforms = ({ platforms }: IQueryTablePlatformsProps) => {
       return (
         <PlatformListItem
           key={platform}
-          platform={platform as IOsqueryPlatform} // TODO: remove when freebsd is removed
+          platform={platform as OsqueryPlatform} // TODO: remove when freebsd is removed
         />
       );
     });

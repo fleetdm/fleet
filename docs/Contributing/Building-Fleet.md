@@ -229,3 +229,4 @@ dlv debug --build-flags '-tags=full' --headless \
 ```
 
 <meta name="pageOrderInSection" value="100">
+<meta name="description" value="Learn about building Fleet from code, development infrastructure, and database migrations.">
