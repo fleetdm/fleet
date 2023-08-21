@@ -1,8 +1,11 @@
 package service
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -23,6 +26,9 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	opts.IncludePolicies = true
 	return svc.Service.HostByIdentifier(ctx, identifier, opts)
 }
+
+// anchored, so that it matches to the end of the line
+var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
 	const (
@@ -63,7 +69,20 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("script_contents", fmt.Sprintf("script is too long, must be at most %d characters", maxScriptRuneLen))
 	}
 
-	// TODO(mna): any other validation we want to apply to the script? What is the "must be bash/powershell" check?
+	// script must be a "text file", but that's not so simple to validate, so we
+	// assume that if it is valid utf8 encoding, it is a text file (binary files
+	// will often have invalid utf8 byte sequences).
+	if !utf8.ValidString(request.ScriptContents) {
+		return nil, fleet.NewInvalidArgumentError("script_contents", "script must be a valid utf8-encoded text file")
+	}
+	if strings.HasPrefix(request.ScriptContents, "#!") {
+		// read the first line in a portable way
+		s := bufio.NewScanner(strings.NewReader(request.ScriptContents))
+		// if a hashbang is present, it can only be `/bin/sh` for now
+		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
+			return nil, fleet.NewInvalidArgumentError("script_contents", "script cannot start with a hashbang (#!) other than #!/bin/sh")
+		}
+	}
 
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, maxPendingScriptAge)
 	if err != nil {
