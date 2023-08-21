@@ -36,7 +36,7 @@
     - name: Map macOS settings to computers with Puppet module
       tier: Premium
       comingSoon: false
-    - name: Reduce gap in coverage with end user initiated migration
+    - name: Nudge for migrations
       tier: Premium
       comingSoon: false
 - categoryName: Support
