@@ -482,6 +482,13 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 		}
 	}
 
+	// An empty string indicates there are no duplicate names.
+	if name := fleet.FirstDuplicatePolicySpecName(policies); name != "" {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "duplicate policy names not allowed",
+		})
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return errors.New("user must be authenticated to apply policies")

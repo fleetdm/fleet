@@ -57,7 +57,7 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
     } catch (response) {
       const error = getError(response);
 
-      if (error.includes("Error 1062: Duplicate entry")) {
+      if (error.includes("Duplicate entry")) {
         renderFlash(
           "error",
           "Unable to create pack. Pack names must be unique."
