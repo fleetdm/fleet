@@ -1,19 +1,29 @@
-// import { keys } from "lodash"; // REMOVED
+import { ICampaignError } from "interfaces/campaign";
 
 const defaultFieldSortFunc = (fields: string[]) => fields;
 
-const convertToCSV = (
-  objArray: any[], // TODO: typing
-  fieldSortFunc = defaultFieldSortFunc,
-  tableHeaders: any // TODO: typing
-) => {
-  const tableHeadersStrings = tableHeaders.map((header: any) => header.title); // TODO: typing
+interface ConvertToCSV {
+  objArray: any | ICampaignError[];
+  fieldSortFunc?: (fields: string[]) => string[];
+  tableHeaders?: any[]; // TODO: typing
+}
 
-  console.log("convertToCSV objArray wtf", objArray);
-  // const fields = fieldSortFunc(keys(objArray[0])); // THIS IS WRONG, SHOULD NOT TAKE FIRST ROW ONLY
+const convertToCSV = ({
+  objArray,
+  fieldSortFunc = defaultFieldSortFunc,
+  tableHeaders,
+}: ConvertToCSV) => {
+  const tableHeadersStrings: string[] = tableHeaders
+    ? tableHeaders.map((header: { id: string }) => header.id) // TODO: typing
+    : [];
+
+  console.log("objArray");
+
   const fields = fieldSortFunc(tableHeadersStrings);
 
-  // TODO: 8/18 FIX HOST column on csv
+  console.log("tableHeaderStrings", tableHeadersStrings);
+  console.log("fields", fields);
+
   // TODO: Remove after v5 when host_hostname is removed rom API response.
   const hostNameIndex = fields.indexOf("host_hostname");
   if (hostNameIndex >= 0) {
@@ -21,7 +31,7 @@ const convertToCSV = (
   }
   // Remove end
   const jsonFields = fields.map((field) => JSON.stringify(field));
-  const rows = objArray.map((row) => {
+  const rows = objArray.map((row: any) => {
     return fields.map((field) => JSON.stringify(row[field])).join(",");
   });
 

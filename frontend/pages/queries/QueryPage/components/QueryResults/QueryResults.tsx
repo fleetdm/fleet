@@ -7,7 +7,7 @@ import FileSaver from "file-saver";
 import { QueryContext } from "context/query";
 import { useDebouncedCallback } from "use-debounce";
 
-import convertToCSV from "utilities/convert_to_csv";
+import generateExportCSVFile from "utilities/generate_csv";
 import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
@@ -38,13 +38,6 @@ const NAV_TITLES = {
   ERRORS: "Errors",
 };
 
-const reorderCSVFields = (tableHeaders: string[]) => {
-  const result = tableHeaders.filter((field) => field !== "host_display_name");
-  result.unshift("host_display_name");
-
-  return result;
-};
-
 const generateExportFilename = (descriptor: string) => {
   return `${descriptor} (${format(new Date(), "MM-dd-yy hh-mm-ss")}).csv`;
 };
@@ -67,30 +60,11 @@ const QueryResults = ({
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
-  const [tableHeaders, setTableHeaders] = useState<null | Column[]>([]); // NOW SETS CORRECT TABLE HEADERS
-  const [errorTableHeaders, setErrorTableHeaders] = useState<null | Column[]>(
-    []
-  );
+  const [tableHeaders, setTableHeaders] = useState<Column[]>([]);
+  const [errorTableHeaders, setErrorTableHeaders] = useState<Column[]>([]);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
-
-  const generateExportCSVFile = (rows: Row[], filename: string) => {
-    console.log("generateExportCSVFile rows", rows);
-    return new global.window.File(
-      [
-        convertToCSV(
-          rows.map((r) => r.original),
-          reorderCSVFields,
-          tableHeaders
-        ),
-      ],
-      filename,
-      {
-        type: "text/csv",
-      }
-    );
-  };
 
   // immediately reset results
   const onRunAgain = useCallback(() => {
@@ -109,9 +83,6 @@ const QueryResults = ({
     debounceQueryResults(queryResults);
   }, [queryResults, debounceQueryResults]);
 
-  // set tableHeaders when initial results come in
-  // instead of memoizing tableHeaders, since we know the conditions exactly under which we want to
-  // set these
   useEffect(() => {
     console.log("USEEFFECT TO SET TABLE HEADERS IS CALLED");
     console.log("tableHeaders", tableHeaders);
@@ -148,7 +119,8 @@ const QueryResults = ({
     FileSaver.saveAs(
       generateExportCSVFile(
         filteredResults,
-        generateExportFilename(CSV_QUERY_TITLE)
+        generateExportFilename(CSV_QUERY_TITLE),
+        tableHeaders
       )
     );
   };
@@ -159,7 +131,8 @@ const QueryResults = ({
     FileSaver.saveAs(
       generateExportCSVFile(
         filteredErrors,
-        generateExportFilename(`${CSV_QUERY_TITLE} Errors`)
+        generateExportFilename(`${CSV_QUERY_TITLE} Errors`),
+        errorTableHeaders
       )
     );
   };
