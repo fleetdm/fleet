@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -170,6 +171,8 @@ func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
+	const pendingScriptMaxAge = 24 * time.Hour // TODO(mna): how long should we try to get a script executed?
+
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -226,6 +229,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if host.IsEligibleForWindowsMDMUnenrollment() {
 			notifs.NeedsProgrammaticWindowsMDMUnenrollment = true
 		}
+	}
+
+	// load the pending script executions for that host
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
+	if err != nil {
+		return fleet.OrbitConfig{Notifications: notifs}, err
+	}
+	if len(pending) > 0 {
+		execIDs := make([]string, 0, len(pending))
+		for _, p := range pending {
+			execIDs = append(execIDs, p.ExecutionID)
+		}
+		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
 	// team ID is not nil, get team specific flags and options

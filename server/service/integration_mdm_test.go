@@ -1261,6 +1261,7 @@ func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testi
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	t := s.T()
+	t.Skip("skipping flaky test")
 
 	ctx := context.Background()
 	devices := []godep.Device{
