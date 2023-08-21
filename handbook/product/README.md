@@ -388,6 +388,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Churned bug review                            | Sprintly (Wednesday)     | The Head of Product meets with the group product managers to examine churned bugs and categorize them as either continue, needs prioritization, or de-prioritize.                                                                                                                                     | Mo Zhu            |
 | Churned bug clean-up | Sprintly | Following the bug de-prioritization meeting, Product Operations completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as continue, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Isabell Reedy |
 
+> You can view Fleet's product rituals calendar [here](https://calendar.google.com/calendar/embed?src=c_644c399c66ea0f1e2e85904b6c63a93ec7ff4aa8796868891bfeab7445bf3179%40group.calendar.google.com&ctz=America%2FNew_York).
 
 ## Slack channels
 
