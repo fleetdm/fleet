@@ -95,19 +95,20 @@ type listGlobalPoliciesResponse struct {
 func (r listGlobalPoliciesResponse) error() error { return r.Err }
 
 func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	resp, err := svc.ListGlobalPolicies(ctx)
+	req := request.(*fleet.ListGlobalPoliciesRequest)
+	resp, err := svc.ListGlobalPolicies(ctx, req.ListOptions)
 	if err != nil {
 		return listGlobalPoliciesResponse{Err: err}, nil
 	}
 	return listGlobalPoliciesResponse{Policies: resp}, nil
 }
 
-func (svc Service) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
+func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	return svc.ds.ListGlobalPolicies(ctx, req)
+	return svc.ds.ListGlobalPolicies(ctx, opts)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
