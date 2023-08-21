@@ -34,7 +34,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.12.0
 	github.com/go-kit/log v0.2.1
-	github.com/go-sql-driver/mysql v1.6.0
+	github.com/go-sql-driver/mysql v1.7.1
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
 	github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/gomodule/redigo v1.8.9
@@ -321,7 +321,7 @@ require (
 
 replace github.com/kolide/kit => github.com/zwass/kit v0.0.0-20210625184505-ec5b5c5cce9c
 
-replace github.com/micromdm/nanomdm => github.com/fleetdm/nanomdm v0.3.1-0.20230117193224-130d63f1d4ac
+replace github.com/micromdm/nanomdm => github.com/fleetdm/nanomdm v0.3.1-0.20230710170238-fd0813187f24
 
 replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24
 
