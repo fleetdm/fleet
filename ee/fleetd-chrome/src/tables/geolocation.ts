@@ -18,7 +18,7 @@ export default class TableGeolocation extends Table {
       {
         ip: this.ensureString(json.ip),
         city: this.ensureString(json.city),
-        country: this.ensureString(json.country),
+        country: this.ensureString(json.country_name),
         region: this.ensureString(json.region),
       },
     ];
