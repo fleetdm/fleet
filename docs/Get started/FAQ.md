@@ -577,10 +577,10 @@ Most likely, yes! While we'd definitely recommend keeping Fleet up to date in or
 ## What happened to the "Schedule" page? 
 Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval," "platform") or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query which every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept. 
 
-To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and pack into the new merged query concept: 
+To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged query concept: 
 - Any global scheduled query will have its query converted into a global query with the relevant schedule attributes (frequency, min. osquery version, logging, etc.).
 - Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
-- Any query that is referenced by a pack will be converted into a global query and the pack will reference it. Packs should continue functioning as before.
+- Any query that is referenced by a 2017 pack will be converted into a global query and the 2017 pack will reference it. The 2017 packs should continue functioning as before.
 
 Important: To avoid naming conflicts, a query must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names. 
 
