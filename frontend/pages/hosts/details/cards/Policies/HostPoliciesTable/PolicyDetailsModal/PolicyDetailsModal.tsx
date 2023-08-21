@@ -3,6 +3,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
 import { IHostPolicy } from "interfaces/policy";
+import ClickableUrls from "components/ClickableUrls/ClickableUrls";
 
 interface IPolicyDetailsProps {
   onCancel: () => void;
@@ -26,7 +27,7 @@ const PolicyDetailsModal = ({
         {policy?.resolution && (
           <div className={`${baseClass}__resolution`}>
             <span className={`${baseClass}__resolve-header`}> Resolve:</span>
-            <p>{policy?.resolution}</p>
+            {policy?.resolution && <ClickableUrls text={policy?.resolution} />}
           </div>
         )}
         <div className="modal-cta-wrap">

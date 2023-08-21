@@ -216,6 +216,7 @@ html, body {
     [purpose='header-nav-btn'][aria-expanded='true'] {
       font-weight: 700;
       outline: none;
+      color: #192147;
     }
     [purpose='header-nav-btn']:before {
       display: block;
@@ -231,7 +232,8 @@ html, body {
       cursor: pointer;
       display: inline-block;
     }
-    &:hover {
+    [purpose='header-nav-btn']:hover {
+      font-weight: 700;
       text-decoration: none;
     }
     &:focus {

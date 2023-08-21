@@ -1661,14 +1661,14 @@ SET
 	status = ?
 WHERE
 	host_uuid = ?
-	AND status = ?
+	AND status IN(?)
 	AND operation_type = ?
 	AND profile_identifier IN(?)`
 
 	args := []interface{}{
 		fleet.MDMAppleDeliveryVerified,
 		host.UUID,
-		fleet.MDMAppleDeliveryVerifying,
+		[]interface{}{fleet.MDMAppleDeliveryVerifying, fleet.MDMAppleDeliveryFailed},
 		fleet.MDMAppleOperationTypeInstall,
 		identifiers,
 	}
