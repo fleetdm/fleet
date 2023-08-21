@@ -49,6 +49,7 @@ func TestPolicies(t *testing.T) {
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 		{"TestPolicyIDsByName", testPolicyByName},
+		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2210,10 +2211,7 @@ func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
 }
 
-func TestListGlobalPoliciesCanPaginate(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	// create 30 policies
 	for i := 0; i < 30; i++ {
 		_, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
@@ -2242,6 +2240,41 @@ func TestListGlobalPoliciesCanPaginate(t *testing.T) {
 
 	// No list options returns all policies
 	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{})
+	assert.Len(t, policies, 30)
+	require.NoError(t, err)
+}
+
+func testListTeamPoliciesCanPaginate(t *testing.T, ds *Datastore) {
+	tm, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+
+	// create 30 policies
+	for i := 0; i < 30; i++ {
+		_, err := ds.NewTeamPolicy(context.Background(), tm.ID, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
+		require.NoError(t, err)
+	}
+
+	// Page 0 contains 20 policies
+	policies, _, err := ds.ListTeamPolicies(context.Background(), tm.ID, fleet.ListOptions{
+		Page:    0,
+		PerPage: 20,
+	})
+
+	assert.Equal(t, "policy0", policies[0].Name)
+	assert.Len(t, policies, 20)
+	require.NoError(t, err)
+
+	// Page 1 contains 10 policies
+	policies, _, err = ds.ListTeamPolicies(context.Background(), tm.ID, fleet.ListOptions{
+		Page:    1,
+		PerPage: 20,
+	})
+
+	assert.Equal(t, "policy20", policies[0].Name)
+	assert.Len(t, policies, 10)
+	require.NoError(t, err)
+
+	// No list options returns all policies
+	policies, _, err = ds.ListTeamPolicies(context.Background(), 1, fleet.ListOptions{})
 	assert.Len(t, policies, 30)
 	require.NoError(t, err)
 }
