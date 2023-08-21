@@ -255,3 +255,7 @@ type PolicyMembershipResult struct {
 	PolicyID uint
 	Passes   *bool
 }
+
+type ListGlobalPoliciesRequest struct {
+	ListOptions
+}

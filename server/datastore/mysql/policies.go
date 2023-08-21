@@ -64,11 +64,12 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 
 	var policy fleet.Policy
 	err := sqlx.GetContext(ctx, q, &policy,
-		fmt.Sprintf(`SELECT `+policyCols+`,
+		fmt.Sprintf(`
+		SELECT `+policyCols+`,
 		    COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+			(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+			(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE p.id=? AND %s`, teamWhere),
@@ -263,25 +264,25 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	return nil
 }
 
-func (ds *Datastore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader(ctx), nil, nil)
+func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	return listPoliciesDB(ctx, ds.reader(ctx), nil, nil, opts)
 }
 
 // returns the list of policies associated with the provided teamID, or the
 // global policies if teamID is nil. The pass/fail host counts are the totals
 // regardless of hosts' team if countsForTeamID is nil, or the totals just for
 // hosts that belong to the provided countsForTeamID if it is not nil.
-func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint) ([]*fleet.Policy, error) {
+func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	counts := `
-    (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-    (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+	(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+	(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
 `
 	if countsForTeamID != nil {
 		counts = `
-        (select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=true and h.team_id = ?) as passing_host_count,
-        (select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=false and h.team_id = ?) as failing_host_count
+		(select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=true and h.team_id = ?) as passing_host_count,
+		(select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=false and h.team_id = ?) as failing_host_count
 `
 		args = append(args, *countsForTeamID, *countsForTeamID)
 	}
@@ -292,19 +293,19 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 		args = append(args, *teamID)
 	}
 
+	query := fmt.Sprintf(`
+		SELECT `+policyCols+`,
+			COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
+			%s
+		FROM policies p
+		LEFT JOIN users u ON p.author_id = u.id
+		WHERE %s`, counts, teamWhere)
+
+	query = appendListOptionsToSQL(query, &opts)
+
 	var policies []*fleet.Policy
-	err := sqlx.SelectContext(
-		ctx,
-		q,
-		&policies,
-		fmt.Sprintf(`SELECT `+policyCols+`,
-      COALESCE(u.name, '<deleted>') AS author_name,
-      COALESCE(u.email, '') AS author_email,
-      %s
-    FROM policies p
-    LEFT JOIN users u ON p.author_id = u.id
-    WHERE %s`, counts, teamWhere), args...,
-	)
+	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
 	}
@@ -313,13 +314,13 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 
 func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
 	sql := `SELECT ` + policyCols + `,
-      COALESCE(u.name, '<deleted>') AS author_name,
-      COALESCE(u.email, '') AS author_email,
-      (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-      (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-      FROM policies p
-      LEFT JOIN users u ON p.author_id = u.id
-      WHERE p.id IN (?)`
+	  COALESCE(u.name, '<deleted>') AS author_name,
+	  COALESCE(u.email, '') AS author_email,
+	  (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+	  (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+	  FROM policies p
+	  LEFT JOIN users u ON p.author_id = u.id
+	  WHERE p.id IN (?)`
 	query, args, err := sqlx.In(sql, ids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by ID")
@@ -444,13 +445,13 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), &teamID)
 }
 
-func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
-	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, nil)
+func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, nil, opts)
 	if err != nil {
 		return nil, nil, err
 	}
 	// get inherited (global) policies with counts of hosts for that team
-	inheritedPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), nil, &teamID)
+	inheritedPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), nil, &teamID, opts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -483,7 +484,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			resolution,
 			team_id,
 			platforms,
-		    critical
+			critical
 		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ?, ?)
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
@@ -554,12 +555,12 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 	// NOTE: this is tested via the server/service/async package tests.
 
 	sql := `
-	    UPDATE
-	      hosts
-	    SET
-	      policy_updated_at = ?
-	    WHERE
-	      id IN (?)`
+		UPDATE
+		  hosts
+		SET
+		  policy_updated_at = ?
+		WHERE
+		  id IN (?)`
 	query, args, err := sqlx.In(sql, ts, ids)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building query to update hosts.policy_updated_at")
@@ -602,18 +603,18 @@ func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerCo
 	}
 
 	delStmt := `
-    DELETE
-      pm
-    FROM
-      policy_membership pm
-    LEFT JOIN
-      hosts h
-    ON
-      pm.host_id = h.id
-    WHERE
-      pm.policy_id = ? AND
-      ( h.id IS NULL OR
-        FIND_IN_SET(h.platform, ?) = 0 )`
+	DELETE
+	  pm
+	FROM
+	  policy_membership pm
+	LEFT JOIN
+	  hosts h
+	ON
+	  pm.host_id = h.id
+	WHERE
+	  pm.policy_id = ? AND
+	  ( h.id IS NULL OR
+		FIND_IN_SET(h.platform, ?) = 0 )`
 
 	var expandedPlatforms []string
 	splitPlatforms := strings.Split(platforms, ",")
@@ -718,9 +719,9 @@ func (ds *Datastore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.Polic
 		rows, err := tx.QueryContext(ctx, `
 			SELECT ai.policy_id, pm.host_id, h.hostname, h.computer_name
 				FROM policy_automation_iterations ai
-			    JOIN policy_membership pm ON pm.policy_id = ai.policy_id
-			        AND (pm.automation_iteration < ai.iteration
-			               OR pm.automation_iteration IS NULL)
+				JOIN policy_membership pm ON pm.policy_id = ai.policy_id
+					AND (pm.automation_iteration < ai.iteration
+						   OR pm.automation_iteration IS NULL)
 				JOIN hosts h ON pm.host_id = h.id
 				WHERE NOT pm.passes
 				LIMIT 1000
@@ -819,8 +820,8 @@ func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 	// `policy_membership`
 	var newCounts PolicyViolationDays
 	if err := sqlx.GetContext(ctx, tx, &newCounts, `
-	     SELECT	(select count(*) from policy_membership where passes=0) as failing_host_count,
-       		(select count(*) from policy_membership) as total_host_count`,
+		 SELECT	(select count(*) from policy_membership where passes=0) as failing_host_count,
+	   		(select count(*) from policy_membership) as total_host_count`,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "count policy violation days")
 	}

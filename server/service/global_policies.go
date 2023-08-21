@@ -94,7 +94,7 @@ type listGlobalPoliciesResponse struct {
 
 func (r listGlobalPoliciesResponse) error() error { return r.Err }
 
-func listGlobalPoliciesEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
+func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	resp, err := svc.ListGlobalPolicies(ctx)
 	if err != nil {
 		return listGlobalPoliciesResponse{Err: err}, nil
@@ -107,7 +107,7 @@ func (svc Service) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, err
 		return nil, err
 	}
 
-	return svc.ds.ListGlobalPolicies(ctx)
+	return svc.ds.ListGlobalPolicies(ctx, req)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
