@@ -105,7 +105,7 @@ const ManageControlsPage = ({
     if (!config?.mdm.enabled_and_configured) {
       document.title = "Manage macOS hosts | Fleet for osquery";
     }
-  }, [location.pathname, config?.mdm.enabled_and_configured]);
+  }, [location, config]);
 
   const onConnectClick = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);

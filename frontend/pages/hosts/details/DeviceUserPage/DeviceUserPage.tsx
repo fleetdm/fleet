@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from "react";
+import React, { useState, useContext, useCallback, useEffect } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
@@ -290,6 +290,27 @@ const DeviceUserPage = ({
       }
     }
   };
+
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    const hostTab = () => {
+      if (location.pathname.includes("software")) {
+        return "software";
+      }
+      if (location.pathname.includes("schedule")) {
+        return "schedule";
+      }
+      if (location.pathname.includes("policies")) {
+        return "policies";
+      }
+      return "";
+    };
+
+    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
+    document.title = `My device ${hostTab()} details | ${
+      host?.display_name || "Unknown host"
+    } | Fleet for osquery`;
+  }, [location.pathname, host]);
 
   const renderActionButtons = () => {
     return (
