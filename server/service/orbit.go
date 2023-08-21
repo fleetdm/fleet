@@ -374,3 +374,72 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 
 	return nil
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Orbit pending script execution request
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitGetScriptRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	ExecutionID  string `json:"execution_id"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitGetScriptRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitGetScriptRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitGetScriptResponse struct {
+	Err error `json:"error,omitempty"`
+	*fleet.HostScriptResult
+}
+
+func (r orbitGetScriptResponse) error() error { return r.Err }
+
+func getOrbitScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitGetScriptRequest)
+	script, err := svc.GetHostScript(ctx, req.ExecutionID)
+	if err != nil {
+		return orbitGetScriptResponse{Err: err}, nil
+	}
+	return orbitGetScriptResponse{HostScriptResult: script}, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit script execution result
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostScriptResultRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	ExecutionID  string `json:"execution_id"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostScriptResultRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPostScriptResultRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostScriptResultResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostScriptResultResponse) error() error { return r.Err }
+
+func postOrbitScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPostScriptResultRequest)
+	script, err := svc.GetHostScript(ctx, req.ExecutionID)
+	if err != nil {
+		return orbitPostScriptResultResponse{Err: err}, nil
+	}
+	return orbitPostScriptResultResponse{}, nil
+}
