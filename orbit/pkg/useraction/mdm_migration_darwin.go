@@ -12,7 +12,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/rs/zerolog/log"
 )
 
@@ -31,10 +30,9 @@ const (
 var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Parse(`
 ## Migrate to Fleet
 
-To begin, click "Start." Your default browser will open your My Device page.
-
-{{ if .IsUnmanaged }}You {{ else }} Once you start, you {{ end -}} will see this dialog every 15 minutes until you click "Turn on MDM" and complete the instructions.` +
-	"\n\n![Image showing the Fleet UI](https://fleetdm.com/images/permanent/mdm-migration-screenshot-768x180-2x.png)\n\n",
+Select **Start** and look for this notification in your notification center:` +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-notification-344x68.png)\n\n" +
+	"After you start, this window will popup every 5 minutes until you finish.",
 ))
 
 var errorTemplate = template.Must(template.New("").Parse(`
@@ -47,12 +45,11 @@ Please contact your IT admin [here]({{ .ContactURL }}).
 // swiftDialog.
 type baseDialog struct {
 	path        string
-	fleetURL    string
 	interruptCh chan struct{}
 }
 
-func newBaseDialog(path, fleetURL string) *baseDialog {
-	return &baseDialog{path: path, fleetURL: fleetURL, interruptCh: make(chan struct{})}
+func newBaseDialog(path string) *baseDialog {
+	return &baseDialog{path: path, interruptCh: make(chan struct{})}
 }
 
 func (b *baseDialog) CanRun() bool {
@@ -61,17 +58,7 @@ func (b *baseDialog) CanRun() bool {
 		return false
 	}
 
-	// we perform this check locally on the client too to avoid showing the
-	// dialog if the client has already migrated but the Fleet server
-	// doesn't know about this state yet.
-	enrolled, err := profiles.IsEnrolledIntoMatchingURL(b.fleetURL)
-	if err != nil {
-		log.Error().Err(err).Msg("fetching enrollment status to show swiftDialog")
-		return false
-	}
-
-	// only run the dialog if the host is not enrolled into Fleet
-	return !enrolled
+	return true
 }
 
 // Exit sends the interrupt signal to try and stop the current swiftDialog
@@ -139,10 +126,10 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 	return exitCodeCh, errCh
 }
 
-func NewMDMMigrator(path, fleetURL string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
+func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
 	return &swiftDialogMDMMigrator{
 		handler:    handler,
-		baseDialog: newBaseDialog(path, fleetURL),
+		baseDialog: newBaseDialog(path),
 		frequency:  frequency,
 	}
 }

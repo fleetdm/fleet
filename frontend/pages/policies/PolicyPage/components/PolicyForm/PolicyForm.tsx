@@ -466,7 +466,8 @@ const PolicyForm = ({
     );
   };
 
-  const renderRunForObserver = (
+  // Observers and observer+ of existing query, team role viewing inherited policy
+  const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
         <div className="name-description-resolve">
@@ -499,127 +500,139 @@ const PolicyForm = ({
     </form>
   );
 
-  const renderForGlobalAdminOrAnyMaintainer = (
-    <>
-      <form className={`${baseClass}__wrapper`} autoComplete="off">
-        <div className={`${baseClass}__title-bar`}>
-          <div className="name-description-resolve">
-            {renderName()}
-            {renderDescription()}
-            {renderResolution()}
+  // Admin or maintainer
+  const renderEditableQueryForm = () => {
+    // Save disabled for no platforms selected, query name blank on existing query, or sql errors
+    const disableSaveFormErrors =
+      (isEditMode && !isAnyPlatformSelected) ||
+      (lastEditedQueryName === "" && !!lastEditedQueryId) ||
+      !!size(errors);
+
+    return (
+      <>
+        <form className={`${baseClass}__wrapper`} autoComplete="off">
+          <div className={`${baseClass}__title-bar`}>
+            <div className="name-description-resolve">
+              {renderName()}
+              {renderDescription()}
+              {renderResolution()}
+            </div>
+            <div className="author">{isEditMode && renderAuthor()}</div>
           </div>
-          <div className="author">{isEditMode && renderAuthor()}</div>
-        </div>
-        <FleetAce
-          value={lastEditedQueryBody}
-          error={errors.query}
-          label="Query"
-          labelActionComponent={renderLabelComponent()}
-          name="query editor"
-          onLoad={onLoad}
-          wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={onChangePolicy}
-          handleSubmit={promptSavePolicy}
-          wrapEnabled
-          focus={!isEditMode}
-        />
-        <span className={`${baseClass}__platform-compatibility`}>
-          {renderPlatformCompatibility()}
-        </span>
-        {(isEditMode || defaultPolicy) && platformSelector.render()}
-        {isEditMode && isPremiumTier && renderCriticalPolicy()}
-        {renderLiveQueryWarning()}
-        <div className={`${baseClass}__button-wrap`}>
-          {hasSavePermissions && (
-            <>
-              <span
-                className={`${baseClass}__button-wrap--tooltip`}
-                data-tip
-                data-for={`${baseClass}__button-wrap--tooltip`}
-                data-tip-disable={!isEditMode || isAnyPlatformSelected}
-              >
-                <Button
-                  variant="brand"
-                  onClick={promptSavePolicy()}
-                  disabled={isEditMode && !isAnyPlatformSelected}
-                  className="save-loading"
-                  isLoading={isUpdatingPolicy}
-                >
-                  Save
-                </Button>
-              </span>
-              <ReactTooltip
-                className={`${baseClass}__button-wrap--tooltip`}
-                place="bottom"
-                effect="solid"
-                id={`${baseClass}__button-wrap--tooltip`}
-                backgroundColor="#3e4771"
-              >
-                Select the platform(s) this
-                <br />
-                policy will be checked on
-                <br />
-                to save or run the policy.
-              </ReactTooltip>
-            </>
-          )}
-          <span
-            className={`${baseClass}__button-wrap--tooltip`}
-            data-tip
-            data-for={`${baseClass}__button-wrap--tooltip`}
-            data-tip-disable={!isEditMode || isAnyPlatformSelected}
-          >
-            <Button
-              className={`${baseClass}__run`}
-              variant="blue-green"
-              onClick={goToSelectTargets}
-              disabled={isEditMode && !isAnyPlatformSelected}
-            >
-              Run
-            </Button>
+          <FleetAce
+            value={lastEditedQueryBody}
+            error={errors.query}
+            label="Query"
+            labelActionComponent={renderLabelComponent()}
+            name="query editor"
+            onLoad={onLoad}
+            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            onChange={onChangePolicy}
+            handleSubmit={promptSavePolicy}
+            wrapEnabled
+            focus={!isEditMode}
+          />
+          <span className={`${baseClass}__platform-compatibility`}>
+            {renderPlatformCompatibility()}
           </span>
-          <ReactTooltip
-            className={`${baseClass}__button-wrap--tooltip`}
-            place="bottom"
-            effect="solid"
-            id={`${baseClass}__button-wrap--tooltip`}
-            backgroundColor="#3e4771"
-          >
-            Select the platform(s) this
-            <br />
-            policy will be checked on
-            <br />
-            to save or run the policy.
-          </ReactTooltip>
-        </div>
-      </form>
-      {isSaveNewPolicyModalOpen && (
-        <SaveNewPolicyModal
-          baseClass={baseClass}
-          queryValue={lastEditedQueryBody}
-          onCreatePolicy={onCreatePolicy}
-          setIsSaveNewPolicyModalOpen={setIsSaveNewPolicyModalOpen}
-          backendValidators={backendValidators}
-          platformSelector={platformSelector}
-          isUpdatingPolicy={isUpdatingPolicy}
-        />
-      )}
-    </>
-  );
+          {(isEditMode || defaultPolicy) && platformSelector.render()}
+          {isEditMode && isPremiumTier && renderCriticalPolicy()}
+          {renderLiveQueryWarning()}
+          <div className={`${baseClass}__button-wrap`}>
+            {hasSavePermissions && (
+              <>
+                <span
+                  className={`${baseClass}__button-wrap--tooltip`}
+                  data-tip
+                  data-for={`${baseClass}__button-wrap--tooltip`}
+                  data-tip-disable={!isEditMode || isAnyPlatformSelected}
+                >
+                  <Button
+                    variant="brand"
+                    onClick={promptSavePolicy()}
+                    disabled={disableSaveFormErrors}
+                    className="save-loading"
+                    isLoading={isUpdatingPolicy}
+                  >
+                    Save
+                  </Button>
+                </span>
+                <ReactTooltip
+                  className={`${baseClass}__button-wrap--tooltip`}
+                  place="bottom"
+                  effect="solid"
+                  id={`${baseClass}__button-wrap--tooltip`}
+                  backgroundColor="#3e4771"
+                >
+                  Select the platform(s) this
+                  <br />
+                  policy will be checked on
+                  <br />
+                  to save or run the policy.
+                </ReactTooltip>
+              </>
+            )}
+            <span
+              className={`${baseClass}__button-wrap--tooltip`}
+              data-tip
+              data-for={`${baseClass}__button-wrap--tooltip`}
+              data-tip-disable={!isEditMode || isAnyPlatformSelected}
+            >
+              <Button
+                className={`${baseClass}__run`}
+                variant="blue-green"
+                onClick={goToSelectTargets}
+                disabled={isEditMode && !isAnyPlatformSelected}
+              >
+                Run
+              </Button>
+            </span>
+            <ReactTooltip
+              className={`${baseClass}__button-wrap--tooltip`}
+              place="bottom"
+              effect="solid"
+              id={`${baseClass}__button-wrap--tooltip`}
+              backgroundColor="#3e4771"
+            >
+              Select the platform(s) this
+              <br />
+              policy will be checked on
+              <br />
+              to save or run the policy.
+            </ReactTooltip>
+          </div>
+        </form>
+        {isSaveNewPolicyModalOpen && (
+          <SaveNewPolicyModal
+            baseClass={baseClass}
+            queryValue={lastEditedQueryBody}
+            onCreatePolicy={onCreatePolicy}
+            setIsSaveNewPolicyModalOpen={setIsSaveNewPolicyModalOpen}
+            backendValidators={backendValidators}
+            platformSelector={platformSelector}
+            isUpdatingPolicy={isUpdatingPolicy}
+          />
+        )}
+      </>
+    );
+  };
 
   if (isStoredPolicyLoading) {
     return <Spinner />;
   }
 
-  if (
+  const noEditPermissions =
     isTeamObserver ||
     isGlobalObserver ||
-    (policyTeamId === 0 && !isOnGlobalTeam)
-  ) {
-    return renderRunForObserver;
+    (policyTeamId === 0 && !isOnGlobalTeam); // Team user viewing inherited policy
+
+  // Render non-editable form only
+  if (noEditPermissions) {
+    return renderNonEditableForm;
   }
 
-  return renderForGlobalAdminOrAnyMaintainer;
+  // Render default editable form
+  return renderEditableQueryForm();
 };
 
 export default PolicyForm;

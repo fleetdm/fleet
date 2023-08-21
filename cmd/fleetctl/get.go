@@ -512,7 +512,7 @@ func getPacksCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "packs",
 		Aliases: []string{"pack", "p"},
-		Usage:   "List information about one or more packs",
+		Usage:   `Retrieve 2017 "Packs" data for migration into modern osquery packs`,
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  withQueriesFlagName,
@@ -574,7 +574,7 @@ func getPacksCommand() *cli.Command {
 
 			// if name wasn't provided, list all packs
 			if name == "" {
-				packs, err := client.GetPacks()
+				packs, err := client.GetPacksSpecs()
 				if err != nil {
 					return fmt.Errorf("could not list packs: %w", err)
 				}
@@ -590,7 +590,7 @@ func getPacksCommand() *cli.Command {
 				}
 
 				if len(packs) == 0 {
-					fmt.Println("No packs found")
+					log(c, "No 2017 \"Packs\" found.\n")
 					return nil
 				}
 
@@ -607,12 +607,19 @@ func getPacksCommand() *cli.Command {
 
 				columns := []string{"name", "platform", "description", "disabled"}
 				printTable(c, columns, data)
+				log(c, fmt.Sprintf(`Found %d 2017 "Packs".
+
+Querying in Fleet is becoming more powerful. To learn more, visit:
+https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs
+
+To retrieve "Pack" data in a portable format for upgrading, run `+"`fleetctl upgrade-packs`"+`.
+`, len(packs)))
 
 				return nil
 			}
 
 			// Name was specified
-			pack, err := client.GetPack(name)
+			pack, err := client.GetPackSpec(name)
 			if err != nil {
 				return err
 			}

@@ -28,11 +28,6 @@ tmp/
 .vscode
 .idea
 
-# Cypress e2e testing
-cypress/screenshots
-cypress/videos
-cypress/downloads
-
 # fleetdm.com website (uses its own formatting conventions)
 website/
 

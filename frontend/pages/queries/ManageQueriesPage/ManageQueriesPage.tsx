@@ -22,7 +22,7 @@ import {
 } from "interfaces/schedulable_query";
 import queriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
-import checkPlatformCompatibility from "utilities/sql_tools";
+import { checkPlatformCompatibility } from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";

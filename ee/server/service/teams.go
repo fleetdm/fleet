@@ -706,6 +706,18 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		if create {
+
+			// create a new team enroll secret if none is provided for a new team.
+			if len(secrets) == 0 {
+				secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
+				}
+				secrets = append(secrets, &fleet.EnrollSecret{
+					Secret: secret,
+				})
+			}
+
 			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts.DryRun)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating team from spec")

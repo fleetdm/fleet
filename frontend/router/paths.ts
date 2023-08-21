@@ -17,6 +17,8 @@ export default {
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
   DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
+
+  // Admin pages
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
@@ -24,17 +26,19 @@ export default {
   ADMIN_INTEGRATIONS_MDM_MAC: `${URL_PREFIX}/settings/integrations/mdm/apple`,
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT: `${URL_PREFIX}/settings/integrations/automatic-enrollment`,
+  ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
-  ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
-  ADMIN_SETTINGS_INFO: `${URL_PREFIX}/settings/organization/info`,
-  ADMIN_SETTINGS_WEBADDRESS: `${URL_PREFIX}/settings/organization/webaddress`,
-  ADMIN_SETTINGS_SSO: `${URL_PREFIX}/settings/organization/sso`,
-  ADMIN_SETTINGS_SMTP: `${URL_PREFIX}/settings/organization/smtp`,
-  ADMIN_SETTINGS_AGENTS: `${URL_PREFIX}/settings/organization/agents`,
-  ADMIN_SETTINGS_HOST_STATUS_WEBHOOK: `${URL_PREFIX}/settings/organization/host-status-webhook`,
-  ADMIN_SETTINGS_STATISTICS: `${URL_PREFIX}/settings/organization/statistics`,
-  ADMIN_SETTINGS_ADVANCED: `${URL_PREFIX}/settings/organization/advanced`,
-  ADMIN_SETTINGS_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
+  ADMIN_ORGANIZATION: `${URL_PREFIX}/settings/organization`,
+  ADMIN_ORGANIZATION_INFO: `${URL_PREFIX}/settings/organization/info`,
+  ADMIN_ORGANIZATION_WEBADDRESS: `${URL_PREFIX}/settings/organization/webaddress`,
+  ADMIN_ORGANIZATION_SSO: `${URL_PREFIX}/settings/organization/sso`,
+  ADMIN_ORGANIZATION_SMTP: `${URL_PREFIX}/settings/organization/smtp`,
+  ADMIN_ORGANIZATION_AGENTS: `${URL_PREFIX}/settings/organization/agents`,
+  ADMIN_ORGANIZATION_HOST_STATUS_WEBHOOK: `${URL_PREFIX}/settings/organization/host-status-webhook`,
+  ADMIN_ORGANIZATION_STATISTICS: `${URL_PREFIX}/settings/organization/statistics`,
+  ADMIN_ORGANIZATION_ADVANCED: `${URL_PREFIX}/settings/organization/advanced`,
+  ADMIN_ORGANIZATION_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
+
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
   },
@@ -55,6 +59,7 @@ export default {
     }`;
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
+  NO_ACCESS: `${URL_PREFIX}/login/denied`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
   FLEET_403: `${URL_PREFIX}/403`,
   LOGIN: `${URL_PREFIX}/login`,
