@@ -787,4 +787,10 @@ type Service interface {
 
 	// GetMDMWindowsTOSContent returns TOS content
 	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Scripts
+
+	// GetScriptResult returns the result of a script run
+	GetScriptResult(ctx context.Context, scriptID uint) (*ScriptResult, error)
 }

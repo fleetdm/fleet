@@ -1007,6 +1007,12 @@ type Datastore interface {
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
 	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Scripts
+
+	// GetScriptResults returns the results of a script run for a host.
+	GetScriptResult(ctx context.Context, scriptID uint) (*ScriptResult, error)
 }
 
 const (

@@ -662,6 +662,8 @@ type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.
 
 type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) error
 
+type GetScriptResultFunc func(ctx context.Context, scriptID uint) (*fleet.ScriptResult, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1628,6 +1630,9 @@ type DataStore struct {
 
 	MDMWindowsDeleteEnrolledDeviceFunc        MDMWindowsDeleteEnrolledDeviceFunc
 	MDMWindowsDeleteEnrolledDeviceFuncInvoked bool
+
+	GetScriptResultFunc           GetScriptResultFunc
+	GetScriptResultFuncInvoked    bool
 
 	mu sync.Mutex
 }
@@ -3884,4 +3889,11 @@ func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevic
 	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) GetScriptResult(ctx context.Context, scriptID uint) (*fleet.ScriptResult, error) {
+	s.mu.Lock()
+	s.GetScriptResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetScriptResult(ctx, scriptID)
 }
