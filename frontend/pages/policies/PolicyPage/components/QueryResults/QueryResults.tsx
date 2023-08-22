@@ -1,12 +1,10 @@
 import React, { useState, useContext } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
-import { format } from "date-fns";
 import FileSaver from "file-saver";
 import { get } from "lodash";
 import { PolicyContext } from "context/policy";
 
-import convertToCSV from "utilities/convert_to_csv";
 import {
   generateCSVFilename,
   generateCSVPolicyResults,
@@ -39,7 +37,7 @@ interface IQueryResultsProps {
 }
 
 const baseClass = "query-results";
-const CSV_TITLE = "New Policy Results";
+const CSV_TITLE = "New Policy";
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
@@ -80,7 +78,7 @@ const QueryResults = ({
       FileSaver.saveAs(
         generateCSVPolicyResults(
           hostsExport,
-          generateCSVFilename(policyName || CSV_TITLE)
+          generateCSVFilename(`${policyName || CSV_TITLE} - Results`)
         )
       );
     }
@@ -93,7 +91,7 @@ const QueryResults = ({
       FileSaver.saveAs(
         generateCSVPolicyErrors(
           errors,
-          generateCSVFilename(`${policyName || CSV_TITLE} | Errors`)
+          generateCSVFilename(`${policyName || CSV_TITLE} - Errors`)
         )
       );
     }

@@ -18,7 +18,6 @@ export const generateCSVFilename = (descriptor: string) => {
 // Query results and query errors
 export const generateCSVQueryResults = (
   rows: Row[],
-  // | ICampaignError[],
   filename: string,
   tableHeaders: Column[] | string[]
 ) => {
@@ -44,18 +43,9 @@ export const generateCSVPolicyResults = (
   filename: string
 ) => {
   console.log("generateExportCSVFile rows", rows);
-  return new global.window.File(
-    [
-      convertToCSV({
-        objArray: rows,
-        fieldSortFunc: reorderCSVFields,
-      }),
-    ],
-    filename,
-    {
-      type: "text/csv",
-    }
-  );
+  return new global.window.File([convertToCSV({ objArray: rows })], filename, {
+    type: "text/csv",
+  });
 };
 
 // Policy errors only

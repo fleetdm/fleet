@@ -35,7 +35,7 @@ interface IQueryResultsProps {
 }
 
 const baseClass = "query-results";
-const CSV_QUERY_TITLE = "New Query Results";
+const CSV_TITLE = "New Query";
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
@@ -119,7 +119,7 @@ const QueryResults = ({
     FileSaver.saveAs(
       generateCSVQueryResults(
         filteredResults,
-        generateCSVFilename(queryName || CSV_QUERY_TITLE),
+        generateCSVFilename(`${queryName || CSV_TITLE} - Results`),
         tableHeaders
       )
     );
@@ -131,7 +131,7 @@ const QueryResults = ({
     FileSaver.saveAs(
       generateCSVQueryResults(
         filteredErrors,
-        generateCSVFilename(`${queryName || CSV_QUERY_TITLE} | Errors`),
+        generateCSVFilename(`${queryName || CSV_TITLE} - Errors`),
         errorTableHeaders
       )
     );

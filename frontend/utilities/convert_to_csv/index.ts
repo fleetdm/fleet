@@ -5,7 +5,7 @@ const defaultFieldSortFunc = (fields: string[]) => fields;
 interface ConvertToCSV {
   objArray: any | ICampaignError[];
   fieldSortFunc?: (fields: string[]) => string[];
-  tableHeaders?: any[]; // TODO: typing
+  tableHeaders?: any; // TODO: typing
 }
 
 const convertToCSV = ({
@@ -15,9 +15,9 @@ const convertToCSV = ({
 }: ConvertToCSV) => {
   const tableHeadersStrings: string[] = tableHeaders
     ? tableHeaders.map((header: { id: string }) => header.id) // TODO: typing
-    : [];
+    : Object.keys(objArray[0]);
 
-  console.log("objArray");
+  console.log("objArray", objArray);
 
   const fields = fieldSortFunc(tableHeadersStrings);
 
