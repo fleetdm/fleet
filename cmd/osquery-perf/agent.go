@@ -632,6 +632,7 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 				log.Println("save disabled host script result:", err)
 				return
 			}
+			log.Printf("did save disabled host script result: id=%s\n", execID)
 			continue
 		}
 
