@@ -151,6 +151,7 @@ func TestHosts(t *testing.T) {
 		{"ListHostsLiteByUUIDs", testHostsListHostsLiteByUUIDs},
 		{"GetMatchingHostSerials", testGetMatchingHostSerials},
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
+		{"HostScriptResult", testHostScriptResult},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5775,6 +5776,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.RecordHostBootstrapPackage(context.Background(), "command-uuid", host.UUID)
 	require.NoError(t, err)
+	_, err = ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
+	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
@@ -7262,4 +7265,119 @@ func testHostsListHostsLiteByIDs(t *testing.T, ds *Datastore) {
 			require.ElementsMatch(t, c.wantIDs, gotIDs)
 		})
 	}
+}
+
+func testHostScriptResult(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// no script saved yet
+	pending, err := ds.ListPendingHostScriptExecutions(ctx, 1, time.Second)
+	require.NoError(t, err)
+	require.Empty(t, pending)
+
+	_, err = ds.GetHostScriptExecutionResult(ctx, "abc")
+	require.Error(t, err)
+	var nfe *notFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// create a createdScript execution request
+	createdScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, createdScript.ID)
+	require.NotEmpty(t, createdScript.ExecutionID)
+	require.Equal(t, uint(1), createdScript.HostID)
+	require.NotEmpty(t, createdScript.ExecutionID)
+	require.Equal(t, "echo", createdScript.ScriptContents)
+	require.False(t, createdScript.ExitCode.Valid)
+	require.Empty(t, createdScript.Output)
+
+	// the script execution is now listed as pending for this host
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, 10*time.Second)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	require.Equal(t, createdScript.ID, pending[0].ID)
+
+	// waiting for a second and an ignore of 0s ignores this script
+	time.Sleep(time.Second)
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, 0)
+	require.NoError(t, err)
+	require.Empty(t, pending)
+
+	// record a result for this execution
+	err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: createdScript.ExecutionID,
+		Output:      "foo",
+		Runtime:     2,
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
+
+	// it is not pending anymore
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, 10*time.Second)
+	require.NoError(t, err)
+	require.Empty(t, pending)
+
+	// the script result can be retrieved
+	script, err := ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
+	require.NoError(t, err)
+	expectScript := *createdScript
+	expectScript.Output = "foo"
+	expectScript.Runtime = 2
+	expectScript.ExitCode = sql.NullInt64{Int64: 0, Valid: true}
+	require.Equal(t, &expectScript, script)
+
+	// create another script execution request
+	createdScript, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo2",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, createdScript.ID)
+	require.NotEmpty(t, createdScript.ExecutionID)
+
+	// the script result can be retrieved even if it has no result yet
+	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, createdScript, script)
+
+	// record a result for this execution, with an output that is too large
+	largeOutput := strings.Repeat("a", 1000) +
+		strings.Repeat("b", 1000) +
+		strings.Repeat("c", 1000) +
+		strings.Repeat("d", 1000) +
+		strings.Repeat("e", 1000) +
+		strings.Repeat("f", 1000) +
+		strings.Repeat("g", 1000) +
+		strings.Repeat("h", 1000) +
+		strings.Repeat("i", 1000) +
+		strings.Repeat("j", 1000) +
+		strings.Repeat("k", 1000)
+	expectedOutput := strings.Repeat("b", 1000) +
+		strings.Repeat("c", 1000) +
+		strings.Repeat("d", 1000) +
+		strings.Repeat("e", 1000) +
+		strings.Repeat("f", 1000) +
+		strings.Repeat("g", 1000) +
+		strings.Repeat("h", 1000) +
+		strings.Repeat("i", 1000) +
+		strings.Repeat("j", 1000) +
+		strings.Repeat("k", 1000)
+
+	err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: createdScript.ExecutionID,
+		Output:      largeOutput,
+		Runtime:     10,
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+
+	// the script result can be retrieved
+	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, expectedOutput, script.Output)
 }
