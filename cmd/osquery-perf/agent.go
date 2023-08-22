@@ -622,7 +622,17 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 	log.Printf("running scripts: %v\n", execIDs)
 	for _, execID := range execIDs {
 		if a.disableScriptExec {
-			// TODO(mna): send a no-op result without executing if script exec is disabled
+			// send a no-op result without executing if script exec is disabled
+			if err := orbitClient.SaveHostScriptResult(&fleet.HostScriptResultPayload{
+				ExecutionID: execID,
+				Output:      "script execution is disabled",
+				Runtime:     0,
+				ExitCode:    -1,
+			}); err != nil {
+				log.Println("save disabled host script result:", err)
+				return
+			}
+			continue
 		}
 
 		script, err := orbitClient.GetHostScript(execID)
@@ -640,7 +650,8 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 		time.Sleep(time.Duration(runtime) * time.Second)
 
 		if err := orbitClient.SaveHostScriptResult(&fleet.HostScriptResultPayload{
-			ExecutionID: execID,
+			HostID:      script.HostID,
+			ExecutionID: script.ExecutionID,
 			Output:      base64.StdEncoding.EncodeToString(buf[:n]),
 			Runtime:     runtime,
 			ExitCode:    exitCode,
@@ -648,7 +659,7 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 			log.Println("save host script result:", err)
 			return
 		}
-		log.Println("did save host script result: ", execID, n, runtime, exitCode)
+		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d\n", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
 	}
 }
 
