@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sort"
@@ -48,6 +49,7 @@ func TestPolicies(t *testing.T) {
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 		{"TestUpdatePolicyFailureCountsForHosts", testUpdatePolicyFailureCountsForHosts},
+		{"TestPolicyIDsByName", testPolicyByName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1242,7 +1244,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 1 from updated;",
 			Description: "query1 desc updated",
 			Resolution:  "some resolution updated",
-			Team:        "", // TODO(lucas): no effect.
+			Team:        "", // No error, team did not change
 			Platform:    "",
 		},
 		{
@@ -1250,7 +1252,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 2 from updated;",
 			Description: "query2 desc updated",
 			Resolution:  "some other resolution updated",
-			Team:        "team1", // TODO(lucas): no effect.
+			Team:        "team1", // No error, team did not change
 			Platform:    "windows",
 		},
 	}))
@@ -1280,6 +1282,18 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
 	assert.Equal(t, "windows", teamPolicies[0].Platform)
+
+	// Test error when modifying team on existing policy
+	require.Error(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:        "query1",
+			Query:       "select 1 from updated again;",
+			Description: "query1 desc updated again",
+			Resolution:  "some resolution updated again",
+			Team:        "team1", // Modifying teams on existing policies is not allowed
+			Platform:    "",
+		},
+	}))
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {
@@ -1392,6 +1406,27 @@ func testPoliciesDelUser(t *testing.T, ds *Datastore) {
 	assert.Nil(t, gp.AuthorID)
 	assert.Equal(t, "<deleted>", gp.AuthorName)
 	assert.Empty(t, gp.AuthorEmail)
+}
+
+func testPolicyByName(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
+	ctx := context.Background()
+
+	gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "global query",
+		Query:       "select 1;",
+		Description: "global query desc",
+		Resolution:  "global query resolution",
+	})
+	require.NoError(t, err)
+
+	policy, err := ds.PolicyByName(ctx, "global query")
+	require.NoError(t, err)
+	assert.Equal(t, gp.ID, policy.ID)
+
+	policy, err = ds.PolicyByName(ctx, "non-existent")
+	require.Error(t, sql.ErrNoRows, err)
+	assert.Nil(t, policy)
 }
 
 func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
