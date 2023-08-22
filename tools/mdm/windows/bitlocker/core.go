@@ -55,10 +55,29 @@ func BitlockerDecryption() error {
 	return nil
 }
 
+func GetBitlockerStatus() (*EncryptionStatus, error) {
+
+	// Connect to the volume
+	vol, err := Connect("c:")
+	if err != nil {
+		return nil, fmt.Errorf("there was an error connecting to the volume - error: %v", err)
+	}
+	defer vol.Close()
+
+	// Get volume status
+	status, err := vol.GetBitlockerStatus()
+	if err != nil {
+		return nil, fmt.Errorf("there was an error starting decryption - error: %v", err)
+	}
+
+	return status, nil
+}
+
 func main() {
 
 	enableBitlocker := flag.Bool("encrypt", false, "encrypt the drive")
 	disableBitlocker := flag.Bool("decrypt", false, "decrypt the drive")
+	statusBitlocker := flag.Bool("status", true, "get drive status")
 
 	flag.Parse()
 
@@ -87,9 +106,27 @@ func main() {
 		}
 
 		fmt.Println("Bitlocker decryption started!")
+
+	} else if *statusBitlocker {
+		fmt.Println("About to get encryption status bitlocker")
+
+		status, err := GetBitlockerStatus()
+		if err != nil {
+			fmt.Printf("bitlocker decryption error - %v\n", err)
+			return
+		}
+
+		fmt.Println("Protection status: ", status.ProtectionStatusDesc)
+		fmt.Println("Conversion status: ", status.ConversionStatusDesc)
+		fmt.Println("Encryption Flags: ", status.EncryptionFlags)
+		fmt.Println("Wiping Status description: ", status.WipingStatusDesc)
+		fmt.Println("Encryption percentage complete: ", status.EncryptionPercentage)
+		fmt.Println("Wiping percentage complete: ", status.WipingPercentage)
+
+		fmt.Println("Bitlocker encryption status gathered!")
+
 	} else {
-		fmt.Println("You must specify either -encrypt or -decrypt")
+		fmt.Println("You must specify either -encrypt, -decrypt or -status")
 		return
 	}
-
 }

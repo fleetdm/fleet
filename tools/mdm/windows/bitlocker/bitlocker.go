@@ -297,3 +297,116 @@ func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) error {
 
 	return nil
 }
+
+// Encryption Status
+type EncryptionStatus struct {
+	ProtectionStatusDesc string
+	ConversionStatusDesc string
+	EncryptionPercentage string
+	EncryptionFlags      string
+	WipingStatusDesc     string
+	WipingPercentage     string
+}
+
+// getConversionStatusDescription returns the current status of the volume
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
+func getConversionStatusDescription(input string) string {
+
+	switch input {
+	case "0":
+		return "FullyDecrypted"
+	case "1":
+		return "FullyEncrypted"
+	case "2":
+		return "EncryptionInProgress"
+	case "3":
+		return "DecryptionInProgress"
+	case "4":
+		return "EncryptionPaused"
+	case "5":
+		return "DecryptionPaused"
+	}
+
+	return "Status " + input
+}
+
+// getWipingStatusDescription returns the current wiping status of the volume
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
+func getWipingStatusDescription(input string) string {
+
+	switch input {
+	case "0":
+		return "FreeSpaceNotWiped"
+	case "1":
+		return "FreeSpaceWiped"
+	case "2":
+		return "FreeSpaceWipingInProgress"
+	case "3":
+		return "FreeSpaceWipingPaused"
+	}
+
+	return "Status " + input
+}
+
+// getProtectionStatusDescription returns the current protection status of the volume
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
+func getProtectionStatusDescription(input string) string {
+
+	switch input {
+	case "0":
+		return "Unprotected"
+	case "1":
+		return "Protected"
+	case "2":
+		return "Unknown"
+	}
+
+	return "Status " + input
+}
+
+// intToPercentage converts an int to a percentage string
+func intToPercentage(num int32) string {
+	percentage := float64(num) / 10000.0
+	return fmt.Sprintf("%.2f%%", percentage)
+}
+
+// GetBitlockerStatus returns the current status of the volume
+//
+// Ref: https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
+// Ref: https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
+func (v *Volume) GetBitlockerStatus() (*EncryptionStatus, error) {
+
+	var conversionStatus int32 = 0
+	var encryptionPercentage int32 = 0
+	var encryptionFlags int32 = 0
+	var wipingStatus int32 = 0
+	var wipingPercentage int32 = 0
+	var precisionFactor int32 = 4
+	var protectionStatus int32 = 0
+
+	resultRaw, err := oleutil.CallMethod(v.handle, "GetConversionStatus", &conversionStatus, &encryptionPercentage, &encryptionFlags, &wipingStatus, &wipingPercentage, precisionFactor)
+	if err != nil {
+		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.letter, encryptErrHandler(val))
+	}
+
+	resultRaw, err = oleutil.CallMethod(v.handle, "GetProtectionStatus", &protectionStatus)
+	if err != nil {
+		return nil, fmt.Errorf("GetProtectionStatus(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return nil, fmt.Errorf("GetProtectionStatus(%s): %w", v.letter, encryptErrHandler(val))
+	}
+
+	// Creating the encryption status struct
+	encStatus := &EncryptionStatus{
+		ProtectionStatusDesc: getProtectionStatusDescription(fmt.Sprintf("%d", protectionStatus)),
+		ConversionStatusDesc: getConversionStatusDescription(fmt.Sprintf("%d", conversionStatus)),
+		EncryptionPercentage: intToPercentage(encryptionPercentage),
+		EncryptionFlags:      fmt.Sprintf("%d", encryptionFlags),
+		WipingStatusDesc:     getWipingStatusDescription(fmt.Sprintf("%d", wipingStatus)),
+		WipingPercentage:     intToPercentage(wipingPercentage),
+	}
+
+	return encStatus, nil
+}
