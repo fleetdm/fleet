@@ -1099,13 +1099,13 @@ func TestHostRunScript(t *testing.T) {
 		}
 	}
 
-	teamHost := &fleet.Host{ID: 1, Hostname: "host-team", TeamID: ptr.Uint(1)}
-	noTeamHost := &fleet.Host{ID: 2, Hostname: "host-no-team", TeamID: nil}
+	teamHost := &fleet.Host{ID: 1, Hostname: "host-team", TeamID: ptr.Uint(1), SeenTime: time.Now()}
+	noTeamHost := &fleet.Host{ID: 2, Hostname: "host-no-team", TeamID: nil, SeenTime: time.Now()}
 	nonExistingHost := &fleet.Host{ID: 3, Hostname: "no-such-host", TeamID: nil}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		if hostID == 1 {
 			return teamHost, nil
 		}

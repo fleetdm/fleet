@@ -36,10 +36,11 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
 	)
 
-	// must load the host (lite is enough, just for the team) to authorize
-	// with the proper team id. We cannot first authorize if the user can list
-	// hosts, because the user could have a write-only role (e.g. gitops).
-	host, err := svc.ds.HostLite(ctx, request.HostID)
+	// must load the host to get the team (cannot use lite, the last seen time is
+	// required to check if it is online) to authorize with the proper team id.
+	// We cannot first authorize if the user can list hosts, in case we
+	// eventually allow a write-only role (e.g. gitops).
+	host, err := svc.ds.Host(ctx, request.HostID)
 	if err != nil {
 		// if error is because the host does not exist, check first if the user
 		// had access to run a script (to prevent leaking valid host ids).
@@ -82,6 +83,12 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
 			return nil, fleet.NewInvalidArgumentError("script_contents", "script cannot start with a hashbang (#!) other than #!/bin/sh")
 		}
+	}
+
+	// host must be online if a "sync" script execution is requested (i.e. if we
+	// will poll to get and return results).
+	if waitForResult > 0 && host.Status(time.Now()) != fleet.StatusOnline {
+		return nil, fleet.NewInvalidArgumentError("host_id", "host is offline")
 	}
 
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, maxPendingScriptAge)
