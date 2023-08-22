@@ -621,6 +621,10 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 
 	log.Printf("running scripts: %v\n", execIDs)
 	for _, execID := range execIDs {
+		if a.disableScriptExec {
+			// TODO(mna): send a no-op result without executing if script exec is disabled
+		}
+
 		script, err := orbitClient.GetHostScript(execID)
 		if err != nil {
 			log.Println("get host script:", err)
