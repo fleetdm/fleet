@@ -7,6 +7,11 @@ import { get } from "lodash";
 import { PolicyContext } from "context/policy";
 
 import convertToCSV from "utilities/convert_to_csv";
+import {
+  generateCSVFilename,
+  generateCSVPolicyResults,
+  generateCSVPolicyErrors,
+} from "utilities/generate_csv";
 import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
@@ -34,7 +39,7 @@ interface IQueryResultsProps {
 }
 
 const baseClass = "query-results";
-const CSV_TITLE = "New Policy";
+const CSV_TITLE = "New Policy Results";
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
@@ -71,14 +76,13 @@ const QueryResults = ({
             host.query_results && host.query_results.length ? "yes" : "no",
         };
       });
-      const csv = convertToCSV({ objArray: hostsExport });
-      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-      const filename = `${policyName || CSV_TITLE} (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
 
-      FileSaver.saveAs(file);
+      FileSaver.saveAs(
+        generateCSVPolicyResults(
+          hostsExport,
+          generateCSVFilename(policyName || CSV_TITLE)
+        )
+      );
     }
   };
 
@@ -86,17 +90,12 @@ const QueryResults = ({
     evt.preventDefault();
 
     if (errors) {
-      const csv = convertToCSV({ objArray: errors });
-
-      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-      const filename = `${
-        policyName || CSV_TITLE
-      } Errors (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
+      FileSaver.saveAs(
+        generateCSVPolicyErrors(
+          errors,
+          generateCSVFilename(`${policyName || CSV_TITLE} | Errors`)
+        )
+      );
     }
   };
 

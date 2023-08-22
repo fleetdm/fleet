@@ -2,12 +2,14 @@ import React, { useState, useContext, useEffect, useCallback } from "react";
 import { Row, Column } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
-import { format } from "date-fns";
 import FileSaver from "file-saver";
 import { QueryContext } from "context/query";
 import { useDebouncedCallback } from "use-debounce";
 
-import generateExportCSVFile from "utilities/generate_csv";
+import {
+  generateCSVFilename,
+  generateCSVQueryResults,
+} from "utilities/generate_csv";
 import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
@@ -24,6 +26,7 @@ import generateResultsTableHeaders from "./QueryResultsTableConfig";
 interface IQueryResultsProps {
   campaign: ICampaign;
   isQueryFinished: boolean;
+  queryName?: string;
   onRunQuery: () => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
@@ -32,19 +35,16 @@ interface IQueryResultsProps {
 }
 
 const baseClass = "query-results";
-const CSV_QUERY_TITLE = "Query Results";
+const CSV_QUERY_TITLE = "New Query Results";
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
 };
 
-const generateExportFilename = (descriptor: string) => {
-  return `${descriptor} (${format(new Date(), "MM-dd-yy hh-mm-ss")}).csv`;
-};
-
 const QueryResults = ({
   campaign,
   isQueryFinished,
+  queryName,
   onRunQuery,
   onStopQuery,
   setSelectedTargets,
@@ -117,9 +117,9 @@ const QueryResults = ({
     evt.preventDefault();
     console.log("filteredResults", filteredResults);
     FileSaver.saveAs(
-      generateExportCSVFile(
+      generateCSVQueryResults(
         filteredResults,
-        generateExportFilename(CSV_QUERY_TITLE),
+        generateCSVFilename(queryName || CSV_QUERY_TITLE),
         tableHeaders
       )
     );
@@ -129,9 +129,9 @@ const QueryResults = ({
     evt.preventDefault();
 
     FileSaver.saveAs(
-      generateExportCSVFile(
+      generateCSVQueryResults(
         filteredErrors,
-        generateExportFilename(`${CSV_QUERY_TITLE} Errors`),
+        generateCSVFilename(`${queryName || CSV_QUERY_TITLE} | Errors`),
         errorTableHeaders
       )
     );
