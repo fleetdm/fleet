@@ -71,7 +71,8 @@ func TestUp_20221223174807(t *testing.T) {
 	args = newHostArgs()
 	args[0] = nil // replaces string for "osquery_host_id"
 	_, err := db.Exec(insertStmt, args...)
-	require.ErrorContains(t, err, "Error 1048: Column 'osquery_host_id' cannot be null")
+	require.ErrorContains(t, err, "Error 1048")
+	require.ErrorContains(t, err, "Column 'osquery_host_id' cannot be null")
 
 	// Apply current migration.
 	applyNext(t, db)
