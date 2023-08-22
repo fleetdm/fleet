@@ -136,6 +136,46 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Count
+/////////////////////////////////////////////////////////////////////////////////
+
+type countTeamPoliciesRequest struct {
+	TeamID uint `url:"team_id"`
+}
+
+type countTeamPoliciesResponse struct {
+	Count int   `json:"count,omitempty"`
+	Err   error `json:"error,omitempty"`
+}
+
+func (r countTeamPoliciesResponse) error() error { return r.Err }
+
+func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*countTeamPoliciesRequest)
+	resp, err := svc.CountTeamPolicies(ctx, req.TeamID)
+	if err != nil {
+		return countTeamPoliciesResponse{Err: err}, nil
+	}
+	return countTeamPoliciesResponse{Count: resp}, nil
+}
+
+func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint) (int, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionRead); err != nil {
+		return 0, err
+	}
+
+	if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	}
+
+	return svc.ds.CountPolicies(ctx, &teamID)
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Get by id
 /////////////////////////////////////////////////////////////////////////////////
 
