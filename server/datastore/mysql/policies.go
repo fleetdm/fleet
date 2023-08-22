@@ -696,10 +696,6 @@ func (ds *Datastore) UpdatePolicyFailureCountsForHosts(ctx context.Context, host
 			COUNT(*) AS failing_policy_count
 		FROM
 			policy_membership pm
-		INNER JOIN
-			policies p
-		ON
-			pm.policy_id = p.id
 		WHERE
 			pm.passes = 0 AND
 			pm.host_id IN (?)
