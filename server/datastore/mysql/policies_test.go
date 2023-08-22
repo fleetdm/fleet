@@ -47,6 +47,7 @@ func TestPolicies(t *testing.T) {
 		{"PolicyViolationDays", testPolicyViolationDays},
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
+		{"TestUpdatePolicyFailureCountsForHosts", testUpdatePolicyFailureCountsForHosts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2173,4 +2174,66 @@ func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
 	batch, err = ds.OutdatedAutomationBatch(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
+}
+
+func testUpdatePolicyFailureCountsForHosts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create 4 hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 4; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i))})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+
+	// create 2 policies
+	var pols []*fleet.Policy
+	for i := 0; i < 2; i++ {
+		p, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
+		require.NoError(t, err)
+		pols = append(pols, p)
+	}
+
+	// create policy membership for hosts
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO policy_membership (policy_id, host_id, passes)
+		VALUES
+			(?, ?, 1),
+			(?, ?, 1),
+			(?, ?, 0),
+			(?, ?, 0),
+			(?, ?, 1),
+			(?, ?, 0)
+	`,
+		pols[0].ID, hosts[0].ID,
+		pols[0].ID, hosts[1].ID,
+		pols[0].ID, hosts[2].ID,
+		pols[1].ID, hosts[0].ID,
+		pols[1].ID, hosts[1].ID,
+		pols[1].ID, hosts[2].ID,
+	)
+
+	require.NoError(t, err)
+
+	// update policy failure counts for hosts
+	hostsUpdated, err := ds.UpdatePolicyFailureCountsForHosts(ctx, hosts)
+	require.NoError(t, err)
+	require.Len(t, hostsUpdated, 4)
+
+	// host 0 should have 1 failing policy
+	assert.Equal(t, 1, hostsUpdated[0].TotalIssuesCount)
+	assert.Equal(t, 1, hostsUpdated[0].FailingPoliciesCount)
+
+	// host 1 should have 0 failing policies
+	assert.Equal(t, 0, hostsUpdated[1].TotalIssuesCount)
+	assert.Equal(t, 0, hostsUpdated[1].FailingPoliciesCount)
+
+	// host 2 should have 2 failing policies
+	assert.Equal(t, 2, hostsUpdated[2].TotalIssuesCount)
+	assert.Equal(t, 2, hostsUpdated[2].FailingPoliciesCount)
+
+	// host 3 doesn't have any policy membership
+	assert.Equal(t, 0, hostsUpdated[3].TotalIssuesCount)
+	assert.Equal(t, 0, hostsUpdated[3].FailingPoliciesCount)
 }
