@@ -519,7 +519,7 @@ func (a *agent) runOrbitLoop() {
 	// fleet desktop performs a burst of check token requests when it's initialized
 	checkToken()
 
-	// orbit makes a call to check the config and update the CLI flags every 5
+	// orbit makes a call to check the config and update the CLI flags every 30
 	// seconds
 	orbitConfigTicker := time.Tick(30 * time.Second)
 	// orbit makes a call every 5 minutes to check the validity of the device
