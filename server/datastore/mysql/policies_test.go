@@ -50,6 +50,7 @@ func TestPolicies(t *testing.T) {
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 		{"TestPolicyIDsByName", testPolicyByName},
 		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
+		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2246,6 +2247,7 @@ func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 
 func testListTeamPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	tm, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
 
 	// create 30 policies
 	for i := 0; i < 30; i++ {
