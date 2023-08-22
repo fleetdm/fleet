@@ -4515,6 +4515,7 @@ Body: <blob>
 ## Policies
 
 - [List policies](#list-policies)
+- [Count policies](#count-policies)
 - [Get policy by ID](#get-policy-by-id)
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
@@ -4540,7 +4541,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
-| per_page                | integer | query | Results per page.       
+| per_page                | integer | query | Results per page.
 
 #### Example
 
@@ -4590,6 +4591,28 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
   ]
 }
 ```
+
+---
+
+### Count Policies
+
+`GET /api/v1/fleet/global/policies/count`
+
+#### Example
+
+`GET /api/v1/fleet/global/policies/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
+}
+```
+
+---
 
 ### Get policy by ID
 
@@ -4873,6 +4896,7 @@ _Teams are available in Fleet Premium_
 ### Team policies
 
 - [List team policies](#list-team-policies)
+- [Count team policies](#count-team-policies)
 - [Get team policy by ID](#get-team-policy-by-id)
 - [Add team policy](#add-team-policy)
 - [Remove team policies](#remove-team-policies)
@@ -4891,7 +4915,8 @@ Team policies work the same as policies, but at the team level.
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | id                 | integer | url  | Required. Defines what team id to operate on                                                                            |
-
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.
 #### Example
 
 `GET /api/v1/fleet/teams/1/policies`
@@ -4959,6 +4984,26 @@ Team policies work the same as policies, but at the team level.
   ]
 }
 ```
+
+### Count Team Policies
+
+`GET /api/v1/fleet/team/{team_id}/policies/count`
+
+#### Example
+
+`GET /api/v1/fleet/team/{team_id}/policies/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
+}
+```
+
+---
 
 ### Get team policy by ID
 
