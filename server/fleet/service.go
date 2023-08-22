@@ -551,6 +551,7 @@ type Service interface {
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
+	CountGlobalPolicies(ctx context.Context) (int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Software

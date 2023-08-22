@@ -152,6 +152,38 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 	return policy, nil
 }
 
+// ///////////////////////////////////////////////////////////////////////////////
+// Count
+// ///////////////////////////////////////////////////////////////////////////////
+
+type CountGlobalPoliciesResponse struct {
+	Count int   `json:"count"`
+	Err   error `json:"error,omitempty"`
+}
+
+func (r CountGlobalPoliciesResponse) error() error { return r.Err }
+
+func countGlobalPoliciesEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
+	resp, err := svc.CountGlobalPolicies(ctx)
+	if err != nil {
+		return CountGlobalPoliciesResponse{Err: err}, nil
+	}
+	return CountGlobalPoliciesResponse{Count: resp}, nil
+}
+
+func (svc Service) CountGlobalPolicies(ctx context.Context) (int, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
+		return 0, err
+	}
+
+	count, err := svc.ds.CountPolicies(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 // Delete
 /////////////////////////////////////////////////////////////////////////////////
