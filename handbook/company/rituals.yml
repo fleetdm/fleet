@@ -14,14 +14,14 @@
 -
   task: "Process the CEO's inbox"
   startedOn: "2023-07-29"
-  frequency: "Daily, 4 times"
+  frequency: "Daily ⏰"
   description: "TODO"
   moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#process-the-ceos-email"
   dri: "sampfluger88"
 -
   task: "Process the CEO's calendar"
   startedOn: "2023-07-29"
-  frequency: "Daily, 4 times"
+  frequency: "Daily ⏰"
   description: "TODO"  
   moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#process-the-ceos-calendar"
   dri: "sampfluger88"

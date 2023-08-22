@@ -487,6 +487,44 @@ In order to maintain a consistent contributor experience in Salesforce, we log i
 * Default filter should be all leads. Open a lead to continue.
 * There should be fields for name, lead source, lead status, and rating.
 
+### Solutions consulting
+What is it like to be a Solutions Consultant at Fleet? What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? 
+
+#### Within 30 days -- assess and absorb information
+* Being new to the company, you have fresh eyes. Document everything that seems odd to you (process, product). 
+* Begin working on domain and product knowledge acquisition. Complete guides found at https://fleetdm.com/guides.
+* Be a prospect. Sign up for a sandbox trial. What makes sense? What doesn't? Document. 
+* Understand Fleet value drivers. Why do Fleet Community users want to give us money to upgrade to Premium? 
+* Complete consensus training videos (see the "Description" field in the `#help-consensus-tool` slack channel.
+* Review [gong](gong.io) calls.
+* Get trained on [Demo2Win](https://2winglobal.com/about-you/pre-sales/)
+
+#### Within 60 days -- synthesize
+* Take what you've learned in Demo2Win training and build out some killer enterprise demo workflows / playbooks. See below for video content.
+* Build video content with [Consensus](https://app.goconsensus.com/). Aim to produce a video per week. 
+* Supplemental domain training. Checkout [DFIR Diva](https://training.dfirdiva.com/) and [Cybrary - SecurityOnion](https://app.cybrary.it/browse/course/security-onion) and block time in your calendar appropriately for learning about one new topic per month.
+* Get involved in the community. Are there any local meetups that you can attend?
+* Work the Slack support channels alongside the Customer Success Engineers.
+
+#### Within 90 days + -- contribute
+* Build and maintain [success criteria documentation](https://docs.google.com/document/d/1TNhUMgxXHDuuuH8rirtwZs_TF9iVUiOrL9r2kJ6sWZA/edit?usp=drive_link) with all prospects. 
+* Expand "Deployment Guides" to include steps for GCP and Azure.
+* Interesting integrations / collaborations to work on.
+
+#### Demo environment
+* Have a quiet place available.
+* Ensure you have a backup source of power. Not just your laptop battery.
+* Multiple monitors are your friend.
+* Demo from a clean "demo" browser profile. Clear your desktop.
+* Pause desktop notifications.
+
+#### Avoid these demo gotchas
+* Showing absolutely everything the product does before you've done a technical discovery. Sometimes even a brief discovery prior to demo will hone your focus for the demo.
+* Arriving to the demo without a plan. Ensure that you have a pre-call strategy meeting with your AE prior to the external call. Understand who you are presenting to. [Look at some tips on walnut.io](https://www.walnut.io/post/7-sales-demo-mistakes-and-how-to-avoid-them)
+* Conducting a product training
+* Live troubleshooting. We all love to solve problems, but don't get de-railed from showing value to your audience.
+* Talking over your prospect. [Just don't do it](https://emissary.io/cardinal-sins-of-sales-demos/). 
+
 
 ## Rituals
 
