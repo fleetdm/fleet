@@ -17,11 +17,15 @@ import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
+  IPoliciesCountResponse,
 } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 
 import configAPI from "services/entities/config";
-import globalPoliciesAPI from "services/entities/global_policies";
+import globalPoliciesAPI, {
+  IPoliciesCountQueryKey,
+  IPoliciesQueryKey,
+} from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
@@ -59,6 +63,9 @@ interface IManagePoliciesPageProps {
     search: string;
   };
 }
+
+const DEFAULT_SORT_DIRECTION = "desc";
+const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "manage-policies-page";
 
@@ -145,14 +152,20 @@ const ManagePolicyPage = ({
       ? parseInt(queryParams?.inherited_page, 10)
       : 0)();
 
-  const page = initialPage;
+  // const page = initialPage;
   const showInheritedTable = initialShowInheritedTable;
   const inheritedPage = initialInheritedPage;
-  const searchQuery = initialSearchQuery;
+  // const searchQuery = initialSearchQuery;
 
   // Needs update on location change or table state might not match URL
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+  const [page, setPage] = useState(initialPage);
+  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
-  const [sortDirection, setSortDirection] = useState(initialSortDirection);
+  const [sortDirection, setSortDirection] = useState<
+    "asc" | "desc" | undefined
+  >(initialSortDirection);
   const [inheritedSortDirection, setInheritedSortDirection] = useState(
     initialInheritedSortDirection
   );
@@ -195,15 +208,51 @@ const ManagePolicyPage = ({
     error: globalPoliciesError,
     isFetching: isFetchingGlobalPolicies,
     refetch: refetchGlobalPolicies,
-  } = useQuery<ILoadAllPoliciesResponse, Error, IPolicyStats[]>(
-    ["globalPolicies", teamIdForApi],
-    () => {
-      return globalPoliciesAPI.loadAll();
+  } = useQuery<
+    ILoadAllPoliciesResponse,
+    Error,
+    IPolicyStats[],
+    IPoliciesQueryKey[]
+  >(
+    [
+      {
+        scope: "globalPolicies",
+        page: tableQueryData?.pageIndex,
+        perPage: DEFAULT_PAGE_SIZE,
+        query: searchQuery,
+        orderDirection: sortDirection,
+        orderKey: sortHeader,
+      },
+    ],
+    ({ queryKey }) => {
+      return globalPoliciesAPI.loadAllNew(queryKey[0]);
     },
     {
       enabled: isRouteOk,
       select: (data) => data.policies,
       staleTime: 5000,
+    }
+  );
+
+  const {
+    data: policiesCount,
+    error: policiesCountError,
+    isFetching: isFetchingCount,
+  } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
+    [
+      {
+        scope: "policiesCount",
+        query: searchQuery,
+        teamId: teamIdForApi,
+      },
+    ],
+    ({ queryKey }) => globalPoliciesAPI.count(queryKey[0]),
+    {
+      enabled: isRouteOk,
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      select: (data) => data.count,
     }
   );
 
