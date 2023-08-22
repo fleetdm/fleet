@@ -173,4 +173,20 @@ Could be hosted on customer servers.
 Uses the Fleet server Token to access specific APIs that give information about vulnerability
 status.
 
+### Vuln dashboard hosted by FleetDM
+```mermaid
+graph LR;
+    frontend[Frontend on web browser];
+
+    subgraph Heroku cloud (FleetDM)
+        vulnServer(Vuln Web Server);
+    end
+
+    subgraph Customer cloud
+        fleetServer(Fleet Server);
+    end
+
+    frontend --> vulnServer;
+    vulnServer --> fleetServer;
+```
 
