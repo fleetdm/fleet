@@ -167,3 +167,10 @@ To be improved: Currently the config file gets downloaded every time even if no 
 (Typical period10 secs) OSQuery asks for any Live query to run.
 
 
+## Vulnerability dashboard
+Typically hosted on our Heroku servers.
+Could be hosted on customer servers.
+Uses the Fleet server Token to access specific APIs that give information about vulnerability
+status.
+
+
