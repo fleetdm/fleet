@@ -1498,15 +1498,22 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// TODO: seems like we're doing this request on each loop?
 	require.Len(t, profileAssignmentReqs[0].Devices, 1)
 	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[0].Devices[0])
+
+	// profileAssignmentReqs[1] and [2] can be in any order
+	ix2Devices, ix1Device := 1, 2
+	if len(profileAssignmentReqs[1].Devices) == 1 {
+		ix2Devices, ix1Device = ix1Device, ix2Devices
+	}
+
 	// - existing device with "added"
 	// - new device with "added"
-	require.Len(t, profileAssignmentReqs[1].Devices, 2)
-	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[1].Devices[0])
-	require.Equal(t, addedSerial, profileAssignmentReqs[1].Devices[1])
+	require.Len(t, profileAssignmentReqs[ix2Devices].Devices, 2, "%#+v", profileAssignmentReqs)
+	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[ix2Devices].Devices[0])
+	require.Equal(t, addedSerial, profileAssignmentReqs[ix2Devices].Devices[1])
 
 	// - existing device with "modified" and a different team (thus different profile request)
-	require.Len(t, profileAssignmentReqs[2].Devices, 1)
-	require.Equal(t, devices[1].SerialNumber, profileAssignmentReqs[2].Devices[0])
+	require.Len(t, profileAssignmentReqs[ix1Device].Devices, 1)
+	require.Equal(t, devices[1].SerialNumber, profileAssignmentReqs[ix1Device].Devices[0])
 
 	// entries for all hosts except for the one with OpType = "deleted"
 	assignment, err := s.ds.GetHostDEPAssignment(ctx, deletedHostID)
