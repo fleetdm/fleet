@@ -332,6 +332,30 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 	return policies, nil
 }
 
+// CountPolicies returns the total number of team policies.
+// If teamID is nil, it returns the total number of global policies.
+func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint) (int, error) {
+	var (
+		query string
+		args  []interface{}
+		count int
+	)
+
+	if teamID == nil {
+		query = `SELECT count(*) FROM policies WHERE team_id IS NULL`
+	} else {
+		query = `SELECT count(*) FROM policies WHERE team_id = ?`
+		args = append(args, *teamID)
+	}
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting policies")
+	}
+
+	return count, nil
+}
+
 func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
 	sql := `SELECT ` + policyCols + `,
 	  COALESCE(u.name, '<deleted>') AS author_name,
