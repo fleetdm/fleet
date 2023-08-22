@@ -34,7 +34,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Generate nudge.app.tar.gz
         run: make nudge-app-tar-gz version=$NUDGE_VERSION out-path=.
