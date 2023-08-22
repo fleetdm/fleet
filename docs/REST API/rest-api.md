@@ -4535,6 +4535,13 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 `GET /api/v1/fleet/global/policies`
 
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.       
+
 #### Example
 
 `GET /api/v1/fleet/global/policies`
