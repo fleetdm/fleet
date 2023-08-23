@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
-import { noop, isEmpty } from "lodash";
+import { noop, isEqual } from "lodash";
 
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -165,6 +165,10 @@ const ManagePolicyPage = ({
   const [page, setPage] = useState(initialPage);
   const [inheritedPage, setInheritedPage] = useState(initialInheritedPage);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
+  const [
+    inheritedTableQueryData,
+    setInheritedTableQueryData,
+  ] = useState<ITableQueryData>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [sortDirection, setSortDirection] = useState<
@@ -185,8 +189,11 @@ const ManagePolicyPage = ({
     if (!isRouteOk) {
       return;
     }
+    setPage(initialPage);
+    setSearchQuery(initialSearchQuery);
     setSortHeader(initialSortHeader);
     setSortDirection(initialSortDirection);
+    setInheritedPage(initialInheritedPage);
     setInheritedSortHeader(initialInheritedSortHeader);
     setInheritedSortDirection(initialInheritedSortDirection);
   }, [location, isRouteOk]);
@@ -377,6 +384,14 @@ const ManagePolicyPage = ({
   // Inherited table uses the same onQueryChange function but routes to different URL params
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
+      if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
+        return;
+      }
+
+      newTableQuery.editingInheritedTable
+        ? setInheritedTableQueryData({ ...newTableQuery })
+        : setTableQueryData({ ...newTableQuery });
+
       const {
         pageIndex: newPageIndex,
         searchQuery: newSearchQuery,
