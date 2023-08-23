@@ -128,6 +128,18 @@ func main() {
 			Usage:   "Disables auto updates",
 			EnvVars: []string{"ORBIT_DISABLE_UPDATES"},
 		},
+		&cli.DurationFlag{
+			Name:    "orbit-enroll-retry-interval",
+			Usage:   "Sets the delay between orbit enrollment retries when failures happen",
+			Value:   constant.OrbitEnrollRetrySleep,
+			EnvVars: []string{"ORBIT_ENROLL_RETRY_INTERVAL", "FLEETD_ENROLL_RETRY_INTERVAL"},
+		},
+		&cli.IntFlag{
+			Name:    "orbit-enroll-max-attempts",
+			Usage:   "Sets the maximum times orbit enrollment will be attempted",
+			Value:   constant.OrbitEnrollMaxRetries,
+			EnvVars: []string{"ORBIT_ENROLL_MAX_ATTEMPTS", "FLEETD_ENROLL_MAX_ATTEMPTS"},
+		},
 		&cli.BoolFlag{
 			Name:    "dev-mode",
 			Usage:   "Runs in development mode",
@@ -607,6 +619,8 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
+			service.OrbitMaxEnrollmentAttempts(c.Int("orbit-enroll-max-attempts")),
+			service.OrbitEnrollmentRetryInterval(c.Duration("orbit-enroll-retry-interval")),
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -625,7 +639,9 @@ func main() {
 			// add middleware to handle nudge installation and updates
 			const nudgeLaunchInterval = 30 * time.Minute
 			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
-				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
+				UpdateRunner: updateRunner,
+				RootDir:      c.String("root-dir"),
+				Interval:     nudgeLaunchInterval,
 			})
 
 			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
@@ -829,6 +845,8 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
+			service.OrbitMaxEnrollmentAttempts(c.Int("orbit-enroll-max-attempts")),
+			service.OrbitEnrollmentRetryInterval(c.Duration("orbit-enroll-retry-interval")),
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)

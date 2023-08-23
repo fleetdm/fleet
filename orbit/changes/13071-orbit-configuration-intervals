@@ -1,0 +1,2 @@
+* added additional configuration flags for orbit to allow more control over the frequency of background checks such as flags, extensions, and server capabilities
+* added max enrollment retry flag to specify the max number of times to retry enrollment before failing

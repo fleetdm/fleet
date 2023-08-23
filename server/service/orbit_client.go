@@ -22,6 +22,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// OrbitClientOption exposes optional functions that can alter the client creation behavior
+type OrbitClientOption func(*OrbitClient)
+
 // OrbitClient exposes the Orbit API to communicate with the Fleet server.
 type OrbitClient struct {
 	*baseClient
@@ -29,14 +32,28 @@ type OrbitClient struct {
 	enrollSecret    string
 	hostInfo        fleet.OrbitHostInfo
 
-	enrolledMu sync.Mutex
-	enrolled   bool
+	enrolledMu              sync.Mutex
+	enrolled                bool
+	enrollmentMaxAttempts   int
+	enrollmentRetryInterval time.Duration
 
 	lastRecordedErrMu sync.Mutex
 	lastRecordedErr   error
 
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
+}
+
+func OrbitEnrollmentRetryInterval(t time.Duration) OrbitClientOption {
+	return func(c *OrbitClient) {
+		c.enrollmentRetryInterval = t
+	}
+}
+
+func OrbitMaxEnrollmentAttempts(a int) OrbitClientOption {
+	return func(c *OrbitClient) {
+		c.enrollmentMaxAttempts = a
+	}
 }
 
 func (oc *OrbitClient) request(verb string, path string, params interface{}, resp interface{}) error {
@@ -85,6 +102,7 @@ func NewOrbitClient(
 	enrollSecret string,
 	fleetClientCert *tls.Certificate,
 	orbitHostInfo fleet.OrbitHostInfo,
+	opts ...OrbitClientOption,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
@@ -93,13 +111,20 @@ func NewOrbitClient(
 	}
 
 	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
-	return &OrbitClient{
-		nodeKeyFilePath: nodeKeyFilePath,
-		baseClient:      bc,
-		enrollSecret:    enrollSecret,
-		hostInfo:        orbitHostInfo,
-		enrolled:        false,
-	}, nil
+	c := &OrbitClient{
+		nodeKeyFilePath:         nodeKeyFilePath,
+		baseClient:              bc,
+		enrollSecret:            enrollSecret,
+		hostInfo:                orbitHostInfo,
+		enrolled:                false,
+		enrollmentMaxAttempts:   constant.OrbitEnrollMaxRetries,
+		enrollmentRetryInterval: constant.OrbitEnrollRetrySleep,
+	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c, nil
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
@@ -198,14 +223,13 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				endpointDoesNotExist = true
 				return nil
 			default:
-				log.Info().Err(err).Msg("enroll failed, retrying")
 				return err
 			}
 		},
-		retry.WithInterval(OrbitRetryInterval()),
-		retry.WithMaxAttempts(constant.OrbitEnrollMaxRetries),
+		retry.WithInterval(oc.enrollmentRetryInterval),
+		retry.WithMaxAttempts(oc.enrollmentMaxAttempts),
 	); err != nil {
-		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
+		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", oc.enrollmentMaxAttempts)
 	}
 	if endpointDoesNotExist {
 		return "", errors.New("enroll endpoint does not exist")
@@ -291,15 +315,4 @@ func (oc *OrbitClient) setLastRecordedError(err error) {
 	defer oc.lastRecordedErrMu.Unlock()
 
 	oc.lastRecordedErr = fmt.Errorf("%s: %w", time.Now().UTC().Format("2006-01-02T15:04:05Z"), err)
-}
-
-func OrbitRetryInterval() time.Duration {
-	interval := os.Getenv("FLEETD_ENROLL_RETRY_INTERVAL")
-	if interval != "" {
-		d, err := time.ParseDuration(interval)
-		if err == nil {
-			return d
-		}
-	}
-	return constant.OrbitEnrollRetrySleep
 }
