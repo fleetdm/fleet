@@ -1,4 +1,4 @@
-#  🔦 Operations Associate
+#  🔦 Business Operations Engineer
 
 ## Let's start with why we exist. 📡
 
@@ -62,4 +62,4 @@ Learn more about the company and [why you should join us here](https://fleetdm.c
 
 You can reach out to Joanne Stableford on [LinkedIn](https://www.linkedin.com/in/joanne-stableford/).
 
-<meta name="maintainedBy" value="mikermcneil">
+<meta name="maintainedBy" value="jostableford">
