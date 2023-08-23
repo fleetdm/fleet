@@ -371,6 +371,7 @@ func TestLogFields(t *testing.T) {
 		{NewWithData(ctx, "test", map[string]any{}), []any{"timestamp", "1969-06-19T21:44:05Z"}},
 		{NewWithData(ctx, "test", map[string]any{"test": 1}), []any{"test", float64(1), "timestamp", "1969-06-19T21:44:05Z"}},
 		{WrapWithData(ctx, testErr, "test", map[string]any{"test": "one"}), []any{"test", "one", "timestamp", "1969-06-19T21:44:05Z"}},
+		{&FleetError{data: json.RawMessage("{malformed: 1, }}")}, []any{"data", "{malformed: 1, }}"}},
 	}
 
 	for _, c := range cases {
