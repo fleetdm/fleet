@@ -5330,6 +5330,14 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
+	checkStoredIdPInfo := func(uuid string) {
+		acc, err := s.ds.GetMDMIdPAccount(context.Background(), uuid)
+		require.NoError(t, err)
+		require.Equal(t, "sso_user", acc.Username)
+		require.Equal(t, "SSO User 1", acc.Fullname)
+		require.Equal(t, "sso_user@example.com", acc.Email)
+	}
+
 	res := s.LoginMDMSSOUser("sso_user", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
@@ -5350,6 +5358,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 			q.Get("enrollment_reference"),
 		),
 	)
+
+	// IdP info stored is accurate for the account
+	checkStoredIdPInfo(q.Get("enrollment_reference"))
 
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
@@ -5382,6 +5393,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.EqualValues(t, pdfBytes, respBytes)
+
+	// IdP info stored is accurate for the account
+	checkStoredIdPInfo(q.Get("enrollment_reference"))
 
 	enrollURL := ""
 	scepURL := ""
