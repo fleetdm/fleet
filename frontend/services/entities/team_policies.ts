@@ -11,13 +11,16 @@ import {
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 
-interface IPoliciesApiParams {
-  teamId?: number;
+interface IPoliciesApiQueryParams {
   page?: number;
   perPage?: number;
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
+}
+
+export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
+  teamId: number;
 }
 
 export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
@@ -37,7 +40,7 @@ interface IPoliciesCountApiParams {
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
 
-const convertParamsToSnakeCase = (params: IPoliciesApiParams) => {
+const convertParamsToSnakeCase = (params: IPoliciesApiQueryParams) => {
   return reduce<typeof params, QueryParams>(
     params,
     (result, val, key) => {

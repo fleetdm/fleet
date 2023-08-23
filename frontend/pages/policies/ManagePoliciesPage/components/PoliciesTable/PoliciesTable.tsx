@@ -35,7 +35,8 @@ interface IPoliciesTableProps {
   currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
-  onClientSidePaginationChange?: (pageIndex: number) => void;
+  // onClientSidePaginationChange?: (pageIndex: number) => void;
+  renderPoliciesCount: any; // TODO: typing
   onQueryChange: (newTableQuery: ITableQueryData) => void;
   searchQuery: string;
   sortHeader?: "name" | "failing_host_count";
@@ -55,7 +56,8 @@ const PoliciesTable = ({
   isPremiumTier,
   isSandboxMode,
   onQueryChange,
-  onClientSidePaginationChange,
+  // onClientSidePaginationChange,
+  renderPoliciesCount,
   searchQuery,
   sortHeader,
   sortDirection,
@@ -179,9 +181,10 @@ const PoliciesTable = ({
             })
           }
           disableCount={tableType === "inheritedPolicies"}
-          isClientSidePagination
-          onClientSidePaginationChange={onClientSidePaginationChange}
-          isClientSideFilter
+          renderCount={renderPoliciesCount}
+          // isClientSidePagination
+          // onClientSidePaginationChange={onClientSidePaginationChange}
+          // isClientSideFilter
           searchQueryColumn="name"
           onQueryChange={onTableQueryChange}
           inputPlaceHolder="Search by name"

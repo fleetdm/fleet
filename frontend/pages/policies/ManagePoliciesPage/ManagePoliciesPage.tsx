@@ -265,7 +265,7 @@ const ManagePolicyPage = ({
   } = useQuery<
     ILoadTeamPoliciesResponse,
     Error,
-    IPolicyStats[],
+    ILoadTeamPoliciesResponse,
     ITeamPoliciesQueryKey[]
   >(
     [
@@ -276,7 +276,7 @@ const ManagePolicyPage = ({
         query: searchQuery,
         orderDirection: sortDirection,
         orderKey: sortHeader,
-        teamId: teamIdForApi,
+        teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
       },
     ],
     ({ queryKey }) => {
@@ -305,12 +305,12 @@ const ManagePolicyPage = ({
       {
         scope: "teamPoliciesCount",
         query: searchQuery,
-        teamId: teamIdForApi,
+        teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.count(queryKey[0]),
     {
-      enabled: isRouteOk,
+      enabled: isRouteOk && !!teamIdForApi,
       keepPreviousData: true,
       refetchOnWindowFocus: false,
       retry: 1,
@@ -318,9 +318,9 @@ const ManagePolicyPage = ({
     }
   );
 
-  const canAddOrDeletePolicy =
+  const canAddOrDeletePolicy: boolean =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
+  const canManageAutomations: boolean = isGlobalAdmin || isTeamAdmin;
 
   const {
     data: config,
@@ -636,6 +636,16 @@ const ManagePolicyPage = ({
     }
   }
 
+  const renderPoliciesCount = (count?: number) => {
+    return (
+      <div className={`${baseClass}__count`}>
+        {count !== undefined && (
+          <span>{`${count} polic${count === 1 ? "y" : "ies"}`}</span>
+        )}
+      </div>
+    );
+  };
+
   return !isRouteOk || (isPremiumTier && !userTeams) ? (
     <Spinner />
   ) : (
@@ -723,6 +733,7 @@ const ManagePolicyPage = ({
                 canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeamSummary}
                 currentAutomatedPolicies={currentAutomatedPolicies}
+                renderPoliciesCount={renderPoliciesCount(teamPoliciesCount)}
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
                 searchQuery={searchQuery}
@@ -748,7 +759,8 @@ const ManagePolicyPage = ({
                 currentAutomatedPolicies={currentAutomatedPolicies}
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
-                onClientSidePaginationChange={onClientSidePaginationChange}
+                // onClientSidePaginationChange={onClientSidePaginationChange}
+                renderPoliciesCount={renderPoliciesCount(globalPoliciesCount)}
                 searchQuery={searchQuery}
                 sortHeader={sortHeader}
                 sortDirection={sortDirection}
@@ -791,9 +803,10 @@ const ManagePolicyPage = ({
                   tableType="inheritedPolicies"
                   currentTeam={currentTeamSummary}
                   searchQuery=""
-                  onClientSidePaginationChange={
-                    onClientSideInheritedPaginationChange
-                  }
+                  // onClientSidePaginationChange={
+                  //   onClientSideInheritedPaginationChange
+                  // }
+                  renderPoliciesCount={renderPoliciesCount(teamPoliciesCount)}
                   sortHeader={inheritedSortHeader}
                   sortDirection={inheritedSortDirection}
                   page={inheritedPage}
