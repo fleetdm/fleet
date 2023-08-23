@@ -136,6 +136,9 @@ type windowsMDMEnrollmentConfigFetcher struct {
 	// HostUUID is the current host's UUID.
 	HostUUID string
 
+	// used to get the orbit node key, implemented by OrbitClient.
+	nodeKeyGetter orbitNodeKeyGetter
+
 	// for tests, to be able to mock API commands. If nil, will use
 	// RunWindowsMDMEnrollment and RunWindowsMDMUnenrollment respectively.
 	execEnrollFn   execWinAPIFunc
@@ -149,15 +152,21 @@ type windowsMDMEnrollmentConfigFetcher struct {
 	isWindowsServer bool
 }
 
+type orbitNodeKeyGetter interface {
+	GetNodeKey() (string, error)
+}
+
 func ApplyWindowsMDMEnrollmentFetcherMiddleware(
 	fetcher OrbitConfigFetcher,
 	frequency time.Duration,
 	hostUUID string,
+	nodeKeyGetter orbitNodeKeyGetter,
 ) OrbitConfigFetcher {
 	return &windowsMDMEnrollmentConfigFetcher{
-		Fetcher:   fetcher,
-		Frequency: frequency,
-		HostUUID:  hostUUID,
+		Fetcher:       fetcher,
+		Frequency:     frequency,
+		HostUUID:      hostUUID,
+		nodeKeyGetter: nodeKeyGetter,
 	}
 }
 
@@ -199,6 +208,13 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.Orbit
 			return
 		}
 
+		// try to get the node key
+		nodeKey, err := w.nodeKeyGetter.GetNodeKey()
+		if err != nil {
+			log.Info().Err(err).Msg("failed to get orbit node key to enroll Windows device")
+			return
+		}
+
 		fn := w.execEnrollFn
 		if fn == nil {
 			fn = RunWindowsMDMEnrollment
@@ -206,6 +222,7 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.Orbit
 		args := WindowsMDMEnrollmentArgs{
 			DiscoveryURL: notifs.WindowsMDMDiscoveryEndpoint,
 			HostUUID:     w.HostUUID,
+			OrbitNodeKey: nodeKey,
 		}
 		if err := fn(args); err != nil {
 			if errors.Is(err, errIsWindowsServer) {
@@ -241,6 +258,8 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptUnenrollment() {
 		if fn == nil {
 			fn = RunWindowsMDMUnenrollment
 		}
+		// NOTE: args is actually unused by unenrollment, it is just for the
+		// function signature consistency. No need to get the orbit node key.
 		args := WindowsMDMEnrollmentArgs{
 			HostUUID: w.HostUUID,
 		}
