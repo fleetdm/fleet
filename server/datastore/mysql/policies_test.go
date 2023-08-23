@@ -2304,6 +2304,7 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	}
 
 	teamCount, err := ds.CountPolicies(ctx, &tm.ID)
+	require.NoError(t, err)
 	assert.Equal(t, 5, teamCount)
 	assert.Equal(t, 10, globalCount)
 }
