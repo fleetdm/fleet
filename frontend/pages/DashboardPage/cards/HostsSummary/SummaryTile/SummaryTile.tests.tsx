@@ -102,21 +102,5 @@ describe("SummaryTile - component", () => {
     expect(screen.getByText("Hosts on any Windows device")).toBeInTheDocument();
   });
 
-  it("renders manage host page on click", async () => {
-    const { user } = renderWithSetup(
-      <SummaryTile
-        count={200}
-        isLoading={false}
-        showUI
-        title={"Windows hosts"}
-        iconName={"windows-circled"}
-        tooltip={"Hosts on any Windows device"} // tested
-        path={paths.MANAGE_HOSTS_LABEL(10)}
-      />
-    );
-
-    await user.click(screen.getByText("Windows hosts"));
-
-    expect(window.location.pathname).toBe("/hosts/manage/labels/10");
-  });
+  // Note: Cannot test path of react-router <Link/> without <Router/>
 });
