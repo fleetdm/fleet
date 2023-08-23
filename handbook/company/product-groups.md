@@ -175,7 +175,21 @@ Here are some examples of questions that might be helpful to answer:
 
 These questions are helpful for the product team when considering what to prioritize.  (The act of writing the answers is a lot of the value!)  But these answers can also be helpful when users or contributors (including our future selves) have questions about how best to estimate, iterate, or refine.
 
+#### Design consultation
 
+Design consultations are scheduled as needed with the relevant participants, typically product designers and frontend engineers. It is an opportunity to collaborate and discuss design, implementation, and story requirements. The meeting is scheduled as needed by the product designer or frontend engineer when a user story is in the "Prioritized" column on the [drafting board](https://app.zenhub.com/workspaces/-drafting-ships-in-6-weeks-6192dd66ea2562000faea25c/board). 
+
+##### Participants
+
+- Product Designer
+- Software Engineers (UI/UX)
+
+##### Sample agenda
+
+- Review user story requirements
+- Review wireframes
+- Discuss design input 
+- Discuss implementation details
 #### Design reviews
 
 Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/company/ceo#calendar-audit).

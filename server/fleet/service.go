@@ -795,4 +795,8 @@ type Service interface {
 	// result if waitForResult is > 0. If it times out waiting for a result, it
 	// fails with a 504 Gateway Timeout error.
 	RunHostScript(ctx context.Context, request *HostScriptRequestPayload, waitForResult time.Duration) (*HostScriptResult, error)
+	// GetHostScript returns information about a host script execution.
+	GetHostScript(ctx context.Context, execID string) (*HostScriptResult, error)
+	// SaveHostScriptResult saves information about execution of a script on a host.
+	SaveHostScriptResult(ctx context.Context, result *HostScriptResultPayload) error
 }
