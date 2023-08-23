@@ -77,7 +77,7 @@ func GetServerOrbitCapabilities() CapabilityMap {
 
 func GetServerDeviceCapabilities() CapabilityMap {
 	capabilities := CapabilityMap{}
-	if os.Getenv("ENABLE_POST_CLIENT_DEBUG_ERRORS") == "1" {
+	if os.Getenv("FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS") == "1" {
 		capabilities[CapabilityErrorReporting] = struct{}{}
 	}
 	return capabilities
