@@ -26,7 +26,10 @@ import globalPoliciesAPI, {
   IPoliciesCountQueryKey,
   IPoliciesQueryKey,
 } from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
+import teamPoliciesAPI, {
+  ITeamPoliciesCountQueryKey,
+  ITeamPoliciesQueryKey,
+} from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -235,15 +238,14 @@ const ManagePolicyPage = ({
   );
 
   const {
-    data: policiesCount,
-    error: policiesCountError,
-    isFetching: isFetchingCount,
+    data: globalPoliciesCount,
+    error: globalPoliciesCountError,
+    isFetching: isFetchingGlobalCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
     [
       {
         scope: "policiesCount",
         query: searchQuery,
-        teamId: teamIdForApi,
       },
     ],
     ({ queryKey }) => globalPoliciesAPI.count(queryKey[0]),
@@ -260,15 +262,59 @@ const ManagePolicyPage = ({
     error: teamPoliciesError,
     isFetching: isFetchingTeamPolicies,
     refetch: refetchTeamPolicies,
-  } = useQuery<ILoadTeamPoliciesResponse, Error, ILoadTeamPoliciesResponse>(
-    ["teamPolicies", teamIdForApi],
-    () => teamPoliciesAPI.loadAll(teamIdForApi),
+  } = useQuery<
+    ILoadAllPoliciesResponse,
+    Error,
+    IPolicyStats[],
+    ITeamPoliciesQueryKey[]
+  >(
+    [
+      {
+        scope: "teamPolicies",
+        page: tableQueryData?.pageIndex,
+        perPage: DEFAULT_PAGE_SIZE,
+        query: searchQuery,
+        orderDirection: sortDirection,
+        orderKey: sortHeader,
+        teamId: teamIdForApi,
+      },
+    ],
+    ({ queryKey }) => {
+      return teamPoliciesAPI.loadAllNew(queryKey[0]);
+    },
     {
       enabled: isRouteOk && isPremiumTier && !!teamIdForApi,
       onSuccess: (data) => {
         setTeamPolicies(data.policies);
         setInheritedPolicies(data.inherited_policies);
       },
+    }
+  );
+
+  const {
+    data: teamPoliciesCount,
+    error: teamPoliciesCountError,
+    isFetching: isFetchingTeamCount,
+  } = useQuery<
+    IPoliciesCountResponse,
+    Error,
+    number,
+    ITeamPoliciesCountQueryKey[]
+  >(
+    [
+      {
+        scope: "teamPoliciesCount",
+        query: searchQuery,
+        teamId: teamIdForApi,
+      },
+    ],
+    ({ queryKey }) => teamPoliciesAPI.count(queryKey[0]),
+    {
+      enabled: isRouteOk,
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      select: (data) => data.count,
     }
   );
 

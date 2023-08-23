@@ -3,16 +3,34 @@ import { snakeCase, reduce } from "lodash";
 
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { ILoadTeamPoliciesResponse, IPolicyFormData } from "interfaces/policy";
+import {
+  ILoadTeamPoliciesResponse,
+  IPolicyFormData,
+  IPoliciesCountResponse,
+} from "interfaces/policy";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 
 interface IPoliciesApiParams {
-  team_id?: number;
+  teamId?: number;
   page?: number;
   perPage?: number;
   orderKey?: string;
   orderDirection?: "asc" | "desc";
+  query?: string;
+}
+
+export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
+  scope: "teamPolicies";
+}
+
+export interface ITeamPoliciesCountQueryKey
+  extends Pick<IPoliciesApiParams, "query"> {
+  scope: "teamPoliciesCount";
+}
+
+interface IPoliciesCountApiParams {
+  teamId: number;
   query?: string;
 }
 
@@ -104,7 +122,7 @@ export default {
     return sendRequest("GET", path);
   },
   loadAllNew: async ({
-    team_id,
+    teamId,
     page,
     perPage,
     orderKey = ORDER_KEY,
@@ -123,11 +141,28 @@ export default {
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
-    const path = `${TEAMS}/${team_id}/policies?${queryString}`;
-    if (!team_id) {
+    const path = `${TEAMS}/${teamId}/policies?${queryString}`;
+    if (!teamId) {
       throw new Error("Invalid team id");
     }
 
     return sendRequest("GET", path);
+  },
+  count: async ({
+    query,
+    teamId,
+  }: Pick<
+    IPoliciesCountApiParams,
+    "query" | "teamId"
+  >): Promise<IPoliciesCountResponse> => {
+    const { TEAM_POLICIES } = endpoints;
+    const path = `${TEAM_POLICIES(teamId)}/count`;
+    const queryParams = {
+      query,
+    };
+    const snakeCaseParams = convertParamsToSnakeCase(queryParams);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+
+    return sendRequest("GET", path.concat(`?${queryString}`));
   },
 };

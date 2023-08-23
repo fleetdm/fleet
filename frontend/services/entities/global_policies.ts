@@ -16,7 +16,6 @@ interface IPoliciesApiParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
-  teamId?: number; // Used for /count
 }
 
 export interface IPoliciesQueryKey extends IPoliciesApiParams {
@@ -24,7 +23,7 @@ export interface IPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface IPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query" | "teamId"> {
+  extends Pick<IPoliciesApiParams, "query"> {
   scope: "policiesCount";
 }
 
@@ -97,16 +96,11 @@ export default {
   },
   count: async ({
     query,
-    teamId,
-  }: Pick<
-    IPoliciesApiParams,
-    "query" | "teamId"
-  >): Promise<IPoliciesCountResponse> => {
+  }: Pick<IPoliciesApiParams, "query">): Promise<IPoliciesCountResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
     const path = `${GLOBAL_POLICIES}/count`;
     const queryParams = {
       query,
-      teamId,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
