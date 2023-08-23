@@ -5201,6 +5201,7 @@ Returns the query specified by ID.
     "logging": "snapshot",
     "saved": true,
     "observer_can_run": true,
+    "discard_data": false,
     "author_id": 1,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -5267,6 +5268,7 @@ Returns a list of global queries or team queries.
     "logging": "snapshot",
     "saved": true,
     "observer_can_run": true,
+    "discard_data": false,
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
@@ -5304,6 +5306,7 @@ Returns a list of global queries or team queries.
     "logging": "differential",
     "saved": true,
     "observer_can_run": true,
+    "discard_data": true,
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
@@ -5348,6 +5351,7 @@ Creates a global query or team query.
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
+| discard_data        | bool    | body | Whether to skip saving a copy of the latest query results for each host. Default: `false`. |
 
 #### Example
 
@@ -5364,7 +5368,8 @@ Creates a global query or team query.
   "platform": "darwin,windows,linux",
   "min_osquery_version": "",
   "automations_enabled": true,
-  "logging": "snapshot"
+  "logging": "snapshot",
+  "discard_data": false
 }
 ```
 
@@ -5392,6 +5397,7 @@ Creates a global query or team query.
     "author_name": "",
     "author_email": "",
     "observer_can_run": true,
+    "discard_data": false,
     "packs": []
   }
 }
@@ -5417,6 +5423,7 @@ Modifies the query specified by ID.
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
+| discard_data        | bool    | body | Whether to skip saving a copy of the latest query results for each host. |
 
 #### Example
 
@@ -5430,7 +5437,8 @@ Modifies the query specified by ID.
   "interval": 3600, // Once per hour,
   "platform": "",
   "min_osquery_version": "",
-  "automations_enabled": false
+  "automations_enabled": false,
+  "discard_data": true
 }
 ```
 
@@ -5457,6 +5465,7 @@ Modifies the query specified by ID.
     "author_id": 1,
     "author_name": "noah",
     "observer_can_run": true,
+    "discard_data": true,
     "packs": []
   }
 }
