@@ -727,6 +727,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		UUID:     uuid.New().String(),
 		Username: username,
 		Fullname: auth.UserDisplayName(),
+		Email:    auth.UserID(),
 	}
 	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "saving account data from IdP")

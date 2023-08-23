@@ -517,5 +517,15 @@ func (fe FleetdError) ToMap() map[string]any {
 		"error_message":         fe.ErrorMessage,
 		"error_additional_info": fe.ErrorAdditionalInfo,
 	}
+}
 
+// OrbitError is used for orbit endpoints, to return an error message along
+// with a failed request's response.
+type OrbitError struct {
+	Message string
+}
+
+// Error implements the error interface for the OrbitError.
+func (e OrbitError) Error() string {
+	return e.Message
 }
