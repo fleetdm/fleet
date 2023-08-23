@@ -132,18 +132,7 @@ In brief, this means that as a Fleet team member, you may:
 * Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
-### Brex
-
-#### Non-travel purchases that exceed a Brex cardholder's limit
-For non-travel purchases that would require an increase in the Brex cardholder's limit, please [make a request](https://fleetdm.com/handbook/business-operations#intake) with following information:
-- The nature of the purchase (i.e. SaaS subscription and what it's used for)
-- The cost of the purchase and whether it is a fixed or variable (i.e. use-based) cost.
-- Whether it is a one time purchase or a recurring purchase and at what frequency the purchase will re-occur (annually, monthly, etc.)
-- If there are more ideal options to pay for the purchase (i.e. bill.com, the Fleet AP Brex card, etc.) that method will be used instead.  
-- In general, recurring purchases such as subscription services that will continually stretch the spend limit on a cardholder's Brex card should be paid through other means. 
-- For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
-
-#### Reimbursements
+### Reimbursements
 Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help](https://fleetdm.com/handbook/business-operations#intake).
 
 <!-- 
@@ -154,16 +143,40 @@ Team members can request reimbursement through [Gusto]([https://app.gusto.com/ex
 Operations will review the expense and reach out to the team member if they have any questions. The reimbursement will be added to the team member's next payroll when an expense is approved.
 >Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll.  -->
 
-### Individualized expenses
-Recurring expenses related to a particular team member, such as coworking fees, are called _individualized expenses_.  These expenses are still considered [non-personnel expenses](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278), with a few extra considerations:
+### Brex
+All Fleeties will be provided with a Brex account and virtual Brex card when they onboard at Fleet. Fleeties will be prompted to order a physical Brex card when they log in to their account. Fleet recommends you order a physical card as soon as possible.
 
+#### Individualized expenses
+Recurring expenses related to a particular team member, such as coworking fees, are called _individualized expenses_.  These expenses are also considered [non-personnel expenses](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278), with a few extra considerations:
 - Non-recurring (one-off) expenses such as an Uber ride from the airport are NOT considered "individualized".
 - Seat licenses for tools like Salesforce or GitHub are NOT considered "individualized".
 - Individualized expenses should include the team member's name explicitly in the name of the expense.
 - If multiple team members use the same vendor for an individualized expense (for example, "WeWork"), use a separate row for each individualized expense.  (For example: "Coworking, Mungojerry (WeWork)" and "Coworking, Jennyanydots (WeWork)")
 - Individualized expenses are always attributed to the  "🔦 Business operations" department.
-- These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.   
+- These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.
 
+#### Travel expenses
+Travel expenses are any purchases made that support the attendance of a Fleetie at a company event, customer visit, conference attendance, or other work-required travel. These expenses are considered [non-personnel expenses](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278), and are not "individualized". Travel expenses are allocated to a specific event spend. In order to allocate this spend correctly, Fleeties must follow the [expense acquittal process](#expense-aquittal).
+For more guidance on travel, see [Company travel](#company-travel).
+
+#### One-off expenses
+One-off expenses are non-travel, non-recurring expenses. These expenses are considered [non-personnel expenses](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278). There are a varity of reasons a Fleetie might make a one-off expense, including purchase of headphones or ergonomic workstation needs, printing or sending of work documents, purchase of a swag item, etc. 
+One-off expenses should always be made with the Fleetie's Brex card, and aquitted using the [expense acquittal process](#expense-aquittal)
+
+#### Non-travel purchases that exceed a Brex cardholder's limit
+For non-travel purchases that would require an increase in the Brex cardholder's limit, please [make a request](https://fleetdm.com/handbook/business-operations#intake) with following information:
+- The nature of the purchase (i.e. SaaS subscription and what it's used for)
+- The cost of the purchase and whether it is a fixed or variable (i.e. use-based) cost.
+- Whether it is a one time purchase or a recurring purchase and at what frequency the purchase will re-occur (annually, monthly, etc.)
+- If there are more ideal options to pay for the purchase (i.e. bill.com, the Fleet AP Brex card, etc.) that method will be used instead.  
+- In general, recurring purchases such as subscription services that will continually stretch the spend limit on a cardholder's Brex card should be paid through other means. 
+- For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
+
+#### Expense aquittal process
+Fleeties are encourage to [spend company money like it's their own](#spending-company-money), however to ensure that spend is captured correctly, teammates need to take the following steps after spending money:
+- If the spend is under $50, Fleeties can use the memo field in the Brex expense details to provide context on what the spend was for.
+- If the spend is over $50, Fleeties must attach a receipt for the item and add a memo to provide context on what the spend was for.
+- **In addition:** If the spend is for travel, include the event name and year as the prefix, e.g: "DEFCON 2023 - Uber from airport to hotel"
 
 ### Company travel
 
@@ -171,14 +184,13 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 When attending a conference or traveling for Fleet, keep the following in mind:
 - $100 allowance per day for your own personal food and beverage. **(There are many good reasons to make exceptions to this guideline, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#intake).**
 - Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
-- We highly recommend you order a physical Brex card if you do not have one before attending the conference.
+- If you haven't already, order a physical Brex card before attending the conference.
 - The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as travel.  You can [request that here](https://fleetdm.com/handbook/business-operations#intake) by providing the following information:
   - The start and end dates for your trip.
   - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
   - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
   - The price of the admission fees if attending a conference.
-- Please use your personal credit card for movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
-
+- Please use your personal credit card for movies, mini bars, and entertainment.  These expenses _will not_ be approved.
 
 ## Vendor questionnaires 
 In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires) 
