@@ -209,6 +209,25 @@ When writing copy, consider whether additional information is necessary before a
 
 When writing the time in the UI using "am" and "pm" abbreviations, write them **without space** between time and abbreviation, with **no punctuation**, and use **lowercase** letters (e.g. Working hours are 8am to 5pm).
 
+**Writing the error messages**
+
+When writing error messages in the UI or CLI, follow these rules:
+- Write the **error** and **possible solution** (e.g. No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.), or
+- Write the **error** and **additional info**, if the solution is obvious when additional info is provided (e.g. You don’t have permission to run the script. Only users with the maintainer role and above can run scripts.)
+
+**Commands with `--hosts` or `--host` flag**
+
+When designing CLI experience for commands that target hosts (e.g. `fleetctl query` or `fleetctl mdm run-command`) that include `--hosts`/`--host` flag, in case if non-existing host is specified, use the following error message: `Error: No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.`  
+
+When writing copy for CLI help pages use the following descriptions.
+```other
+$ fleetctl <command with --hosts/--host flag> -h
+
+OPTIONS
+--hosts     Hosts specified by hostname, uuid, osquery_host_id or node_key that you want to target.     
+--host      Host specified by hostname, uuid, osquery_host_id or node_key that you want to target.     
+```
+
 ## Release 
 
 This section outlines the communication between the product, marketing, and customer success teams prior to a release of Fleet.
