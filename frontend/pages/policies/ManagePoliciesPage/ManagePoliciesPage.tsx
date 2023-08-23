@@ -263,7 +263,7 @@ const ManagePolicyPage = ({
     isFetching: isFetchingTeamPolicies,
     refetch: refetchTeamPolicies,
   } = useQuery<
-    ILoadAllPoliciesResponse,
+    ILoadTeamPoliciesResponse,
     Error,
     IPolicyStats[],
     ITeamPoliciesQueryKey[]

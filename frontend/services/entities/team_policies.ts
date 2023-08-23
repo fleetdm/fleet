@@ -25,7 +25,7 @@ export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface ITeamPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query"> {
+  extends Pick<IPoliciesApiParams, "query" | "teamId"> {
   scope: "teamPoliciesCount";
 }
 
