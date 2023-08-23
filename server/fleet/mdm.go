@@ -61,6 +61,7 @@ type MDMIdPAccount struct {
 	UUID     string
 	Username string
 	Fullname string
+	Email    string
 }
 
 type MDMAppleBootstrapPackage struct {
