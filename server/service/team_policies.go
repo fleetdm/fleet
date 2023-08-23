@@ -145,7 +145,7 @@ type countTeamPoliciesRequest struct {
 }
 
 type countTeamPoliciesResponse struct {
-	Count int   `json:"count,omitempty"`
+	Count int   `json:"count"`
 	Err   error `json:"error,omitempty"`
 }
 

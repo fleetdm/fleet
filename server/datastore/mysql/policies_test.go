@@ -2295,15 +2295,21 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
 
-	// create team policies
+	// create team
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
+
+	teamCount, err := ds.CountPolicies(ctx, &tm.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 0, teamCount)
+
+	// create team policies
 	for i := 10; i < 15; i++ {
 		_, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
 		require.NoError(t, err)
 	}
 
-	teamCount, err := ds.CountPolicies(ctx, &tm.ID, fleet.ListOptions{})
+	teamCount, err = ds.CountPolicies(ctx, &tm.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, 5, teamCount)
 	assert.Equal(t, 10, globalCount)
