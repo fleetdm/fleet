@@ -2291,7 +2291,7 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	globalCount, err := ds.CountPolicies(ctx, nil)
+	globalCount, err := ds.CountPolicies(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
 
@@ -2303,7 +2303,7 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	teamCount, err := ds.CountPolicies(ctx, &tm.ID)
+	teamCount, err := ds.CountPolicies(ctx, &tm.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, 5, teamCount)
 	assert.Equal(t, 10, globalCount)

@@ -378,7 +378,7 @@ type PoliciesByIDFunc func(ctx context.Context, ids []uint) (map[uint]*fleet.Pol
 
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
-type CountPoliciesFunc func(ctx context.Context, teamID *uint) (int, error)
+type CountPoliciesFunc func(ctx context.Context, teamID *uint, opts fleet.ListOptions) (int, error)
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
@@ -2922,11 +2922,11 @@ func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uin
 	return s.DeleteGlobalPoliciesFunc(ctx, ids)
 }
 
-func (s *DataStore) CountPolicies(ctx context.Context, teamID *uint) (int, error) {
+func (s *DataStore) CountPolicies(ctx context.Context, teamID *uint, opts fleet.ListOptions) (int, error) {
 	s.mu.Lock()
 	s.CountPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.CountPoliciesFunc(ctx, teamID)
+	return s.CountPoliciesFunc(ctx, teamID, opts)
 }
 
 func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
