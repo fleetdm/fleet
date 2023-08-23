@@ -1,10 +1,13 @@
-.back-link .children-wrapper {
+.back-link {
   display: inline-flex;
   align-items: center;
   padding: $pad-small $pad-xxsmall; // larger clickable area
   gap: $pad-xsmall;
 
   &:hover {
+    color: $core-vibrant-blue-over;
+    text-decoration: underline;
+
     svg {
       path {
         stroke: $core-vibrant-blue-over;
