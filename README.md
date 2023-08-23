@@ -90,4 +90,4 @@ Complete documentation for Fleet can be found at [https://fleetdm.com/docs](http
 ## License
 The free version of Fleet is available under the MIT license.  The commercial license is also designed to allow contributions to paid features for users whose employment agreements allow them to contribute to open source projects.  (See LICENSE.md for details.)
 
-> Fleet is built on osquery, nanoMDM, and Nudge.
+> Fleet is built on osquery, nanoMDM, Nudge, and swiftDialog.
