@@ -117,7 +117,7 @@ const generateTableHeaders = (
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
-          classes="w250 policy-name-cell"
+          className="w250 policy-name-cell"
           value={
             <>
               <div className="policy-name-text">{cellProps.cell.value}</div>

@@ -1,5 +1,5 @@
 ---
-name: 🦟  Bug report
+name: 🦟  Bug report
 about: Report a bug to help us improve.
 title: ''
 labels: 'bug,:reproduce'
@@ -7,26 +7,24 @@ assignees: ''
 
 ---
 
-**Fleet version**: _(head to the "My account" page in the Fleet UI or run `fleetctl --version`)_
+**Fleet version**: <!-- Copy this from the "My account" page in the Fleet UI, or run `fleetctl --version` -->
 
-**Operating system**: _(e.g. macOS 11.2.3)_
-
-**Web browser**: _(e.g. Chrome 88.0.4324)_
+**Web browser and operating system**: <!-- e.g. Chrome 88.0.4324 running on macOS -->
 
 <hr/>
 
-### 🧑‍💻  Expected behavior
-<!-- What did you do?  What did you expect to see? -->
-
-
 ### 💥  Actual behavior
-<!-- What did you see instead? -->
+<!-- What did you see?  Paste a screenshot, include a 30s video, or write 1-2 sentences describing the issue you observed. -->
+TODO
 
-### 👣  Reproduction steps
-<!-- What step-by-step actions did you take? -->
+### 🧑‍💻  Steps to reproduce
+<!-- Provide step-by-step actions of how to recreate this bug in a clean install of Fleet. (This helps others understand and fix it more quickly.) -->
+1. TODO
+2. TODO
+3. 
 
+### 🕯️ More info _(optional)_
+<!-- Add any additional details you think could be relevant to solving or reproducing the bug (e.g., "this does not reproduce when...") -->
+N/A
 
-### More info
-<!-- Any ideas?  -->
-
-<!-- If this is a performance issue: Please [follow these steps](https://fleetdm.com/docs/using-fleet/monitoring-fleet#debugging-performance-issues) to generate and attach a debug archive. -->
+<!-- If this is a performance issue, follow these steps to generate and attach a debug archive: https://fleetdm.com/docs/using-fleet/monitoring-fleet#debugging-performance-issues -->
