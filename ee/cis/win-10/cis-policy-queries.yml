@@ -3618,25 +3618,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Firewall state' is set to 'On (recommended)'
-  platforms: win10
-  platform: windows
-  description: |
-    Select On (recommended) to have Windows Firewall with Advanced Security use the settings for this profile to filter network traffic. If you select Off, Windows Firewall with Advanced Security will not use any of the firewall rules or connection security rules for this profile.
-    The recommended state for this setting is: On (recommended).
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to On (recommended):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Firewall state'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\EnableFirewall' and data == 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.9
-  contributors: RachelElysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Windows Firewall: Public: Logging: Log successful connections' is set to 'Yes'
   platforms: win10
   platform: windows
@@ -9360,7 +9341,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Allow Basic authentication' is set to 'Disabled'
+    CIS - Ensure 'Allow Basic authentication' in WinRM service is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
@@ -9398,7 +9379,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Allow unencrypted traffic' is set to 'Disabled'
+    CIS - Ensure 'Allow unencrypted traffic' in WinRM service is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
@@ -9905,7 +9886,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Always install with elevated privileges' is set to 'Disabled'
+    CIS - Ensure 'Always install with elevated privileges' is set to 'Disabled' (User Configuration)
   platforms: win10
   platform: windows
   description: |
