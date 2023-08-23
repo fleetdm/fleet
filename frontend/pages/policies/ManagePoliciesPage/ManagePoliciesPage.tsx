@@ -157,12 +157,13 @@ const ManagePolicyPage = ({
 
   // const page = initialPage;
   const showInheritedTable = initialShowInheritedTable;
-  const inheritedPage = initialInheritedPage;
+  // const inheritedPage = initialInheritedPage;
   // const searchQuery = initialSearchQuery;
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [page, setPage] = useState(initialPage);
+  const [inheritedPage, setInheritedPage] = useState(initialInheritedPage);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
@@ -454,47 +455,47 @@ const ManagePolicyPage = ({
     ] // Other dependencies can cause infinite re-renders as URL is source of truth
   );
 
-  const onClientSidePaginationChange = useCallback(
-    (pageIndex: number) => {
-      const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_POLICIES,
-        queryParams: {
-          ...queryParams,
-          page: pageIndex,
-          query: searchQuery,
-          order_direction: sortDirection,
-          order_key: sortHeader,
-          inherited_order_direction: inheritedSortDirection,
-          inherited_order_key: inheritedSortHeader,
-          inherited_page: inheritedPage,
-        },
-      });
+  // const onClientSidePaginationChange = useCallback(
+  //   (pageIndex: number) => {
+  //     const locationPath = getNextLocationPath({
+  //       pathPrefix: PATHS.MANAGE_POLICIES,
+  //       queryParams: {
+  //         ...queryParams,
+  //         page: pageIndex,
+  //         query: searchQuery,
+  //         order_direction: sortDirection,
+  //         order_key: sortHeader,
+  //         inherited_order_direction: inheritedSortDirection,
+  //         inherited_order_key: inheritedSortHeader,
+  //         inherited_page: inheritedPage,
+  //       },
+  //     });
 
-      router?.replace(locationPath);
-    },
-    [searchQuery, queryParams, sortHeader, sortDirection] // Dependencies required for correct variable state
-  );
+  //     router?.replace(locationPath);
+  //   },
+  //   [searchQuery, queryParams, sortHeader, sortDirection] // Dependencies required for correct variable state
+  // );
 
-  const onClientSideInheritedPaginationChange = useCallback(
-    (pageIndex: number) => {
-      const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_POLICIES,
-        queryParams: {
-          ...queryParams,
-          inherited_table: "true",
-          inherited_page: pageIndex,
-          query: searchQuery,
-          page,
-          order_direction: sortDirection,
-          order_key: sortHeader,
-          inherited_order_direction: inheritedSortDirection,
-          inherited_order_key: inheritedSortHeader,
-        },
-      });
-      router?.replace(locationPath);
-    },
-    [queryParams, inheritedSortHeader, inheritedSortDirection] // Dependencies required for correct variable state
-  );
+  // const onClientSideInheritedPaginationChange = useCallback(
+  //   (pageIndex: number) => {
+  //     const locationPath = getNextLocationPath({
+  //       pathPrefix: PATHS.MANAGE_POLICIES,
+  //       queryParams: {
+  //         ...queryParams,
+  //         inherited_table: "true",
+  //         inherited_page: pageIndex,
+  //         query: searchQuery,
+  //         page,
+  //         order_direction: sortDirection,
+  //         order_key: sortHeader,
+  //         inherited_order_direction: inheritedSortDirection,
+  //         inherited_order_key: inheritedSortHeader,
+  //       },
+  //     });
+  //     router?.replace(locationPath);
+  //   },
+  //   [queryParams, inheritedSortHeader, inheritedSortDirection] // Dependencies required for correct variable state
+  // );
 
   const toggleManageAutomationsModal = () =>
     setShowManageAutomationsModal(!showManageAutomationsModal);
@@ -733,7 +734,9 @@ const ManagePolicyPage = ({
                 canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeamSummary}
                 currentAutomatedPolicies={currentAutomatedPolicies}
-                renderPoliciesCount={renderPoliciesCount(teamPoliciesCount)}
+                renderPoliciesCount={() =>
+                  renderPoliciesCount(teamPoliciesCount)
+                }
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
                 searchQuery={searchQuery}
@@ -760,7 +763,9 @@ const ManagePolicyPage = ({
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
                 // onClientSidePaginationChange={onClientSidePaginationChange}
-                renderPoliciesCount={renderPoliciesCount(globalPoliciesCount)}
+                renderPoliciesCount={() =>
+                  renderPoliciesCount(globalPoliciesCount)
+                }
                 searchQuery={searchQuery}
                 sortHeader={sortHeader}
                 sortDirection={sortDirection}
@@ -769,25 +774,27 @@ const ManagePolicyPage = ({
               />
             ))}
         </div>
-        {showInheritedPoliciesButton && globalPolicies && (
-          <RevealButton
-            isShowing={showInheritedTable}
-            className={baseClass}
-            hideText={inheritedPoliciesButtonText(
-              showInheritedTable,
-              globalPolicies.length
-            )}
-            showText={inheritedPoliciesButtonText(
-              showInheritedTable,
-              globalPolicies.length
-            )}
-            caretPosition={"before"}
-            tooltipHtml={
-              '"All teams" policies are checked <br/> for this team’s hosts.'
-            }
-            onClick={toggleShowInheritedPolicies}
-          />
-        )}
+        {showInheritedPoliciesButton &&
+          globalPolicies &&
+          globalPoliciesCount && (
+            <RevealButton
+              isShowing={showInheritedTable}
+              className={baseClass}
+              hideText={inheritedPoliciesButtonText(
+                showInheritedTable,
+                globalPoliciesCount
+              )}
+              showText={inheritedPoliciesButtonText(
+                showInheritedTable,
+                globalPoliciesCount
+              )}
+              caretPosition={"before"}
+              tooltipHtml={
+                '"All teams" policies are checked <br/> for this team’s hosts.'
+              }
+              onClick={toggleShowInheritedPolicies}
+            />
+          )}
         {showInheritedPoliciesButton && showInheritedTable && (
           <div className={`${baseClass}__inherited-policies-table`}>
             {globalPoliciesError && <TableDataError />}
@@ -806,7 +813,9 @@ const ManagePolicyPage = ({
                   // onClientSidePaginationChange={
                   //   onClientSideInheritedPaginationChange
                   // }
-                  renderPoliciesCount={renderPoliciesCount(teamPoliciesCount)}
+                  renderPoliciesCount={() =>
+                    renderPoliciesCount(teamPoliciesCount)
+                  }
                   sortHeader={inheritedSortHeader}
                   sortDirection={inheritedSortDirection}
                   page={inheritedPage}

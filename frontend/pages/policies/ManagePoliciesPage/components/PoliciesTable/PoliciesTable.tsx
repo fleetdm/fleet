@@ -156,7 +156,7 @@ const PoliciesTable = ({
             currentAutomatedPolicies,
             config?.update_interval.osquery_policy
           )}
-          filters={{ global: searchQuery }}
+          // filters={{ global: searchQuery }}
           isLoading={isLoading}
           defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
           defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
@@ -185,7 +185,7 @@ const PoliciesTable = ({
           // isClientSidePagination
           // onClientSidePaginationChange={onClientSidePaginationChange}
           // isClientSideFilter
-          searchQueryColumn="name"
+          // searchQueryColumn="name"
           onQueryChange={onTableQueryChange}
           inputPlaceHolder="Search by name"
           searchable={searchable}
