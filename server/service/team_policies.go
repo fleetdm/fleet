@@ -98,8 +98,8 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 /////////////////////////////////////////////////////////////////////////////////
 
 type listTeamPoliciesRequest struct {
-	TeamID uint `url:"team_id"`
-	Opts   fleet.ListOptions
+	TeamID uint              `url:"team_id"`
+	Opts   fleet.ListOptions `url:"list_options"`
 }
 
 type listTeamPoliciesResponse struct {
