@@ -21,7 +21,7 @@ As an Operations Associate at Fleet, we'll look to you to…
 - 🙋 Happily jump in to support the Operations team with a range of tasks across business, people, finance, IT, and RevOps, including:
   - 📝 Assist in the preparation of documentation for a variety of purposes
   - ✅ Help ensure company compliance with internal procedures
-  - 🎓 Help provide basic company training to teammates
+  - 🎓 Assist in scheduling company training to teammates
   - 🧑‍🏫 Support onboarding of new teammates, including account creation, device ordering, and basic troubleshooting
   - 🤑 Support payroll functions for teammates and contractors
   - 💰 Support accounts receivable and accounts payable fuctions
@@ -35,6 +35,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 ### You "get it":
 
 - 🦉 3+ years of professional work experience
+- **Willingness and ability to use (or quickly learn how to use) GitHub in the browser and be capable in Markdown before your first day of work, and to continue improving those skills rapidly on your own.**
 - 🤝 Enjoy working in a team environment
 - 🎤 You feel confident talking to people
 - 🧑‍💻 Excited about learning new systems and processes on-the-job in a fast-paced environment
