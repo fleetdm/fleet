@@ -24,6 +24,11 @@ There is, however, a way to accomplish this even though the answer to the questi
 
 The update frequency for labels is configurable with the [—osquery_label_update_interval](https://fleetdm.com/docs/deploying/configuration#osquery-label-update-interval) flag (default 1 hour).
 
+### Can I modify built-in labels?
+
+While it is possible to modify built-in labels using `fleetctl` or the REST API, doing so is not recommended because it can lead to errors in the Fleet UI.
+Find more information [here](https://github.com/fleetdm/fleet/issues/12479).
+
 ### How do I revoke the authorization tokens for a user?
 
 Authorization tokens are revoked when the “require password reset” action is selected for that user. User-initiated password resets do not expire the existing tokens.
