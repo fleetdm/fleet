@@ -5351,7 +5351,7 @@ Creates a global query or team query.
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
-| discard_data        | bool    | body | Whether to skip saving a copy of the latest query results for each host. Default: `false`. |
+| discard_data        | bool    | body | Whether to skip saving the latest query results for each host. Default: `false`. |
 
 #### Example
 
@@ -5423,7 +5423,7 @@ Modifies the query specified by ID.
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
-| discard_data        | bool    | body | Whether to skip saving a copy of the latest query results for each host. |
+| discard_data        | bool    | body | Whether to skip saving the latest query results for each host. |
 
 #### Example
 
