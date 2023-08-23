@@ -11,6 +11,11 @@ Please also see [Application security](https://fleetdm.com/docs/using-fleet/appl
 | Question | Answer                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Does Fleet use any third party code, including open source code in the development of the scoped application(s)? If yes, please explain.   | Yes. All third party code is managed through standard dependency management tools (Go, Yarn, NPM) and audited for vulnerabilities using GitHub vulnerability scanning.                                                                                                                              |
+## Vulnerability management
+Please also see [Security policies](https://fleetdm.com/handbook/business-operations/security#security-policies)
+| Question | Answer                                                                                                                                                 |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| How does Fleet manage and respond to vulnerabilities?  | In addition to vulnerability scans of code in GitHub, Fleet uses osquery and Fleet to monitor its own devices for vulnerability detection, security posture tracking and incident response as necessary.  When a vulnerability is reported or discovered, Fleet will fix the vulnerability in the next scheduled release provided that time in the release cycle exists for remediation, implementation and testing. In the event time does not exist to perform those actions prior to the scheduled release date, Fleet will create a special release to address the vulnerability.  If Fleet determines that a vulnerability does not need to be fixed, Fleet will document its reasoning for leaving the vulnerability in place. |
 
 ## Data security
 Please also see [Data security](https://fleetdm.com/handbook/business-operations/security-policies#data-management-policy)
