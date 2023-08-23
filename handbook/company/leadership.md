@@ -212,39 +212,37 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
      > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
-2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
-3. **Schedule CEO interview:** Book a quick chat so our CEO can get to know the future Fleetie.
-   - No need to check with the CEO first.  You can [book the meeting directly](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) on the CEO's calendar during a time they and the candidate are both available.
+2. **Compile feedback:** about the candidate into a single document titled `CANDIDATE_NAME (CANDIDATE_TITLE)interview packet`.
    - [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
      - Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
      - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
-     - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
-   - Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
-   - The personal email you use for the candidate in this calendar event is where they will receive their offer or rejection email.
-4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
+     - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for CEO.
+     - _Share_ edit access of the "final interview" document with the [CEO and Apprentice](https://fleetdm.com/handbook/ceo#team).
+     - Link the "final interview" document to the "interview packet"
+     - _Share_ the "interview packet" with the Apprentice to the CEO.
+3. **Schedule CEO interview:** Reach out to the Apprentice who will [book the meeting directly](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) on the CEO's calendar during a time the CEO and candidate are both available.
+   -  Ahead of the interview, the Apprentice to the CEO [re-benchmarks salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
+     - _Paste a screenshot_ from Pave showing the amount of cash and equity in the offer (or write 1-2 sentences about what is being offered to this candidate and why) under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
+     - _Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ to reflect the location based benchmarking for the candidate:
+     -  Salary _(Location based OTE)_
+     -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
+   - Once the interview is scheduled, the Apprentice to the CEO schedules a 30 minute "Interview postgame" immediately after the interview.
+4. **Call references:** Hiring manager asks the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
+5. **Confirm intent to offer:** Once all interviews and refrence checks are completed, hiring manager shares the `CANDIDATE_NAME (CANDIDATE_TITLE)interview packet` document with the Head of Business Operations via Google Drive. _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
-   - _Share_ this single document with the Head of Business Operations via email.
-     - Share only _one, single Google Doc, please_; with a short, formulaic name that's easy to understand in an instant from just an email subject line.  For example, you could title it:
-       >Why hire Jane Doe ("Train Conductor") - 2023-03-21
-     - When the Head of Business Operations receives this doc shared doc in their email with the compiled feedback about the candidate, they will understand that to mean that it is time for Fleet to make an offer to the candidate.
-
+     
 #### Making an offer
 After receiving the interview packet, the Head of Business Operations uses the following steps to make an offer:
-1. **Adjust compensation:** 🔦 Head of Business Operations [re-benchmarks salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
-   - _Paste a screenshot_ from Pave showing the amount of cash and equity in the offer (or write 1-2 sentences about what is being offered to this candidate and why) under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
-   - _Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ to reflect the offer that is about to be sent:
-     -  Salary _(OTE actually offered)_
-     -  Equity _(stock options actually offered)_
-     -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
-     -  "Offer sent?" _(set this to `TRUE`)_
-     - …and make sure the other status columns are set to `todo`.
-2. **Prepare the "exit scenarios" spreadsheet:** 🔦 Head of Business Operations [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
+1. **Prepare the "exit scenarios" spreadsheet:** 🔦 Head of Business Operations [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to reflect the number of shares in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0), and the spreadsheet will update automatically to reflect their approximate ownership percentage.
      > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
-3. **Prepare offer:** 🔦 Head of Business Operations [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
+2. **Prepare offer:** 🔦 Head of Business Operations [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Highlight the number of shares with a link to the candidate's custom "exit scenarios" spreadsheet.
    - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/company/ceo#team).
+3. **Update equity spreadsheet:**    
+   - "Offer sent?" _(set this to `TRUE`)_
+   - Make sure the other status columns are set to `todo`. 
 4. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
    - Cc: Zach Wasserman and Head of Business Operations _(neither participate in the email thread until after the offer is accepted)_
