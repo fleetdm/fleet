@@ -7,7 +7,6 @@ const reorderCSVFields = (tableHeaders: string[]) => {
   const result = tableHeaders.filter((field) => field !== "host_display_name");
   result.unshift("host_display_name");
 
-  console.log("result", result);
   return result;
 };
 
@@ -21,7 +20,6 @@ export const generateCSVQueryResults = (
   filename: string,
   tableHeaders: Column[] | string[]
 ) => {
-  console.log("generateExportCSVFile rows", rows);
   return new global.window.File(
     [
       convertToCSV({
@@ -42,7 +40,6 @@ export const generateCSVPolicyResults = (
   rows: { host: string; status: string }[],
   filename: string
 ) => {
-  console.log("generateExportCSVFile rows", rows);
   return new global.window.File([convertToCSV({ objArray: rows })], filename, {
     type: "text/csv",
   });
@@ -53,7 +50,6 @@ export const generateCSVPolicyErrors = (
   rows: ICampaignError[],
   filename: string
 ) => {
-  console.log("generateExportCSVFile rows", rows);
   return new global.window.File([convertToCSV({ objArray: rows })], filename, {
     type: "text/csv",
   });

@@ -84,15 +84,10 @@ const QueryResults = ({
   }, [queryResults, debounceQueryResults]);
 
   useEffect(() => {
-    console.log("USEEFFECT TO SET TABLE HEADERS IS CALLED");
-    console.log("tableHeaders", tableHeaders);
-    console.log("queryResults", queryResults);
     if (queryResults && queryResults.length > 0) {
       const generatedTableHeaders = generateResultsTableHeaders(queryResults);
-      console.log("generatedTableHeaders", generatedTableHeaders);
       // Update tableHeaders if new headers are found
       if (generatedTableHeaders !== tableHeaders) {
-        console.log("tableHeaders updated", tableHeaders);
         setTableHeaders(generatedTableHeaders);
       }
     }
@@ -115,7 +110,6 @@ const QueryResults = ({
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
-    console.log("filteredResults", filteredResults);
     FileSaver.saveAs(
       generateCSVQueryResults(
         filteredResults,

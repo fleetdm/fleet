@@ -54,7 +54,6 @@ const generateResultsTableHeaders = (results: any[]): Column[] => {
       new Set() // Set prevents listing duplicate headers
     )
   );
-  console.log("keys", keys);
 
   const headers = keys.map((key) => {
     return {
