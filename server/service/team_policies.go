@@ -98,8 +98,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 /////////////////////////////////////////////////////////////////////////////////
 
 type listTeamPoliciesRequest struct {
-	TeamID uint              `url:"team_id"`
-	Opts   fleet.ListOptions `url:"list_options"`
+	TeamID        uint                             `url:"team_id"`
+	Opts          fleet.ListOptions                `url:"list_options"`
+	InheritedOpts fleet.InheritedPolicyListOptions `url:"inherited_list_options"`
 }
 
 type listTeamPoliciesResponse struct {
@@ -112,14 +113,14 @@ func (r listTeamPoliciesResponse) error() error { return r.Err }
 
 func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listTeamPoliciesRequest)
-	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts)
+	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, req.InheritedOpts)
 	if err != nil {
 		return listTeamPoliciesResponse{Err: err}, nil
 	}
 	return listTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
 }
 
-func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.InheritedPolicyListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -132,7 +133,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 	}
 
-	return svc.ds.ListTeamPolicies(ctx, teamID, opts)
+	return svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts)
 }
 
 /////////////////////////////////////////////////////////////////////////////////

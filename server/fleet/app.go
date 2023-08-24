@@ -728,6 +728,11 @@ const (
 	PerPageUnlimited uint = 9999999
 )
 
+type ListOptionsInterface interface {
+	Empty() bool
+	UsesCursorPagination() bool
+}
+
 // ListOptions defines options related to paging and ordering to be used when
 // listing objects
 type ListOptions struct {
@@ -756,6 +761,35 @@ func (l ListOptions) Empty() bool {
 }
 
 func (l ListOptions) UsesCursorPagination() bool {
+	return l.After != "" && l.OrderKey != ""
+}
+
+type InheritedPolicyListOptions struct {
+	// Which page to return (must be positive integer)
+	Page uint `query:"inherited_page,optional"`
+	// How many results per page (must be positive integer, 0 indicates
+	// unlimited)
+	PerPage uint `query:"inherited_per_page,optional"`
+	// Key to use for ordering. Can be a comma separated set of items, eg: host_count,id
+	OrderKey string `query:"inherited_order_key,optional"`
+	// Direction of ordering
+	OrderDirection OrderDirection `query:"inherited_order_direction,optional"`
+	// MatchQuery is the query string to match against columns of the entity
+	// (varies depending on entity, eg. hostname, IP address for hosts).
+	// Handling for this parameter must be implemented separately for each type.
+	MatchQuery string `query:"inherited_query,optional"`
+	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
+	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
+	After string `query:"inherited_after,optional"`
+	// Used to request the metadata of a query
+	IncludeMetadata bool
+}
+
+func (l InheritedPolicyListOptions) Empty() bool {
+	return l == InheritedPolicyListOptions{}
+}
+
+func (l InheritedPolicyListOptions) UsesCursorPagination() bool {
 	return l.After != "" && l.OrderKey != ""
 }
 

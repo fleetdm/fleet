@@ -294,7 +294,7 @@ func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOpti
 // global policies if teamID is nil. The pass/fail host counts are the totals
 // regardless of hosts' team if countsForTeamID is nil, or the totals just for
 // hosts that belong to the provided countsForTeamID if it is not nil.
-func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint, opts fleet.ListOptionsInterface) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	counts := `
@@ -324,7 +324,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE %s`, counts, teamWhere)
 
-	query = appendListOptionsToSQL(query, &opts)
+	query = appendListOptionsToSQL(query, opts.(*fleet.ListOptions))
 
 	var policies []*fleet.Policy
 	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
@@ -493,13 +493,13 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), &teamID)
 }
 
-func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.InheritedPolicyListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, nil, opts)
 	if err != nil {
 		return nil, nil, err
 	}
 	// get inherited (global) policies with counts of hosts for that team
-	inheritedPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), nil, &teamID, opts)
+	inheritedPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), nil, &teamID, fleet.ListOptions(iopts))
 	if err != nil {
 		return nil, nil, err
 	}
