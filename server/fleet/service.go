@@ -789,7 +789,16 @@ type Service interface {
 	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Scripts
+	// Host Script Execution
+
+	// RunHostScript executes a script on a host and optionally waits for the
+	// result if waitForResult is > 0. If it times out waiting for a result, it
+	// fails with a 504 Gateway Timeout error.
+	RunHostScript(ctx context.Context, request *HostScriptRequestPayload, waitForResult time.Duration) (*HostScriptResult, error)
+	// GetHostScript returns information about a host script execution.
+	GetHostScript(ctx context.Context, execID string) (*HostScriptResult, error)
+	// SaveHostScriptResult saves information about execution of a script on a host.
+	SaveHostScriptResult(ctx context.Context, result *HostScriptResultPayload) error
 
 	// GetScriptResult returns the result of a script run
 	GetScriptResult(ctx context.Context, scriptID uint) (*ScriptResult, error)
