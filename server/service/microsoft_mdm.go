@@ -541,6 +541,7 @@ func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, payloa
 	pld.Type = typeID
 
 	if typeID == fleet.WindowsMDMProgrammaticEnrollmentType {
+		pld.Payload.OrbitNodeKey = payload
 		pld.Payload.HostUUID = payload
 	} else if typeID == fleet.WindowsMDMAutomaticEnrollmentType {
 		pld.Payload.AuthToken = payload
@@ -935,6 +936,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 		// Validating the Binary Security Token Type used on Programmatic Enrollments
 		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
 			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
+			// host, err := svc.ds.HostByIdentifier(ctx, binSecToken.Payload.HostUUID)
 			if err != nil {
 				return "", fmt.Errorf("host data cannot be found %v", err)
 			}
