@@ -125,7 +125,7 @@ const generateTableHeaders = ({
       Cell: (cellProps: ICellProps): JSX.Element => {
         return (
           <LinkCell
-            classes="w400 query-name-cell"
+            className="w400 query-name-cell"
             value={
               <>
                 <div className="query-name-text">{cellProps.cell.value}</div>

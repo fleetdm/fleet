@@ -258,11 +258,8 @@ When you need to take time off, follow this process:
 
 
 ### Retirement contributions
-#### US based team members
-Commencing in August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 1% contribution unless they opt out or change their contribution amount within 30 days of commencement. Fleet currently does not match any contributions made by team members to 401(k) plans.
-
-#### Non-US team members
-Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
+- **US based team members:** Starting August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 1% contribution unless they opt out or change their contribution amount within 30 days of commencement. Fleet currently does not match any contributions made by team members to 401(k) plans.
+- **Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
 
 ### Coworking
 Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](https://fleetdm.com/handbook/business-operations#intake).

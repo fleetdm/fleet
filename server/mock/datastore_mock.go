@@ -368,6 +368,8 @@ type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.Po
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
+type PolicyByNameFunc func(ctx context.Context, name string) (*fleet.Policy, error)
+
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
 
 type ListGlobalPoliciesFunc func(ctx context.Context) ([]*fleet.Policy, error)
@@ -661,6 +663,14 @@ type MDMWindowsGetEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID strin
 type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error
 
 type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) error
+
+type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
+
+type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) error
+
+type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
+
+type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1188,6 +1198,9 @@ type DataStore struct {
 	PolicyFunc        PolicyFunc
 	PolicyFuncInvoked bool
 
+	PolicyByNameFunc        PolicyByNameFunc
+	PolicyByNameFuncInvoked bool
+
 	SavePolicyFunc        SavePolicyFunc
 	SavePolicyFuncInvoked bool
 
@@ -1628,6 +1641,18 @@ type DataStore struct {
 
 	MDMWindowsDeleteEnrolledDeviceFunc        MDMWindowsDeleteEnrolledDeviceFunc
 	MDMWindowsDeleteEnrolledDeviceFuncInvoked bool
+
+	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
+	NewHostScriptExecutionRequestFuncInvoked bool
+
+	SetHostScriptExecutionResultFunc        SetHostScriptExecutionResultFunc
+	SetHostScriptExecutionResultFuncInvoked bool
+
+	GetHostScriptExecutionResultFunc        GetHostScriptExecutionResultFunc
+	GetHostScriptExecutionResultFuncInvoked bool
+
+	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
+	ListPendingHostScriptExecutionsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -2857,6 +2882,13 @@ func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) 
 	return s.PolicyFunc(ctx, id)
 }
 
+func (s *DataStore) PolicyByName(ctx context.Context, name string) (*fleet.Policy, error) {
+	s.mu.Lock()
+	s.PolicyByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.PolicyByNameFunc(ctx, name)
+}
+
 func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	s.mu.Lock()
 	s.SavePolicyFuncInvoked = true
@@ -3884,4 +3916,32 @@ func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevic
 	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.NewHostScriptExecutionRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewHostScriptExecutionRequestFunc(ctx, request)
+}
+
+func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
+	s.mu.Lock()
+	s.SetHostScriptExecutionResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostScriptExecutionResultFunc(ctx, result)
+}
+
+func (s *DataStore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.GetHostScriptExecutionResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostScriptExecutionResultFunc(ctx, execID)
+}
+
+func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.ListPendingHostScriptExecutionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, ignoreOlder)
 }

@@ -311,31 +311,43 @@ func (e *MDMNotConfiguredError) Error() string {
 	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet/mobile-device-management"
 }
 
-// BadGatewayError is an error type that generates a 502 status code.
-type BadGatewayError struct {
+// GatewayError is an error type that generates a 502 or 504 status code.
+type GatewayError struct {
 	Message string
 	err     error
+	code    int
 
 	ErrorWithUUID
 }
 
-// NewBadGatewayError returns a MDMBadGatewayError with the message and
-// error specified.
-func NewBadGatewayError(message string, err error) *BadGatewayError {
-	return &BadGatewayError{
+// NewBadGatewayError returns a GatewayError with the message and
+// error specified and that returns a 502 status code.
+func NewBadGatewayError(message string, err error) *GatewayError {
+	return &GatewayError{
 		Message: message,
 		err:     err,
+		code:    http.StatusBadGateway,
+	}
+}
+
+// NewGatewayTimeoutError returns a GatewayError with the message and
+// error specified and that returns a 504 status code.
+func NewGatewayTimeoutError(message string, err error) *GatewayError {
+	return &GatewayError{
+		Message: message,
+		err:     err,
+		code:    http.StatusGatewayTimeout,
 	}
 }
 
 // StatusCode implements the kithttp.StatusCoder interface so we can customize the
 // HTTP status code of the response returning this error.
-func (e *BadGatewayError) StatusCode() int {
-	return http.StatusBadGateway
+func (e *GatewayError) StatusCode() int {
+	return e.code
 }
 
 // Error returns the error message.
-func (e *BadGatewayError) Error() string {
+func (e *GatewayError) Error() string {
 	msg := e.Message
 	if e.err != nil {
 		msg += ": " + e.err.Error()
@@ -466,4 +478,15 @@ func Cause(err error) error {
 		}
 		err = uerr
 	}
+}
+
+// OrbitError is used for orbit endpoints, to return an error message along
+// with a failed request's response.
+type OrbitError struct {
+	Message string
+}
+
+// Error implements the error interface for the OrbitError.
+func (e OrbitError) Error() string {
+	return e.Message
 }
