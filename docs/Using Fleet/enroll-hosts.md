@@ -45,7 +45,6 @@ The following command creates a Fleetd installer, `.pkg` file, which adds macOS 
 ```sh
 fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
-  >**Note:** The only configuration option required to create an installer is `--type`, but to communicate with a Fleet instance, you'll need to specify a `--fleet-url` and `--enroll-secret`
 
 When you install the generated Fleetd installer on a host, this host will automatically enroll in the specified Fleet instance.
 
