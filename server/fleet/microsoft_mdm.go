@@ -703,8 +703,9 @@ type WindowsMDMAccessTokenPayload struct {
 	// Type is the enrollment type, such as "programmatic".
 	Type    WindowsMDMEnrollmentType `json:"type"`
 	Payload struct {
-		HostUUID  string `json:"host_uuid"`
-		AuthToken string `json:"auth_token"`
+		OrbitNodeKey string `json:"orbit_node_key"`
+		HostUUID     string `json:"host_uuid"`
+		AuthToken    string `json:"auth_token"`
 	} `json:"payload"`
 }
 

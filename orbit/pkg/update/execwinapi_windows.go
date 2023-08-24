@@ -172,5 +172,6 @@ func generateWindowsMDMAccessTokenPayload(args WindowsMDMEnrollmentArgs) ([]byte
 	var pld fleet.WindowsMDMAccessTokenPayload
 	pld.Type = fleet.WindowsMDMProgrammaticEnrollmentType // always programmatic for now
 	pld.Payload.HostUUID = args.HostUUID
+	pld.Payload.OrbitNodeKey = args.OrbitNodeKey
 	return json.Marshal(pld)
 }

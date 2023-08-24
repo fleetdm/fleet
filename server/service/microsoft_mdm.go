@@ -934,7 +934,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 
 		// Validating the Binary Security Token Type used on Programmatic Enrollments
 		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
-			host, err := svc.ds.HostByIdentifier(ctx, binSecToken.Payload.HostUUID)
+			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
 			if err != nil {
 				return "", fmt.Errorf("host data cannot be found %v", err)
 			}
