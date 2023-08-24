@@ -109,7 +109,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       location?.pathname.includes(item.path)
     );
 
-    // Override title if MDM not configured
+    // Override Controls page title if MDM not configured
     if (
       !config?.mdm.enabled_and_configured &&
       curTitle?.path === "/controls/mac-os-updates"
