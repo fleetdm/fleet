@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"os"
 	"strings"
 	"sync"
 )
@@ -63,21 +64,24 @@ const (
 	CapabilityOrbitEndpoints Capability = "orbit_endpoints"
 	// CapabilityTokenRotation denotes the ability of the server to support
 	// periodic rotation of device tokens
-	CapabilityTokenRotation Capability = "token_rotation"
+	CapabilityTokenRotation  Capability = "token_rotation"
+	CapabilityErrorReporting Capability = "error_reporting"
 )
 
-// ServerOrbitCapabilities is a set of capabilities that server-side,
-// Orbit-related endpoint supports.
-// **it shouldn't be modified at runtime**
-var ServerOrbitCapabilities = CapabilityMap{
-	CapabilityOrbitEndpoints: {},
-	CapabilityTokenRotation:  {},
+func GetServerOrbitCapabilities() CapabilityMap {
+	return CapabilityMap{
+		CapabilityOrbitEndpoints: {},
+		CapabilityTokenRotation:  {},
+	}
 }
 
-// ServerDeviceCapabilities is a set of capabilities that server-side,
-// Device-related endpoint supports.
-// **it shouldn't be modified at runtime**
-var ServerDeviceCapabilities = CapabilityMap{}
+func GetServerDeviceCapabilities() CapabilityMap {
+	capabilities := CapabilityMap{}
+	if os.Getenv("FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS") == "1" {
+		capabilities[CapabilityErrorReporting] = struct{}{}
+	}
+	return capabilities
+}
 
 // CapabilitiesHeader is the header name used to communicate the capabilities.
 const CapabilitiesHeader = "X-Fleet-Capabilities"
