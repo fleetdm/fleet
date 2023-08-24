@@ -15,13 +15,16 @@ export type ButtonVariant =
   | "label"
   | "text-link"
   | "text-icon"
+  | "icon" // Buttons without text
+  | "small-icon" // Buttons without text
   | "inverse"
   | "inverse-alert"
   | "block"
   | "unstyled"
   | "unstyled-modal-query"
   | "contextual-nav-item"
-  | "small-text-icon";
+  | "small-text-icon"
+  | "oversized";
 
 export interface IButtonProps {
   autofocus?: boolean;
