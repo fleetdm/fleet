@@ -12,6 +12,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/rs/zerolog/log"
 )
 
@@ -149,6 +151,11 @@ type swiftDialogMDMMigrator struct {
 
 	// ensures only one dialog is open at a given interval
 	intervalMu sync.Mutex
+
+	// testEnrollmentCheckFn is used in tests to mock the call to verify
+	// the enrollment status of the host
+	testEnrollmentCheckFn     func() (bool, string, error)
+	unenrollmentRetryInterval time.Duration
 }
 
 /**
@@ -201,7 +208,11 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 }
 
 func (m *swiftDialogMDMMigrator) renderLoadingSpinner() (chan swiftDialogExitCode, chan error) {
-	return m.render("## Migrate to Fleet\n\nCommunicating with MDM server...",
+	return m.render(`## Migrate to Fleet
+
+![Loading...]("https://roperzh-fs.ngrok.io/images/permanent/loading-spinner.gif")
+
+Unenrolling you from your old MDM. This could take 90 seconds...`,
 		"--button1text", "Start",
 		"--button1disabled",
 		"--quitkey", "x",
@@ -221,6 +232,37 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 	}
 
 	return m.render(errorMessage.String(), "--button1text", "Close")
+}
+
+func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
+	maxRetries := 9
+	retryInterval := m.unenrollmentRetryInterval
+	if retryInterval == 0 {
+		retryInterval = 10 * time.Second
+	}
+	fn := m.testEnrollmentCheckFn
+	if fn == nil {
+		fn = profiles.IsEnrolledInMDM
+	}
+	return retry.Do(func() error {
+		enrolled, _, err := fn()
+		if err != nil {
+			log.Error().Err(err).Msgf("checking enrollment status in migration modal, will retry in %s", retryInterval)
+			return err
+
+		}
+
+		if enrolled {
+			log.Info().Msgf("device is still enrolled, waiting %s", retryInterval)
+			return errors.New("host didn't unenroll from MDM")
+		}
+
+		log.Info().Msg("device is unenrolled, closing migration modal")
+		return nil
+	},
+		retry.WithMaxAttempts(maxRetries),
+		retry.WithInterval(retryInterval),
+	)
 }
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
@@ -276,7 +318,10 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
-			log.Info().Msg("webhook sent, closing spinner")
+			log.Info().Msg("webhook sent, checking for unenrollment")
+			if err := m.waitForUnenrollment(); err != nil {
+				return err
+			}
 
 			// close the spinner
 			// TODO: maybe it's better to use
