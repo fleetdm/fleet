@@ -40,6 +40,7 @@ const baseClass = "app";
 const App = ({ children, location }: IAppProps): JSX.Element => {
   const queryClient = new QueryClient();
   const {
+    config,
     currentUser,
     isGlobalObserver,
     isOnlyObserver,
@@ -56,15 +57,15 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   const fetchConfig = async () => {
     try {
-      const config = await configAPI.loadAll();
-      if (config.sandbox_enabled) {
+      const configResponse = await configAPI.loadAll();
+      if (configResponse.sandbox_enabled) {
         const timestamp = await configAPI.loadSandboxExpiry();
         setSandboxExpiry(timestamp as string);
         const hostCount = await hostCountAPI.load({});
         const noSandboxHosts = hostCount.count === 0;
         setNoSandboxHosts(noSandboxHosts);
       }
-      setConfig(config);
+      setConfig(configResponse);
     } catch (error) {
       console.error(error);
       return false;
@@ -108,10 +109,18 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       location?.pathname.includes(item.path)
     );
 
+    // Override title if MDM not configured
+    if (
+      !config?.mdm.enabled_and_configured &&
+      curTitle?.path === "/controls/mac-os-updates"
+    ) {
+      curTitle.title = "Manage macOS hosts | Fleet for osquery";
+    }
+
     if (curTitle && curTitle.title) {
       document.title = curTitle.title;
     }
-  }, [location]);
+  }, [location, config]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =
