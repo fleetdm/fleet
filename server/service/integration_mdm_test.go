@@ -1488,6 +1488,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "deleted"},
 		{SerialNumber: addedSerial, Model: "MacBook Mini", OS: "osx", OpType: "added"},
 	}
+	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runDEPSchedule()
 
 	// all hosts should be returned from the hosts endpoint
