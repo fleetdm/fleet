@@ -93,7 +93,7 @@ To reach our goals, we need to [see reality clearly](https://en.wikipedia.org/wi
 - **Find the bottleneck.** When something isn't working, look for the worst part. 
  [Fix that first](https://en.wikipedia.org/wiki/Theory_of_constraints).
 - **Change your mind.**  [Be willing to reconsider](https://about.gitlab.com/handbook/values/#articulate-when-you-change-your-mind) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
-- **Be rigorous.** A lucky streak can do more harm than good.  Understand why it works first.  Then change one variable at a time. <!--  “Fixes” are fleeting. Certainty is overrated. Be a skeptic. Cultivate doubt. Interrogate luck. Check your assumptions.  Don't say "just do XYZ". The road to failure is paved with ["happy paths"](https://en.wikipedia.org/wiki/Happy_path). Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research). -->
+- **Be rigorous.** A lucky streak can do more harm than good.  Understand why it works first.  Change one variable at a time. <!--  Certainty is overrated. Be a skeptic. Cultivate doubt. Interrogate luck. Check your assumptions.  “Fixes” are fleeting.  Don't say "just do XYZ".  Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research). The road to failure is paved with ["happy paths"](https://en.wikipedia.org/wiki/Happy_path). -->
 - **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.  <!-- Use first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering) -->
 
 ### 🟣 Openness
