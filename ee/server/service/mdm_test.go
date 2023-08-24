@@ -242,17 +242,17 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			return team, nil
 		}
 		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
-			require.Equal(t, uint(lastTeamID), *profile.TeamID)
+			require.Equal(t, lastTeamID, *profile.TeamID)
 			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profile.Identifier)
 			return &profile, nil
 		}
 		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
-			require.Equal(t, uint(lastTeamID), *teamID)
+			require.Equal(t, lastTeamID, *teamID)
 			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profileIdentifier)
 			return nil
 		}
 		ds.CopyDefaultMDMAppleBootstrapPackageFunc = func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
-			require.Equal(t, uint(lastTeamID), toTeamID)
+			require.Equal(t, lastTeamID, toTeamID)
 			require.NotNil(t, ac)
 			require.Equal(t, "https://example.com/bootstrap.pkg", ac.MDM.MacOSSetup.BootstrapPackage.Value)
 			teamStore[toTeamID].Config.MDM.MacOSSetup.BootstrapPackage = optjson.SetString(ac.MDM.MacOSSetup.BootstrapPackage.Value)
@@ -289,7 +289,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 				require.Nil(t, teamID)
 			} else {
 				require.NotNil(t, teamID)
-				require.EqualValues(t, uint(lastTeamID), *teamID)
+				require.EqualValues(t, lastTeamID, *teamID)
 			}
 			getSetupAsstFuncCalls++
 			return globalSetupAsst, nil
@@ -298,7 +298,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.Equal(t, globalSetupAsst.Name, asst.Name)
 			require.JSONEq(t, string(globalSetupAsst.Profile), string(asst.Profile))
 			require.NotNil(t, asst.TeamID)
-			require.EqualValues(t, uint(lastTeamID), *asst.TeamID)
+			require.EqualValues(t, lastTeamID, *asst.TeamID)
 			return asst, nil
 		}
 
