@@ -284,6 +284,10 @@ const ManagePolicyPage = ({
         query: searchQuery,
         orderDirection: sortDirection,
         orderKey: sortHeader,
+        inheritedPage: inheritedTableQueryData?.pageIndex,
+        inheritedPerPage: DEFAULT_PAGE_SIZE,
+        inheritedOrderDirection: inheritedSortDirection,
+        inheritedOrderKey: inheritedSortHeader,
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
       },
     ],
@@ -750,7 +754,7 @@ const ManagePolicyPage = ({
                 currentTeam={currentTeamSummary}
                 currentAutomatedPolicies={currentAutomatedPolicies}
                 renderPoliciesCount={() =>
-                  renderPoliciesCount(teamPoliciesCount)
+                  !isFetchingTeamCount && renderPoliciesCount(teamPoliciesCount)
                 }
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
@@ -779,6 +783,7 @@ const ManagePolicyPage = ({
                 isSandboxMode={isSandboxMode}
                 // onClientSidePaginationChange={onClientSidePaginationChange}
                 renderPoliciesCount={() =>
+                  !isFetchingGlobalCount &&
                   renderPoliciesCount(globalPoliciesCount)
                 }
                 searchQuery={searchQuery}

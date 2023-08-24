@@ -17,6 +17,10 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
+  inheritedPage?: number;
+  inheritedPerPage?: number;
+  inheritedOrderKey?: string;
+  inheritedOrderDirection?: "asc" | "desc";
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
@@ -131,6 +135,10 @@ export default {
     orderKey = ORDER_KEY,
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
+    inheritedPage,
+    inheritedPerPage,
+    inheritedOrderKey = ORDER_KEY,
+    inheritedOrderDirection: inheritedOrderDir = ORDER_DIRECTION,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -140,6 +148,10 @@ export default {
       orderKey,
       orderDirection: orderDir,
       query,
+      inheritedPage,
+      inheritedPerPage,
+      inheritedOrderKey,
+      inheritedOrderDirection: inheritedOrderDir,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
