@@ -238,7 +238,7 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 	maxRetries := 9
 	retryInterval := m.unenrollmentRetryInterval
 	if retryInterval == 0 {
-		retryInterval = 10 * time.Second
+		retryInterval = 5 * time.Second
 	}
 	fn := m.testEnrollmentCheckFn
 	if fn == nil {
