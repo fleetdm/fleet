@@ -6,7 +6,6 @@ export default class TableSystemState extends Table {
 
   async generate() {
     // @ts-ignore ignore typing which is out-of-date
-    // intentionally don't check for type errors here, as we want them to bubble up to the Fleet layer
     const autoLockDelay: number = await new Promise((resolve) => {
       chrome.idle.getAutoLockDelay((delay) => {
         resolve(delay);
@@ -17,7 +16,6 @@ export default class TableSystemState extends Table {
     const idleStateDelay = autoLockDelay > 0 ? 0.2 * autoLockDelay : 30;
 
     // @ts-ignore ignore typing which is out-of-date
-    // again, intentionally don't check for type errors here
     const idleState: "active" | "idle" | "locked" = await new Promise(
       (resolve) => {
         chrome.idle.queryState(idleStateDelay, (state) => {
