@@ -57,10 +57,10 @@ func (r *FlagRunner) Execute() error {
 		case <-r.cancel:
 			return nil
 		case <-ticker.C:
-			log.Info().Msg("calling flags update")
+			log.Debug().Msg("calling flags update")
 			didUpdate, err := r.DoFlagsUpdate()
 			if err != nil {
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "flags update failed")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "flags updates failed")
 			}
 			if didUpdate {
 				log.Info().Msg("flags updated, exiting")

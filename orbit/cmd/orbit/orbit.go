@@ -342,7 +342,7 @@ func main() {
 		g.Add(systemChecker.Execute, systemChecker.Interrupt)
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
-		if !c.Bool("disable-kickstart-softwareupdated") {
+		if !c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
 			log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
 		}
 
@@ -644,7 +644,7 @@ func main() {
 		if _, err := flagRunner.DoFlagsUpdate(); err != nil {
 			// Just log, OK to continue, since flagRunner will retry
 			// in flagRunner.Execute.
-			log.Info().Err(err).Msg("initial flags update failed")
+			log.Debug().Err(err).Msg("initial flags update failed")
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
@@ -667,7 +667,7 @@ func main() {
 			_, err := updateRunner.UpdateAction()
 			if err != nil {
 				// OK, initial call may fail, ok to continue
-				log.Info().Err(err).Msg("initial extensions update action failed")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial extensions update action failed")
 			}
 
 			extensionAutoLoadFile := filepath.Join(c.String("root-dir"), "extensions.load")
@@ -685,7 +685,7 @@ func main() {
 			case errors.Is(err, os.ErrNotExist):
 				// OK, nothing to do.
 			default:
-				log.Error().Err(err).Msg("error with extensions.load file at " + extensionAutoLoadFile)
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "error with extensions.load file at "+extensionAutoLoadFile)
 			}
 			g.Add(extRunner.Execute, extRunner.Interrupt)
 		}
