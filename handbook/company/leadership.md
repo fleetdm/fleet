@@ -6,7 +6,7 @@ The idea here is to get this vision implemented on a single departmental handboo
 Another thing is that we need to get a better intuitive understanding of who these pages are designed to serve.  So in order to put ourselves in their shoes (get behind their eyeballs), we need something to look at.  So doing a particular page first provides us with that canvas.
 
 - `# Name of department`
-  - "This handbook page details processes specific to working `[with](fleetdm.com/handbook/company/nameOfDepartment#contact-us)` and `[within](fleetdm.com/handbook/company/nameOfDepartment#)` the (Name of dpartment) department." 
+  - "This handbook page details processes specific to working `[with](fleetdm.com/handbook/company/nameOfDepartment#contact-us)` and `[within](fleetdm.com/handbook/company/nameOfDepartment)` the (Name of dpartment) department." 
     
   - `## What we do`
     - Outline the specific responsibilities of the department.  
@@ -32,8 +32,7 @@ Another thing is that we need to get a better intuitive understanding of who the
 Every release cycle, each department leader discusses their KPIs (key performance indicators; aka numbers measuring results and everyday excellence) with the CEO. In this meeting, we discuss actual week-over-week progress towards timebound goals for a particular quarter. 
 
 The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
-- Key review meetings are scheduled during the e-group time slot every three weeks to promote consistant attention to results.
-- Key reviews are not to be moved or rescheduled without [CEO approval](https://fleetdm.com/handbook/ceo#contact-us).
+- Key reviews are scheduled during the e-group time slot every three weeks to promote consistant attention to results, and are not to be moved or rescheduled without [CEO approval](https://fleetdm.com/handbook/ceo#contact-us).
 - If a departmental leader is not available to attend a particular key review, they can send another team member that is able to communicate their department's key preformance indicators (KPI's).
 
 
