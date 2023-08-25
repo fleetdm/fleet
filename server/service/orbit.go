@@ -66,7 +66,7 @@ func (r EnrollOrbitResponse) error() error { return r.Err }
 // response, allowing Orbit to know what features are available without the
 // need to enroll.
 func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
+	writeCapabilitiesHeader(w, fleet.GetServerOrbitCapabilities())
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
@@ -307,7 +307,7 @@ type orbitPingRequest struct{}
 type orbitPingResponse struct{}
 
 func (r orbitPingResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
+	writeCapabilitiesHeader(w, fleet.GetServerOrbitCapabilities())
 }
 
 func (r orbitPingResponse) error() error { return nil }

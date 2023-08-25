@@ -3628,7 +3628,9 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	uuid1 := uuid.New().String()
 	s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
 		enqueueMDMAppleCommandRequest{
-			Command:   base64Cmd(newRawCmd(uuid1)),
+			// explicitly use standard encoding to make sure it also works
+			// see #11384
+			Command:   base64.StdEncoding.EncodeToString([]byte(newRawCmd(uuid1))),
 			DeviceIDs: []string{"no-such-host"},
 		}, http.StatusNotFound)
 
