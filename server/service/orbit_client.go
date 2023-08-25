@@ -224,7 +224,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				endpointDoesNotExist = true
 				return nil
 			default:
-				logging.LogIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "enroll failed, retrying")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "enroll failed, retrying")
 				return err
 			}
 		},
