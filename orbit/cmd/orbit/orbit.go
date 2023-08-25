@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -659,7 +660,7 @@ func main() {
 
 			if _, err := extRunner.DoExtensionConfigUpdate(); err != nil {
 				// just log, OK to continue since this will get retry
-				log.Info().Err(err).Msg("initial update to fetch extensions from /config API failed")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial update to fetch extensions from /config API failed")
 			}
 
 			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
@@ -891,7 +892,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Error().Err(err).Msg("run orbit failed")
+		logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "run orbit failed")
 	}
 }
 
@@ -1226,7 +1227,7 @@ func (f *capabilitiesChecker) execute() error {
 
 	// do an initial ping to store the initial capabilities
 	if err := f.client.Ping(); err != nil {
-		log.Error().Err(err).Msg("pinging the server")
+		logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 	}
 
 	for {
@@ -1235,7 +1236,7 @@ func (f *capabilitiesChecker) execute() error {
 			oldCapabilities := f.client.GetServerCapabilities()
 			// ping the server to get the latest capabilities
 			if err := f.client.Ping(); err != nil {
-				log.Error().Err(err).Msg("pinging the server")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 				continue
 			}
 			newCapabilities := f.client.GetServerCapabilities()

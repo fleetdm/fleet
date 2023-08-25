@@ -47,4 +47,6 @@ const (
 	// UpdateTLSClientKeyFileName is the name of the TLS client private key file
 	// used when connecting to the update server.
 	UpdateTLSClientKeyFileName = "update_client.key"
+	// Environment variable name for disabling enroll log errors
+	SilenceEnrollLogErrorEnvVar = "FLEET_SILENCE_ENROLL_LOG_ERROR"
 )
