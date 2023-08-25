@@ -35,6 +35,7 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 Fleet is currently hiring for the following positions:
 
 - [🐋 Head of Public Sector](https://fleetdm.com/handbook/company/head-of-public-sector)
+- [🐋 Director of Business Development Public Sector](handbook/company/dir-business-development-public)
 - [🐋 Customer Support Engineer](https://fleetdm.com/handbook/company/customer-support-engineer)
 - [🐋 Account Executive](https://fleetdm.com/handbook/company/account-executive)
 - [🚀 Software Engineer](https://fleetdm.com/handbook/company/software-engineer)
