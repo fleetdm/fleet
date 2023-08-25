@@ -307,6 +307,7 @@ func TestAppleMDM(t *testing.T) {
 			UUID:     "abcd",
 			Username: "test",
 			Fullname: "test",
+			Email:    "test@example.com",
 		})
 		require.NoError(t, err)
 		h := createEnrolledHost(t, 1, nil, true)
@@ -344,6 +345,7 @@ func TestAppleMDM(t *testing.T) {
 			UUID:     "abcd",
 			Username: "test",
 			Fullname: "test",
+			Email:    "test@example.com",
 		})
 		require.NoError(t, err)
 

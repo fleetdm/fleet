@@ -8,8 +8,10 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 )
 
 var (
@@ -35,7 +37,7 @@ type ErrWithInternal interface {
 	Internal() string
 }
 
-// ErrWithInternal is an interface for errors that include additional logging
+// ErrWithLogFields is an interface for errors that include additional logging
 // fields that should be logged in server logs but not sent to clients.
 type ErrWithLogFields interface {
 	error
@@ -478,4 +480,52 @@ func Cause(err error) error {
 		}
 		err = uerr
 	}
+}
+
+// FleetdError is an error that can be reported by any of the fleetd
+// components.
+type FleetdError struct {
+	ErrorSource         string         `json:"error_source"`
+	ErrorSourceVersion  string         `json:"error_source_version"`
+	ErrorTimestamp      time.Time      `json:"error_timestamp"`
+	ErrorMessage        string         `json:"error_message"`
+	ErrorAdditionalInfo map[string]any `json:"error_additional_info"`
+}
+
+// Error implements the error interface
+func (fe FleetdError) Error() string {
+	return fe.ErrorMessage
+}
+
+// MarshalZerologObject implements `zerolog.LogObjectMarshaler` so all details
+// about the error can be logged by the components that use zerolog (Orbit,
+// Fleet Desktop)
+func (fe FleetdError) MarshalZerologObject(e *zerolog.Event) {
+	e.Str("error_source", fe.ErrorSource)
+	e.Str("error_source_version", fe.ErrorSourceVersion)
+	e.Time("error_timestamp", fe.ErrorTimestamp)
+	e.Str("error_message", fe.ErrorMessage)
+	e.Interface("error_additional_info", fe.ErrorAdditionalInfo)
+}
+
+// ToMap returns a map representation of the error
+func (fe FleetdError) ToMap() map[string]any {
+	return map[string]any{
+		"error_source":          fe.ErrorSource,
+		"error_source_version":  fe.ErrorSourceVersion,
+		"error_timestamp":       fe.ErrorTimestamp,
+		"error_message":         fe.ErrorMessage,
+		"error_additional_info": fe.ErrorAdditionalInfo,
+	}
+}
+
+// OrbitError is used for orbit endpoints, to return an error message along
+// with a failed request's response.
+type OrbitError struct {
+	Message string
+}
+
+// Error implements the error interface for the OrbitError.
+func (e OrbitError) Error() string {
+	return e.Message
 }

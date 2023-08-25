@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/base64"
 	"errors"
 	"net/url"
 	"testing"
@@ -100,4 +101,25 @@ func TestMaskURLError(t *testing.T) {
 		require.EqualError(t, masked, "GET \"https://example.com?the_secret=MASKED\": not found")
 		require.NotContains(t, masked.Error(), "42")
 	})
+}
+
+func TestBase64DecodePaddingAgnostic(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []byte
+		err  error
+	}{
+		{"", []byte{}, nil},
+		{"==", []byte{}, nil},
+		{"==", []byte{}, nil},
+		{"dGVzdA==", []byte("test"), nil},
+		{"dGVzdA", []byte("test"), nil},
+		{"dGVzdA==ABC", []byte("tes"), base64.CorruptInputError(6)},
+	}
+
+	for _, c := range cases {
+		got, err := Base64DecodePaddingAgnostic(c.in)
+		require.Equal(t, c.err, err)
+		require.Equal(t, got, c.want)
+	}
 }

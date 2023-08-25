@@ -74,7 +74,7 @@ Openness is one of [Fleet's values](https://fleetdm.com/handbook/company#values)
 
 - I often need to talk to think.
 - I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
-- I can be quick to criticism, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
+- I can be quick to criticize, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
 - I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
 
 <!--
