@@ -20,7 +20,7 @@ Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/
 
 At Fleet, you will get the chance to…
 
-- 🧑‍🔬 Design, develop, test, and maintain a state-of-the-art Golang application that includes robust APIs to support mobile and desktop clients.
+- 🧑‍🔬 Lead the architecture, development, and implementation of Fleet's Windows MDM offering.
 - 🛠️ Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
 - 💭 Manage and optimize scalable distributed systems in the cloud.
 - 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
@@ -50,7 +50,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 ### You can "talk the talk":
 
 - 💭 3-5 years' of experience in backend/SaaS development.
-- 💭 1-2 years' of experience interfacing with windows systems and microsoft protocols.
+- 💭 1-2 years' of experience interfacing with Windows systems and Microsoft protocols.
 - 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
 
 ## Why should you join us? 🛸
