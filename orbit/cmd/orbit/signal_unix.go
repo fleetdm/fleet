@@ -22,7 +22,7 @@ import (
 )
 
 func signalHandler(ctx context.Context) (execute func() error, interrupt func(error)) {
-	return run.SignalHandler(ctx, os.Interrupt, os.Kill, syscall.SIGTERM)
+	return run.SignalHandler(ctx, os.Interrupt, syscall.SIGTERM)
 }
 
 func sigusrListener(rootDir string) {
