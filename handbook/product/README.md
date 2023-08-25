@@ -209,7 +209,7 @@ When writing copy, consider whether additional information is necessary before a
 
 When writing the time in the UI using "am" and "pm" abbreviations, write them **without space** between time and abbreviation, with **no punctuation**, and use **lowercase** letters (e.g. Working hours are 8am to 5pm).
 
-**Writing the error messages**
+**Writing error messages**
 
 When writing error messages in the UI or CLI, follow these rules:
 - Write the **error** and **possible solution** (e.g. No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.), or
