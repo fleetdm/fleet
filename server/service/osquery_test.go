@@ -847,7 +847,8 @@ func TestLabelQueries(t *testing.T) {
 	// should be turned on so that we can quickly fill labels)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform)), len(queries), distQueriesMapKeys(queries))
+	// +1 for the fleet_no_policies_wildcard query.
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
@@ -858,7 +859,7 @@ func TestLabelQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Empty(t, queries)
+	require.Len(t, queries, 1) // fleet_no_policies_wildcard query
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -873,7 +874,8 @@ func TestLabelQueries(t *testing.T) {
 	// Now we should get the label queries
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 3)
+	// +1 for the fleet_no_policies_wildcard query.
+	require.Len(t, queries, 3+1)
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -928,7 +930,7 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Empty(t, queries)
+	require.Len(t, queries, 1) // fleet_no_policies_wildcard query
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -937,8 +939,8 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +3 for label queries
-	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+3, len(queries), distQueriesMapKeys(queries))
+	// +3 for label queries, +1 for the fleet_no_policies_wildcard query.
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+3+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -967,7 +969,7 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Empty(t, queries)
+	require.Len(t, queries, 1) // fleet_no_policies_wildcard query
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1006,8 +1008,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +1 due to 'windows_update_history'
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
+	// +1 due to 'windows_update_history', +1 due to fleet_no_policies_wildcard query.
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1+1, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1141,7 +1143,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Empty(t, queries)
+	require.Len(t, queries, 1) // fleet_no_policies_wildcard query
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -1152,7 +1154,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	require.NoError(t, err)
 	// somehow confusingly, the query response above changed the host's platform
 	// from windows to darwin
-	require.Equal(t, len(expectedDetailQueriesForPlatform(gotHost.Platform)), len(queries), distQueriesMapKeys(queries))
+	// +1 due to fleet_no_policies_wildcard query.
+	require.Equal(t, len(expectedDetailQueriesForPlatform(gotHost.Platform))+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1215,8 +1218,8 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +1 for software inventory
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
+	// +1 for software inventory, +1 for fleet_no_policies_wildcard
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1+1, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1468,7 +1471,7 @@ func TestDetailQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Empty(t, queries)
+	require.Len(t, queries, 1) // fleet_no_policies_wildcard query
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -1477,8 +1480,8 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +1 software inventory
-	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1, len(queries), distQueriesMapKeys(queries))
+	// +1 software inventory, +1 fleet_no_policies_wildcard query
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1677,8 +1680,8 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	// +1 for the distributed query for campaign ID 42, +1 for windows update history
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+2, len(queries)) {
+	// +1 for the distributed query for campaign ID 42, +1 for windows update history, +1 for the fleet_no_policies_wildcard query.
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+3, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -2973,7 +2976,8 @@ func TestLiveQueriesFailing(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform)), len(queries), distQueriesMapKeys(queries))
+	// +1 to account for the fleet_no_policies_wildcard query.
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	logs, err := io.ReadAll(buf)

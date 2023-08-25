@@ -614,12 +614,15 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		}
 	}
 
-	policyQueries, err := svc.policyQueriesForHost(ctx, host)
+	policyQueries, noPolicies, err := svc.policyQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, nil, 0, newOsqueryError(err.Error())
 	}
 	for name, query := range policyQueries {
 		queries[hostPolicyQueryPrefix+name] = query
+	}
+	if noPolicies {
+		queries[hostNoPoliciesWildcard] = alwaysTrueQuery
 	}
 
 	accelerate = uint(0)
@@ -744,16 +747,19 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return labelQueries, nil
 }
 
-func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, bool, error) {
 	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
 	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
-		return nil, nil
+		return nil, false, nil
 	}
 	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieve policy queries")
+		return nil, false, ctxerr.Wrap(ctx, err, "retrieve policy queries")
 	}
-	return policyQueries, nil
+	if len(policyQueries) == 0 {
+		return nil, true, nil
+	}
+	return policyQueries, false, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -867,6 +873,8 @@ const (
 	// osqueryd writes the distributed query results.
 	hostPolicyQueryPrefix = "fleet_policy_query_"
 
+	hostNoPoliciesWildcard = "fleet_no_policies_wildcard"
+
 	// hostDistributedQueryPrefix is appended before the query name when a query is
 	// run from a distributed query campaign
 	hostDistributedQueryPrefix = "fleet_distributed_query_"
@@ -895,7 +903,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages)
 
+	var hostWithoutPolicies bool
 	for query, rows := range results {
+		if query == hostNoPoliciesWildcard {
+			hostWithoutPolicies = true
+			continue
+		}
+
 		// osquery docs say any nonzero (string) value for status indicates a query error
 		status, ok := statuses[query]
 		failed := ok && status != fleet.StatusOK
@@ -972,6 +986,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
+		}
+	} else {
+		if hostWithoutPolicies {
+			if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 	}
 
