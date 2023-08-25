@@ -215,7 +215,7 @@ When writing error messages in the UI or CLI, follow these rules:
 - Write the **error** and **possible solution** (e.g. No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.), or
 - Write the **error** and **additional info**, if the solution is obvious when additional info is provided (e.g. You don’t have permission to run the script. Only users with the maintainer role and above can run scripts.)
 
-**Commands with `--hosts` or `--host` flag**
+**Fleetctl commands with `--hosts` or `--host` flag**
 
 When designing CLI experience for commands that target hosts (e.g. `fleetctl query` or `fleetctl mdm run-command`) that include `--hosts`/`--host` flag, in case if non-existing host is specified, use the following error message: `Error: No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.`  
 
