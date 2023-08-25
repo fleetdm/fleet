@@ -212,8 +212,8 @@ When writing the time in the UI using "am" and "pm" abbreviations, write them **
 **Writing error messages**
 
 When writing error messages in the UI or CLI, follow these rules:
-- Write the **error** and **possible solution** (e.g. No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.), or
-- Write the **error** and **additional info**, if the solution is obvious when additional info is provided (e.g. You don’t have permission to run the script. Only users with the maintainer role and above can run scripts.)
+- If the solution to the error isn't obvious, write a message with the **error** followed by the **solution**. For example, "No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
+- If the solution is obvious when additional info is provided, write a message with the **error** followed by **additional info**. For example, "You don’t have permission to run the script. Only users with the maintainer role and above can run scripts."
 
 **Fleetctl commands with `--hosts` or `--host` flag**
 
