@@ -6,7 +6,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ConditionalLog logs if the environment variable is set to "1".
+// LogErrIfEnvNotSet logs if the environment variable is not set to "1".
 func LogErrIfEnvNotSet(envVarName string, err error, message string) {
 	actualValue := os.Getenv(envVarName)
 	if actualValue != "1" {

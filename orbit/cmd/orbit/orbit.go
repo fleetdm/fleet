@@ -342,6 +342,7 @@ func main() {
 		g.Add(systemChecker.Execute, systemChecker.Interrupt)
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
+		// sofwareupdated is a macOS daemon that automatically updates Apple software.
 		if !c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
 			log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
 		}
@@ -892,7 +893,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "run orbit failed")
+		log.Info().Err(err).Msg("run orbit failed")
 	}
 }
 
