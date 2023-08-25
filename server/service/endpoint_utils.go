@@ -278,7 +278,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				case reflect.Int:
 					queryValInt := 0
 					switch queryTagValue {
-					case "order_direction":
+					case "order_direction", "inherited_order_direction":
 						switch queryVal {
 						case "desc":
 							queryValInt = int(fleet.OrderDescending)
