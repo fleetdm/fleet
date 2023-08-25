@@ -87,12 +87,16 @@ const ScriptOutput = ({ output }: IScriptOutputProps) => {
     <div className={`${baseClass}__script-output`}>
       <p>
         The{" "}
-        <TooltipWrapper tipContent="Fleet records the last 10,000 characters to prevent downtime.">
+        <TooltipWrapper
+          tipContent="Fleet records the last 10,000 characters to prevent downtime."
+          tooltipClass={`${baseClass}__output-tooltip`}
+          isDelayed
+        >
           output recorded
         </TooltipWrapper>{" "}
         when <b>Marko&apos;s MacBook Pro</b> ran the script above:
       </p>
-      <Textarea>{output}</Textarea>
+      <Textarea className={`${baseClass}__output-textarea`}>{output}</Textarea>
     </div>
   );
 };
