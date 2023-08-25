@@ -29,7 +29,7 @@ If you have any questions or feedback, please contact us: https://fleetdm.com/ha
 </blockquote>
 
 - `# Name of department`
-  - "This handbook page details processes specific to working `[with](fleetdm.com/handbook/company/nameOfDepartment#contact-us)` and `[within](fleetdm.com/handbook/company/nameOfDepartment)` the (Name of dpartment) department." 
+  - "This handbook page details processes specific to working `[with](fleetdm.com/handbook/company/Name-of-department#contact-us)` and `[within](fleetdm.com/handbook/company/Name-of-department)` the (Name of department) department." 
     
   - `## What we do`
     - Outline the specific responsibilities of the department.  
@@ -52,9 +52,10 @@ If you have any questions or feedback, please contact us: https://fleetdm.com/ha
 
 
 ### Key reviews
-Every release cycle, each department leader discusses their KPIs (key performance indicators; aka numbers measuring results and everyday excellence) with the CEO. In this meeting, we discuss actual week-over-week progress towards timebound goals for a particular quarter. 
+Every release cycle, each department leader discusses their KPIs (key performance indicators; aka numbers measuring results and everyday excellence) with the CEO. 
 
-The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
+In this meeting, we discuss actual week-over-week progress towards timebound goals for a particular quarter. 
+
 - Key reviews are scheduled during the e-group time slot every three weeks to promote consistant attention to results, and are not to be moved or rescheduled without [CEO approval](https://fleetdm.com/handbook/ceo#contact-us).
 - If a departmental leader is not available to attend a particular key review, they can send another team member that is able to communicate their department's key preformance indicators (KPI's).
 
