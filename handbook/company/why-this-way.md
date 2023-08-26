@@ -306,6 +306,25 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
 
+## Why not use superlatives?
+
+A superlative is an adjective or adverb that expresses the degree of a quality, such as "best," "worst," or "most beautiful."
+
+A superlative is a judgment or evaluation, [which only the customer can decide](https://twitter.com/mikermcneil/status/1686837625187930112). 
+
+✅ **Do:**
+
+<blockquote>
+Avoid using too many unnecessary words or superlatives, so your writing is shorter and [easier to understand](https://fleetdm.com/handbook/company#empathy).
+</blockquote>
+
+❌ **Don't:**
+
+<blockquote>
+ There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
+</blockquote>
+
+
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
 
 Fleet is more than an MDM (mobile device management) solution.
