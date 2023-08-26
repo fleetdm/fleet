@@ -24,6 +24,11 @@ There is, however, a way to accomplish this even though the answer to the questi
 
 The update frequency for labels is configurable with the [—osquery_label_update_interval](https://fleetdm.com/docs/deploying/configuration#osquery-label-update-interval) flag (default 1 hour).
 
+### Can I modify built-in labels?
+
+While it is possible to modify built-in labels using `fleetctl` or the REST API, doing so is not recommended because it can lead to errors in the Fleet UI.
+Find more information [here](https://github.com/fleetdm/fleet/issues/12479).
+
 ### How do I revoke the authorization tokens for a user?
 
 Authorization tokens are revoked when the “require password reset” action is selected for that user. User-initiated password resets do not expire the existing tokens.
@@ -332,9 +337,9 @@ There are many challenges to generating .msi packages on any OS but Windows. Err
 
 ### Where did the "Packs" page go?
 
-Packs are a function of osquery that provide a portable format to import/export queries in and out of platforms like Fleet. The "Packs" section of the UI that began with `kolide/fleet` c. 2017 was an early attempt at fulfilling this vision, but it soon became clear that it wasn't the right interface for segmenting and targeting hosts in Fleet. 
+Packs are a function of osquery that provide a portable format to import/export queries in and out of platforms like Fleet. The "Packs" section of the UI that began with `kolide/fleet` c. 2017 was an early attempt at fulfilling this vision, but it soon became clear that it wasn't the right interface for segmenting and targeting hosts in Fleet.
 
-Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features, and (in Fleet premium) can target specific groups of hosts via teams. 
+Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features, and (in Fleet premium) can target specific groups of hosts via teams.
 
 The "Packs" section of the UI has been removed, but access via the API and CLI is still available for backwards compatibility. The `fleetctl upgrade-packs` command can be used to convert existing 2017 "packs" to queries.
 
@@ -410,7 +415,7 @@ Osquery requires that all communication between the agent and Fleet are over a s
 
 ### What do I need to do to change the Fleet server TLS certificate?
 
-If the both the existing and new certificates verify with osquery's default root certificates (such as a certificate issued by a well-known Certificate Authority) and no certificate chain was deployed with osquery, there is no need to deploy a new certificate chain.
+If both the existing and new certificates verify with osquery's default root certificates (such as a certificate issued by a well-known Certificate Authority) and no certificate chain was deployed with osquery, there is no need to deploy a new certificate chain.
 
 If osquery has been deployed with the full certificate chain (using `--tls_server_certs`), deploying a new certificate chain is necessary to allow for verification of the new certificate.
 
@@ -539,7 +544,7 @@ If you would like to manage hosts that can travel outside your VPN or intranet w
 
 If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies.
 
-For full Fleet Desktop functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
+For full Fleet Desktop and scripts functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
 If you would like to use the fleetctl CLI from outside of your network, the following endpoints will also need to be exposed for `fleetctl`:
 
@@ -574,22 +579,22 @@ Fleet is tested with Redis 5.0.14 and 6.2.7. Any version Redis after version 5 w
 
 Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups.
 
-## What happened to the "Schedule" page? 
-Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval," "platform") or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query which every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept. 
+## What happened to the "Schedule" page?
+Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval," "platform") or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query which every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept.
 
-To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged query concept: 
+To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged query concept:
 - Any global scheduled query will have its query converted into a global query with the relevant schedule attributes (frequency, min. osquery version, logging, etc.).
 - Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
 - Any query that is referenced by a 2017 pack will be converted into a global query and the 2017 pack will reference it. The 2017 packs should continue functioning as before.
 
-Important: To avoid naming conflicts, a query must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names. 
+Important: To avoid naming conflicts, a query must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names.
 
 For any automated workflows that use the schedule endpoints on the API, we recommend consolidating to the query endpoints, which now accept the scheduled query attributes. The schedule endpoints in the API still function but are deprecated. To accommodate the new unified query concept, the schedule endpoints behave differently under-the-hood:
 - The POST endpoints will create a new query with the specified attributes
 - The PATCH endpoint will modify the specified query with the specified attributes
-- The DELETE endpoint will delete the specified query. 
+- The DELETE endpoint will delete the specified query.
 
-Finally, "shard" has been retired as an option for queries. In its place we recommend using a canary team or a live query to test the impact of a query before deploying it more broadly. 
+Finally, "shard" has been retired as an option for queries. In its place we recommend using a canary team or a live query to test the impact of a query before deploying it more broadly.
 
 
 
