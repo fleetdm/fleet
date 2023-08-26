@@ -165,9 +165,42 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 - These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.   
 
 
-### Company travel
+## Travel
 
-#### Attending conferences
+### Flights
+Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo).
+
+### Lodging
+Everyone at Fleet, including the CEO, uses the same [principles for booking lodging](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo).
+
+### Sales kickoffs
+From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of [offsite](https://fleetdm.com/handbook/company/communications#offsites).
+
+### Offsites
+From time to time, Fleet organizes offsites to bring team members together in person.  This encourages trust and makes the company more productive.
+
+Offsites are:
+  - Attended by a particular [product group](https://fleetdm.com/handbook/company#product-groups), a [department](https://fleetdm.com/handbook/company#org-chart), or a team such as the E-group.
+  - Sometimes also attended by founders or other team members on a case-by-case basis.
+  - 1-3 full days long (2-4 nights stay)
+  - A ritual of effective teams, not a reward or vacation.  Creative efficiency is important.  If an AirBnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
+  - An intentional investment of valuable personal and company time, at great opportunity cost.  A thoughtful agenda is important.
+  - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.  
+
+Before spending any money on an offsite, inviting people, booking travel, or otherwise committing the company:
+  - Write a Google Doc with your proposed plan, listing:
+    - all participants with their current work locations
+    - tentative dates
+    - a lean budget (including links and street address of lodging and event spaces, estimated airfare, and spending for other food or accomodations)
+    - a detailed agenda of how time will be spent
+  - Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
+  - The E-group will discuss live, make edits, and may ask you to provide additional information or changes and return the following week for another pass.
+
+After the plan for the offsite is approved at the e-group meeting (including participants, detailed agenda, and final budget):
+  - The Head of Business Operations will [book travel]() and accomodations for all approved participants.
+  - _**Note:** If the plan needs to change after the approval, [ask the CEO for help](https://fleetdm.com/handbook/ceo#contact-us)._
+
+### Attending conferences
 When attending a conference or traveling for Fleet, keep the following in mind:
 - $100 allowance per day for your own personal food and beverage. **(There are many good reasons to make exceptions to this guideline, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#intake).**
 - Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
@@ -1307,6 +1340,13 @@ This glossary provides definitions to commonly used terms within our space.
 | **Windows** | Microsoft's graphical operating system. |
 | **YAML** | A data serialized language that has features derived from Perl, C, HTML, and other languages and is often used to write configuration files. |
 
+
+
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+##### Company travel
+Please see 📖[handbook/company/communications#travel](https://fleetdm.com/handbook/company/communications#travel).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛰️ Communications">
