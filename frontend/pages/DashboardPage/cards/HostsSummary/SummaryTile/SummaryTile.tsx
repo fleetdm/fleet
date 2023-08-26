@@ -9,6 +9,7 @@ import { IconNames } from "components/icons";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import classnames from "classnames";
 import { Colors } from "styles/var/colors";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 interface ISummaryTileProps {
   count: number;
@@ -55,6 +56,18 @@ const SummaryTile = ({
   const classes = classnames(`${baseClass}__tile`, `${kebabCase(title)}-tile`, {
     [`${baseClass}__not-supported`]: notSupported,
   });
+  // TODO CHANGE THIS BACK!
+  const getWrappedTitle = () => {
+    if (tooltip) {
+      if (title === "Missing hosts") {
+        return <TooltipWrapper tipContent={tooltip}>{title}</TooltipWrapper>;
+      }
+      return (
+        <NewTooltipWrapper tipContent={tooltip}>{title}</NewTooltipWrapper>
+      );
+    }
+    return title;
+  };
   return (
     <div className={baseClass} style={opacity} data-testid="tile">
       <Button
@@ -84,11 +97,7 @@ const SummaryTile = ({
               </div>
             )}
             <div className={`${baseClass}__description`}>
-              {tooltip ? (
-                <TooltipWrapper tipContent={tooltip}>{title}</TooltipWrapper>
-              ) : (
-                title
-              )}
+              {getWrappedTitle()}
               {isSandboxMode && sandboxPremiumOnlyIcon && (
                 <PremiumFeatureIconWithTooltip
                   tooltipPositionOverrides={{ leftAdj: 2, topAdj: 5 }}
