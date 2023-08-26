@@ -169,13 +169,28 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 
 ### Flights
 - Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo).
-- For example, please book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
+- For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
 
 ### Lodging
-- Choose a modest location with inexpensive lodging and minimally-viable comfort.  (Avoid expensive neighborhoods and popular destination cities.)
-- Creative efficiency is important.  If an AirBnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
-- If booking an Airbnb, make sure there is at least 1 bedroom per Fleet team member.  Shared bathrooms are OK.
+- Choose a modest location with inexpensive lodging and minimally-viable comfort.
+- Avoid expensive neighborhoods and popular destination cities.
+- Do not share bedrooms.  Shared bathrooms are OK, but make sure every hotel room or Airbnb has at least one bathroom per gender identity.   <!-- Make sure everyone is well-rested, efficiently primped, with sufficient privacy. -->
+- Be creative.  If an AirBnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
+- If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
 - If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact Business Operations](https://fleetdm.com/handbook/business-operations#contact-us) for their help approving and booking additional event space.
+
+### Spending company money while traveling
+When attending a conference or traveling for Fleet, keep the following in mind:
+- **No reimbursements:** Use your company Brex card.  Reimbursements are time consuming, so Fleet does not do reimbursements for spending on personal credit cards.
+- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. _(There are many good reasons to make exceptions to this allowance, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#contact-us) to avoid complexities._
+- **Tipping:** Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
+- **Personal credit card:** Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
+- **Company credit card:** We recommend you order a physical Brex card if you do not have one before traveling.
+- **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/business-operations#contact-us) by providing the following information:
+  - The start and end dates for your trip.
+  - The [price of your flight](https://fleetdm.com/handbook/company/communications#flights)
+  - The [price of your hotel or Airbnb](https://fletdm.com/handbook/comopany/communications#lodging) per night
+  - The price of the admission fees (if attending a conference)
 
 ### Sales kickoffs
 From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of [offsite](https://fleetdm.com/handbook/company/communications#offsites).
@@ -205,16 +220,7 @@ After the plan for the offsite is approved at the e-group meeting (including par
   - _**Note:** If the plan needs to change again, after it is approved, [ask the CEO for help](https://fleetdm.com/handbook/ceo#contact-us)._
 
 ### Attending conferences
-When attending a conference or traveling for Fleet, keep the following in mind:
-- $100 allowance per day for your own personal food and beverage. **(There are many good reasons to make exceptions to this guideline, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#intake).**
-- Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
-- We recommend you order a physical Brex card if you do not have one before attending the conference.
-- The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/business-operations#contact-us) by providing the following information:
-  - The start and end dates for your trip.
-  - The price of [your flight] 
-  - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
-  - The price of the admission fees if attending a conference.
-- Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
+When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
 
 
 ## Vendor questionnaires 
