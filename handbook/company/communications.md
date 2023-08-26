@@ -168,10 +168,14 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 ## Travel
 
 ### Flights
-Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo).
+- Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo).
+- For example, please book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
 
 ### Lodging
-Everyone at Fleet, including the CEO, uses the same [principles for booking lodging](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo).
+- Choose a modest location with inexpensive lodging and minimally-viable comfort.  (Avoid expensive neighborhoods and popular destination cities.)
+- Creative efficiency is important.  If an AirBnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
+- If booking an Airbnb, make sure there is at least 1 bedroom per Fleet team member.  Shared bathrooms are OK.
+- If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact Business Operations](https://fleetdm.com/handbook/business-operations#contact-us) for their help approving and booking additional event space.
 
 ### Sales kickoffs
 From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of [offsite](https://fleetdm.com/handbook/company/communications#offsites).
@@ -183,34 +187,34 @@ Offsites are:
   - Attended by a particular [product group](https://fleetdm.com/handbook/company#product-groups), a [department](https://fleetdm.com/handbook/company#org-chart), or a team such as the E-group.
   - Sometimes also attended by founders or other team members on a case-by-case basis.
   - 1-3 full days long (2-4 nights stay)
-  - A ritual of effective teams, not a reward or vacation.  Creative efficiency is important.  If an AirBnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
-  - An intentional investment of valuable personal and company time, at great opportunity cost.  A thoughtful agenda is important.
-  - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.  
+  - A ritual of effective teams, not a reward or vacation.
+  - Driven by a detailed, thoughtful agenda of how time will be spent.  An intentional investment of valuable personal and company time, at great opportunity cost.
+  - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.
 
 Before spending any money on an offsite, inviting people, booking travel, or otherwise committing the company:
-  - Write a Google Doc with your proposed plan, listing:
+  - **Make a plan:** Write a Google Doc with your proposed plan, listing:
     - all participants with their current work locations
     - tentative dates
     - a lean budget (including links and street address of lodging and event spaces, estimated airfare, and spending for other food or accomodations)
     - a detailed agenda of how time will be spent
-  - Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
-  - The E-group will discuss live, make edits, and may ask you to provide additional information or changes and return the following week for another pass.
+  - **Bring to e-group:** Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
+  - **Iteration:** The E-group will discuss live, make edits, and may ask you to provide additional information or changes and return the following week for another pass.
 
 After the plan for the offsite is approved at the e-group meeting (including participants, detailed agenda, and final budget):
-  - The Head of Business Operations will [book travel]() and accomodations for all approved participants.
-  - _**Note:** If the plan needs to change after the approval, [ask the CEO for help](https://fleetdm.com/handbook/ceo#contact-us)._
+  - The Head of Business Operations will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
+  - _**Note:** If the plan needs to change again, after it is approved, [ask the CEO for help](https://fleetdm.com/handbook/ceo#contact-us)._
 
 ### Attending conferences
 When attending a conference or traveling for Fleet, keep the following in mind:
 - $100 allowance per day for your own personal food and beverage. **(There are many good reasons to make exceptions to this guideline, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#intake).**
 - Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
-- We highly recommend you order a physical Brex card if you do not have one before attending the conference.
-- The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as travel.  You can [request that here](https://fleetdm.com/handbook/business-operations#intake) by providing the following information:
+- We recommend you order a physical Brex card if you do not have one before attending the conference.
+- The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/business-operations#contact-us) by providing the following information:
   - The start and end dates for your trip.
-  - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
+  - The price of [your flight] 
   - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
   - The price of the admission fees if attending a conference.
-- Please use your personal credit card for movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
+- Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
 
 
 ## Vendor questionnaires 
