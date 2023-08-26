@@ -314,11 +314,15 @@ A superlative is a judgment or evaluation, [which only the customer can decide](
 
 ✅ **Do:**
 
-Avoid using too many unnecessary words or superlatives, as it makes writing longer and [🔴harder to understand](https://fleetdm.com/handbook/company#empathy).
+<blockquote>
+Avoid using too many unnecessary words or superlatives, so your writing is shorter and [easier to understand](https://fleetdm.com/handbook/company#empathy).
+</blockquote>
 
 ❌ **Don't:**
 
-There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
+<blockquote>
+ There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
+</blockquote>
 
 
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
