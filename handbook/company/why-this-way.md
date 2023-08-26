@@ -312,10 +312,12 @@ A superlative is an adjective or adverb that expresses the degree of a quality, 
 
 A superlative is a judgment or evaluation, [which only the customer can decide](https://twitter.com/mikermcneil/status/1686837625187930112). 
 
+This aligns with the comany value of [🔴empathy](https://fleetdm.com/handbook/company#empathy).
+
 ✅ **Do:**
 
 <blockquote>
-Avoid using too many unnecessary words or superlatives, so your writing is shorter and [easier to understand](https://fleetdm.com/handbook/company#empathy).
+Avoid using too many unnecessary words or superlatives, so your writing is shorter and easier to understand.
 </blockquote>
 
 ❌ **Don't:**
