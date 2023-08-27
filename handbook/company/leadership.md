@@ -212,7 +212,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
      > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
-2. **Compile feedback:** about the candidate into a single document titled `CANDIDATE_NAME (CANDIDATE_TITLE)interview packet`.
+2. **Compile feedback:** About the candidate into a single document titled `CANDIDATE_NAME (CANDIDATE_TITLE) interview packet`.
    - [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
      - Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
      - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
@@ -228,7 +228,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
      -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
    - Once the interview is scheduled, the Apprentice to the CEO schedules a 30 minute "Interview postgame" immediately after the interview.
 4. **Call references:** Hiring manager asks the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
-5. **Confirm intent to offer:** Once all interviews and refrence checks are completed, hiring manager shares the `CANDIDATE_NAME (CANDIDATE_TITLE)interview packet` document with the Head of Business Operations via Google Drive. _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
+5. **Confirm intent to offer:** Once all interviews and refrence checks are completed, hiring manager shares the "interview packet" with the Head of Business Operations via Google Drive. _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
      
 #### Making an offer
