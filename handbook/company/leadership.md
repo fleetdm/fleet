@@ -113,7 +113,7 @@ To hire a non-US consultant, please [submit a custom request](https://fleetdm.co
 To hire a US-based consultant, send them an agreement using the "Contractor agreement (US)" template in [DocuSign](https://www.docusign.com/).
 (This template is located in the "¶¶ Classified templates" folder, which is only accessible via certain Docusign accounts in 1Password.)
 
-> _**Note:** The Docusign template labeled "Contractor agreement (US)" is actually used for both consultants and [core team members in the US who are classified as 1099 contractors or billed corp-to-corp as vendors](#hiring-a-new-team-member).  You may also sometimes hear this referred to as Fleet's "Consulting agreement". Same thing._
+> _**Note:** The Docusign template labeled "Contractor agreement (US)" is actually used for both consultants and [core team members in the US who are classified as 1099 contractors or billed corp-to-corp as vendors](#hiring-a-new-team-member).  You may also sometimes hear this referred to as Fleet's "Consulting agreement". Same thing._
 
 To send a US consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
 
@@ -204,7 +204,7 @@ This means that outbound recruiting, 3rd party recruiters, and references from t
 #### Receiving job applications
 Every job description page ends with a "call to action", including a link that candidates can click to apply for the job.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise.  For example:
 
-> "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
+> "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
 
 When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 
@@ -244,15 +244,9 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
      > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
 2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
 3. **Schedule CEO interview:** Book a quick chat so our CEO can get to know the future Fleetie.
-   - No need to check with the CEO first.  You can [book the meeting directly](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) on the CEO's calendar during a time they and the candidate are both available.
-   - [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
-     - Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
-     - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
-     - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
-   - Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
-   - The personal email you use for the candidate in this calendar event is where they will receive their offer or rejection email.
+   - No need to check with the CEO first.  Get this candidate set up for a meeting with the CEO by at-mentioning the Apprentice to the CEO in the #g-ceo Slack channel with your candidate's name, personal email, and role.
 4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
-   - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
+   - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
    - _Share_ this single document with the Head of Business Operations via email.
      - Share only _one, single Google Doc, please_; with a short, formulaic name that's easy to understand in an instant from just an email subject line.  For example, you could title it:
        >Why hire Jane Doe ("Train Conductor") - 2023-03-21
@@ -260,22 +254,16 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 
 #### Making an offer
 After receiving the interview packet, the Head of Business Operations uses the following steps to make an offer:
-1. **Adjust compensation:** 🔦 Head of Business Operations [re-benchmarks salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
-   - _Paste a screenshot_ from Pave showing the amount of cash and equity in the offer (or write 1-2 sentences about what is being offered to this candidate and why) under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
-   - _Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ to reflect the offer that is about to be sent:
-     -  Salary _(OTE actually offered)_
-     -  Equity _(stock options actually offered)_
-     -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
-     -  "Offer sent?" _(set this to `TRUE`)_
-     - …and make sure the other status columns are set to `todo`.
-2. **Prepare the "exit scenarios" spreadsheet:** 🔦 Head of Business Operations [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
+
+<!-- For future use: some ready-to-go language around rebencharking compensation for cost of living: https://github.com/fleetdm/fleet/pulls/13499 -->
+1. **Prepare the "exit scenarios" spreadsheet:** 🔦 Head of Business Operations [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to reflect the number of shares in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0), and the spreadsheet will update automatically to reflect their approximate ownership percentage.
      > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
-3. **Prepare offer:** 🔦 Head of Business Operations [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
+2. **Prepare offer:** 🔦 Head of Business Operations [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Highlight the number of shares with a link to the candidate's custom "exit scenarios" spreadsheet.
    - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/company/ceo#team).
-4. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
+3. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
    - Cc: Zach Wasserman and Head of Business Operations _(neither participate in the email thread until after the offer is accepted)_
    - Subject: "Full time?"
@@ -283,7 +271,7 @@ After receiving the interview packet, the Head of Business Operations uses the f
      - _Check all links in offer letter for accuracy (e.g. LinkedIn profile of hiring manager, etc.)_
      - _Click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before._
      - _Re-read the offer email one last time, and especially double-check that the salary, number of shares, and start date match the numbers that are currently in the equity plan._
-5. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
+4. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
    - _Grant the candidate "edit" access_ to their "exit scenarios" spreadsheet.
    - _Send_ the email.
 
@@ -322,7 +310,7 @@ Once the new team member replies and accepts their offer in writing, 🔦 Head o
    - Remove the [job description file](https://github.com/fleetdm/fleet/tree/main/handbook/company) that corresponds with the newly-filled position.  (This is a Markdown file named after the role, with a filename ending in `.md`.)
 5. **Close Slack channel:** Then archive and close the channel.
 
-Now what happens?  🔦 Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
+Now what happens?  🔦 Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
 
 
