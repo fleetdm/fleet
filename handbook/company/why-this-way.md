@@ -325,7 +325,7 @@ A superlative is a judgment or evaluation, [which only the customer can decide](
 ✅ **Do:**
 
 <blockquote>
-Avoid using too many unnecessary words or superlatives, so your writing is shorter and [easier to understand](https://fleetdm.com/handbook/company#empathy).
+Avoid using too many unnecessary words or superlatives, so your writing is shorter and easier to understand. 
 </blockquote>
 
 ❌ **Don't:**
