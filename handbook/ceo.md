@@ -109,6 +109,14 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
 
 ## Responsibilities
 
+### Schedule CEO interview
+
+From time to time, you will need to schedule an interview between a candidate and the CEO:
+1. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
+2. Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
+   - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
+   - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
+3. Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
 
 ### Process the CEO's calendar
 
