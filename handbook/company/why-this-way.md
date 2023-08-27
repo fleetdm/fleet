@@ -236,13 +236,16 @@ If that happens by mistake, first priority is merging a fix, then notifying the 
 
 > Here is [an example of a deliberate decision to make broken images in Fleet fail more loudly](https://github.com/fleetdm/fleet/issues/12305#issuecomment-1671924257) so that they can't be overlooked, even though this might slow down short-term development.
 
-## Why use short and simple issue templates?
+## Why keep issue templates simple?
 
-Fleet's core value of [🟣openness](https://fleetdm.com/handbook/company#openness) can only be achieved when all users are empowered to submit bugs and feature requests.  
+Good issue templates require very little reading and prompt for as little information as possible.
 
-Issue templates streamline the issue writing and resolving process. Short and simple templates gather only the necessary information without confusing or discouraging the writer. This type of template empowers bug reporters and feature requesters to easily submit issues, allowing faster [🟠ownership](https://fleetdm.com/handbook/company#ownership) and [🟢results](https://fleetdm.com/handbook/company#results).
+Why?  At Fleet, we optimize for the person submitting the issue, not the person receiving it.
+- When someone is submitting an issue, they are usually in a hurry.  They [might not even work here](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  Even short issue templates can cause confusion, lead to mistakes, and discourage future submissions.
+- The person receiving an issue has more context, and so will have an easier time filling in the gaps and, if necessary, following up to better understand.
+- This encourages [everyone to contribute](https://fleetdm.com/handbook/company#openness), and [keep contributing](https://fleetdm.com/handbook/company#results).
 
-Most importantly, short and simple issue templates display [🔴empathy](https://fleetdm.com/handbook/company#empathy) for users, respecting their time and energy. This respect fosters positive client/company relationships and contributes positively to Fleet's professional reputation. 
+For example, here is the [philosophy behind Fleet's bug report template](https://github.com/fleetdm/fleet/pull/13204#issuecomment-1678419117).
 
 
 ## Why don't we sell like everyone else?
