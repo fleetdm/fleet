@@ -159,20 +159,20 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 type countGlobalPoliciesRequest struct {
 	fleet.ListOptions
 }
-type CountGlobalPoliciesResponse struct {
+type countGlobalPoliciesResponse struct {
 	Count int   `json:"count"`
 	Err   error `json:"error,omitempty"`
 }
 
-func (r CountGlobalPoliciesResponse) error() error { return r.Err }
+func (r countGlobalPoliciesResponse) error() error { return r.Err }
 
 func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countGlobalPoliciesRequest)
 	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions)
 	if err != nil {
-		return CountGlobalPoliciesResponse{Err: err}, nil
+		return countGlobalPoliciesResponse{Err: err}, nil
 	}
-	return CountGlobalPoliciesResponse{Count: resp}, nil
+	return countGlobalPoliciesResponse{Count: resp}, nil
 }
 
 func (svc Service) CountGlobalPolicies(ctx context.Context, opts fleet.ListOptions) (int, error) {

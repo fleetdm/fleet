@@ -297,7 +297,41 @@ func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOpti
 func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	var args []interface{}
 
-	initialQuery := "SELECT id FROM policies"
+	var initialQuery string
+
+	// Sorting by failing host counts requires an expensive join with the
+	// policy membership table and may result in long response times
+	if opts.OrderKey == "failing_host_count" {
+		if countsForTeamID != nil {
+			initialQuery = `
+				SELECT p.id
+				FROM policies p
+				LEFT JOIN (
+					SELECT pm.policy_id,
+						COUNT(*) AS failing_host_count
+					FROM policy_membership pm
+					INNER JOIN hosts h ON pm.host_id = h.id AND pm.passes = false AND h.team_id = ?
+					GROUP BY pm.policy_id
+				) AS subq ON p.id = subq.policy_id
+			`
+			args = append(args, *countsForTeamID)
+		} else {
+			initialQuery = `
+				SELECT p.id
+				FROM policies p
+				LEFT JOIN (
+					SELECT pm.policy_id,
+						COUNT(*) AS failing_host_count
+					FROM policy_membership pm
+					WHERE pm.passes = false
+					GROUP BY pm.policy_id
+				) AS subq ON p.id = subq.policy_id
+			`
+		}
+	} else {
+		initialQuery = "SELECT id FROM policies"
+	}
+
 	if teamID != nil {
 		initialQuery += " WHERE team_id = ?"
 		args = append(args, *teamID)
