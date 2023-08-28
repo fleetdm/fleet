@@ -21,7 +21,10 @@ const policyCols = `
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical
 `
 
-var policySearchColumns = []string{"name"}
+var (
+	countPolicySearchColumns = []string{"name"}
+	listPolicySearchColumns  = []string{"p.name"}
+)
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	if args.QueryID != nil {
@@ -324,6 +327,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE %s`, counts, teamWhere)
 
+	query, args = searchLike(query, args, opts.MatchQuery, listPolicySearchColumns...)
 	query = appendListOptionsToSQL(query, &opts)
 
 	var policies []*fleet.Policy
@@ -350,7 +354,7 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, opts fleet
 		args = append(args, *teamID)
 	}
 
-	query, args = searchLike(query, args, opts.MatchQuery, policySearchColumns...)
+	query, args = searchLike(query, args, opts.MatchQuery, countPolicySearchColumns...)
 
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...)
 	if err != nil {
