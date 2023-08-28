@@ -14,7 +14,7 @@ func (d dummyHandler) NotifyRemote() error {
 	return nil
 }
 
-func (d dummyHandler) ShowInstructions() {}
+func (d dummyHandler) ShowInstructions() error { return nil }
 
 func TestWaitForUnenrollment(t *testing.T) {
 	m := &swiftDialogMDMMigrator{

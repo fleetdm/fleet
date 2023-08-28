@@ -330,6 +330,8 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				errDialogExitChan, errDialogErrChan := m.renderError()
 				select {
 				case <-errDialogExitChan:
+					// return the error after showing the
+					// dialog so it can be caught upstream.
 					return notifyErr
 				case err := <-errDialogErrChan:
 					return fmt.Errorf("rendering error dialog: %w", err)
@@ -342,6 +344,8 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				errDialogExitChan, errDialogErrChan := m.renderError()
 				select {
 				case <-errDialogExitChan:
+					// return the error after showing the
+					// dialog so it can be caught upstream.
 					return err
 				case err := <-errDialogErrChan:
 					return fmt.Errorf("rendering error dialog: %w", err)
@@ -356,7 +360,9 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		}
 
 		log.Info().Msg("showing instructions")
-		m.handler.ShowInstructions()
+		if err := m.handler.ShowInstructions(); err != nil {
+			return err
+		}
 	}
 
 	return nil
