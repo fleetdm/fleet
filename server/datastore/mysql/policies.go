@@ -21,10 +21,7 @@ const policyCols = `
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical
 `
 
-var (
-	countPolicySearchColumns = []string{"name"}
-	listPolicySearchColumns  = []string{"p.name"}
-)
+var policySearchColumns = []string{"name"}
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	if args.QueryID != nil {
@@ -300,6 +297,31 @@ func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOpti
 func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	var args []interface{}
 
+	initialQuery := "SELECT id FROM policies"
+	if teamID != nil {
+		initialQuery += " WHERE team_id = ?"
+		args = append(args, *teamID)
+	} else {
+		initialQuery += " WHERE team_id IS NULL"
+	}
+
+	initialQuery, args = searchLike(initialQuery, args, opts.MatchQuery, policySearchColumns...)
+	initialQuery = appendListOptionsToSQL(initialQuery, &opts)
+
+	fmt.Println("QUERY:", initialQuery)
+
+	var ids []uint
+	err := sqlx.SelectContext(ctx, q, &ids, initialQuery, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving policy ids")
+	}
+
+	if len(ids) == 0 {
+		return []*fleet.Policy{}, nil
+	}
+
+	args = []interface{}{} // reset args
+
 	counts := `
 	(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
 	(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
@@ -312,11 +334,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 		args = append(args, *countsForTeamID, *countsForTeamID)
 	}
 
-	teamWhere := "p.team_id is NULL"
-	if teamID != nil {
-		teamWhere = "p.team_id = ?"
-		args = append(args, *teamID)
-	}
+	idsPlaceholder := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
 
 	query := fmt.Sprintf(`
 		SELECT `+policyCols+`,
@@ -325,13 +343,18 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 			%s
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
-		WHERE %s`, counts, teamWhere)
+		WHERE p.id IN (%s)`, counts, idsPlaceholder)
 
-	query, args = searchLike(query, args, opts.MatchQuery, listPolicySearchColumns...)
+	args = append(args, intsToInterfaces(ids)...)
+
+	// removing pagination options to avoid double pagination
+	opts.Page = 0
+	opts.PerPage = 0
+
 	query = appendListOptionsToSQL(query, &opts)
 
 	var policies []*fleet.Policy
-	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
+	err = sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
 	}
@@ -354,7 +377,7 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, opts fleet
 		args = append(args, *teamID)
 	}
 
-	query, args = searchLike(query, args, opts.MatchQuery, countPolicySearchColumns...)
+	query, args = searchLike(query, args, opts.MatchQuery, policySearchColumns...)
 
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...)
 	if err != nil {
@@ -1050,4 +1073,13 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 	}
 
 	return int(counts.FailingHostCount), int(counts.TotalHostCount), nil
+}
+
+// Utility function to convert slice of uint to slice of interface{}
+func intsToInterfaces(ints []uint) []interface{} {
+	interfaces := make([]interface{}, len(ints))
+	for i, v := range ints {
+		interfaces[i] = v
+	}
+	return interfaces
 }
