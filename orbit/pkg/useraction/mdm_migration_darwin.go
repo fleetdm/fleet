@@ -38,8 +38,13 @@ const (
 // people that build integrations on top of the migration flow.
 var mdmEnrollmentFile = "/private/var/db/ConfigurationProfiles/Settings/.profilesAreInstalled"
 
+// mdmUnenrollmentTotalWaitTime defines how long the dialog is going to wait
+// for the device to be unenrolled before bailing out and showing an error
+// message.
 const mdmUnenrollmentTotalWaitTime = 90 * time.Second
 
+// defaultUnenrollmentRetryInterval defines how long we're going to wait
+// between unenrollment checks.
 const defaultUnenrollmentRetryInterval = 5 * time.Second
 
 var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Parse(`
@@ -224,7 +229,7 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 func (m *swiftDialogMDMMigrator) renderLoadingSpinner() (chan swiftDialogExitCode, chan error) {
 	return m.render(`## Migrate to Fleet
 
-![Loading...]("https://roperzh-fs.ngrok.io/images/permanent/loading-spinner.gif")
+![Loading...](http://localhost:3000/images/permanent/loading-spinner.gif)
 
 Unenrolling you from your old MDM. This could take 90 seconds...`,
 		"--button1text", "Start",
@@ -251,7 +256,6 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 // waitForUnenrollment waits 90 seconds (value determined by product) for the device to unenroll from the current MDM solution. If it doesn't unenroll
 func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 	maxRetries := int(mdmUnenrollmentTotalWaitTime.Seconds() / m.unenrollmentRetryInterval.Seconds())
-	log.Info().Msgf("max retries set to %d", maxRetries)
 	fn := m.testEnrollmentCheckFn
 	if fn == nil {
 		fn = func() (bool, error) {
