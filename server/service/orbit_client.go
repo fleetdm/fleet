@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -223,7 +224,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				endpointDoesNotExist = true
 				return nil
 			default:
-				log.Info().Err(err).Msg("enroll failed, retrying")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "enroll failed, retrying")
 				return err
 			}
 		},
