@@ -55,17 +55,20 @@ func (r *Runner) Run(execIDs []string) error {
 		}
 	}
 
-	// NOTE: when we upgrade to Go1.20, we can use errors.Join, but for now we
-	// just concatenate the error messages in a single error that will be logged
-	// by orbit.
-	var sb strings.Builder
-	for i, e := range errs {
-		if i > 0 {
-			sb.WriteString("\n")
+	if len(errs) > 0 {
+		// NOTE: when we upgrade to Go1.20, we can use errors.Join, but for now we
+		// just concatenate the error messages in a single error that will be logged
+		// by orbit.
+		var sb strings.Builder
+		for i, e := range errs {
+			if i > 0 {
+				sb.WriteString("\n")
+			}
+			sb.WriteString(e.Error())
 		}
-		sb.WriteString(e.Error())
+		return errors.New(sb.String())
 	}
-	return errors.New(sb.String())
+	return nil
 }
 
 func (r *Runner) runOne(execID string) error {
@@ -104,10 +107,14 @@ func (r *Runner) runOne(execID string) error {
 		execCmdFn = execCmd
 	}
 	start := time.Now()
-	output, exitCode, err := execCmdFn(ctx, scriptFile)
+	output, exitCode, execErr := execCmdFn(ctx, scriptFile)
 	duration := time.Since(start)
 
 	// report the output or the error
+	if execErr != nil {
+		output = append(output, []byte(fmt.Sprintf("\nprocess execution error: %v", execErr))...)
+	}
+
 	err = r.Client.SaveHostScriptResult(&fleet.HostScriptResultPayload{
 		ExecutionID: execID,
 		Output:      string(output),
