@@ -299,6 +299,7 @@ func (m *swiftDialogMDMMigrator) Show() error {
 		if err := m.renderMigration(); err != nil {
 			return fmt.Errorf("show: %w", err)
 		}
+		m.lastShown = time.Now()
 	}
 
 	return nil
@@ -311,7 +312,10 @@ func (m *swiftDialogMDMMigrator) ShowInterval() error {
 			if err := m.Show(); err != nil {
 				return fmt.Errorf("show interval: %w", err)
 			}
+			log.Info().Msg("dialog launched successfully")
 			m.lastShown = time.Now()
+		} else {
+			log.Info().Msg("dialog was automatically launched too recently, skipping")
 		}
 	}
 

@@ -1,0 +1,1 @@
+* Ensure migration dialog is not opened automatically if it was opened manually in the last 15 minutes
