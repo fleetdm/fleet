@@ -690,6 +690,22 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	})
 	require.NoError(t, err)
 
+	// create a setup assistant for no team, for this we need to:
+	// 1. mock the ABM API, as it gets called to set the profile
+	// 2. run the DEP schedule, as this registers the default profile
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+	}))
+	s.runDEPSchedule()
+	noTeamProf := `{"x": 1}`
+	var globalAsstResp createMDMAppleSetupAssistantResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "no-team",
+		EnrollmentProfile: json.RawMessage(noTeamProf),
+	}, http.StatusOK, &globalAsstResp)
+
 	// preassign an empty profile, fails
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "empty", HostUUID: nonMDMHost.UUID, Profile: nil}}, http.StatusUnprocessableEntity)
 
@@ -725,8 +741,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NoError(t, err)
 	require.Equal(t, "g1", tm1.Name)
 
-	// it create activities for the new team, the profiles assigned to it, and
-	// the host moved to it
+	// it create activities for the new team, the profiles assigned to it,
+	// the host moved to it, and setup assistant
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeCreatedTeam{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
@@ -740,6 +756,11 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
 			tm1.ID, tm1.Name, h.ID, h.DisplayName()),
 		0)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "name": %q, "team_name": %q}`,
+			tm1.ID, globalAsstResp.Name, tm1.Name),
+		0)
 
 	// and the team has the expected profiles
 	profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
@@ -750,6 +771,11 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
 	// filevault is enabled by default
 	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
+	// setup assistant settings are copyied from "no team"
+	teamAsst, err := s.ds.GetMDMAppleSetupAssistant(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.Equal(t, globalAsstResp.Name, teamAsst.Name)
+	require.JSONEq(t, string(globalAsstResp.Profile), string(teamAsst.Profile))
 
 	// create a team and set profiles to it
 	tm2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -1276,15 +1302,6 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	}
 	profileAssignmentReqs := []profileAssignmentReq{}
 
-	runDEPSchedule := func() {
-		profileAssignmentReqs = []profileAssignmentReq{}
-		ch := make(chan bool)
-		s.onDEPScheduleDone = func() { close(ch) }
-		_, err := s.depSchedule.Trigger()
-		require.NoError(t, err)
-		<-ch
-	}
-
 	// add global profiles
 	globalProfile := mobileconfigForTest("N1", "I1")
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{globalProfile}}, http.StatusNoContent)
@@ -1366,7 +1383,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.Empty(t, listHostsRes.Hosts)
 
 	// trigger a profile sync
-	runDEPSchedule()
+	s.runDEPSchedule()
 
 	// all hosts should be returned from the hosts endpoint
 	listHostsRes = listHostsResponse{}
@@ -1471,7 +1488,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "deleted"},
 		{SerialNumber: addedSerial, Model: "MacBook Mini", OS: "osx", OpType: "added"},
 	}
-	runDEPSchedule()
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
 
 	// all hosts should be returned from the hosts endpoint
 	listHostsRes = listHostsResponse{}
@@ -4315,11 +4333,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 			require.NoError(t, err)
 		}
 	}))
-	ch := make(chan bool)
-	s.onDEPScheduleDone = func() { close(ch) }
-	_, err = s.depSchedule.Trigger()
-	require.NoError(t, err)
-	<-ch
+	s.runDEPSchedule()
 
 	// hosts meets all requirements, webhook is run
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
@@ -5209,11 +5223,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}))
 
 	// sync the list of ABM devices
-	ch := make(chan bool)
-	s.onDEPScheduleDone = func() { close(ch) }
-	_, err := s.depSchedule.Trigger()
-	require.NoError(t, err)
-	<-ch
+	s.runDEPSchedule()
 
 	// MDM SSO fields are empty by default
 	acResp := appConfigResponse{}
@@ -5575,14 +5585,10 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 				require.NoError(t, err)
 			}
 		}))
-		ch := make(chan bool)
-		s.onDEPScheduleDone = func() { close(ch) }
-		_, err := s.depSchedule.Trigger()
-		require.NoError(t, err)
-		<-ch
+		s.runDEPSchedule()
 
 		// simulate that the device is enrolled in a third-party MDM and DEP capable
-		err = s.ds.SetOrUpdateMDMData(
+		err := s.ds.SetOrUpdateMDMData(
 			ctx,
 			host.ID,
 			false,
@@ -6443,6 +6449,14 @@ func (s *integrationMDMTestSuite) runWorker() {
 	pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
 	require.NoError(s.T(), err)
 	require.Empty(s.T(), pending)
+}
+
+func (s *integrationMDMTestSuite) runDEPSchedule() {
+	ch := make(chan bool)
+	s.onDEPScheduleDone = func() { close(ch) }
+	_, err := s.depSchedule.Trigger()
+	require.NoError(s.T(), err)
+	<-ch
 }
 
 func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {
