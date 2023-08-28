@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/useraction"
@@ -231,22 +230,6 @@ func main() {
 			}
 		}()
 
-		if runtime.GOOS == "darwin" {
-			_, swiftDialogPath, _ := update.LocalTargetPaths(
-				tufUpdateRoot,
-				"swiftDialog",
-				update.SwiftDialogMacOSTarget,
-			)
-			mdmMigrator = useraction.NewMDMMigrator(
-				swiftDialogPath,
-				15*time.Minute,
-				&mdmMigrationHandler{
-					client:      client,
-					tokenReader: &tokenReader,
-				},
-			)
-		}
-
 		reportError := func(err error, info map[string]any) {
 			if !client.GetServerCapabilities().Has(fleet.CapabilityErrorReporting) {
 				log.Info().Msg("skipped reporting error to the server as it doesn't have the capability enabled")
@@ -264,6 +247,23 @@ func main() {
 			if err := client.ReportError(tokenReader.GetCached(), fleetdErr); err != nil {
 				log.Error().Err(err).EmbedObject(fleetdErr).Msg("reporting error to Fleet server")
 			}
+		}
+
+		if runtime.GOOS == "darwin" {
+			_, swiftDialogPath, _ := update.LocalTargetPaths(
+				tufUpdateRoot,
+				"swiftDialog",
+				update.SwiftDialogMacOSTarget,
+			)
+			mdmMigrator = useraction.NewMDMMigrator(
+				swiftDialogPath,
+				15*time.Minute,
+				&mdmMigrationHandler{
+					client:      client,
+					tokenReader: &tokenReader,
+					reportError: reportError,
+				},
+			)
 		}
 
 		// poll the server to check the policy status of the host and update the
@@ -407,12 +407,14 @@ func main() {
 type mdmMigrationHandler struct {
 	client      *service.DeviceClient
 	tokenReader *token.Reader
+	reportError func(err error, info map[string]any)
 }
 
 func (m *mdmMigrationHandler) NotifyRemote() error {
 	log.Debug().Msg("sending request to trigger mdm migration webhook")
 	if err := m.client.MigrateMDM(m.tokenReader.GetCached()); err != nil {
 		log.Error().Err(err).Msg("triggering migration webhook")
+		go m.reportError(err, nil)
 		return fmt.Errorf("on migration start: %w", err)
 	}
 	log.Debug().Msg("successfully sent request to trigger mdm migration webhook")
@@ -422,6 +424,7 @@ func (m *mdmMigrationHandler) NotifyRemote() error {
 func (m *mdmMigrationHandler) ShowInstructions() {
 	openURL := m.client.BrowserDeviceURL(m.tokenReader.GetCached())
 	if err := open.Browser(openURL); err != nil {
+		go m.reportError(err, nil)
 		log.Error().Err(err).Str("url", openURL).Msg("open browser")
 	}
 }
