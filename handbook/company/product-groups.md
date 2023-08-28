@@ -117,7 +117,7 @@ A user story is considered ready for implementation once:
 - [ ] User story [issue created](https://github.com/fleetdm/fleet/issues/new/choose)
 - [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-cx`, `#g-mdm`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
-- [ ] [Designs revised and approved](#design-reviews)
+- [ ] [Designs revised and settled](#design-reviews)
 - [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
 - [ ] [Scheduled](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) for development
 
