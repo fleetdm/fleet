@@ -18,7 +18,7 @@ tldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com
 
 ## Your primary responsibilities 🔭
 
-As a Senior Customer Success Manager, at Fleet, you will get the chance to…
+As a Director of Business Development, at Fleet, you will get the chance to…
 
 - ⏫ Develop and execute the company's government business development strategy
 - 📣 Identify and qualify new business opportunities
