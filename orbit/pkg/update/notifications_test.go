@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -362,4 +363,147 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 			require.Equal(t, 2, apiCallCount) // the initial call and the one that returned errIsWindowsServer after first sleep
 		})
 	}
+}
+
+func TestRunScripts(t *testing.T) {
+	var logBuf bytes.Buffer
+
+	oldLog := log.Logger
+	log.Logger = log.Output(&logBuf)
+	t.Cleanup(func() { log.Logger = oldLog })
+
+	var (
+		callsCount atomic.Int64
+		runFailure error
+		blockRun   chan struct{}
+	)
+
+	mockRun := func(ids []string) error {
+		callsCount.Add(1)
+		if blockRun != nil {
+			<-blockRun
+		}
+		return runFailure
+	}
+
+	t.Run("no pending scripts", func(t *testing.T) {
+		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset() })
+
+		fetcher := &dummyConfigFetcher{
+			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				PendingScriptExecutionIDs: nil,
+			}},
+		}
+		runner := &runScriptsConfigFetcher{
+			Fetcher:      fetcher,
+			runScriptsFn: mockRun,
+		}
+		cfg, err := runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+
+		// the lock should be available because no goroutine was started
+		require.True(t, runner.mu.TryLock())
+		require.Zero(t, callsCount.Load()) // no calls to execute scripts
+		require.Empty(t, logBuf.String())  // no logs written
+	})
+
+	t.Run("pending scripts succeed", func(t *testing.T) {
+		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset() })
+
+		fetcher := &dummyConfigFetcher{
+			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				PendingScriptExecutionIDs: []string{"a", "b", "c"},
+			}},
+		}
+		runner := &runScriptsConfigFetcher{
+			Fetcher:      fetcher,
+			runScriptsFn: mockRun,
+		}
+		cfg, err := runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+
+		// wait for the lock to become available (signaling that the goroutine
+		// finished)
+		var ok bool
+		for start := time.Now(); !ok && time.Since(start) < time.Second; {
+			ok = runner.mu.TryLock()
+		}
+		require.True(t, ok, "timed out waiting for the lock to become available")
+		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
+		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "running scripts [a b c] succeeded")
+	})
+
+	t.Run("pending scripts failed", func(t *testing.T) {
+		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset(); runFailure = nil })
+
+		fetcher := &dummyConfigFetcher{
+			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				PendingScriptExecutionIDs: []string{"a", "b", "c"},
+			}},
+		}
+
+		runFailure = io.ErrUnexpectedEOF
+		runner := &runScriptsConfigFetcher{
+			Fetcher:      fetcher,
+			runScriptsFn: mockRun,
+		}
+
+		cfg, err := runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+
+		// wait for the lock to become available (signaling that the goroutine
+		// finished)
+		var ok bool
+		for start := time.Now(); !ok && time.Since(start) < time.Second; {
+			ok = runner.mu.TryLock()
+		}
+		require.True(t, ok, "timed out waiting for the lock to become available")
+		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
+		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "running scripts failed")
+		require.Contains(t, logBuf.String(), io.ErrUnexpectedEOF.Error())
+	})
+
+	t.Run("concurrent run prevented", func(t *testing.T) {
+		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset(); blockRun = nil })
+
+		fetcher := &dummyConfigFetcher{
+			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				PendingScriptExecutionIDs: []string{"a", "b", "c"},
+			}},
+		}
+
+		blockRun = make(chan struct{})
+		runner := &runScriptsConfigFetcher{
+			Fetcher:      fetcher,
+			runScriptsFn: mockRun,
+		}
+
+		cfg, err := runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+
+		// call it again, while the previous run is still running
+		cfg, err = runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+
+		// unblock the initial run
+		close(blockRun)
+
+		// wait for the lock to become available (signaling that the goroutine
+		// finished)
+		var ok bool
+		for start := time.Now(); !ok && time.Since(start) < time.Second; {
+			ok = runner.mu.TryLock()
+		}
+		require.True(t, ok, "timed out waiting for the lock to become available")
+		require.Equal(t, int64(1), callsCount.Load()) // only called once because of mutex
+		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "running scripts [a b c] succeeded")
+	})
 }
