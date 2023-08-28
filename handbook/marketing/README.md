@@ -16,7 +16,7 @@ Marketing's goal is to increase product usage. We value users of all sizes adopt
 
 Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
 
-### Product Marketing and Launch strategies
+### Product Marketing and launch strategies
 
 - [How we rank features for launch](https://fleetdm.com/handbook/product#ranking-features)
 - Our Launch Playbook on [Monday.com](https://fleetdm.monday.com/boards/3971829429) To start a new major product launch, duplicate this monday board, as well as the [Run-of-show board](https://fleetdm.monday.com/boards/4261275399).
