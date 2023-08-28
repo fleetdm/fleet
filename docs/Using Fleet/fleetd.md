@@ -352,7 +352,7 @@ The following document explains how you can generate a TUF repository and instal
 It is possible to generate a fleetd package that does not connect to Fleet by omitting the `--fleet-url` and `--enroll-secret` flags when building a package.
 
 This can be useful in situations where you would like to test using `fleetd` to manage osquery updates while still managing osquery command-line flags and extensions locally 
-but can result in a large volume of error logs. In fleetd v1.15.1, we added an experimental workaround to reduce log chatter in this scenario.
+but can result in a large volume of error logs. In fleetd v1.15.1, we added an experimental feature to reduce log chatter in this scenario.
  
 Applying the environmental variable `"FLEETD_SILENCE_ENROLL_ERROR"=1` on a host will silence fleetd enrollment errors if a `--fleet-url` is not present.
 This variable is read at launch and will require a restart of the Orbit service if it is not set before installing `fleetd` v1.15.1.
