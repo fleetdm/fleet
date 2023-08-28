@@ -48,14 +48,17 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
 };
 
 const generateResultsTableHeaders = (results: any[]): Column[] => {
-  const keys = Array.from(
+  /* Results include an array of objects, each representing a table row
+  Each key value pair in an object represents a column name and value
+  To create headers, use JS set to create an array of all unique column names */
+  const uniqueColumnNames = Array.from(
     results.reduce(
       (s, o) => Object.keys(o).reduce((t, k) => t.add(k), s),
       new Set() // Set prevents listing duplicate headers
     )
   );
 
-  const headers = keys.map((key) => {
+  const headers = uniqueColumnNames.map((key) => {
     return {
       id: key as string,
       title: key as string,
