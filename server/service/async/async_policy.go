@@ -22,10 +22,8 @@ const (
 	policyPassKeysMinTTL  = 7 * 24 * time.Hour // 1 week
 )
 
-var (
-	// redis list will be LTRIM'd if there are more policy IDs than this.
-	maxRedisPolicyResultsPerHost = 1000
-)
+// redis list will be LTRIM'd if there are more policy IDs than this.
+var maxRedisPolicyResultsPerHost = 1000
 
 func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool) error {
 	cfg := t.taskConfigs[config.AsyncTaskPolicyMembership]
@@ -51,35 +49,50 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 		ttl = maxTTL
 	}
 
-	// KEYS[1]: keyList (policyPassHostKey)
-	// KEYS[2]: keyTs (policyPassReportedKey)
+	// KEYS[1]: keyTs (policyPassReportedKey)
 	// ARGV[1]: timestamp for "reported at"
-	// ARGV[2]: max policy results to keep per host (list is trimmed to that size)
-	// ARGV[3]: ttl for both keys
-	// ARGV[4..]: policy_id=pass entries to LPUSH to the list
-	script := redigo.NewScript(2, `
-    redis.call('LPUSH', KEYS[1], unpack(ARGV, 4))
-    redis.call('LTRIM', KEYS[1], 0, ARGV[2])
-    redis.call('EXPIRE', KEYS[1], ARGV[3])
-    redis.call('SET', KEYS[2], ARGV[1])
-    return redis.call('EXPIRE', KEYS[2], ARGV[3])
-  `)
+	// ARGV[2]: ttl for both keys
+	scriptSrc := `
+		redis.call('SET', KEYS[1], ARGV[1])
+		return redis.call('EXPIRE', KEYS[1], ARGV[2])
+	`
+	keyCount := 1
+	args := make(redigo.Args, 0, 2)
+	args = args.Add(keyTs, ts.Unix(), int(ttl.Seconds()))
 
-	// convert results to LPUSH arguments, store as policy_id=1 for pass,
-	// policy_id=-1 for fail, policy_id=0 for null result.
-	args := make(redigo.Args, 0, 5+len(results))
-	args = args.Add(keyList, keyTs, ts.Unix(), maxRedisPolicyResultsPerHost, int(ttl.Seconds()))
-	for k, v := range results {
-		pass := 0
-		if v != nil {
-			if *v {
-				pass = 1
-			} else {
-				pass = -1
+	if len(results) > 0 {
+		keyCount = 2
+		// KEYS[1]: keyList (policyPassHostKey)
+		// KEYS[2]: keyTs (policyPassReportedKey)
+		// ARGV[1]: timestamp for "reported at"
+		// ARGV[2]: max policy results to keep per host (list is trimmed to that size)
+		// ARGV[3]: ttl for both keys
+		// ARGV[4..]: policy_id=pass entries to LPUSH to the list
+		scriptSrc = `
+		redis.call('LPUSH', KEYS[1], unpack(ARGV, 4))
+		redis.call('LTRIM', KEYS[1], 0, ARGV[2])
+		redis.call('EXPIRE', KEYS[1], ARGV[3])
+		redis.call('SET', KEYS[2], ARGV[1])
+		return redis.call('EXPIRE', KEYS[2], ARGV[3])
+		`
+		// convert results to LPUSH arguments, store as policy_id=1 for pass,
+		// policy_id=-1 for fail, policy_id=0 for null result.
+		args = make(redigo.Args, 0, 5+len(results))
+		args = args.Add(keyList, keyTs, ts.Unix(), maxRedisPolicyResultsPerHost, int(ttl.Seconds()))
+		for k, v := range results {
+			pass := 0
+			if v != nil {
+				if *v {
+					pass = 1
+				} else {
+					pass = -1
+				}
 			}
+			args = args.Add(fmt.Sprintf("%d=%d", k, pass))
 		}
-		args = args.Add(fmt.Sprintf("%d=%d", k, pass))
 	}
+
+	script := redigo.NewScript(keyCount, scriptSrc)
 
 	conn := t.pool.Get()
 	defer conn.Close()
