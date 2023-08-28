@@ -13,7 +13,6 @@ import {
   IDeviceUserResponse,
   IHostDevice,
 } from "interfaces/host";
-import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
 import DeviceUserError from "components/DeviceUserError";
@@ -23,6 +22,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
+import Icon from "components/Icon/Icon";
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import PATHS from "router/paths";
 
@@ -32,7 +32,6 @@ import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
 
-import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
@@ -297,7 +296,7 @@ const DeviceUserPage = ({
       <div className={`${baseClass}__action-button-container`}>
         <Button onClick={() => setShowInfoModal(true)} variant="text-icon">
           <>
-            Info <img src={InfoIcon} alt="Host info icon" />
+            Info <Icon name="info" size="small" />
           </>
         </Button>
       </div>
