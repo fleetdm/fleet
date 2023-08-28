@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
@@ -273,4 +274,69 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptUnenrollment() {
 		w.lastUnenrollRun = time.Now()
 		log.Info().Msg("successfully called UnregisterDeviceWithManagement to unenroll Windows device")
 	}
+}
+
+type runScriptsFunc func([]string) error
+
+type runScriptsConfigFetcher struct {
+	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
+	// for actually returning the orbit configuration or an error.
+	Fetcher OrbitConfigFetcher
+
+	// ScriptsExecutionEnabled indicates if this agent allows scripts execution.
+	// If it doesn't, scripts are not executed, but a response is returned to the
+	// Fleet server so it knows the agent processed the request.
+	ScriptsExecutionEnabled bool
+
+	// ScriptsClient is the client to use to fetch the script to execute and save
+	// back its results.
+	ScriptsClient scripts.Client
+
+	// for tests, to be able to mock command execution. If nil, will use
+	// (scripts.Runner{...}).Run.
+	runScriptsFn runScriptsFunc
+
+	// ensures only one script execution runs at a time
+	mu sync.Mutex
+}
+
+func ApplyRunScriptsConfigFetcherMiddleware(fetcher OrbitConfigFetcher, scriptsEnabled bool, scriptsClient scripts.Client) OrbitConfigFetcher {
+	return &runScriptsConfigFetcher{
+		Fetcher:                 fetcher,
+		ScriptsExecutionEnabled: scriptsEnabled,
+		ScriptsClient:           scriptsClient,
+	}
+}
+
+// GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
+// server sent a list of scripts to execute, starts a goroutine to execute
+// them.
+func (h *runScriptsConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+	cfg, err := h.Fetcher.GetConfig()
+
+	if err == nil && len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
+		if h.mu.TryLock() {
+			log.Debug().Msgf("received request to run scripts %v", cfg.Notifications.PendingScriptExecutionIDs)
+
+			fn := h.runScriptsFn
+			if fn == nil {
+				runner := scripts.Runner{
+					ScriptExecutionEnabled: h.ScriptsExecutionEnabled,
+					Client:                 h.ScriptsClient,
+				}
+				fn = runner.Run
+			}
+
+			go func() {
+				defer h.mu.Unlock()
+
+				if err := fn(cfg.Notifications.PendingScriptExecutionIDs); err != nil {
+					log.Info().Err(err).Msg("running scripts failed")
+					return
+				}
+				log.Debug().Msgf("running scripts %v succeeded", cfg.Notifications.PendingScriptExecutionIDs)
+			}()
+		}
+	}
+	return cfg, err
 }
