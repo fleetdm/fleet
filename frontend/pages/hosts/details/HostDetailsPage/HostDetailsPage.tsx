@@ -359,9 +359,9 @@ const HostDetailsPage = ({
     };
 
     // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
-    document.title = `Host ${hostTab()} details | ${
-      host?.display_name || "Unknown host"
-    } | Fleet for osquery`;
+    document.title = `Host ${hostTab()} details ${
+      host?.display_name ? `| ${host?.display_name} |` : "|"
+    } Fleet for osquery`;
   }, [location.pathname, host]);
 
   // Used for back to software pathname
