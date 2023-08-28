@@ -39,12 +39,12 @@ func TestWaitForUnenrollment(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			tries := 0
-			m.testEnrollmentCheckFn = func() (bool, string, error) {
+			m.testEnrollmentCheckFn = func() (bool, error) {
 				if tries >= c.unenrollAfterNTries {
-					return false, "", c.enrollErr
+					return false, c.enrollErr
 				}
 				tries++
-				return true, "", c.enrollErr
+				return true, c.enrollErr
 			}
 
 			outErr := m.waitForUnenrollment()

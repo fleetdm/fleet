@@ -12,7 +12,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/rs/zerolog/log"
 )
@@ -28,6 +28,19 @@ const (
 	userQuitExitCode     = 10
 	unknownExitCode      = 99
 )
+
+// mdmEnrollmentFile is a file that we use as a sentinel value to detect MDM
+// enrollment. The file must be present if the device is enrolled and absent
+// otherwise. We have found that this file accomplishes this purpose.
+//
+// Optionally we could use the output of `profiles show --type enrollment` to
+// accomplish the same thing, but it's more resource intensive and harder for
+// people that build integrations on top of the migration flow.
+var mdmEnrollmentFile = "/private/var/db/ConfigurationProfiles/Settings/.profilesAreInstalled"
+
+const mdmUnenrollmentTotalWaitTime = 90 * time.Second
+
+const defaultUnenrollmentRetryInterval = 5 * time.Second
 
 var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Parse(`
 ## Migrate to Fleet
@@ -130,9 +143,10 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 
 func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
 	return &swiftDialogMDMMigrator{
-		handler:    handler,
-		baseDialog: newBaseDialog(path),
-		frequency:  frequency,
+		handler:                   handler,
+		baseDialog:                newBaseDialog(path),
+		frequency:                 frequency,
+		unenrollmentRetryInterval: defaultUnenrollmentRetryInterval,
 	}
 }
 
@@ -154,7 +168,7 @@ type swiftDialogMDMMigrator struct {
 
 	// testEnrollmentCheckFn is used in tests to mock the call to verify
 	// the enrollment status of the host
-	testEnrollmentCheckFn     func() (bool, string, error)
+	testEnrollmentCheckFn     func() (bool, error)
 	unenrollmentRetryInterval time.Duration
 }
 
@@ -234,26 +248,26 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 	return m.render(errorMessage.String(), "--button1text", "Close")
 }
 
+// waitForUnenrollment waits 90 seconds (value determined by product) for the device to unenroll from the current MDM solution. If it doesn't unenroll
 func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
-	maxRetries := 9
-	retryInterval := m.unenrollmentRetryInterval
-	if retryInterval == 0 {
-		retryInterval = 5 * time.Second
-	}
+	maxRetries := int(mdmUnenrollmentTotalWaitTime.Seconds() / m.unenrollmentRetryInterval.Seconds())
+	log.Info().Msgf("max retries set to %d", maxRetries)
 	fn := m.testEnrollmentCheckFn
 	if fn == nil {
-		fn = profiles.IsEnrolledInMDM
+		fn = func() (bool, error) {
+			return file.Exists(mdmEnrollmentFile)
+		}
 	}
 	return retry.Do(func() error {
-		enrolled, _, err := fn()
+		enrolled, err := fn()
 		if err != nil {
-			log.Error().Err(err).Msgf("checking enrollment status in migration modal, will retry in %s", retryInterval)
+			log.Error().Err(err).Msgf("checking enrollment status in migration modal, will retry in %s", m.unenrollmentRetryInterval)
 			return err
 
 		}
 
 		if enrolled {
-			log.Info().Msgf("device is still enrolled, waiting %s", retryInterval)
+			log.Info().Msgf("device is still enrolled, waiting %s", m.unenrollmentRetryInterval)
 			return errors.New("host didn't unenroll from MDM")
 		}
 
@@ -261,7 +275,7 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 		return nil
 	},
 		retry.WithMaxAttempts(maxRetries),
-		retry.WithInterval(retryInterval),
+		retry.WithInterval(m.unenrollmentRetryInterval),
 	)
 }
 
@@ -312,15 +326,22 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				errDialogExitChan, errDialogErrChan := m.renderError()
 				select {
 				case <-errDialogExitChan:
-					return nil
+					return notifyErr
 				case err := <-errDialogErrChan:
-					return fmt.Errorf("rendering errror dialog: %w", err)
+					return fmt.Errorf("rendering error dialog: %w", err)
 				}
 			}
 
 			log.Info().Msg("webhook sent, checking for unenrollment")
 			if err := m.waitForUnenrollment(); err != nil {
-				return err
+				m.baseDialog.Exit()
+				errDialogExitChan, errDialogErrChan := m.renderError()
+				select {
+				case <-errDialogExitChan:
+					return err
+				case err := <-errDialogErrChan:
+					return fmt.Errorf("rendering error dialog: %w", err)
+				}
 			}
 
 			// close the spinner
