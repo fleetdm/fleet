@@ -49,25 +49,31 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 		ttl = maxTTL
 	}
 
+	// There are two versions of the script (1) and (2).
+	// Script (1) is used when the are no policy results to report and
+	// script (2) is used when there are policy results.
+
+	// (1)
 	// KEYS[1]: keyTs (policyPassReportedKey)
 	// ARGV[1]: timestamp for "reported at"
-	// ARGV[2]: ttl for both keys
+	// ARGV[2]: ttl for the key
 	scriptSrc := `
 		redis.call('SET', KEYS[1], ARGV[1])
 		return redis.call('EXPIRE', KEYS[1], ARGV[2])
 	`
 	keyCount := 1
-	args := make(redigo.Args, 0, 2)
+	args := make(redigo.Args, 0, 3)
 	args = args.Add(keyTs, ts.Unix(), int(ttl.Seconds()))
 
 	if len(results) > 0 {
-		keyCount = 2
+		// (2)
 		// KEYS[1]: keyList (policyPassHostKey)
 		// KEYS[2]: keyTs (policyPassReportedKey)
 		// ARGV[1]: timestamp for "reported at"
 		// ARGV[2]: max policy results to keep per host (list is trimmed to that size)
 		// ARGV[3]: ttl for both keys
 		// ARGV[4..]: policy_id=pass entries to LPUSH to the list
+		keyCount = 2
 		scriptSrc = `
 		redis.call('LPUSH', KEYS[1], unpack(ARGV, 4))
 		redis.call('LTRIM', KEYS[1], 0, ARGV[2])
