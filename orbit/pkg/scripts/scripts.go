@@ -92,6 +92,8 @@ func (r *Runner) runOne(execID string) error {
 
 	ext := ".sh"
 	if runtime.GOOS == "windows" {
+		// on Windows, we need to allow script execution otherwise it will be
+		// blocked by default (this only impacts the executing session).
 		ext = ".ps1"
 	}
 	scriptFile := filepath.Join(runDir, "script"+ext)
