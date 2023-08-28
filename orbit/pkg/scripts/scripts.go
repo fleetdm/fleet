@@ -24,6 +24,9 @@ type Client interface {
 	SaveHostScriptResult(result *fleet.HostScriptResultPayload) error
 }
 
+// Runner is the type that processes scripts to execute, taking care of
+// retrieving each script, saving it in a temporary directory, executing it and
+// saving the results.
 type Runner struct {
 	Client                 Client
 	ScriptExecutionEnabled bool
@@ -39,6 +42,7 @@ type Runner struct {
 	execCmdFn func(ctx context.Context, scriptPath string) ([]byte, int, error)
 }
 
+// Run processes all scripts identified by the execution IDs.
 func (r *Runner) Run(execIDs []string) error {
 	var errs []error
 
@@ -87,13 +91,14 @@ func (r *Runner) runOne(execID string) error {
 	if err != nil {
 		return fmt.Errorf("create run directory: %w", err)
 	}
-	// TODO(mna): prevent destruction of dir if some env var is set?
-	defer os.RemoveAll(runDir) // TODO(mna): we should probably capture any error it returns
+	// prevent destruction of dir if this env var is set
+	// TODO(mna): should we document this? Just an env var at the moment, not a cli flag.
+	if os.Getenv("FLEET_PREVENT_SCRIPT_TEMPDIR_DELETION") == "" {
+		defer os.RemoveAll(runDir) // TODO(mna): we should probably capture any error it returns
+	}
 
 	ext := ".sh"
 	if runtime.GOOS == "windows" {
-		// on Windows, we need to allow script execution otherwise it will be
-		// blocked by default (this only impacts the executing session).
 		ext = ".ps1"
 	}
 	scriptFile := filepath.Join(runDir, "script"+ext)

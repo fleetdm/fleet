@@ -624,6 +624,9 @@ func main() {
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
+		// TODO(mna): for script execution, pass along the new flag that indicates
+		// if execution is enabled or not (and/or via mdm profile)
+		configFetcher = update.ApplyRunScriptsConfigFetcherMiddleware(configFetcher, true /* TODO: the --scripts-enabled flag */, orbitClient)
 
 		switch runtime.GOOS {
 		case "darwin":
