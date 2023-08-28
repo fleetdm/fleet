@@ -15,7 +15,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
-import { addGravatarUrlToResource } from "utilities/helpers";
+import { addGravatarUrlToResource, secondsToDhms } from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
@@ -84,6 +84,22 @@ const validateQuerySQL = (query: string) => {
   return { valid, errors };
 };
 
+// Includes a custom frequency set through fleetctl at top of frequency dropdown
+const customFrequencyOptions = (frequency: number) => {
+  if (
+    !FREQUENCY_DROPDOWN_OPTIONS.some((option) => option.value === frequency)
+  ) {
+    return [
+      {
+        value: frequency,
+        label: `Every ${secondsToDhms(frequency)}`,
+      },
+      ...FREQUENCY_DROPDOWN_OPTIONS,
+    ];
+  }
+  return FREQUENCY_DROPDOWN_OPTIONS;
+};
+
 const QueryForm = ({
   router,
   queryIdForEdit,
@@ -145,6 +161,10 @@ const QueryForm = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
+  const [frequencyOptions, setFrequencyOptions] = useState(
+    FREQUENCY_DROPDOWN_OPTIONS
+  );
+  const [isInitialFrequency, setIsInitialFrequency] = useState(true);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
@@ -168,6 +188,13 @@ const QueryForm = ({
     }
     debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
+
+  // Creates custom frequency options when initializing and not when toggling
+  useEffect(() => {
+    if (isInitialFrequency) {
+      setFrequencyOptions(customFrequencyOptions(lastEditedQueryFrequency));
+    }
+  }, [lastEditedQueryFrequency, isInitialFrequency]);
 
   const hasTeamMaintainerPermissions = savedQueryMode
     ? isAnyTeamMaintainerOrTeamAdmin &&
@@ -214,6 +241,7 @@ const QueryForm = ({
   const onChangeSelectFrequency = useCallback(
     (value: number) => {
       setLastEditedQueryFrequency(value);
+      setIsInitialFrequency(false);
     },
     [setLastEditedQueryFrequency]
   );
@@ -603,7 +631,7 @@ const QueryForm = ({
               <div className={`${baseClass}__frequency`}>
                 <Dropdown
                   searchable={false}
-                  options={FREQUENCY_DROPDOWN_OPTIONS}
+                  options={frequencyOptions}
                   onChange={onChangeSelectFrequency}
                   placeholder={"Every day"}
                   value={lastEditedQueryFrequency}

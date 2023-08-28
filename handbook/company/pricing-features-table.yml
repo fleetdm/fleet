@@ -33,6 +33,12 @@
     - name: Update apps on macOS computers
       tier: Premium
       comingSoon: true
+    - name: Puppet integration#   « Map macOS settings to computers with Puppet module
+      tier: Premium
+      comingSoon: false
+    - name: Interactive MDM migration#   « end-user initiated MDM migration, with interactive UI
+      tier: Premium
+      comingSoon: false
 - categoryName: Support
   features:
     - name: Public issue tracker (GitHub)

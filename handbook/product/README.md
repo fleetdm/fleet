@@ -64,7 +64,7 @@ For external contributors: please consider opening an issue with reference scree
 - Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/company/ceo). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
 - When introducing a story, clarify which review "mode" the CEO should operate in:
   + **Final review** mode — you are 70% sure the design is 100% done.
-  + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback.
+  + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback. Before bringing something in feedback mode consider whether the CEO will be best for giving feedback or if it would be better suited for someone else (engineer or PM).
 - During the review meeting, take detailed notes of any feedback on the draft.
 - Address the feedback by modifying your draft.
 - Rinse and repeat at subsequent sessions until there is no more feedback.
