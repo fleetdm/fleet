@@ -6,7 +6,7 @@ import * as SQLite from "wa-sqlite";
 
 class cursorState {
   rowIndex: number;
-  rows: Record<string, string | number>[];
+  rows: Record<string, string>[];
   error: any;
 }
 
@@ -21,7 +21,7 @@ export default abstract class Table implements SQLiteModule {
     idxNum: number,
     idxString: string,
     values: Array<number>
-  ): Promise<Record<string, string | number>[]>;
+  ): Promise<Record<string, string>[]>;
 
   constructor(sqlite3: SQLiteAPI, db: number) {
     this.sqlite3 = sqlite3;
