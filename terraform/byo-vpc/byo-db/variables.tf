@@ -4,14 +4,35 @@ variable "vpc_id" {
 
 variable "ecs_cluster" {
   type = object({
-    autoscaling_capacity_providers        = any
-    cluster_configuration                 = any
-    cluster_name                          = string
-    cluster_settings                      = map(string)
-    create                                = bool
-    default_capacity_provider_use_fargate = bool
-    fargate_capacity_providers            = any
-    tags                                  = map(string)
+    autoscaling_capacity_providers = optional(any, {})
+    cluster_configuration = optional(any, {
+      execute_command_configuration = {
+        logging = "OVERRIDE"
+        log_configuration = {
+          cloud_watch_log_group_name = "/aws/ecs/aws-ec2"
+        }
+      }
+    })
+    cluster_name = optional(string, "fleet")
+    cluster_settings = optional(map(string), {
+      "name" : "containerInsights",
+      "value" : "enabled",
+    })
+    create                                = optional(bool, true)
+    default_capacity_provider_use_fargate = optional(bool, true)
+    fargate_capacity_providers = optional(any, {
+      FARGATE = {
+        default_capacity_provider_strategy = {
+          weight = 100
+        }
+      }
+      FARGATE_SPOT = {
+        default_capacity_provider_strategy = {
+          weight = 0
+        }
+      }
+    })
+    tags = optional(map(string))
   })
   default = {
     autoscaling_capacity_providers = {}
@@ -47,6 +68,7 @@ variable "ecs_cluster" {
   description = "The config for the terraform-aws-modules/ecs/aws module"
   nullable    = false
 }
+
 
 variable "fleet_config" {
   type = object({
