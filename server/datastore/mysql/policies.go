@@ -308,8 +308,6 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 	initialQuery, args = searchLike(initialQuery, args, opts.MatchQuery, policySearchColumns...)
 	initialQuery = appendListOptionsToSQL(initialQuery, &opts)
 
-	fmt.Println("QUERY:", initialQuery)
-
 	var ids []uint
 	err := sqlx.SelectContext(ctx, q, &ids, initialQuery, args...)
 	if err != nil {
@@ -334,8 +332,6 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 		args = append(args, *countsForTeamID, *countsForTeamID)
 	}
 
-	idsPlaceholder := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
-
 	query := fmt.Sprintf(`
 		SELECT `+policyCols+`,
 			COALESCE(u.name, '<deleted>') AS author_name,
@@ -343,9 +339,14 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 			%s
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
-		WHERE p.id IN (%s)`, counts, idsPlaceholder)
+		WHERE p.id IN (?)`, counts)
 
-	args = append(args, intsToInterfaces(ids)...)
+	args = append(args, ids)
+
+	query, args, err = sqlx.In(query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by ID")
+	}
 
 	// removing pagination options to avoid double pagination
 	opts.Page = 0
@@ -1073,13 +1074,4 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 	}
 
 	return int(counts.FailingHostCount), int(counts.TotalHostCount), nil
-}
-
-// Utility function to convert slice of uint to slice of interface{}
-func intsToInterfaces(ints []uint) []interface{} {
-	interfaces := make([]interface{}, len(ints))
-	for i, v := range ints {
-		interfaces[i] = v
-	}
-	return interfaces
 }
