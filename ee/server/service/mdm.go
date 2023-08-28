@@ -920,7 +920,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 		// from MDM.MacOSSetup.MacOSSetupAssistant we set above, the
 		// prior is the path to the file, this is the actual file
 		// contents.
-		asst, err := svc.GetMDMAppleSetupAssistant(ctx, nil)
+		asst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, nil)
 		if err != nil {
 			// if "no team" doesn't have custom setup assistant
 			// settings configured, this team won't have either.
