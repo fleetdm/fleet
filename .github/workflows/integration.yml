@@ -58,7 +58,7 @@ jobs:
         # Add secret
         echo "$CERT_PEM" | base64 -d > cert.pem
         # Start tunnel
-        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} &
+        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} --logfile cloudflared.log &
         until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
           echo "Awaiting tunnel ready..."
           sleep 5
@@ -124,6 +124,13 @@ jobs:
     - name: Cleanup tunnel
       if: always()
       run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
+
+    - name: Upload cloudflared logs
+      if: always()
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      with:
+        name: cloudflared.log
+        path: cloudflared.log
 
   login:
    runs-on: ubuntu-latest
