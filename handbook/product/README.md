@@ -45,7 +45,7 @@ When starting a new draft:
 
 #### Keep projects/files clean and up-to-date
 
-- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Designed" column.
+- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Settled" column.
 - After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
 
 #### Questions and missing information
@@ -74,8 +74,8 @@ For external contributors: please consider opening an issue with reference scree
 #### Estimating
 
 Once the draft has been approved: 
-* move it to the "Designed" column in the drafting board and assign it to the appropriate engineering manager.
-* make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
+* move it to the "Settled" column in the drafting board and assign it to the appropriate engineering manager.
+* make sure that the issue is updated with the latest information on the work to be done, such as a link to the correct Figma file and a list of most recent requirements.
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
