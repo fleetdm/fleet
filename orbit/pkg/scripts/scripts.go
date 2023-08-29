@@ -105,7 +105,9 @@ func (r *Runner) runOne(execID string) error {
 		ext = ".ps1"
 	}
 	scriptFile := filepath.Join(runDir, "script"+ext)
-	if err := os.WriteFile(scriptFile, []byte(script.ScriptContents), 0700); err != nil {
+	// the file does not need the executable bit set, it will be executed as
+	// argument to powershell or /bin/sh.
+	if err := os.WriteFile(scriptFile, []byte(script.ScriptContents), 0600); err != nil {
 		return fmt.Errorf("write script file: %w", err)
 	}
 
