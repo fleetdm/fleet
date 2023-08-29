@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -76,6 +77,8 @@ func (r *Runner) Run(execIDs []string) error {
 }
 
 func (r *Runner) runOne(execID string) error {
+	const maxOutputRuneLen = 10000
+
 	script, err := r.Client.GetHostScript(execID)
 	if err != nil {
 		return fmt.Errorf("get host script: %w", err)
@@ -119,7 +122,14 @@ func (r *Runner) runOne(execID string) error {
 
 	// report the output or the error
 	if execErr != nil {
-		output = append(output, []byte(fmt.Sprintf("\nprocess execution error: %v", execErr))...)
+		output = append(output, []byte(fmt.Sprintf("\nscript execution error: %v", execErr))...)
+	}
+
+	// sanity-check the size of the output sent to the server, the actual
+	// trimming to 10K chars is done by the API endpoint, we just make sure not
+	// to send a ridiculously big payload that is sure to be over 10K chars.
+	if len(output) > (utf8.UTFMax * maxOutputRuneLen) {
+		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
 	}
 
 	err = r.Client.SaveHostScriptResult(&fleet.HostScriptResultPayload{
@@ -145,9 +155,13 @@ func (r *Runner) createRunDir(execID string) (string, error) {
 }
 
 func (r *Runner) runOneDisabled(execID string) error {
-	return r.Client.SaveHostScriptResult(&fleet.HostScriptResultPayload{
+	err := r.Client.SaveHostScriptResult(&fleet.HostScriptResultPayload{
 		ExecutionID: execID,
 		Output:      "script execution disabled",
 		ExitCode:    -1,
 	})
+	if err != nil {
+		return fmt.Errorf("save script result: %w", err)
+	}
+	return nil
 }

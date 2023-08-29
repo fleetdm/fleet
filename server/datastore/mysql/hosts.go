@@ -4219,7 +4219,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	if len(output) > utf8.UTFMax*maxOutputRuneLen {
 		// truncate the bytes as we know the output is too long, no point
 		// converting more bytes than needed to runes.
-		output = output[len(output)-utf8.UTFMax*maxOutputRuneLen:]
+		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
 	}
 	if utf8.RuneCountInString(output) > maxOutputRuneLen {
 		outputRunes := []rune(output)
