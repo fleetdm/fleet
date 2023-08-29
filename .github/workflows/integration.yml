@@ -97,7 +97,7 @@ jobs:
           echo " / $EXPECTED"
           sleep 10
         done
-        ./build/fleetctl get hosts
+        ./build/fleetctl get hosts --json
         echo "Success! $EXPECTED hosts enrolled."
 
     - name: Slack Notification
@@ -164,7 +164,7 @@ jobs:
         echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
   orbit-macos:
-    timeout-minutes: 15
+    timeout-minutes: 5
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -215,7 +215,7 @@ jobs:
         ./orbit/tools/cleanup/cleanup_macos.sh
 
   orbit-ubuntu:
-    timeout-minutes: 15
+    timeout-minutes: 5
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -275,7 +275,7 @@ jobs:
         sudo apt remove fleet-osquery -y
 
   orbit-windows-build:
-    timeout-minutes: 15
+    timeout-minutes: 5
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
