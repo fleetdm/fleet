@@ -327,7 +327,7 @@ This particular issue would only be encountered for the largest of Fleet deploym
 
 More troubleshooting tips can be found here https://fleetdm.com/docs/get-started/faq#deployment
 
-<meta name="title" value="Deploy on AWS">
+<meta name="title" value="AWS">
 <meta name="pageOrderInSection" value="700">
 <meta name="description" value="Learn how to deploy Fleet on AWS">
 <meta name="navSection" value="Deployment guides">
