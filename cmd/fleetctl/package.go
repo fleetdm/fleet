@@ -208,7 +208,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:        "use-system-configuration",
-				Usage:       "Try to read --fleet-url, --enroll-secret and --enable-scripts using configuration in the host (currently only macOS profiles are supported)",
+				Usage:       "Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)",
 				EnvVars:     []string{"FLEETCTL_USE_SYSTEM_CONFIGURATION"},
 				Destination: &opt.UseSystemConfiguration,
 			},
