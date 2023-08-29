@@ -253,7 +253,6 @@ For example, here is the [philosophy behind Fleet's bug report template](https:/
 This is very important, because it shapes the kind of people we hire, and the kind of expectations we set for the team about what _"comfortable"_ feels like.
 
 - **Offsite does not equal reward.** Day to day, Fleet shouldn't look rich. Rich doen't equal welcoming. The company is open, not closed. 
-
 Work here means flexible collaboration, accessible people, and clear expectations, and a rich, exciting future worth working for, not a rich, complacent baseline worth coasting for.
 
 - **Minimally viable comfort.**  We should be staying at la quintas by the train tracks every single time unless customers are coming into the room.
