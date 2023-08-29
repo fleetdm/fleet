@@ -1,6 +1,6 @@
 # FAQ
 
-## Using Fleet 
+## Using Fleet
 
 ### How can I switch to Fleet from Kolide Fleet?
 
@@ -23,6 +23,11 @@ There is, however, a way to accomplish this even though the answer to the questi
 ### How often do labels refresh? Is the refresh frequency configurable?
 
 The update frequency for labels is configurable with the [—osquery_label_update_interval](https://fleetdm.com/docs/deploying/configuration#osquery-label-update-interval) flag (default 1 hour).
+
+### Can I modify built-in labels?
+
+While it is possible to modify built-in labels using `fleetctl` or the REST API, doing so is not recommended because it can lead to errors in the Fleet UI.
+Find more information [here](https://github.com/fleetdm/fleet/issues/12479).
 
 ### How do I revoke the authorization tokens for a user?
 
@@ -89,7 +94,7 @@ Don't worry, this behavior is expected; it's part of how osquery works.
 Fleet and osquery work together by communicating with heartbeats. Depending on how close the next heartbeat is, Fleet might return results a few seconds faster or slower.
 >By the way, to get around a phenomena called the "thundering herd problem", these heartbeats aren't exactly the same number of seconds apart each time. osquery implements a "splay", a few ± milliseconds that are added to or subtracted from the heartbeat interval to prevent these thundering herds. This helps prevent situations where many thousands of devices might unnecessarily attempt to communicate with the Fleet server at exactly the same time. (If you've ever used Socket.io, a similar phenomena can occur with that tool's automatic WebSocket reconnects.)
 
-### Why don't my query results appear sorted based upon the ORDER BY clause I specified in my SQL query? 
+### Why don't my query results appear sorted based upon the ORDER BY clause I specified in my SQL query?
 
 When a query executes in Fleet, the query is sent to all hosts at the same time, but results are returned from hosts at different times. In Fleet, results are shown as soon as Fleet receives a response from a host. Fleet does not sort the overall results across all hosts (the sort UI toggle is used for this). Instead, Fleet prioritizes speed when displaying the results.  This means that if you use an `ORDER BY` clause selection criteria in a query, the results may not initially appear with your desired order, however, the sort UI toggle allows you to sort by ascending or descending order for any of the displayed columns.
 
@@ -330,10 +335,16 @@ In those cases, we recommend a slow rollout by partially enabling the feature by
 
 There are many challenges to generating .msi packages on any OS but Windows. Errors will frequently resolve after multiple attempts and we've added retries by default in recent versions of `fleetctl package`.  Package creation is much more reliable on Intel Macs, Linux and Windows.
 
-### Where did Packs go?
+### Where did the "Packs" page go?
 
-Packs are a function of osquery that provide a portable format to import /export queries in and out of platforms like Fleet. These osquery packs still exist, but have been removed from the Fleet UI. Access via API is still available for backwards compatibility.
-Within Fleet we've introduced the concept of teams in Fleet premium to target specific groups of hosts, but you can also still use scheduled queries in Fleet free (works like packs) to target all your hosts.
+Packs are a function of osquery that provide a portable format to import/export queries in and out of platforms like Fleet. The "Packs" section of the UI that began with `kolide/fleet` c. 2017 was an early attempt at fulfilling this vision, but it soon became clear that it wasn't the right interface for segmenting and targeting hosts in Fleet.
+
+Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features, and (in Fleet premium) can target specific groups of hosts via teams.
+
+The "Packs" section of the UI has been removed, but access via the API and CLI is still available for backwards compatibility. The `fleetctl upgrade-packs` command can be used to convert existing 2017 "packs" to queries.
+
+Read more about osquery packs and Fleet's commitment to supporting them [here](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs).
+
 
 ### What happens when I turn off MDM?
 
@@ -341,7 +352,7 @@ In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn o
 
 When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-the-osquery-agent) with the end user.
 
-To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. To turn MDM on, share [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#instructions-for-end-users) with the end user. Turning MDM back on for a host requires end user action.
+To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
 
 ### What does "package root files: heat failed" mean?
 We've found this error when you try to build an MSI on Docker 4.17. The underlying issue has been fixed in Docker 4.18, so we recommend upgrading. More information [here](https://github.com/fleetdm/fleet/issues/10700)
@@ -404,7 +415,7 @@ Osquery requires that all communication between the agent and Fleet are over a s
 
 ### What do I need to do to change the Fleet server TLS certificate?
 
-If the both the existing and new certificates verify with osquery's default root certificates (such as a certificate issued by a well-known Certificate Authority) and no certificate chain was deployed with osquery, there is no need to deploy a new certificate chain.
+If both the existing and new certificates verify with osquery's default root certificates (such as a certificate issued by a well-known Certificate Authority) and no certificate chain was deployed with osquery, there is no need to deploy a new certificate chain.
 
 If osquery has been deployed with the full certificate chain (using `--tls_server_certs`), deploying a new certificate chain is necessary to allow for verification of the new certificate.
 
@@ -451,7 +462,7 @@ Absolutely! If you're updating from the current major release of Fleet (v4), you
 
 If you're updating from an older version (we'll use Fleet v3 as an example), it's best to take some stops along the way:
 
-1. Back up your database. 
+1. Back up your database.
 2. Upgrade to the last release of of v3 - [3.13.0](https://github.com/fleetdm/fleet/releases/tag/3.13.0).
 3. Migrate the database.
 4. Test
@@ -461,9 +472,9 @@ If you're updating from an older version (we'll use Fleet v3 as an example), it'
 8. Test
 9. Upgrade to the [current release](https://github.com/fleetdm/fleet/releases/latest).
 10. One last migration.
-11. Test again for good measure. 
+11. Test again for good measure.
 
-Taking it a bit slower on major releases gives you an opportunity to better track down where any issues may have been introduced. 
+Taking it a bit slower on major releases gives you an opportunity to better track down where any issues may have been introduced.
 
 ### I upgraded my database, but Fleet is still running slowly. What could be going on?
 
@@ -531,9 +542,9 @@ If you would like to manage hosts that can travel outside your VPN or intranet w
 - `/api/osquery`
 - `/api/v1/osquery`
 
-If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies. 
+If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies.
 
-For full Fleet Desktop functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
+For full Fleet Desktop and scripts functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
 If you would like to use the fleetctl CLI from outside of your network, the following endpoints will also need to be exposed for `fleetctl`:
 
@@ -551,7 +562,7 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
   download an enrollment profile.
 
 > The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
-> are not RESTful, and are not intended for use by API clients or browsers. 
+> are not RESTful, and are not intended for use by API clients or browsers.
 
 ### What is the minimum version of MySQL required by Fleet?
 
@@ -567,6 +578,24 @@ Fleet is tested with Redis 5.0.14 and 6.2.7. Any version Redis after version 5 w
 ### Will my older version of Fleet work with Redis 6?
 
 Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups.
+
+## What happened to the "Schedule" page?
+Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval," "platform") or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query which every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept.
+
+To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged query concept:
+- Any global scheduled query will have its query converted into a global query with the relevant schedule attributes (frequency, min. osquery version, logging, etc.).
+- Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
+- Any query that is referenced by a 2017 pack will be converted into a global query and the 2017 pack will reference it. The 2017 packs should continue functioning as before.
+
+Important: To avoid naming conflicts, a query must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names.
+
+For any automated workflows that use the schedule endpoints on the API, we recommend consolidating to the query endpoints, which now accept the scheduled query attributes. The schedule endpoints in the API still function but are deprecated. To accommodate the new unified query concept, the schedule endpoints behave differently under-the-hood:
+- The POST endpoints will create a new query with the specified attributes
+- The PATCH endpoint will modify the specified query with the specified attributes
+- The DELETE endpoint will delete the specified query.
+
+Finally, "shard" has been retired as an option for queries. In its place we recommend using a canary team or a live query to test the impact of a query before deploying it more broadly.
+
 
 
 <meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community.">

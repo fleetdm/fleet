@@ -370,7 +370,8 @@ func TestMDMProfileIsWithinGracePeriod(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
-			require.Equal(t, c.expect, testProfile.IsWithinGracePeriod(c.hostDetailUpdatedAt))
+			ep := ExpectedMDMProfile{Identifier: testProfile.Identifier, EarliestInstallDate: testProfile.UpdatedAt}
+			require.Equal(t, c.expect, ep.IsWithinGracePeriod(c.hostDetailUpdatedAt))
 		})
 	}
 }

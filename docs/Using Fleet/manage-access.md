@@ -10,19 +10,19 @@ Users with the admin role receive all permissions.
 
 ### Maintainer
 
-Maintainers can manage most entities in Fleet, like queries, policies, labels and schedules.
+Maintainers can manage most entities in Fleet, like queries, policies, and labels.
 Unlike admins, maintainers cannot edit higher level settings like application configuration, teams or users.
 
 ### Observer
 
-The Observer role is a read-only role. It can access most entities in Fleet, like queries, policies, labels, schedules, application configuration, teams, etc.
+The observer role is a read-only role. It can access most entities in Fleet, like queries, policies, labels, application configuration, teams, etc.
 They can also run queries configured with the `observer_can_run` flag set to `true`.
 
 ### Observer+
 
 `Applies only to Fleet Premium`
 
-Observer+ is an Observer with the added ability to run *any* query.
+Observer+ is an observer with the added ability to run *any* query.
 
 ### GitOps
 
@@ -51,7 +51,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete queries                                                                                                           |          |            | ✅         | ✅    | ✅      |
 | View all queries\**                                                                                                                        | ✅       | ✅         | ✅         | ✅    |         |
-| Add, edit, and remove queries from all schedules                                                                                           |          |            | ✅         | ✅    | ✅      |
+| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                 |          |            |    ✅      | ✅    |   ✅    |
 | Create, edit, view, and delete packs                                                                                                       |          |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
@@ -77,8 +77,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |            |            | ✅    |         |
 | View disk encryption key for macOS hosts                                                                                                   | ✅       | ✅         | ✅         | ✅    |         |
 | Create edit and delete configuration profiles for macOS hosts                                                                              |          |            | ✅         | ✅    | ✅      |
-| Execute MDM commands on macOS hosts***                                                                                                     |          |            | ✅         | ✅    |         |
-| View results of MDM commands executed on macOS hosts***                                                                                    | ✅       | ✅         | ✅         | ✅    |         |
+| Execute MDM commands on macOS and Windows hosts***                                                                                         |          |            | ✅         | ✅    |         |
+| View results of MDM commands executed on macOS and Windows hosts***                                                                        | ✅       | ✅         | ✅         | ✅    |         |
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |            |            | ✅    | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |            |            | ✅    | ✅      |
 | Upload an EULA file for MDM automatic enrollment\*                                                                                         |          |            |            | ✅    |         |
@@ -87,6 +87,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View metadata of MDM macOS bootstrap packages\*                                                                                            |          |            | ✅         | ✅    |         |
 | Edit/upload MDM macOS bootstrap packages\*                                                                                                 |          |            | ✅         | ✅    | ✅      |
 | Enable/disable MDM macOS setup end user authentication\*                                                                                   |          |            | ✅         | ✅    | ✅      |
+| Run scripts on hosts\*                                                                                                                     |          |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
@@ -100,11 +101,11 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 Users in Fleet either have team access or global access.
 
-Users with team access only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [schedules](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query) , and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
+Users with team access only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
 their team.
 
 Users with global access have access to all
-[hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [queries](https://fleetdm.com/docs/using-fleet/rest-api#queries), [schedules](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query) , and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies). Check out [the user permissions
+[hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [queries](https://fleetdm.com/docs/using-fleet/rest-api#queries), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies). Check out [the user permissions
 table](#user-permissions) above for global user permissions.
 
 Users can be a member of multiple teams in Fleet.
@@ -124,7 +125,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
 | View all queries\**                                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
-| Add, edit, and remove queries from the schedule                                                                                  |               |                | ✅              | ✅         | ✅          |
+| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                 | ✅              | ✅         | ✅          |
 | View policies                                                                                                                    | ✅            | ✅             | ✅              | ✅         |             |
 | View global (inherited) policies                                                                                                 | ✅            | ✅             | ✅              | ✅         |             |
 | Run global (inherited) policies as a live policy                                                                                 |               |                | ✅              | ✅         |             |
@@ -140,15 +141,15 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
 | Create edit and delete configuration profiles for macOS hosts                                                                    |               |                | ✅              | ✅         | ✅          |
-| Execute MDM commands on macOS hosts, and read command results*                                                                   |               |                | ✅              | ✅         |             |
-| Execute MDM commands on macOS hosts*                                                                                             |               |                | ✅              | ✅         |             |
-| View results of MDM commands executed on macOS hosts*                                                                            | ✅            | ✅             | ✅              | ✅         |             |
+| Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
+| View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅         | ✅          |
 | View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅         |             |
 | Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅         | ✅          |
 | View metadata of MDM macOS bootstrap packages                                                                                    |               |                | ✅              | ✅         |             |
 | Edit/upload MDM macOS bootstrap packages                                                                                         |               |                | ✅              | ✅         | ✅          |
 | Enable/disable MDM macOS setup end user authentication                                                                           |               |                | ✅              | ✅         | ✅          |
+| Run scripts on hosts                                                                                                             |               |                | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

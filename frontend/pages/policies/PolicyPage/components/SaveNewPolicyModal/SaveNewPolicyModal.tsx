@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
 import { IPolicyFormData } from "interfaces/policy";
-import { IPlatformString } from "interfaces/platform";
+import { SelectedPlatformString } from "interfaces/platform";
 import useDeepEffect from "hooks/useDeepEffect";
 
 // @ts-ignore
@@ -81,7 +81,7 @@ const SaveNewPolicyModal = ({
 
     const newPlatformString = platformSelector
       .getSelectedPlatforms()
-      .join(",") as IPlatformString;
+      .join(",") as SelectedPlatformString;
     setLastEditedQueryPlatform(newPlatformString);
 
     const { valid: validName, errors: newErrors } = validatePolicyName(name);

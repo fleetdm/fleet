@@ -15,19 +15,9 @@
     }
   }
 
-  &__section-title-group {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
   &__section-title {
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding-right: 12px;
-
+    gap: $pad-xsmall;
     span {
       background-color: $core-vibrant-blue;
       color: $core-white;
@@ -35,10 +25,13 @@
       font-weight: $bold;
       padding: 2px 4px;
       border-radius: 4px;
-      margin-left: $pad-small;
       position: relative;
-      top: -2px;
     }
+  }
+
+  &__section-title-group {
+    display: flex;
+    gap: 0.75rem;
   }
 
   &__section-title-detail {

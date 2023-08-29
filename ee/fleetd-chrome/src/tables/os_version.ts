@@ -16,11 +16,11 @@ export default class TableOSVersion extends Table {
   ];
 
   getName(platform: string): string {
-    return platform.replace("Chrome OS", "ChromeOS")
+    return platform.replace("Chrome OS", "ChromeOS");
   }
 
   getCodename(platformVersion: string): string {
-    return `ChromeOS ${platformVersion}`
+    return `ChromeOS ${platformVersion}`;
   }
 
   async generate() {
@@ -74,6 +74,7 @@ export default class TableOSVersion extends Table {
         build,
         patch,
         codename: this.getCodename(data.platformVersion),
+        // https://developer.chrome.com/docs/extensions/reference/runtime/#type-PlatformArch
         arch: arch,
       },
     ];

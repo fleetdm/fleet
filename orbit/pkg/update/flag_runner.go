@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/rs/zerolog/log"
 )
 
@@ -56,10 +57,10 @@ func (r *FlagRunner) Execute() error {
 		case <-r.cancel:
 			return nil
 		case <-ticker.C:
-			log.Info().Msg("calling flags update")
+			log.Debug().Msg("calling flags update")
 			didUpdate, err := r.DoFlagsUpdate()
 			if err != nil {
-				log.Info().Err(err).Msg("flags updates failed")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "flags updates failed")
 			}
 			if didUpdate {
 				log.Info().Msg("flags updated, exiting")
@@ -166,7 +167,7 @@ func (r *ExtensionRunner) Execute() error {
 			log.Debug().Msg("calling /config API to fetch/update extensions")
 			extensionsCleared, err := r.DoExtensionConfigUpdate()
 			if err != nil {
-				log.Info().Err(err).Msg("ext update failed")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "ext update failed")
 			}
 			if extensionsCleared {
 				log.Info().Msg("extensions were cleared on the server")

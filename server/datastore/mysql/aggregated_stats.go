@@ -13,7 +13,6 @@ import (
 type aggregatedStatsType string
 
 const (
-	aggregatedStatsTypeQuery                = "query"
 	aggregatedStatsTypeScheduledQuery       = "scheduled_query"
 	aggregatedStatsTypeMunkiVersions        = "munki_versions"
 	aggregatedStatsTypeMunkiIssues          = "munki_issues"
@@ -48,38 +47,14 @@ FROM (
 ) AS t2
 WHERE t1.row_number_value = floor(total_rows * %s) + 1;`
 
-const queryPercentileQuery = `
-SELECT
-	coalesce((t1.%s / t1.executions), 0)
-FROM (
-	SELECT @rownum := @rownum + 1 AS row_number_value, mm.* FROM (
-		SELECT d.scheduled_query_id, d.%s, d.executions
-		FROM scheduled_query_stats d
-		JOIN scheduled_queries sq ON (sq.id=d.scheduled_query_id)
-		WHERE sq.query_id=?
-		ORDER BY (d.%s / d.executions) ASC
-	) AS mm
-) AS t1,
-(SELECT @rownum := 0) AS r,
-(
-	SELECT count(*) AS total_rows
-	FROM scheduled_query_stats d
-	JOIN scheduled_queries sq ON (sq.id=d.scheduled_query_id)
-	WHERE sq.query_id=?
-) AS t2
-WHERE t1.row_number_value = floor(total_rows * %s) + 1;`
-
 const (
 	scheduledQueryTotalExecutions = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats WHERE scheduled_query_id=?`
-	queryTotalExecutions          = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats sqs JOIN scheduled_queries sq ON (sqs.scheduled_query_id=sq.id) JOIN queries q ON (q.id=sq.query_id) WHERE sq.query_id=?`
 )
 
 func getPercentileQuery(aggregate aggregatedStatsType, time string, percentile string) string {
 	switch aggregate {
 	case aggregatedStatsTypeScheduledQuery:
 		return fmt.Sprintf(scheduledQueryPercentileQuery, time, time, time, percentile)
-	case aggregatedStatsTypeQuery:
-		return fmt.Sprintf(queryPercentileQuery, time, time, time, percentile)
 	}
 	return ""
 }
@@ -107,23 +82,12 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate aggr
 	return nil
 }
 
-func (ds *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
-	err := walkIdsInTable(ctx, ds.reader(ctx), "scheduled_queries", func(id uint) error {
+func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
+	err := walkIdsInTable(ctx, ds.reader(ctx), "queries", func(id uint) error {
 		return calculatePercentiles(ctx, ds.writer(ctx), aggregatedStatsTypeScheduledQuery, id)
 	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "looping through ids")
-	}
-
-	return nil
-}
-
-func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
-	err := walkIdsInTable(ctx, ds.reader(ctx), "queries", func(id uint) error {
-		return calculatePercentiles(ctx, ds.writer(ctx), aggregatedStatsTypeQuery, id)
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "looping through ids")
+		return ctxerr.Wrap(ctx, err, "looping through query ids")
 	}
 
 	return nil
@@ -174,8 +138,6 @@ func getTotalExecutionsQuery(aggregate aggregatedStatsType) string {
 	switch aggregate {
 	case aggregatedStatsTypeScheduledQuery:
 		return scheduledQueryTotalExecutions
-	case aggregatedStatsTypeQuery:
-		return queryTotalExecutions
 	}
 	return ""
 }

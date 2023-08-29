@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -1079,4 +1080,188 @@ func TestHostMDMProfileDetail(t *testing.T) {
 			require.Equal(t, tt.expectedDetail, profs[0].Detail)
 		})
 	}
+}
+
+func TestHostRunScript(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	// use a custom implementation of checkAuthErr as the service call will fail
+	// with a not found error for unknown host in case of authorization success,
+	// and the package-wide checkAuthErr requires no error.
+	checkAuthErr := func(t *testing.T, shouldFail bool, err error) {
+		if shouldFail {
+			require.Error(t, err)
+			require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+		} else if err != nil {
+			require.NotEqual(t, (&authz.Forbidden{}).Error(), err.Error())
+		}
+	}
+
+	teamHost := &fleet.Host{ID: 1, Hostname: "host-team", TeamID: ptr.Uint(1), SeenTime: time.Now()}
+	noTeamHost := &fleet.Host{ID: 2, Hostname: "host-no-team", TeamID: nil, SeenTime: time.Now()}
+	nonExistingHost := &fleet.Host{ID: 3, Hostname: "no-such-host", TeamID: nil}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		if hostID == 1 {
+			return teamHost, nil
+		}
+		if hostID == 2 {
+			return noTeamHost, nil
+		}
+		return nil, newNotFoundError()
+	}
+	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+		return &fleet.HostScriptResult{HostID: request.HostID, ScriptContents: request.ScriptContents, ExecutionID: "abc"}, nil
+	}
+	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
+		return nil, nil
+	}
+
+	t.Run("authorization checks", func(t *testing.T) {
+		testCases := []struct {
+			name                  string
+			user                  *fleet.User
+			shouldFailTeamWrite   bool
+			shouldFailGlobalWrite bool
+		}{
+			{
+				name:                  "global admin",
+				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: false,
+			},
+			{
+				name:                  "global maintainer",
+				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: false,
+			},
+			{
+				name:                  "global observer",
+				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "global observer+",
+				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "global gitops",
+				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team admin, belongs to team",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team maintainer, belongs to team",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team observer, belongs to team",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team observer+, belongs to team",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team gitops, belongs to team",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team admin, DOES NOT belong to team",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team maintainer, DOES NOT belong to team",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team observer, DOES NOT belong to team",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team observer+, DOES NOT belong to team",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserverPlus}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team gitops, DOES NOT belong to team",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				ctx = viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+				_, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: noTeamHost.ID, ScriptContents: "abc"}, 0)
+				checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+				_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: teamHost.ID, ScriptContents: "abc"}, 0)
+				checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+				// a non-existing host is authorized as for global write (because we can't know what team it belongs to)
+				_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: nonExistingHost.ID, ScriptContents: "abc"}, 0)
+				checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			})
+		}
+	})
+
+	t.Run("script contents validation", func(t *testing.T) {
+		testCases := []struct {
+			name    string
+			script  string
+			wantErr string
+		}{
+			{"empty script", "", "a script to execute is required"},
+			{"overly long script", strings.Repeat("a", 10001), "script is too long"},
+			{"invalid utf8", "\xff\xfa", "must be a valid utf8-encoded text file"},
+			{"valid without hashbang", "echo 'a'", ""},
+			{"valid with hashbang", "#!/bin/sh\necho 'a'", ""},
+			{"valid with hashbang and spacing", "#! /bin/sh  \necho 'a'", ""},
+			{"valid with hashbang and Windows newline", "#! /bin/sh  \r\necho 'a'", ""},
+			{"invalid hashbang", "#!/bin/bash\necho 'a'", "cannot start with a hashbang"},
+			{"invalid hashbang suffix", "#!/bin/sh -n\necho 'a'", "cannot start with a hashbang"},
+		}
+
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				_, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: noTeamHost.ID, ScriptContents: tt.script}, 0)
+				if tt.wantErr != "" {
+					require.ErrorContains(t, err, tt.wantErr)
+				} else {
+					require.NoError(t, err)
+				}
+			})
+		}
+	})
 }

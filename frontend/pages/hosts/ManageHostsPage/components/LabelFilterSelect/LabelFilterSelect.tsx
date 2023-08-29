@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import Select, { GroupBase, SelectInstance } from "react-select-5";
+import Select, { GroupBase, SelectInstance, components } from "react-select-5";
 import classnames from "classnames";
 
 import { ILabel } from "interfaces/label";
@@ -10,6 +10,7 @@ import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
 import { PLATFORM_TYPE_ICONS } from "./constants";
 import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
 import CustomDropdownIndicator from "../CustomDropdownIndicator";
+import CustomValueContainer from "../CustomValueContainer";
 
 // Extending the react-select module to add custom props we need for our custom
 // group heading. More info here:
@@ -148,6 +149,17 @@ const LabelFilterSelect = ({
 
   const classes = classnames(baseClass, className);
 
+  const ValueContainer = ({ children, ...props }: any) => {
+    return (
+      components.ValueContainer && (
+        <components.ValueContainer {...props}>
+          {!!children && <Icon name="filter-alt" className="filter-icon" />}
+          {children}
+        </components.ValueContainer>
+      )
+    );
+  };
+
   return (
     <Select<ILabel | IEmptyOption, false, IGroupOption>
       ref={selectRef}
@@ -166,6 +178,7 @@ const LabelFilterSelect = ({
       components={{
         GroupHeading: CustomLabelGroupHeading,
         DropdownIndicator: CustomDropdownIndicator,
+        ValueContainer,
       }}
       labelQuery={labelQuery}
       canAddNewLabels={canAddNewLabels}

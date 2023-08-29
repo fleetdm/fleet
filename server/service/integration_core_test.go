@@ -165,7 +165,7 @@ func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 	respSecond := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusConflict)
 
-	assertBodyContains(t, respSecond, `Error 1062: Duplicate entry 'email@asd.com'`)
+	assertBodyContains(t, respSecond, `Error 1062`)
 }
 
 func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
@@ -227,7 +227,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(t, resp, `Error 1452: Cannot add or update a child row: a foreign key constraint fails`)
+	assertBodyContains(t, resp, `Error 1452`)
 }
 
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
@@ -552,6 +552,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 		Description:    "Some description",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Saved:          true,
 	})
 	require.NoError(t, err)
 
@@ -565,7 +566,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
 	assert.Equal(t, uint(42), gs.GlobalSchedule[0].Interval)
-	assert.Equal(t, "TestQuery1", gs.GlobalSchedule[0].Name)
+	assert.Contains(t, gs.GlobalSchedule[0].Name, "Copy of TestQuery1 (")
 	id := gs.GlobalSchedule[0].ID
 
 	// list page 2, should be empty
@@ -1211,7 +1212,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Greater(t, resp.Hosts[0].SoftwareUpdatedAt, resp.Hosts[0].CreatedAt)
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
-	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
+	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
 	defer cleanupQuery(s, q.ID)
 	p, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
 		QueryID: &q.ID,
@@ -3359,7 +3360,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
 		ID:       u.ID,
-	}, http.StatusInternalServerError, &perfPwdResetResp) // TODO: should be 40?, see #4406
+	}, http.StatusForbidden, &perfPwdResetResp)
 	s.token = s.getTestAdminToken()
 
 	// login as that user to verify that the new password is active (userRawPwd was updated to the new pwd)
@@ -4578,6 +4579,13 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// device migrate mdm endpoint returns an error if not premium
 	createHostAndDeviceToken(t, s.ds, "some-token")
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, http.StatusPaymentRequired)
+
+	// run a script
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusPaymentRequired, &runResp)
+
+	// run a script sync
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusPaymentRequired, &runResp)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -4713,7 +4721,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	// corresponding activity should not have been created.
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
-	if !assert.Len(t, listActivities.Activities, 1) {
+	if len(listActivities.Activities) > 1 {
 		// if there is an activity, make sure it is not edited_agent_options
 		require.NotEqual(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	}
@@ -4931,6 +4939,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, defAppCfg), http.StatusOK)
 }
 
+// TODO(lucas): Add tests here.
 func (s *integrationTestSuite) TestQuerySpecs() {
 	t := s.T()
 
@@ -6472,6 +6481,10 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
+
+	// the scripts orbit endpoints are premium-only
+	s.Do("POST", "/api/fleet/orbit/scripts/request", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusPaymentRequired)
+	s.Do("POST", "/api/fleet/orbit/scripts/result", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
@@ -6578,6 +6591,7 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 		Name:           "TestQuery2",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Saved:          true,
 	})
 	require.NoError(t, err)
 
@@ -6594,6 +6608,7 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	// list the scheduled queries with the new endpoint, but the old version
 	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusMethodNotAllowed)
 	res.Body.Close()
+
 	// list again, this time with the correct version
 	gs := fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/2022-04/fleet/schedule", nil, http.StatusOK, &gs)

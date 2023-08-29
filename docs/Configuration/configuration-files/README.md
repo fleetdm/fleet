@@ -17,7 +17,7 @@ Changes are applied to Fleet when the configuration file is applied using fleetc
 
 ## Queries
 
-The `query` YAML file controls queries in Fleet.
+The `queries` YAML file controls queries in Fleet.
 
 You can define one or more queries in the same file with `---`.
 
@@ -28,23 +28,42 @@ The following example file includes several queries:
 apiVersion: v1
 kind: query
 spec:
-  name: osquery_schedule
-  description: Report performance stats for each file in the query schedule.
-  query: select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;
----
-apiVersion: v1
-kind: query
-spec:
   name: osquery_info
   description: A heartbeat counter that reports general performance (CPU, memory) and version.
   query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
+  team: ""
+  interval: 3600 # 1 hour
+  observer_can_run: true
+  automations_enabled: true
 ---
-apiVersion: v1
-kind: query
-spec:
-  name: osquery_events
-  description: Report event publisher health and track event counters.
-  query: select name, publisher, type, subscriptions, events, active from osquery_events;
+apiVersion: v1 
+kind: query 
+spec: 
+  name: Get serial number of a laptop 
+  description: Returns the serial number of a laptop, which can be useful for asset tracking.
+  query: SELECT hardware_serial FROM system_info; 
+  team: Workstations
+  interval: 0
+  observer_can_run: true
+--- 
+apiVersion: v1 
+kind: query 
+spec: 
+  name: Get recently added or removed USB drives 
+  description: Report event publisher health and track event counters. 
+  query: |-
+    SELECT action, DATETIME(time, 'unixepoch') AS datetime, vendor, mounts.path 
+    FROM disk_events 
+    LEFT JOIN mounts 
+      ON mounts.device = disk_events.device
+    ;
+  team: Workstations (Canary)
+  interval: 86400 # 24 hours
+  observer_can_run: false
+  min_osquery_version: 5.4.0
+  platform: darwin,windows
+  automations_enabled: true
+  logging: differential
 ```
 
 Continued edits and applications to this file will update the queries.
@@ -819,7 +838,9 @@ The interval at which to check for webhook conditions. This value currently conf
   webhook_settings:
     interval: "12h"
   ```
-
+  > **Note:** Fleet's webhook notifications about failing policies default to a 24h time interval based upon the initial start time of the policy. To adjust policy automation intervals, set the interval to a longer period and manually trigger automations using fleetctl. You'll see small differences over time as well based on how long it takes to run, other jobs that are queued up at the same time, etc.
+  
+  
 ##### Failing policies webhook
 
 The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
