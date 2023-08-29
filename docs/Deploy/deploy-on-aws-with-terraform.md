@@ -1,4 +1,4 @@
-# Deploy Fleet on AWS
+# Deploy Fleet on AWS with Terraform
 
 Learn how to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
 
@@ -355,7 +355,7 @@ This particular issue would only be encountered for the largest of Fleet deploym
 
 More troubleshooting tips can be found here https://fleetdm.com/docs/get-started/faq#deployment
 
-<meta name="title" value="AWS">
+<meta name="title" value="AWS with Terraform">
 <meta name="pageOrderInSection" value="700">
 <meta name="description" value="Learn how to deploy Fleet on AWS">
 <meta name="navSection" value="Deployment guides">
