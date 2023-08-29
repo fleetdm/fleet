@@ -1,12 +1,6 @@
-# Fleet UI
-- [Creating a query](#create-a-query)
-- [Running a query](#run-a-query)
-- [Scheduling a query](#schedule-a-query)
-- [Update agent options](#update-agent-options)
+# Queries
 
-<div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/1VNvg3_drow" allowfullscreen></iframe>
-</div>
+Learn how to create, run, and schedule queries in the Fleet user interface.
 
 ## Create a query
 
@@ -82,32 +76,7 @@ With Fleet Premium, you can schedule queries for groups of hosts using [the team
 
    > Note: Only queries that belong to the selected team will be listed. When configuring query automations for all hosts, only global queries will be listed.
 
-## Update agent options
-
-<!-- Heading is kept so that the link from the Fleet UI still works -->
-<span id="configuring-agent-options" name="configuring-agent-options"></span>
-
-Fleet allows you to update the settings of the agent installed on all your hosts at once. In Fleet, these settings are called "agent options."
-
-The default agent options are good to start. 
-
-How to update agent options:
-
-1. In the top navigation, select your avatar and select **Settings**. Only users with the [admin role](https://fleetdm.com/docs/using-fleet/permissions) can access the pages in **Settings**.
-
-2. On the Organization settings page, select **Agent options** on the left side of the page.
-
-3. Use Fleet's YAML editor to configure your osquery options, decorators, or set command line flags.
-
-To see all agent options, head to the [agent options documentation](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options).
-
-4. Place your new setting one level below the `options` key. The new setting's key should be below and one tab to the right of `options`.
-
-5. Select **Save**.
-
-The agents may take several seconds to update because Fleet has to wait for the hosts to check in. Additionally, hosts enrolled with removed enroll secrets must properly rotate their secret to have the new changes take effect.
-
-<meta name="title" value="Fleet UI">
-<meta name="pageOrderInSection" value="200">
-<meta name="description" value="Learn how to create, run, and schedule queries, as well as update agent options in the Fleet user interface.">
+<meta name="title" value="Queries">
+<meta name="pageOrderInSection" value="900">
+<meta name="description" value="Learn how to create, run, and schedule queries in the Fleet user interface.">
 <meta name="navSection" value="The basics">
