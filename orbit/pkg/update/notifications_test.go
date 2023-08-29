@@ -283,8 +283,9 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 			)
 			chProceed := make(chan struct{})
 			fetcher := &windowsMDMEnrollmentConfigFetcher{
-				Fetcher:   baseFetcher,
-				Frequency: 2 * time.Second, // just to be safe with slow environments (CI)
+				Fetcher:       baseFetcher,
+				Frequency:     2 * time.Second, // just to be safe with slow environments (CI)
+				nodeKeyGetter: mockNodeKeyGetter{},
 			}
 			if cfg.NeedsProgrammaticWindowsMDMEnrollment {
 				fetcher.execEnrollFn = func(args WindowsMDMEnrollmentArgs) error {
