@@ -39,10 +39,6 @@ func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
 		return nil, fmt.Errorf("unmarshaling configuration: %w", err)
 	}
 
-	if cfg.EnrollSecret == "" || cfg.FleetURL == "" {
-		return nil, ErrNotFound
-	}
-
 	return &cfg, err
 }
 

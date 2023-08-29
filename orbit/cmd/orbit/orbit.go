@@ -271,8 +271,6 @@ func main() {
 				// alarms when users look into the orbit logs, it's perfectly normal to
 				// not have a configuration profile, or to get into this situation in
 				// operating systems that don't have profile support.
-				case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
-					log.Debug().Msgf("reading configuration profile: %v", err)
 				case err != nil:
 					log.Error().Err(err).Msg("reading configuration profile")
 				case config.EnrollSecret == "" || config.FleetURL == "":
@@ -284,9 +282,6 @@ func main() {
 					}
 					if err := c.Set("fleet-url", config.FleetURL); err != nil {
 						return fmt.Errorf("set fleet URL from configuration profile: %w", err)
-					}
-					if err := c.Set("enable-scripts", fmt.Sprintf("%t", config.EnableScripts)); err != nil {
-						return fmt.Errorf("set enable-scripts from configuration profile: %w", err)
 					}
 					if err := writeSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
 						return fmt.Errorf("write enroll secret: %w", err)
@@ -642,11 +637,6 @@ func main() {
 			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		case "windows":
 			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID)
-		}
-
-		if c.Bool("enable-scripts") {
-			log.Info().Msg("script execution enabled")
-			// TODO: integrate with @mna's work
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
