@@ -387,10 +387,11 @@ variable "migration_config" {
 
 variable "alb_config" {
   type = object({
-    name            = optional(string, "fleet")
-    security_groups = optional(list(string), [])
-    access_logs     = optional(map(string), {})
-    allowed_cidrs   = optional(list(string), ["0.0.0.0/0"])
+    name                 = optional(string, "fleet")
+    security_groups      = optional(list(string), [])
+    access_logs          = optional(map(string), {})
+    allowed_cidrs        = optional(list(string), ["0.0.0.0/0"])
+    https_listener_rules = optional(any, [])
   })
   default = {}
 }
