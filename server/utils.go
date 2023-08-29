@@ -138,3 +138,10 @@ func GetTemplate(templatePath string, templateName string) (*template.Template, 
 
 	return t, nil
 }
+
+// Base64DecodePaddingAgnostic decodes a base64 string that might be encoded
+// using raw encoding or standard encoding (padded)
+func Base64DecodePaddingAgnostic(s string) ([]byte, error) {
+	us := strings.TrimRight(s, string(base64.StdPadding))
+	return base64.RawStdEncoding.DecodeString(us)
+}

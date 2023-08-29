@@ -1661,14 +1661,14 @@ SET
 	status = ?
 WHERE
 	host_uuid = ?
-	AND status = ?
+	AND status IN(?)
 	AND operation_type = ?
 	AND profile_identifier IN(?)`
 
 	args := []interface{}{
 		fleet.MDMAppleDeliveryVerified,
 		host.UUID,
-		fleet.MDMAppleDeliveryVerifying,
+		[]interface{}{fleet.MDMAppleDeliveryVerifying, fleet.MDMAppleDeliveryFailed},
 		fleet.MDMAppleOperationTypeInstall,
 		identifiers,
 	}
@@ -1921,19 +1921,20 @@ WHERE
 func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
 	stmt := `
       INSERT INTO mdm_idp_accounts
-        (uuid, username, fullname)
+        (uuid, username, fullname, email)
       VALUES
-        (?, ?, ?)
+        (?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
-        fullname   = VALUES(fullname)`
+        fullname   = VALUES(fullname),
+        email      = VALUES(email)`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname, account.Email)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
 func (ds *Datastore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname FROM mdm_idp_accounts WHERE uuid = ?`
+	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
 	var acct fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, uuid)
 	if err != nil {

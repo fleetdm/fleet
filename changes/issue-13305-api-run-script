@@ -1,0 +1,2 @@
+* Added `/scripts/run` and `scripts/run/sync` API endpoints to send a script to be executed on a host (and optionally wait for its results).
+* Added `POST /api/fleet/orbit/scripts/request` and `POST /api/fleet/orbit/scripts/result` Orbit-specific API endpoints to get a pending script to execute and send the results back, and added an orbit notification to let the host know it has scripts pending execution.

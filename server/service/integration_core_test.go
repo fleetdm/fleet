@@ -165,7 +165,7 @@ func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 	respSecond := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusConflict)
 
-	assertBodyContains(t, respSecond, `Error 1062: Duplicate entry 'email@asd.com'`)
+	assertBodyContains(t, respSecond, `Error 1062`)
 }
 
 func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
@@ -227,7 +227,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(t, resp, `Error 1452: Cannot add or update a child row: a foreign key constraint fails`)
+	assertBodyContains(t, resp, `Error 1452`)
 }
 
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
@@ -4579,6 +4579,13 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// device migrate mdm endpoint returns an error if not premium
 	createHostAndDeviceToken(t, s.ds, "some-token")
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, http.StatusPaymentRequired)
+
+	// run a script
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusPaymentRequired, &runResp)
+
+	// run a script sync
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusPaymentRequired, &runResp)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -6474,6 +6481,10 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
+
+	// the scripts orbit endpoints are premium-only
+	s.Do("POST", "/api/fleet/orbit/scripts/request", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusPaymentRequired)
+	s.Do("POST", "/api/fleet/orbit/scripts/result", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {

@@ -77,8 +77,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |            |            | ✅    |         |
 | View disk encryption key for macOS hosts                                                                                                   | ✅       | ✅         | ✅         | ✅    |         |
 | Create edit and delete configuration profiles for macOS hosts                                                                              |          |            | ✅         | ✅    | ✅      |
-| Execute MDM commands on macOS hosts***                                                                                                     |          |            | ✅         | ✅    |         |
-| View results of MDM commands executed on macOS hosts***                                                                                    | ✅       | ✅         | ✅         | ✅    |         |
+| Execute MDM commands on macOS and Windows hosts***                                                                                         |          |            | ✅         | ✅    |         |
+| View results of MDM commands executed on macOS and Windows hosts***                                                                        | ✅       | ✅         | ✅         | ✅    |         |
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |            |            | ✅    | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |            |            | ✅    | ✅      |
 | Upload an EULA file for MDM automatic enrollment\*                                                                                         |          |            |            | ✅    |         |
@@ -87,6 +87,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View metadata of MDM macOS bootstrap packages\*                                                                                            |          |            | ✅         | ✅    |         |
 | Edit/upload MDM macOS bootstrap packages\*                                                                                                 |          |            | ✅         | ✅    | ✅      |
 | Enable/disable MDM macOS setup end user authentication\*                                                                                   |          |            | ✅         | ✅    | ✅      |
+| Run scripts on hosts\*                                                                                                                     |          |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
@@ -140,15 +141,15 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
 | Create edit and delete configuration profiles for macOS hosts                                                                    |               |                | ✅              | ✅         | ✅          |
-| Execute MDM commands on macOS hosts, and read command results*                                                                   |               |                | ✅              | ✅         |             |
-| Execute MDM commands on macOS hosts*                                                                                             |               |                | ✅              | ✅         |             |
-| View results of MDM commands executed on macOS hosts*                                                                            | ✅            | ✅             | ✅              | ✅         |             |
+| Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
+| View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅         | ✅          |
 | View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅         |             |
 | Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅         | ✅          |
 | View metadata of MDM macOS bootstrap packages                                                                                    |               |                | ✅              | ✅         |             |
 | Edit/upload MDM macOS bootstrap packages                                                                                         |               |                | ✅              | ✅         | ✅          |
 | Enable/disable MDM macOS setup end user authentication                                                                           |               |                | ✅              | ✅         | ✅          |
+| Run scripts on hosts                                                                                                             |               |                | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

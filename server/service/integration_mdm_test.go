@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
@@ -264,6 +265,113 @@ func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {
 		srv.Close()
 		err := s.depStorage.StoreConfig(context.Background(), apple_mdm.DEPName, &nanodep_client.Config{BaseURL: nanodep_client.DefaultBaseURL})
 		require.NoError(t, err)
+	})
+}
+
+func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
+	// see https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
+	t := s.T()
+	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	checkStoredCertAuthAssociation := func(id string, expectedCount uint) {
+		// confirm expected cert auth association
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var ct uint
+			// query duplicates the logic in nanomdm/storage/mysql/certauth.go
+			if err := sqlx.GetContext(context.Background(), q, &ct, "SELECT COUNT(*) FROM nano_cert_auth_associations WHERE id = ?", mdmDevice.UUID); err != nil {
+				return err
+			}
+			require.Equal(t, expectedCount, ct)
+			return nil
+		})
+	}
+	checkStoredCertAuthAssociation(mdmDevice.UUID, 1)
+
+	checkStoredBootstrapToken := func(id string, expectedToken *string, expectedErr error) {
+		// confirm expected bootstrap token
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var tok *string
+			err := sqlx.GetContext(context.Background(), q, &tok, "SELECT bootstrap_token_b64 FROM nano_devices WHERE id = ?", mdmDevice.UUID)
+			if err != nil || expectedErr != nil {
+				require.ErrorIs(t, err, expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if expectedToken != nil {
+				require.NotEmpty(t, tok)
+				decoded, err := base64.StdEncoding.DecodeString(*tok)
+				require.NoError(t, err)
+				require.Equal(t, *expectedToken, string(decoded))
+			} else {
+				require.Empty(t, tok)
+			}
+			return nil
+		})
+	}
+
+	t.Run("bootstrap token not set", func(t *testing.T) {
+		// device record exists, but bootstrap token not set
+		checkStoredBootstrapToken(mdmDevice.UUID, nil, nil)
+
+		// if token not set, server returns empty body and no error (see https://github.com/micromdm/nanomdm/pull/63)
+		res, err := mdmDevice.GetBootstrapToken()
+		require.NoError(t, err)
+		require.Nil(t, res)
+	})
+
+	t.Run("bootstrap token set", func(t *testing.T) {
+		// device record exists, set bootstrap token
+		token := base64.StdEncoding.EncodeToString([]byte("testtoken"))
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), "UPDATE nano_devices SET bootstrap_token_b64 = ? WHERE id = ?", base64.StdEncoding.EncodeToString([]byte(token)), mdmDevice.UUID)
+			require.NoError(t, err)
+			return nil
+		})
+		checkStoredBootstrapToken(mdmDevice.UUID, &token, nil)
+
+		// if token set, server returns token
+		res, err := mdmDevice.GetBootstrapToken()
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, token, string(res))
+	})
+
+	t.Run("no device record", func(t *testing.T) {
+		// delete the entire device record
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), "DELETE FROM nano_devices WHERE id = ?", mdmDevice.UUID)
+			require.NoError(t, err)
+			return nil
+		})
+		checkStoredBootstrapToken(mdmDevice.UUID, nil, sql.ErrNoRows)
+
+		// if not found, server returns empty body and no error (see https://github.com/fleetdm/nanomdm/pull/8)
+		res, err := mdmDevice.GetBootstrapToken()
+		require.NoError(t, err)
+		require.Nil(t, res)
+	})
+
+	t.Run("no cert auth association", func(t *testing.T) {
+		// on mdm checkout, nano soft deletes by calling storage.Disable, which leaves the cert auth
+		// association in place, so what if we hard delete instead?
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), "DELETE FROM nano_cert_auth_associations WHERE id = ?", mdmDevice.UUID)
+			require.NoError(t, err)
+			return nil
+		})
+		checkStoredCertAuthAssociation(mdmDevice.UUID, 0)
+
+		// TODO: server returns 500 on account of cert auth but what is the expected behavior?
+		res, err := mdmDevice.GetBootstrapToken()
+		require.ErrorContains(t, err, "500") // getbootstraptoken service: cert auth: existing enrollment: enrollment not associated with cert
+		require.Nil(t, res)
 	})
 }
 
@@ -582,6 +690,22 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	})
 	require.NoError(t, err)
 
+	// create a setup assistant for no team, for this we need to:
+	// 1. mock the ABM API, as it gets called to set the profile
+	// 2. run the DEP schedule, as this registers the default profile
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+	}))
+	s.runDEPSchedule()
+	noTeamProf := `{"x": 1}`
+	var globalAsstResp createMDMAppleSetupAssistantResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "no-team",
+		EnrollmentProfile: json.RawMessage(noTeamProf),
+	}, http.StatusOK, &globalAsstResp)
+
 	// preassign an empty profile, fails
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "empty", HostUUID: nonMDMHost.UUID, Profile: nil}}, http.StatusUnprocessableEntity)
 
@@ -617,8 +741,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NoError(t, err)
 	require.Equal(t, "g1", tm1.Name)
 
-	// it create activities for the new team, the profiles assigned to it, and
-	// the host moved to it
+	// it create activities for the new team, the profiles assigned to it,
+	// the host moved to it, and setup assistant
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeCreatedTeam{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
@@ -632,6 +756,11 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
 			tm1.ID, tm1.Name, h.ID, h.DisplayName()),
 		0)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "name": %q, "team_name": %q}`,
+			tm1.ID, globalAsstResp.Name, tm1.Name),
+		0)
 
 	// and the team has the expected profiles
 	profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
@@ -642,6 +771,11 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
 	// filevault is enabled by default
 	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
+	// setup assistant settings are copyied from "no team"
+	teamAsst, err := s.ds.GetMDMAppleSetupAssistant(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.Equal(t, globalAsstResp.Name, teamAsst.Name)
+	require.JSONEq(t, string(globalAsstResp.Profile), string(teamAsst.Profile))
 
 	// create a team and set profiles to it
 	tm2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -1153,6 +1287,7 @@ func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testi
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	t := s.T()
+
 	ctx := context.Background()
 	devices := []godep.Device{
 		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
@@ -1166,15 +1301,6 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		Devices     []string `json:"devices"`
 	}
 	profileAssignmentReqs := []profileAssignmentReq{}
-
-	runDEPSchedule := func() {
-		profileAssignmentReqs = []profileAssignmentReq{}
-		ch := make(chan bool)
-		s.onDEPScheduleDone = func() { close(ch) }
-		_, err := s.depSchedule.Trigger()
-		require.NoError(t, err)
-		<-ch
-	}
 
 	// add global profiles
 	globalProfile := mobileconfigForTest("N1", "I1")
@@ -1257,7 +1383,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.Empty(t, listHostsRes.Hosts)
 
 	// trigger a profile sync
-	runDEPSchedule()
+	s.runDEPSchedule()
 
 	// all hosts should be returned from the hosts endpoint
 	listHostsRes = listHostsResponse{}
@@ -1362,7 +1488,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "deleted"},
 		{SerialNumber: addedSerial, Model: "MacBook Mini", OS: "osx", OpType: "added"},
 	}
-	runDEPSchedule()
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
 
 	// all hosts should be returned from the hosts endpoint
 	listHostsRes = listHostsResponse{}
@@ -1389,15 +1516,22 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// TODO: seems like we're doing this request on each loop?
 	require.Len(t, profileAssignmentReqs[0].Devices, 1)
 	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[0].Devices[0])
+
+	// profileAssignmentReqs[1] and [2] can be in any order
+	ix2Devices, ix1Device := 1, 2
+	if len(profileAssignmentReqs[1].Devices) == 1 {
+		ix2Devices, ix1Device = ix1Device, ix2Devices
+	}
+
 	// - existing device with "added"
 	// - new device with "added"
-	require.Len(t, profileAssignmentReqs[1].Devices, 2)
-	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[1].Devices[0])
-	require.Equal(t, addedSerial, profileAssignmentReqs[1].Devices[1])
+	require.Len(t, profileAssignmentReqs[ix2Devices].Devices, 2, "%#+v", profileAssignmentReqs)
+	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[ix2Devices].Devices[0])
+	require.Equal(t, addedSerial, profileAssignmentReqs[ix2Devices].Devices[1])
 
 	// - existing device with "modified" and a different team (thus different profile request)
-	require.Len(t, profileAssignmentReqs[2].Devices, 1)
-	require.Equal(t, devices[1].SerialNumber, profileAssignmentReqs[2].Devices[0])
+	require.Len(t, profileAssignmentReqs[ix1Device].Devices, 1)
+	require.Equal(t, devices[1].SerialNumber, profileAssignmentReqs[ix1Device].Devices[0])
 
 	// entries for all hosts except for the one with OpType = "deleted"
 	assignment, err := s.ds.GetHostDEPAssignment(ctx, deletedHostID)
@@ -3512,7 +3646,9 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	uuid1 := uuid.New().String()
 	s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
 		enqueueMDMAppleCommandRequest{
-			Command:   base64Cmd(newRawCmd(uuid1)),
+			// explicitly use standard encoding to make sure it also works
+			// see #11384
+			Command:   base64.StdEncoding.EncodeToString([]byte(newRawCmd(uuid1))),
 			DeviceIDs: []string{"no-such-host"},
 		}, http.StatusNotFound)
 
@@ -4197,11 +4333,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 			require.NoError(t, err)
 		}
 	}))
-	ch := make(chan bool)
-	s.onDEPScheduleDone = func() { close(ch) }
-	_, err = s.depSchedule.Trigger()
-	require.NoError(t, err)
-	<-ch
+	s.runDEPSchedule()
 
 	// hosts meets all requirements, webhook is run
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
@@ -5091,11 +5223,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}))
 
 	// sync the list of ABM devices
-	ch := make(chan bool)
-	s.onDEPScheduleDone = func() { close(ch) }
-	_, err := s.depSchedule.Trigger()
-	require.NoError(t, err)
-	<-ch
+	s.runDEPSchedule()
 
 	// MDM SSO fields are empty by default
 	acResp := appConfigResponse{}
@@ -5221,6 +5349,14 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
+	checkStoredIdPInfo := func(uuid string) {
+		acc, err := s.ds.GetMDMIdPAccount(context.Background(), uuid)
+		require.NoError(t, err)
+		require.Equal(t, "sso_user", acc.Username)
+		require.Equal(t, "SSO User 1", acc.Fullname)
+		require.Equal(t, "sso_user@example.com", acc.Email)
+	}
+
 	res := s.LoginMDMSSOUser("sso_user", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
@@ -5241,6 +5377,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 			q.Get("enrollment_reference"),
 		),
 	)
+
+	// IdP info stored is accurate for the account
+	checkStoredIdPInfo(q.Get("enrollment_reference"))
 
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
@@ -5273,6 +5412,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.EqualValues(t, pdfBytes, respBytes)
+
+	// IdP info stored is accurate for the account
+	checkStoredIdPInfo(q.Get("enrollment_reference"))
 
 	enrollURL := ""
 	scepURL := ""
@@ -5443,14 +5585,10 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 				require.NoError(t, err)
 			}
 		}))
-		ch := make(chan bool)
-		s.onDEPScheduleDone = func() { close(ch) }
-		_, err := s.depSchedule.Trigger()
-		require.NoError(t, err)
-		<-ch
+		s.runDEPSchedule()
 
 		// simulate that the device is enrolled in a third-party MDM and DEP capable
-		err = s.ds.SetOrUpdateMDMData(
+		err := s.ds.SetOrUpdateMDMData(
 			ctx,
 			host.ID,
 			false,
@@ -6311,6 +6449,14 @@ func (s *integrationMDMTestSuite) runWorker() {
 	pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
 	require.NoError(s.T(), err)
 	require.Empty(s.T(), pending)
+}
+
+func (s *integrationMDMTestSuite) runDEPSchedule() {
+	ch := make(chan bool)
+	s.onDEPScheduleDone = func() { close(ch) }
+	_, err := s.depSchedule.Trigger()
+	require.NoError(s.T(), err)
+	<-ch
 }
 
 func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {

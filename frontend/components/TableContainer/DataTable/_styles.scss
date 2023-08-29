@@ -215,13 +215,48 @@ $shadow-transition-width: 10px;
         }
         .link-cell,
         .text-cell {
-          display: block;
           overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
           margin: 0;
           .__react_component_tooltip {
             white-space: normal;
+          }
+        }
+        .text-cell {
+          display: inline-block;
+        }
+        .link-cell {
+          display: block;
+          padding: $pad-small 0; // larger clickable area
+
+          &:hover {
+            text-decoration: underline;
+          }
+          > div {
+            display: block;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+        }
+        // css to properly style link-cell with tooltip
+        .link-cell-tooltip {
+          overflow: visible; // fixes tooltip overflow cut off by cell
+          .component__tooltip-wrapper {
+            display: block;
+            white-space: nowrap; // single line
+            margin: 0; // padding applied to .link-cell for larger clickable area
+            .component__tooltip-wrapper__element {
+              display: block;
+              white-space: nowrap; // single line
+              text-overflow: ellipsis; // truncates text
+              overflow: hidden;
+
+              .component__tooltip-wrapper__underline {
+                max-width: 100%; // fixes underline overflowing past truncated text
+              }
+            }
           }
         }
         .w400 {

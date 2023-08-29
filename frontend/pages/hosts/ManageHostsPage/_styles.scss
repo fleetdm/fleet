@@ -285,35 +285,12 @@
     padding-bottom: $pad-large;
   }
 
-  &__no-enroll-secret-banner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: $x-small;
-    background-color: $ui-off-white;
-    padding: $pad-large;
-    border-radius: 10px;
-    border: 1px solid $ui-fleet-black-50;
-
-    .dismiss-banner-button {
-      display: flex;
-      align-items: center;
-      img {
-        height: 16px;
-        width: auto;
-      }
-    }
-    &:not(:only-child) {
-      margin-bottom: $pad-medium;
-    }
-  }
-
   .total-issues-count {
     margin-left: $pad-small;
   }
 
   &__export-btn {
-    padding-left: $pad-medium;
+    margin-left: $pad-medium;
 
     img {
       width: 13px;

@@ -19,11 +19,11 @@ Is open-source collaboration _really_ worth all that?  Is it any good?
 Here are some of the reasons we build in the open:
 
 - **Transparency.** You are not dealing with a black box.  Anyone can read the code and [confirm](https://github.com/signalapp/Signal-Android/issues/11101#issuecomment-814476405) it does what it's supposed to.  When it comes to security and device management, great power should come with great openness.
-- **Modifiability.** You are not stuck.  Anybody can make changes to the code at any time. You can build on existing ideas or start something brand new.  Every contribution benefits the project as a whole.  Plugins and configuration settings you need may already exist.  If not, you can add them.
-- **Community.** You are not alone.  Open source contributors are real people who love solving real problems and sharing solutions. As we gain experience and our careers grow, so does [the community](https://chat.osquery.io).  As we learn, we get better at helping each other, which makes it easier to get started with the project, which drives even more adoption, and so on.
-- **Less waste.** You are not redundant.  Contributing back to open source [benefits everybody](https://fleetdm.com/handbook/company): Instead of other organizations and individuals wasting time rediscovering bug fixes and reinventing the same new features in a vacuum, everybody can just upgrade to the latest version of Fleet and take advantage of all those improvements automatically.
-- **Perspective.**  You are not siloed.  [Anyone can contribute](https://about.gitlab.com/company/mission).  That means startups, enterprises, and humans all over the world push fixes, add features, and influence the roadmap.  Diversity of thought accelerates the cycle time for stability and innovation.  Instead of [waiting months](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=I%20need%20to%20see%20at%20least%20eight%20hours%20ahead.%20EIGHT%20hours.) to discover rare edge cases, or last-minute gaps in "enterprise-readiness", or how that cool new unsupported networking protocol your CISO wants to use isn't supported yet, you get to take advantage of the investment from the last contributor who had the same problem.  It's like [seeing around corners](https://thefutureorganization.com/how-leaders-can-see-around-corners/).
-- **Sustainability.** You are not the only contributor.  Open-source software is public and highly visible.  Mistakes are more obvious, which activates the community to discover (and fix) vulnerabilities and bugs more quickly.  Open-source projects like osquery and Fleet have an incentive to be proactive and thoughtful about responsible disclosure, code reviews, strict semantic versioning, release notes, documentation, and other [secure development best practices](https://github.com/osquery/osquery/blob/master/ASSURANCE.md#security-implemented-in-development-lifecycle-processes).  For example, anybody in the community can suggest and review changes, but only maintainers with appropriate subject matter expertise can merge them.
+- **Modifiability.** You are not stuck.  Anybody can make changes to the code at any time. Plugins and configuration settings you need may already exist.  If not, you can add them.
+- **Community.** You are not alone.  Open source contributors are real people who love solving real problems and sharing solutions.  All bugs and feature requests are public.  You can [search](https://github.com/fleetdm/fleet) and weigh in on any of them with your GitHub account, or [in Slack](https://fleetdm.com/slack).
+- **Less waste.** You are not redundant.  Contributing back to open source [benefits everybody](https://fleetdm.com/handbook/company): Instead of other organizations and individuals wasting time rediscovering bug fixes and reinventing the same new features in a vacuum, everybody can just upgrade.
+- **Perspective.**  You are not siloed.  [Anyone can contribute](https://about.gitlab.com/company/mission).  That means startups, enterprises, and humans all over the world push fixes, add features, and influence the roadmap.  Instead of [waiting months](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=I%20need%20to%20see%20at%20least%20eight%20hours%20ahead.%20EIGHT%20hours.) to discover rare edge cases, or last-minute gaps in "enterprise-readiness", or how that cool new unsupported networking protocol your CISO wants to use isn't supported yet, you get to take advantage of the investment from the last contributor who had the same problem.
+- **Sustainability.** You are not the only contributor.  Open-source software is public and highly visible.  Projects like osquery and Fleet have an incentive to be proactive about code reviews, semantic versioning, release notes, vulnerabilities, documentation, and other [secure development best practices](https://github.com/osquery/osquery/blob/master/ASSURANCE.md#security-implemented-in-development-lifecycle-processes).  For example, anybody in the community can suggest and review changes, but only maintainers with appropriate subject matter expertise can merge them.
 - **Accessibility.** You are smart and cool enough.  Open source isn't just [the Free Software movement](https://www.youtube.com/watch?v=UIDb6VBO9os) anymore.  Today, there are many other reasons to contribute and opportunities to contribute, even if you don't [yet know how](https://www.youtube.com/playlist?list=PL4nf6riqo7srdUHdhRSoABvES81Oygyp3) to write code.  (For example, try clicking "Edit this page" to make an improvement to this page of Fleet's handbook.)
 - **More timeless.** You are not doomed to disappear forever when you change jobs.  Why should your code?  In most jobs, most of the work you do becomes inaccessible when you quit.  But [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674).
 
@@ -236,6 +236,16 @@ If that happens by mistake, first priority is merging a fix, then notifying the 
 
 > Here is [an example of a deliberate decision to make broken images in Fleet fail more loudly](https://github.com/fleetdm/fleet/issues/12305#issuecomment-1671924257) so that they can't be overlooked, even though this might slow down short-term development.
 
+## Why keep issue templates simple?
+At Fleet, we optimize for the person submitting the issue, not the person receiving it.
+
+We avoid making the submitter read anything.  We prompt for as little information as possible.  Why?
+- When someone is submitting an issue, they are usually in a hurry.  They [might not even work here](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  Even short issue templates can cause confusion, lead to mistakes, and discourage future submissions.
+- The person receiving an issue has more context, and so will have an easier time filling in the gaps and, if necessary, following up to better understand.
+- This encourages [everyone to contribute](https://fleetdm.com/handbook/company#openness), and [keep contributing](https://fleetdm.com/handbook/company#results).
+
+For example, here is the [philosophy behind Fleet's bug report template](https://github.com/fleetdm/fleet/pull/13204#issuecomment-1678419117).
+
 
 ## Why don't we sell like everyone else?
 
@@ -305,6 +315,25 @@ In sentence case, we write and capitalize words as if they were in sentences:
 As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer") and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized.
 
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
+
+## Why not use superlatives?
+
+A superlative is an adjective or adverb that expresses the degree of a quality, such as "best," "worst," or "most beautiful."
+
+A superlative is a judgment or evaluation, [which only the customer can decide](https://twitter.com/mikermcneil/status/1686837625187930112). 
+
+✅ **Do:**
+
+<blockquote>
+Avoid using too many unnecessary words or superlatives, so your writing is shorter and easier to understand. 
+</blockquote>
+
+❌ **Don't:**
+
+<blockquote>
+ There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
+</blockquote>
+
 
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
 
