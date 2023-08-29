@@ -21,9 +21,11 @@ func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
            const config = $.NSUserDefaults.alloc.initWithSuiteName("%s");
            const enrollSecret = config.objectForKey("EnrollSecret");
            const fleetURL = config.objectForKey("FleetURL");
+           const enableScripts = config.objectForKey("EnableScripts");
            JSON.stringify({
              EnrollSecret: ObjC.deepUnwrap(enrollSecret),
              FleetURL: ObjC.deepUnwrap(fleetURL),
+             EnableScripts: ObjC.deepUnwrap(enableScripts),
            });
          `, mobileconfig.FleetdConfigPayloadIdentifier)
 

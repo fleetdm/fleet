@@ -24,13 +24,30 @@ func TestGetFleetdConfig(t *testing.T) {
 		{ptr.String("invalid-json"), nil, nil, "unmarshaling configuration"},
 		{ptr.String("{}"), nil, nil, ErrNotFound.Error()},
 		{
-			ptr.String(`{"EnrollSecret": "ENROLL_SECRET", "FleetURL": "https://test.example.com"}`),
+			ptr.String(`{"EnrollSecret": "ENROLL_SECRET", "FleetURL": "https://test.example.com", "EnableScripts": true}`),
 			nil,
 			&fleet.MDMAppleFleetdConfig{
-				EnrollSecret: "ENROLL_SECRET",
-				FleetURL:     "https://test.example.com",
+				EnrollSecret:  "ENROLL_SECRET",
+				FleetURL:      "https://test.example.com",
+				EnableScripts: true,
 			},
 			"",
+		},
+		{
+			ptr.String(`{"EnrollSecret": "ENROLL_SECRET", "FleetURL": "https://test.example.com", "EnableScripts": false}`),
+			nil,
+			&fleet.MDMAppleFleetdConfig{
+				EnrollSecret:  "ENROLL_SECRET",
+				FleetURL:      "https://test.example.com",
+				EnableScripts: false,
+			},
+			"",
+		},
+		{
+			ptr.String(`{"EnableScripts": true}`),
+			nil,
+			nil,
+			ErrNotFound.Error(),
 		},
 		{
 			ptr.String(`{"EnrollSecret": "ENROLL_SECRET", "FleetURL": ""}`),

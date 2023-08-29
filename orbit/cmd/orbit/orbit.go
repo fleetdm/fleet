@@ -166,9 +166,14 @@ func main() {
 		},
 		&cli.BoolFlag{
 			Name:    "use-system-configuration",
-			Usage:   "Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)",
+			Usage:   "Try to read --fleet-url, --enroll-secret and --enable-scripts using configuration in the host (currently only macOS profiles are supported)",
 			EnvVars: []string{"ORBIT_USE_SYSTEM_CONFIGURATION"},
 			Hidden:  true,
+		},
+		&cli.BoolFlag{
+			Name:    "enable-scripts",
+			Usage:   "Enable script execution",
+			EnvVars: []string{"ORBIT_ENABLE_SCRIPTS"},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -279,6 +284,9 @@ func main() {
 					}
 					if err := c.Set("fleet-url", config.FleetURL); err != nil {
 						return fmt.Errorf("set fleet URL from configuration profile: %w", err)
+					}
+					if err := c.Set("enable-scripts", fmt.Sprintf("%t", config.EnableScripts)); err != nil {
+						return fmt.Errorf("set enable-scripts from configuration profile: %w", err)
 					}
 					if err := writeSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
 						return fmt.Errorf("write enroll secret: %w", err)
@@ -634,6 +642,11 @@ func main() {
 			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		case "windows":
 			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID)
+		}
+
+		if c.Bool("enable-scripts") {
+			log.Info().Msg("script execution enabled")
+			// TODO: integrate with @mna's work
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
