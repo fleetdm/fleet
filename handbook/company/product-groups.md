@@ -210,7 +210,11 @@ Please read carefully and [pay special attention](https://fleetdm.com/handbook/c
 
 Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases! When you think you've discovered a blocker, here's how to proceed:
 
-**For UX concerns...**
+**For implementation concerns...**
+
+Communicate. Leave a comment [mentioning the appropriate PM](https://fleetdm.com/handbook/company/product-groups#current-product-groups) so they can update the user story and estimation to reflect our updated understanding.
+
+**For all other concerns...**
 
 At Fleet, we prioritize [iteration](https://fleetdm.com/handbook/company#results). So before raising the alarm, think through the following:
 
@@ -220,9 +224,7 @@ At Fleet, we prioritize [iteration](https://fleetdm.com/handbook/company#results
 
 After these considerations, if you still think you've found a blocker, alert the [appropriate PM](https://fleetdm.com/handbook/company/development-groups) so that the user story can be brought back for [expedited drafting](https://fleetdm.com/handbook/product#expedited-drafting). Otherwise, this concern may be better suited to a [feature request](https://fleetdm.com/handbook/product#intake).
 
-**For technical (implementation) concerns...**
 
-Communicate. Leave a comment [mentioning the appropriate PM](https://fleetdm.com/handbook/company/development-groups) or ask for feedback at your next standup. Then update this user story's estimation, wireframes, and "definition of done" to reflect your updated understanding.
 
 
 #### Sub-tasks
