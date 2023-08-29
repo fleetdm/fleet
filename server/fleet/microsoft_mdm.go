@@ -703,8 +703,8 @@ type WindowsMDMAccessTokenPayload struct {
 	// Type is the enrollment type, such as "programmatic".
 	Type    WindowsMDMEnrollmentType `json:"type"`
 	Payload struct {
-		HostUUID  string `json:"host_uuid"`
-		AuthToken string `json:"auth_token"`
+		OrbitNodeKey string `json:"orbit_node_key"`
+		AuthToken    string `json:"auth_token"`
 	} `json:"payload"`
 }
 
@@ -723,7 +723,7 @@ func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
 		return errors.New("invalid binary security payload type")
 	}
 
-	if t.Type == WindowsMDMProgrammaticEnrollmentType && len(t.Payload.HostUUID) == 0 {
+	if t.Type == WindowsMDMProgrammaticEnrollmentType && len(t.Payload.OrbitNodeKey) == 0 {
 		return errors.New("invalid binary security payload content")
 	}
 
