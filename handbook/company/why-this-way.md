@@ -247,6 +247,29 @@ We avoid making the submitter read anything.  We prompt for as little informatio
 For example, here is the [philosophy behind Fleet's bug report template](https://github.com/fleetdm/fleet/pull/13204#issuecomment-1678419117).
 
 
+## Why spend less?
+
+- **Default to efficiency. Reward richly.** At Fleet, we celebrate success and reward hard work, we do everyday things cheap. 
+This is very important, because it shapes the kind of people we hire, and the kind of expectations we set for the team about what _"comfortable"_ feels like.
+
+- **Offsite does not equal reward.** Day to day, Fleet shouldn't look rich. Rich doen't equal welcoming. The company is open, not closed. 
+
+Work here means flexible collaboration, accessible people, and clear expectations, and a rich, exciting future worth working for, not a rich, complacent baseline worth coasting for.
+
+- **Minimally viable comfort.**  We should be staying at la quintas by the train tracks every single time unless customers are coming into the room.
+  Then we should accommodate in the spirit of _hospitality_, **NOT** to show off how well Fleet is doing. 
+They'll know how well Fleet's doing by product quality, how great the support is, and how much they enjoy interacting with our people and processes. 
+They'll know how we're doing by how well we fulfill the company's purpose:
+https://fleetdm.com/handbook/company#purpose. 
+By how well we make them experience openness, flexibility, accessibility, and clarity in all of their interactions with the brand.  
+
+- **Everyday efficiency.** Think Southwest Airlines vs. Delta vibes.  
+Fleet is egalitarian; outsider-friendly. We lift people up, but remember where we came from.  
+Fleet is efficient & friendly, more than polished, or formal.  
+We never show off, we look real **AND** smart. Make it look easy and welcoming, never slick and rarely fancy.  
+Fleet ***isn't*** the place you work for the everyday amenities. Fleet ***is*** the place you work for your future. 
+
+
 ## Why don't we sell like everyone else?
 
 Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
