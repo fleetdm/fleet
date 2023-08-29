@@ -6231,7 +6231,6 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 
 	// Checking if SOAP response contains a valid RequestSecurityTokenResponseCollection message
 	resSoapMsg := string(resBytes)
-	fmt.Println(resSoapMsg)
 
 	require.True(t, s.isXMLTagPresent("RequestSecurityTokenResponseCollection", resSoapMsg))
 	require.True(t, s.isXMLTagPresent("DispositionMessage", resSoapMsg))

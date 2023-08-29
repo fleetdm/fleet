@@ -542,7 +542,6 @@ func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, payloa
 
 	if typeID == fleet.WindowsMDMProgrammaticEnrollmentType {
 		pld.Payload.OrbitNodeKey = payload
-		pld.Payload.HostUUID = payload
 	} else if typeID == fleet.WindowsMDMAutomaticEnrollmentType {
 		pld.Payload.AuthToken = payload
 	} else {
@@ -947,7 +946,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			}
 
 			// No errors, token is authorized
-			return binSecToken.Payload.HostUUID, nil
+			return binSecToken.Payload.OrbitNodeKey, nil
 		}
 
 		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
