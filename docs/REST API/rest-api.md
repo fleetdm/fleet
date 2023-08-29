@@ -3923,7 +3923,7 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 ### Run custom MDM command
 
-This endpoint tells Fleet to run a custom an MDM command, on the targeted macOS hosts, the next time they come online.
+This endpoint tells Fleet to run a custom MDM command, on the targeted macOS hosts, the next time they come online.
 
 `POST /api/v1/fleet/mdm/apple/enqueue`
 

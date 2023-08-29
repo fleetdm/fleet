@@ -1285,7 +1285,6 @@ const ManageHostsPage = ({
       { [`${baseClass}__status-dropdown-sandbox`]: isSandboxMode }
     );
 
-    console.log("status", status);
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown

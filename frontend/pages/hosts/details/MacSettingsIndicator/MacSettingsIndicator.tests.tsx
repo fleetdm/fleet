@@ -9,7 +9,7 @@ describe("MacSettingsIndicator", () => {
       <MacSettingsIndicator indicatorText={indicatorText} iconName="success" />
     );
     const renderedIndicatorText = screen.getByText(indicatorText);
-    const renderedIcon = screen.getByTestId("icon");
+    const renderedIcon = screen.getByTestId("success-icon");
 
     expect(renderedIndicatorText).toBeInTheDocument();
     expect(renderedIcon).toBeInTheDocument();
@@ -26,7 +26,7 @@ describe("MacSettingsIndicator", () => {
       />
     );
     const renderedIndicatorText = screen.getByText(indicatorText);
-    const renderedIcon = screen.getByTestId("icon");
+    const renderedIcon = screen.getByTestId("success-icon");
     const renderedTooltipText = screen.getByText(tooltipText);
 
     expect(renderedIndicatorText).toBeInTheDocument();
@@ -52,7 +52,7 @@ describe("MacSettingsIndicator", () => {
     );
 
     const renderedIndicatorText = screen.getByText(indicatorText);
-    const renderedIcon = screen.getByTestId("icon");
+    const renderedIcon = screen.getByTestId("success-icon");
     const renderedButton = screen.getByRole("button");
 
     expect(renderedIndicatorText).toBeInTheDocument();

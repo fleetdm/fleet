@@ -236,6 +236,16 @@ If that happens by mistake, first priority is merging a fix, then notifying the 
 
 > Here is [an example of a deliberate decision to make broken images in Fleet fail more loudly](https://github.com/fleetdm/fleet/issues/12305#issuecomment-1671924257) so that they can't be overlooked, even though this might slow down short-term development.
 
+## Why keep issue templates simple?
+At Fleet, we optimize for the person submitting the issue, not the person receiving it.
+
+We avoid making the submitter read anything.  We prompt for as little information as possible.  Why?
+- When someone is submitting an issue, they are usually in a hurry.  They [might not even work here](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  Even short issue templates can cause confusion, lead to mistakes, and discourage future submissions.
+- The person receiving an issue has more context, and so will have an easier time filling in the gaps and, if necessary, following up to better understand.
+- This encourages [everyone to contribute](https://fleetdm.com/handbook/company#openness), and [keep contributing](https://fleetdm.com/handbook/company#results).
+
+For example, here is the [philosophy behind Fleet's bug report template](https://github.com/fleetdm/fleet/pull/13204#issuecomment-1678419117).
+
 
 ## Why don't we sell like everyone else?
 
@@ -305,6 +315,25 @@ In sentence case, we write and capitalize words as if they were in sentences:
 As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer") and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized.
 
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
+
+## Why not use superlatives?
+
+A superlative is an adjective or adverb that expresses the degree of a quality, such as "best," "worst," or "most beautiful."
+
+A superlative is a judgment or evaluation, [which only the customer can decide](https://twitter.com/mikermcneil/status/1686837625187930112). 
+
+✅ **Do:**
+
+<blockquote>
+Avoid using too many unnecessary words or superlatives, so your writing is shorter and easier to understand. 
+</blockquote>
+
+❌ **Don't:**
+
+<blockquote>
+ There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
+</blockquote>
+
 
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
 
