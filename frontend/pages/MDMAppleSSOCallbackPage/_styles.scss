@@ -1,5 +1,7 @@
 .mdm-apple-sso-callback-page {
-  height: 100vh; // expend height to make entire viewport a white background
+  // expand width and height to make entire viewport a white background
+  height: 100vh;
+  width: 100%;
   background-color: $core-white;
   display: flex;
   align-items: center;
