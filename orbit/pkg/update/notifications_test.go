@@ -173,6 +173,12 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 	assertResult(cfg, err)
 }
 
+type mockNodeKeyGetter struct{}
+
+func (m mockNodeKeyGetter) GetNodeKey() (string, error) {
+	return "nodekey-test", nil
+}
+
 func TestWindowsMDMEnrollment(t *testing.T) {
 	var logBuf bytes.Buffer
 
@@ -230,6 +236,7 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 					unenrollGotCalled = true
 					return c.apiErr
 				},
+				nodeKeyGetter: mockNodeKeyGetter{},
 			}
 
 			cfg, err := enrollFetcher.GetConfig()
@@ -276,8 +283,9 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 			)
 			chProceed := make(chan struct{})
 			fetcher := &windowsMDMEnrollmentConfigFetcher{
-				Fetcher:   baseFetcher,
-				Frequency: 2 * time.Second, // just to be safe with slow environments (CI)
+				Fetcher:       baseFetcher,
+				Frequency:     2 * time.Second, // just to be safe with slow environments (CI)
+				nodeKeyGetter: mockNodeKeyGetter{},
 			}
 			if cfg.NeedsProgrammaticWindowsMDMEnrollment {
 				fetcher.execEnrollFn = func(args WindowsMDMEnrollmentArgs) error {
