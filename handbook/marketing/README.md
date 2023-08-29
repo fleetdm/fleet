@@ -1,6 +1,5 @@
-# Community
+# Marketing
 
-## Marketing mission
 
 To show organizations how Fleet is the best way to keep their employees and their machines safe and productive. To create demand for the world’s first open-source and cross-platform MDM. 
 
@@ -280,7 +279,6 @@ Printful order information can be found on [Printful](https://www.printful.com/d
 At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
 
 
-## Brand
 
 ### Brand resources
 
@@ -520,4 +518,4 @@ Please see 📖[handbook/company/communications/content-style-guide](https//flee
 
 
 <meta name="maintainedBy" value="drewbakerfdm">
-<meta name="title" value="🫧 Community">
+<meta name="title" value="🫧 Marketing">
