@@ -7,12 +7,10 @@ import { osqueryTableNames } from "utilities/osquery_tables";
 import Dropdown from "components/forms/fields/Dropdown";
 import FleetMarkdown from "components/FleetMarkdown";
 import CustomLink from "components/CustomLink";
+import Icon from "components/Icon/Icon";
 
 import QueryTableColumns from "./QueryTableColumns";
 import QueryTablePlatforms from "./QueryTablePlatforms";
-
-// @ts-ignore
-import CloseIcon from "../../../../assets/images/icon-close-black-50-8x8@2x.png";
 import QueryTableExample from "./QueryTableExample";
 import QueryTableNotes from "./QueryTableNotes";
 import EventedTableTag from "./EventedTableTag";
@@ -70,7 +68,7 @@ const QuerySidePanel = ({
         tabIndex={0}
         onClick={onClose}
       >
-        <img alt="Close sidebar" src={CloseIcon} />
+        <Icon name="ex" color="ui-fleet-black-50" size="small" />
       </div>
       <div className={`${baseClass}__choose-table`}>
         <h2 className={`${baseClass}__header`}>

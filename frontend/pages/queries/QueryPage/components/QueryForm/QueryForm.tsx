@@ -15,7 +15,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
-import { addGravatarUrlToResource } from "utilities/helpers";
+import { addGravatarUrlToResource, secondsToDhms } from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
@@ -34,7 +34,6 @@ import queryAPI from "services/entities/queries";
 
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
-import { parseSqlTables } from "utilities/sql_tools";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
@@ -49,7 +48,6 @@ import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveQueryModal from "../SaveQueryModal";
-import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form";
 
@@ -82,6 +80,22 @@ const validateQuerySQL = (query: string) => {
 
   const valid = !size(errors);
   return { valid, errors };
+};
+
+// Includes a custom frequency set through fleetctl at top of frequency dropdown
+const customFrequencyOptions = (frequency: number) => {
+  if (
+    !FREQUENCY_DROPDOWN_OPTIONS.some((option) => option.value === frequency)
+  ) {
+    return [
+      {
+        value: frequency,
+        label: `Every ${secondsToDhms(frequency)}`,
+      },
+      ...FREQUENCY_DROPDOWN_OPTIONS,
+    ];
+  }
+  return FREQUENCY_DROPDOWN_OPTIONS;
 };
 
 const QueryForm = ({
@@ -145,6 +159,10 @@ const QueryForm = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
+  const [frequencyOptions, setFrequencyOptions] = useState(
+    FREQUENCY_DROPDOWN_OPTIONS
+  );
+  const [isInitialFrequency, setIsInitialFrequency] = useState(true);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
@@ -168,6 +186,13 @@ const QueryForm = ({
     }
     debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
+
+  // Creates custom frequency options when initializing and not when toggling
+  useEffect(() => {
+    if (isInitialFrequency) {
+      setFrequencyOptions(customFrequencyOptions(lastEditedQueryFrequency));
+    }
+  }, [lastEditedQueryFrequency, isInitialFrequency]);
 
   const hasTeamMaintainerPermissions = savedQueryMode
     ? isAnyTeamMaintainerOrTeamAdmin &&
@@ -214,6 +239,7 @@ const QueryForm = ({
   const onChangeSelectFrequency = useCallback(
     (value: number) => {
       setLastEditedQueryFrequency(value);
+      setIsInitialFrequency(false);
     },
     [setLastEditedQueryFrequency]
   );
@@ -406,7 +432,7 @@ const QueryForm = ({
     return (
       <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
         <>
-          <img alt="" src={InfoIcon} />
+          <Icon name="info" size="small" />
           Show schema
         </>
       </Button>
@@ -603,7 +629,7 @@ const QueryForm = ({
               <div className={`${baseClass}__frequency`}>
                 <Dropdown
                   searchable={false}
-                  options={FREQUENCY_DROPDOWN_OPTIONS}
+                  options={frequencyOptions}
                   onChange={onChangeSelectFrequency}
                   placeholder={"Every day"}
                   value={lastEditedQueryFrequency}
