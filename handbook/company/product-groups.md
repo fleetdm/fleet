@@ -17,7 +17,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
 |:--------------------------|:--------------------------------------------------------------------|:-----------------|
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category. | TODO     |
-| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | TODO     |
+| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   |   48     |
 | [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | TODO |
 | [Website](#website-group)                               | Make the website wonderful.                   | TODO     |
 
