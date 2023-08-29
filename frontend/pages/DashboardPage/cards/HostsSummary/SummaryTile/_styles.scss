@@ -3,6 +3,13 @@
   display: flex;
   justify-content: space-around;
 
+  a {
+    font-weight: normal;
+    color: $core-fleet-black;
+    text-decoration: none;
+    border-radius: 3px;
+  }
+
   &__tile {
     display: flex;
     align-items: center;
@@ -26,17 +33,19 @@
   }
 
   &__not-supported {
-    // negate the default disabled button styling
-    opacity: 1;
-    filter: none;
-  }
-  &__not-supported-text {
-    font-size: $large;
     color: $ui-fleet-black-50;
+
+    &-text {
+      font-size: $medium;
+    }
   }
 
   &__description {
     white-space: nowrap;
+
+    .component__tooltip-wrapper__element {
+      font-size: $x-small;
+    }
 
     .component__tooltip-wrapper__tip-text {
       width: 200px;
@@ -58,11 +67,8 @@
   .summary-tile {
     &__tile {
       text-align: center;
-
-      .children-wrapper {
-        flex-direction: column;
-        gap: 0.75rem;
-      }
+      flex-direction: column;
+      gap: 0.75rem;
     }
 
     &__tile-icon {

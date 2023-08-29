@@ -80,6 +80,9 @@ type Service interface {
 	// to fleetd (formerly orbit).
 	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
+	// ReceiveFleetdError handles an erorr report from a `fleetd` component
+	ReceiveFleetdError(ctx context.Context, errData FleetdError) error
+
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
 
@@ -787,4 +790,16 @@ type Service interface {
 
 	// GetMDMWindowsTOSContent returns TOS content
 	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Host Script Execution
+
+	// RunHostScript executes a script on a host and optionally waits for the
+	// result if waitForResult is > 0. If it times out waiting for a result, it
+	// fails with a 504 Gateway Timeout error.
+	RunHostScript(ctx context.Context, request *HostScriptRequestPayload, waitForResult time.Duration) (*HostScriptResult, error)
+	// GetHostScript returns information about a host script execution.
+	GetHostScript(ctx context.Context, execID string) (*HostScriptResult, error)
+	// SaveHostScriptResult saves information about execution of a script on a host.
+	SaveHostScriptResult(ctx context.Context, result *HostScriptResultPayload) error
 }

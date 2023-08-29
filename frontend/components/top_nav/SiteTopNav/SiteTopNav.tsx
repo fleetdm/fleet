@@ -37,6 +37,8 @@ const REGEX_DETAIL_PAGES = {
   LABEL_NEW: /\/labels\/new/i,
   PACK_EDIT: /\/packs\/\d+/i,
   PACK_NEW: /\/packs\/new/i,
+  QUERIES_EDIT: /\/queries\/\d+/i,
+  QUERIES_NEW: /\/queries\/new/i,
   POLICY_EDIT: /\/policies\/\d+/i,
   POLICY_NEW: /\/policies\/new/i,
   SOFTWARE_DETAILS: /\/software\/\d+/i,

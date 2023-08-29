@@ -10,6 +10,7 @@
 - [Policies](#policies)
 - [Queries](#queries)
 - [Schedule (deprecated)](#schedule)
+- [Scripts](#scripts)
 - [Sessions](#sessions)
 - [Software](#software)
 - [Targets](#targets)
@@ -3126,7 +3127,7 @@ Retrieves the disk encryption key for a host.
 }
 ```
 
-### Get configuration profiles assigned to a host 
+### Get configuration profiles assigned to a host
 
 Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
@@ -3922,7 +3923,7 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 ### Run custom MDM command
 
-This endpoint tells Fleet to run a custom an MDM command, on the targeted macOS hosts, the next time they come online.
+This endpoint tells Fleet to run a custom MDM command, on the targeted macOS hosts, the next time they come online.
 
 `POST /api/v1/fleet/mdm/apple/enqueue`
 
@@ -3930,7 +3931,7 @@ This endpoint tells Fleet to run a custom an MDM command, on the targeted macOS 
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) |
+| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries). Supported formats are standard ([RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)) and raw (unpadded) encoding ([RFC 4648 section 3.2](https://www.rfc-editor.org/rfc/rfc4648.html#section-3.2)) |
 | device_ids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
 
 Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
@@ -5626,7 +5627,7 @@ load balancer timeout.
 
 ## Schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 - [Get schedule (deprecated)](#get-schedule)
@@ -5641,7 +5642,7 @@ These API routes let you control your scheduled queries.
 
 ### Get schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `GET /api/v1/fleet/global/schedule`
@@ -5715,7 +5716,7 @@ None.
 
 ### Add query to schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `POST /api/v1/fleet/global/schedule`
@@ -5776,7 +5777,7 @@ None.
 
 ### Edit query in schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `PATCH /api/v1/fleet/global/schedule/{id}`
@@ -5832,7 +5833,7 @@ None.
 
 ### Remove query from schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `DELETE /api/v1/fleet/global/schedule/{id}`
@@ -5854,7 +5855,7 @@ None.
 
 ### Team schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 - [Get team schedule (deprecated)](#get-team-schedule)
@@ -5866,7 +5867,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Get team schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `GET /api/v1/fleet/teams/{id}/schedule`
@@ -5946,7 +5947,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Add query to team schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `POST /api/v1/fleet/teams/{id}/schedule`
@@ -6004,7 +6005,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Edit query in team schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
@@ -6061,7 +6062,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Remove query from team schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
@@ -6080,6 +6081,78 @@ This allows you to easily configure scheduled queries that will impact a whole t
 ##### Default response
 
 `Status: 200`
+
+---
+
+## Scripts
+
+- [Run script asynchronously](#run-script-asynchronously)
+- [Run script synchronously](#run-script-synchronously)
+
+
+### Run script asynchronously
+
+_Available in Fleet Premium_
+
+Creates a script execution request and returns the execution identifier to retrieve results at a later time.
+
+`POST /api/v1/fleet/scripts/run`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_contents | string  | body | **Required**. The contents of the script to run. |
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run`
+
+##### Default response
+
+`Status: 202`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
+### Run script synchronously
+
+_Available in Fleet Premium_
+
+Creates a script execution request and waits for a result to return (up to a 1 minute timeout).
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_contents | string  | body | **Required**. The contents of the script to run. |
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "script_contents": "echo 'hello'",
+  "output": "hello",
+  "runtime": 1,
+  "exit_code": 0
+}
+```
 
 ---
 

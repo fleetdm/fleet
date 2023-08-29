@@ -2226,6 +2226,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 - [Trigger FileVault key escrow](#trigger-filevault-key-escrow) 
+- [Report an agent error](#report-an-agent-error)
 
 #### Get device's host
 
@@ -2679,6 +2680,30 @@ Sends a signal to Fleet Desktop to initiate a FileVault key escrow. This is usef
 ##### Default response
 
 `Status: 204`
+
+
+### Report an agent error
+
+Notifies the server about an agent error, resulting in two outcomes:
+
+- The error gets saved in Redis and can later be accessed using `fleetctl debug archive`.
+- The server consistently replies with a `500` status code, which can serve as a signal to activate an alarm through a monitoring tool.
+
+`POST /api/v1/fleet/device/{token}/debug/errors`
+
+#### Parameters
+
+| Name                  | Type     | Description                                                      |
+| --------------------- | -------- | ---------------------------------------------------------------- |
+| error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop |
+| error_source_version  | string   | version of error_source                                          |
+| error_timestamp       | datetime | Time in UTC that error occured                                   |
+| error_message         | string   | error message                                                    |
+| error_additional_info | obj      | Any additional identifiers to assist debugging                   |
+
+##### Default response
+
+`Status: 500`
 
 ---
 
