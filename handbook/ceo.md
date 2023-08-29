@@ -17,7 +17,7 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 - If you mention the CEO from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
 - If urgent or personal, send a Slack direct message (DM) to `@mikermcneil` right away.
-- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the [Apprentice](https://fleetdm.com/handbook/ceo#team) in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
+- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the Apprentice in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
 - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
 
 <!-- ## Contact the CEO -->
@@ -30,7 +30,7 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meeting-scheduling) are welcomed and a top priority for the CEO to consider getting on the calendar quickly. 
 
-To grab time with the CEO @mention the [Apprentice](#team) in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
+To grab time with the CEO @mention the Apprentice in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
 - Proposed date and time
 - Reason for meeting _(e.g. include customer names or a related GitHub issue)_
 
@@ -152,7 +152,7 @@ Be sure to do this from Mike's browser so as to not lock him out of any meeting 
 ### Process the CEO's inbox
 
 - The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review.
-The [Apprentice](#team) will reduce the scope of Mike's inbox to only include necessary and actionable communication.
+The Apprentice will reduce the scope of Mike's inbox to only include necessary and actionable communication.
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
