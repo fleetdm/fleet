@@ -69,7 +69,7 @@ The goal of the infrastructure group is to provide and support reliable and secu
 
 ### Website group
 
-The goal of the website group is to make visitors on Fleet's website get what they want and what they need.  This includes making the website more navigable, more beautiful, simpler, and easier to understand.
+The goal of the website group is to manage and maintain Fleet's website and documentation by prioritizing and actioning meaningful changes to enhance brand awareness and provide visitors with the information they need when they need it. This includes making the content and user experience more beautiful, simple, and easier to understand.
 
 > _**Note:** If a user story involves **both** changes to the core product **and** to fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by the [CX group](https://fleetdm.com/handbook/company/development-groups#customer-experience-group)._
 
