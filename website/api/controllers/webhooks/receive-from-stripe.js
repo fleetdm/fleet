@@ -42,6 +42,8 @@ module.exports = {
 
   fn: async function ({id, type, data, webhookSecret}) {
 
+    let assert = require('assert');
+
     if(!this.req.get('stripe-signature')) {
       throw 'missingStripeHeader';
     }
@@ -60,13 +62,32 @@ module.exports = {
     if(!stripeEventData.subscription) {
       return;
     }
+    assert(stripeEventData.customer !== undefined);
 
     // Find the subscription record for this event.
     let subscriptionIdToFind = stripeEventData.subscription;
     let subscriptionForThisEvent = await Subscription.findOne({stripeSubscriptionId: subscriptionIdToFind}).populate('user');
 
+    let STRIPE_EVENTS_SENT_BEFORE_A_SUBSCRIPTION_RECORD_EXISTS = [
+      'invoice.created',
+      'invoice.finalized',
+      'invoice.paid',
+      'invoice.payment_succeeded',
+    ];
+
+    // If this event is for a subscription that was just created, we won't have a matching Subscription record in the database. This is because we wait until the subscription's invoice is paid to create the record in our database.
+    // To handle cases like this, we'll check to see if a User with the provided stripe customer ID exists, and throw an error if it does not exist.
     if(!subscriptionForThisEvent) {
-      throw new Error(`The Stripe subscription events webhook received a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
+      if(!_.contains(STRIPE_EVENTS_SENT_BEFORE_A_SUBSCRIPTION_RECORD_EXISTS, type)) {
+        throw new Error(`The Stripe subscription events webhook received a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
+      } else {
+        let userReferencedInStripeEvent = await User.findOne({stripeCustomerId: stripeEventData.customer});
+        if(!userReferencedInStripeEvent){
+          throw new Error(`The receive-from-stripe webhook received an event for an invoice (type: ${type}) for a subscription (stripeSubscriptionId: ${subscriptionIdToFind}) but no matching Subscription or User record (stripeCustomerId: ${stripeEventData.customer}) was found in our databse.`);
+        } else {
+          return;
+        }
+      }
     }
 
     let userForThisSubscription = subscriptionForThisEvent.user;

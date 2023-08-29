@@ -1,0 +1,2 @@
+- EXPERIMENTAL: Applying the environmental variable "FLEETD_SILENCE_ENROLL_ERROR"=1 will silence fleetd errors if not setting `--fleet-url` when generating an orbit installer.
+- Note: Set this variable before upgrading orbit, or restart the orbit service after setting it.

@@ -47,9 +47,10 @@ module "rds" {
   allowed_security_groups = concat(tolist(module.byo-db.byo-ecs.non_circular.security_groups), var.rds_config.allowed_security_groups)
   allowed_cidr_blocks     = var.rds_config.allowed_cidr_blocks
 
-  storage_encrypted   = true
-  apply_immediately   = var.rds_config.apply_immediately
-  monitoring_interval = var.rds_config.monitoring_interval
+  performance_insights_enabled = true
+  storage_encrypted            = true
+  apply_immediately            = var.rds_config.apply_immediately
+  monitoring_interval          = var.rds_config.monitoring_interval
 
   db_parameter_group_name         = var.rds_config.db_parameter_group_name == null ? aws_db_parameter_group.main[0].id : var.rds_config.db_parameter_group_name
   db_cluster_parameter_group_name = var.rds_config.db_cluster_parameter_group_name == null ? aws_rds_cluster_parameter_group.main[0].id : var.rds_config.db_cluster_parameter_group_name

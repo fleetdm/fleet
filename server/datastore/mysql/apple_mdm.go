@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
@@ -771,6 +772,16 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	})
 
 	return createdCount, teamID, err
+}
+
+func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert host DEP assignments")
+		}
+
+		return nil
+	})
 }
 
 func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts []fleet.Host) error {
@@ -1582,72 +1593,12 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
-func (ds *Datastore) UpdateVerificationHostMacOSProfiles(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
-	installedProfsByIdentifier := make(map[string]*fleet.HostMacOSProfile, len(installedProfiles))
-	for _, p := range installedProfiles {
-		installedProfsByIdentifier[p.Identifier] = p
-	}
-
-	var teamID uint
-	if host.TeamID != nil {
-		teamID = *host.TeamID
-	}
-	var expectedProfs []*fleet.MDMAppleConfigProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &expectedProfs, `
-SELECT
-	name,
-	identifier,
-	updated_at
-FROM
-	mdm_apple_configuration_profiles
-WHERE
-	team_id = ?`, teamID); err != nil {
-		return ctxerr.Wrap(ctx, err, "listing expected profiles to set verified host macOS profiles")
-	}
-
-	foundIdentifiers := make([]string, 0, len(expectedProfs))
-	missingIdentifiers := make([]string, 0, len(expectedProfs))
-
-	for _, ep := range expectedProfs {
-		withinGracePeriod := ep.IsWithinGracePeriod(host.DetailUpdatedAt) // Note: The host detail timestamp is updated after the current set is ingested, see https://github.com/fleetdm/fleet/blob/e9fd28717d474668ca626efbacdd0615d42b2e0a/server/service/osquery.go#L950
-		ip, ok := installedProfsByIdentifier[ep.Identifier]
-		if !ok {
-			// expected profile is missing from host
-			if !withinGracePeriod {
-				missingIdentifiers = append(missingIdentifiers, ep.Identifier)
-			}
-			continue
-		}
-		if ep.UpdatedAt.After(ip.InstallDate) {
-			// TODO: host has an older version of expected profile installed, treat it as a missing
-			// profile for now but we should think about an appropriate grace period to account for
-			// clock skew between the host and the server or a checksum comparison instead
-			if !withinGracePeriod {
-				missingIdentifiers = append(missingIdentifiers, ep.Identifier)
-			}
-			continue
-		}
-		if ep.Name != ip.DisplayName {
-			// TODO: host has a different name for expected profile, treat it as a missing profile
-			// for now but we should think about a checksum comparison instead
-			if !withinGracePeriod {
-				missingIdentifiers = append(missingIdentifiers, ep.Identifier)
-			}
-			continue
-		}
-		foundIdentifiers = append(foundIdentifiers, ep.Identifier)
-	}
-
-	if len(foundIdentifiers) == 0 && len(missingIdentifiers) == 0 {
-		// nothing to update, return early
-		return nil
-	}
-
+func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, verified, failed []string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := setMDMProfilesVerifiedDB(ctx, tx, host, foundIdentifiers); err != nil {
+		if err := setMDMProfilesVerifiedDB(ctx, tx, host, verified); err != nil {
 			return err
 		}
-		if err := setMDMProfilesFailedDB(ctx, tx, host, missingIdentifiers); err != nil {
+		if err := setMDMProfilesFailedDB(ctx, tx, host, failed); err != nil {
 			return err
 		}
 		return nil
@@ -1710,14 +1661,14 @@ SET
 	status = ?
 WHERE
 	host_uuid = ?
-	AND status = ?
+	AND status IN(?)
 	AND operation_type = ?
 	AND profile_identifier IN(?)`
 
 	args := []interface{}{
 		fleet.MDMAppleDeliveryVerified,
 		host.UUID,
-		fleet.MDMAppleDeliveryVerifying,
+		[]interface{}{fleet.MDMAppleDeliveryVerifying, fleet.MDMAppleDeliveryFailed},
 		fleet.MDMAppleOperationTypeInstall,
 		identifiers,
 	}
@@ -1730,6 +1681,43 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "setting verified host macOS profiles")
 	}
 	return nil
+}
+
+func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+
+	stmt := `
+SELECT
+	identifier,
+	earliest_install_date
+FROM
+	mdm_apple_configuration_profiles macp
+	JOIN (
+		SELECT
+			checksum,
+			min(updated_at) AS earliest_install_date
+		FROM
+			mdm_apple_configuration_profiles
+		GROUP BY
+			checksum) cs 
+	ON macp.checksum = cs.checksum
+WHERE
+	macp.team_id = ?`
+
+	var rows []*fleet.ExpectedMDMProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host %d", host.ID))
+	}
+
+	byIdentifier := make(map[string]*fleet.ExpectedMDMProfile, len(rows))
+	for _, r := range rows {
+		byIdentifier[r.Identifier] = r
+	}
+
+	return byIdentifier, nil
 }
 
 func subqueryHostsMacOSSettingsStatusFailing() (string, []interface{}) {
@@ -1933,19 +1921,20 @@ WHERE
 func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
 	stmt := `
       INSERT INTO mdm_idp_accounts
-        (uuid, username, fullname)
+        (uuid, username, fullname, email)
       VALUES
-        (?, ?, ?)
+        (?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
-        fullname   = VALUES(fullname)`
+        fullname   = VALUES(fullname),
+        email      = VALUES(email)`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname, account.Email)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
 func (ds *Datastore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname FROM mdm_idp_accounts WHERE uuid = ?`
+	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
 	var acct fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, uuid)
 	if err != nil {
@@ -2179,6 +2168,57 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 	}
 
 	return nil
+}
+
+func (ds *Datastore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
+	if ac == nil {
+		return ctxerr.New(ctx, "app config must not be nil")
+	}
+	if toTeamID == 0 {
+		return ctxerr.New(ctx, "team id must not be zero")
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Copy the bytes for the default bootstrap package to the specified team
+		insertStmt := `
+INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token)
+SELECT ?, name, sha256, bytes, ?
+FROM mdm_apple_bootstrap_packages
+WHERE team_id = 0
+`
+		_, err := tx.ExecContext(ctx, insertStmt, toTeamID, uuid.New().String())
+		if err != nil {
+			if isDuplicate(err) {
+				return ctxerr.Wrap(ctx, &existsError{
+					ResourceType: "BootstrapPackage",
+					TeamID:       &toTeamID,
+				})
+			}
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("copy default bootstrap package to team %d", toTeamID))
+		}
+
+		// Update the team config json with the default bootstrap package url
+		//
+		// NOTE: The bytes copied above may not match the bytes at the url because it is possible to
+		// upload a new bootrap pacakge via the UI, which replaces the bytes but does not change
+		// the configured URL. This was a deliberate product design choice and it is intended that
+		// the bytes would be replaced again the next time the team config is applied (i.e. via
+		// fleetctl in a gitops workflow).
+		url := ac.MDM.MacOSSetup.BootstrapPackage.Value
+		if url != "" {
+			updateConfigStmt := `
+UPDATE teams 
+SET config = JSON_SET(config, '$.mdm.macos_setup.bootstrap_package', '%s') 
+WHERE id = ?
+`
+			_, err = tx.ExecContext(ctx, fmt.Sprintf(updateConfigStmt, url), toTeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, fmt.Sprintf("update bootstrap package config for team %d", toTeamID))
+			}
+		}
+
+		return nil
+	})
 }
 
 func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {

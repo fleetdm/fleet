@@ -26,3 +26,20 @@ func TestVerifyPolicyPlatforms(t *testing.T) {
 		require.Error(t, actual)
 	}
 }
+
+func TestFirstFuplicatePolicySpecName(t *testing.T) {
+	testCases := []struct {
+		name     string
+		result   string
+		policies []*PolicySpec
+	}{
+		{"no specs", "", []*PolicySpec{}},
+		{"no duplicate names", "", []*PolicySpec{{Name: "foo"}}},
+		{"duplicate names", "foo", []*PolicySpec{{Name: "foo"}, {Name: "bar"}, {Name: "foo"}}},
+	}
+
+	for _, tc := range testCases {
+		name := FirstDuplicatePolicySpecName(tc.policies)
+		require.Equal(t, tc.result, name)
+	}
+}

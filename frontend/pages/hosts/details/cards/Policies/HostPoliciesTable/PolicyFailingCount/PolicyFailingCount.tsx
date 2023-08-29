@@ -1,7 +1,7 @@
 import { IHostPolicy } from "interfaces/policy";
 import React from "react";
 
-import IssueIcon from "../../../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "policy-failing-count";
 
@@ -20,7 +20,7 @@ const PolicyFailingCount = ({
   return failCount ? (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__count`}>
-        <img alt="Issue icon" src={IssueIcon} />
+        <Icon name="issue" />
         This device is failing
         {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
       </div>

@@ -322,18 +322,6 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	return cp.Mobileconfig.ScreenPayloads()
 }
 
-// IsWithinGracePeriod returns true if the host is within the grace period for the profile.
-//
-// The grace period is defined as 1 hour after the profile was updated. It is checked against the
-// host's detail_updated_at timestamp to allow for the host to check in at least once before the
-// profile is considered failed. If the host is online, it should report detail queries hourly by
-// default. If the host is offline, it should report detail queries shortly after it comes back
-// online.
-func (cp MDMAppleConfigProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) bool {
-	gracePeriod := 1 * time.Hour
-	return hostDetailUpdatedAt.Before(cp.UpdatedAt.Add(gracePeriod))
-}
-
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
 	HostUUID      string                  `db:"host_uuid" json:"-"`

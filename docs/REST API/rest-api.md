@@ -9,7 +9,8 @@
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Policies](#policies)
 - [Queries](#queries)
-- [Schedule](#schedule)
+- [Schedule (deprecated)](#schedule)
+- [Scripts](#scripts)
 - [Sessions](#sessions)
 - [Software](#software)
 - [Targets](#targets)
@@ -2328,6 +2329,8 @@ Returns the information of the specified host.
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
+> Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
+
 ### Get host by identifier
 
 Returns the information of the host specified using the `uuid`, `osquery_host_id`, `hostname`, or
@@ -2525,6 +2528,8 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 ```
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
+
+> Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
 ### Delete host
 
@@ -3122,7 +3127,7 @@ Retrieves the disk encryption key for a host.
 }
 ```
 
-### Get configuration profiles assigned to a host 
+### Get configuration profiles assigned to a host
 
 Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
@@ -3918,7 +3923,7 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 ### Run custom MDM command
 
-This endpoint tells Fleet to run a custom an MDM command, on the targeted macOS hosts, the next time they come online.
+This endpoint tells Fleet to run a custom MDM command, on the targeted macOS hosts, the next time they come online.
 
 `POST /api/v1/fleet/mdm/apple/enqueue`
 
@@ -3926,7 +3931,7 @@ This endpoint tells Fleet to run a custom an MDM command, on the targeted macOS 
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) |
+| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries). Supported formats are standard ([RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)) and raw (unpadded) encoding ([RFC 4648 section 3.2](https://www.rfc-editor.org/rfc/rfc4648.html#section-3.2)) |
 | device_ids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
 
 Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
@@ -5154,7 +5159,7 @@ Either `query` or `query_id` must be provided.
 - [List queries](#list-queries)
 - [Create query](#create-query)
 - [Modify query](#modify-query)
-- [Delete query](#delete-query)
+- [Delete query by name](#delete-query-by-name)
 - [Delete query by ID](#delete-query-by-id)
 - [Delete queries](#delete-queries)
 - [Run live query](#run-live-query)
@@ -5188,6 +5193,12 @@ Returns the query specified by ID.
     "name": "centos_hosts",
     "description": "",
     "query": "select 1 from os_version where platform = \"centos\";",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "",
+    "min_osquery_version": "",
+    "automations_enabled": true,
+    "logging": "snapshot",
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -5203,23 +5214,32 @@ Returns the query specified by ID.
         "platform": "",
         "disabled": false
       }
-    ]
+    ],
+    "stats": {
+      "system_time_p50": 1.32,
+      "system_time_p95": 4.02,
+      "user_time_p50": 3.55,
+      "user_time_p95": 3.00,
+      "total_executions": 3920
+    }
   }
 }
 ```
 
 ### List queries
 
-Returns a list of all queries in the Fleet instance.
+Returns a list of global queries or team queries.
 
 `GET /api/v1/fleet/queries`
 
 #### Parameters
 
-| Name            | Type   | In    | Description                                                                                                                   |
-| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string | query | What to order results by. Can be any column in the queries table.                                                             |
-| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| team_id         | integer | query | The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
+
 
 #### Example
 
@@ -5239,6 +5259,12 @@ Returns a list of all queries in the Fleet instance.
     "name": "query1",
     "description": "query",
     "query": "SELECT * FROM osquery_info",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "darwin,windows,linux",
+    "min_osquery_version": "",
+    "automations_enabled": true,
+    "logging": "snapshot",
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -5270,6 +5296,12 @@ Returns a list of all queries in the Fleet instance.
     "name": "osquery_schedule",
     "description": "Report performance stats for each file in the query schedule.",
     "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "",
+    "version": "",
+    "automations_enabled": true,
+    "logging": "differential",
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -5285,23 +5317,37 @@ Returns a list of all queries in the Fleet instance.
         "platform": "",
         "disabled": false
       }
-    ]
+    ],
+    "stats": {
+      "system_time_p50": null,
+      "system_time_p95": null,
+      "user_time_p50": null,
+      "user_time_p95": null,
+      "total_executions": null
+    }
   }
 ]}
 ```
 
 ### Create query
+Creates a global query or team query.
 
 `POST /api/v1/fleet/queries`
 
 #### Parameters
 
-| Name             | Type   | In   | Description                                                                                                                                            |
-| ---------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| name             | string | body | **Required**. The name of the query.                                                                                                                   |
-| query            | string | body | **Required**. The query in SQL syntax.                                                                                                                 |
-| description      | string | body | The query's description.                                                                                                                               |
-| observer_can_run | bool   | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+| Name                            | Type    | In   | Description                                                                                                                                            |
+| ------------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| name                            | string  | body | **Required**. The name of the query.                                                                                                                   |
+| query                           | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
+| description                     | string  | body | The query's description.                                                                                                                               |
+| observer_can_run                | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+| team_id                         | integer | body | The parent team to which the new query should be added. If omitted, the query will be global.                                           |
+| interval                       | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
+| platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
+| min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
+| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
+| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
 
 #### Example
 
@@ -5311,9 +5357,14 @@ Returns a list of all queries in the Fleet instance.
 
 ```json
 {
-  "description": "This is a new query.",
   "name": "new_query",
-  "query": "SELECT * FROM osquery_info"
+  "description": "This is a new query.",
+  "query": "SELECT * FROM osquery_info",
+  "interval": 3600, // Once per hour
+  "platform": "darwin,windows,linux",
+  "min_osquery_version": "",
+  "automations_enabled": true,
+  "logging": "snapshot"
 }
 ```
 
@@ -5328,8 +5379,14 @@ Returns a list of all queries in the Fleet instance.
     "updated_at": "0001-01-01T00:00:00Z",
     "id": 288,
     "name": "new_query",
-    "description": "This is a new query.",
     "query": "SELECT * FROM osquery_info",
+    "description": "This is a new query.",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "darwin,windows,linux",
+    "min_osquery_version": "",
+    "automations_enabled": true,
+    "logging": "snapshot",
     "saved": true,
     "author_id": 1,
     "author_name": "",
@@ -5342,19 +5399,24 @@ Returns a list of all queries in the Fleet instance.
 
 ### Modify query
 
-Returns the query specified by ID.
+Modifies the query specified by ID.
 
 `PATCH /api/v1/fleet/queries/{id}`
 
 #### Parameters
 
-| Name             | Type    | In   | Description                                                                                                                                            |
-| ---------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| id               | integer | path | **Required.** The ID of the query.                                                                                                                     |
-| name             | string  | body | The name of the query.                                                                                                                                 |
-| query            | string  | body | The query in SQL syntax.                                                                                                                               |
-| description      | string  | body | The query's description.                                                                                                                               |
-| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+| Name                        | Type    | In   | Description                                                                                                                                            |
+| --------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| id                          | integer | path | **Required.** The ID of the query.                                                                                                                     |
+| name                        | string  | body | The name of the query.                                                                                                                                 |
+| query                       | string  | body | The query in SQL syntax.                                                                                                                               |
+| description                 | string  | body | The query's description.                                                                                                                               |
+| observer_can_run            | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+| interval                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
+| platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
+| min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
+| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
+| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
 
 #### Example
 
@@ -5364,7 +5426,11 @@ Returns the query specified by ID.
 
 ```json
 {
-  "name": "new_title_for_my_query"
+  "name": "new_title_for_my_query",
+  "interval": 3600, // Once per hour,
+  "platform": "",
+  "min_osquery_version": "",
+  "automations_enabled": false
 }
 ```
 
@@ -5381,6 +5447,12 @@ Returns the query specified by ID.
     "name": "new_title_for_my_query",
     "description": "This is a new query.",
     "query": "SELECT * FROM osquery_info",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "",
+    "min_osquery_version": "",
+    "automations_enabled": false,
+    "logging": "snapshot",
     "saved": true,
     "author_id": 1,
     "author_name": "noah",
@@ -5390,7 +5462,7 @@ Returns the query specified by ID.
 }
 ```
 
-### Delete query
+### Delete query by name
 
 Deletes the query specified by name.
 
@@ -5398,9 +5470,10 @@ Deletes the query specified by name.
 
 #### Parameters
 
-| Name | Type   | In   | Description                          |
-| ---- | ------ | ---- | ------------------------------------ |
-| name | string | path | **Required.** The name of the query. |
+| Name | Type       | In   | Description                          |
+| ---- | ---------- | ---- | ------------------------------------ |
+| name | string     | path | **Required.** The name of the query. |
+| team_id | integer | body | The ID of the parent team of the query to be deleted. If omitted, Fleet will search among queries in the global context. |
 
 #### Example
 
@@ -5549,14 +5622,18 @@ load balancer timeout.
   ]
 }
 ```
+
 ---
 
 ## Schedule
 
-- [Get schedule](#get-schedule)
-- [Add query to schedule](#add-query-to-schedule)
-- [Edit query in schedule](#edit-query-in-schedule)
-- [Remove query from schedule](#remove-query-from-schedule)
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
+> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
+
+- [Get schedule (deprecated)](#get-schedule)
+- [Add query to schedule (deprecated)](#add-query-to-schedule)
+- [Edit query in schedule (deprecated)](#edit-query-in-schedule)
+- [Remove query from schedule (deprecated)](#remove-query-from-schedule)
 - [Team schedule](#team-schedule)
 
 Scheduling queries in Fleet is the best practice for collecting data from hosts.
@@ -5564,6 +5641,9 @@ Scheduling queries in Fleet is the best practice for collecting data from hosts.
 These API routes let you control your scheduled queries.
 
 ### Get schedule
+
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
+> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `GET /api/v1/fleet/global/schedule`
 
@@ -5636,6 +5716,9 @@ None.
 
 ### Add query to schedule
 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
+> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
+
 `POST /api/v1/fleet/global/schedule`
 
 #### Parameters
@@ -5694,6 +5777,9 @@ None.
 
 ### Edit query in schedule
 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
+> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
+
 `PATCH /api/v1/fleet/global/schedule/{id}`
 
 #### Parameters
@@ -5747,6 +5833,9 @@ None.
 
 ### Remove query from schedule
 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
+> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
+
 `DELETE /api/v1/fleet/global/schedule/{id}`
 
 #### Parameters
@@ -5766,16 +5855,20 @@ None.
 
 ### Team schedule
 
-- [Get team schedule](#get-team-schedule)
-- [Add query to team schedule](#add-query-to-team-schedule)
-- [Edit query in team schedule](#edit-query-in-team-schedule)
-- [Remove query from team schedule](#remove-query-from-team-schedule)
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
+> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`In Fleet 4.2.0, the Team Schedule feature was introduced.`
+- [Get team schedule (deprecated)](#get-team-schedule)
+- [Add query to team schedule (deprecated)](#add-query-to-team-schedule)
+- [Edit query in team schedule (deprecated)](#edit-query-in-team-schedule)
+- [Remove query from team schedule (deprecated)](#remove-query-from-team-schedule)
 
 This allows you to easily configure scheduled queries that will impact a whole team of devices.
 
 #### Get team schedule
+
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
+> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `GET /api/v1/fleet/teams/{id}/schedule`
 
@@ -5854,6 +5947,9 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Add query to team schedule
 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
+> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
+
 `POST /api/v1/fleet/teams/{id}/schedule`
 
 #### Parameters
@@ -5909,6 +6005,9 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Edit query in team schedule
 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
+> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
+
 `PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
 #### Parameters
@@ -5963,6 +6062,9 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Remove query from team schedule
 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
+> Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
+
 `DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
 #### Parameters
@@ -5980,6 +6082,77 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
+---
+
+## Scripts
+
+- [Run script asynchronously](#run-script-asynchronously)
+- [Run script synchronously](#run-script-synchronously)
+
+
+### Run script asynchronously
+
+_Available in Fleet Premium_
+
+Creates a script execution request and returns the execution identifier to retrieve results at a later time.
+
+`POST /api/v1/fleet/scripts/run`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_contents | string  | body | **Required**. The contents of the script to run. |
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run`
+
+##### Default response
+
+`Status: 202`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
+### Run script synchronously
+
+_Available in Fleet Premium_
+
+Creates a script execution request and waits for a result to return (up to a 1 minute timeout).
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_contents | string  | body | **Required**. The contents of the script to run. |
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "script_contents": "echo 'hello'",
+  "output": "hello",
+  "runtime": 1,
+  "exit_code": 0
+}
+```
 
 ---
 
@@ -7583,7 +7756,6 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 `GET /debug/pprof/{key}`
 
 #### Parameters
-
 None.
 
 ## API errors

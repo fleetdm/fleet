@@ -355,7 +355,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	appConfig, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
-	assert.Len(t, team.Secrets, 0) // no secret gets created automatically when creating a team via apply spec
+	assert.Len(t, team.Secrets, 1) // secret gets created automatically for a new team when none is supplied.
 	require.NotNil(t, team.Config.AgentOptions)
 	require.JSONEq(t, defaultOpts, string(*team.Config.AgentOptions))
 	require.Equal(t, appConfig.Features, team.Config.Features)
@@ -472,11 +472,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 
 	qr, err := s.ds.NewQuery(
 		context.Background(),
-		&fleet.Query{Name: "TestQueryTeamPolicy", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true},
+		&fleet.Query{
+			Name:           "TestQueryTeamPolicy",
+			Description:    "Some description",
+			Query:          "select * from osquery;",
+			ObserverCanRun: true,
+			Saved:          true,
+		},
 	)
 	require.NoError(t, err)
 
-	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: ptr.Uint(42)}}
+	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{
+		QueryID:  &qr.ID,
+		Interval: ptr.Uint(42),
+	}}
 	r := teamScheduleQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
 
@@ -484,8 +493,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
-	assert.Equal(t, "TestQueryTeamPolicy", ts.Scheduled[0].Name)
-	assert.Equal(t, qr.ID, ts.Scheduled[0].QueryID)
+	assert.Contains(t, ts.Scheduled[0].Name, "Copy of TestQueryTeamPolicy")
+	assert.NotEqual(t, qr.ID, ts.Scheduled[0].QueryID) // it creates a new query (copy)
 	id := ts.Scheduled[0].ID
 
 	modifyResp := modifyTeamScheduleResponse{}
@@ -2950,12 +2959,16 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	ggsr := getGlobalScheduleResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &ggsr)
 	require.NoError(t, ggsr.Err)
-	var globalPackID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &globalPackID,
-			`SELECT id FROM packs WHERE pack_type = 'global'`)
-	})
-	require.NotZero(t, globalPackID)
+	cpar := createPackResponse{}
+	var userPackID uint
+	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name:     ptr.String("Foobar"),
+			Disabled: ptr.Bool(false),
+		},
+	}, http.StatusOK, &cpar)
+	userPackID = cpar.Pack.Pack.ID
+	require.NotZero(t, userPackID)
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		UserPayload: fleet.UserPayload{
@@ -3178,10 +3191,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("POST", "/api/latest/fleet/queries/delete", deleteQueriesRequest{IDs: []uint{cqr2.Query.ID}}, http.StatusOK, &deleteQueriesResponse{})
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%s", cqr3.Query.Name), deleteQueryRequest{}, http.StatusOK, &deleteQueryResponse{})
 
-	// Attempt to add a query to the global schedule, should allow.
+	// Attempt to add a query to a user pack, should allow.
 	sqr := scheduleQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", scheduleQueryRequest{
-		PackID:   globalPackID,
+		PackID:   userPackID,
 		QueryID:  cqr4.Query.ID,
 		Interval: 60,
 	}, http.StatusOK, &sqr)
@@ -3196,9 +3209,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to remove a query from the global schedule, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), deleteScheduledQueryRequest{}, http.StatusOK, &scheduleQueryResponse{})
 
-	// Attempt to read the global schedule, should allow.
-	// This is an exception to the "write only" nature of gitops (packs can be viewed by gitops).
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
+	// Attempt to read the global schedule, should disallow.
+	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
 
 	// Attempt to create a pack, should allow.
 	cpr := createPackResponse{}
@@ -3391,12 +3403,22 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	s.setTokenForTest(t, "gitops2@example.com", test.GoodPassword)
 
-	// Attempt to create queries, should allow.
+	// Attempt to create queries in global domain, should fail.
 	tcqr := createQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo600"),
 			Query: ptr.String("SELECT * from orbit_info;"),
+		},
+	}, http.StatusForbidden, &tcqr)
+
+	// Attempt to create queries in its team, should allow.
+	tcqr = createQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:   ptr.String("foo600"),
+			Query:  ptr.String("SELECT * from orbit_info;"),
+			TeamID: &t1.ID,
 		},
 	}, http.StatusOK, &tcqr)
 
@@ -3431,19 +3453,28 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to read other team's schedule, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
 
-	// Attempt to add a query to the global schedule, should fail.
+	// Attempt to add a query to a user pack, should fail.
 	tsqr := scheduleQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", scheduleQueryRequest{
-		PackID:   globalPackID,
+		PackID:   userPackID,
 		QueryID:  cqr4.Query.ID,
 		Interval: 60,
 	}, http.StatusForbidden, &tsqr)
 
 	// Attempt to add a query to the team's schedule, should allow.
+	cqrt1 := createQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:   ptr.String("foo8"),
+			Query:  ptr.String("SELECT * from managed_policies;"),
+			TeamID: &t1.ID,
+		},
+	}, http.StatusOK, &cqrt1)
 	ttsqr := teamScheduleQueryResponse{}
+	// Add a schedule with the deprecated APIs (by referencing a global query).
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), teamScheduleQueryRequest{
 		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
-			QueryID:  ptr.Uint(cqr4.Query.ID),
+			QueryID:  ptr.Uint(q1.ID),
 			Interval: ptr.Uint(60),
 		},
 	}, http.StatusOK, &ttsqr)
@@ -3619,4 +3650,168 @@ func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() 
 	require.NoError(t, res.Body.Close())
 	require.NoError(t, desktopRes.Err)
 	require.Equal(t, uint(0), *desktopRes.FailingPolicies)
+}
+
+func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
+	t := s.T()
+
+	testRunScriptWaitForResult = 2 * time.Second
+	defer func() { testRunScriptWaitForResult = 0 }()
+
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	otherHost := createOrbitEnrolledHost(t, "linux", "other", s.ds)
+
+	// attempt to run a script on a non-existing host
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID + 100, ScriptContents: "echo"}, http.StatusNotFound, &runResp)
+
+	// attempt to run an empty script
+	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: ""}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "a script to execute is required")
+
+	// attempt to run an overly long script
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "script is too long")
+
+	// make sure the host is still seen as "online"
+	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	// create a valid script execution request
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, result.HostID)
+	require.Equal(t, "echo", result.ScriptContents)
+	require.False(t, result.ExitCode.Valid)
+
+	// verify that orbit would get the notification that it has a script to run
+	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Equal(t, []string{result.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// the orbit endpoint to get a pending script to execute returns it
+	var orbitGetScriptResp orbitGetScriptResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, result.ExecutionID)),
+		http.StatusOK, &orbitGetScriptResp)
+	require.Equal(t, host.ID, orbitGetScriptResp.HostID)
+	require.Equal(t, result.ExecutionID, orbitGetScriptResp.ExecutionID)
+	require.Equal(t, "echo", orbitGetScriptResp.ScriptContents)
+
+	// trying to get that script via its execution ID but a different host returns not found
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *otherHost.OrbitNodeKey, result.ExecutionID)),
+		http.StatusNotFound, &orbitGetScriptResp)
+
+	// trying to get an unknown execution id returns not found
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, result.ExecutionID+"no-such")),
+		http.StatusNotFound, &orbitGetScriptResp)
+
+	// attempt to run a sync script on a non-existing host
+	var runSyncResp runScriptSyncResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID + 100, ScriptContents: "echo"}, http.StatusNotFound, &runSyncResp)
+
+	// attempt to sync run an empty script
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: ""}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "a script to execute is required")
+
+	// attempt to sync run an overly long script
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "script is too long")
+
+	// make sure the host is still seen as "online"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	// attempt to create a valid sync script execution request, fails because the
+	// host has a pending script execution
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "a script is currently executing on the host")
+
+	// save a result via the orbit endpoint
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// verify that orbit does not receive any pending script anymore
+	orbitResp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// create a valid sync script execution request, fails because the
+	// request will time-out waiting for a result.
+	runSyncResp = runScriptSyncResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusGatewayTimeout, &runSyncResp)
+	require.Equal(t, host.ID, runSyncResp.HostID)
+	require.NotEmpty(t, runSyncResp.ExecutionID)
+	require.Contains(t, runSyncResp.ErrorMessage, "script execution timed out waiting for a result")
+
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// create a valid sync script execution request, and simulate a result
+	// arriving before timeout.
+	testRunScriptWaitForResult = 5 * time.Second
+	ctx, cancel := context.WithTimeout(ctx, testRunScriptWaitForResult)
+	defer cancel()
+
+	go func() {
+		for range time.Tick(300 * time.Millisecond) {
+			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, 10*time.Second)
+			if err != nil {
+				t.Log(err)
+				return
+			}
+			if len(pending) > 0 {
+				// ignoring errors in this goroutine, the HTTP request below will fail if this fails
+				err = s.ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+					HostID:      host.ID,
+					ExecutionID: pending[0].ExecutionID,
+					Output:      "ok",
+					Runtime:     1,
+					ExitCode:    0,
+				})
+				if err != nil {
+					t.Log(err)
+				}
+				return
+			}
+		}
+	}()
+
+	runSyncResp = runScriptSyncResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusOK, &runSyncResp)
+	require.Equal(t, host.ID, runSyncResp.HostID)
+	require.NotEmpty(t, runSyncResp.ExecutionID)
+	require.Equal(t, "ok", runSyncResp.Output)
+	require.Equal(t, int64(0), runSyncResp.ExitCode.Int64)
+	require.Empty(t, runSyncResp.ErrorMessage)
+
+	// make the host "offline"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
+	require.NoError(t, err)
+
+	// attempt to create a sync script execution request, fails because the host
+	// is offline.
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "host is offline")
 }

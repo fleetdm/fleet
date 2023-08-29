@@ -186,7 +186,7 @@ module.exports.routes = {
   },
 
   'GET /try-fleet/sandbox': {
-    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired',
+    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist',
     locals: {
       layout: 'layouts/layout-sandbox',
     },
@@ -199,6 +199,14 @@ module.exports.routes = {
     },
   },
 
+  'GET /try-fleet/waitlist': {
+    action: 'try-fleet/view-waitlist',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet Sandbox waitlist | Fleet for osquery',
+    }
+  },
+
   'GET /admin/email-preview': {
     action: 'admin/view-email-templates',
     locals: {
@@ -209,6 +217,13 @@ module.exports.routes = {
   'GET /admin/email-preview/*': {
     action: 'admin/view-email-template-preview',
     skipAssets: true,
+    locals: {
+      layout: 'layouts/layout-customer'
+    },
+  },
+
+  'GET /admin/sandbox-waitlist': {
+    action: 'admin/view-sandbox-waitlist',
     locals: {
       layout: 'layouts/layout-customer'
     },
@@ -320,6 +335,13 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Find Fleet at DefCon and get a custom tee shirt.',
     }
   },
+  'GET /imagine/jamf-alternative': {
+    action: 'imagine/view-jamf-alternative',
+    locals: {
+      pageTitleForMeta: 'An open-source alternative to Jamf',
+      pageDescriptionForMeta: 'Simplify vulnerability management with Fleet, an open-source platform with superior visibility.',
+    }
+  },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
@@ -364,14 +386,21 @@ module.exports.routes = {
   'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
   'GET /handbook/sales': '/handbook/customers#sales',
   'GET /handbook/people': '/handbook/business-operations',
-  'GET /handbook/people/ceo-handbook': '/handbook/business-operations/ceo-handbook',
+  'GET /handbook/people/ceo-handbook': '/handbook/ceo',
+  'GET /handbook/company/ceo-handbook': '/handbook/ceo',
   'GET /handbook/growth': '/handbook/marketing#growth',
   'GET /handbook/community': '/handbook/marketing#community',
   'GET /handbook/digital-experience': '/handbook/marketing#digital-experience',
   'GET /handbook/digital-experience/article-formatting-guide': '/handbook/marketing/article-formatting-guide',
-  'GET /handbook/digital-experience/commonly-used-terms': '/handbook/marketing/commonly-used-terms',
+  'GET /handbook/marketing/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
+  'GET /handbook/digital-experience/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
   'GET /handbook/digital-experience/how-to-submit-and-publish-an-article': '/handbook/marketing/how-to-submit-and-publish-an-article',
-  'GET /handbook/digital-experience/markdown-guide': '/handbook/marketing/markdown-guide',
+  'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
+  'GET /handbook/digital-experience/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
+  'GET /handbook/marketing/content-style-guide': '/handbook/company/communications#writing',
+  'GET /handbook/marketing/editor-guide/': '/handbook/company/communications#github',
+  'GET /handbook/marketing/docs-handbook/': '/handbook/company/communications#docs',
+  'GET /handbook/marketing/website-handbook/': '/handbook/company/communications#website',
   'GET /handbook/quality': '/handbook/engineering#quality',
   'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
@@ -383,7 +412,8 @@ module.exports.routes = {
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
   'GET /platform': '/',
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
-  'GET /handbook/business-operations/ceo-handbook': '/handbook/company/ceo-handbook',
+  'GET /handbook/business-operations/ceo-handbook': '/handbook/ceo',
+  'GET /handbook/business-operations/people-operations': '/handbook/company/communications#hiring',
 
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
@@ -426,8 +456,9 @@ module.exports.routes = {
   },
   'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
   'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
-  'GET /handbook/company/ceo-handbook': '/handbook/company/ceo',
   'GET /deploy/deploying-fleet-on-render': '/docs/deploy/deploy-on-render',
+  'GET /docs/deploy/server-installation': '/docs/deploy/introduction',
+  'GET /handbook/company/ceo': '/handbook/ceo',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -460,6 +491,7 @@ module.exports.routes = {
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
   'GET /imagine/launch-party':   'https://www.eventbrite.com/e/601763519887',
+  'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
 
   // Fleet UI
   // =============================================================================================================
@@ -524,11 +556,12 @@ module.exports.routes = {
   'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
-  'POST /api/v1/admin/generate-license-key': { action: 'admin/generate-license-key' },
+  'POST /api/v1/admin/build-license-key': { action: 'admin/build-license-key' },
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
   'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
   'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
+  'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
 };
