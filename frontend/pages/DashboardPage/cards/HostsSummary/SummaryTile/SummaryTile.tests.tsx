@@ -60,7 +60,7 @@ describe("SummaryTile - component", () => {
 
     const title = screen.getByText("Windows hosts");
     const count = screen.getByText("200");
-    const icon = screen.queryByTestId("icon");
+    const icon = screen.queryByTestId("windows-circled-icon");
 
     expect(title).toBeInTheDocument();
     expect(count).toBeInTheDocument();

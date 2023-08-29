@@ -838,7 +838,9 @@ The interval at which to check for webhook conditions. This value currently conf
   webhook_settings:
     interval: "12h"
   ```
-
+  > **Note:** Fleet's webhook notifications about failing policies default to a 24h time interval based upon the initial start time of the policy. To adjust policy automation intervals, set the interval to a longer period and manually trigger automations using fleetctl. You'll see small differences over time as well based on how long it takes to run, other jobs that are queued up at the same time, etc.
+  
+  
 ##### Failing policies webhook
 
 The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.

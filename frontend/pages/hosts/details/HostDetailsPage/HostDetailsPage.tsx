@@ -124,6 +124,8 @@ const HostDetailsPage = ({
     isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
+    availableTeams,
+    setCurrentTeam,
   } = useContext(AppContext);
   const {
     setLastEditedQueryName,
@@ -345,6 +347,16 @@ const HostDetailsPage = ({
   useEffect(() => {
     setPathname(location.pathname + location.search);
   }, [location]);
+
+  // Used to set host's team in AppContext for RBAC action dropdown
+  useEffect(() => {
+    if (host?.team_id) {
+      const hostsTeam = availableTeams?.find(
+        (team) => team.id === host.team_id
+      );
+      setCurrentTeam(hostsTeam);
+    }
+  }, [host]);
 
   const titleData = normalizeEmptyValues(
     pick(host, [
