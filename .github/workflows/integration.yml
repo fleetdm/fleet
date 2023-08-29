@@ -288,7 +288,7 @@ jobs:
         path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
   orbit-windows:
-    timeout-minutes: 15
+    timeout-minutes: 5
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -309,6 +309,7 @@ jobs:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
     - name: Install Orbit
+      shell: cmd
       run: |
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi /quiet /passive /lv log.txt
         sleep 30
