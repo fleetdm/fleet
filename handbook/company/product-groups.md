@@ -212,7 +212,7 @@ Designs have usually gone through multiple rounds of revisions, but they could e
 
 **For implementation concerns...**
 
-Communicate. Leave a comment [mentioning the appropriate PM](https://fleetdm.com/handbook/company/product-groups#current-product-groups) so they can update the user story and estimation to reflect our updated understanding.
+Communicate. Leave a comment [mentioning the appropriate PM](https://fleetdm.com/handbook/company/product-groups#current-product-groups) so they can update the user story and estimation to reflect your new understanding of the issue.
 
 **For all other concerns...**
 
