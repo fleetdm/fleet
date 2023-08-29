@@ -308,7 +308,6 @@ jobs:
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
-
     - name: Install Orbit
       run: |
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi /quiet /passive /lv log.txt
@@ -317,6 +316,13 @@ jobs:
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
     # overlap and we can't control the hostnames. Instead we just return and have the run-server job
     # wait until the expected number of hosts enroll.
+
+    - name: Upload orbit install log
+      if: always()
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      with:
+        name: msiexec-install-log
+        path: log.txt
 
     - name: Upload Orbit logs
       if: always()
