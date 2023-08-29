@@ -5,12 +5,13 @@ import classnames from "classnames";
 import Button from "components/buttons/Button";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
-import CloseIcon from "../../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 
 interface IFilterPillProps {
   label: string;
   onClear: () => void;
-  icon?: string;
+  icon?: IconNames;
   tooltipDescription?: string | ReactNode;
   premiumFeatureTooltipDelayHide?: number;
   className?: string;
@@ -44,9 +45,7 @@ const FilterPill = ({
       <>
         <span>
           <div className={labelClasses}>
-            {icon && (
-              <img src={icon} alt="" data-testid={`${baseClass}__icon`} />
-            )}
+            {icon && <Icon name={icon} />}
             {isSandboxMode && sandboxPremiumOnlyIcon && (
               <PremiumFeatureIconWithTooltip
                 tooltipPositionOverrides={{ leftAdj: 120, topAdj: -3 }}
@@ -65,7 +64,7 @@ const FilterPill = ({
               variant={"small-text-icon"}
               title={label}
             >
-              <img src={CloseIcon} alt="Remove filter" />
+              <Icon name="ex" color="core-fleet-blue" size="small" />
             </Button>
           </div>
         </span>

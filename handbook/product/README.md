@@ -45,7 +45,7 @@ When starting a new draft:
 
 #### Keep projects/files clean and up-to-date
 
-- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Designed" column.
+- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Settled" column.
 - After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
 
 #### Questions and missing information
@@ -64,7 +64,7 @@ For external contributors: please consider opening an issue with reference scree
 - Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/company/ceo). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
 - When introducing a story, clarify which review "mode" the CEO should operate in:
   + **Final review** mode — you are 70% sure the design is 100% done.
-  + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback.
+  + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback. Before bringing something in feedback mode consider whether the CEO will be best for giving feedback or if it would be better suited for someone else (engineer or PM).
 - During the review meeting, take detailed notes of any feedback on the draft.
 - Address the feedback by modifying your draft.
 - Rinse and repeat at subsequent sessions until there is no more feedback.
@@ -74,8 +74,8 @@ For external contributors: please consider opening an issue with reference scree
 #### Estimating
 
 Once the draft has been approved: 
-* move it to the "Designed" column in the drafting board and assign it to the appropriate engineering manager.
-* make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
+* move it to the "Settled" column in the drafting board and assign it to the appropriate engineering manager.
+* make sure that the issue is updated with the latest information on the work to be done, such as a link to the correct Figma file and a list of most recent requirements.
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 

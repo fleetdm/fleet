@@ -17,6 +17,7 @@
   &__script-content-textarea {
     box-sizing: border-box;
     min-height: 300px;
+    font-family: "SourceCodePro";
   }
 
   &__status-message {
@@ -42,5 +43,13 @@
     p {
       margin: 0;
     }
+  }
+
+  &__output-tooltip {
+    width: 300px;
+  }
+
+  &__output-textarea {
+    font-family: "SourceCodePro";
   }
 }
