@@ -2,7 +2,9 @@ package update
 
 import (
 	"errors"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
@@ -292,6 +294,13 @@ type runScriptsConfigFetcher struct {
 	// back its results.
 	ScriptsClient scripts.Client
 
+	// the dynamic scripts enabled check is done to check via mdm configuration
+	// profile if the host is allowed to run dynamic scripts. It is only done
+	// on macos and only if ScriptsExecutionEnabled is false.
+	dynamicScriptsEnabled atomic.Bool
+	// for tests, if set will use this instead of profiles.GetFleetdConfig.
+	testGetFleetdConfig func() (*fleet.MDMAppleFleetdConfig, error)
+
 	// for tests, to be able to mock command execution. If nil, will use
 	// (scripts.Runner{...}).Run.
 	runScriptsFn runScriptsFunc
@@ -301,10 +310,38 @@ type runScriptsConfigFetcher struct {
 }
 
 func ApplyRunScriptsConfigFetcherMiddleware(fetcher OrbitConfigFetcher, scriptsEnabled bool, scriptsClient scripts.Client) OrbitConfigFetcher {
-	return &runScriptsConfigFetcher{
+	scriptsFetcher := &runScriptsConfigFetcher{
 		Fetcher:                 fetcher,
 		ScriptsExecutionEnabled: scriptsEnabled,
 		ScriptsClient:           scriptsClient,
+	}
+	scriptsFetcher.runDynamicScriptsEnabledCheck()
+	return scriptsFetcher
+}
+
+func (h *runScriptsConfigFetcher) runDynamicScriptsEnabledCheck() {
+	getFleetdConfig := h.testGetFleetdConfig
+	if getFleetdConfig == nil {
+		getFleetdConfig = profiles.GetFleetdConfig
+	}
+
+	// only run on macos and only if scripts are disabled by default for the
+	// agent (but always run if a test get fleetd config function is set).
+	if (runtime.GOOS == "darwin" && !h.ScriptsExecutionEnabled) || (h.testGetFleetdConfig != nil) {
+		go func() {
+			// check every minute
+			for range time.Tick(time.Minute) {
+				cfg, err := getFleetdConfig()
+				if err != nil && err != profiles.ErrNotImplemented {
+					// note that an unenrolled host will not return an error, it will
+					// return the zero-value struct, so this logging should not be too
+					// noisy unless something goes wrong.
+					log.Info().Err(err).Msg("get fleetd configuration failed")
+					continue
+				}
+				h.dynamicScriptsEnabled.Store(cfg.EnableScripts)
+			}
+		}()
 	}
 }
 
@@ -321,7 +358,10 @@ func (h *runScriptsConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 			fn := h.runScriptsFn
 			if fn == nil {
 				runner := scripts.Runner{
-					ScriptExecutionEnabled: h.ScriptsExecutionEnabled,
+					// scripts are always enabled if the agent is started with the
+					// --scripts-enabled flag. If it is not started with this flag, then
+					// scripts are enabled only if the mdm profile says so.
+					ScriptExecutionEnabled: h.ScriptsExecutionEnabled || h.dynamicScriptsEnabled.Load(),
 					Client:                 h.ScriptsClient,
 				}
 				fn = runner.Run
