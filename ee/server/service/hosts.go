@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -85,9 +86,8 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		}
 	}
 
-	// host must be online if a "sync" script execution is requested (i.e. if we
-	// will poll to get and return results).
-	if waitForResult > 0 && host.Status(time.Now()) != fleet.StatusOnline {
+	// host must be online
+	if host.Status(time.Now()) != fleet.StatusOnline {
 		return nil, fleet.NewInvalidArgumentError("host_id", "host is offline")
 	}
 
@@ -96,15 +96,9 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
 	}
 	if len(pending) > 0 {
-		// TODO(mna): there are a number of issues with that validation: it only
-		// really says that there was a script execution _request_ that was made < 1m
-		// ago, and that blocks executing any more scripts on that host, but the
-		// host may not even have received the previous script for execution yet,
-		// so if we accept more scripts after 1m, we may end up having multiple
-		// scripts to execute on the host at the same time (or more likely in
-		// sequence, but still). This may be good enough for now, I think the whole
-		// idea of locking if a script is pending is meant to be temporary anyway.
-		return nil, fleet.NewInvalidArgumentError("script_contents", "a script is currently executing on the host")
+		return nil, fleet.NewInvalidArgumentError(
+			"script_contents", "Error: A script is already running on this host. Please wait about 1 minute to let it finish.",
+		).WithStatus(http.StatusConflict)
 	}
 
 	// create the script execution request, the host will be notified of the
