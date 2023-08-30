@@ -31,5 +31,5 @@ type MDMMigratorProps struct {
 // MDMMigratorHandler handles remote actions/callbacks that the migrator calls.
 type MDMMigratorHandler interface {
 	NotifyRemote() error
-	ShowInstructions()
+	ShowInstructions() error
 }

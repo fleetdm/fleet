@@ -212,6 +212,12 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_USE_SYSTEM_CONFIGURATION"},
 				Destination: &opt.UseSystemConfiguration,
 			},
+			&cli.BoolFlag{
+				Name:        "enable-scripts",
+				Usage:       "Enable script execution",
+				EnvVars:     []string{"FLEETCTL_ENABLE_SCRIPTS"},
+				Destination: &opt.EnableScripts,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {

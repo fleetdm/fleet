@@ -239,6 +239,15 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	return orbitNodeKey_, nil
 }
 
+// GetNodeKey gets the orbit node key from file.
+func (oc *OrbitClient) GetNodeKey() (string, error) {
+	orbitNodeKey, err := os.ReadFile(oc.nodeKeyFilePath)
+	if err != nil {
+		return "", err
+	}
+	return string(orbitNodeKey), nil
+}
+
 func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 	orbitNodeKey, err := oc.enroll()
 	if err != nil {

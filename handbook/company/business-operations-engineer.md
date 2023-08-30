@@ -35,7 +35,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 ### You "get it":
 
 - 🦉 3+ years of professional work experience
-- **Willingness and ability to use (or quickly learn how to use) GitHub in the browser and be capable in Markdown before your first day of work, and to continue improving those skills rapidly on your own.**
+- **Willingness and ability to use (or quickly learn how to use) GitHub in the browser and be capable in Markdown before your first day of work, and to continue improving those skills rapidly on your own**
 - 🤝 Enjoy working in a team environment
 - 🎤 You feel confident talking to people
 - 🧑‍💻 Excited about learning new systems and processes on-the-job in a fast-paced environment

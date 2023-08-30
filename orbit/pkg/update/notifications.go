@@ -136,6 +136,9 @@ type windowsMDMEnrollmentConfigFetcher struct {
 	// HostUUID is the current host's UUID.
 	HostUUID string
 
+	// OrbitNodeKey is the current host's orbit node key.
+	nodeKeyGetter OrbitNodeKeyGetter
+
 	// for tests, to be able to mock API commands. If nil, will use
 	// RunWindowsMDMEnrollment and RunWindowsMDMUnenrollment respectively.
 	execEnrollFn   execWinAPIFunc
@@ -149,15 +152,21 @@ type windowsMDMEnrollmentConfigFetcher struct {
 	isWindowsServer bool
 }
 
+type OrbitNodeKeyGetter interface {
+	GetNodeKey() (string, error)
+}
+
 func ApplyWindowsMDMEnrollmentFetcherMiddleware(
 	fetcher OrbitConfigFetcher,
 	frequency time.Duration,
 	hostUUID string,
+	nodeKeyGetter OrbitNodeKeyGetter,
 ) OrbitConfigFetcher {
 	return &windowsMDMEnrollmentConfigFetcher{
-		Fetcher:   fetcher,
-		Frequency: frequency,
-		HostUUID:  hostUUID,
+		Fetcher:       fetcher,
+		Frequency:     frequency,
+		HostUUID:      hostUUID,
+		nodeKeyGetter: nodeKeyGetter,
 	}
 }
 
@@ -199,6 +208,12 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.Orbit
 			return
 		}
 
+		nodeKey, err := w.nodeKeyGetter.GetNodeKey()
+		if err != nil {
+			log.Info().Err(err).Msg("failed to get orbit node key to enroll Windows device")
+			return
+		}
+
 		fn := w.execEnrollFn
 		if fn == nil {
 			fn = RunWindowsMDMEnrollment
@@ -206,6 +221,7 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.Orbit
 		args := WindowsMDMEnrollmentArgs{
 			DiscoveryURL: notifs.WindowsMDMDiscoveryEndpoint,
 			HostUUID:     w.HostUUID,
+			OrbitNodeKey: nodeKey,
 		}
 		if err := fn(args); err != nil {
 			if errors.Is(err, errIsWindowsServer) {
@@ -241,9 +257,9 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptUnenrollment() {
 		if fn == nil {
 			fn = RunWindowsMDMUnenrollment
 		}
-		args := WindowsMDMEnrollmentArgs{
-			HostUUID: w.HostUUID,
-		}
+		// NOTE: args is actually unused by unenrollment, it is just for the
+		// function signature consistency.
+		args := WindowsMDMEnrollmentArgs{}
 		if err := fn(args); err != nil {
 			if errors.Is(err, errIsWindowsServer) {
 				w.isWindowsServer = true

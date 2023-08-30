@@ -844,6 +844,7 @@ const (
 	UnknownMDMName        = ""
 	WellKnownMDMKandji    = "Kandji"
 	WellKnownMDMJamf      = "Jamf"
+	WellKnownMDMJumpCloud = "JumpCloud"
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
@@ -853,6 +854,7 @@ const (
 var mdmNameFromServerURLChecks = map[string]string{
 	"kandji":    WellKnownMDMKandji,
 	"jamf":      WellKnownMDMJamf,
+	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
