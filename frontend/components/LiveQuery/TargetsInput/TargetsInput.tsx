@@ -52,7 +52,7 @@ const TargetsInput = ({
         <Input
           autofocus
           type="search"
-          iconName="search"
+          iconSvg="search"
           value={searchText}
           tabIndex={tabIndex}
           iconPosition="start"

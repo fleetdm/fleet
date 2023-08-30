@@ -22,6 +22,7 @@ import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Filter from "./Filter";
 import FilterAlt from "./FilterAlt";
+import FilterFunnel from "./FilterFunnel";
 import Info from "./Info";
 import Issue from "./Issue";
 import More from "./More";
@@ -101,6 +102,7 @@ export const ICON_MAP = {
   "external-link": ExternalLink,
   filter: Filter,
   "filter-alt": FilterAlt,
+  "filter-funnel": FilterFunnel,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
   lightbulb: Lightbulb,

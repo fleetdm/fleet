@@ -78,6 +78,7 @@
       margin-bottom: 8px;
       font-size: $x-small;
     }
+
     .selector-block {
       display: flex;
       align-items: center;
@@ -169,6 +170,12 @@
       margin: 0;
       margin-top: $pad-medium;
       font-size: $x-small;
+    }
+  }
+
+  .targets-input {
+    .input-icon-field__icon {
+      top: 34px; // Override styling to include label header
     }
   }
 }

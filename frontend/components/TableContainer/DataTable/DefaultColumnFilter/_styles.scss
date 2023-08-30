@@ -1,13 +1,13 @@
 .filter-cell {
   input {
-    height: 28px;
+    height: 40px;
     width: 100%;
     font-size: $x-small;
     background-color: $ui-off-white;
     border: 1px solid $ui-fleet-black-10;
     border-radius: 4px;
     padding: 4px;
-    padding-left: 20px;
+    padding-left: 32px;
     margin-top: $pad-xsmall;
   }
 
@@ -15,13 +15,14 @@
     position: relative;
     color: $core-fleet-blue;
     width: 100%;
+  }
 
-    &::before {
-      display: inline-block;
-      position: absolute;
-      content: url(../assets/images/icon-filter-grey-12x12@2x.png);
-      transform: scale(0.5);
-      top: 4px;
+  .icon {
+    left: 10px;
+    top: 17px;
+
+    path {
+      fill: $ui-fleet-black-33; // Override input icon color
     }
   }
 }
