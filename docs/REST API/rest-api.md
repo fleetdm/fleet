@@ -4598,14 +4598,15 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 `GET /api/v1/fleet/global/policies/count`
 
-#### Example
-
-`GET /api/v1/fleet/global/policies/count`
 
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | query                 | string | query | Search query keywords. Searchable fields include `name`.  |
+
+#### Example
+
+`GET /api/v1/fleet/global/policies/count`
 
 ##### Default response
 
@@ -4994,14 +4995,14 @@ Team policies work the same as policies, but at the team level.
 
 `GET /api/v1/fleet/team/{team_id}/policies/count`
 
-#### Example
-
-`GET /api/v1/fleet/team/1/policies/count`
-
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
+
+#### Example
+
+`GET /api/v1/fleet/team/1/policies/count`
 
 ##### Default response
 
