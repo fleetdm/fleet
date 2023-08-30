@@ -87,6 +87,10 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 // List
 /////////////////////////////////////////////////////////////////////////////////
 
+type listGlobalPoliciesRequest struct {
+	Opts fleet.ListOptions `url:"list_options"`
+}
+
 type listGlobalPoliciesResponse struct {
 	Policies []*fleet.Policy `json:"policies,omitempty"`
 	Err      error           `json:"error,omitempty"`
@@ -94,20 +98,21 @@ type listGlobalPoliciesResponse struct {
 
 func (r listGlobalPoliciesResponse) error() error { return r.Err }
 
-func listGlobalPoliciesEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
-	resp, err := svc.ListGlobalPolicies(ctx)
+func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*listGlobalPoliciesRequest)
+	resp, err := svc.ListGlobalPolicies(ctx, req.Opts)
 	if err != nil {
 		return listGlobalPoliciesResponse{Err: err}, nil
 	}
 	return listGlobalPoliciesResponse{Policies: resp}, nil
 }
 
-func (svc Service) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
+func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	return svc.ds.ListGlobalPolicies(ctx)
+	return svc.ds.ListGlobalPolicies(ctx, opts)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -145,6 +150,42 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 	}
 
 	return policy, nil
+}
+
+// ///////////////////////////////////////////////////////////////////////////////
+// Count
+// ///////////////////////////////////////////////////////////////////////////////
+
+type countGlobalPoliciesRequest struct {
+	fleet.ListOptions `url:"list_options"`
+}
+type countGlobalPoliciesResponse struct {
+	Count int   `json:"count"`
+	Err   error `json:"error,omitempty"`
+}
+
+func (r countGlobalPoliciesResponse) error() error { return r.Err }
+
+func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*countGlobalPoliciesRequest)
+	resp, err := svc.CountGlobalPolicies(ctx, req.MatchQuery)
+	if err != nil {
+		return countGlobalPoliciesResponse{Err: err}, nil
+	}
+	return countGlobalPoliciesResponse{Count: resp}, nil
+}
+
+func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
+		return 0, err
+	}
+
+	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -308,7 +349,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		pIDs[id] = struct{}{}
 	}
 	for _, teamID := range teamIDs {
-		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID)
+		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{})
 		if err != nil {
 			return err
 		}
