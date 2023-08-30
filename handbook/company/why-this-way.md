@@ -249,24 +249,10 @@ For example, here is the [philosophy behind Fleet's bug report template](https:/
 
 ## Why spend less?
 
-- **Default to efficiency. Reward richly.** At Fleet, we celebrate success and reward hard work, we do everyday things cheap. 
-This is very important, because it shapes the kind of people we hire, and the kind of expectations we set for the team about what _"comfortable"_ feels like.
-
-- **Offsite does not equal reward.** Day to day, Fleet shouldn't look rich. Rich doen't equal welcoming. The company is open, not closed. 
-Work here means flexible collaboration, accessible people, and clear expectations, and a rich, exciting future worth working for, not a rich, complacent baseline worth coasting for.
-
-- **Minimally viable comfort.**  We should be staying at la quintas by the train tracks every single time unless customers are coming into the room.
-  Then we should accommodate in the spirit of _hospitality_, **NOT** to show off how well Fleet is doing. 
-They'll know how well Fleet's doing by product quality, how great the support is, and how much they enjoy interacting with our people and processes. 
-They'll know how we're doing by how well we fulfill the company's purpose:
-https://fleetdm.com/handbook/company#purpose. 
-By how well we make them experience openness, flexibility, accessibility, and clarity in all of their interactions with the brand.  
-
-- **Everyday efficiency.** Think Southwest Airlines vs. Delta vibes.  
-Fleet is egalitarian; outsider-friendly. We lift people up, but remember where we came from.  
-Fleet is efficient & friendly, more than polished, or formal.  
-We never show off, we look real **AND** smart. Make it look easy and welcoming, never slick and rarely fancy.  
-Fleet ***isn't*** the place you work for the everyday amenities. Fleet ***is*** the place you work for your future. 
+- **Default to efficiency. Reward richly.** At Fleet, we celebrate success and reward hard work.  But we do everyday things cheap.  And that is very important, because it shapes the kind of people we hire, and the kind of expectations we set for the team about what "comfortable" feels like.
+- **Offsites are not rewards.** Day to day, Fleet does not look rich.  Rich !== welcoming.  The company is open, not closed.  Work here means flexible collaboration, accessible people, and clear expectations.  And a rich, exciting future worth working for.  Not a rich, complacent baseline worth coasting for.
+- **Minimally viable comfort.**  We stay at La Quintas by the train tracks every single time unless customers are coming into the room.  Even then, we accommodate in the spirit of _hospitality_, not to show off how well Fleet is doing.  They'll know how well we're doing by how great the product is, how great the support is, and [how that makes them feel](https://fleetdm.com/handbook/company#purpose).  They'll remember openness, flexibility, accessibility, and clarity in all of their interactions with the brand.  Not the view from our hotel rooms.
+- **Everyday efficiency.** Fleet isn't the place you work for the everyday amenities.  Like [Southwest Airlines](https://hbsp.harvard.edu/product/W94C04-PDF-ENG), Fleet is egalitarian and outsider-friendly.  We lift people up, but we remember where we came from.  The company is efficient and friendly, more than it is polished or formal.  Never show off.  Look smart _and_ real.  Make Fleet look easy and welcoming, never slick.  And rarely fancy.
 
 
 ## Why don't we sell like everyone else?
