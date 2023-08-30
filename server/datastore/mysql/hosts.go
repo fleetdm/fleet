@@ -4269,7 +4269,8 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
     script_contents,
     output,
     runtime,
-    exit_code
+    exit_code,
+    created_at
   FROM
     host_script_results
   WHERE

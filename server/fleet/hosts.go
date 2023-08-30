@@ -1109,10 +1109,20 @@ type HostScriptResult struct {
 	// host. It is -1 if it was received but the script did not terminate
 	// normally (same as how Go handles this: https://pkg.go.dev/os#ProcessState.ExitCode)
 	ExitCode sql.NullInt64 `json:"exit_code" db:"exit_code"`
+	// CreatedAt is the creation timestamp of the script execution request. It is
+	// not returned as part of the payloads, but is used to determine if the script
+	// is too old to still expect a response from the host.
+	CreatedAt time.Time `json:"-" db:"created_at"`
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
 	TeamID *uint `json:"team_id" db:"-"`
+
+	// Hostname can be set by the endpoint as extra information to make available
+	// when generating the UserMessage associated with a response from an
+	// execution. It is otherwise not part of the host_script_results table and
+	// not returned as part of the resulting JSON.
+	Hostname string `json:"-" db:"-"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -1127,7 +1137,13 @@ func (hsr HostScriptResult) AuthzType() string {
 func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	switch {
 	case hostTimeout:
-		return "script execution timed out waiting for a result"
+		return "Error: Fleet hasn't heard from the host in over 1 minute because it went offline. Run the script again when the host comes back online."
+	case !hostTimeout && time.Since(hsr.CreatedAt) > time.Minute:
+		return "Error: Fleet hasn't heard from the host in over 1 minute because it went offline. Run the script again when the host comes back online."
+	case hsr.ExitCode.Int64 == -2:
+		return "Timeout error: Fleet stopped the script after 30 seconds to protect host performance."
+	case !hsr.ExitCode.Valid:
+		return "Script is running. To see if the script finished, close this modal and open it again."
 	}
 	return ""
 }
