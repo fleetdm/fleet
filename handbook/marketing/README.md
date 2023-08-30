@@ -8,7 +8,7 @@ TODO: the goal of the team
 
 | Role                                            | Contributor(s)
 |:------------------------------------------------|:----------------------------------------------------------------------|
-| Acting Head of Marketing                        | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Head of Marketing                               | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Head of Demand Generation                       | [You?](https://fleetdm.com/handbook/company#open-positions) _([@TODO](https://github.com/TODO))_
 | Field Marketer                                  | [TODO](TODO) _([@TODO](https://github.com/TODO))_
 | Community Advocate and Client Platform Engineer | [TODO](TODO) _([@TODO](https://github.com/TODO))_
