@@ -1118,3 +1118,16 @@ type HostScriptResult struct {
 func (hsr HostScriptResult) AuthzType() string {
 	return "host_script_result"
 }
+
+// UserMessage returns the user-friendly message to associate with the current
+// state of the HostScriptResult. This is returned as part of the API endpoints
+// for running a script synchronously (so that fleetctl can display it) and to
+// get the script results for an execution ID (e.g. when looking at the details
+// screen of a script execution activity in the website).
+func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
+	switch {
+	case hostTimeout:
+		return "script execution timed out waiting for a result"
+	}
+	return ""
+}

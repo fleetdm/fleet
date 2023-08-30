@@ -3761,7 +3761,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusGatewayTimeout, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
-	require.Contains(t, runSyncResp.ErrorMessage, "script execution timed out waiting for a result")
+	require.True(t, runSyncResp.HostTimeout)
+	require.Contains(t, runSyncResp.Message, "script execution timed out waiting for a result")
 
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
@@ -3804,7 +3805,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "ok", runSyncResp.Output)
 	require.True(t, runSyncResp.ExitCode.Valid)
 	require.Equal(t, int64(0), runSyncResp.ExitCode.Int64)
-	require.Empty(t, runSyncResp.ErrorMessage)
+	require.False(t, runSyncResp.HostTimeout)
+	require.Empty(t, runSyncResp.Message)
 
 	// make the host "offline"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
