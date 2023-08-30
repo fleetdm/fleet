@@ -99,7 +99,6 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 		return fmt.Errorf("create run directory: %w", err)
 	}
 	// prevent destruction of dir if this env var is set
-	// TODO(mna): should we document this? Just an env var at the moment, not a cli flag.
 	if os.Getenv("FLEET_PREVENT_SCRIPT_TEMPDIR_DELETION") == "" {
 		defer func() {
 			fn := os.RemoveAll
