@@ -1,17 +1,17 @@
-# Community
-
+# Marketing
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) the Marketing department.
 
 ## What we do
-TODO
+TODO: the goal of the team
 
 ## Team
 
-| Role                                           | Contributor(s)
-|:-----------------------------------------------|:----------------------------------------------------------------------|
-| Interim Head of Demand Generation              | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
-| TODO                          | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
-| TODO                          | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
+| Role                                            | Contributor(s)
+|:------------------------------------------------|:----------------------------------------------------------------------|
+| Acting Head of Marketing                        | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Head of Demand Generation                       | [You?](https://fleetdm.com/handbook/company#open-positions) _([@TODO](https://github.com/TODO))_
+| Field Marketer                                  | [TODO](TODO) _([@TODO](https://github.com/TODO))_
+| Community Advocate and Client Platform Engineer | [TODO](TODO) _([@TODO](https://github.com/TODO))_
 
 
 ## Contact us
@@ -19,7 +19,6 @@ TODO
 
 ## Something philosophical
 TODO (maybe)
-
 
 ## Responsibilities
 
@@ -32,7 +31,7 @@ TODO
 
 
 <meta name="maintainedBy" value="mikermcneil">
-<meta name="title" value="🫧 Community">
+<meta name="title" value="🫧 Marketing">
 
 
 
