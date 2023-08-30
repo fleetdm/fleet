@@ -156,6 +156,3 @@ module "migrations" {
   security_groups          = module.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
 }
 
-output "alb" {
-  value = module.byo-vpc.byo-db.alb
-}
