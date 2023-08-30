@@ -154,9 +154,9 @@ The following command-line flags allow you to configure an osquery installer fur
 
 In addition to the command-line flags, the following environment variables can alter the behaviour of fleetd.
 
-| Environment variable       | Options                                                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| FLEET_                     | |
+| Environment variable                       | Options                                                                                                                                                                                                                          |
+| --------------------------                 | ---------------------------------------------------------------------------------------------------------------------------------------                                                                                          |
+| FLEET\_PREVENT\_SCRIPT\_TEMPDIR\_DELETION  | If set to a non-empty value, prevents deletion of the temporary directory where the scripts being executed are stored. Those are located in the temporary directory of the system, under a sub-directory starting with `fleet-`. |
 
 #### Fleet Desktop
 
