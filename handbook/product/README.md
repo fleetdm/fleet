@@ -45,7 +45,7 @@ When starting a new draft:
 
 #### Keep projects/files clean and up-to-date
 
-- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Designed" column.
+- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Settled" column.
 - After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
 
 #### Questions and missing information
@@ -74,8 +74,8 @@ For external contributors: please consider opening an issue with reference scree
 #### Estimating
 
 Once the draft has been approved: 
-* move it to the "Designed" column in the drafting board and assign it to the appropriate engineering manager.
-* make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
+* move it to the "Settled" column in the drafting board and assign it to the appropriate engineering manager.
+* make sure that the issue is updated with the latest information on the work to be done, such as a link to the correct Figma file and a list of most recent requirements.
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
@@ -127,7 +127,7 @@ Once outcomes have been approved by the CEO, Product Operations will complete th
 Product Managers [write user stories](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
 
 ## Drafting user stories
-Product Designers [draft user stories](https://fleetdm.com/handbook/company/development-groups#drafting).
+Product Designers [draft user stories](https://fleetdm.com/handbook/company/development-groups#drafting) that have been prioritized by PMs. If the estimated user stories for a product group exceed [that group's capacity](https://fleetdm.com/handbook/company/product-groups), all new design work for that group is paused, and the designer will contribute in other ways (documentation & handbook work, Figma maintenance, QA, etc.) until the PM deprioritizes estimated stories to make room, or until the next sprint begins. (If the designer has existing work-in-progress, they will continue to review and iterate on those designs and see the stories through to estimation.)
 
 ## Estimating user stories
 Engineering Managers estimate user stories.  They are responsible for delivering planned work in the current sprint (0-3 weeks) while quickly getting user stories estimated for the next sprint (3-6 weeks).  Only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's Engineering Manager and occurs on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).

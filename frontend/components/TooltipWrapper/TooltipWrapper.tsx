@@ -9,6 +9,7 @@ interface ITooltipWrapperProps {
   position?: "top" | "bottom";
   isDelayed?: boolean;
   className?: string;
+  tooltipClass?: string;
 }
 
 const baseClass = "component__tooltip-wrapper";
@@ -19,11 +20,12 @@ const TooltipWrapper = ({
   position = "bottom",
   isDelayed,
   className,
+  tooltipClass,
 }: ITooltipWrapperProps): JSX.Element => {
   const classname = classnames(baseClass, className);
-  const tipClass = isDelayed
-    ? `${baseClass}__tip-text delayed-tip`
-    : `${baseClass}__tip-text`;
+  const tipClass = classnames(`${baseClass}__tip-text`, tooltipClass, {
+    "delayed-tip": isDelayed,
+  });
 
   const sanitizedTipContent = DOMPurify.sanitize(tipContent);
 

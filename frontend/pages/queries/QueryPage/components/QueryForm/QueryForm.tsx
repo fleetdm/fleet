@@ -34,7 +34,6 @@ import queryAPI from "services/entities/queries";
 
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
-import { parseSqlTables } from "utilities/sql_tools";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
@@ -49,7 +48,6 @@ import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveQueryModal from "../SaveQueryModal";
-import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form";
 
@@ -434,7 +432,7 @@ const QueryForm = ({
     return (
       <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
         <>
-          <img alt="" src={InfoIcon} />
+          <Icon name="info" size="small" />
           Show schema
         </>
       </Button>

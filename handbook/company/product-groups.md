@@ -14,13 +14,14 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 ## Current product groups
 
-| Product group             | Goal _(value for customers and/or community)_                       |
-|:--------------------------|:--------------------------------------------------------------------|
-| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.
-| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.
-| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure.
-| [Website](#website-group)                               | Make the website wonderful.
+| Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
+|:--------------------------|:--------------------------------------------------------------------|:-----------------|
+| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category. | 75       |
+| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 60       |
+| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | 16 |
+| [Website](#website-group)                               | Make the website wonderful.                   | 48       |
 
+\* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
 ### MDM group
 
@@ -69,7 +70,7 @@ The goal of the infrastructure group is to provide and support reliable and secu
 
 ### Website group
 
-The goal of the website group is to make visitors on Fleet's website get what they want and what they need.  This includes making the website more navigable, more beautiful, simpler, and easier to understand.
+The goal of the website group is to manage and maintain Fleet's website and documentation by prioritizing and actioning meaningful changes to enhance brand awareness and provide visitors with the information they need when they need it. This includes making the content and user experience more beautiful, simple, and easier to understand.
 
 > _**Note:** If a user story involves **both** changes to the core product **and** to fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by the [CX group](https://fleetdm.com/handbook/company/development-groups#customer-experience-group)._
 
@@ -117,7 +118,7 @@ A user story is considered ready for implementation once:
 - [ ] User story [issue created](https://github.com/fleetdm/fleet/issues/new/choose)
 - [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-cx`, `#g-mdm`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
-- [ ] [Designs revised and approved](#design-reviews)
+- [ ] [Designs revised and settled](#design-reviews)
 - [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
 - [ ] [Scheduled](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) for development
 

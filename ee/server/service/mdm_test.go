@@ -134,6 +134,8 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked = false
 		ds.AppConfigFuncInvoked = false
 		ds.NewJobFuncInvoked = false
+		ds.GetMDMAppleSetupAssistantFuncInvoked = false
+		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 	}
 	setupDS := func(t *testing.T) {
 		resetInvoked()
@@ -181,6 +183,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return nil, errors.New("not implemented")
 		}
+		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+			return nil, errors.New("not implemented")
+		}
 	}
 
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: test.UserAdmin})
@@ -206,6 +211,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 	t.Run("create preassign team", func(t *testing.T) {
 		// setup ds with assertions for this test
 		setupDS(t)
+		lastTeamID := uint(0)
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			for _, tm := range teamStore {
 				if tm.Name == team.Name {
@@ -217,6 +223,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.False(t, ok) // sanity check
 			team.ID = id
 			teamStore[id] = team
+			lastTeamID = id
 			return team, nil
 		}
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -230,21 +237,22 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			// // instead by CopyDefaultMDMAppleBootstrapPackage below
 			// require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 			require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication) // set to default
+			require.Equal(t, appConfig.MDM.MacOSSetup.MacOSSetupAssistant, team.Config.MDM.MacOSSetup.MacOSSetupAssistant)                 // set to default
 			teamStore[tm.ID] = team
 			return team, nil
 		}
 		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
-			require.Equal(t, uint(3), *profile.TeamID)
+			require.Equal(t, lastTeamID, *profile.TeamID)
 			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profile.Identifier)
 			return &profile, nil
 		}
 		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
-			require.Equal(t, uint(3), *teamID)
+			require.Equal(t, lastTeamID, *teamID)
 			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profileIdentifier)
 			return nil
 		}
 		ds.CopyDefaultMDMAppleBootstrapPackageFunc = func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
-			require.Equal(t, uint(3), toTeamID)
+			require.Equal(t, lastTeamID, toTeamID)
 			require.NotNil(t, ac)
 			require.Equal(t, "https://example.com/bootstrap.pkg", ac.MDM.MacOSSetup.BootstrapPackage.Value)
 			teamStore[toTeamID].Config.MDM.MacOSSetup.BootstrapPackage = optjson.SetString(ac.MDM.MacOSSetup.BootstrapPackage.Value)
@@ -253,7 +261,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			wantArgs, err := json.Marshal(map[string]interface{}{
 				"task":    worker.MacosSetupAssistantUpdateProfile,
-				"team_id": 3,
+				"team_id": lastTeamID,
 			})
 			require.NoError(t, err)
 			wantJob := &fleet.Job{
@@ -265,6 +273,33 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.Equal(t, string(*wantJob.Args), string(*job.Args))
 			require.Equal(t, wantJob.State, job.State)
 			return job, nil
+		}
+		globalSetupAsst := &fleet.MDMAppleSetupAssistant{
+			ID:          15,
+			TeamID:      nil,
+			Name:        "test asst",
+			Profile:     json.RawMessage(`{"foo": "bar"}`),
+			ProfileUUID: "abc-def",
+		}
+		getSetupAsstFuncCalls := 0
+		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+			// first call is to grab the global team setup assistant, the
+			// rest are for the team being created
+			if getSetupAsstFuncCalls == 0 {
+				require.Nil(t, teamID)
+			} else {
+				require.NotNil(t, teamID)
+				require.EqualValues(t, lastTeamID, *teamID)
+			}
+			getSetupAsstFuncCalls++
+			return globalSetupAsst, nil
+		}
+		ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+			require.Equal(t, globalSetupAsst.Name, asst.Name)
+			require.JSONEq(t, string(globalSetupAsst.Profile), string(asst.Profile))
+			require.NotNil(t, asst.TeamID)
+			require.EqualValues(t, lastTeamID, *asst.TeamID)
+			return asst, nil
 		}
 
 		// new team is created with bootstrap package and end user auth based on app config
@@ -278,8 +313,11 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
 		require.True(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
+		require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
+		require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		require.NotEmpty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 		require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+		require.Equal(t, appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value, team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
 		require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 		require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 		require.True(t, ds.NewJobFuncInvoked)
@@ -297,6 +335,33 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.AppConfigFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
+		require.False(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
+		require.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+		require.NotEmpty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+		require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+		require.Equal(t, appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value, team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
+		require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+		require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+		resetInvoked()
+
+		// when a custom setup assistant is not set for "no team", we don't create a custom setup assistant
+		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+			require.Nil(t, teamID)
+			return nil, ctxerr.Wrap(ctx, &notFoundError{})
+		}
+		preassignGrousWithFoo := append(preassignGroups, "foo")
+		team, err = svc.getOrCreatePreassignTeam(ctx, preassignGrousWithFoo)
+		require.NoError(t, err)
+		require.Equal(t, uint(4), team.ID)
+		require.Equal(t, teamNameFromPreassignGroups(preassignGrousWithFoo), team.Name)
+		require.True(t, ds.TeamByNameFuncInvoked)
+		require.True(t, ds.NewTeamFuncInvoked)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.True(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
+		require.True(t, ds.AppConfigFuncInvoked)
+		require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
+		require.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		require.NotEmpty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 		require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 		require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
