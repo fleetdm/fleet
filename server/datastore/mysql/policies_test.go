@@ -2284,7 +2284,14 @@ func testUpdatePolicyFailureCountsForHosts(t *testing.T, ds *Datastore) {
 func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	// create 30 policies
 	for i := 0; i < 30; i++ {
-		_, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
+		_, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: fmt.Sprintf("global policy %d", i)})
+		require.NoError(t, err)
+	}
+
+	// create 30 team policies
+	tm, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	for i := 0; i < 30; i++ {
+		_, err := ds.NewTeamPolicy(context.Background(), tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("team policy %d", i)})
 		require.NoError(t, err)
 	}
 
@@ -2294,7 +2301,7 @@ func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 		PerPage: 20,
 	})
 
-	assert.Equal(t, "policy0", policies[0].Name)
+	assert.Equal(t, "global policy 0", policies[0].Name)
 	assert.Len(t, policies, 20)
 	require.NoError(t, err)
 
@@ -2304,7 +2311,7 @@ func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 		PerPage: 20,
 	})
 
-	assert.Equal(t, "policy20", policies[0].Name)
+	assert.Equal(t, "global policy 20", policies[0].Name)
 	assert.Len(t, policies, 10)
 	require.NoError(t, err)
 
@@ -2318,9 +2325,15 @@ func testListTeamPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	tm, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	// create 30 policies
+	// create 30 team policies
 	for i := 0; i < 30; i++ {
-		_, err := ds.NewTeamPolicy(context.Background(), tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
+		_, err := ds.NewTeamPolicy(context.Background(), tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("team policy %d", i)})
+		require.NoError(t, err)
+	}
+
+	// create 30 global policies
+	for i := 0; i < 30; i++ {
+		_, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: fmt.Sprintf("global policy %d", i)})
 		require.NoError(t, err)
 	}
 
@@ -2330,7 +2343,7 @@ func testListTeamPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 		PerPage: 20,
 	}, fleet.ListOptions{})
 
-	assert.Equal(t, "policy0", policies[0].Name)
+	assert.Equal(t, "team policy 0", policies[0].Name)
 	assert.Len(t, policies, 20)
 	require.NoError(t, err)
 
@@ -2340,7 +2353,7 @@ func testListTeamPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 		PerPage: 20,
 	}, fleet.ListOptions{})
 
-	assert.Equal(t, "policy20", policies[0].Name)
+	assert.Equal(t, "team policy 20", policies[0].Name)
 	assert.Len(t, policies, 10)
 	require.NoError(t, err)
 
@@ -2353,32 +2366,43 @@ func testListTeamPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 func testCountPolicies(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// create global policies
-	for i := 0; i < 10; i++ {
-		_, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
-		require.NoError(t, err)
-	}
-
-	globalCount, err := ds.CountPolicies(ctx, nil, fleet.ListOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, 10, globalCount)
-
-	// create team
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
+
+	// no policies
+	globalCount, err := ds.CountPolicies(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 0, globalCount)
 
 	teamCount, err := ds.CountPolicies(ctx, &tm.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
-	// create team policies
-	for i := 10; i < 15; i++ {
-		_, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
+	// 10 global policies
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: fmt.Sprintf("global policy %d", i)})
+		require.NoError(t, err)
+	}
+
+	globalCount, err = ds.CountPolicies(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 10, globalCount)
+
+	teamCount, err = ds.CountPolicies(ctx, &tm.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 0, teamCount)
+
+	// add 5 team policies
+	for i := 0; i < 5; i++ {
+		_, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("team policy %d", i)})
 		require.NoError(t, err)
 	}
 
 	teamCount, err = ds.CountPolicies(ctx, &tm.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, 5, teamCount)
+
+	globalCount, err = ds.CountPolicies(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
 }

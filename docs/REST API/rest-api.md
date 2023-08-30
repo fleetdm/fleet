@@ -4991,7 +4991,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`GET /api/v1/fleet/team/{team_id}/policies/count`
+`GET /api/v1/fleet/team/1/policies/count`
 
 ##### Default response
 
