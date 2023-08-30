@@ -13,6 +13,7 @@ If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
 1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes, > ~30m). You should always use a branch other than `main` (Branch `main` changes often and it might trigger rebuilts of the images.) Note that for a few minutes after `terraform apply`, the Fleet instances may be failing to start with a permission issue (to read a database secret), but this should resolve automatically after a bit and ECS will begin to start the Fleet instances, but they may still fail due to missing database migrations (this will show up in the instances' logs). At this point you can move on to the next step.
 1. Run database migrations (see [Running migrations](#running-migrations)). You will get 500 errors and your containers will not run if you do not do this. After running this step, you might need to wait a few minutes until the environment is up and running.
 1. Perform your tests (see [Running a loadtest](#running-a-loadtest)). Your deployment will be available at `https://WORKSPACE-NAME.loadtest.fleetdm.com`. Reach out to the infrastructure team to get the credentials to log in.
+1. For instructions on how to deploy new code changes to Fleet to the environment, see [Deploying code changes to Fleet](#deploying-code-changes-to-fleet). This is useful to test performance improvements without having to set up a new loadtest environment.
 1. When you're done, clean up the environment with `terraform destroy` (it will prompt for the branch name). If A destroy fails, see [ECR Cleanup Troubleshooting](#ecr-cleanup-troubleshooting) for the most common reason.
 
 ### Running migrations
@@ -71,6 +72,24 @@ There are a few main places of interest to monitor the load and resource usage:
 * The APM dashboard can also be accessed via private IP over the VPN.  Use the following one-liner to get the URL: `aws ec2 describe-instances --region=us-east-2 | jq -r '.Reservations[].Instances[] | select(.State.Name == "running") | select(.Tags[] | select(.Key == "ansible_playbook_file") | .Value == "elasticsearch.yml") | "http://" + .PrivateIpAddress + ":5601/app/apm"'`.  This connects directly to the EC2 instance and doesn't use the load balancer.
 * To monitor mysql database load, go to AWS RDS, select "Performance Insights" and the database instance to monitor (you may want to turn off auto-refresh).
 * To monitor Redis load, go to Amazon ElastiCache, select the redis cluster to monitor, and go to "Metrics".
+
+### Deploying code changes to Fleet
+
+You can deploy new code changes to an environment the following way:
+
+1. Push the code changes to the `BRANCH_NAME` and wait for the [Docker publish](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) action to complete.
+2. Find the docker image ID corresponding to your branch:
+```sh
+docker images | grep 'BRANCH_NAME' | awk '{print $3}'
+```
+3. Remove such image IDs with `docker rmi $IMAGE_ID`.
+4. Run the following to trigger a re-deploy of the Fleet instances with the new Fleet docker image:
+```sh
+# - You must set `loadtest_containers` to the current count (otherwise it will bring the currently running simulated hosts down)
+# - If we don't specify the `-target`s then it will bring the loadtest containers down and re-deploy them with the new image, we don't want that because
+# you will end up with twice the hosts enrolled (half online, half offline).
+terraform apply -var tag=BRANCH_NAME -var loadtest_containers=XXX -target=aws_ecs_service.fleet -target=aws_ecs_task_definition.backend -target=aws_ecs_task_definition.migration -target=aws_s3_bucket_acl.osquery-results -target=aws_s3_bucket_acl.osquery-status -target=docker_registry_image.fleet
+```
 
 ### Troubleshooting
 

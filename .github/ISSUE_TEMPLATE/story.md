@@ -33,10 +33,6 @@ assignees: ''
 - [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This willl be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 - [ ] Documentation changes complete
 
-### Product quality
-- [ ] QA complete
-- [ ] ... <!-- If there are any other notable requirements to draw extra attention to, add them as checkboxes here.  Otherwise, remove this checkbox. -->
-
 > ℹ️  Please read this issue carefully and understand it.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
 
 ## Context

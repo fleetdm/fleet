@@ -6,4 +6,5 @@ package update
 type WindowsMDMEnrollmentArgs struct {
 	DiscoveryURL string
 	HostUUID     string
+	OrbitNodeKey string
 }
