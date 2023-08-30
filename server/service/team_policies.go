@@ -152,8 +152,8 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 /////////////////////////////////////////////////////////////////////////////////
 
 type countTeamPoliciesRequest struct {
-	fleet.ListOptions
-	TeamID uint `url:"team_id"`
+	fleet.ListOptions `url:"list_options"`
+	TeamID            uint `url:"team_id"`
 }
 
 type countTeamPoliciesResponse struct {

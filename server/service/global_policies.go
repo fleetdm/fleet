@@ -157,7 +157,7 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 // ///////////////////////////////////////////////////////////////////////////////
 
 type countGlobalPoliciesRequest struct {
-	fleet.ListOptions
+	fleet.ListOptions `url:"list_options"`
 }
 type countGlobalPoliciesResponse struct {
 	Count int   `json:"count"`
