@@ -87,7 +87,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 // List
 /////////////////////////////////////////////////////////////////////////////////
 
-type ListGlobalPoliciesRequest struct {
+type listGlobalPoliciesRequest struct {
 	Opts fleet.ListOptions `url:"list_options"`
 }
 
@@ -99,7 +99,7 @@ type listGlobalPoliciesResponse struct {
 func (r listGlobalPoliciesResponse) error() error { return r.Err }
 
 func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*ListGlobalPoliciesRequest)
+	req := request.(*listGlobalPoliciesRequest)
 	resp, err := svc.ListGlobalPolicies(ctx, req.Opts)
 	if err != nil {
 		return listGlobalPoliciesResponse{Err: err}, nil
