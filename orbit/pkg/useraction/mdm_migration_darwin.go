@@ -53,7 +53,7 @@ var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Pa
 
 Select **Start** and look for this notification in your notification center:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-notification-344x68.png)\n\n" +
-	"After you start, this window will popup every 5 minutes until you finish.",
+	"After you start, this window will popup every 15 minutes until you finish.",
 ))
 
 var errorTemplate = template.Must(template.New("").Parse(`
