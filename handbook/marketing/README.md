@@ -27,7 +27,7 @@ TODO
 
 ## Rituals
 
-<rituals :rituals="rituals['handbook/community/rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
 
 <meta name="maintainedBy" value="mikermcneil">
