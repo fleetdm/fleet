@@ -4990,7 +4990,7 @@ Team policies work the same as policies, but at the team level.
 }
 ```
 
-### Count Team Policies
+### Count team policies
 
 `GET /api/v1/fleet/team/{team_id}/policies/count`
 
