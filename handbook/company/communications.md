@@ -638,6 +638,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - **Core team members:** Team members who've signed an NDA employment agreement, are “Fleeties.”
 - **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).  
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.
+- **Fleetd:** Fleetd should always be written in lowercase unless used to start a sentence or heading.
 
 
 #### Device vs endpoint
