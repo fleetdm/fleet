@@ -163,7 +163,7 @@ func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
-	const pendingScriptMaxAge = 24 * time.Hour
+	const pendingScriptMaxAge = time.Minute
 
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
