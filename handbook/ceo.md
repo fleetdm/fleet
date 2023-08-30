@@ -15,15 +15,12 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 ## Contact us
 
-- If you mention the CEO from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
-- If urgent or personal, send a Slack direct message (DM) to `@mikermcneil` right away.
-- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the Apprentice in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
-- Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
+- If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
+  - If urgent or personal, send a Slack direct message (DM) to `@mikermcneil` right away.
+  - If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the Apprentice in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
+  - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
+- If the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).  (Or if it's too late, let the Apprentice know what you've done so far in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV).)
 
-<!-- ## Contact the CEO -->
-<!-- - Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO? -->
-<!-- - To make a request of the CEO, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&title=Request%3A+_______________________) and someone will reply within 1 business day. -->
-<!-- - Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.) -->
 
 
 ### Schedule time with the CEO
@@ -33,7 +30,6 @@ All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meet
 To grab time with the CEO @mention the Apprentice in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
 - Proposed date and time
 - Reason for meeting _(e.g. include customer names or a related GitHub issue)_
-
 
 Meetings and blocked time can sometimes be moved to make room. External meetings, travel, and personal commitments can rarely be moved.
 
