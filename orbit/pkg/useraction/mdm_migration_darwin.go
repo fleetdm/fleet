@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sync"
 	"text/template"
 	"time"
 
@@ -154,12 +153,15 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 	return exitCodeCh, errCh
 }
 
+// NewMDMMigrator creates a new  swiftDialogMDMMigrator with the right internal state.
 func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
 	return &swiftDialogMDMMigrator{
 		handler:                   handler,
 		baseDialog:                newBaseDialog(path),
 		frequency:                 frequency,
 		unenrollmentRetryInterval: defaultUnenrollmentRetryInterval,
+		// set a buffer size of 1 to allow one Show without blocking
+		showCh: make(chan struct{}, 1),
 	}
 }
 
@@ -173,11 +175,9 @@ type swiftDialogMDMMigrator struct {
 
 	// ensures only one dialog is open at a time, protects access to
 	// lastShown
-	showMu    sync.Mutex
-	lastShown time.Time
+	showCh chan struct{}
 
-	// ensures only one dialog is open at a given interval
-	intervalMu sync.Mutex
+	lastShown time.Time
 
 	// testEnrollmentCheckFn is used in tests to mock the call to verify
 	// the enrollment status of the host
@@ -373,31 +373,36 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 	return nil
 }
 
+// Show displays the dialog every time is called, as long as there isn't a
+// dialog already open.
 func (m *swiftDialogMDMMigrator) Show() error {
-	if m.showMu.TryLock() {
-		defer m.showMu.Unlock()
-
-		if err := m.renderMigration(); err != nil {
-			return fmt.Errorf("show: %w", err)
-		}
-		m.lastShown = time.Now()
+	select {
+	case m.showCh <- struct{}{}:
+		defer func() { <-m.showCh }()
+	default:
+		log.Info().Msg("there's a migration dialog already open, refusing to launch")
+		return nil
 	}
 
+	if err := m.renderMigration(); err != nil {
+		return fmt.Errorf("show: %w", err)
+	}
+
+	m.lastShown = time.Now()
 	return nil
 }
 
+// ShowInterval acts as a rate limiter for Show, it only calls the function IIF
+// m.frequency has passed since the last time the dialog was successfully
+// shown.
 func (m *swiftDialogMDMMigrator) ShowInterval() error {
-	if m.intervalMu.TryLock() {
-		defer m.intervalMu.Unlock()
-		if time.Since(m.lastShown) > m.frequency {
-			if err := m.Show(); err != nil {
-				return fmt.Errorf("show interval: %w", err)
-			}
-			log.Info().Msg("dialog launched successfully")
-			m.lastShown = time.Now()
-		} else {
-			log.Info().Msg("dialog was automatically launched too recently, skipping")
-		}
+	if time.Since(m.lastShown) <= m.frequency {
+		log.Info().Msg("dialog was automatically launched too recently, skipping")
+		return nil
+	}
+
+	if err := m.Show(); err != nil {
+		return fmt.Errorf("show interval: %w", err)
 	}
 
 	return nil
