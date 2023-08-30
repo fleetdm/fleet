@@ -152,11 +152,17 @@ The following command-line flags allow you to configure an osquery installer fur
 | --verbose                  | Log detailed information when building the package (default: false)                                                                     |
 | --help, -h                 | show help (default: `false`)                                                                                                            |
 
+In addition to the command-line flags, the following environment variables can alter the behaviour of fleetd.
+
+| Environment variable       | Options                                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| FLEET_                     | |
+
 #### Fleet Desktop
 
 [Fleet Desktop](./Fleet-desktop.md) is a menu bar icon available on macOS, Windows, and Linux that gives your end users visibility into the security posture of their machine.
 
-You can include Fleet Desktop in the orbit package by including the `--fleet-desktop`option. 
+You can include Fleet Desktop in the orbit package by including the `--fleet-desktop`option.
 
 #### Update channels
 
@@ -328,7 +334,7 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
 ```
 
 Or, using a `flagfile.txt` for osqueryd:
-```sh 
+```sh
 go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     --dev-mode \
     --disable-updates \
