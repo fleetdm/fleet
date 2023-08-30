@@ -2290,6 +2290,7 @@ func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 
 	// create 30 team policies
 	tm, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
 	for i := 0; i < 30; i++ {
 		_, err := ds.NewTeamPolicy(context.Background(), tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("team policy %d", i)})
 		require.NoError(t, err)
