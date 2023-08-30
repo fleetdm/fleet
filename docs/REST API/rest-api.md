@@ -4594,7 +4594,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ---
 
-### Count Policies
+### Count policies
 
 `GET /api/v1/fleet/global/policies/count`
 
