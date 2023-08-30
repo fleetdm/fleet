@@ -1141,7 +1141,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	case !hostTimeout && time.Since(hsr.CreatedAt) > time.Minute:
 		return "Error: Fleet hasn't heard from the host in over 1 minute because it went offline. Run the script again when the host comes back online."
 	case hsr.ExitCode.Int64 == -2:
-		return "Timeout error: Fleet stopped the script after 30 seconds to protect host performance."
+		return "Error: Timeout. Fleet stopped the script after 30 seconds to protect host performance."
 	case !hsr.ExitCode.Valid:
 		return "Script is running. To see if the script finished, close this modal and open it again."
 	}

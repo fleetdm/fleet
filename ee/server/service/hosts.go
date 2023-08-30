@@ -62,12 +62,12 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	// look for the script length in bytes first, as rune counting a huge string
 	// can be expensive.
 	if len(request.ScriptContents) > utf8.UTFMax*maxScriptRuneLen {
-		return nil, fleet.NewInvalidArgumentError("script_contents", "Error: Script is too large. It’s limited to 10,000 characters (approximately 125 lines).")
+		return nil, fleet.NewInvalidArgumentError("script_contents", "Error: Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
 	}
 	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
 	// we can safely count the runes for a precise check.
 	if utf8.RuneCountInString(request.ScriptContents) > maxScriptRuneLen {
-		return nil, fleet.NewInvalidArgumentError("script_contents", "Error: Script is too large. It’s limited to 10,000 characters (approximately 125 lines).")
+		return nil, fleet.NewInvalidArgumentError("script_contents", "Error: Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
 	}
 
 	// script must be a "text file", but that's not so simple to validate, so we
@@ -87,7 +87,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	// host must be online
 	if host.Status(time.Now()) != fleet.StatusOnline {
-		return nil, fleet.NewInvalidArgumentError("host_id", "Error: Script can’t run on offline host.")
+		return nil, fleet.NewInvalidArgumentError("host_id", "Error: Script can't run on offline host.")
 	}
 
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, maxPendingScriptAge)

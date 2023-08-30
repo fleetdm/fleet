@@ -3816,11 +3816,11 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// is offline.
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script can’t run on offline host.")
+	require.Contains(t, errMsg, "Script can't run on offline host.")
 
 	// attempt to create an async script execution request, fails because the host
 	// is offline.
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script can’t run on offline host.")
+	require.Contains(t, errMsg, "Script can't run on offline host.")
 }
