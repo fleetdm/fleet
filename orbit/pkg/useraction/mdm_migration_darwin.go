@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sync"
 	"text/template"
 	"time"
 
@@ -175,9 +176,9 @@ type swiftDialogMDMMigrator struct {
 
 	// ensures only one dialog is open at a time, protects access to
 	// lastShown
-	showCh chan struct{}
-
-	lastShown time.Time
+	lastShown   time.Time
+	lastShownMu sync.RWMutex
+	showCh      chan struct{}
 
 	// testEnrollmentCheckFn is used in tests to mock the call to verify
 	// the enrollment status of the host
@@ -388,7 +389,10 @@ func (m *swiftDialogMDMMigrator) Show() error {
 		return fmt.Errorf("show: %w", err)
 	}
 
+	m.lastShownMu.Lock()
 	m.lastShown = time.Now()
+	m.lastShownMu.Unlock()
+
 	return nil
 }
 
@@ -396,7 +400,10 @@ func (m *swiftDialogMDMMigrator) Show() error {
 // m.frequency has passed since the last time the dialog was successfully
 // shown.
 func (m *swiftDialogMDMMigrator) ShowInterval() error {
-	if time.Since(m.lastShown) <= m.frequency {
+	m.lastShownMu.RLock()
+	lastShown := m.lastShown
+	m.lastShownMu.RUnlock()
+	if time.Since(lastShown) <= m.frequency {
 		log.Info().Msg("dialog was automatically launched too recently, skipping")
 		return nil
 	}
