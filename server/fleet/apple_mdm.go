@@ -438,8 +438,9 @@ type MDMAppleBootstrapPackageSummary struct {
 // MDMAppleFleetdConfig contains the fields used to configure
 // `fleetd` in macOS devices via a configuration profile.
 type MDMAppleFleetdConfig struct {
-	FleetURL     string
-	EnrollSecret string
+	FleetURL      string
+	EnrollSecret  string
+	EnableScripts bool
 }
 
 // MDMApplePreassignProfilePayload is the payload accepted by the endpoint that

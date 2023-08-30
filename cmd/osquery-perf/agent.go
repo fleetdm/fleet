@@ -3,12 +3,15 @@ package main
 import (
 	"bytes"
 	"compress/bzip2"
+	cryptorand "crypto/rand"
 	"crypto/tls"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -16,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"text/template"
 	"time"
 
@@ -283,6 +287,11 @@ type agent struct {
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
 	isEnrolledToMDMMu sync.Mutex
 
+	disableScriptExec bool
+	// atomic boolean is set to true when executing scripts, so that only a
+	// single goroutine at a time can execute scripts.
+	scriptExecRunning atomic.Bool
+
 	//
 	// The following are exported to be used by the templates.
 	//
@@ -327,6 +336,7 @@ func newAgent(
 	mdmSCEPChallenge string,
 	liveQueryFailProb float64,
 	liveQueryNoResultsProb float64,
+	disableScriptExec bool,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -377,7 +387,8 @@ func newAgent(
 		UUID:               uuid,
 		SerialNumber:       serialNumber,
 
-		mdmClient: mdmClient,
+		mdmClient:         mdmClient,
+		disableScriptExec: disableScriptExec,
 	}
 }
 
@@ -519,7 +530,7 @@ func (a *agent) runOrbitLoop() {
 	// fleet desktop performs a burst of check token requests when it's initialized
 	checkToken()
 
-	// orbit makes a call to check the config and update the CLI flags every 5
+	// orbit makes a call to check the config and update the CLI flags every 30
 	// seconds
 	orbitConfigTicker := time.Tick(30 * time.Second)
 	// orbit makes a call every 5 minutes to check the validity of the device
@@ -536,9 +547,15 @@ func (a *agent) runOrbitLoop() {
 	for {
 		select {
 		case <-orbitConfigTicker:
-			if _, err := orbitClient.GetConfig(); err != nil {
+			cfg, err := orbitClient.GetConfig()
+			if err != nil {
 				a.stats.IncrementOrbitErrors()
 				log.Println("orbitClient.GetConfig: ", err)
+			}
+			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
+				// there are pending scripts to execute on this host, start a goroutine
+				// that will simulate executing them.
+				go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
 			}
 		case <-orbitTokenRemoteCheckTicker:
 			if tokenRotationEnabled {
@@ -592,6 +609,58 @@ func (a *agent) runMDMLoop() {
 				break INNER_FOR_LOOP
 			}
 		}
+	}
+}
+
+func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) {
+	if a.scriptExecRunning.Swap(true) {
+		// if Swap returns true, the goroutine was already running, exit
+		return
+	}
+	defer a.scriptExecRunning.Store(false)
+
+	log.Printf("running scripts: %v\n", execIDs)
+	for _, execID := range execIDs {
+		if a.disableScriptExec {
+			// send a no-op result without executing if script exec is disabled
+			if err := orbitClient.SaveHostScriptResult(&fleet.HostScriptResultPayload{
+				ExecutionID: execID,
+				Output:      "script execution disabled",
+				Runtime:     0,
+				ExitCode:    -2,
+			}); err != nil {
+				log.Println("save disabled host script result:", err)
+				return
+			}
+			log.Printf("did save disabled host script result: id=%s\n", execID)
+			continue
+		}
+
+		script, err := orbitClient.GetHostScript(execID)
+		if err != nil {
+			log.Println("get host script:", err)
+			return
+		}
+
+		// simulate script execution
+		outputLen := rand.Intn(11000) // base64 encoding will make the actual output a bit bigger
+		buf := make([]byte, outputLen)
+		n, _ := io.ReadFull(cryptorand.Reader, buf)
+		exitCode := rand.Intn(2)
+		runtime := rand.Intn(5)
+		time.Sleep(time.Duration(runtime) * time.Second)
+
+		if err := orbitClient.SaveHostScriptResult(&fleet.HostScriptResultPayload{
+			HostID:      script.HostID,
+			ExecutionID: script.ExecutionID,
+			Output:      base64.StdEncoding.EncodeToString(buf[:n]),
+			Runtime:     runtime,
+			ExitCode:    exitCode,
+		}); err != nil {
+			log.Println("save host script result:", err)
+			return
+		}
+		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d\n", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
 	}
 }
 
@@ -1345,6 +1414,8 @@ func main() {
 
 		liveQueryFailProb      = flag.Float64("live_query_fail_prob", 0.0, "Probability of a live query failing execution in the host")
 		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
+
+		disableScriptExec = flag.Bool("disable_script_exec", false, "Disable script execution support")
 	)
 
 	flag.Parse()
@@ -1426,6 +1497,7 @@ func main() {
 			*mdmSCEPChallenge,
 			*liveQueryFailProb,
 			*liveQueryNoResultsProb,
+			*disableScriptExec,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

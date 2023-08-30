@@ -3661,6 +3661,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	ctx := context.Background()
 
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	otherHost := createOrbitEnrolledHost(t, "linux", "other", s.ds)
 
 	// attempt to run a script on a non-existing host
 	var runResp runScriptResponse
@@ -3676,6 +3677,10 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "script is too long")
 
+	// make sure the host is still seen as "online"
+	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
 	// create a valid script execution request
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 	require.Equal(t, host.ID, runResp.HostID)
@@ -3686,6 +3691,32 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, result.HostID)
 	require.Equal(t, "echo", result.ScriptContents)
 	require.False(t, result.ExitCode.Valid)
+
+	// verify that orbit would get the notification that it has a script to run
+	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Equal(t, []string{result.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// the orbit endpoint to get a pending script to execute returns it
+	var orbitGetScriptResp orbitGetScriptResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, result.ExecutionID)),
+		http.StatusOK, &orbitGetScriptResp)
+	require.Equal(t, host.ID, orbitGetScriptResp.HostID)
+	require.Equal(t, result.ExecutionID, orbitGetScriptResp.ExecutionID)
+	require.Equal(t, "echo", orbitGetScriptResp.ScriptContents)
+
+	// trying to get that script via its execution ID but a different host returns not found
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *otherHost.OrbitNodeKey, result.ExecutionID)),
+		http.StatusNotFound, &orbitGetScriptResp)
+
+	// trying to get an unknown execution id returns not found
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, result.ExecutionID+"no-such")),
+		http.StatusNotFound, &orbitGetScriptResp)
 
 	// attempt to run a sync script on a non-existing host
 	var runSyncResp runScriptSyncResponse
@@ -3701,20 +3732,28 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "script is too long")
 
+	// make sure the host is still seen as "online"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
 	// attempt to create a valid sync script execution request, fails because the
 	// host has a pending script execution
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "a script is currently executing on the host")
 
-	// simulate a result being returned for the pending script
-	err = s.ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-		HostID:      host.ID,
-		ExecutionID: runResp.ExecutionID,
-		ExitCode:    0,
-		Output:      "ok",
-	})
-	require.NoError(t, err)
+	// save a result via the orbit endpoint
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// verify that orbit does not receive any pending script anymore
+	orbitResp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
 
 	// create a valid sync script execution request, fails because the
 	// request will time-out waiting for a result.
@@ -3724,14 +3763,9 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.Contains(t, runSyncResp.ErrorMessage, "script execution timed out waiting for a result")
 
-	// simulate a result being returned for that pending script
-	err = s.ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-		HostID:      host.ID,
-		ExecutionID: runSyncResp.ExecutionID,
-		ExitCode:    0,
-		Output:      "ok",
-	})
-	require.NoError(t, err)
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
 
 	// create a valid sync script execution request, and simulate a result
 	// arriving before timeout.
@@ -3768,6 +3802,17 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.Equal(t, "ok", runSyncResp.Output)
+	require.True(t, runSyncResp.ExitCode.Valid)
 	require.Equal(t, int64(0), runSyncResp.ExitCode.Int64)
 	require.Empty(t, runSyncResp.ErrorMessage)
+
+	// make the host "offline"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
+	require.NoError(t, err)
+
+	// attempt to create a sync script execution request, fails because the host
+	// is offline.
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "host is offline")
 }

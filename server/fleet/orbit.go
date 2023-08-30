@@ -24,6 +24,11 @@ type OrbitConfigNotifications struct {
 	// disabled and the device was enrolled in Fleet's MDM (see
 	// host.IsEligibleForWindowsMDMUnenrollment for the list of conditions).
 	NeedsProgrammaticWindowsMDMUnenrollment bool `json:"needs_programmatic_windows_mdm_unenrollment,omitempty"`
+
+	// PendingScriptExecutionIDs lists the IDs of scripts that are pending
+	// execution on that host. The scripts pending execution are those that
+	// haven't received a result yet.
+	PendingScriptExecutionIDs []string `json:"pending_script_execution_ids,omitempty"`
 }
 
 type OrbitConfig struct {

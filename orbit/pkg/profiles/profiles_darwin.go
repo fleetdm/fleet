@@ -21,9 +21,11 @@ func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
            const config = $.NSUserDefaults.alloc.initWithSuiteName("%s");
            const enrollSecret = config.objectForKey("EnrollSecret");
            const fleetURL = config.objectForKey("FleetURL");
+           const enableScripts = config.objectForKey("EnableScripts");
            JSON.stringify({
              EnrollSecret: ObjC.deepUnwrap(enrollSecret),
              FleetURL: ObjC.deepUnwrap(fleetURL),
+             EnableScripts: ObjC.deepUnwrap(enableScripts),
            });
          `, mobileconfig.FleetdConfigPayloadIdentifier)
 
@@ -35,10 +37,6 @@ func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
 	var cfg fleet.MDMAppleFleetdConfig
 	if err = json.Unmarshal(outBuf.Bytes(), &cfg); err != nil {
 		return nil, fmt.Errorf("unmarshaling configuration: %w", err)
-	}
-
-	if cfg.EnrollSecret == "" || cfg.FleetURL == "" {
-		return nil, ErrNotFound
 	}
 
 	return &cfg, err

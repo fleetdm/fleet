@@ -748,6 +748,10 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 }
 
 func (ds *Datastore) UpdatePolicyFailureCountsForHosts(ctx context.Context, hosts []*fleet.Host) ([]*fleet.Host, error) {
+	if len(hosts) == 0 {
+		return hosts, nil
+	}
+
 	// Get policy failure counts for each host
 	hostIDs := make([]uint, 0, len(hosts))
 

@@ -1,8 +1,11 @@
 package service
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -24,16 +27,20 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	return svc.Service.HostByIdentifier(ctx, identifier, opts)
 }
 
+// anchored, so that it matches to the end of the line
+var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
+
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
 	const (
 		maxScriptRuneLen    = 10000
 		maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
 	)
 
-	// must load the host (lite is enough, just for the team) to authorize
-	// with the proper team id. We cannot first authorize if the user can list
-	// hosts, because the user could have a write-only role (e.g. gitops).
-	host, err := svc.ds.HostLite(ctx, request.HostID)
+	// must load the host to get the team (cannot use lite, the last seen time is
+	// required to check if it is online) to authorize with the proper team id.
+	// We cannot first authorize if the user can list hosts, in case we
+	// eventually allow a write-only role (e.g. gitops).
+	host, err := svc.ds.Host(ctx, request.HostID)
 	if err != nil {
 		// if error is because the host does not exist, check first if the user
 		// had access to run a script (to prevent leaking valid host ids).
@@ -63,7 +70,26 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("script_contents", fmt.Sprintf("script is too long, must be at most %d characters", maxScriptRuneLen))
 	}
 
-	// TODO(mna): any other validation we want to apply to the script? What is the "must be bash/powershell" check?
+	// script must be a "text file", but that's not so simple to validate, so we
+	// assume that if it is valid utf8 encoding, it is a text file (binary files
+	// will often have invalid utf8 byte sequences).
+	if !utf8.ValidString(request.ScriptContents) {
+		return nil, fleet.NewInvalidArgumentError("script_contents", "script must be a valid utf8-encoded text file")
+	}
+	if strings.HasPrefix(request.ScriptContents, "#!") {
+		// read the first line in a portable way
+		s := bufio.NewScanner(strings.NewReader(request.ScriptContents))
+		// if a hashbang is present, it can only be `/bin/sh` for now
+		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
+			return nil, fleet.NewInvalidArgumentError("script_contents", "script cannot start with a hashbang (#!) other than #!/bin/sh")
+		}
+	}
+
+	// host must be online if a "sync" script execution is requested (i.e. if we
+	// will poll to get and return results).
+	if waitForResult > 0 && host.Status(time.Now()) != fleet.StatusOnline {
+		return nil, fleet.NewInvalidArgumentError("host_id", "host is offline")
+	}
 
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, maxPendingScriptAge)
 	if err != nil {
@@ -81,14 +107,13 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("script_contents", "a script is currently executing on the host")
 	}
 
-	// create the script execution request
+	// create the script execution request, the host will be notified of the
+	// script execution request via the orbit config's Notifications mechanism.
 	script, err := svc.ds.NewHostScriptExecutionRequest(ctx, request)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create script execution request")
 	}
-	// TODO(mna): figure out how to send this to the host, either something to do
-	// here or via the DB checking if there are pending scripts for the host when
-	// sending queries or notifications.
+
 	if waitForResult <= 0 {
 		// async execution, return
 		return script, nil

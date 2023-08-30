@@ -3,10 +3,13 @@ package service
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -35,8 +38,15 @@ func NewDeviceClient(addr string, insecureSkipVerify bool, rootCA string, fleetC
 	}, nil
 }
 
-func (dc *DeviceClient) request(verb string, path string, query string, responseDest interface{}) error {
+func (dc *DeviceClient) request(verb string, path string, query string, params interface{}, responseDest interface{}) error {
 	var bodyBytes []byte
+	var err error
+	if params != nil {
+		bodyBytes, err = json.Marshal(params)
+		if err != nil {
+			return fmt.Errorf("making request json marshalling : %w", err)
+		}
+	}
 	request, err := http.NewRequest(
 		verb,
 		dc.url(path, query).String(),
@@ -85,7 +95,7 @@ func (dc *DeviceClient) CheckToken(token string) error {
 // Ping sends a ping to the server using the device/ping endpoint
 func (dc *DeviceClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/device/ping"
-	err := dc.request(verb, path, "", nil)
+	err := dc.request(verb, path, "", nil, nil)
 
 	if err == nil || errors.Is(err, notFoundErr{}) {
 		// notFound is ok, it means an old server without the ping endpoint +
@@ -99,14 +109,14 @@ func (dc *DeviceClient) Ping() error {
 func (dc *DeviceClient) getListDevicePolicies(token string) ([]*fleet.HostPolicy, error) {
 	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
 	var responseBody listDevicePoliciesResponse
-	err := dc.request(verb, path, "", &responseBody)
+	err := dc.request(verb, path, "", nil, &responseBody)
 	return responseBody.Policies, err
 }
 
 func (dc *DeviceClient) getMinDesktopPayload(token string) (fleetDesktopResponse, error) {
 	verb, path := "GET", "/api/latest/fleet/device/"+token+"/desktop"
 	var r fleetDesktopResponse
-	err := dc.request(verb, path, "", &r)
+	err := dc.request(verb, path, "", nil, &r)
 	return r, err
 }
 
@@ -141,5 +151,30 @@ func (dc *DeviceClient) DesktopSummary(token string) (*fleetDesktopResponse, err
 
 func (dc *DeviceClient) MigrateMDM(token string) error {
 	verb, path := "POST", "/api/latest/fleet/device/"+token+"/migrate_mdm"
-	return dc.request(verb, path, "", nil)
+	return dc.request(verb, path, "", nil, nil)
+}
+
+func (dc *DeviceClient) ReportError(token string, fleetdErr fleet.FleetdError) error {
+	verb, path := "POST", "/api/latest/fleet/device/"+token+"/debug/errors"
+	req := fleetdErrorRequest{FleetdError: fleetdErr}
+	return retry.Do(
+		func() error {
+			err := dc.request(verb, path, "", req, nil)
+			scerr, ok := err.(*statusCodeErr)
+
+			// as backwards as this seems, this endpoint returns a
+			// `500` status code when we post an error (it might
+			// return `4xx` errors if the request is malformed or
+			// unauthenticated)
+			//
+			// see https://github.com/fleetdm/fleet/issues/13238#issuecomment-1671769460 for more details
+			if !ok || scerr.code != http.StatusInternalServerError {
+				return err
+			}
+
+			return nil
+		},
+		retry.WithMaxAttempts(3),
+		retry.WithInterval(15*time.Second),
+	)
 }

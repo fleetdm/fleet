@@ -49,7 +49,7 @@ ENROLL_SECRET=<copy from fleet> docker-compose up
 If you are trying to run `fleetctl preview` and seeing errors about self-signed certificates, the
 most likely culprit is that you're behind a corporate proxy server and need to [add the proxy
 settings to Docker](https://docs.docker.com/network/proxy/) so that the container created by
-`fleetctl preview` is able to connect properly. 
+`fleetctl preview` is able to connect properly.
 
 ## Will updating fleetctl lead to loss of data in fleetctl preview?
 
@@ -91,6 +91,8 @@ If you also have Fleetd running on hosts, it will need access to these API endpo
 * `/api/fleet/orbit/config`
 * `/api/fleet/orbit/device_token`
 * `/api/fleet/orbit/ping`
+* `/api/fleet/orbit/scripts/request`
+* `/api/fleet/orbit/scripts/result`
 * `/api/osquery/log`
 
 <meta name="description" value="Find commonly asked questions and answers about contributing to Fleet as part of our community.">

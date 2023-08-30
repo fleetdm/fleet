@@ -2271,4 +2271,9 @@ func testUpdatePolicyFailureCountsForHosts(t *testing.T, ds *Datastore) {
 	// host 3 doesn't have any policy membership
 	assert.Equal(t, 0, hostsUpdated[3].TotalIssuesCount)
 	assert.Equal(t, 0, hostsUpdated[3].FailingPoliciesCount)
+
+	// return empty list if no hosts are passed
+	hostsUpdated, err = ds.UpdatePolicyFailureCountsForHosts(ctx, []*fleet.Host{})
+	require.NoError(t, err)
+	require.Len(t, hostsUpdated, 0)
 }
