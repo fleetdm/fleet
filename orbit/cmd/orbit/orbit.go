@@ -624,6 +624,7 @@ func main() {
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
+		configFetcher = update.ApplyRunScriptsConfigFetcherMiddleware(configFetcher, c.Bool("enable-scripts"), orbitClient)
 
 		switch runtime.GOOS {
 		case "darwin":
