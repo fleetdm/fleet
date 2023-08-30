@@ -12,6 +12,7 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@elastic/apm-rum": "^5.14.0",
     "@types/dompurify": "3.0.2",
     "ace-builds": "1.4.12",
     "axios": "1.2.3",

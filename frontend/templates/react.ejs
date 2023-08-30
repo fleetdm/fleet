@@ -20,6 +20,11 @@
       gtag("config", "G-JC3DRNY1GV");
     </script>
 
+    <script>
+        APMServer = "{{ .APMServer }}"
+        APMServiceName = "{{ .APMServiceName }}-frontend"
+    </script>
+
     <!-- adds pendo client for production sandbox instances -->
     <script>
       (function (apiKey) {
