@@ -6149,7 +6149,9 @@ Creates a script execution request and waits for a result to return (up to a 1 m
   "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
   "script_contents": "echo 'hello'",
   "output": "hello",
+  "message": "",
   "runtime": 1,
+  "host_timeout": false,
   "exit_code": 0
 }
 ```
