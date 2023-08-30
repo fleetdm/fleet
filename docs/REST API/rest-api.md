@@ -5001,7 +5001,7 @@ Team policies work the same as policies, but at the team level.
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| query                 | string | query | Search query keywords. Searchable fields include name. 
+| query                 | string | query | Search query keywords. Searchable fields include `name`. |
 
 ##### Default response
 
