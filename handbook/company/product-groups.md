@@ -14,13 +14,14 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 ## Current product groups
 
-| Product group             | Goal _(value for customers and/or community)_                       |
-|:--------------------------|:--------------------------------------------------------------------|
-| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.
-| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.
-| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure.
-| [Website](#website-group)                               | Make the website wonderful.
+| Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
+|:--------------------------|:--------------------------------------------------------------------|:-----------------|
+| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category. | 75       |
+| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 60       |
+| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | 16 |
+| [Website](#website-group)                               | Make the website wonderful.                   | 48       |
 
+\* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
 ### MDM group
 
