@@ -4605,7 +4605,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| query                 | string | query | Search query keywords. Searchable fields include name. 
+| query                 | string | query | Search query keywords. Searchable fields include `name`.  |
 
 ##### Default response
 
