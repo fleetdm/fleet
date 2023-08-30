@@ -161,50 +161,104 @@ func TestRunner(t *testing.T) {
 }
 
 func TestRunnerTempDir(t *testing.T) {
-	tempDir := t.TempDir()
-	client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
-	execer := &mockExecCmd{output: []byte("output"), exitCode: 0, err: nil}
-	runner := &Runner{
-		Client:                 client,
-		ScriptExecutionEnabled: true,
-		tempDirFn:              func() string { return tempDir },
-		execCmdFn:              execer.run,
-	}
-	err := runner.Run([]string{"a"})
-	require.NoError(t, err)
-	require.Equal(t, 1, execer.count)
-	require.Equal(t, "output", client.results["a"].Output)
+	t.Run("deletes temp dir", func(t *testing.T) {
+		tempDir := t.TempDir()
 
-	// ensure the temp directory was removed after execution
-	entries, err := os.ReadDir(tempDir)
-	require.NoError(t, err)
-	require.Empty(t, entries)
+		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
+		execer := &mockExecCmd{output: []byte("output"), exitCode: 0, err: nil}
+		runner := &Runner{
+			Client:                 client,
+			ScriptExecutionEnabled: true,
+			tempDirFn:              func() string { return tempDir },
+			execCmdFn:              execer.run,
+		}
 
-	// run again, this time preventing dir deletion
-	t.Setenv("FLEET_PREVENT_SCRIPT_TEMPDIR_DELETION", "1")
-	execer.count = 0
+		err := runner.Run([]string{"a"})
+		require.NoError(t, err)
+		require.Equal(t, 1, execer.count)
+		require.Equal(t, "output", client.results["a"].Output)
 
-	err = runner.Run([]string{"a"})
-	require.NoError(t, err)
-	require.Equal(t, 1, execer.count)
-	require.Equal(t, "output", client.results["a"].Output)
+		// ensure the temp directory was removed after execution
+		entries, err := os.ReadDir(tempDir)
+		require.NoError(t, err)
+		require.Empty(t, entries)
+	})
 
-	entries, err = os.ReadDir(tempDir)
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
+	t.Run("remove fails, returns original error", func(t *testing.T) {
+		tempDir := t.TempDir()
 
-	// the entry is the script's execution directory
-	require.True(t, entries[0].IsDir())
-	require.Contains(t, entries[0].Name(), "fleet-a-")
+		// client will fail saving the results, this is the error that should be
+		// returned (i.e. the remove dir error should not override it).
+		client := &mockClient{saveErr: io.ErrUnexpectedEOF, scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
+		execer := &mockExecCmd{output: []byte("output"), exitCode: 0, err: nil}
 
-	runDir := filepath.Join(tempDir, entries[0].Name())
-	runEntries, err := os.ReadDir(runDir)
-	require.NoError(t, err)
-	require.Len(t, runEntries, 1) // run directory contains the script
+		runner := &Runner{
+			Client:                 client,
+			ScriptExecutionEnabled: true,
+			tempDirFn:              func() string { return tempDir },
+			execCmdFn:              execer.run,
+			removeAllFn:            func(s string) error { return errors.New("remove failed") },
+		}
 
-	b, err := os.ReadFile(filepath.Join(runDir, runEntries[0].Name()))
-	require.NoError(t, err)
-	require.Equal(t, "echo 'Hi'", string(b))
+		err := runner.Run([]string{"a"})
+		require.ErrorContains(t, err, "save script result: unexpected EOF")
+		require.Equal(t, 1, execer.count)
+	})
+
+	t.Run("remove fails, returns this error if the rest succeeded", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
+		execer := &mockExecCmd{output: []byte("output"), exitCode: 0, err: nil}
+
+		runner := &Runner{
+			Client:                 client,
+			ScriptExecutionEnabled: true,
+			tempDirFn:              func() string { return tempDir },
+			execCmdFn:              execer.run,
+			removeAllFn:            func(s string) error { return errors.New("remove failed") },
+		}
+
+		err := runner.Run([]string{"a"})
+		require.ErrorContains(t, err, "remove temp dir: remove failed")
+		require.Equal(t, 1, execer.count)
+	})
+
+	t.Run("keeps temp dir", func(t *testing.T) {
+		tempDir := t.TempDir()
+		t.Setenv("FLEET_PREVENT_SCRIPT_TEMPDIR_DELETION", "1")
+
+		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
+		execer := &mockExecCmd{output: []byte("output"), exitCode: 0, err: nil}
+		runner := &Runner{
+			Client:                 client,
+			ScriptExecutionEnabled: true,
+			tempDirFn:              func() string { return tempDir },
+			execCmdFn:              execer.run,
+		}
+
+		err := runner.Run([]string{"a"})
+		require.NoError(t, err)
+		require.Equal(t, 1, execer.count)
+		require.Equal(t, "output", client.results["a"].Output)
+
+		entries, err := os.ReadDir(tempDir)
+		require.NoError(t, err)
+		require.Len(t, entries, 1)
+
+		// the entry is the script's execution directory
+		require.True(t, entries[0].IsDir())
+		require.Contains(t, entries[0].Name(), "fleet-a-")
+
+		runDir := filepath.Join(tempDir, entries[0].Name())
+		runEntries, err := os.ReadDir(runDir)
+		require.NoError(t, err)
+		require.Len(t, runEntries, 1) // run directory contains the script
+
+		b, err := os.ReadFile(filepath.Join(runDir, runEntries[0].Name()))
+		require.NoError(t, err)
+		require.Equal(t, "echo 'Hi'", string(b))
+	})
 }
 
 func TestRunnerResults(t *testing.T) {
@@ -283,10 +337,14 @@ type mockExecCmd struct {
 	exitCode int
 	err      error
 	count    int
+	execFn   func() ([]byte, int, error)
 }
 
 func (m *mockExecCmd) run(ctx context.Context, scriptPath string) ([]byte, int, error) {
 	m.count++
+	if m.execFn != nil {
+		return m.execFn()
+	}
 	return m.output, m.exitCode, m.err
 }
 

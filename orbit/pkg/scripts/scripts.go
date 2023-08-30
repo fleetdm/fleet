@@ -41,6 +41,10 @@ type Runner struct {
 	// nil, execCmd will be used, which has a different implementation on Windows
 	// and non-Windows platforms.
 	execCmdFn func(ctx context.Context, scriptPath string) ([]byte, int, error)
+
+	// can be set for tests to replace os.RemoveAll, which is called to remove
+	// the script's temporary directory after execution.
+	removeAllFn func(string) error
 }
 
 // Run processes all scripts identified by the execution IDs.
@@ -76,7 +80,7 @@ func (r *Runner) Run(execIDs []string) error {
 	return nil
 }
 
-func (r *Runner) runOne(execID string) error {
+func (r *Runner) runOne(execID string) (finalErr error) {
 	const maxOutputRuneLen = 10000
 
 	script, err := r.Client.GetHostScript(execID)
@@ -97,7 +101,16 @@ func (r *Runner) runOne(execID string) error {
 	// prevent destruction of dir if this env var is set
 	// TODO(mna): should we document this? Just an env var at the moment, not a cli flag.
 	if os.Getenv("FLEET_PREVENT_SCRIPT_TEMPDIR_DELETION") == "" {
-		defer os.RemoveAll(runDir) // TODO(mna): we should probably capture any error it returns
+		defer func() {
+			fn := os.RemoveAll
+			if r.removeAllFn != nil {
+				fn = r.removeAllFn
+			}
+			err := fn(runDir)
+			if finalErr == nil && err != nil {
+				finalErr = fmt.Errorf("remove temp dir: %w", err)
+			}
+		}()
 	}
 
 	ext := ".sh"
