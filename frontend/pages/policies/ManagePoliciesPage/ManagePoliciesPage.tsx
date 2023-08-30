@@ -253,7 +253,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "policiesCount",
-        query: searchQuery,
+        query: isAnyTeamSelected ? "" : searchQuery, // Search query not used for inherited count
       },
     ],
     ({ queryKey }) => globalPoliciesAPI.count(queryKey[0]),
