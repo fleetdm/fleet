@@ -4921,7 +4921,7 @@ Team policies work the same as policies, but at the team level.
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | id                 | integer | url  | Required. Defines what team id to operate on                                                                            |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
-| per_page                | integer | query | Results per page.
+| per_page                | integer | query | Results per page. |
 #### Example
 
 `GET /api/v1/fleet/teams/1/policies`
