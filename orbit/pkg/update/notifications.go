@@ -287,7 +287,11 @@ type runScriptsConfigFetcher struct {
 
 	// ScriptsExecutionEnabled indicates if this agent allows scripts execution.
 	// If it doesn't, scripts are not executed, but a response is returned to the
-	// Fleet server so it knows the agent processed the request.
+	// Fleet server so it knows the agent processed the request. Note that this
+	// should be set to the value of the --scripts-enabled command-line flag. An
+	// additional, dynamic check is done automatically by the
+	// runScriptsConfigFetcher if this field is false to get the value from the
+	// MDM configuration profile.
 	ScriptsExecutionEnabled bool
 
 	// ScriptsClient is the client to use to fetch the script to execute and save
@@ -315,6 +319,7 @@ func ApplyRunScriptsConfigFetcherMiddleware(fetcher OrbitConfigFetcher, scriptsE
 		ScriptsExecutionEnabled: scriptsEnabled,
 		ScriptsClient:           scriptsClient,
 	}
+	// start the dynamic check for scripts enabled if required
 	scriptsFetcher.runDynamicScriptsEnabledCheck()
 	return scriptsFetcher
 }
@@ -332,11 +337,13 @@ func (h *runScriptsConfigFetcher) runDynamicScriptsEnabledCheck() {
 			// check every minute
 			for range time.Tick(time.Minute) {
 				cfg, err := getFleetdConfig()
-				if err != nil && err != profiles.ErrNotImplemented {
-					// note that an unenrolled host will not return an error, it will
-					// return the zero-value struct, so this logging should not be too
-					// noisy unless something goes wrong.
-					log.Info().Err(err).Msg("get fleetd configuration failed")
+				if err != nil {
+					if err != profiles.ErrNotImplemented {
+						// note that an unenrolled host will not return an error, it will
+						// return the zero-value struct, so this logging should not be too
+						// noisy unless something goes wrong.
+						log.Info().Err(err).Msg("get fleetd configuration failed")
+					}
 					continue
 				}
 				h.dynamicScriptsEnabled.Store(cfg.EnableScripts)
