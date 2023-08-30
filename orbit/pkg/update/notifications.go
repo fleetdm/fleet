@@ -278,8 +278,6 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptUnenrollment() {
 	}
 }
 
-type runScriptsFunc func([]string) error
-
 type runScriptsConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
@@ -301,13 +299,15 @@ type runScriptsConfigFetcher struct {
 	// the dynamic scripts enabled check is done to check via mdm configuration
 	// profile if the host is allowed to run dynamic scripts. It is only done
 	// on macos and only if ScriptsExecutionEnabled is false.
-	dynamicScriptsEnabled atomic.Bool
+	dynamicScriptsEnabled              atomic.Bool
+	dynamicScriptsEnabledCheckInterval time.Duration
 	// for tests, if set will use this instead of profiles.GetFleetdConfig.
 	testGetFleetdConfig func() (*fleet.MDMAppleFleetdConfig, error)
 
 	// for tests, to be able to mock command execution. If nil, will use
-	// (scripts.Runner{...}).Run.
-	runScriptsFn runScriptsFunc
+	// (scripts.Runner{...}).Run. To help with testing, the function receives as
+	// argument the scripts.Runner value that would've executed the call.
+	runScriptsFn func(*scripts.Runner, []string) error
 
 	// ensures only one script execution runs at a time
 	mu sync.Mutex
@@ -315,9 +315,10 @@ type runScriptsConfigFetcher struct {
 
 func ApplyRunScriptsConfigFetcherMiddleware(fetcher OrbitConfigFetcher, scriptsEnabled bool, scriptsClient scripts.Client) OrbitConfigFetcher {
 	scriptsFetcher := &runScriptsConfigFetcher{
-		Fetcher:                 fetcher,
-		ScriptsExecutionEnabled: scriptsEnabled,
-		ScriptsClient:           scriptsClient,
+		Fetcher:                            fetcher,
+		ScriptsExecutionEnabled:            scriptsEnabled,
+		ScriptsClient:                      scriptsClient,
+		dynamicScriptsEnabledCheckInterval: time.Minute,
 	}
 	// start the dynamic check for scripts enabled if required
 	scriptsFetcher.runDynamicScriptsEnabledCheck()
@@ -334,8 +335,7 @@ func (h *runScriptsConfigFetcher) runDynamicScriptsEnabledCheck() {
 	// agent (but always run if a test get fleetd config function is set).
 	if (runtime.GOOS == "darwin" && !h.ScriptsExecutionEnabled) || (h.testGetFleetdConfig != nil) {
 		go func() {
-			// check every minute
-			for range time.Tick(time.Minute) {
+			runCheck := func() {
 				cfg, err := getFleetdConfig()
 				if err != nil {
 					if err != profiles.ErrNotImplemented {
@@ -344,9 +344,17 @@ func (h *runScriptsConfigFetcher) runDynamicScriptsEnabledCheck() {
 						// noisy unless something goes wrong.
 						log.Info().Err(err).Msg("get fleetd configuration failed")
 					}
-					continue
+					return
 				}
 				h.dynamicScriptsEnabled.Store(cfg.EnableScripts)
+			}
+
+			// check immediately at startup, before checking at the interval
+			runCheck()
+
+			// check every minute
+			for range time.Tick(h.dynamicScriptsEnabledCheckInterval) {
+				runCheck()
 			}
 		}()
 	}
@@ -362,16 +370,18 @@ func (h *runScriptsConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 		if h.mu.TryLock() {
 			log.Debug().Msgf("received request to run scripts %v", cfg.Notifications.PendingScriptExecutionIDs)
 
-			fn := h.runScriptsFn
-			if fn == nil {
-				runner := scripts.Runner{
-					// scripts are always enabled if the agent is started with the
-					// --scripts-enabled flag. If it is not started with this flag, then
-					// scripts are enabled only if the mdm profile says so.
-					ScriptExecutionEnabled: h.ScriptsExecutionEnabled || h.dynamicScriptsEnabled.Load(),
-					Client:                 h.ScriptsClient,
+			runner := &scripts.Runner{
+				// scripts are always enabled if the agent is started with the
+				// --scripts-enabled flag. If it is not started with this flag, then
+				// scripts are enabled only if the mdm profile says so.
+				ScriptExecutionEnabled: h.ScriptsExecutionEnabled || h.dynamicScriptsEnabled.Load(),
+				Client:                 h.ScriptsClient,
+			}
+			fn := runner.Run
+			if h.runScriptsFn != nil {
+				fn = func(execIDs []string) error {
+					return h.runScriptsFn(runner, execIDs)
 				}
-				fn = runner.Run
 			}
 
 			go func() {

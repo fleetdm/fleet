@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/rs/zerolog/log"
@@ -378,12 +379,21 @@ func TestRunScripts(t *testing.T) {
 		blockRun   chan struct{}
 	)
 
-	mockRun := func(ids []string) error {
+	mockRun := func(r *scripts.Runner, ids []string) error {
 		callsCount.Add(1)
 		if blockRun != nil {
 			<-blockRun
 		}
 		return runFailure
+	}
+
+	waitForRun := func(t *testing.T, r *runScriptsConfigFetcher) {
+		var ok bool
+		for start := time.Now(); !ok && time.Since(start) < time.Second; {
+			ok = r.mu.TryLock()
+		}
+		require.True(t, ok, "timed out waiting for the lock to become available")
+		r.mu.Unlock()
 	}
 
 	t.Run("no pending scripts", func(t *testing.T) {
@@ -424,13 +434,7 @@ func TestRunScripts(t *testing.T) {
 		require.NoError(t, err)            // the dummy fetcher never returns an error
 		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
 
-		// wait for the lock to become available (signaling that the goroutine
-		// finished)
-		var ok bool
-		for start := time.Now(); !ok && time.Since(start) < time.Second; {
-			ok = runner.mu.TryLock()
-		}
-		require.True(t, ok, "timed out waiting for the lock to become available")
+		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
 		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
 		require.Contains(t, logBuf.String(), "running scripts [a b c] succeeded")
@@ -455,13 +459,7 @@ func TestRunScripts(t *testing.T) {
 		require.NoError(t, err)            // the dummy fetcher never returns an error
 		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
 
-		// wait for the lock to become available (signaling that the goroutine
-		// finished)
-		var ok bool
-		for start := time.Now(); !ok && time.Since(start) < time.Second; {
-			ok = runner.mu.TryLock()
-		}
-		require.True(t, ok, "timed out waiting for the lock to become available")
+		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
 		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
 		require.Contains(t, logBuf.String(), "running scripts failed")
@@ -495,15 +493,83 @@ func TestRunScripts(t *testing.T) {
 		// unblock the initial run
 		close(blockRun)
 
-		// wait for the lock to become available (signaling that the goroutine
-		// finished)
-		var ok bool
-		for start := time.Now(); !ok && time.Since(start) < time.Second; {
-			ok = runner.mu.TryLock()
-		}
-		require.True(t, ok, "timed out waiting for the lock to become available")
+		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // only called once because of mutex
 		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
 		require.Contains(t, logBuf.String(), "running scripts [a b c] succeeded")
+	})
+
+	t.Run("dynamic enabling of scripts", func(t *testing.T) {
+		t.Cleanup(logBuf.Reset)
+
+		fetcher := &dummyConfigFetcher{
+			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				PendingScriptExecutionIDs: []string{"a"},
+			}},
+		}
+
+		var (
+			scriptsEnabledCalls []bool
+			dynamicEnabled      atomic.Bool
+
+			dynamicInterval = 300 * time.Millisecond
+		)
+
+		runner := &runScriptsConfigFetcher{
+			Fetcher:                 fetcher,
+			ScriptsExecutionEnabled: false,
+			runScriptsFn: func(r *scripts.Runner, s []string) error {
+				scriptsEnabledCalls = append(scriptsEnabledCalls, r.ScriptExecutionEnabled)
+				return nil
+			},
+			testGetFleetdConfig: func() (*fleet.MDMAppleFleetdConfig, error) {
+				return &fleet.MDMAppleFleetdConfig{
+					EnableScripts: dynamicEnabled.Load(),
+				}, nil
+			},
+			dynamicScriptsEnabledCheckInterval: dynamicInterval,
+		}
+
+		// the static Scripts Enabled flag is false, so it relies on the dynamic check
+		runner.runDynamicScriptsEnabledCheck()
+
+		// first call, scripts are disabled
+		cfg, err := runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		waitForRun(t, runner)
+
+		// swap scripts execution to true and wait to ensure the dynamic check
+		// did run.
+		dynamicEnabled.Store(true)
+		time.Sleep(dynamicInterval + 100*time.Millisecond)
+
+		// second call, scripts are enabled (change exec ID to "b")
+		cfg.Notifications.PendingScriptExecutionIDs[0] = "b"
+		cfg, err = runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		waitForRun(t, runner)
+
+		// swap scripts execution back to false and wait to ensure the dynamic
+		// check did run.
+		dynamicEnabled.Store(false)
+		time.Sleep(dynamicInterval + 100*time.Millisecond)
+
+		// third call, scripts are disabled (change exec ID to "c")
+		cfg.Notifications.PendingScriptExecutionIDs[0] = "c"
+		cfg, err = runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		waitForRun(t, runner)
+
+		// validate the Scripts Enabled flags that were passed to the runScriptsFn
+		require.Equal(t, []bool{false, true, false}, scriptsEnabledCalls)
+		require.Contains(t, logBuf.String(), "received request to run scripts [a]")
+		require.Contains(t, logBuf.String(), "running scripts [a] succeeded")
+		require.Contains(t, logBuf.String(), "received request to run scripts [b]")
+		require.Contains(t, logBuf.String(), "running scripts [b] succeeded")
+		require.Contains(t, logBuf.String(), "received request to run scripts [c]")
+		require.Contains(t, logBuf.String(), "running scripts [c] succeeded")
 	})
 }
