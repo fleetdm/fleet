@@ -54,7 +54,7 @@ If you have any questions or feedback, please contact us: https://fleetdm.com/ha
 ### Key reviews
 Every release cycle, each department leader discusses their [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (key performance indicators; aka numbers measuring results and everyday excellence) with the CEO. 
 
-Any discussion or proposed changes to the KPI definitions or which department owns a specific KPI require [CEO input](https://fleetdm.com/handbook/ceo#contact-us), and are decided on during this meeting. 
+Any discussion or proposed changes based on the KPI definitions or which department owns a specific KPI require [CEO input](https://fleetdm.com/handbook/ceo#contact-us), and are decided on during this meeting. 
 
 In this meeting, we discuss actual week-over-week progress towards timebound goals for a particular quarter. 
 
