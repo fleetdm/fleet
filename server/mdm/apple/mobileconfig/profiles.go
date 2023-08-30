@@ -30,6 +30,8 @@ var FleetdProfileTemplate = template.Must(template.New("").Option("missingkey=er
         <string>{{ .EnrollSecret }}</string>
         <key>FleetURL</key>
         <string>{{ .ServerURL }}</string>
+        <key>EnableScripts</key>
+        <true />
         <key>PayloadDisplayName</key>
         <string>Fleetd configuration</string>
         <key>PayloadIdentifier</key>
