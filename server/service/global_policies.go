@@ -168,19 +168,19 @@ func (r countGlobalPoliciesResponse) error() error { return r.Err }
 
 func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countGlobalPoliciesRequest)
-	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions)
+	resp, err := svc.CountGlobalPolicies(ctx, req.MatchQuery)
 	if err != nil {
 		return countGlobalPoliciesResponse{Err: err}, nil
 	}
 	return countGlobalPoliciesResponse{Count: resp}, nil
 }
 
-func (svc Service) CountGlobalPolicies(ctx context.Context, opts fleet.ListOptions) (int, error) {
+func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return 0, err
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, nil, opts)
+	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery)
 	if err != nil {
 		return 0, err
 	}

@@ -165,14 +165,14 @@ func (r countTeamPoliciesResponse) error() error { return r.Err }
 
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countTeamPoliciesRequest)
-	resp, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions)
+	resp, err := svc.CountTeamPolicies(ctx, req.TeamID, req.MatchQuery)
 	if err != nil {
 		return countTeamPoliciesResponse{Err: err}, nil
 	}
 	return countTeamPoliciesResponse{Count: resp}, nil
 }
 
-func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) (int, error) {
+func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -185,7 +185,7 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, opts fle
 		return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 	}
 
-	return svc.ds.CountPolicies(ctx, &teamID, opts)
+	return svc.ds.CountPolicies(ctx, &teamID, matchQuery)
 }
 
 /////////////////////////////////////////////////////////////////////////////////

@@ -554,7 +554,7 @@ type Service interface {
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
-	CountGlobalPolicies(ctx context.Context, opts ListOptions) (int, error)
+	CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Software
@@ -571,7 +571,7 @@ type Service interface {
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
-	CountTeamPolicies(ctx context.Context, teamID uint, opts ListOptions) (int, error)
+	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Geolocation
