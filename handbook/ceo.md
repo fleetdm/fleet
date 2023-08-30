@@ -30,7 +30,7 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meeting-scheduling) are welcomed and a top priority for the CEO to consider getting on the calendar quickly. 
 
-To grab time with the CEO @mention the [AttC](#team) in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
+If the CEO requests that he be added to a call, or To grab time with the CEO @mention the [AttC](#team) in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
 - Proposed date and time
 - Reason for meeting _(e.g. include customer names or a related GitHub issue)_
 
