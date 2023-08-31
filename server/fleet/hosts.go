@@ -1164,7 +1164,7 @@ func ValidateHostScriptContents(s string) error {
 	scriptHashbangValidation := regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
 
 	if s == "" {
-		return errors.New("Empty script contents.") // TODO: confirm changes to figma
+		return errors.New("Script contents must not be empty.")
 	}
 
 	// look for the script length in bytes first, as rune counting a huge string
@@ -1191,7 +1191,7 @@ func ValidateHostScriptContents(s string) error {
 		s := bufio.NewScanner(strings.NewReader(s))
 		// if a hashbang is present, it can only be `/bin/sh` for now
 		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return errors.New(`Interpreter not supported. Script must only run in “#!/bin/sh”.`) // TODO: confirm changes to figma
+			return errors.New(`Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`)
 		}
 	}
 
