@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -843,6 +844,7 @@ const (
 	UnknownMDMName        = ""
 	WellKnownMDMKandji    = "Kandji"
 	WellKnownMDMJamf      = "Jamf"
+	WellKnownMDMJumpCloud = "JumpCloud"
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
@@ -852,6 +854,7 @@ const (
 var mdmNameFromServerURLChecks = map[string]string{
 	"kandji":    WellKnownMDMKandji,
 	"jamf":      WellKnownMDMJamf,
+	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
@@ -1070,4 +1073,48 @@ type HostMacOSProfile struct {
 	Identifier string `json:"identifier" db:"identifier"`
 	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
+}
+
+type HostScriptRequestPayload struct {
+	HostID         uint   `json:"host_id"`
+	ScriptContents string `json:"script_contents"`
+}
+
+type HostScriptResultPayload struct {
+	HostID      uint   `json:"host_id"`
+	ExecutionID string `json:"execution_id"`
+	Output      string `json:"output"`
+	Runtime     int    `json:"runtime"`
+	ExitCode    int    `json:"exit_code"`
+}
+
+// HostScriptResult represents a script result that was requested to execute on
+// a specific host. If no result was received yet for a script, the ExitCode
+// field is null and the output is empty.
+type HostScriptResult struct {
+	// ID is the unique row identifier of the host script result.
+	ID uint `json:"-" db:"id"`
+	// HostID is the host on which the script was executed.
+	HostID uint `json:"host_id" db:"host_id"`
+	// ExecutionID is a unique identifier for a single execution of the script.
+	ExecutionID string `json:"execution_id" db:"execution_id"`
+	// ScriptContents is the content of the script to execute.
+	ScriptContents string `json:"script_contents" db:"script_contents"`
+	// Output is the combined stdout/stderr output of the script. It is empty
+	// if no result was received yet.
+	Output string `json:"output" db:"output"`
+	// Runtime is the running time of the script in seconds, rounded.
+	Runtime int `json:"runtime" db:"runtime"`
+	// ExitCode is null if script execution result was never received from the
+	// host. It is -1 if it was received but the script did not terminate
+	// normally (same as how Go handles this: https://pkg.go.dev/os#ProcessState.ExitCode)
+	ExitCode sql.NullInt64 `json:"exit_code" db:"exit_code"`
+
+	// TeamID is only used for authorization, it must be set to the team id of
+	// the host when checking authorization and is otherwise not set.
+	TeamID *uint `json:"team_id" db:"-"`
+}
+
+func (hsr HostScriptResult) AuthzType() string {
+	return "host_script_result"
 }

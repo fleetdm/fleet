@@ -39,7 +39,7 @@ jobs:
         fleetctl preview
         sleep 10
         fleetctl get hosts | tee hosts.txt
-        [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
+        [ $( cat hosts.txt | grep online | wc -l) -eq 9 ]
       shell: bash
 
     - name: Get fleet logs

@@ -8,8 +8,10 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 )
 
 var (
@@ -35,7 +37,7 @@ type ErrWithInternal interface {
 	Internal() string
 }
 
-// ErrWithInternal is an interface for errors that include additional logging
+// ErrWithLogFields is an interface for errors that include additional logging
 // fields that should be logged in server logs but not sent to clients.
 type ErrWithLogFields interface {
 	error
@@ -311,31 +313,43 @@ func (e *MDMNotConfiguredError) Error() string {
 	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet/mobile-device-management"
 }
 
-// BadGatewayError is an error type that generates a 502 status code.
-type BadGatewayError struct {
+// GatewayError is an error type that generates a 502 or 504 status code.
+type GatewayError struct {
 	Message string
 	err     error
+	code    int
 
 	ErrorWithUUID
 }
 
-// NewBadGatewayError returns a MDMBadGatewayError with the message and
-// error specified.
-func NewBadGatewayError(message string, err error) *BadGatewayError {
-	return &BadGatewayError{
+// NewBadGatewayError returns a GatewayError with the message and
+// error specified and that returns a 502 status code.
+func NewBadGatewayError(message string, err error) *GatewayError {
+	return &GatewayError{
 		Message: message,
 		err:     err,
+		code:    http.StatusBadGateway,
+	}
+}
+
+// NewGatewayTimeoutError returns a GatewayError with the message and
+// error specified and that returns a 504 status code.
+func NewGatewayTimeoutError(message string, err error) *GatewayError {
+	return &GatewayError{
+		Message: message,
+		err:     err,
+		code:    http.StatusGatewayTimeout,
 	}
 }
 
 // StatusCode implements the kithttp.StatusCoder interface so we can customize the
 // HTTP status code of the response returning this error.
-func (e *BadGatewayError) StatusCode() int {
-	return http.StatusBadGateway
+func (e *GatewayError) StatusCode() int {
+	return e.code
 }
 
 // Error returns the error message.
-func (e *BadGatewayError) Error() string {
+func (e *GatewayError) Error() string {
 	msg := e.Message
 	if e.err != nil {
 		msg += ": " + e.err.Error()
@@ -466,4 +480,52 @@ func Cause(err error) error {
 		}
 		err = uerr
 	}
+}
+
+// FleetdError is an error that can be reported by any of the fleetd
+// components.
+type FleetdError struct {
+	ErrorSource         string         `json:"error_source"`
+	ErrorSourceVersion  string         `json:"error_source_version"`
+	ErrorTimestamp      time.Time      `json:"error_timestamp"`
+	ErrorMessage        string         `json:"error_message"`
+	ErrorAdditionalInfo map[string]any `json:"error_additional_info"`
+}
+
+// Error implements the error interface
+func (fe FleetdError) Error() string {
+	return fe.ErrorMessage
+}
+
+// MarshalZerologObject implements `zerolog.LogObjectMarshaler` so all details
+// about the error can be logged by the components that use zerolog (Orbit,
+// Fleet Desktop)
+func (fe FleetdError) MarshalZerologObject(e *zerolog.Event) {
+	e.Str("error_source", fe.ErrorSource)
+	e.Str("error_source_version", fe.ErrorSourceVersion)
+	e.Time("error_timestamp", fe.ErrorTimestamp)
+	e.Str("error_message", fe.ErrorMessage)
+	e.Interface("error_additional_info", fe.ErrorAdditionalInfo)
+}
+
+// ToMap returns a map representation of the error
+func (fe FleetdError) ToMap() map[string]any {
+	return map[string]any{
+		"error_source":          fe.ErrorSource,
+		"error_source_version":  fe.ErrorSourceVersion,
+		"error_timestamp":       fe.ErrorTimestamp,
+		"error_message":         fe.ErrorMessage,
+		"error_additional_info": fe.ErrorAdditionalInfo,
+	}
+}
+
+// OrbitError is used for orbit endpoints, to return an error message along
+// with a failed request's response.
+type OrbitError struct {
+	Message string
+}
+
+// Error implements the error interface for the OrbitError.
+func (e OrbitError) Error() string {
+	return e.Message
 }

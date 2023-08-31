@@ -8,7 +8,7 @@ import (
 )
 
 func signalHandler(ctx context.Context) (execute func() error, interrupt func(error)) {
-	return run.SignalHandler(ctx, os.Interrupt, os.Kill)
+	return run.SignalHandler(ctx, os.Interrupt)
 }
 
 func sigusrListener(rootDir string) {

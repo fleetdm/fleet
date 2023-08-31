@@ -1,4 +1,4 @@
-## Deploying Fleet on AWS ECS
+## Deploy Fleet on AWS ECS
 
 Terraform reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)
 
@@ -22,7 +22,7 @@ Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS
 
 Alternatively you can bake the prepare command into the same task definition see [here for a discussion](https://github.com/fleetdm/fleet/pull/1761#discussion_r697599457), but this not recommended for production environments.
 
-<meta name="title" value="Deploy Fleet on AWS ECS">
+<meta name="title" value="AWS ECS">
 <meta name="pageOrderInSection" value="400">
 <meta name="description" value="Information for deploying Fleet on AWS ECS.">
 <meta name="navSection" value="Deployment guides">

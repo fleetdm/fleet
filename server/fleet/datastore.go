@@ -499,14 +499,17 @@ type Datastore interface {
 
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
+	PolicyByName(ctx context.Context, name string) (*Policy, error)
+
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy) error
 
-	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
+	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
@@ -533,7 +536,7 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
@@ -1007,6 +1010,25 @@ type Datastore interface {
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
 	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Host Script Results
+
+	// NewHostScriptExecutionRequest creates a new host script result entry with
+	// just the script to run information (result is not yet available).
+	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
+	// SetHostScriptExecutionResult stores the result of a host script execution.
+	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) error
+	// GetHostScriptExecutionResult returns the result of a host script
+	// execution. It returns the host script results even if no results have been
+	// received, it is the caller's responsibility to check if that was the case
+	// (with ExitCode being null).
+	GetHostScriptExecutionResult(ctx context.Context, execID string) (*HostScriptResult, error)
+	// ListPendingHostScriptExecutions returns all the pending host script
+	// executions, which are those that have yet to record a result. Entries
+	// older than the ignoreOlder duration are ignored, considered too old to be
+	// pending.
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*HostScriptResult, error)
 }
 
 const (

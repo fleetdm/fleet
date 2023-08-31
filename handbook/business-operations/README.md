@@ -15,7 +15,7 @@ The BizOps department is directly responsible for these traditional functions: P
 ## Contact us
 - Submit legal questions and requests to Business Operations department.  (Business Operations will escalate first-of-its-kind agreements to the CEO.  The CEO will review business terms and consult with lawyers as necessary.)
 - If urgent, ask in [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH).
-- If you need help during onbaording ask in [#help-onboarding](https://fleetdm.slack.com/archives/C02QG7P5571).
+- If you need help during onboarding ask in [#help-onboarding](https://fleetdm.slack.com/archives/C02QG7P5571).
 - For all questions related to your company credit card, ask in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP).
 - To make any other request of the Business Operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
 - Any Fleet team member can [view the 🔦#g-business-operations kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) (confidential) for this department, including pending tasks in the active sprint and any new requests.
@@ -58,10 +58,10 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 
 | Payroll type                 | What to use                  | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
-| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Business Operations
+| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Revenue Operations
 | Sign-on bonus                | "Bonus" payroll              | Head of Business Operations
 | Performance bonus            | "Bonus" payroll              | Head of Business Operations     
-| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Business Operations
+| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Revenue Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
 
@@ -123,7 +123,7 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 > - 💁 Bombalurina: 0
 > - 💁 Jennyanydots: 0
 > - 💁 Skimbleshanks: 19
-> - 💁 Grizabella: 0
+> - 💁 Griza Bella: 0
 > 
 > More info: https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked
 

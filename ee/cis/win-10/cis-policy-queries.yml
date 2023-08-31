@@ -3618,17 +3618,19 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Firewall state' is set to 'On (recommended)'
+    CIS - Ensure 'Windows Firewall: Public: Logging: Log dropped packets' is set to 'Yes'
   platforms: win10
   platform: windows
   description: |
-    Select On (recommended) to have Windows Firewall with Advanced Security use the settings for this profile to filter network traffic. If you select Off, Windows Firewall with Advanced Security will not use any of the firewall rules or connection security rules for this profile.
-    The recommended state for this setting is: On (recommended).
+    Use this option to log when Windows Firewall with Advanced Security discards an inbound packet
+    for any reason. The log records why and when the packet was dropped. Look for entries with the
+    word DROP in the action column of the log.
+    The recommended state for this setting is: Yes.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to On (recommended):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Firewall state'
+    To establish the recommended configuration via GP, set the following UI path to Yes:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Public Profile\Logging Customize\Log dropped packets'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\EnableFirewall' and data == 1);
+    SELECT * FROM registry WHERE (key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging\LogDroppedPackets' and data == 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.9
   contributors: RachelElysia
@@ -9360,7 +9362,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Allow Basic authentication' is set to 'Disabled'
+    CIS - Ensure 'Allow Basic authentication' in WinRM service is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
@@ -9398,7 +9400,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Allow unencrypted traffic' is set to 'Disabled'
+    CIS - Ensure 'Allow unencrypted traffic' in WinRM service is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
@@ -9905,7 +9907,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Always install with elevated privileges' is set to 'Disabled'
+    CIS - Ensure 'Always install with elevated privileges' is set to 'Disabled' (User Configuration)
   platforms: win10
   platform: windows
   description: |
