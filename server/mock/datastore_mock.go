@@ -372,11 +372,13 @@ type PolicyByNameFunc func(ctx context.Context, name string) (*fleet.Policy, err
 
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
 
-type ListGlobalPoliciesFunc func(ctx context.Context) ([]*fleet.Policy, error)
+type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
 
 type PoliciesByIDFunc func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error)
 
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
+
+type CountPoliciesFunc func(ctx context.Context, teamID *uint, matchQuery string) (int, error)
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
@@ -400,7 +402,7 @@ type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.V
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
-type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -1214,6 +1216,9 @@ type DataStore struct {
 
 	DeleteGlobalPoliciesFunc        DeleteGlobalPoliciesFunc
 	DeleteGlobalPoliciesFuncInvoked bool
+
+	CountPoliciesFunc        CountPoliciesFunc
+	CountPoliciesFuncInvoked bool
 
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
@@ -2901,11 +2906,11 @@ func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	return s.SavePolicyFunc(ctx, p)
 }
 
-func (s *DataStore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
+func (s *DataStore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	s.mu.Lock()
 	s.ListGlobalPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListGlobalPoliciesFunc(ctx)
+	return s.ListGlobalPoliciesFunc(ctx, opts)
 }
 
 func (s *DataStore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
@@ -2920,6 +2925,13 @@ func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uin
 	s.DeleteGlobalPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteGlobalPoliciesFunc(ctx, ids)
+}
+
+func (s *DataStore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error) {
+	s.mu.Lock()
+	s.CountPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountPoliciesFunc(ctx, teamID, matchQuery)
 }
 
 func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -2999,11 +3011,11 @@ func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *ui
 	return s.NewTeamPolicyFunc(ctx, teamID, authorID, args)
 }
 
-func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 	s.mu.Lock()
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListTeamPoliciesFunc(ctx, teamID)
+	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts)
 }
 
 func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {

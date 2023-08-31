@@ -60,6 +60,10 @@
     font-size: $small;
   }
 
+  .label-filter-select__single-value {
+    max-width: 84%; // Must override default styling of .css-qc6sy-singleValue
+  }
+
   .label-filter-select__placeholder {
     width: 75px; // Truncates text for smaller filter width
     overflow: hidden;
@@ -142,8 +146,12 @@
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1150px) {
   .label-filter-select {
-    width: 180px;
+    width: 220px;
+
+    &__single-value {
+      max-width: 135px !important; // Must override default styling of .css-qc6sy-singleValue
+    }
   }
 }

@@ -202,6 +202,12 @@ const PolicyPage = ({
     detectIsFleetQueryRunnable();
   }, []);
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Policy details | Antivirus healthy (Linux) | Fleet for osquery
+    document.title = `Policy details | ${storedPolicy?.name} | Fleet for osquery`;
+  }, [location.pathname, storedPolicy?.name]);
+
   useEffect(() => {
     setShowOpenSchemaActionText(!isSidebarOpen);
   }, [isSidebarOpen]);
