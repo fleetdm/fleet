@@ -28,6 +28,43 @@ const ScriptContent = ({ content }: IScriptContentProps) => {
   );
 };
 
+const StatusMessageRunning = () => (
+  <div className={`${baseClass}__status-message`}>
+    <p>
+      <Icon name="pending-partial" />
+      Script is running. To see if the script finished, close this modal and
+      open it again.
+    </p>
+  </div>
+);
+
+const StatusMessageSuccess = () => (
+  <div className={`${baseClass}__status-message`}>
+    <p>
+      <Icon name="success-partial" />
+      {`Exit code: 0 (Script ran successfully.)`}
+    </p>
+  </div>
+);
+
+const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
+  <div className={`${baseClass}__status-message`}>
+    <p>
+      <Icon name="error-outline" />
+      {`Exit code: ${exitCode} (Script failed.)`}
+    </p>{" "}
+  </div>
+);
+
+const StatusMessageError = ({ message }: { message: string }) => (
+  <div className={`${baseClass}__status-message`}>
+    <p>
+      <Icon name="error-outline" />
+      Error: {message}
+    </p>
+  </div>
+);
+
 interface IStatusMessageProps {
   hostTimeout: boolean;
   exitCode: number | null;
@@ -39,49 +76,30 @@ const StatusMessage = ({
   exitCode,
   message,
 }: IStatusMessageProps) => {
-  let statusMessage: JSX.Element;
-
-  const scriptStillRunning = exitCode === null && hostTimeout === false;
-  const hasExitCode = exitCode !== null;
-
-  // The messaging to the user is hardcoded when the script is still running
-  // OR when the script has an exit code is not null.
-  // Whenever the exit code is null we display the message that the API sends back.
-  if (scriptStillRunning && !message) {
-    statusMessage = (
-      <p>
-        <Icon name="pending-partial" />
-        Script is running. To see if the script finished, close this modal and
-        open it again.
-      </p>
-    );
-  } else if (hasExitCode) {
-    // 0 or 1 exit code with message
-    const exitCodeMessage =
-      exitCode === 0 ? "Script ran successfully" : "Script failed";
-    statusMessage = (
-      <p>
-        <Icon name={exitCode === 0 ? "success-partial" : "error-outline"} />
-        {`Exit code: ${exitCode} (${exitCodeMessage}.)`}
-      </p>
-    );
-  } else {
-    statusMessage = (
-      <p>
-        <Icon name="error-outline" />
-        {message}
-      </p>
-    );
+  switch (exitCode) {
+    case null:
+      return !hostTimeout ? (
+        <StatusMessageRunning />
+      ) : (
+        <StatusMessageError message={message} />
+      );
+    case -2:
+      return <StatusMessageError message={message} />;
+    case -1:
+      return <StatusMessageError message={message} />;
+    case 0:
+      return <StatusMessageSuccess />;
+    default:
+      return <StatusMessageFailed exitCode={exitCode} />;
   }
-
-  return <div className={`${baseClass}__status-message`}>{statusMessage}</div>;
 };
 
 interface IScriptOutputProps {
   output: string;
+  hostname: string;
 }
 
-const ScriptOutput = ({ output }: IScriptOutputProps) => {
+const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
   return (
     <div className={`${baseClass}__script-output`}>
       <p>
@@ -93,7 +111,7 @@ const ScriptOutput = ({ output }: IScriptOutputProps) => {
         >
           output recorded
         </TooltipWrapper>{" "}
-        when <b>Marko&apos;s MacBook Pro</b> ran the script above:
+        when <b>{hostname}</b> ran the script above:
       </p>
       <Textarea className={`${baseClass}__output-textarea`}>{output}</Textarea>
     </div>
@@ -101,6 +119,7 @@ const ScriptOutput = ({ output }: IScriptOutputProps) => {
 };
 
 interface IScriptResultProps {
+  hostname: string;
   hostTimeout: boolean;
   exitCode: number | null;
   message: string;
@@ -109,6 +128,7 @@ interface IScriptResultProps {
 }
 
 const ScriptResult = ({
+  hostname,
   hostTimeout,
   exitCode,
   message,
@@ -124,7 +144,7 @@ const ScriptResult = ({
         exitCode={exitCode}
         message={message}
       />
-      {showOutputText && <ScriptOutput output={output} />}
+      {showOutputText && <ScriptOutput output={output} hostname={hostname} />}
     </div>
   );
 };
@@ -155,6 +175,7 @@ const ScriptDetailsModal = ({ onCancel }: IScriptDetailsModalProps) => {
         <>
           <ScriptContent content={data.script_contents} />
           <ScriptResult
+            hostname={data.hostname}
             hostTimeout={data.host_timeout}
             exitCode={data.exit_code}
             message={data.message}
