@@ -163,7 +163,7 @@ export default {
 
     return sendRequest("GET", path);
   },
-  count: async ({
+  getCount: async ({
     query,
     teamId,
   }: Pick<

@@ -67,8 +67,9 @@ interface IManagePoliciesPageProps {
   };
 }
 
-const DEFAULT_SORT_DIRECTION = "desc";
+const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_SORT_COLUMN = "name";
 
 const baseClass = "manage-policies-page";
 
@@ -138,27 +139,27 @@ const ManagePolicyPage = ({
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
   const initialSortHeader = (() =>
-    (queryParams?.order_key as "name" | "failing_host_count") ?? "name")();
+    (queryParams?.order_key as "name" | "failing_host_count") ??
+    DEFAULT_SORT_COLUMN)();
   const initialSortDirection = (() =>
-    (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
+    (queryParams?.order_direction as "asc" | "desc") ??
+    DEFAULT_SORT_DIRECTION)();
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
   const initialShowInheritedTable = (() =>
     queryParams && queryParams.inherited_table === "true")();
   const initialInheritedSortHeader = (() =>
     (queryParams?.inherited_order_key as "name" | "failing_host_count") ??
-    "name")();
+    DEFAULT_SORT_COLUMN)();
   const initialInheritedSortDirection = (() =>
-    (queryParams?.inherited_order_direction as "asc" | "desc") ?? "asc")();
+    (queryParams?.inherited_order_direction as "asc" | "desc") ??
+    DEFAULT_SORT_DIRECTION)();
   const initialInheritedPage = (() =>
     queryParams && queryParams.inherited_page
       ? parseInt(queryParams?.inherited_page, 10)
       : 0)();
 
-  // const page = initialPage;
   const showInheritedTable = initialShowInheritedTable;
-  // const inheritedPage = initialInheritedPage;
-  // const searchQuery = initialSearchQuery;
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
@@ -169,7 +170,6 @@ const ManagePolicyPage = ({
     inheritedTableQueryData,
     setInheritedTableQueryData,
   ] = useState<ITableQueryData>();
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
@@ -247,7 +247,7 @@ const ManagePolicyPage = ({
 
   const {
     data: globalPoliciesCount,
-    error: globalPoliciesCountError,
+
     isFetching: isFetchingGlobalCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
     [
@@ -256,7 +256,7 @@ const ManagePolicyPage = ({
         query: isAnyTeamSelected ? "" : searchQuery, // Search query not used for inherited count
       },
     ],
-    ({ queryKey }) => globalPoliciesAPI.count(queryKey[0]),
+    ({ queryKey }) => globalPoliciesAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk,
       keepPreviousData: true,
@@ -288,7 +288,7 @@ const ManagePolicyPage = ({
         inheritedPerPage: DEFAULT_PAGE_SIZE,
         inheritedOrderDirection: inheritedSortDirection,
         inheritedOrderKey: inheritedSortHeader,
-        teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
+        teamId: teamIdForApi || 0,
       },
     ],
     ({ queryKey }) => {
@@ -303,11 +303,7 @@ const ManagePolicyPage = ({
     }
   );
 
-  const {
-    data: teamPoliciesCount,
-    error: teamPoliciesCountError,
-    isFetching: isFetchingTeamCount,
-  } = useQuery<
+  const { data: teamPoliciesCount, isFetching: isFetchingTeamCount } = useQuery<
     IPoliciesCountResponse,
     Error,
     number,
@@ -320,7 +316,7 @@ const ManagePolicyPage = ({
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
       },
     ],
-    ({ queryKey }) => teamPoliciesAPI.count(queryKey[0]),
+    ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk && !!teamIdForApi,
       keepPreviousData: true,
@@ -473,48 +469,6 @@ const ManagePolicyPage = ({
       sortDirection,
     ] // Other dependencies can cause infinite re-renders as URL is source of truth
   );
-
-  // const onClientSidePaginationChange = useCallback(
-  //   (pageIndex: number) => {
-  //     const locationPath = getNextLocationPath({
-  //       pathPrefix: PATHS.MANAGE_POLICIES,
-  //       queryParams: {
-  //         ...queryParams,
-  //         page: pageIndex,
-  //         query: searchQuery,
-  //         order_direction: sortDirection,
-  //         order_key: sortHeader,
-  //         inherited_order_direction: inheritedSortDirection,
-  //         inherited_order_key: inheritedSortHeader,
-  //         inherited_page: inheritedPage,
-  //       },
-  //     });
-
-  //     router?.replace(locationPath);
-  //   },
-  //   [searchQuery, queryParams, sortHeader, sortDirection] // Dependencies required for correct variable state
-  // );
-
-  // const onClientSideInheritedPaginationChange = useCallback(
-  //   (pageIndex: number) => {
-  //     const locationPath = getNextLocationPath({
-  //       pathPrefix: PATHS.MANAGE_POLICIES,
-  //       queryParams: {
-  //         ...queryParams,
-  //         inherited_table: "true",
-  //         inherited_page: pageIndex,
-  //         query: searchQuery,
-  //         page,
-  //         order_direction: sortDirection,
-  //         order_key: sortHeader,
-  //         inherited_order_direction: inheritedSortDirection,
-  //         inherited_order_key: inheritedSortHeader,
-  //       },
-  //     });
-  //     router?.replace(locationPath);
-  //   },
-  //   [queryParams, inheritedSortHeader, inheritedSortDirection] // Dependencies required for correct variable state
-  // );
 
   const toggleManageAutomationsModal = () =>
     setShowManageAutomationsModal(!showManageAutomationsModal);

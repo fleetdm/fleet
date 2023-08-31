@@ -94,7 +94,7 @@ export default {
 
     return sendRequest("GET", path);
   },
-  count: async ({
+  getCount: async ({
     query,
   }: Pick<IPoliciesApiParams, "query">): Promise<IPoliciesCountResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
