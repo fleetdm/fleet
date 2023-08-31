@@ -3,7 +3,7 @@ package service
 import (
 	"bufio"
 	"context"
-	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -62,33 +62,32 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	// look for the script length in bytes first, as rune counting a huge string
 	// can be expensive.
 	if len(request.ScriptContents) > utf8.UTFMax*maxScriptRuneLen {
-		return nil, fleet.NewInvalidArgumentError("script_contents", fmt.Sprintf("script is too long, must be at most %d characters", maxScriptRuneLen))
+		return nil, fleet.NewInvalidArgumentError("script_contents", "Error: Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
 	}
 	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
 	// we can safely count the runes for a precise check.
 	if utf8.RuneCountInString(request.ScriptContents) > maxScriptRuneLen {
-		return nil, fleet.NewInvalidArgumentError("script_contents", fmt.Sprintf("script is too long, must be at most %d characters", maxScriptRuneLen))
+		return nil, fleet.NewInvalidArgumentError("script_contents", "Error: Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
 	}
 
 	// script must be a "text file", but that's not so simple to validate, so we
 	// assume that if it is valid utf8 encoding, it is a text file (binary files
 	// will often have invalid utf8 byte sequences).
 	if !utf8.ValidString(request.ScriptContents) {
-		return nil, fleet.NewInvalidArgumentError("script_contents", "script must be a valid utf8-encoded text file")
+		return nil, fleet.NewInvalidArgumentError("script_contents", "Error: Wrong data format. Only plain text allowed.")
 	}
 	if strings.HasPrefix(request.ScriptContents, "#!") {
 		// read the first line in a portable way
 		s := bufio.NewScanner(strings.NewReader(request.ScriptContents))
 		// if a hashbang is present, it can only be `/bin/sh` for now
 		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return nil, fleet.NewInvalidArgumentError("script_contents", "script cannot start with a hashbang (#!) other than #!/bin/sh")
+			return nil, fleet.NewInvalidArgumentError("script_contents", `Error: Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`)
 		}
 	}
 
-	// host must be online if a "sync" script execution is requested (i.e. if we
-	// will poll to get and return results).
-	if waitForResult > 0 && host.Status(time.Now()) != fleet.StatusOnline {
-		return nil, fleet.NewInvalidArgumentError("host_id", "host is offline")
+	// host must be online
+	if host.Status(time.Now()) != fleet.StatusOnline {
+		return nil, fleet.NewInvalidArgumentError("host_id", "Error: Script can't run on offline host.")
 	}
 
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, maxPendingScriptAge)
@@ -96,15 +95,9 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
 	}
 	if len(pending) > 0 {
-		// TODO(mna): there are a number of issues with that validation: it only
-		// really says that there was a script execution _request_ that was made < 1m
-		// ago, and that blocks executing any more scripts on that host, but the
-		// host may not even have received the previous script for execution yet,
-		// so if we accept more scripts after 1m, we may end up having multiple
-		// scripts to execute on the host at the same time (or more likely in
-		// sequence, but still). This may be good enough for now, I think the whole
-		// idea of locking if a script is pending is meant to be temporary anyway.
-		return nil, fleet.NewInvalidArgumentError("script_contents", "a script is currently executing on the host")
+		return nil, fleet.NewInvalidArgumentError(
+			"script_contents", "Error: A script is already running on this host. Please wait about 1 minute to let it finish.",
+		).WithStatus(http.StatusConflict)
 	}
 
 	// create the script execution request, the host will be notified of the
@@ -113,6 +106,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create script execution request")
 	}
+	script.Hostname = host.DisplayName()
 
 	if waitForResult <= 0 {
 		// async execution, return
@@ -143,6 +137,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			}
 			if result.ExitCode.Valid {
 				// a result was received from the host, return
+				result.Hostname = host.DisplayName()
 				return result, nil
 			}
 

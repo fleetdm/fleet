@@ -1242,14 +1242,14 @@ func TestHostRunScript(t *testing.T) {
 			wantErr string
 		}{
 			{"empty script", "", "a script to execute is required"},
-			{"overly long script", strings.Repeat("a", 10001), "script is too long"},
-			{"invalid utf8", "\xff\xfa", "must be a valid utf8-encoded text file"},
+			{"overly long script", strings.Repeat("a", 10001), "Script is too large."},
+			{"invalid utf8", "\xff\xfa", "Wrong data format."},
 			{"valid without hashbang", "echo 'a'", ""},
 			{"valid with hashbang", "#!/bin/sh\necho 'a'", ""},
 			{"valid with hashbang and spacing", "#! /bin/sh  \necho 'a'", ""},
 			{"valid with hashbang and Windows newline", "#! /bin/sh  \r\necho 'a'", ""},
-			{"invalid hashbang", "#!/bin/bash\necho 'a'", "cannot start with a hashbang"},
-			{"invalid hashbang suffix", "#!/bin/sh -n\necho 'a'", "cannot start with a hashbang"},
+			{"invalid hashbang", "#!/bin/bash\necho 'a'", "Interpreter not supported."},
+			{"invalid hashbang suffix", "#!/bin/sh -n\necho 'a'", "Interpreter not supported."},
 		}
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
