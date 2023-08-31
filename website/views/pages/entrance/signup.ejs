@@ -1,7 +1,7 @@
 <div id="signup" v-cloak>
   <div style="max-width: 800px;" class="container-fluid pb-5 px-lg-0 px-3">
     <h1>Welcome to Fleet Premium</h1>
-    <p class="pb-2">We just need a few details in order to get you a Fleet Premium license key.</p>
+    <p class="pb-2">We just need a few details in order to get you a self-hosted Fleet Premium license key.</p>
     <div class="mx-auto">
       <div purpose="customer-portal-form" class="d-flex flex-row justify-content-between">
         <div class="order-first flex-grow-1">
@@ -47,23 +47,12 @@
                 <p>This email is already linked to a Fleet account.<br> Please <a href="/customers/login">sign in</a> with your email and password.</p>
               </cloud-error>
               <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
-              <p class="small">By signing up you agree to our <a href="/legal/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a>.</p>
-              <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4" v-if="!cloudError">Agree and continue</ajax-button>
-              <ajax-button style="height: 40px;" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4" v-if="cloudError" @click="clickClearFormFields()">Reset form and try again</ajax-button>
+              <p class="small">By signing up you agree to our <a href="/legal/privacy">privacy policy</a> and <a href="/terms">terms of service</a>.</p>
+              <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Agree and continue</ajax-button>
+              <ajax-button style="height: 40px;" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickClearFormFields()">Reset form and try again</ajax-button>
             </ajax-form>
           </div>
         </div>
-
-        <div class="order-last d-none d-md-block" purpose="features-list">
-          <p><strong>Fleet Premium includes:</strong></p>
-          <ul>
-            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
-            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple teams (RBAC)</li>
-            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Self-hosted agent auto-updates</li>
-            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Enterprise support</li>
-          </ul>
-        </div>
-
       </div>
 
     </div>

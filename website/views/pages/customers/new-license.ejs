@@ -24,18 +24,21 @@
 
             </div>
             <cloud-error purpose="cloud-error" v-if="cloudError && !showBillingForm"></cloud-error>
-            <div class="mt-2 pt-3 pb-3 border-top d-flex flex-row" v-if="showQuotedPrice">
-              <div class="order-first">
+            <div class="mt-2 pt-3 pb-3 border-top d-flex flex-column" v-if="showQuotedPrice && formData.numberOfHosts">
+              <div class="pb-2">
                 <strong>Order total</strong>
               </div>
-              <div class="ml-auto">
-                <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 7.00 * 12)) ? quotedPrice : formData.numberOfHosts * 7.00 * 12}}.00 /year</strong>
+              <div class="d-flex flex-row justify-content-between">
+                <p class="mb-0">Fleet Premium <br purpose="order-form-line-break">(self-hosted)</p>
+              <div class="ml-auto text-right">
+                <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 7.00 * 12)) ? quotedPrice : formData.numberOfHosts * 7.00 * 12}}.00 <br purpose="order-form-line-break">/year</strong>
+              </div>
               </div>
             </div>
             <div  :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
-              <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!numberOfHostsQuoted">Continue</ajax-button>
-              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" @click="clickScheduleDemo" v-if=" showQuotedPrice && numberOfHostsQuoted > 1000">Talk to an expert</ajax-button>
-              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="showQuotedPrice && numberOfHostsQuoted <= 1000">Continue</ajax-button>
+              <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="!numberOfHostsQuoted">Continue</ajax-button>
+              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" @click="clickScheduleDemo" v-if=" showQuotedPrice && numberOfHostsQuoted > 1000">Talk to an expert</ajax-button>
+              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted <= 1000">Continue</ajax-button>
             </div>
           </ajax-form>
         </div>
@@ -76,7 +79,7 @@
             <cloud-error purpose="cloud-error" v-else-if="cloudError === 'cardVerificationRequired'">
               <p>The billing card provided could not be used without additional verification. Please use another card or <a href="/contact" target="_blank">contact support</a> to complete your order.</p>
             </cloud-error>
-            <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4">Get license key</ajax-button>
+            <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4">Get license key</ajax-button>
           </ajax-form>
           <cloud-error purpose="cloud-error" v-else-if="cloudError">
             <p class="mb-3 text-bold text-strong">An error has occurred while processing your request.</p>
@@ -102,7 +105,7 @@
     <h1>Thank you, your order is complete.</h1>
     <p class="mb-4 font-weight-bold">Welcome to your admin dashboard.</p>
     <p>From here you can access your license key, change your details and update your payment method.</p>
-    <ajax-button style="height: 40px; font-size: 14px; line-height: 24px; width: 200px" type="submit" purpose="submit-button" :syncing="syncing" spinner="true" class="btn btn-block btn-lg btn-info mx-auto" @click="clickGoToDashboard()">Contine to dashboard</ajax-button>
+    <ajax-button style="height: 40px; font-size: 14px; line-height: 24px; width: 200px" type="submit" purpose="submit-button" :syncing="syncing" spinner="true" class="btn btn-block btn-lg btn-primary mx-auto" @click="clickGoToDashboard()">Contine to dashboard</ajax-button>
   </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

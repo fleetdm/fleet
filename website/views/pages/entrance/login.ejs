@@ -27,23 +27,12 @@
             <cloud-error v-else-if="cloudError === 'badCombo'">Something’s not quite right with your email or password.</cloud-error>
             <cloud-error v-else-if="cloudError"></cloud-error>
             <div class="pb-3">
-              <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-info mt-4 btn-lg btn-block">Sign in</ajax-button>
+              <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-primary mt-4 btn-lg btn-block">Sign in</ajax-button>
             </div>
           </ajax-form>
           <span class="text-center small"><a href="/customers/forgot-password">Forgot your password?</a></span>
         </div>
       </div>
-
-      <div class="order-last d-none d-md-block" purpose="features-list" v-if="showCustomerLogin">
-        <p><strong>Fleet Premium includes:</strong></p>
-        <ul>
-          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
-          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple teams (RBAC)</li>
-          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Self-hosted agent auto-updates</li>
-          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Enterprise support</li>
-        </ul>
-      </div>
-
     </div>
   </div>
 </div>
