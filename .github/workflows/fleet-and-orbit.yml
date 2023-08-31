@@ -56,7 +56,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.11']
+        go-version: ['^1.19.12']
         mysql: ['mysql:5.7']
     runs-on: ubuntu-latest
     needs: gen
@@ -160,7 +160,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.11']
+        go-version: ['^1.19.12']
     runs-on: ubuntu-latest
     needs: gen
     steps:
@@ -200,7 +200,7 @@ jobs:
   build-macos-targets:
     strategy:
       matrix:
-        go-version: ['^1.19.11']
+        go-version: ['^1.19.12']
     runs-on: macos-latest
     steps:
 
@@ -242,7 +242,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.11']
+        go-version: ['^1.19.12']
     runs-on: ubuntu-latest
     needs: [gen, build-macos-targets]
     steps:
