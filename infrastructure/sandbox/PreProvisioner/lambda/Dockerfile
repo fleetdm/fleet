@@ -6,7 +6,7 @@ RUN cargo install --version 0.16.0 apple-codesign \
   && curl -sSf $transporter_url -o transporter_install.sh \
   && sh transporter_install.sh --target transporter --accept --noexec
 
-FROM golang:1.19.11-bullseye@sha256:0649acb9e15690c802857ceba11ee6542a50d54d7630ccc2dac72b828637b908
+FROM golang:1.19.11-bullseye@sha256:010648d6b00151f7ebbc6256364aa38afbdf4e950726c6813ecdfb6104a1c5f9
 
 RUN apt-get update \
   && dpkg --add-architecture i386 \
