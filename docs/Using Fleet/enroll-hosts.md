@@ -3,10 +3,10 @@
 
 - [Enroll hosts](#enroll-hosts)
   - [Introduction](#introduction)
-  - [Add hosts with Fleetd](#add-hosts-with-fleetd)
+  - [Enroll hosts with Fleetd](#enroll-hosts-with-fleetd)
     - [Signing installers](#signing-installers)
     - [Including Fleet Desktop](#including-fleet-desktop)
-    - [Enrolling multiple hosts](#adding-multiple-hosts)
+    - [Adding multiple hosts](#adding-multiple-hosts)
     - [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
     - [Configuration options](#configuration-options)
   - [Add hosts with plain osquery](#add-hosts-with-plain-osquery)
@@ -289,15 +289,29 @@ expiration setting. To configure this setting, in the Fleet UI, head to **Settin
 
 Visit the Google Admin console. In the navigation menu, visit Devices > Chrome > Apps & Extensions > Users & browsers.
 
-Select the relevant organizational unit, users, or group where you want the fleetd Chrome extension to be installed.
+Select the relevant organizational unit, users, or group where you want the fleetd Chrome extension
+to be installed. * Note that as of August 30, 2023, Fleet has only confirmed successful internal deployment
+of the fleetd Chrome extension using the the top-level organizational unit.
 
 In the bottom right, click the yellow "+" button and select "Add Chrome app or extension by ID."
 
-Visit your Fleet instance and select Hosts > Add Hosts and select ChromeOS in the popup modal.
+Click on the dropdown that currently reads "From the Chrome Web Store," and select "From a custom URL."
 
-Enter the "Extension ID," "Installation URL," and "Policy for extensions" using the data provided in the modal.
+In another browser tab or window, visit your Fleet instance. On the "Hosts" page, select "Add Hosts,"
+then navigate to the "ChromeOS" tab in the modal that appears.
 
-Under "Installation Policy", select "Force install". Under "Update URL", select "Installation URL (see above)".
+Back in the Google Admin console in the previous tab/window, enter the "Extension ID" from Fleet in
+the "Extension ID" field, and the "Installation URL" from Fleet in the "URL" field. Click "Save."
+
+In the column on the right of the Google Admin console that now contains the extension ID you just
+entered, scroll all the way down. Enter the "Policy for extension" from Fleet in the "Policy for
+extensions" field, which initially contains the placeholder text "Enter a JSON value." you see here the Google Admin console in your
+previous tab/window.
+
+If you see the "Update URL" field, select "Installation URL (see above)" if it's not already selected.
+
+Back at the top of the sam column, under "Installation Policy", select "Force install" (or another
+option if you know what you are doing). 
 
 > For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
 
