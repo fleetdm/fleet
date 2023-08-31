@@ -29,7 +29,7 @@ If you have any questions or feedback, please contact us: https://fleetdm.com/ha
 </blockquote>
 
 - `# Name of department`
-  - "This handbook page details processes specific to working `[with](fleetdm.com/handbook/company/Name-of-department#contact-us)` and `[within](fleetdm.com/handbook/company/Name-of-department)` the (Name of department) department." 
+  - "This handbook page details processes specific to working `[with](fleetdm.com/handbook/company/Name-of-department#contact-us)` and `[within](fleetdm.com/handbook/company/Name-of-department#responsibilities)` the (Name of department) department." 
     
   - `## What we do`
     - Outline the specific responsibilities of the department.  

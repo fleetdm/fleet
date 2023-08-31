@@ -1,0 +1,1 @@
+* Added support in fleetd to execute scripts and send back results (disabled by default).
