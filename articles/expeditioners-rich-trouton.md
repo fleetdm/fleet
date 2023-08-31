@@ -1,9 +1,9 @@
 # ExpedITioners Podcast
-## Bradley Chambers: The bright future and golden era of MacOS
+## Rich Trouton: Declarative Device Management and a promising future for Mac Admins
 
-<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/us/podcast/bradley-chambers-the-bright-future-and-golden-era-of-macos/id1641183838?i=1000621184125"></iframe>
+<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/us/podcast/rich-trouton-declarative-device-management-and/id1641183838?i=1000626388077"></iframe>
 
-Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/bradley-chambers-the-bright-future-and-golden-era-of-macos/id1641183838?i=1000621184125), [Spotify](https://open.spotify.com/episode/02Sah2dTmPEeGqxFcunIUm?si=4vj2BRaIRbiQJ1-ra-lKng), or [PodBean](https://www.podbean.com/ew/pb-derbt-1457407).
+Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/rich-trouton-declarative-device-management-and/id1641183838?i=1000626388077), [Spotify](https://open.spotify.com/episode/7AHJinyvizmoHdfVTINu9y?si=sYhKqJXzQhetv8KyNMTxdA), or [PodBean](https://www.podbean.com/ew/pb-w65bb-1494d01).
 
 ### Show notes: 
 
