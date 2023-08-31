@@ -54,13 +54,11 @@ If you have any questions or feedback, please contact us: https://fleetdm.com/ha
 ### Key reviews
 Every release cycle, each department leader discusses their [key performance indicators (KPIs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (confidential) with the CEO.  KPIs are numbers measuring results and everyday excellence, usually accompanied by timebound goals.
 
-Any discussion or proposed changes based on the KPI definitions or which department owns a specific KPI require [CEO input](https://fleetdm.com/handbook/ceo#contact-us), and are decided on during this meeting. 
+In this meeting, the department leader discusses actual week-over-week progress towards the goals for a particular quarter with the CEO.
 
-In this meeting, we discuss actual week-over-week progress towards the goals for a particular quarter.
+- Key reviews are scheduled during the e-group time slot every three weeks and are not moved or rescheduled.  If a department leader is not available to lead a particular key review, another team member from their department will join the meeting and discuss their department's key performance indicators (KPIs).
+- Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, get [input from the CEO](https://fleetdm.com/handbook/ceo#contact-us).
 
-- Key reviews are scheduled during the e-group time slot every three weeks to promote consistant attention to results, and are not to be moved or rescheduled without CEO approval.
-- If a departmental leader is not available to attend a particular key review, they can send another
-  team member that is able to communicate their department's key preformance indicators (KPI's).
 
 
 ## Hiring
