@@ -3675,7 +3675,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// attempt to run an overly long script
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "script is too long")
+	require.Contains(t, errMsg, "Script is too large.")
 
 	// make sure the host is still seen as "online"
 	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
@@ -3730,7 +3730,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// attempt to sync run an overly long script
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "script is too long")
+	require.Contains(t, errMsg, "Script is too large.")
 
 	// make sure the host is still seen as "online"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
@@ -3738,9 +3738,9 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// attempt to create a valid sync script execution request, fails because the
 	// host has a pending script execution
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "a script is currently executing on the host")
+	require.Contains(t, errMsg, "A script is already running on this host.")
 
 	// save a result via the orbit endpoint
 	var orbitPostScriptResp orbitPostScriptResultResponse
@@ -3761,7 +3761,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusGatewayTimeout, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
-	require.Contains(t, runSyncResp.ErrorMessage, "script execution timed out waiting for a result")
+	require.True(t, runSyncResp.HostTimeout)
+	require.Contains(t, runSyncResp.Message, "Fleet hasn't heard from the host in over 1 minute because it went offline.")
 
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
@@ -3773,6 +3774,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	ctx, cancel := context.WithTimeout(ctx, testRunScriptWaitForResult)
 	defer cancel()
 
+	resultsCh := make(chan *fleet.HostScriptResultPayload, 1)
 	go func() {
 		for range time.Tick(300 * time.Millisecond) {
 			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, 10*time.Second)
@@ -3781,29 +3783,53 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 				return
 			}
 			if len(pending) > 0 {
-				// ignoring errors in this goroutine, the HTTP request below will fail if this fails
-				err = s.ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-					HostID:      host.ID,
-					ExecutionID: pending[0].ExecutionID,
-					Output:      "ok",
-					Runtime:     1,
-					ExitCode:    0,
-				})
-				if err != nil {
-					t.Log(err)
+				select {
+				case <-ctx.Done():
+					return
+				case r := <-resultsCh:
+					r.ExecutionID = pending[0].ExecutionID
+					// ignoring errors in this goroutine, the HTTP request below will fail if this fails
+					err = s.ds.SetHostScriptExecutionResult(ctx, r)
+					if err != nil {
+						t.Log(err)
+					}
 				}
-				return
 			}
 		}
 	}()
 
+	// simulate a successful script result
+	resultsCh <- &fleet.HostScriptResultPayload{
+		HostID:   host.ID,
+		Output:   "ok",
+		Runtime:  1,
+		ExitCode: 0,
+	}
 	runSyncResp = runScriptSyncResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusOK, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.Equal(t, "ok", runSyncResp.Output)
+	require.True(t, runSyncResp.ExitCode.Valid)
 	require.Equal(t, int64(0), runSyncResp.ExitCode.Int64)
-	require.Empty(t, runSyncResp.ErrorMessage)
+	require.False(t, runSyncResp.HostTimeout)
+
+	// simulate a scripts disabled result
+	resultsCh <- &fleet.HostScriptResultPayload{
+		HostID:   host.ID,
+		Output:   "",
+		Runtime:  0,
+		ExitCode: -2,
+	}
+	runSyncResp = runScriptSyncResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusOK, &runSyncResp)
+	require.Equal(t, host.ID, runSyncResp.HostID)
+	require.NotEmpty(t, runSyncResp.ExecutionID)
+	require.Empty(t, runSyncResp.Output)
+	require.True(t, runSyncResp.ExitCode.Valid)
+	require.Equal(t, int64(-2), runSyncResp.ExitCode.Int64)
+	require.False(t, runSyncResp.HostTimeout)
+	require.Contains(t, runSyncResp.Message, "Scripts are disabled")
 
 	// make the host "offline"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
@@ -3813,5 +3839,11 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// is offline.
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "host is offline")
+	require.Contains(t, errMsg, "Script can't run on offline host.")
+
+	// attempt to create an async script execution request, fails because the host
+	// is offline.
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Script can't run on offline host.")
 }

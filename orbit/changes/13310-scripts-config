@@ -1,0 +1,2 @@
+* Add a `--enable-scripts` flag to `fleetctl package` to build a package capable of script execution
+* Allow script execution to be enabled by providing a configuration profile with `PayloadType` equal to `com.fleetdm.fleetd.config` and a key `ScriptsEnabled` set to `true`.

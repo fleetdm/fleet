@@ -625,9 +625,9 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 			// send a no-op result without executing if script exec is disabled
 			if err := orbitClient.SaveHostScriptResult(&fleet.HostScriptResultPayload{
 				ExecutionID: execID,
-				Output:      "script execution is disabled",
+				Output:      "Scripts are disabled",
 				Runtime:     0,
-				ExitCode:    -1,
+				ExitCode:    -2,
 			}); err != nil {
 				log.Println("save disabled host script result:", err)
 				return
