@@ -576,9 +576,7 @@ const ManagePolicyPage = ({
     isAnyTeamSelected &&
     !isFetchingTeamPolicies &&
     !teamPoliciesError &&
-    !!inheritedPolicies?.length;
-  console.log("!!inheritedPolicies?.length;", !!inheritedPolicies?.length);
-  console.log("showInheritedPoliciesButton", showInheritedPoliciesButton);
+    !!inheritedPolicies?.length; // Returned with team policies
 
   const availablePoliciesForAutomation =
     (isAnyTeamSelected ? teamPolicies : globalPolicies) || [];
