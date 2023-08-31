@@ -137,9 +137,8 @@ const ScriptResult = ({
   exitCode,
   message,
   output,
-  runtime,
 }: IScriptResultProps) => {
-  const showOutputText = exitCode !== -998 && exitCode !== -999 && runtime < 30;
+  const hideOutput = exitCode === null || exitCode === -2;
 
   return (
     <div className={`${baseClass}__script-result`}>
@@ -148,7 +147,7 @@ const ScriptResult = ({
         exitCode={exitCode}
         message={message}
       />
-      {showOutputText && <ScriptOutput output={output} hostname={hostname} />}
+      {!hideOutput && <ScriptOutput output={output} hostname={hostname} />}
     </div>
   );
 };
