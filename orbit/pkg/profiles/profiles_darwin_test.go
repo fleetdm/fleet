@@ -22,27 +22,44 @@ func TestGetFleetdConfig(t *testing.T) {
 	}{
 		{nil, testErr, nil, testErr.Error()},
 		{ptr.String("invalid-json"), nil, nil, "unmarshaling configuration"},
-		{ptr.String("{}"), nil, nil, ErrNotFound.Error()},
+		{ptr.String("{}"), nil, &fleet.MDMAppleFleetdConfig{}, ""},
 		{
-			ptr.String(`{"EnrollSecret": "ENROLL_SECRET", "FleetURL": "https://test.example.com"}`),
+			ptr.String(`{"EnrollSecret": "ENROLL_SECRET", "FleetURL": "https://test.example.com", "EnableScripts": true}`),
 			nil,
 			&fleet.MDMAppleFleetdConfig{
-				EnrollSecret: "ENROLL_SECRET",
-				FleetURL:     "https://test.example.com",
+				EnrollSecret:  "ENROLL_SECRET",
+				FleetURL:      "https://test.example.com",
+				EnableScripts: true,
 			},
+			"",
+		},
+		{
+			ptr.String(`{"EnrollSecret": "ENROLL_SECRET", "FleetURL": "https://test.example.com", "EnableScripts": false}`),
+			nil,
+			&fleet.MDMAppleFleetdConfig{
+				EnrollSecret:  "ENROLL_SECRET",
+				FleetURL:      "https://test.example.com",
+				EnableScripts: false,
+			},
+			"",
+		},
+		{
+			ptr.String(`{"EnableScripts": true}`),
+			nil,
+			&fleet.MDMAppleFleetdConfig{EnableScripts: true},
 			"",
 		},
 		{
 			ptr.String(`{"EnrollSecret": "ENROLL_SECRET", "FleetURL": ""}`),
 			nil,
-			nil,
-			ErrNotFound.Error(),
+			&fleet.MDMAppleFleetdConfig{EnrollSecret: "ENROLL_SECRET"},
+			"",
 		},
 		{
 			ptr.String(`{"EnrollSecret": "", "FleetURL": "https://test.example.com"}`),
 			nil,
-			nil,
-			ErrNotFound.Error(),
+			&fleet.MDMAppleFleetdConfig{FleetURL: "https://test.example.com"},
+			"",
 		},
 	}
 

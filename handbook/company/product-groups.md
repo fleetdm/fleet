@@ -14,13 +14,14 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 ## Current product groups
 
-| Product group             | Goal _(value for customers and/or community)_                       |
-|:--------------------------|:--------------------------------------------------------------------|
-| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.
-| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.
-| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure.
-| [Website](#website-group)                               | Make the website wonderful.
+| Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
+|:--------------------------|:--------------------------------------------------------------------|:-----------------|
+| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category. | 75       |
+| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 60       |
+| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | 16 |
+| [Website](#website-group)                               | Make the website wonderful.                   | 48       |
 
+\* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
 ### MDM group
 
@@ -69,7 +70,7 @@ The goal of the infrastructure group is to provide and support reliable and secu
 
 ### Website group
 
-The goal of the website group is to make visitors on Fleet's website get what they want and what they need.  This includes making the website more navigable, more beautiful, simpler, and easier to understand.
+The goal of the website group is to manage and maintain Fleet's website and documentation by prioritizing and actioning meaningful changes to enhance brand awareness and provide visitors with the information they need when they need it. This includes making the content and user experience more beautiful, simple, and easier to understand.
 
 > _**Note:** If a user story involves **both** changes to the core product **and** to fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by the [CX group](https://fleetdm.com/handbook/company/development-groups#customer-experience-group)._
 
@@ -190,6 +191,7 @@ Design consultations are scheduled as needed with the relevant participants, typ
 - Review wireframes
 - Discuss design input 
 - Discuss implementation details
+
 #### Design reviews
 
 Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/company/ceo#calendar-audit).
@@ -207,7 +209,23 @@ The product designer prepares proposed changes in the form of wireframes for thi
 #### Developing from wireframes
 Please read carefully and [pay special attention](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) to UI wireframes.
 
-Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases!  When you think you've discovered a blocker, communicate.  Leave a comment [mentioning the appropriate PM](https://fleetdm.com/handbook/company/development-groups) or ask for feedback at your next standup.  Then update this user story's estimation, wireframes, and "definition of done" to reflect your updated understanding. 
+Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases! When you think you've discovered a blocker, here's how to proceed:
+
+**For implementation concerns...**
+
+Communicate. Leave a comment [mentioning the appropriate PM](https://fleetdm.com/handbook/company/product-groups#current-product-groups) so they can update the user story and estimation to reflect your new understanding of the issue.
+
+**For all other concerns...**
+
+At Fleet, we prioritize [iteration](https://fleetdm.com/handbook/company#results). So before raising the alarm, think through the following:
+
++ Would addressing this add design work and/or delay shipping the feature?
++ Will this hurt the first-time user experience if we ship as-is?
++ Is this change a "one-way door"?
+
+After these considerations, if you still think you've found a blocker, alert the [appropriate PM](https://fleetdm.com/handbook/company/product-groups#current-product-groups) so that the user story can be brought back for [expedited drafting](https://fleetdm.com/handbook/product#expedited-drafting). Otherwise, this concern may be better suited to a [feature request](https://fleetdm.com/handbook/product#intake).
+
+
 
 
 #### Sub-tasks

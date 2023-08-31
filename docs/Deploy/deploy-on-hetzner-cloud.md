@@ -1,12 +1,6 @@
-# Deploy Fleet on Hetzner Cloud with cloud-init and Docker
+# Deploy Fleet on Hetzner Cloud
 
-![Fleet + Hetzner](../website/assets/images/articles/deploying-fleet-on-hetzner-1600x900@2x.jpg)
-
-[Hetzner](https://hetzner.com) is a great price-performance provider for “root” (dedicated) and Virtual Private Servers (VPS) with high performance and generous bandwidth.
-
-While other providers may charge large amounts for computing and storage, Hetzner is cost-effective _and_ scalable, with great managed options (such as [Nextcloud](https://www.hetzner.com/storage/storage-share)).
-
-Let’s explore how you might deploy Fleet on [Hetzner Cloud](https://hetzner.com/cloud) as quickly as possible so you can use Fleet to orchestrate osquery on your endpoints.
+Learn how to deploy Fleet on Hetzner Cloud using cloud-init and Docker. [Hetzner](https://hetzner.com) is a great price-performance provider for “root” (dedicated) and Virtual Private Servers (VPS), offering high performance and generous bandwidth.
 
 ## The 2 minute setup
 
@@ -350,7 +344,7 @@ To follow this guide, you’ll need:
 
 First, purchase a machine (for example, a [Hetzner Cloud](https://hetzner.com/cloud) instance):
 
-![Hetzner cloud purchase machine screen](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-1-932x388%402x.png)
+![Hetzner cloud purchase machine screen](../docs/images/deploy-on-hetzner-cloud-1-932x388@2x.png)
 _Hetzner cloud purchase machine screen_
 
 After purchasing, you should know the IP address of your machine (and make sure you set up things like SSH [securely](https://community.hetzner.com/tutorials/securing-ssh)!)
@@ -707,9 +701,7 @@ Now that you’re ready to use Fleet and have a host installed. Here's some next
 - Import Fleet's [standard query library](https://fleetdm.com/docs/using-fleet/standard-query-library) to start asking questions about your hosts.
 - To run a more secure setup, consider creating a dedicated `fleet` user with Docker's support for user [namespaces](https://docs.docker.com/engine/security/userns-remap/). 
 
-<meta name="category" value="deploy">
-<meta name="authorGitHubUsername" value="ksatter">
-<meta name="authorFullName" value="Kathy Satterlee">
-<meta name="publishedOn" value="2022-06-27">
-<meta name="articleTitle" value="Deploy Fleet on Hetzner Cloud with cloud-init and Docker">
-<meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-hetzner-1600x900@2x.jpg">
+<meta name="title" value="Hetzner Cloud">
+<meta name="pageOrderInSection" value="700">
+<meta name="description" value="Learn how to deploy Fleet on Hetzner Cloud.">
+<meta name="navSection" value="Deployment guides">
