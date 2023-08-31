@@ -1,6 +1,12 @@
-# Queries
+# Fleet UI
+- [Creating a query](#create-a-query)
+- [Running a query](#run-a-query)
+- [Scheduling a query](#schedule-a-query)
+- [Update agent options](#update-agent-options)
 
-Learn how to create, run, and schedule queries in the Fleet user interface.
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/1VNvg3_drow" allowfullscreen></iframe>
+</div>
 
 ## Create a query
 
@@ -76,7 +82,16 @@ With Fleet Premium, you can schedule queries for groups of hosts using [the team
 
    > Note: Only queries that belong to the selected team will be listed. When configuring query automations for all hosts, only global queries will be listed.
 
-<meta name="title" value="Queries">
-<meta name="pageOrderInSection" value="900">
-<meta name="description" value="Learn how to create, run, and schedule queries in the Fleet user interface.">
+## Update agent options
+
+<!-- Heading is kept so that the link from the Fleet UI still works -->
+<span id="configuring-agent-options" name="configuring-agent-options"></span>
+
+> This content was relocated on 31st August 2023. 
+
+See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to learn how to simultaneously update agent options from the Fleet UI or fleetctl command line tool.
+
+<meta name="title" value="Fleet UI">
+<meta name="pageOrderInSection" value="200">
+<meta name="description" value="Learn how to create, run, and schedule queries, as well as update agent options in the Fleet user interface.">
 <meta name="navSection" value="The basics">

@@ -458,7 +458,6 @@ module.exports.routes = {
   'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
   'GET /docs/deploy/server-installation': '/docs/deploy/introduction',
   'GET /handbook/company/ceo': '/handbook/ceo',
-  'GET /docs/using-fleet/fleet-ui': '/docs/using-fleet/queries',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
