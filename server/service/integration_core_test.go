@@ -7020,6 +7020,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Snapshot: ptr.Bool(true),
 		Removed:  ptr.Bool(true),
 	})
+	require.NoError(t, err)
 
 	// Simulate the osquery instance of the global host calling the osquery/config endpoint
 	// and test the returned scheduled queries.
