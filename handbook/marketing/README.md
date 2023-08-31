@@ -14,14 +14,12 @@ TODO: the goal of the team
 
 
 ## Contact us
+- To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-marketing&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
+- Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board) for this department, including pending tasks in the active sprint and the status of new requests.
 - If urgent, mention a marketing [team member](#team) in the
-  [#g-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel.
-- Mention the Field Marketer for all questions related to events, video, or social media in the
-  [#g-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel.
-- Mention the Community Advocate for all community or article-related questions in the
-  [#g-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel.
-- Anyone can [view the 🫧#g-marketing kanban board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board) or make [make a custom request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-marketing&projects=&template=g-marketing-custom-request.md&title=Request%3A+_______________________) of this department.  
-
+  [#g-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel:
+  - For all urgent questions related to events, video, or social media, mention the Field Marketer.
+  - For all urgent questions related to articles or the Fleet community, mention the Community Advocate.
 
 
 ## Something philosophical
