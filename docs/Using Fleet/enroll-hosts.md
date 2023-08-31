@@ -305,13 +305,12 @@ the "Extension ID" field, and the "Installation URL" from Fleet in the "URL" fie
 
 In the column on the right of the Google Admin console that now contains the extension ID you just
 entered, scroll all the way down. Enter the "Policy for extension" from Fleet in the "Policy for
-extensions" field, which initially contains the placeholder text "Enter a JSON value." you see here the Google Admin console in your
-previous tab/window.
+extensions" field, which initially contains the placeholder text "Enter a JSON value."
 
 If you see the "Update URL" field, select "Installation URL (see above)" if it's not already selected.
 
 Back at the top of the same column, under "Installation Policy", select "Force install" (or another
-option if you know what you are doing). 
+option if you already know what you are doing). 
 
 > For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
 
