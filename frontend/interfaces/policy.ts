@@ -22,6 +22,10 @@ export interface IStoredPolicyResponse {
   policy: IPolicy;
 }
 
+export interface IPoliciesCountResponse {
+  count: number;
+}
+
 export interface IPolicy {
   id: number;
   name: string;
