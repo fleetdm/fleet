@@ -117,6 +117,11 @@ func extractServerErrorText(body io.Reader) string {
 	return errText
 }
 
+type StatusCodeErr interface {
+	StatusCode() int
+	Error() string
+}
+
 type statusCodeErr struct {
 	code int
 	body string

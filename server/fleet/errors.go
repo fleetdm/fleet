@@ -529,3 +529,12 @@ type OrbitError struct {
 func (e OrbitError) Error() string {
 	return e.Message
 }
+
+// Message that may surfaced by the server or the fleetctl client in connection with the RunHostScript service.
+const (
+	ErrRunScriptInvalidType    = "File type not supported. Only .sh (Bash) and .ps1 (PowerShell) file types are allowed."
+	ErrRunScriptHostOffline    = "Script can’t run on offline host."
+	ErrRunScriptHostNotFound   = "Host doesn’t exist. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
+	ErrRunScriptForbidden      = "You don’t have permissions to run the script."
+	ErrRunScriptAlreadyRunning = "A script is already running on this host. Please wait about 1 minute to let it finish."
+)
