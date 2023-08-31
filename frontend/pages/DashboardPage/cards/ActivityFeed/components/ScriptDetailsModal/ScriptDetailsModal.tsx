@@ -79,13 +79,17 @@ const StatusMessage = ({
   switch (exitCode) {
     case null:
       return !hostTimeout ? (
+        // Expected API message: "A script is already running on this host. Please wait about 1 minute to let it finish."
         <StatusMessageRunning />
       ) : (
+        // Expected API message: "Fleet hasn’t heard from the host in over 1 minute. Fleet doesn’t know if the script ran because the host went offline."
         <StatusMessageError message={message} />
       );
     case -2:
+      // Expected API message: "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
       return <StatusMessageError message={message} />;
     case -1:
+      // Expected API message: "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
       return <StatusMessageError message={message} />;
     case 0:
       return <StatusMessageSuccess />;
