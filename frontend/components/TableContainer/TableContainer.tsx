@@ -332,7 +332,7 @@ const TableContainer = ({
                 <Button
                   disabled={disableActionButton}
                   onClick={actionButton.onActionButtonClick}
-                  variant={actionButton.variant}
+                  variant={actionButton.variant || "brand"}
                   className={`${baseClass}__table-action-button`}
                 >
                   <>

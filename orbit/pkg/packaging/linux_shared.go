@@ -288,6 +288,7 @@ ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST={{ .FleetDesktopAlternativeBrowserH
 {{ if .UpdateTLSServerCertificate }}ORBIT_UPDATE_TLS_CERTIFICATE=/opt/orbit/update.pem{{ end }}
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
 {{ if .Debug }}ORBIT_DEBUG=true{{ end }}
+{{ if .EnableScripts }}ORBIT_ENABLE_SCRIPTS=true{{ end }}
 `))
 
 func writeEnvFile(opt Options, rootPath string) error {

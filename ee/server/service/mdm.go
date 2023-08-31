@@ -897,6 +897,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 				EnableDiskEncryption: true,
 			},
 			MacOSSetup: &fleet.MacOSSetup{
+				MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
 				// NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
 				// instead by CopyDefaultMDMAppleBootstrapPackage below
 				// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
@@ -913,6 +914,29 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 		}
 		if err := svc.ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, team.ID); err != nil {
 			return nil, err
+		}
+
+		// get the global setup assistant contents (this is different
+		// from MDM.MacOSSetup.MacOSSetupAssistant we set above, the
+		// prior is the path to the file, this is the actual file
+		// contents.
+		asst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, nil)
+		if err != nil {
+			// if "no team" doesn't have custom setup assistant
+			// settings configured, this team won't have either.
+			if fleet.IsNotFound(err) {
+				return team, nil
+			}
+			return nil, ctxerr.Wrap(ctx, err, "get global setup assistant")
+
+		}
+		_, err = svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+			TeamID:  &team.ID,
+			Name:    asst.Name,
+			Profile: asst.Profile,
+		})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "set setup assistant for new team")
 		}
 	}
 	return team, nil

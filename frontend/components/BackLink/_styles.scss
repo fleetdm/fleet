@@ -2,6 +2,7 @@
   display: inline-flex;
   align-items: center;
   padding: $pad-small $pad-xxsmall; // larger clickable area
+  border-radius: 3px; // Visible while tabbing;
   gap: $pad-xsmall;
 
   &:hover {

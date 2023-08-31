@@ -115,7 +115,6 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       variant === "text-link" ||
       variant === "inverse" ||
       variant === "text-icon" ||
-      variant === "icon" ||
       variant === "label";
 
     return (
