@@ -1005,7 +1005,7 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
 
 The `agent_options` key controls the settings applied to the agent on all your hosts. These settings are applied when each host checks in.
 
-See [Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration) for more information.
+See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" for more information.
 
 #### Mobile device management (MDM) settings
 
