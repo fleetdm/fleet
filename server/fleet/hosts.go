@@ -1137,11 +1137,13 @@ func (hsr HostScriptResult) AuthzType() string {
 func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	switch {
 	case hostTimeout:
-		return "Error: Fleet hasn't heard from the host in over 1 minute because it went offline. Run the script again when the host comes back online."
+		return "Fleet hasn't heard from the host in over 1 minute because it went offline. Run the script again when the host comes back online."
 	case !hostTimeout && time.Since(hsr.CreatedAt) > time.Minute:
-		return "Error: Fleet hasn't heard from the host in over 1 minute because it went offline. Run the script again when the host comes back online."
+		return "Fleet hasn't heard from the host in over 1 minute because it went offline. Run the script again when the host comes back online."
 	case hsr.ExitCode.Int64 == -1:
-		return "Error: Timeout. Fleet stopped the script after 30 seconds to protect host performance."
+		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
+	case hsr.ExitCode.Int64 == -2:
+		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
 	case !hsr.ExitCode.Valid:
 		return "Script is running. To see if the script finished, close this modal and open it again."
 	}
