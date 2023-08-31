@@ -23,9 +23,9 @@ export default {
         host_id: 1,
         execution_id: 1,
         script_contents: "test contentsss here is here",
-        exit_code: 0,
+        exit_code: null,
         output: "test output",
-        message: "test message",
+        message: "Error: This is an error message.",
         runtime: 20,
         host_timeout: false,
       });

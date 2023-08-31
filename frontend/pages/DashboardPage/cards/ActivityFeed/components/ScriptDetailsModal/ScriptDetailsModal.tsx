@@ -13,9 +13,6 @@ import Spinner from "components/Spinner/Spinner";
 
 const baseClass = "script-details-modal";
 
-const SCRIPT_RUNNING_CODE = -999;
-const HOST_NOT_REACHED_CODE = -998;
-
 interface IScriptContentProps {
   content: string;
 }
@@ -35,49 +32,22 @@ interface IStatusMessageProps {
   hostTimeout: boolean;
   exitCode: number | null;
   message: string;
-  runtime: number;
 }
 
 const StatusMessage = ({
   hostTimeout,
   exitCode,
   message,
-  runtime,
 }: IStatusMessageProps) => {
   let statusMessage: JSX.Element;
 
   const scriptStillRunning = exitCode === null && hostTimeout === false;
-  const noHostResponse = exitCode === null && hostTimeout === true;
-  const scriptsAreDisabledForHost = exitCode === -2 && hostTimeout === true;
+  const hasExitCode = exitCode !== null;
 
-  // script timed out error
-  if (hostTimeout) {
-    statusMessage = (
-      <p>
-        <Icon name="error-outline" />
-        Error: Timeout. Fleet stopped the script after 30 seconds to protect
-        host performance.
-      </p>
-    );
-    // host could not be reached
-    // TODO: clarify what causes this message to show.
-  } else if (noHostResponse) {
-    statusMessage = (
-      <p>
-        <Icon name="error-outline" />
-        Error: Fleet hasn&apos;t heard from the host in over 1 minute because it
-        went offline. Run the script again when the host comes back online.
-      </p>
-    );
-  } else if (scriptsAreDisabledForHost) {
-    statusMessage = (
-      <p>
-        <Icon name="error-outline" />
-        Error: Scripts are disabled for this host. To run scripts, deploy a
-        Fleet installer with scripts enabled.
-      </p>
-    );
-  } else if (scriptStillRunning) {
+  // The messaging to the user is hardcoded when the script is still running
+  // OR when the script has an exit code is not null.
+  // Whenever the exit code is null we display the message that the API sends back.
+  if (scriptStillRunning && !message) {
     statusMessage = (
       <p>
         <Icon name="pending-partial" />
@@ -85,12 +55,21 @@ const StatusMessage = ({
         open it again.
       </p>
     );
-  } else {
+  } else if (hasExitCode) {
     // 0 or 1 exit code with message
+    const exitCodeMessage =
+      exitCode === 0 ? "Script ran successfully" : "Script failed";
     statusMessage = (
       <p>
         <Icon name={exitCode === 0 ? "success-partial" : "error-outline"} />
-        {`Exit code: ${exitCode} (${message})`}
+        {`Exit code: ${exitCode} (${exitCodeMessage}.)`}
+      </p>
+    );
+  } else {
+    statusMessage = (
+      <p>
+        <Icon name="error-outline" />
+        {message}
       </p>
     );
   }
@@ -144,7 +123,6 @@ const ScriptResult = ({
         hostTimeout={hostTimeout}
         exitCode={exitCode}
         message={message}
-        runtime={runtime}
       />
       {showOutputText && <ScriptOutput output={output} />}
     </div>
