@@ -239,7 +239,7 @@ const ManagePolicyPage = ({
       return globalPoliciesAPI.loadAllNew(queryKey[0]);
     },
     {
-      enabled: isRouteOk,
+      enabled: isRouteOk && !isAnyTeamSelected,
       select: (data) => data.policies,
       staleTime: 5000,
     }
@@ -362,9 +362,10 @@ const ManagePolicyPage = ({
   );
 
   const refetchPolicies = (teamId?: number) => {
-    refetchGlobalPolicies();
     if (teamId) {
       refetchTeamPolicies();
+    } else {
+      refetchGlobalPolicies(); // Only call on global policies as this is expensive
     }
   };
 
