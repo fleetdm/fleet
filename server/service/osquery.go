@@ -335,6 +335,14 @@ func (r getClientConfigResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(r.Config)
 }
 
+// UnmarshalJSON implements json.Unmarshaler.
+//
+// Osquery expects the response for configs to be at the
+// top-level of the JSON response.
+func (r *getClientConfigResponse) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &r.Config)
+}
+
 func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
