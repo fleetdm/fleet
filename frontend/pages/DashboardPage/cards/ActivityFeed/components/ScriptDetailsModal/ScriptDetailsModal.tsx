@@ -92,8 +92,10 @@ const StatusMessage = ({
       // Expected API message: "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
       return <StatusMessageError message={message} />;
     case 0:
+      // Expected API message: ""
       return <StatusMessageSuccess />;
     default:
+      // Expected API message: ""
       return <StatusMessageFailed exitCode={exitCode} />;
   }
 };
