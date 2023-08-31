@@ -4859,11 +4859,9 @@ Where `query_id` references an existing `query`.
 }
 ```
 
-### Run Automation for all failing hosts of a policy.
+### Run automation for all failing hosts of a policy
 
-Normally automations (Webhook/Integrations) runs on all hosts when a policy-check
-fails but didn't fail before. This feature to mark policies to call automation for
-all hosts that already fail the policy, too and possibly again.
+Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations) for *all* hosts with failing policies, regardless of whether a policy was previously failing on a host.
 
 `POST /api/v1/fleet/automations/reset`
 
@@ -4871,8 +4869,8 @@ all hosts that already fail the policy, too and possibly again.
 
 | Name        | Type     | In   | Description                                              |
 | ----------  | -------- | ---- | -------------------------------------------------------- |
-| team_ids    | list     | body | Run automation for all hosts in policies of these teams  |
-| policy_ids  | list     | body | Run automations for all hosts these policies             |
+| team_ids    | list     | body | Filters to only run policy automations for hosts in the specified teams.  |
+| policy_ids  | list     | body | Filters to only run policy automations for the specified policies         |
 
 _Teams are available in Fleet Premium_
 
