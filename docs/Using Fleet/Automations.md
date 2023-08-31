@@ -39,7 +39,7 @@ POST https://server.com/example
     "cvss_score": 5.7, // Premium feature only
     "cisa_known_exploit": true, // Premium feature only
     "cve_published": "2020-10-28T00:00:00Z", // Premium feature only
-    "description": "The parse_datetime function in GNU coreutils allows remote attackers to cause a denial of service (crash) or possibly execute arbitrary code via a crafted date string, as demonstrated by the \"--date=TZ=\"123\"345\" @1\" string to the touch or date command.", // Premium feature only
+    "cve_description": "The parse_datetime function in GNU coreutils allows remote attackers to cause a denial of service (crash) or possibly execute arbitrary code via a crafted date string, as demonstrated by the \"--date=TZ=\"123\"345\" @1\" string to the touch or date command.", // Premium feature only
     "hosts_affected": [
       {
         "id": 1,
