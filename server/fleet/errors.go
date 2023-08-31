@@ -535,6 +535,7 @@ const (
 	ErrRunScriptInvalidType    = "File type not supported. Only .sh (Bash) and .ps1 (PowerShell) file types are allowed."
 	ErrRunScriptHostOffline    = "Script can’t run on offline host."
 	ErrRunScriptHostNotFound   = "Host doesn’t exist. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
-	ErrRunScriptForbidden      = "You don’t have permissions to run the script."
+	ErrRunScriptForbidden      = "You don’t have the right permissions in Fleet to run the script."
 	ErrRunScriptAlreadyRunning = "A script is already running on this host. Please wait about 1 minute to let it finish."
+	ErrRunScriptHostTimeout    = "Fleet hasn’t heard from the host in over 1 minute. Fleet doesn’t know if the script ran because the host went offline."
 )

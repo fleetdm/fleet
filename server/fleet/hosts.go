@@ -1145,9 +1145,9 @@ func (hsr HostScriptResult) AuthzType() string {
 func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	switch {
 	case hostTimeout:
-		return "Fleet hasn't heard from the host in over 1 minute because it went offline. Run the script again when the host comes back online."
+		return ErrRunScriptHostTimeout
 	case !hostTimeout && time.Since(hsr.CreatedAt) > time.Minute:
-		return "Fleet hasn't heard from the host in over 1 minute because it went offline. Run the script again when the host comes back online."
+		return ErrRunScriptHostTimeout
 	case hsr.ExitCode.Int64 == -1:
 		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
 	case hsr.ExitCode.Int64 == -2:
@@ -1158,9 +1158,10 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	return ""
 }
 
-func ValidateHostScriptContents(s string) error {
-	const maxScriptRuneLen = 10000
+const MaxScriptRuneLen = 10000
 
+func ValidateHostScriptContents(s string) error {
+	// anchored, so that it matches to the end of the line
 	scriptHashbangValidation := regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
 
 	if s == "" {
@@ -1169,14 +1170,14 @@ func ValidateHostScriptContents(s string) error {
 
 	// look for the script length in bytes first, as rune counting a huge string
 	// can be expensive.
-	if len(s) > utf8.UTFMax*maxScriptRuneLen {
-		return fmt.Errorf("Script is too large. It’s limited to 10,000 characters (approximately 125 lines).")
+	if len(s) > utf8.UTFMax*MaxScriptRuneLen {
+		return errors.New("Script is too large. It’s limited to 10,000 characters (approximately 125 lines).")
 	}
 
 	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
 	// we can safely count the runes for a precise check.
-	if utf8.RuneCountInString(s) > maxScriptRuneLen {
-		return fmt.Errorf("Script is too large. It’s limited to 10,000 characters (approximately 125 lines).")
+	if utf8.RuneCountInString(s) > MaxScriptRuneLen {
+		return errors.New("Script is too large. It’s limited to 10,000 characters (approximately 125 lines).")
 	}
 
 	// script must be a "text file", but that's not so simple to validate, so we

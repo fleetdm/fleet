@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -23,9 +22,6 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	opts.IncludePolicies = true
 	return svc.Service.HostByIdentifier(ctx, identifier, opts)
 }
-
-// anchored, so that it matches to the end of the line
-var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
 	const (

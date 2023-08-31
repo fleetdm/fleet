@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -125,7 +126,7 @@ Output{{ .BeforeTimeout }}:
 		}
 	}
 
-	if len(res.Output) >= 10000 {
+	if len(res.Output) >= fleet.MaxScriptRuneLen && utf8.RuneCountInString(res.Output) >= fleet.MaxScriptRuneLen {
 		data.Output = "Fleet records the last 10,000 characters to prevent downtime.\n\n" + res.Output
 	} else {
 		data.Output = res.Output
