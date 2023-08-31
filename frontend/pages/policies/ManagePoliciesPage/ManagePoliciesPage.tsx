@@ -576,9 +576,9 @@ const ManagePolicyPage = ({
     isAnyTeamSelected &&
     !isFetchingTeamPolicies &&
     !teamPoliciesError &&
-    !isFetchingGlobalPolicies &&
-    !globalPoliciesError &&
-    !!globalPolicies?.length;
+    !!inheritedPolicies?.length;
+  console.log("!!inheritedPolicies?.length;", !!inheritedPolicies?.length);
+  console.log("showInheritedPoliciesButton", showInheritedPoliciesButton);
 
   const availablePoliciesForAutomation =
     (isAnyTeamSelected ? teamPolicies : globalPolicies) || [];
@@ -735,7 +735,6 @@ const ManagePolicyPage = ({
                 currentAutomatedPolicies={currentAutomatedPolicies}
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
-                // onClientSidePaginationChange={onClientSidePaginationChange}
                 renderPoliciesCount={() =>
                   !isFetchingGlobalCount &&
                   renderPoliciesCount(globalPoliciesCount)
@@ -748,27 +747,25 @@ const ManagePolicyPage = ({
               />
             ))}
         </div>
-        {showInheritedPoliciesButton &&
-          globalPolicies &&
-          globalPoliciesCount && (
-            <RevealButton
-              isShowing={showInheritedTable}
-              className={baseClass}
-              hideText={inheritedPoliciesButtonText(
-                showInheritedTable,
-                globalPoliciesCount
-              )}
-              showText={inheritedPoliciesButtonText(
-                showInheritedTable,
-                globalPoliciesCount
-              )}
-              caretPosition={"before"}
-              tooltipHtml={
-                '"All teams" policies are checked <br/> for this team’s hosts.'
-              }
-              onClick={toggleShowInheritedPolicies}
-            />
-          )}
+        {showInheritedPoliciesButton && globalPoliciesCount && (
+          <RevealButton
+            isShowing={showInheritedTable}
+            className={baseClass}
+            hideText={inheritedPoliciesButtonText(
+              showInheritedTable,
+              globalPoliciesCount
+            )}
+            showText={inheritedPoliciesButtonText(
+              showInheritedTable,
+              globalPoliciesCount
+            )}
+            caretPosition={"before"}
+            tooltipHtml={
+              '"All teams" policies are checked <br/> for this team’s hosts.'
+            }
+            onClick={toggleShowInheritedPolicies}
+          />
+        )}
         {showInheritedPoliciesButton && showInheritedTable && (
           <div className={`${baseClass}__inherited-policies-table`}>
             {globalPoliciesError && <TableDataError />}
@@ -784,9 +781,6 @@ const ManagePolicyPage = ({
                   tableType="inheritedPolicies"
                   currentTeam={currentTeamSummary}
                   searchQuery=""
-                  // onClientSidePaginationChange={
-                  //   onClientSideInheritedPaginationChange
-                  // }
                   renderPoliciesCount={() =>
                     renderPoliciesCount(teamPoliciesCount)
                   }
