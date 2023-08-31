@@ -19,6 +19,7 @@
     }
   }
   [purpose='customer-portal-form'] {
+    max-width: 520px;
     label {
       font-weight: 700;
       margin-bottom: 4px;
@@ -77,6 +78,9 @@
 
   @media (max-width: 768px) {
     padding-top: 60px;
+    [purpose='customer-portal-form'] {
+      max-width: unset;
+    }
   }
 
   @media (max-width: 576px) {

@@ -34,6 +34,7 @@
   }
 
   [purpose='customer-portal-form'] {
+    max-width: 520px;
     label {
       font-weight: 400;
       margin-bottom: 4px;
@@ -48,6 +49,9 @@
     .card-body {
       padding: 2em;
     }
+  }
+  [purpose='order-form-line-break']{
+    display: none;
   }
 
   [purpose='submit-button'] {
@@ -92,6 +96,9 @@
 
   @media (max-width: 768px) {
     padding-top: 60px;
+    [purpose='customer-portal-form'] {
+      max-width: unset;
+    }
   }
 
   @media (max-width: 576px) {
@@ -100,6 +107,11 @@
       .card-body {
         padding: 1.5em 1em;
       }
+    }
+  }
+  @media (max-width: 400px) {
+    [purpose='order-form-line-break']{
+      display: block;
     }
   }
 
