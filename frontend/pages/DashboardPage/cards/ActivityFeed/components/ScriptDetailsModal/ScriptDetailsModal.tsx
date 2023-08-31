@@ -1,6 +1,8 @@
 import React from "react";
 import { useQuery } from "react-query";
 
+import scriptsAPI from "services/entities/scripts";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -30,34 +32,52 @@ const ScriptContent = ({ content }: IScriptContentProps) => {
 };
 
 interface IStatusMessageProps {
-  exitCode: number;
+  hostTimeout: boolean;
+  exitCode: number | null;
   message: string;
   runtime: number;
 }
 
-const StatusMessage = ({ exitCode, message, runtime }: IStatusMessageProps) => {
+const StatusMessage = ({
+  hostTimeout,
+  exitCode,
+  message,
+  runtime,
+}: IStatusMessageProps) => {
   let statusMessage: JSX.Element;
 
+  const scriptStillRunning = exitCode === null && hostTimeout === false;
+  const noHostResponse = exitCode === null && hostTimeout === true;
+  const scriptsAreDisabledForHost = exitCode === -2 && hostTimeout === true;
+
   // script timed out error
-  if (runtime > 30) {
+  if (hostTimeout) {
     statusMessage = (
       <p>
         <Icon name="error-outline" />
-        Timeout error: Fleet stopped the script after 30 seconds to protect host
-        performance.
+        Error: Timeout. Fleet stopped the script after 30 seconds to protect
+        host performance.
       </p>
     );
     // host could not be reached
-  } else if (exitCode === HOST_NOT_REACHED_CODE) {
+    // TODO: clarify what causes this message to show.
+  } else if (noHostResponse) {
     statusMessage = (
       <p>
         <Icon name="error-outline" />
-        The script ran but Fleet couldn&apos;t get its output because Fleet
-        didn&apos;t hear back from the host.
+        Error: Fleet hasn&apos;t heard from the host in over 1 minute because it
+        went offline. Run the script again when the host comes back online.
       </p>
     );
-    // script still running
-  } else if (exitCode === SCRIPT_RUNNING_CODE) {
+  } else if (scriptsAreDisabledForHost) {
+    statusMessage = (
+      <p>
+        <Icon name="error-outline" />
+        Error: Scripts are disabled for this host. To run scripts, deploy a
+        Fleet installer with scripts enabled.
+      </p>
+    );
+  } else if (scriptStillRunning) {
     statusMessage = (
       <p>
         <Icon name="pending-partial" />
@@ -102,13 +122,15 @@ const ScriptOutput = ({ output }: IScriptOutputProps) => {
 };
 
 interface IScriptResultProps {
-  exitCode: number;
+  hostTimeout: boolean;
+  exitCode: number | null;
   message: string;
   output: string;
   runtime: number;
 }
 
 const ScriptResult = ({
+  hostTimeout,
   exitCode,
   message,
   output,
@@ -118,7 +140,12 @@ const ScriptResult = ({
 
   return (
     <div className={`${baseClass}__script-result`}>
-      <StatusMessage exitCode={exitCode} message={message} runtime={runtime} />
+      <StatusMessage
+        hostTimeout={hostTimeout}
+        exitCode={exitCode}
+        message={message}
+        runtime={runtime}
+      />
       {showOutputText && <ScriptOutput output={output} />}
     </div>
   );
@@ -129,18 +156,11 @@ interface IScriptDetailsModalProps {
 }
 
 const ScriptDetailsModal = ({ onCancel }: IScriptDetailsModalProps) => {
-  const TEST_DATA = {
-    script_contents: "test contentsss",
-    exit_code: 0,
-    output: "test output",
-    message: "test message",
-    runtime: 20,
-  };
-
+  // TODO: type for data
   const { data, isLoading, isError } = useQuery<any>(
     ["scriptDetailsModal"],
     () => {
-      return new Promise((resolve) => resolve(TEST_DATA));
+      return scriptsAPI.getScriptResult(1);
     },
     { refetchOnWindowFocus: false }
   );
@@ -157,6 +177,7 @@ const ScriptDetailsModal = ({ onCancel }: IScriptDetailsModalProps) => {
         <>
           <ScriptContent content={data.script_contents} />
           <ScriptResult
+            hostTimeout={data.host_timeout}
             exitCode={data.exit_code}
             message={data.message}
             output={data.output}
