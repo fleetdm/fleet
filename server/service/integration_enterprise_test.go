@@ -3740,7 +3740,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// host has a pending script execution
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrRunScriptAlreadyRunning)
+	require.Contains(t, errMsg, fleet.RunScriptAlreadyRunningErrMsg)
 
 	// save a result via the orbit endpoint
 	var orbitPostScriptResp orbitPostScriptResultResponse
@@ -3762,7 +3762,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.True(t, runSyncResp.HostTimeout)
-	require.Contains(t, runSyncResp.Message, fleet.ErrRunScriptHostTimeout)
+	require.Contains(t, runSyncResp.Message, fleet.RunScriptHostTimeoutErrMsg)
 
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
@@ -3839,11 +3839,11 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// is offline.
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrRunScriptHostOffline)
+	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
 
 	// attempt to create an async script execution request, fails because the host
 	// is offline.
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrRunScriptHostOffline)
+	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
 }

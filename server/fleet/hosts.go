@@ -1145,9 +1145,9 @@ func (hsr HostScriptResult) AuthzType() string {
 func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	switch {
 	case hostTimeout:
-		return ErrRunScriptHostTimeout
+		return RunScriptHostTimeoutErrMsg
 	case !hostTimeout && time.Since(hsr.CreatedAt) > time.Minute:
-		return ErrRunScriptHostTimeout
+		return RunScriptHostTimeoutErrMsg
 	case hsr.ExitCode.Int64 == -1:
 		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
 	case hsr.ExitCode.Int64 == -2:

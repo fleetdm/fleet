@@ -55,7 +55,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	// host must be online
 	if host.Status(time.Now()) != fleet.StatusOnline {
-		return nil, fleet.NewInvalidArgumentError("host_id", fleet.ErrRunScriptHostOffline)
+		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, maxPendingScriptAge)
@@ -64,7 +64,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	}
 	if len(pending) > 0 {
 		return nil, fleet.NewInvalidArgumentError(
-			"script_contents", fleet.ErrRunScriptAlreadyRunning,
+			"script_contents", fleet.RunScriptAlreadyRunningErrMsg,
 		).WithStatus(http.StatusConflict)
 	}
 

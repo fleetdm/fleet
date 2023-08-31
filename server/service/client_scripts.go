@@ -36,7 +36,7 @@ func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte) (*fleet.H
 			return nil, fmt.Errorf("decoding %s %s response: %w, body: %s", verb, path, err, b)
 		}
 	case http.StatusForbidden:
-		return nil, errors.New(fleet.ErrRunScriptForbidden)
+		return nil, errors.New(fleet.RunScriptForbiddenErrMsg)
 
 	default:
 		msg, err := extractServerErrMsg(verb, path, res)

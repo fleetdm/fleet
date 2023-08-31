@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
-	"strings"
+	"path/filepath"
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -50,19 +50,19 @@ func runScriptCommand() *cli.Command {
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
-					return errors.New(fleet.ErrRunScriptHostNotFound)
+					return errors.New(fleet.RunScriptHostNotFoundErrMsg)
 				}
 				var sce service.StatusCodeErr
 				if errors.As(err, &sce) {
 					if sce.StatusCode() == http.StatusForbidden {
-						return errors.New(fleet.ErrRunScriptForbidden)
+						return errors.New(fleet.RunScriptForbiddenErrMsg)
 					}
 				}
 				return err
 			}
 
 			if h.Status != fleet.StatusOnline {
-				return errors.New(fleet.ErrRunScriptHostOffline)
+				return errors.New(fleet.RunScriptHostOfflineErrMsg)
 			}
 
 			b, err := os.ReadFile(path)
@@ -90,35 +90,41 @@ func runScriptCommand() *cli.Command {
 
 func renderScriptResult(c *cli.Context, res *fleet.HostScriptResult) error {
 	tmpl := template.Must(template.New("").Parse(`
-{{ if .ErrorMsg }}Error: {{ .ErrorMsg }}{{else}}Exit code: {{ .ExitCode }} ({{ .ExitMessage }}){{end}}
-{{ if (not .HideOutput) }}
-Output{{ .BeforeTimeout }}:
+{{ if .ErrorMsg -}}
+Error: {{ .ErrorMsg }}
+{{- else -}}
+Exit code: {{ .ExitCode }} ({{ .ExitMessage }})
+{{- end }}
+{{ if .ShowOutput }}
+Output {{- if .ExecTimeout }} before timeout {{- end }}:
 
 -------------------------------------------------------------------------------------
 
 {{ .Output }}
 
--------------------------------------------------------------------------------------{{end}}
+-------------------------------------------------------------------------------------
+{{- end }}
 `))
 
 	data := struct {
-		BeforeTimeout string
-		ErrorMsg      string
-		ExitCode      int64
-		ExitMessage   string
-		HideOutput    bool
-		Output        string
+		ExecTimeout bool
+		ErrorMsg    string
+		ExitCode    int64
+		ExitMessage string
+		Output      string
+		ShowOutput  bool
 	}{
 		ExitCode:    res.ExitCode.Int64,
 		ExitMessage: "Script failed.",
+		ShowOutput:  true,
 	}
 
 	switch res.ExitCode.Int64 {
 	case -2:
+		data.ShowOutput = false
 		data.ErrorMsg = res.Message
-		data.HideOutput = true
 	case -1:
-		data.BeforeTimeout = " before timeout"
+		data.ExecTimeout = true
 		data.ErrorMsg = res.Message
 	case 0:
 		if res.ExitCode.Valid {
@@ -136,15 +142,9 @@ Output{{ .BeforeTimeout }}:
 }
 
 func validateScriptPath(path string) error {
-	parts := strings.Split(path, ".")
-	if len(parts) < 2 {
-		return errors.New(fleet.ErrRunScriptInvalidType)
-	}
-	extension := parts[len(parts)-1]
-	switch extension {
-	case "sh", "ps1":
+	extension := filepath.Ext(path)
+	if extension == ".sh" || extension == ".ps1" {
 		return nil
-	default:
-		return errors.New(fleet.ErrRunScriptInvalidType)
 	}
+	return errors.New(fleet.RunScriptInvalidTypeErrMsg)
 }
