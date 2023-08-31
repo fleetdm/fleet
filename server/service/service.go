@@ -63,6 +63,8 @@ type Service struct {
 	cronSchedulesService fleet.CronSchedulesService
 
 	wstepCertManager microsoft_mdm.CertManager
+
+	distQueryHostChannels map[uint]chan struct{}
 }
 
 func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -138,12 +140,13 @@ func NewService(
 		// TODO: remove mdmStorage and mdmPushService when
 		// we remove deprecated top-level service methods
 		// from the prototype.
-		mdmStorage:           mdmStorage,
-		mdmPushService:       mdmPushService,
-		mdmPushCertTopic:     mdmPushCertTopic,
-		mdmAppleCommander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
-		cronSchedulesService: cronSchedulesService,
-		wstepCertManager:     wstepCertManager,
+		mdmStorage:            mdmStorage,
+		mdmPushService:        mdmPushService,
+		mdmPushCertTopic:      mdmPushCertTopic,
+		mdmAppleCommander:     apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+		cronSchedulesService:  cronSchedulesService,
+		wstepCertManager:      wstepCertManager,
+		distQueryHostChannels: make(map[uint]chan struct{}),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

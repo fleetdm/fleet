@@ -276,6 +276,11 @@ func (r *redisLiveQuery) storeQueryInfo(name, sql string, hostIDs []uint) error 
 	if err != nil {
 		return fmt.Errorf("set targets: %w", err)
 	}
+
+	_, err = conn.Do("PUBLISH", "live_query", name)
+	if err != nil {
+		return fmt.Errorf("publish: %w", err)
+	}
 	return nil
 }
 
