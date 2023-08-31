@@ -15,6 +15,7 @@ import Spinner from "components/Spinner";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import ActivityItem from "./ActivityItem";
+import ScriptDetailsModal from "./components/ScriptDetailsModal/ScriptDetailsModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -32,6 +33,7 @@ const ActivityFeed = ({
 }: IActvityCardProps): JSX.Element => {
   const [pageIndex, setPageIndex] = useState(0);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
+  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
   const queryShown = useRef("");
 
   const {
@@ -155,6 +157,10 @@ const ActivityFeed = ({
           query={queryShown.current}
           onCancel={() => setShowShowQueryModal(false)}
         />
+      )}
+      {/* TODO: show/hide when we integrate with API activites. */}
+      {false && (
+        <ScriptDetailsModal onCancel={() => setShowShowQueryModal(false)} />
       )}
     </div>
   );

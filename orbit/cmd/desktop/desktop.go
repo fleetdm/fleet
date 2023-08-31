@@ -419,11 +419,13 @@ func (m *mdmMigrationHandler) NotifyRemote() error {
 	return nil
 }
 
-func (m *mdmMigrationHandler) ShowInstructions() {
+func (m *mdmMigrationHandler) ShowInstructions() error {
 	openURL := m.client.BrowserDeviceURL(m.tokenReader.GetCached())
 	if err := open.Browser(openURL); err != nil {
 		log.Error().Err(err).Str("url", openURL).Msg("open browser")
+		return err
 	}
+	return nil
 }
 
 // setupLogs configures our logging system to write logs to rolling files and
