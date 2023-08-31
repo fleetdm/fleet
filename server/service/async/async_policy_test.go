@@ -410,6 +410,115 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 	require.Equal(t, 0, count)
 }
 
+func testRecordPolicyQueryExecutionsNoPoliciesSync(t *testing.T, ds *mock.Store, pool fleet.RedisPool) {
+	ctx := context.Background()
+	now := time.Now()
+	lastYear := now.Add(-365 * 24 * time.Hour)
+	host := &fleet.Host{
+		ID:              1,
+		Platform:        "linux",
+		PolicyUpdatedAt: lastYear,
+	}
+
+	var emptyResults map[uint]*bool
+	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
+
+	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{})
+
+	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
+	require.True(t, policyReportedAt.Equal(lastYear))
+
+	err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false)
+	require.NoError(t, err)
+	require.True(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+	ds.RecordPolicyQueryExecutionsFuncInvoked = false
+
+	conn := redis.ConfigureDoer(pool, pool.Get())
+	defer conn.Close()
+
+	n, err := redigo.Int(conn.Do("EXISTS", keyList))
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	n, err = redigo.Int(conn.Do("EXISTS", keyTs))
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	n, err = redigo.Int(conn.Do("ZCARD", policyPassHostIDsKey))
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	policyReportedAt = task.GetHostPolicyReportedAt(ctx, host)
+	require.True(t, policyReportedAt.Equal(now))
+}
+
+func testRecordPolicyQueryExecutionsNoPoliciesAsync(t *testing.T, ds *mock.Store, pool fleet.RedisPool) {
+	ctx := context.Background()
+	now := time.Now()
+	lastYear := now.Add(-365 * 24 * time.Hour)
+	host := &fleet.Host{
+		ID:              1,
+		Platform:        "linux",
+		PolicyUpdatedAt: lastYear,
+	}
+	var emptyResults map[uint]*bool
+	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
+
+	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{
+		EnableAsyncHostProcessing:   "true",
+		AsyncHostInsertBatch:        3,
+		AsyncHostUpdateBatch:        3,
+		AsyncHostDeleteBatch:        3,
+		AsyncHostRedisPopCount:      3,
+		AsyncHostRedisScanKeysCount: 10,
+	})
+
+	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
+	require.True(t, policyReportedAt.Equal(lastYear))
+
+	err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false)
+	require.NoError(t, err)
+	require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+
+	conn := redis.ConfigureDoer(pool, pool.Get())
+	defer conn.Close()
+	defer conn.Do("DEL", keyTs) //nolint:errcheck
+
+	n, err := redigo.Int(conn.Do("EXISTS", keyList))
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	ts, err := redigo.Int64(conn.Do("GET", keyTs))
+	require.NoError(t, err)
+	require.Equal(t, now.Unix(), ts)
+
+	count, err := redigo.Int(conn.Do("ZCARD", policyPassHostIDsKey))
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+	tsActive, err := redigo.Int64(conn.Do("ZSCORE", policyPassHostIDsKey, host.ID))
+	require.NoError(t, err)
+	require.Equal(t, tsActive, ts)
+
+	policyReportedAt = task.GetHostPolicyReportedAt(ctx, host)
+	// because we transition via unix epoch (seconds), not exactly equal
+	require.WithinDuration(t, now, policyReportedAt, time.Second)
+	// host's PolicyUpdatedAt field hasn't been updated yet, because the policy
+	// results are in redis, not in mysql yet.
+	require.True(t, host.PolicyUpdatedAt.Equal(lastYear))
+
+	// running the collector removes the host from the active set
+	var stats collectorExecStats
+	err = task.collectPolicyQueryExecutions(ctx, ds, pool, &stats)
+	require.NoError(t, err)
+	require.Equal(t, 1, stats.Keys)
+	require.Equal(t, 0, stats.Items)
+	require.False(t, stats.Failed)
+
+	count, err = redigo.Int(conn.Do("ZCARD", policyPassHostIDsKey))
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+}
+
 func createPolicies(t *testing.T, ds *mysql.Datastore, count int) []uint {
 	ctx := context.Background()
 
