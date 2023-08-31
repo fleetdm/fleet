@@ -307,7 +307,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         teamId: teamIdForApi,
       },
     ],
-    ({ queryKey }) => softwareAPI.count(queryKey[0]),
+    ({ queryKey }) => softwareAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk && !software?.software,
       keepPreviousData: true,

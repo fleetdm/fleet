@@ -214,21 +214,23 @@ func filterNotExecuted(results map[uint]*bool) map[uint]bool {
 }
 
 func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
-	// Sort the results to have generated SQL queries ordered to minimize
-	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
-	orderedIDs := make([]uint, 0, len(results))
-	for policyID := range results {
-		orderedIDs = append(orderedIDs, policyID)
-	}
-	sort.Slice(orderedIDs, func(i, j int) bool { return orderedIDs[i] < orderedIDs[j] })
-
-	// Loop through results, collecting which labels we need to insert/update
 	vals := []interface{}{}
 	bindvars := []string{}
-	for _, policyID := range orderedIDs {
-		matches := results[policyID]
-		bindvars = append(bindvars, "(?,?,?,?)")
-		vals = append(vals, updated, policyID, host.ID, matches)
+	if len(results) > 0 {
+		// Sort the results to have generated SQL queries ordered to minimize
+		// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
+		orderedIDs := make([]uint, 0, len(results))
+		for policyID := range results {
+			orderedIDs = append(orderedIDs, policyID)
+		}
+		sort.Slice(orderedIDs, func(i, j int) bool { return orderedIDs[i] < orderedIDs[j] })
+
+		// Loop through results, collecting which labels we need to insert/update
+		for _, policyID := range orderedIDs {
+			matches := results[policyID]
+			bindvars = append(bindvars, "(?,?,?,?)")
+			vals = append(vals, updated, policyID, host.ID, matches)
+		}
 	}
 
 	// NOTE: the insert of policy membership that follows must be kept in sync
@@ -238,16 +240,17 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	// semantically equivalent, even though here it processes a single host and
 	// in async mode it processes a batch of hosts).
 
-	query := fmt.Sprintf(
-		`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
-				VALUES %s ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at), passes=VALUES(passes)`,
-		strings.Join(bindvars, ","),
-	)
-
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, query, vals...)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "insert policy_membership (%v)", vals)
+		if len(results) > 0 {
+			query := fmt.Sprintf(
+				`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
+				VALUES %s ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at), passes=VALUES(passes)`,
+				strings.Join(bindvars, ","),
+			)
+			_, err := tx.ExecContext(ctx, query, vals...)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "insert policy_membership (%v)", vals)
+			}
 		}
 
 		// if we are deferring host updates, we return at this point and do the change outside of the tx
@@ -255,8 +258,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 			return nil
 		}
 
-		_, err = tx.ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, updated, host.ID)
-		if err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, updated, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating hosts policy updated at")
 		}
 		return nil

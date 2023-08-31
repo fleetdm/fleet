@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
-import { noop, isEmpty } from "lodash";
+import { noop, isEqual } from "lodash";
 
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -17,12 +17,19 @@ import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
+  IPoliciesCountResponse,
 } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 
 import configAPI from "services/entities/config";
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
+import globalPoliciesAPI, {
+  IPoliciesCountQueryKey,
+  IPoliciesQueryKey,
+} from "services/entities/global_policies";
+import teamPoliciesAPI, {
+  ITeamPoliciesCountQueryKey,
+  ITeamPoliciesQueryKey,
+} from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -59,6 +66,10 @@ interface IManagePoliciesPageProps {
     search: string;
   };
 }
+
+const DEFAULT_SORT_DIRECTION = "asc";
+const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_SORT_COLUMN = "name";
 
 const baseClass = "manage-policies-page";
 
@@ -128,31 +139,41 @@ const ManagePolicyPage = ({
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
   const initialSortHeader = (() =>
-    (queryParams?.order_key as "name" | "failing_host_count") ?? "name")();
+    (queryParams?.order_key as "name" | "failing_host_count") ??
+    DEFAULT_SORT_COLUMN)();
   const initialSortDirection = (() =>
-    (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
+    (queryParams?.order_direction as "asc" | "desc") ??
+    DEFAULT_SORT_DIRECTION)();
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
   const initialShowInheritedTable = (() =>
     queryParams && queryParams.inherited_table === "true")();
   const initialInheritedSortHeader = (() =>
     (queryParams?.inherited_order_key as "name" | "failing_host_count") ??
-    "name")();
+    DEFAULT_SORT_COLUMN)();
   const initialInheritedSortDirection = (() =>
-    (queryParams?.inherited_order_direction as "asc" | "desc") ?? "asc")();
+    (queryParams?.inherited_order_direction as "asc" | "desc") ??
+    DEFAULT_SORT_DIRECTION)();
   const initialInheritedPage = (() =>
     queryParams && queryParams.inherited_page
       ? parseInt(queryParams?.inherited_page, 10)
       : 0)();
 
-  const page = initialPage;
   const showInheritedTable = initialShowInheritedTable;
-  const inheritedPage = initialInheritedPage;
-  const searchQuery = initialSearchQuery;
 
   // Needs update on location change or table state might not match URL
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+  const [page, setPage] = useState(initialPage);
+  const [inheritedPage, setInheritedPage] = useState(initialInheritedPage);
+  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
+  const [
+    inheritedTableQueryData,
+    setInheritedTableQueryData,
+  ] = useState<ITableQueryData>();
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
-  const [sortDirection, setSortDirection] = useState(initialSortDirection);
+  const [sortDirection, setSortDirection] = useState<
+    "asc" | "desc" | undefined
+  >(initialSortDirection);
   const [inheritedSortDirection, setInheritedSortDirection] = useState(
     initialInheritedSortDirection
   );
@@ -168,8 +189,11 @@ const ManagePolicyPage = ({
     if (!isRouteOk) {
       return;
     }
+    setPage(initialPage);
+    setSearchQuery(initialSearchQuery);
     setSortHeader(initialSortHeader);
     setSortDirection(initialSortDirection);
+    setInheritedPage(initialInheritedPage);
     setInheritedSortHeader(initialInheritedSortHeader);
     setInheritedSortDirection(initialInheritedSortDirection);
   }, [location, isRouteOk]);
@@ -195,10 +219,24 @@ const ManagePolicyPage = ({
     error: globalPoliciesError,
     isFetching: isFetchingGlobalPolicies,
     refetch: refetchGlobalPolicies,
-  } = useQuery<ILoadAllPoliciesResponse, Error, IPolicyStats[]>(
-    ["globalPolicies", teamIdForApi],
-    () => {
-      return globalPoliciesAPI.loadAll();
+  } = useQuery<
+    ILoadAllPoliciesResponse,
+    Error,
+    IPolicyStats[],
+    IPoliciesQueryKey[]
+  >(
+    [
+      {
+        scope: "globalPolicies",
+        page: tableQueryData?.pageIndex,
+        perPage: DEFAULT_PAGE_SIZE,
+        query: searchQuery,
+        orderDirection: sortDirection,
+        orderKey: sortHeader,
+      },
+    ],
+    ({ queryKey }) => {
+      return globalPoliciesAPI.loadAllNew(queryKey[0]);
     },
     {
       enabled: isRouteOk,
@@ -208,12 +246,54 @@ const ManagePolicyPage = ({
   );
 
   const {
+    data: globalPoliciesCount,
+
+    isFetching: isFetchingGlobalCount,
+  } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
+    [
+      {
+        scope: "policiesCount",
+        query: isAnyTeamSelected ? "" : searchQuery, // Search query not used for inherited count
+      },
+    ],
+    ({ queryKey }) => globalPoliciesAPI.getCount(queryKey[0]),
+    {
+      enabled: isRouteOk,
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      select: (data) => data.count,
+    }
+  );
+
+  const {
     error: teamPoliciesError,
     isFetching: isFetchingTeamPolicies,
     refetch: refetchTeamPolicies,
-  } = useQuery<ILoadTeamPoliciesResponse, Error, ILoadTeamPoliciesResponse>(
-    ["teamPolicies", teamIdForApi],
-    () => teamPoliciesAPI.loadAll(teamIdForApi),
+  } = useQuery<
+    ILoadTeamPoliciesResponse,
+    Error,
+    ILoadTeamPoliciesResponse,
+    ITeamPoliciesQueryKey[]
+  >(
+    [
+      {
+        scope: "teamPolicies",
+        page: tableQueryData?.pageIndex,
+        perPage: DEFAULT_PAGE_SIZE,
+        query: searchQuery,
+        orderDirection: sortDirection,
+        orderKey: sortHeader,
+        inheritedPage: inheritedTableQueryData?.pageIndex,
+        inheritedPerPage: DEFAULT_PAGE_SIZE,
+        inheritedOrderDirection: inheritedSortDirection,
+        inheritedOrderKey: inheritedSortHeader,
+        teamId: teamIdForApi || 0,
+      },
+    ],
+    ({ queryKey }) => {
+      return teamPoliciesAPI.loadAllNew(queryKey[0]);
+    },
     {
       enabled: isRouteOk && isPremiumTier && !!teamIdForApi,
       onSuccess: (data) => {
@@ -223,9 +303,32 @@ const ManagePolicyPage = ({
     }
   );
 
-  const canAddOrDeletePolicy =
+  const { data: teamPoliciesCount, isFetching: isFetchingTeamCount } = useQuery<
+    IPoliciesCountResponse,
+    Error,
+    number,
+    ITeamPoliciesCountQueryKey[]
+  >(
+    [
+      {
+        scope: "teamPoliciesCount",
+        query: searchQuery,
+        teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
+      },
+    ],
+    ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
+    {
+      enabled: isRouteOk && !!teamIdForApi,
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      select: (data) => data.count,
+    }
+  );
+
+  const canAddOrDeletePolicy: boolean =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
+  const canManageAutomations: boolean = isGlobalAdmin || isTeamAdmin;
 
   const {
     data: config,
@@ -281,6 +384,14 @@ const ManagePolicyPage = ({
   // Inherited table uses the same onQueryChange function but routes to different URL params
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
+      if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
+        return;
+      }
+
+      newTableQuery.editingInheritedTable
+        ? setInheritedTableQueryData({ ...newTableQuery })
+        : setTableQueryData({ ...newTableQuery });
+
       const {
         pageIndex: newPageIndex,
         searchQuery: newSearchQuery,
@@ -357,48 +468,6 @@ const ManagePolicyPage = ({
       inheritedSortDirection,
       sortDirection,
     ] // Other dependencies can cause infinite re-renders as URL is source of truth
-  );
-
-  const onClientSidePaginationChange = useCallback(
-    (pageIndex: number) => {
-      const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_POLICIES,
-        queryParams: {
-          ...queryParams,
-          page: pageIndex,
-          query: searchQuery,
-          order_direction: sortDirection,
-          order_key: sortHeader,
-          inherited_order_direction: inheritedSortDirection,
-          inherited_order_key: inheritedSortHeader,
-          inherited_page: inheritedPage,
-        },
-      });
-
-      router?.replace(locationPath);
-    },
-    [searchQuery, queryParams, sortHeader, sortDirection] // Dependencies required for correct variable state
-  );
-
-  const onClientSideInheritedPaginationChange = useCallback(
-    (pageIndex: number) => {
-      const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_POLICIES,
-        queryParams: {
-          ...queryParams,
-          inherited_table: "true",
-          inherited_page: pageIndex,
-          query: searchQuery,
-          page,
-          order_direction: sortDirection,
-          order_key: sortHeader,
-          inherited_order_direction: inheritedSortDirection,
-          inherited_order_key: inheritedSortHeader,
-        },
-      });
-      router?.replace(locationPath);
-    },
-    [queryParams, inheritedSortHeader, inheritedSortDirection] // Dependencies required for correct variable state
   );
 
   const toggleManageAutomationsModal = () =>
@@ -541,6 +610,16 @@ const ManagePolicyPage = ({
     }
   }
 
+  const renderPoliciesCount = (count?: number) => {
+    return (
+      <div className={`${baseClass}__count`}>
+        {count !== undefined && (
+          <span>{`${count} polic${count === 1 ? "y" : "ies"}`}</span>
+        )}
+      </div>
+    );
+  };
+
   return !isRouteOk || (isPremiumTier && !userTeams) ? (
     <Spinner />
   ) : (
@@ -628,6 +707,9 @@ const ManagePolicyPage = ({
                 canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeamSummary}
                 currentAutomatedPolicies={currentAutomatedPolicies}
+                renderPoliciesCount={() =>
+                  !isFetchingTeamCount && renderPoliciesCount(teamPoliciesCount)
+                }
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
                 searchQuery={searchQuery}
@@ -653,7 +735,11 @@ const ManagePolicyPage = ({
                 currentAutomatedPolicies={currentAutomatedPolicies}
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
-                onClientSidePaginationChange={onClientSidePaginationChange}
+                // onClientSidePaginationChange={onClientSidePaginationChange}
+                renderPoliciesCount={() =>
+                  !isFetchingGlobalCount &&
+                  renderPoliciesCount(globalPoliciesCount)
+                }
                 searchQuery={searchQuery}
                 sortHeader={sortHeader}
                 sortDirection={sortDirection}
@@ -662,25 +748,27 @@ const ManagePolicyPage = ({
               />
             ))}
         </div>
-        {showInheritedPoliciesButton && globalPolicies && (
-          <RevealButton
-            isShowing={showInheritedTable}
-            className={baseClass}
-            hideText={inheritedPoliciesButtonText(
-              showInheritedTable,
-              globalPolicies.length
-            )}
-            showText={inheritedPoliciesButtonText(
-              showInheritedTable,
-              globalPolicies.length
-            )}
-            caretPosition={"before"}
-            tooltipHtml={
-              '"All teams" policies are checked <br/> for this team’s hosts.'
-            }
-            onClick={toggleShowInheritedPolicies}
-          />
-        )}
+        {showInheritedPoliciesButton &&
+          globalPolicies &&
+          globalPoliciesCount && (
+            <RevealButton
+              isShowing={showInheritedTable}
+              className={baseClass}
+              hideText={inheritedPoliciesButtonText(
+                showInheritedTable,
+                globalPoliciesCount
+              )}
+              showText={inheritedPoliciesButtonText(
+                showInheritedTable,
+                globalPoliciesCount
+              )}
+              caretPosition={"before"}
+              tooltipHtml={
+                '"All teams" policies are checked <br/> for this team’s hosts.'
+              }
+              onClick={toggleShowInheritedPolicies}
+            />
+          )}
         {showInheritedPoliciesButton && showInheritedTable && (
           <div className={`${baseClass}__inherited-policies-table`}>
             {globalPoliciesError && <TableDataError />}
@@ -696,8 +784,11 @@ const ManagePolicyPage = ({
                   tableType="inheritedPolicies"
                   currentTeam={currentTeamSummary}
                   searchQuery=""
-                  onClientSidePaginationChange={
-                    onClientSideInheritedPaginationChange
+                  // onClientSidePaginationChange={
+                  //   onClientSideInheritedPaginationChange
+                  // }
+                  renderPoliciesCount={() =>
+                    renderPoliciesCount(teamPoliciesCount)
                   }
                   sortHeader={inheritedSortHeader}
                   sortDirection={inheritedSortDirection}

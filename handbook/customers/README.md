@@ -120,7 +120,7 @@ When we do prospect calls, add the customer's name in both the google doc title 
 
 ## Customer support service level agreements (SLA's)
 
-### Fleet Community Edition
+### Fleet Free
 | Impact Level | Definition | Preferred Contact | Response Time |
 |:---|:---|:---|:---|
 | All Inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
