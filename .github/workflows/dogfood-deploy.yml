@@ -44,7 +44,7 @@ jobs:
       - id: fail-on-main
         run: "false"
         if: ${{ github.ref == 'main' }}
-      - uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
+      - uses: aws-actions/configure-aws-credentials@04b98b3f9e85f563fb061be8751a0352327246b0 # v1.7.0
         with:
           role-to-assume: ${{env.AWS_IAM_ROLE}}
           aws-region: ${{ env.AWS_REGION }}
