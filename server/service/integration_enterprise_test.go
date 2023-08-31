@@ -3774,6 +3774,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	ctx, cancel := context.WithTimeout(ctx, testRunScriptWaitForResult)
 	defer cancel()
 
+	resultsCh := make(chan *fleet.HostScriptResultPayload, 1)
 	go func() {
 		for range time.Tick(300 * time.Millisecond) {
 			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, 10*time.Second)
@@ -3782,22 +3783,28 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 				return
 			}
 			if len(pending) > 0 {
-				// ignoring errors in this goroutine, the HTTP request below will fail if this fails
-				err = s.ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-					HostID:      host.ID,
-					ExecutionID: pending[0].ExecutionID,
-					Output:      "ok",
-					Runtime:     1,
-					ExitCode:    0,
-				})
-				if err != nil {
-					t.Log(err)
+				select {
+				case <-ctx.Done():
+					return
+				case r := <-resultsCh:
+					r.ExecutionID = pending[0].ExecutionID
+					// ignoring errors in this goroutine, the HTTP request below will fail if this fails
+					err = s.ds.SetHostScriptExecutionResult(ctx, r)
+					if err != nil {
+						t.Log(err)
+					}
 				}
-				return
 			}
 		}
 	}()
 
+	// simulate a successful script result
+	resultsCh <- &fleet.HostScriptResultPayload{
+		HostID:   host.ID,
+		Output:   "ok",
+		Runtime:  1,
+		ExitCode: 0,
+	}
 	runSyncResp = runScriptSyncResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusOK, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
@@ -3806,7 +3813,23 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.True(t, runSyncResp.ExitCode.Valid)
 	require.Equal(t, int64(0), runSyncResp.ExitCode.Int64)
 	require.False(t, runSyncResp.HostTimeout)
-	require.Empty(t, runSyncResp.Message)
+
+	// simulate a scripts disabled result
+	resultsCh <- &fleet.HostScriptResultPayload{
+		HostID:   host.ID,
+		Output:   "",
+		Runtime:  0,
+		ExitCode: -2,
+	}
+	runSyncResp = runScriptSyncResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusOK, &runSyncResp)
+	require.Equal(t, host.ID, runSyncResp.HostID)
+	require.NotEmpty(t, runSyncResp.ExecutionID)
+	require.Empty(t, runSyncResp.Output)
+	require.True(t, runSyncResp.ExitCode.Valid)
+	require.Equal(t, int64(-2), runSyncResp.ExitCode.Int64)
+	require.False(t, runSyncResp.HostTimeout)
+	require.Contains(t, runSyncResp.Message, "Scripts are disabled")
 
 	// make the host "offline"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))

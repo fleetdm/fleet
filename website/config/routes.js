@@ -456,6 +456,7 @@ module.exports.routes = {
   },
   'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
   'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
+  'GET /deploy/deploying-fleet-on-render': '/docs/deploy/deploy-on-render',
   'GET /deploy/deploy-fleet-on-hetzner-cloud': '/docs/deploy/deploy-on-hetzner-cloud',
   'GET /deploy': '/docs/deploy',
   'GET /deploy/deploying-fleet-on-aws-with-terraform': '/docs/deploy/deploy-on-aws-with-terraform',

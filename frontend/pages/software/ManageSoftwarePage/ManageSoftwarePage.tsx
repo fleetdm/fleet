@@ -327,7 +327,7 @@ const ManageSoftwarePage = ({
         teamId: teamIdForApi,
       },
     ],
-    ({ queryKey }) => softwareAPI.count(queryKey[0]),
+    ({ queryKey }) => softwareAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk && isSoftwareConfigLoaded,
       keepPreviousData: true,
