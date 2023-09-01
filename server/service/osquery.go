@@ -586,7 +586,6 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 
 	svc.HostChannels.Lock()
 
-	// signalCh, ok := svc.HostChannels.m[host.ID]
 	signalCh, ok := svc.HostChannels.HostMap[host.ID]
 	if !ok {
 		level.Debug(svc.logger).Log("msg", "creating new channel for host", "host_id", host.ID)
@@ -597,6 +596,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 
 	timer := time.NewTicker(10 * time.Second)
 	defer timer.Stop()
+
+	level.Debug(svc.logger).Log("msg", "waiting for signal from redis listener....", "host_id", host.ID)
 
 	for {
 		select {
