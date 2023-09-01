@@ -2,6 +2,7 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
 export interface IScriptResult {
+  host_name: string;
   host_id: number;
   execution_id: number;
   script_contents: string;
@@ -18,12 +19,13 @@ export default {
 
     // TODO: uncomment when API is ready.
     // return sendRequest("GET", SCRIPT_RESULT(id));
-    return new Promise((resolve) => {
+    return new Promise<IScriptResult>((resolve) => {
       resolve({
+        host_name: "test host",
         host_id: 1,
         execution_id: 1,
         script_contents: "test contentsss here is here",
-        exit_code: null,
+        exit_code: 1,
         output: "test output",
         message: "Error: This is an error message.",
         runtime: 20,
