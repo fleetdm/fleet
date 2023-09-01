@@ -168,6 +168,10 @@ jobs:
         # https://github.com/fleetdm/fleet/issues/8021 (otherwise orbit and osqueryd
         # in the same host are enrolled as two hosts in Fleet).
         # Until then we will just test the `stable` channel in all components.
+        #
+        # Alternatively, we can bring back the `edge` channel when we decide to upgrade
+        # our worker to macOS 13 in the future, as they changed the virtualization
+        # layer for 13 and now it has random UUIDs (https://github.com/actions/runner-images/issues/7591).
         orbit-channel: [ 'stable' ]
         osqueryd-channel: [ 'stable' ]
         desktop-channel: [ 'stable' ]
