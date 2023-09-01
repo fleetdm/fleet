@@ -64,3 +64,6 @@ Learn more about the company and [why you should join us here](https://fleetdm.c
 Want to join the team?
 
 Reach out to Alex Mitchell on Linkedin.
+
+<meta name="maintainedBy" value="alexmitchelliii">
+<meta name="title" value="🏛️ Director of Business Development">
