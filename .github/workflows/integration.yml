@@ -76,9 +76,6 @@ jobs:
 
     - name: Run Fleet server
       timeout-minutes: 15
-      env:
-        # Use instance identifier to allow for duplicate UUIDs
-        FLEET_OSQUERY_HOST_IDENTIFIER: instance
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl preview --no-hosts
