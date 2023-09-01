@@ -1631,7 +1631,6 @@ func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 type runScriptSyncResponse struct {
 	Err error `json:"error,omitempty"`
 	*fleet.HostScriptResult
-
 	HostTimeout bool `json:"host_timeout"`
 }
 

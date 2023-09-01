@@ -100,7 +100,7 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 		ctx,
 		verb,
 		c.url(path, rawQuery).String(),
-		io.NopCloser(bytes.NewBuffer(bodyBytes)), // TODO: discuss
+		bytes.NewBuffer(bodyBytes),
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating request object")

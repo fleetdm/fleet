@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -1091,6 +1092,30 @@ type HostScriptResultPayload struct {
 	ExitCode    int    `json:"exit_code"`
 }
 
+type HostScriptExitCode sql.NullInt64
+
+func (hsec *HostScriptExitCode) MarshalJSON() ([]byte, error) {
+	if !hsec.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(hsec.Int64)
+}
+
+func (hsec *HostScriptExitCode) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte("null")) {
+		hsec.Valid = false
+		hsec.Int64 = 0
+		return nil
+	}
+	var v int64
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	hsec.Valid = true
+	hsec.Int64 = v
+	return nil
+}
+
 // HostScriptResult represents a script result that was requested to execute on
 // a specific host. If no result was received yet for a script, the ExitCode
 // field is null and the output is empty.
@@ -1158,6 +1183,10 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	default:
 		return ""
 	}
+}
+
+func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
+	return time.Now().Add(-waitForResultTime).Before(hsr.CreatedAt)
 }
 
 const MaxScriptRuneLen = 10000

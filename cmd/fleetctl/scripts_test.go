@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -14,47 +15,13 @@ import (
 )
 
 func TestRunScriptCommand(t *testing.T) {
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
+		HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // to match the production server
+	})
 
-	ds.HostByIdentifierFunc = func(ctx context.Context, ident string) (*fleet.Host, error) {
-		if ident != "host1" {
-			return nil, &notFoundError{}
-		}
-		return &fleet.Host{ID: 42, SeenTime: time.Now()}, nil
-	}
-	var isOffline bool
-	ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
-		if hid != 42 {
-			return nil, &notFoundError{}
-		}
-		h := fleet.Host{ID: hid, SeenTime: time.Now()}
-		if isOffline {
-			h.SeenTime = time.Now().Add(-time.Hour)
-		}
-		return &h, nil
-	}
-	var isPending bool
-	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint, maxAge time.Duration) ([]*fleet.HostScriptResult, error) {
-		require.Equal(t, uint(42), hid)
-		if isPending {
-			return []*fleet.HostScriptResult{{HostID: uint(42)}}, nil
-		}
-		return nil, nil
-	}
-	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, req *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
-		return &fleet.HostScriptResult{
-			Hostname:       "host1",
-			HostID:         req.HostID,
-			ScriptContents: req.ScriptContents,
-		}, nil
-	}
-	var result *fleet.HostScriptResult
-	ds.GetHostScriptExecutionResultFunc = func(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
-		if result != nil {
-			return result, nil
-		}
-		return &fleet.HostScriptResult{}, nil
-	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
@@ -267,6 +234,14 @@ Fleet records the last 10,000 characters to prevent downtime.
 				return c.scriptResult, nil
 			}
 			return &fleet.HostScriptResult{}, nil
+		}
+		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, req *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+			require.Equal(t, uint(42), req.HostID)
+			return &fleet.HostScriptResult{
+				Hostname:       "host1",
+				HostID:         req.HostID,
+				ScriptContents: req.ScriptContents,
+			}, nil
 		}
 	}
 
