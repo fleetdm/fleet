@@ -172,12 +172,6 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 - In general, recurring purchases such as subscription services that will continually stretch the spend limit on a cardholder's Brex card should be paid through other means. 
 - For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
 
-#### Expense aquittal process
-Fleeties are encourage to [spend company money like it's their own](#spending-company-money), however to ensure that spend is captured correctly, teammates need to take the following steps after spending money:
-- If the spend is under $50, Fleeties can use the memo field in the Brex expense details to provide context on what the spend was for.
-- If the spend is over $50, Fleeties must attach a receipt for the item and add a memo to provide context on what the spend was for.
-- **In addition:** If the spend is for travel, include the event name and year as the prefix, e.g: "DEFCON 2023 - Uber from airport to hotel"
-
 ## Travel
 
 ### Flights
