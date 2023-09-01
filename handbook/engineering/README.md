@@ -747,7 +747,7 @@ When this occurs, we will begin receiving the following error message when attem
 
 ## Rituals
 
-The following rituals are engaged in by the directly responsible individual (f) and at the frequency specified for the ritual.
+The following rituals are engaged in by the directly responsible individual (DRI) and at the frequency specified for the ritual.
 
 | Ritual                        | Frequency           | Description                                                                                                                            | DRI            |
 | :---------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
