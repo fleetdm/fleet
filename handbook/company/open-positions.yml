@@ -1,3 +1,14 @@
+# Example Open positon entry:
+# - jobTitle: 
+#   department: 
+#   hiringManagerName: 
+#   hiringManagerLinkedInUrl: 
+#   hiringManagerGithubUsername:
+#   responsibilities: |
+#     Add markdown content to this field.
+#   experience: |
+#     Add markdown content to this field.
+#
 - jobTitle: 🐋 Head of Public Sector
   department: Customers
   hiringManagerName: Alex Mitchell
