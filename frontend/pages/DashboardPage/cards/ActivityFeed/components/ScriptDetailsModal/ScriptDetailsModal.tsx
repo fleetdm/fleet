@@ -41,35 +41,37 @@ const StatusMessage = ({
 }: IStatusMessageProps) => {
   let statusMessage: JSX.Element;
 
+  const fleetStoppedScript = exitCode === -1;
+  const scriptsDisabledForHost = exitCode === -2;
+  const hostTimedOut = exitCode === null && hostTimeout === true;
   const scriptStillRunning = exitCode === null && hostTimeout === false;
-  const hasExitCode = exitCode !== null;
 
-  // The messaging to the user is hardcoded when the script is still running
-  // OR when the script has an exit code is not null.
-  // Whenever the exit code is null we display the message that the API sends back.
-  if (scriptStillRunning && !message) {
+  if (exitCode === 0) {
+    statusMessage = (
+      <p>
+        <Icon name="success-partial" />
+        Exit code: 0 (Script ran successfully.)
+      </p>
+    );
+  } else if (fleetStoppedScript || scriptsDisabledForHost || hostTimedOut) {
+    statusMessage = (
+      <p>
+        <Icon name="error-outline" />
+        {`Error: ${message}`}
+      </p>
+    );
+  } else if (scriptStillRunning) {
     statusMessage = (
       <p>
         <Icon name="pending-partial" />
-        Script is running. To see if the script finished, close this modal and
-        open it again.
-      </p>
-    );
-  } else if (hasExitCode) {
-    // 0 or 1 exit code with message
-    const exitCodeMessage =
-      exitCode === 0 ? "Script ran successfully" : "Script failed";
-    statusMessage = (
-      <p>
-        <Icon name={exitCode === 0 ? "success-partial" : "error-outline"} />
-        {`Exit code: ${exitCode} (${exitCodeMessage}.)`}
+        {message}
       </p>
     );
   } else {
     statusMessage = (
       <p>
         <Icon name="error-outline" />
-        {message}
+        {`Exit code: ${exitCode}: (Script failed.)`}
       </p>
     );
   }
@@ -105,7 +107,6 @@ interface IScriptResultProps {
   exitCode: number | null;
   message: string;
   output: string;
-  runtime: number;
 }
 
 const ScriptResult = ({
@@ -113,9 +114,12 @@ const ScriptResult = ({
   exitCode,
   message,
   output,
-  runtime,
 }: IScriptResultProps) => {
-  const showOutputText = exitCode !== -998 && exitCode !== -999 && runtime < 30;
+  const hostTimedOut = exitCode === null && hostTimeout === true;
+  const scriptsDisabledForHost = exitCode === -2;
+  const scriptStillRunning = exitCode === null && hostTimeout === false;
+  const showOutputText =
+    !hostTimedOut && !scriptsDisabledForHost && !scriptStillRunning;
 
   return (
     <div className={`${baseClass}__script-result`}>
@@ -159,7 +163,6 @@ const ScriptDetailsModal = ({ onCancel }: IScriptDetailsModalProps) => {
             exitCode={data.exit_code}
             message={data.message}
             output={data.output}
-            runtime={data.runtime}
           />
         </>
       );
