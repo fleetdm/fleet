@@ -584,67 +584,92 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	detailQueries, detailDiscovery, err := svc.detailQueriesForHost(ctx, host)
-	if err != nil {
-		return nil, nil, 0, newOsqueryError(err.Error())
-	}
-	for name, query := range detailQueries {
-		queries[name] = query
-	}
-	for name, query := range detailDiscovery {
-		discovery[name] = query
-	}
+	svc.HostChannels.Lock()
 
-	labelQueries, err := svc.labelQueriesForHost(ctx, host)
-	if err != nil {
-		return nil, nil, 0, newOsqueryError(err.Error())
+	// signalCh, ok := svc.HostChannels.m[host.ID]
+	signalCh, ok := svc.HostChannels.HostMap[host.ID]
+	if !ok {
+		level.Debug(svc.logger).Log("msg", "creating new channel for host", "host_id", host.ID)
+		signalCh = make(chan struct{})
+		svc.HostChannels.HostMap[host.ID] = signalCh
 	}
-	for name, query := range labelQueries {
-		queries[hostLabelQueryPrefix+name] = query
-	}
+	svc.HostChannels.Unlock()
 
-	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
-		// If the live query store fails to fetch queries we still want the hosts
-		// to receive all the other queries (details, policies, labels, etc.),
-		// thus we just log the error.
-		level.Error(svc.logger).Log("op", "QueriesForHost", "err", err)
-	} else {
-		for name, query := range liveQueries {
-			queries[hostDistributedQueryPrefix+name] = query
+	timer := time.NewTicker(10 * time.Second)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			level.Debug(svc.logger).Log("msg", "context done, returning from GetDistributedQueries")
+			return nil, nil, 0, ctx.Err()
+		case <-signalCh:
+			if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
+				// If the live query store fails to fetch queries we still want the hosts
+				// to receive all the other queries (details, policies, labels, etc.),
+				// thus we just log the error.
+				level.Error(svc.logger).Log("op", "QueriesForHost", "err", err)
+			} else {
+				for name, query := range liveQueries {
+					queries[hostDistributedQueryPrefix+name] = query
+				}
+			}
+			level.Debug(svc.logger).Log("msg", "signal received, returning LiveQueries")
+			return queries, discovery, 0, nil
+		case <-timer.C:
+			level.Debug(svc.logger).Log("msg", "timer expired, running other queries")
+			detailQueries, detailDiscovery, err := svc.detailQueriesForHost(ctx, host)
+			if err != nil {
+				return nil, nil, 0, newOsqueryError(err.Error())
+			}
+			for name, query := range detailQueries {
+				queries[name] = query
+			}
+			for name, query := range detailDiscovery {
+				discovery[name] = query
+			}
+
+			labelQueries, err := svc.labelQueriesForHost(ctx, host)
+			if err != nil {
+				return nil, nil, 0, newOsqueryError(err.Error())
+			}
+			for name, query := range labelQueries {
+				queries[hostLabelQueryPrefix+name] = query
+			}
+
+			policyQueries, err := svc.policyQueriesForHost(ctx, host)
+			if err != nil {
+				return nil, nil, 0, newOsqueryError(err.Error())
+			}
+			for name, query := range policyQueries {
+				queries[hostPolicyQueryPrefix+name] = query
+			}
+
+			accelerate = uint(0)
+			if host.Hostname == "" || host.Platform == "" {
+				// Assume this host is just enrolling, and accelerate checkins
+				// (to allow for platform restricted labels to run quickly
+				// after platform is retrieved from details)
+				accelerate = 10
+			}
+
+			// The way osquery's distributed "discovery" queries work is:
+			// If len(discovery) > 0, then only those queries that have a "discovery"
+			// query and return more than one row are executed on the host.
+			//
+			// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
+			// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
+			for name := range queries {
+				discoveryQuery := discovery[name]
+				if discoveryQuery == "" {
+					discoveryQuery = alwaysTrueQuery
+				}
+				discovery[name] = discoveryQuery
+			}
+
+			return queries, discovery, accelerate, nil
 		}
 	}
-
-	policyQueries, err := svc.policyQueriesForHost(ctx, host)
-	if err != nil {
-		return nil, nil, 0, newOsqueryError(err.Error())
-	}
-	for name, query := range policyQueries {
-		queries[hostPolicyQueryPrefix+name] = query
-	}
-
-	accelerate = uint(0)
-	if host.Hostname == "" || host.Platform == "" {
-		// Assume this host is just enrolling, and accelerate checkins
-		// (to allow for platform restricted labels to run quickly
-		// after platform is retrieved from details)
-		accelerate = 10
-	}
-
-	// The way osquery's distributed "discovery" queries work is:
-	// If len(discovery) > 0, then only those queries that have a "discovery"
-	// query and return more than one row are executed on the host.
-	//
-	// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
-	// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
-	for name := range queries {
-		discoveryQuery := discovery[name]
-		if discoveryQuery == "" {
-			discoveryQuery = alwaysTrueQuery
-		}
-		discovery[name] = discoveryQuery
-	}
-
-	return queries, discovery, accelerate, nil
 }
 
 const alwaysTrueQuery = "SELECT 1"

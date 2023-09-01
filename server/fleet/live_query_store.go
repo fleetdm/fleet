@@ -1,5 +1,7 @@
 package fleet
 
+import "sync"
+
 // LiveQueryStore defines an interface for storing and retrieving the status of
 // live queries in the Fleet system.
 type LiveQueryStore interface {
@@ -16,4 +18,13 @@ type LiveQueryStore interface {
 	// given host. After calling QueryCompleted, that query will no longer be
 	// sent to the host.
 	QueryCompletedByHost(name string, hostID uint) error
+}
+
+type LiveQueryHostChannelMap struct {
+	m map[uint]chan struct{}
+	sync.Mutex
+}
+
+func (l *LiveQueryHostChannelMap) GetChans() *map[uint]chan struct{} {
+	return &l.m
 }

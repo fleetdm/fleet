@@ -14,6 +14,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
+type LiveQueryHostChannelMap struct {
+	m map[uint]chan struct{}
+	sync.Mutex
+}
+
+func (l *LiveQueryHostChannelMap) GetChans() *map[uint]chan struct{} {
+	return &l.m
+}
+
 type runLiveQueryRequest struct {
 	QueryIDs []uint `json:"query_ids"`
 	HostIDs  []uint `json:"host_ids"`

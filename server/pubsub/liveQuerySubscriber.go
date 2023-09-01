@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	redigo "github.com/gomodule/redigo/redis"
 )
@@ -14,18 +16,18 @@ const (
 	liveQueryChannel = "live_query"
 )
 
-type HostLiveQueryChannelMap struct {
-	sync.RWMutex
-	channels map[string]chan struct{}
+type liveQuerySubscriber struct {
+	pool fleet.RedisPool
 }
 
-func NewLiveQuerySubscriber(ctx context.Context, pool *redigo.Pool, chMap *HostLiveQueryChannelMap, logger log.Logger) error {
-	// Initialize map of channels if it is nil
-	if chMap.channels == nil {
-		return fmt.Errorf("hostlivequery channel map is nil")
+func NewLiveQuerySubscriber(pool fleet.RedisPool) *liveQuerySubscriber {
+	return &liveQuerySubscriber{
+		pool: pool,
 	}
+}
 
-	conn := pool.Get()
+func (l *liveQuerySubscriber) Start(ctx context.Context, chMap *SafeHostHostMap, logger log.Logger) error {
+	conn := redis.ReadOnlyConn(l.pool, (l.pool).Get())
 	psc := &redigo.PubSubConn{Conn: conn}
 
 	if err := psc.Subscribe(liveQueryChannel); err != nil {
@@ -52,7 +54,7 @@ func NewLiveQuerySubscriber(ctx context.Context, pool *redigo.Pool, chMap *HostL
 	return nil
 }
 
-func processSubscriptionMessages(ctx context.Context, conn *redigo.PubSubConn, channelName string, chMap *HostLiveQueryChannelMap, logger log.Logger) {
+func processSubscriptionMessages(ctx context.Context, conn *redigo.PubSubConn, channelName string, chMap *SafeHostHostMap, logger log.Logger) {
 	for {
 		msg := conn.ReceiveWithTimeout(1 * time.Hour)
 		if msg == nil {
@@ -62,54 +64,10 @@ func processSubscriptionMessages(ctx context.Context, conn *redigo.PubSubConn, c
 			continue
 		}
 
+		fmt.Println("Received message from Live Query Chan: ", msg)
+
+		fmt.Printf("sending to %d hosts", chMap.Len())
 		// send message to all channels in map
-		chMap.RLock()
-		for _, ch := range chMap.channels {
-			select {
-			case ch <- struct{}{}:
-			case <-ctx.Done():
-				return
-			}
-		}
-		chMap.RUnlock()
+		chMap.BroadcastSignalToAllHosts()
 	}
 }
-
-// func main() {
-// 	// Create a new Redis pool (you'll need to replace this with your actual Redis pool)
-// 	pool := redigo.Pool{
-// 		Dial: func() (redigo.Conn, error) {
-// 			return redigo.Dial("tcp", ":6379")
-// 		},
-// }
-
-// 	}
-
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
-
-// 	logger := log.NewNopLogger() // Replace with your logger
-// 	channelName := "your_custom_channel_name"
-// 	chMap := &ChannelMap{}
-
-// 	err := NewSubscriberRoutine(ctx, pool, channelName, chMap, logger)
-// 	if err != nil {
-// 		fmt.Printf("Error initializing subscriber: %v\n", err)
-// 		return
-// 	}
-
-// 	// Assume you have some logic to know which keys are relevant at the moment
-// 	relevantKey := "some_key_based_on_msg"
-
-// 	// Access the Go channel for a specific key
-// 	chMap.RLock()
-// 	ch, ok := chMap.channels[relevantKey]
-// 	chMap.RUnlock()
-
-// 	if ok {
-// 		// Do something with the Go channel (e.g., read messages from it)
-// 		for msg := range ch {
-// 			fmt.Printf("Received message: %v\n", msg)
-// 		}
-// 	}
-// }

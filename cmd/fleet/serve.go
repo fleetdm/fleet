@@ -618,6 +618,7 @@ the way that the Fleet server works.
 				mdmPushCertTopic,
 				cronSchedules,
 				wstepCertManager,
+				redisPool,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
