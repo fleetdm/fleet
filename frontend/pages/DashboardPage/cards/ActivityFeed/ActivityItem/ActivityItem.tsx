@@ -490,7 +490,9 @@ const TAGGED_TEMPLATES = {
   },
   ranScript: (
     activity: IActivity,
-    onDetailsClick?: (details: IActivityDetails) => void
+    onDetailsClick?: (
+      details: Pick<IActivityDetails, "script_execution_id">
+    ) => void
   ) => {
     return (
       <>
@@ -499,7 +501,11 @@ const TAGGED_TEMPLATES = {
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
-          onClick={() => onDetailsClick?.({ query_sql: "test" })}
+          onClick={() =>
+            onDetailsClick?.({
+              script_execution_id: activity.details?.script_execution_id,
+            })
+          }
         >
           Show details{" "}
           <Icon className={`${baseClass}__show-query-icon`} name="eye" />

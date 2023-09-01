@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 )
 
-// go:generate go run gen_activity_doc.go "../../docs/Using Fleet/Audit-logs.md"
+//go:generate go run gen_activity_doc.go "../../docs/Using Fleet/Audit-logs.md"
 
 // ActivityDetailsList is used to generate documentation.
 var ActivityDetailsList = []ActivityDetails{
@@ -70,6 +70,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledWindowsMDM{},
 	ActivityTypeDisabledWindowsMDM{},
+
+	ActivityTypeRanScript{},
 }
 
 type ActivityDetails interface {
@@ -1032,6 +1034,31 @@ func (a ActivityTypeDisabledWindowsMDM) ActivityName() string {
 func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
 	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.`,
 		`This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeRanScript struct {
+	HostID            uint   `json:"host_id"`
+	HostDisplayName   string `json:"host_display_name"`
+	ScriptExecutionID string `json:"script_execution_id"`
+	Async             bool   `json:"async"`
+}
+
+func (a ActivityTypeRanScript) ActivityName() string {
+	return "ran_script"
+}
+
+func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExample string) {
+	return `Generated when an user sends a script to be run for a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "script_execution_id": Execution ID of the script run.
+- "async": if the script was executed asyncronously.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "async": false
+}`
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
