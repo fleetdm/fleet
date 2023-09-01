@@ -75,7 +75,7 @@ jobs:
         check_artifacts: true
 
     - name: Run Fleet server
-      timeout-minutes: 15
+      timeout-minutes: 10
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl preview --no-hosts
@@ -88,7 +88,8 @@ jobs:
           echo -n "Waiting for hosts to enroll: "
           cat hostcount | xargs echo -n
           echo " / $EXPECTED"
-          sleep 10
+          sleep 20
+          ./build/fleetctl get hosts --json
         done
         ./build/fleetctl get hosts --json
         echo "Success! $EXPECTED hosts enrolled."
