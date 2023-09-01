@@ -164,6 +164,11 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 - Individualized expenses are always attributed to the  "🔦 Business operations" department.
 - These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.   
 
+### Expense acquittal process
+Fleeties are encourage to [spend company money like it's their own](#spending-company-money), however to ensure that spend is captured correctly, teammates need to take the following steps after spending money:
+- If the spend is under $50, Fleeties can use the memo field in the Brex expense details to provide context on what the spend was for.
+- If the spend is over $50, Fleeties must attach a receipt for the item and add a memo to provide context on what the spend was for.
+- **In addition:** If the spend is for travel, include the event name and year as the prefix, e.g: "DEFCON 2023 - Uber from airport to hotel"
 
 ## Travel
 
