@@ -1158,6 +1158,10 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	return ""
 }
 
+func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
+	return time.Now().Add(-waitForResultTime).Before(hsr.CreatedAt)
+}
+
 const MaxScriptRuneLen = 10000
 
 func ValidateHostScriptContents(s string) error {
@@ -1197,4 +1201,17 @@ func ValidateHostScriptContents(s string) error {
 	}
 
 	return nil
+}
+
+type ScriptResult struct {
+	ScriptContents string        `json:"script_contents"`
+	ExitCode       sql.NullInt64 `json:"exit_code"`
+	Output         string        `json:"output"`
+	Message        string        `json:"message"`
+	HostName       string        `json:"host_name"`
+	HostTimeout    bool          `json:"host_timeout"`
+
+	HostID      uint   `json:"host_id"`
+	ExecutionID string `json:"execution_id"`
+	Runtime     int    `json:"runtime"`
 }

@@ -806,5 +806,5 @@ type Service interface {
 	SaveHostScriptResult(ctx context.Context, result *HostScriptResultPayload) error
 
 	// GetScriptResult returns the result of a script run
-	GetScriptResult(ctx context.Context, scriptID uint) (*ScriptResult, error)
+	GetScriptResult(ctx context.Context, execID string) (*HostScriptResult, error)
 }

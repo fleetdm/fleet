@@ -1030,9 +1030,6 @@ type Datastore interface {
 	// older than the ignoreOlder duration are ignored, considered too old to be
 	// pending.
 	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*HostScriptResult, error)
-
-	// GetScriptResults returns the results of a script run for a host.
-	GetScriptResult(ctx context.Context, scriptID uint) (*ScriptResult, error)
 }
 
 const (
