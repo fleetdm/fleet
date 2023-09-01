@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Fleetd Chrome Extension",
+  "version": "1.0",
+  "description": "Your description here.",
+  "permissions": ["storage", "tabs"],
+  "background": {
+    "service_worker": "src/background.ts"
+  },
+  "action": {
+    "default_popup": "src/popup.html"
+  },
+  "icons": {
+    "16": "src/icons/icon16.png",
+    "48": "src/icons/icon48.png",
+    "128": "src/icons/icon128.png"
+  }
+}
