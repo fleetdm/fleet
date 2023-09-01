@@ -1144,18 +1144,20 @@ func (hsr HostScriptResult) AuthzType() string {
 // screen of a script execution activity in the website).
 func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	switch {
-	case hostTimeout:
-		return RunScriptHostTimeoutErrMsg
-	case !hostTimeout && time.Since(hsr.CreatedAt) > time.Minute:
-		return RunScriptHostTimeoutErrMsg
 	case hsr.ExitCode.Int64 == -1:
 		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
 	case hsr.ExitCode.Int64 == -2:
 		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
+	case hostTimeout:
+		return RunScriptHostTimeoutErrMsg
 	case !hsr.ExitCode.Valid:
-		return "Script is running. To see if the script finished, close this modal and open it again."
+		if time.Since(hsr.CreatedAt) > time.Minute {
+			return RunScriptHostTimeoutErrMsg
+		}
+		return RunScriptAlreadyRunningErrMsg
+	default:
+		return ""
 	}
-	return ""
 }
 
 const MaxScriptRuneLen = 10000
