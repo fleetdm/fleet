@@ -5,17 +5,23 @@ This handbook page details processes specific to working [with](#contact-us) and
 TODO: the goal of the team
 
 ## Team
-
 | Role                                            | Contributor(s)
 |:------------------------------------------------|:----------------------------------------------------------------------|
 | Head of Marketing                               | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Head of Demand Generation                       | [You?](https://fleetdm.com/handbook/company#open-positions) _([@TODO](https://github.com/TODO))_
-| Field Marketer                                  | [TODO](TODO) _([@TODO](https://github.com/TODO))_
-| Community Advocate and Client Platform Engineer | [TODO](TODO) _([@TODO](https://github.com/TODO))_
+| Field Marketer                                  | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
+| Community Advocate                              | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
 
 
 ## Contact us
-TODO
+- To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-marketing&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board) for this department, including pending tasks in the active sprint and the status of new requests.
+  - Please use issue comments and GitHub mentions to communicate about your request, including follow-ups.  If you mention a team member in a GitHub comment, you will get a reply within one business day.
+- If urgent, mention a marketing [team member](#team) in the
+  [#g-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel:
+  - For all urgent questions related to events, video, or social media, mention the Field Marketer.
+  - For all urgent questions related to articles or the Fleet community, mention the Community Advocate.
+
 
 ## Something philosophical
 TODO (maybe)

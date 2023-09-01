@@ -19,11 +19,11 @@ First let’s get these dependencies up and running on Render.
 
 Fleet uses MySQL as the datastore to organize host enrollment and other metadata around serving Fleet. Start by forking [https://github.com/edwardsb/render-mysql](https://github.com/edwardsb/render-mysql), then create a new private service within Render. When prompted for the repository — enter your fork’s URL here.
 
-![Private Service component in Render](../website/assets/images/articles/deploying-fleet-on-render-1-216x165@2x.png)
+![Private Service component in Render](https://fleetdm.com/images/docs/deploy-on-render-1-216x165@2x.png)
 *Private Service component in Render*
 
 Your private service should look like this:
-![Private Service settings in Render](../website/assets/images/articles/deploying-fleet-on-render-5-450x286@2x.png)
+![Private Service settings in Render](https://fleetdm.com/images/docs/deploy-on-render-5-450x286@2x.png)
 *Private Service settings in Render*
 
 This private service will run MySQL, our database, so let’s give it a fitting name, something like “fleet-mysql”.
@@ -44,7 +44,7 @@ We’re also going to need to set up some environment variables and a disk to mo
 - Size: `50GB`
 
 Once you've setup your mysql service on Render we will need to copy the address. You can find that here:
-![mysql address on render](../website/assets/images/articles/deploying-fleet-on-render-6-666x416@2x.png)
+![mysql address on render](https://fleetdm.com/images/docs/deploy-on-render-6-666x416@2x.png)
 *mysql address on Render*
 
 ---
@@ -65,7 +65,7 @@ Start by forking or use [https://github.com/edwardsb/fleet-on-render](https://gi
 
 Back in Render, create a new web service and give it a unique name, since this will be resolvable on the internet, it actually has to be unique on Render’s platform.
 
-![Web Service component in Render](../website/assets/images/articles/deploying-fleet-on-render-2-216x163@2x.png)
+![Web Service component in Render](https://fleetdm.com/images/docs/deploy-on-render-2-216x163@2x.png)
 *Web Service component in Render*
 
 Next we will supply the environment variables Fleet needs to connect to the database and redis. We are also going to disable TLS on the Fleet server, since Render is going to handle SSL termination for us.
@@ -81,7 +81,7 @@ Give it the following environment variables:
 
 Additionally we’ll configure the following so Render knows how to build our app and make sure its healthy:
 
-![Additional component details](../website/assets/images/articles/deploying-fleet-on-render-7-627x416@2x.png)
+![Additional component details](https://fleetdm.com/images/docs/deploy-on-render-7-627x416@2x.png)
 
 - Health Check Path: `/healthz`
 - Docker Build Context Directory: `.`
@@ -96,7 +96,7 @@ ts=2021–09–15T02:09:07.06528012Z transport=http address=0.0.0.0:8080 msg=lis
 
 Fleet is up and running, head to your public URL.
 
-![Fleet deployed on Render](../website/assets/images/articles/deploying-fleet-on-render-4-216x163@2x.png)
+![Fleet deployed on Render](https://fleetdm.com/images/docs/deploy-on-render-4-216x163@2x.png)
 *Fleet deployed on Render*
 
 ---
@@ -152,9 +152,7 @@ fleetctl apply -f standard-query-library.yaml
 That’s it! We have successfully deployed and configured a Fleet instance! Render makes this process super easy, and you can even enable auto-scaling and let the app grow with your needs.
 
 
-<meta name="category" value="deploy">
-<meta name="authorGitHubUsername" value="edwardsb">
-<meta name="authorFullName" value="Ben Edwards">
-<meta name="publishedOn" value="2021-11-21">
-<meta name="articleTitle" value="Deploy Fleet on Render">
-<meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-render-cover-1600x900@2x.jpg">
+<meta name="title" value="Render">
+<meta name="pageOrderInSection" value="700">
+<meta name="description" value="Learn how to deploy Fleet on Render.">
+<meta name="navSection" value="Deployment guides">

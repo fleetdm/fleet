@@ -4515,6 +4515,7 @@ Body: <blob>
 ## Policies
 
 - [List policies](#list-policies)
+- [Count policies](#count-policies)
 - [Get policy by ID](#get-policy-by-id)
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
@@ -4534,6 +4535,13 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 ### List policies
 
 `GET /api/v1/fleet/global/policies`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.
 
 #### Example
 
@@ -4583,6 +4591,34 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
   ]
 }
 ```
+
+---
+
+### Count policies
+
+`GET /api/v1/fleet/global/policies/count`
+
+
+#### Parameters
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| query                 | string | query | Search query keywords. Searchable fields include `name`.  |
+
+#### Example
+
+`GET /api/v1/fleet/global/policies/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
+}
+```
+
+---
 
 ### Get policy by ID
 
@@ -4866,6 +4902,7 @@ _Teams are available in Fleet Premium_
 ### Team policies
 
 - [List team policies](#list-team-policies)
+- [Count team policies](#count-team-policies)
 - [Get team policy by ID](#get-team-policy-by-id)
 - [Add team policy](#add-team-policy)
 - [Remove team policies](#remove-team-policies)
@@ -4884,7 +4921,8 @@ Team policies work the same as policies, but at the team level.
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | id                 | integer | url  | Required. Defines what team id to operate on                                                                            |
-
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page. |
 #### Example
 
 `GET /api/v1/fleet/teams/1/policies`
@@ -4952,6 +4990,31 @@ Team policies work the same as policies, but at the team level.
   ]
 }
 ```
+
+### Count team policies
+
+`GET /api/v1/fleet/team/{team_id}/policies/count`
+
+#### Parameters
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| query                 | string | query | Search query keywords. Searchable fields include `name`. |
+
+#### Example
+
+`GET /api/v1/fleet/team/1/policies/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
+}
+```
+
+---
 
 ### Get team policy by ID
 
@@ -6149,7 +6212,9 @@ Creates a script execution request and waits for a result to return (up to a 1 m
   "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
   "script_contents": "echo 'hello'",
   "output": "hello",
+  "message": "",
   "runtime": 1,
+  "host_timeout": false,
   "exit_code": 0
 }
 ```

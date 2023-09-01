@@ -625,9 +625,9 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 			// send a no-op result without executing if script exec is disabled
 			if err := orbitClient.SaveHostScriptResult(&fleet.HostScriptResultPayload{
 				ExecutionID: execID,
-				Output:      "script execution is disabled",
+				Output:      "Scripts are disabled",
 				Runtime:     0,
-				ExitCode:    -1,
+				ExitCode:    -2,
 			}); err != nil {
 				log.Println("save disabled host script result:", err)
 				return
@@ -1406,8 +1406,10 @@ func main() {
 		orbitProb                   = flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
-		osTemplates                 = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
-		emptySerialProb             = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
+		// E.g. when running with `-host_count=10`, you can set host count for each template the following way:
+		// `-os_templates=windows_11.tmpl:3,mac10.14.6.tmpl:4,ubuntu_22.04.tmpl:3`
+		osTemplates     = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		emptySerialProb = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
 
 		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via MDM (for macOS) [0, 1]")
 		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running MDM enroll")
@@ -1434,9 +1436,20 @@ func main() {
 		log.Fatalf("Argument unique_software_uninstall_count cannot be bigger than unique_software_count")
 	}
 
-	var tmpls []*template.Template
+	tmplsm := make(map[*template.Template]int)
 	requestedTemplates := strings.Split(*osTemplates, ",")
+	tmplsTotalHostCount := 0
 	for _, nm := range requestedTemplates {
+		numberOfHosts := 0
+		if strings.Contains(nm, ":") {
+			parts := strings.Split(nm, ":")
+			nm = parts[0]
+			hc, err := strconv.ParseInt(parts[1], 10, 64)
+			if err != nil {
+				log.Fatalf("Invalid template host count: %s", parts[1])
+			}
+			numberOfHosts = int(hc)
+		}
 		if !strings.HasSuffix(nm, ".tmpl") {
 			nm += ".tmpl"
 		}
@@ -1448,7 +1461,11 @@ func main() {
 		if err != nil {
 			log.Fatal("parse templates: ", err)
 		}
-		tmpls = append(tmpls, tmpl)
+		tmplsm[tmpl] = numberOfHosts
+		tmplsTotalHostCount += numberOfHosts
+	}
+	if tmplsTotalHostCount != 0 && tmplsTotalHostCount != *hostCount {
+		log.Fatalf("Invalid host count in templates: total=%d vs host_count=%d", tmplsTotalHostCount, *hostCount)
 	}
 
 	// Spread starts over the interval to prevent thundering herd
@@ -1463,8 +1480,28 @@ func main() {
 		nodeKeyManager.LoadKeys()
 	}
 
+	var tmplss []*template.Template
+	for tmpl := range tmplsm {
+		tmplss = append(tmplss, tmpl)
+	}
+
 	for i := 0; i < *hostCount; i++ {
-		tmpl := tmpls[i%len(tmpls)]
+		var tmpl *template.Template
+		if tmplsTotalHostCount > 0 {
+			for tmpl_, hostCount := range tmplsm {
+				if hostCount > 0 {
+					tmpl = tmpl_
+					tmplsm[tmpl_] = tmplsm[tmpl_] - 1
+					break
+				}
+			}
+			if tmpl == nil {
+				log.Fatalf("Failed to determine template for host: %d", i)
+			}
+		} else {
+			tmpl = tmplss[i%len(tmplss)]
+		}
+
 		a := newAgent(i+1,
 			*serverURL,
 			*enrollSecret,
