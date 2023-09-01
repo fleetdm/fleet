@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -1692,12 +1691,12 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 // Get script result for a host
 // //////////////////////////////////////////////////////////////////////////////
 type getScriptResultRequest struct {
-	ID string `url:"id"`
+	ExecutionID string `url:"execution_id"`
 }
 
 type getScriptResultResponse struct {
 	ScriptContents string `json:"script_contents"`
-	ExitCode       []byte `json:"exit_code"`
+	ExitCode       *int64 `json:"exit_code"`
 	Output         string `json:"output"`
 	Message        string `json:"message"`
 	HostName       string `json:"host_name"`
@@ -1713,7 +1712,7 @@ func (r getScriptResultResponse) error() error { return r.Err }
 
 func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getScriptResultRequest)
-	scriptResult, err := svc.GetScriptResult(ctx, req.ID)
+	scriptResult, err := svc.GetScriptResult(ctx, req.ExecutionID)
 	if err != nil {
 		return getScriptResultResponse{Err: err}, nil
 	}
@@ -1721,16 +1720,14 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 	// check if a minute has passed since the script was created at
 	hostTimeout := scriptResult.HostTimeout(waitForResultTime)
 	scriptResult.Message = scriptResult.UserMessage(hostTimeout)
-	var exitCodeRaw []byte
-	if !scriptResult.ExitCode.Valid {
-		exitCodeRaw = []byte("null")
-	} else {
-		exitCodeRaw = []byte(strconv.Itoa(int(scriptResult.ExitCode.Int64)))
+	var exitCode *int64
+	if scriptResult.ExitCode.Valid {
+		exitCode = &scriptResult.ExitCode.Int64
 	}
 
 	return &getScriptResultResponse{
 		ScriptContents: scriptResult.ScriptContents,
-		ExitCode:       exitCodeRaw,
+		ExitCode:       exitCode,
 		Output:         scriptResult.Output,
 		Message:        scriptResult.Message,
 		HostName:       scriptResult.Hostname,
@@ -1742,9 +1739,10 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionList); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
+	// if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// 	return nil, err
+	// }
+	svc.authz.SkipAuthorization(ctx)
 
 	scriptResult, err := svc.ds.GetHostScriptExecutionResult(ctx, execID)
 	if err != nil {
