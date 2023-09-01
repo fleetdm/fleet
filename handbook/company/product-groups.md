@@ -203,6 +203,45 @@ The product designer prepares proposed changes in the form of wireframes for thi
 - For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
 - Zoom in.
 
+#### Air guitar
+
+Air guitar is a conceptual exercise that happens before the formal design review stage, focusing on rapid iteration and exploration without immediate plans for engineering implementation. It's like strumming an imaginary guitar — full of movements and rhythm but without strings attached.
+
+The goal of the air guitar process is to flesh out and iterate upon an idea, feature, or customer request quickly, without affecting the engineering pipeline. This enables the team to:
+
+1. Validate or invalidate assumptions.
+2. Refine the scope and nature of the user story.
+3. Explore multiple avenues with low stakes.
+4. Quickly gather feedback for future planning.
+
+The air guitar process is particularly useful when:
+
+1. The team receives an interesting customer request that may not align with the current development priorities.
+2. The team wishes to explore a new idea or feature without committing engineering resources.
+3. The product group needs to validate whether a user story is worth scheduling for formal development.
+
+##### Process
+
+Anyone in the product group can initiate an air guitar session.
+
+1. Initiate: Create a user story and add the `~air-guitar` label to indicate that it is going through the air guitar process.
+
+2. Prioritize: Bring the user story to [feature fest](https://fleetdm.com/handbook/product#rituals). If the user story is prioritized, proceed through the regular steps of specifying and designing as outlined in the drafting process. However, keep in mind that these are conceptual and may or may not proceed to engineering.
+
+> An air guitar session may be needed before the next feature fest. In this case, the product group PM will prioritize the user story. 
+
+3. Review: Conduct an air guitar meeting where the idea or feature is discussed. Involve roles like the product manager, designer, and a sampling of engineers to provide various perspectives.
+
+4. Feedback: Collect internal feedback and iterate on the design. Optionally, conduct customer interviews or gather external feedback.
+
+5. Document: Summarize the learnings, decisions, and next steps in the user story issue.
+
+6. Decide: Bring the issue to a design review to determine an outcome:
+  1. Move forward with the formal drafting process leading to engineering.
+  2. Keep it open for future consideration.
+  3. Discard if it is invalidated through the process.
+
+Air Guitar sessions should be time-boxed to ensure they are fast and focused. Documentation from this process may inform future user stories and can be invaluable when revisiting the idea at a later stage. While the air guitar process is exploratory in nature, it should be thorough enough to provide meaningful insights and data for future decision-making.
 
 ### Implementing
 
