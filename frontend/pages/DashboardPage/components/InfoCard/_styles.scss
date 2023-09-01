@@ -29,6 +29,11 @@
     }
   }
 
+  &__section-title-group {
+    display: flex;
+    gap: 0.75rem;
+  }
+
   &__section-title-detail {
     display: flex;
     flex-direction: row;

@@ -506,9 +506,10 @@ type Datastore interface {
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy) error
 
-	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
+	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
@@ -535,7 +536,7 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
@@ -666,6 +667,7 @@ type Datastore interface {
 	FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
 	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
+	// Even if `results` is empty, the host's `policy_updated_at` will be updated.
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or

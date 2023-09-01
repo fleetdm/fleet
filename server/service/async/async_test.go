@@ -126,12 +126,16 @@ func TestRecord(t *testing.T) {
 			pool := redistest.SetupRedis(t, "policy_pass", false, false, false)
 			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
+			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesAsync(t, ds, pool) })
 		})
 
 		t.Run("cluster", func(t *testing.T) {
 			pool := redistest.SetupRedis(t, "policy_pass", true, true, false)
 			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
+			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesAsync(t, ds, pool) })
 		})
 	})
 

@@ -35,7 +35,8 @@ interface IPoliciesTableProps {
   currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
-  onClientSidePaginationChange?: (pageIndex: number) => void;
+  // onClientSidePaginationChange?: (pageIndex: number) => void;
+  renderPoliciesCount: any; // TODO: typing
   onQueryChange: (newTableQuery: ITableQueryData) => void;
   searchQuery: string;
   sortHeader?: "name" | "failing_host_count";
@@ -55,7 +56,8 @@ const PoliciesTable = ({
   isPremiumTier,
   isSandboxMode,
   onQueryChange,
-  onClientSidePaginationChange,
+  // onClientSidePaginationChange,
+  renderPoliciesCount,
   searchQuery,
   sortHeader,
   sortDirection,
@@ -154,7 +156,7 @@ const PoliciesTable = ({
             currentAutomatedPolicies,
             config?.update_interval.osquery_policy
           )}
-          filters={{ global: searchQuery }}
+          // filters={{ global: searchQuery }}
           isLoading={isLoading}
           defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
           defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
@@ -179,10 +181,11 @@ const PoliciesTable = ({
             })
           }
           disableCount={tableType === "inheritedPolicies"}
-          isClientSidePagination
-          onClientSidePaginationChange={onClientSidePaginationChange}
-          isClientSideFilter
-          searchQueryColumn="name"
+          renderCount={renderPoliciesCount}
+          // isClientSidePagination
+          // onClientSidePaginationChange={onClientSidePaginationChange}
+          // isClientSideFilter
+          // searchQueryColumn="name"
           onQueryChange={onTableQueryChange}
           inputPlaceHolder="Search by name"
           searchable={searchable}

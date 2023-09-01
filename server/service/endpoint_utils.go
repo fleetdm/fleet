@@ -278,7 +278,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				case reflect.Int:
 					queryValInt := 0
 					switch queryTagValue {
-					case "order_direction":
+					case "order_direction", "inherited_order_direction":
 						switch queryVal {
 						case "desc":
 							queryValInt = int(fleet.OrderDescending)
@@ -366,7 +366,7 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 	}
 
 	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
-	opts = append(opts, capabilitiesResponseFunc(fleet.ServerDeviceCapabilities))
+	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerDeviceCapabilities()))
 	// Add the capabilities reported by the device to the request context
 	opts = append(opts, capabilitiesContextFunc())
 
@@ -408,7 +408,7 @@ func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts 
 	}
 
 	// Inject the fleet.Capabilities header to the response for Orbit hosts
-	opts = append(opts, capabilitiesResponseFunc(fleet.ServerOrbitCapabilities))
+	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerOrbitCapabilities()))
 	// Add the capabilities reported by Orbit to the request context
 	opts = append(opts, capabilitiesContextFunc())
 

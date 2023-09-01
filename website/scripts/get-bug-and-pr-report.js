@@ -183,7 +183,7 @@ module.exports = {
           }
           // If not a draft, not a bot, not a PR labeled with #handbook
           // Track as a contributor PR and include in contributor PR KPI
-          if (!pullRequest.draft && pullRequest.user.type !== 'Bot' && !pullRequest.labels.some(label => label.name === '#handbook' || label.name === '#g-ceo')) {
+          if (!pullRequest.draft && pullRequest.user.type !== 'Bot' && !pullRequest.labels.some(label => label.name === '#handbook' || label.name === '#g-ceo' || label.name === ':improve documentation')) {
             daysSinceContributorPullRequestsWereOpened.push(timeOpenInDays);
             contributorPullRequests.push(pullRequest);
           }

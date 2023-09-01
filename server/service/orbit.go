@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -19,10 +20,6 @@ import (
 
 type setOrbitNodeKeyer interface {
 	setOrbitNodeKey(nodeKey string)
-}
-
-type orbitError struct {
-	message string
 }
 
 // EnrollOrbitRequest is the request Orbit instances use to enroll to Fleet.
@@ -63,17 +60,13 @@ type orbitGetConfigResponse struct {
 
 func (r orbitGetConfigResponse) error() error { return r.Err }
 
-func (e orbitError) Error() string {
-	return e.message
-}
-
 func (r EnrollOrbitResponse) error() error { return r.Err }
 
 // hijackRender so we can add a header with the server capabilities in the
 // response, allowing Orbit to know what features are available without the
 // need to enroll.
 func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
+	writeCapabilitiesHeader(w, fleet.GetServerOrbitCapabilities())
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
@@ -140,22 +133,22 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			// 	3. Orbit tries to re-enroll using old secret.
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}
-		return "", orbitError{message: err.Error()}
+		return "", fleet.OrbitError{Message: err.Error()}
 	}
 
 	orbitNodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
-		return "", orbitError{message: "failed to generate orbit node key: " + err.Error()}
+		return "", fleet.OrbitError{Message: "failed to generate orbit node key: " + err.Error()}
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", orbitError{message: "app config load failed: " + err.Error()}
+		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
 	}
 
 	_, err = svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
 	if err != nil {
-		return "", orbitError{message: "failed to enroll " + err.Error()}
+		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
 	}
 
 	return orbitNodeKey, nil
@@ -170,6 +163,8 @@ func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
+	const pendingScriptMaxAge = time.Minute
+
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -177,7 +172,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return fleet.OrbitConfig{Notifications: notifs}, orbitError{message: "internal error: missing host from request context"}
+		return fleet.OrbitConfig{Notifications: notifs}, fleet.OrbitError{Message: "internal error: missing host from request context"}
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -226,6 +221,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if host.IsEligibleForWindowsMDMUnenrollment() {
 			notifs.NeedsProgrammaticWindowsMDMUnenrollment = true
 		}
+	}
+
+	// load the pending script executions for that host
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
+	if err != nil {
+		return fleet.OrbitConfig{Notifications: notifs}, err
+	}
+	if len(pending) > 0 {
+		execIDs := make([]string, 0, len(pending))
+		for _, p := range pending {
+			execIDs = append(execIDs, p.ExecutionID)
+		}
+		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
 	// team ID is not nil, get team specific flags and options
@@ -299,7 +307,7 @@ type orbitPingRequest struct{}
 type orbitPingResponse struct{}
 
 func (r orbitPingResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
+	writeCapabilitiesHeader(w, fleet.GetServerOrbitCapabilities())
 }
 
 func (r orbitPingResponse) error() error { return nil }
@@ -357,4 +365,88 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 	}
 
 	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Orbit pending script execution request
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitGetScriptRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	ExecutionID  string `json:"execution_id"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitGetScriptRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitGetScriptRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitGetScriptResponse struct {
+	Err error `json:"error,omitempty"`
+	*fleet.HostScriptResult
+}
+
+func (r orbitGetScriptResponse) error() error { return r.Err }
+
+func getOrbitScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitGetScriptRequest)
+	script, err := svc.GetHostScript(ctx, req.ExecutionID)
+	if err != nil {
+		return orbitGetScriptResponse{Err: err}, nil
+	}
+	return orbitGetScriptResponse{HostScriptResult: script}, nil
+}
+
+func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit script execution result
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostScriptResultRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	*fleet.HostScriptResultPayload
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostScriptResultRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPostScriptResultRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostScriptResultResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostScriptResultResponse) error() error { return r.Err }
+
+func postOrbitScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPostScriptResultRequest)
+	if err := svc.SaveHostScriptResult(ctx, req.HostScriptResultPayload); err != nil {
+		return orbitPostScriptResultResponse{Err: err}, nil
+	}
+	return orbitPostScriptResultResponse{}, nil
+}
+
+func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }

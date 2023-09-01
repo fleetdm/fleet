@@ -612,7 +612,7 @@ Product may add the `~release blocker` label to user stories to indicate that th
 ### Critical bugs
 
 A critical bug is a bug with the `~critical bug` label. A critical bug is defined as behavior that:
-* Blocks the normal use a workflow
+* Blocks the normal use of a workflow
 * Prevents upgrades to Fleet
 * Causes irreversible damage, such as data loss
 * Introduces a security vulnerability

@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -169,6 +170,11 @@ func main() {
 			EnvVars: []string{"ORBIT_USE_SYSTEM_CONFIGURATION"},
 			Hidden:  true,
 		},
+		&cli.BoolFlag{
+			Name:    "enable-scripts",
+			Usage:   "Enable script execution",
+			EnvVars: []string{"ORBIT_ENABLE_SCRIPTS"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -265,8 +271,6 @@ func main() {
 				// alarms when users look into the orbit logs, it's perfectly normal to
 				// not have a configuration profile, or to get into this situation in
 				// operating systems that don't have profile support.
-				case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
-					log.Debug().Msgf("reading configuration profile: %v", err)
 				case err != nil:
 					log.Error().Err(err).Msg("reading configuration profile")
 				case config.EnrollSecret == "" || config.FleetURL == "":
@@ -341,7 +345,8 @@ func main() {
 		g.Add(systemChecker.Execute, systemChecker.Interrupt)
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
-		if !c.Bool("disable-kickstart-softwareupdated") {
+		// sofwareupdated is a macOS daemon that automatically updates Apple software.
+		if !c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
 			log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
 		}
 
@@ -619,6 +624,7 @@ func main() {
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
+		configFetcher = update.ApplyRunScriptsConfigFetcherMiddleware(configFetcher, c.Bool("enable-scripts"), orbitClient)
 
 		switch runtime.GOOS {
 		case "darwin":
@@ -631,7 +637,7 @@ func main() {
 			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
 			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		case "windows":
-			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID)
+			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
@@ -643,7 +649,7 @@ func main() {
 		if _, err := flagRunner.DoFlagsUpdate(); err != nil {
 			// Just log, OK to continue, since flagRunner will retry
 			// in flagRunner.Execute.
-			log.Info().Err(err).Msg("initial flags update failed")
+			log.Debug().Err(err).Msg("initial flags update failed")
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
@@ -659,14 +665,14 @@ func main() {
 
 			if _, err := extRunner.DoExtensionConfigUpdate(); err != nil {
 				// just log, OK to continue since this will get retry
-				log.Info().Err(err).Msg("initial update to fetch extensions from /config API failed")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial update to fetch extensions from /config API failed")
 			}
 
 			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
 			_, err := updateRunner.UpdateAction()
 			if err != nil {
 				// OK, initial call may fail, ok to continue
-				log.Info().Err(err).Msg("initial extensions update action failed")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial extensions update action failed")
 			}
 
 			extensionAutoLoadFile := filepath.Join(c.String("root-dir"), "extensions.load")
@@ -684,7 +690,7 @@ func main() {
 			case errors.Is(err, os.ErrNotExist):
 				// OK, nothing to do.
 			default:
-				log.Error().Err(err).Msg("error with extensions.load file at " + extensionAutoLoadFile)
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "error with extensions.load file at "+extensionAutoLoadFile)
 			}
 			g.Add(extRunner.Execute, extRunner.Interrupt)
 		}
@@ -1226,7 +1232,7 @@ func (f *capabilitiesChecker) execute() error {
 
 	// do an initial ping to store the initial capabilities
 	if err := f.client.Ping(); err != nil {
-		log.Error().Err(err).Msg("pinging the server")
+		logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 	}
 
 	for {
@@ -1235,7 +1241,7 @@ func (f *capabilitiesChecker) execute() error {
 			oldCapabilities := f.client.GetServerCapabilities()
 			// ping the server to get the latest capabilities
 			if err := f.client.Ping(); err != nil {
-				log.Error().Err(err).Msg("pinging the server")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 				continue
 			}
 			newCapabilities := f.client.GetServerCapabilities()

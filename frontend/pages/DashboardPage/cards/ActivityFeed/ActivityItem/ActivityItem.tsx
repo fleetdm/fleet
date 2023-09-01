@@ -488,6 +488,25 @@ const TAGGED_TEMPLATES = {
   disabledWindowsMdm: (activity: IActivity) => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
+  ranScript: (
+    activity: IActivity,
+    onDetailsClick?: (details: IActivityDetails) => void
+  ) => {
+    return (
+      <>
+        {" "}
+        ran a script on {activity.details?.host_display_name}.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() => onDetailsClick?.({ query_sql: "test" })}
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -597,6 +616,9 @@ const getDetail = (
     }
     case ActivityType.DisabledWindowsMdm: {
       return TAGGED_TEMPLATES.disabledWindowsMdm(activity);
+    }
+    case ActivityType.RanScript: {
+      return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

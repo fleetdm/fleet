@@ -178,19 +178,64 @@ Fleeties are encourage to [spend company money like it's their own](#spending-co
 - If the spend is over $50, Fleeties must attach a receipt for the item and add a memo to provide context on what the spend was for.
 - **In addition:** If the spend is for travel, include the event name and year as the prefix, e.g: "DEFCON 2023 - Uber from airport to hotel"
 
-### Company travel
+## Travel
 
-#### Attending conferences
+### Flights
+- Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo).
+- For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
+
+### Lodging
+- Choose a modest location with inexpensive lodging and [minimally-viable comfort](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+- For events, check the event's website for travel & hotel accommodations and book as soon as the event is approved. As a general rule, do not spend more on lodging than the average listed hotel accommodations.
+- Avoid expensive neighborhoods and popular destination cities.
+- Do not share bedrooms.  Shared bathrooms are OK, but make sure every hotel room or Airbnb has at least one bathroom per gender identity.   <!-- Make sure everyone is well-rested, efficiently primped, with sufficient privacy. -->
+- Be creative.  If an AirBnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
+- If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
+- If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact Business Operations](https://fleetdm.com/handbook/business-operations#contact-us) for their help approving and booking additional event space.
+
+### Spending company money while traveling
 When attending a conference or traveling for Fleet, keep the following in mind:
-- $100 allowance per day for your own personal food and beverage. **(There are many good reasons to make exceptions to this guideline, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#intake).**
-- Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
-- If you haven't already, order a physical Brex card before attending the conference.
-- The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as travel.  You can [request that here](https://fleetdm.com/handbook/business-operations#intake) by providing the following information:
+- **No reimbursements:** Use your company Brex card.  Reimbursements are time consuming, so Fleet does not do reimbursements for spending on personal credit cards.
+- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. _(There are many good reasons to make exceptions to this allowance, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#contact-us) to avoid complexities._
+- **Tipping:** Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
+- **Personal credit card:** Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
+- **Company credit card:** We recommend you order a physical Brex card if you do not have one before traveling.
+- **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/business-operations#contact-us) by providing the following information:
   - The start and end dates for your trip.
-  - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
-  - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
-  - The price of the admission fees if attending a conference.
-- Please use your personal credit card for movies, mini bars, and entertainment.  These expenses _will not_ be approved.
+  - The [price of your flight](https://fleetdm.com/handbook/company/communications#flights)
+  - The [price of your hotel or Airbnb](https://fletdm.com/handbook/comopany/communications#lodging) per night
+  - The price of the admission fees (if attending a conference)
+
+### Sales kickoffs
+From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of [offsite](https://fleetdm.com/handbook/company/communications#offsites).
+
+### Offsites
+From time to time, Fleet organizes offsites to bring team members together in person.  This encourages trust and makes the company more productive.
+
+Offsites are:
+  - Attended by a particular [product group](https://fleetdm.com/handbook/company#product-groups), a [department](https://fleetdm.com/handbook/company#org-chart), or a team such as the E-group.
+  - Sometimes also attended by founders or other team members on a case-by-case basis.
+  - 1-3 full days long (2-4 nights stay)
+  - A ritual of effective teams, not a reward or vacation.
+  - Driven by a detailed, thoughtful agenda of how time will be spent.  An intentional investment of valuable personal and company time, at great opportunity cost.
+  - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.
+
+Before spending any money on an offsite, inviting people, booking travel, or otherwise committing the company:
+  - **Make a plan:** Write a Google Doc with your proposed plan, listing:
+    - all participants with their current work locations
+    - tentative dates
+    - a lean budget (including links and street address of lodging and event spaces, estimated airfare, and spending for other food or accomodations)
+    - a detailed agenda of how time will be spent
+    - BizOps has a [template (private google doc)](https://docs.google.com/spreadsheets/d/1oe1wAFzerXlKghZaZtdlA7QrWBv9iZmHThlFYqfVzRQ/edit#gid=1927695119) you can use to guide your planning.
+  - **Bring to e-group:** Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
+  - **Iteration:** The E-group will discuss live, make edits, and may ask you to provide additional information or changes and return the following week for another pass.
+
+After the plan for the offsite is approved at the e-group meeting (including participants, detailed agenda, and final budget):
+  - The Head of Business Operations will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
+  - _**Note:** If the plan needs to change again, after it is approved, [ask the CEO for help](https://fleetdm.com/handbook/ceo#contact-us)._
+
+### Attending conferences
+When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
 
 ## Vendor questionnaires 
 In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires) 
@@ -203,7 +248,11 @@ When a contract is going to be routed for signature by someone outside of Fleet 
 
 The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
 
-> _**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
+_**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
+
+> _**Note:** If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password and routes the agreement to the CEO for signature._ 
+
+Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature.
 
 ## Getting a contract reviewed
 
@@ -602,6 +651,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - **Core team members:** Team members who've signed an NDA employment agreement, are “Fleeties.”
 - **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).  
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.
+- **Fleetd:** Fleetd should always be written in lowercase unless used to start a sentence or heading.
 
 
 #### Device vs endpoint
@@ -1315,6 +1365,13 @@ This glossary provides definitions to commonly used terms within our space.
 | **Windows** | Microsoft's graphical operating system. |
 | **YAML** | A data serialized language that has features derived from Perl, C, HTML, and other languages and is often used to write configuration files. |
 
+
+
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+##### Company travel
+Please see 📖[handbook/company/communications#travel](https://fleetdm.com/handbook/company/communications#travel).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛰️ Communications">

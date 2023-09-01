@@ -236,6 +236,24 @@ If that happens by mistake, first priority is merging a fix, then notifying the 
 
 > Here is [an example of a deliberate decision to make broken images in Fleet fail more loudly](https://github.com/fleetdm/fleet/issues/12305#issuecomment-1671924257) so that they can't be overlooked, even though this might slow down short-term development.
 
+## Why keep issue templates simple?
+At Fleet, we optimize for the person submitting the issue, not the person receiving it.
+
+We avoid making the submitter read anything.  We prompt for as little information as possible.  Why?
+- When someone is submitting an issue, they are usually in a hurry.  They [might not even work here](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  Even short issue templates can cause confusion, lead to mistakes, and discourage future submissions.
+- The person receiving an issue has more context, and so will have an easier time filling in the gaps and, if necessary, following up to better understand.
+- This encourages [everyone to contribute](https://fleetdm.com/handbook/company#openness), and [keep contributing](https://fleetdm.com/handbook/company#results).
+
+For example, here is the [philosophy behind Fleet's bug report template](https://github.com/fleetdm/fleet/pull/13204#issuecomment-1678419117).
+
+
+## Why spend less?
+
+- **Default to efficiency. Reward richly.** At Fleet, we celebrate success and reward hard work.  But we do everyday things cheap.  And that is very important, because it shapes the kind of people we hire, and the kind of expectations we set for the team about what "comfortable" feels like.
+- **Offsites are not rewards.** Day to day, Fleet does not look rich.  Rich !== welcoming.  The company is open, not closed.  Work here means flexible collaboration, accessible people, and clear expectations.  And a rich, exciting future worth working for.  Not a rich, complacent baseline worth coasting for.
+- **Minimally viable comfort.**  We stay at La Quintas by the train tracks every single time unless customers are coming into the room and we need more space.  Even then, we accommodate in the spirit of _hospitality_, not to show off how well Fleet is doing.  They'll know how well we're doing by how great the product is, how great the support is, and [how that makes them feel](https://fleetdm.com/handbook/company#purpose).  They'll remember openness, flexibility, accessibility, and clarity in all of their interactions with the brand.  Not the view from our hotel rooms.
+- **Everyday efficiency.** Fleet isn't the place you work for the everyday amenities.  Like [Southwest Airlines](https://hbsp.harvard.edu/product/W94C04-PDF-ENG), Fleet is egalitarian and outsider-friendly.  We lift people up, but we remember where we came from.  The company is efficient and friendly, more than it is polished or formal.  Never show off.  Look smart _and_ real.  Make Fleet look easy and welcoming, never slick.  And rarely fancy.
+
 
 ## Why don't we sell like everyone else?
 
@@ -257,24 +275,20 @@ Fleet documents all KPI's with clear definitions that are simple to evaluate, ea
 
 - **Lead** == A "Lead" row in Salesforce.
   
-- **MQL** == a human from a 1000+ employee org that meets these parameters:
-  - The org is _NOT_ already a customer at the time of lead creation (even if they're from a different department).
-  - _NOT_ an existing open opportunity in the pipeline at the time of lead creation.
-  - The human has taken action in some way (e.g. signup on the website, showing up at the Fleet booth and doing a badge scan, or met a minimum threshold of engagement from LinkedIn outbound (threshold TBD-- for now they are excluded altogether)).
-    
-  - Multiple leads from the same org each count as _separate_ MQLs. However, Once the opportunity is created for an account, all MQLs associated with that account become "converted". Meaning they no longer count towards "open MQLs", though they still count as MQLs created. 
+- **MQL** == a human from an in-ICP organization that meets these parameters when the lead is created:
+  - Their organization is _not_ already a Fleet customer
+  - Their organization is _not_ already considering buying Fleet as part of a qualified, mutually beneficial opportunity
+  - Our friend, the human, has chosen to open or widen their line of communication with the company (eg scanning a conference badge, or sending a contact form message requesting a call)
+  - Multiple people from the same org each count as _separate_ MQLs. <!-- However, Once the opportunity is created for an account, all MQLs associated with that account become "converted". Meaning they no longer count towards "open MQLs", though they still count as MQLs created. -->
+  - When an account converts to an opportunity, all subsequent new leads created for that account are ***NOT*** MQLs (i.e. do not count towards "MQLs created".). If an opportunity is marked "closed lost", then it is _no longer_ open, so subsequent new leads associated with the prospective customer are considered MQLs again.
 
-  - When an account converts to an opportunity, all subsequent new leads created for that account are ***NOT*** MQLs (i.e. do not count towards "MQLs created".). If an opportunity is marked "closed lost", then it is _no longer_ open. 
-
-  - Any new leads which are created for a closed opportunity are considered new MQLs created and open MQLs, as long as they ***actually qualify*** as fresh new action taken.
-
-- **Open MQL** == An MQL whose lead status is not _"disqualified" nor "converted"_.
+- **Open MQL** == An MQL whose lead status is neither _"disqualified" nor "converted"_.
   
 - **SQL** == An MQL whose lead status in Salesforce has exceeded a _certain threshold_, for **any** reason, from **any** source (threshold TBD: we aren't reporting these yet in KPIs)
   
-- **Lead source** == where a lead came from. To determine attribution, we will consider the lead source. (e.g. sales-sourced vs. marketing-sourced vs. misc-sourced leads can be determined by looking at the lead source. No need to establish any other *QL or change these.).
+- **Lead source** == where a lead came from. To determine attribution, we will consider the lead source. (e.g. sales-sourced vs. marketing-sourced vs. misc-sourced leads can be determined by looking at the lead source. No need to establish any other *QL or change these.)
 
-  - Instead of saying _"outbound lead"_ or _"inbound lead"_, you can say _"a lead from a badge scan at an event"_ or _"a lead from LinkedIn cold outboud"_ or _"a lead from a customer referral"_ or _"a lead from the website"_.
+  - Instead of saying _"outbound lead"_ or _"inbound lead"_, you can say _"a lead from a badge scan at an event"_ or _"a lead from a customer referral"_ or _"a lead from the website"_.
 
 - **Opportunity** == A _"Opportunity"_ row in Salesforce.
 
@@ -305,6 +319,25 @@ In sentence case, we write and capitalize words as if they were in sentences:
 As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer") and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized.
 
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
+
+## Why not use superlatives?
+
+A superlative is an adjective or adverb that expresses the degree of a quality, such as "best," "worst," or "most beautiful."
+
+A superlative is a judgment or evaluation, [which only the customer can decide](https://twitter.com/mikermcneil/status/1686837625187930112). 
+
+✅ **Do:**
+
+<blockquote>
+Avoid using too many unnecessary words or superlatives, so your writing is shorter and easier to understand. 
+</blockquote>
+
+❌ **Don't:**
+
+<blockquote>
+ There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
+</blockquote>
+
 
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
 
