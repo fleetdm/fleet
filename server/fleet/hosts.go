@@ -1,13 +1,16 @@
 package fleet
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type HostStatus string
@@ -1118,6 +1121,11 @@ type HostScriptResult struct {
 	// the host when checking authorization and is otherwise not set.
 	TeamID *uint `json:"team_id" db:"-"`
 
+	// Message is the UserMessage associated with a response from an execution.
+	// It may be set by the endpoint and included in the resulting JSON but it is
+	// not otherwise part of the host_script_results table.
+	Message string `json:"message" db:"-"`
+
 	// Hostname can be set by the endpoint as extra information to make available
 	// when generating the UserMessage associated with a response from an
 	// execution. It is otherwise not part of the host_script_results table and
@@ -1137,9 +1145,9 @@ func (hsr HostScriptResult) AuthzType() string {
 func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	switch {
 	case hostTimeout:
-		return "Fleet hasn't heard from the host in over 1 minute. Fleet doesn't know if the script ran because the host went offline."
+		return RunScriptHostTimeoutErrMsg
 	case !hostTimeout && time.Since(hsr.CreatedAt) > time.Minute:
-		return "Fleet hasn't heard from the host in over 1 minute. Fleet doesn't know if the script ran because the host went offline."
+		return RunScriptHostTimeoutErrMsg
 	case hsr.ExitCode.Int64 == -1:
 		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
 	case hsr.ExitCode.Int64 == -2:
@@ -1148,4 +1156,45 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 		return "Script is running. To see if the script finished, close this modal and open it again."
 	}
 	return ""
+}
+
+const MaxScriptRuneLen = 10000
+
+func ValidateHostScriptContents(s string) error {
+	// anchored, so that it matches to the end of the line
+	scriptHashbangValidation := regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
+
+	if s == "" {
+		return errors.New("Script contents must not be empty.")
+	}
+
+	// look for the script length in bytes first, as rune counting a huge string
+	// can be expensive.
+	if len(s) > utf8.UTFMax*MaxScriptRuneLen {
+		return errors.New("Script is too large. It’s limited to 10,000 characters (approximately 125 lines).")
+	}
+
+	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
+	// we can safely count the runes for a precise check.
+	if utf8.RuneCountInString(s) > MaxScriptRuneLen {
+		return errors.New("Script is too large. It’s limited to 10,000 characters (approximately 125 lines).")
+	}
+
+	// script must be a "text file", but that's not so simple to validate, so we
+	// assume that if it is valid utf8 encoding, it is a text file (binary files
+	// will often have invalid utf8 byte sequences).
+	if !utf8.ValidString(s) {
+		return errors.New("Wrong data format. Only plain text allowed.")
+	}
+
+	if strings.HasPrefix(s, "#!") {
+		// read the first line in a portable way
+		s := bufio.NewScanner(strings.NewReader(s))
+		// if a hashbang is present, it can only be `/bin/sh` for now
+		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
+			return errors.New(`Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`)
+		}
+	}
+
+	return nil
 }
