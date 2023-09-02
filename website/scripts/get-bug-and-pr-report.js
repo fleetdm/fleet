@@ -35,8 +35,8 @@ module.exports = {
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
 
-    let allOpenPullRequests = [];
-    let pullRequestsMergedInThePastThreeWeeks = [];
+    let allPublicOpenPrs = [];
+    let publicPrsMergedInThePastThreeWeeks = [];
 
 
     await sails.helpers.flow.simultaneously([
@@ -120,18 +120,21 @@ module.exports = {
           });
 
           // Add the filtered array of PRs to the array of all pull requests merged in the past three weeks.
-          pullRequestsMergedInThePastThreeWeeks = pullRequestsMergedInThePastThreeWeeks.concat(resultsToAdd);
+          publicPrsMergedInThePastThreeWeeks = publicPrsMergedInThePastThreeWeeks.concat(resultsToAdd);
           // Stop when we've received results from the third page.
           return pageNumberForPaginatedResults === 3;
         });
 
 
         // To get the timestamp of the first commit for each pull request, we'll need to send a request to the commits API endpoint.
-        await sails.helpers.flow.simultaneouslyForEach(pullRequestsMergedInThePastThreeWeeks, async (pullRequest)=>{
+        await sails.helpers.flow.simultaneouslyForEach(publicPrsMergedInThePastThreeWeeks, async (pullRequest)=>{
           // Create a date object from the PR's merged_at timestamp.
           let pullRequestMergedOn = new Date(pullRequest.merged_at);
-          // https://docs.github.com/en/rest/commits/commits#list-commits
+
+          // Get commits on this PR.
+          // [?] https://docs.github.com/en/rest/commits/commits#list-commits
           let commitsOnThisPullRequest = await sails.helpers.http.get(pullRequest.commits_url, {}, baseHeaders).retry();
+
           // Create a new Date from the timestamp of the first commit on this pull request.
           let firstCommitAt = new Date(commitsOnThisPullRequest[0].commit.author.date); // https://docs.github.com/en/rest/commits/commits#list-commits--code-samples
           // Get the amount of time this issue has been open in milliseconds.
@@ -168,12 +171,12 @@ module.exports = {
             baseHeaders
           ).retry();
           // Add the results to the array of results.
-          allOpenPullRequests = allOpenPullRequests.concat(pullRequests);
+          allPublicOpenPrs = allPublicOpenPrs.concat(pullRequests);
           // If we received less results than we requested, we've reached the last page of the results.
           return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
         }, 10000);
 
-        for(let pullRequest of allOpenPullRequests) {
+        for(let pullRequest of allPublicOpenPrs) {
           // Create a date object from the PR's created_at timestamp.
           let pullRequestOpenedOn = new Date(pullRequest.created_at);
           // Get the amount of time this issue has been open in milliseconds.
@@ -202,6 +205,11 @@ module.exports = {
       //
       async()=>{
 
+        // Fetch confidential and classified PRs (current open, and recent closed)
+        // TODO
+
+        // created_at, closed_at
+
         // TODO: actually build this
         // let ceoDependentPrs = await sails.helpers.http.get(
         //   `https://api.github.com/repos/fleetdm/fleet/pulls`,
@@ -221,6 +229,18 @@ module.exports = {
     let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(commitToMergeTimesInDays)/commitToMergeTimesInDays.length);
     let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
+
+    // Compute CEO-dependent PR KPIs, which are slightly simpler.
+    let publicCeoDependentOpenPrs = allPublicOpenPrs.filter((pr) => _.pluck(pr.labels, 'name').includes('#g-ceo'));
+    let publicCeoDependentPrsMergedInThePastThreeWeeks = publicPrsMergedInThePastThreeWeeks.filter((pr) => _.pluck(pr.labels, 'name').includes('#g-ceo'));
+    let publicCeoDependentPrOpenTime = publicCeoDependentPrsMergedInThePastThreeWeeks.reduce((avgDaysOpen, pr)=>{
+      let openedAt = new Date(pr.created_at).getTime();
+      let closedAt = new Date(pr.closed_at).getTime();
+      let daysOpen = Math.abs(closedAt - openedAt) / ONE_DAY_IN_MILLISECONDS;
+      avgDaysOpen = avgDaysOpen + (daysOpen / publicCeoDependentPrsMergedInThePastThreeWeeks.length);
+      console.log('#'+pr.number,'open '+daysOpen+' days', 'rolling avg now '+avgDaysOpen);
+      return avgDaysOpen;
+    }, 0);
 
     // Log the results
     sails.log(`
@@ -247,8 +267,8 @@ module.exports = {
 
     Pull requests requiring CEO review
     ---------------------------------------
-    Number of open #g-ceo pull requests in the fleetdm Github org: ${[].length}
-    Average open time (#g-ceo PRs): ${6} days.
+    Number of open #g-ceo pull requests in the fleetdm Github org: ${publicCeoDependentOpenPrs.length}
+    Average open time (#g-ceo PRs): ${420} days. (TODO)
     `);
 
   }
