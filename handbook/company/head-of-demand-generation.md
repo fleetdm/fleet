@@ -21,16 +21,11 @@ As Head of Demand Generation at Fleet, you will get the chance to…
 
 In your first 90 days:
 
-- 🧙‍♂️ Wizardy abilities in demand generation campaigns
-  - ⛰️ Recent real-world GA4 experience in an enterprise setting.
-  - 👔 LinkedIn ads
-  - Strong opinions on Google and LinkedIn adds recent (≥2020) hands-on experience.
-
 - 🔗 Collaborate closely with the CEO and Head of Sales on all Demand Gen efforts.
 - 🗺️ Lead and manage workflow for team contributors, particularly Fleet's existing field marketer and community+content marketer.
 - 🥼 Learn and invest in the existing ABM and Enterprise Strategy by expanding it through rigorous experimentation.
 - 🎥 Manage content marketing, community marketing, and enterprise events.
-
+- ⚡️ Build and evolve strategies and systems around tightly coordinating physical events and digital events.
 
 
 ### Are you our new team member? 🧑‍🚀
@@ -40,14 +35,18 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 ### You "get it":
 
 
+- 🧙‍♂️ Wizardy abilities in demand generation campaigns
+  - ⛰️ Recent real-world GA4 experience in an enterprise setting.
+  - 👔 LinkedIn ads
+- Strong opinions on Google and LinkedIn adds with recent (≥2020) hands-on experience.
 - 🤘 Hands-on marketing operator and capability to manage tools expertly, personally by hand 
 - 🎙️ Experience with open source and how to talk to technical people about it.
-
 - 🧗‍♂️ Experience marketing to enterprise accounts; ideally bottom-up.
-- ⭐️ An up-and-coming leader or someone with no ego who will get their hands dirty.
+
 
 ### You can "walk the walk":
 
+- ⭐️ An up-and-coming leader or someone with no ego who will get their hands dirty.
 - 🤔 Systems thinker. Process-oriented. Analytical.
 - 🤝 Collaboration: You work best in a participatory, team-based environment.
 - 🧑‍🏭 Prototype-first: You embrace speed and failure as we iterate towards the right solution. 
