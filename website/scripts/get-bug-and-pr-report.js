@@ -38,7 +38,7 @@ module.exports = {
     let allPublicOpenPrs = [];
     let publicPrsMergedInThePastThreeWeeks = [];
     let allNonPublicOpenPrs = [];
-    let nonPublicPrsMergedInThePastThreeWeeks = [];
+    let nonPublicPrsClosedInThePastThreeWeeks = [];
 
 
     await sails.helpers.flow.simultaneously([
@@ -217,16 +217,21 @@ module.exports = {
           }, baseHeaders);
           allNonPublicOpenPrs = allNonPublicOpenPrs.concat(openPrs);
 
-          // // [?] https://docs.github.com/en/free-pro-team@latest/rest/pulls/pulls#list-pull-requests
-          // let closedPrs = await sails.helpers.http.get(`https://api.github.com/repos/fleetdm/${encodeURIComponent(repoName)}/pulls`, {
-          //   state: 'closed',
-          //   sort: 'updated',
-          //   direction: 'desc',
-          //   'per_page': 100,
-          //   page: 1,
-          // }, baseHeaders);
-          // nonPublicPrsMergedInThePastThreeWeeks = nonPublicPrsMergedInThePastThreeWeeks.concat(closedPrs);
+          // [?] https://docs.github.com/en/free-pro-team@latest/rest/pulls/pulls#list-pull-requests
+          let last100ClosedPrs = await sails.helpers.http.get(`https://api.github.com/repos/fleetdm/${encodeURIComponent(repoName)}/pulls`, {
+            state: 'closed',
+            sort: 'updated',
+            direction: 'desc',
+            'per_page': 100,
+            page: 1,
+          }, baseHeaders);
 
+          // Exclude draft PRs and filter the PRs we received from Github using the pull request's closed_at date.
+          nonPublicPrsClosedInThePastThreeWeeks = nonPublicPrsClosedInThePastThreeWeeks.concat(
+            last100ClosedPrs.filter((pr)=>{
+              return !pr.draft && threeWeeksAgo.getTime() <= (new Date(pr.closed_at)).getTime();
+            })
+          );
         }//∞
       }
 
@@ -238,22 +243,34 @@ module.exports = {
     let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
 
+
     // Compute CEO-dependent PR KPIs, which are slightly simpler.
     let ceoDependentOpenPrs = [];
-    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allPublicOpenPrs.filter((pr) => _.pluck(pr.labels, 'name').includes('#g-ceo')));
-    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => _.pluck(pr.labels, 'name').includes('#g-ceo')));
+    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
+    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
 
-    // let ceoDependentPrsMergedRecently = [];
+    let ceoDependentPrsMergedRecently = [];
+    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(
+      (()=>{
+        let prs = publicPrsMergedInThePastThreeWeeks.filter((pr) => _.pluck(pr.labels, 'name').includes('#g-ceo'));
+        return prs;
+      })()
+    );
+    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(
+      (()=>{
+        let prs = nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => _.pluck(pr.labels, 'name').includes('#g-ceo'));
+        return prs;
+      })()
+    );
+    let ceoDependentPrOpenTime = ceoDependentPrsMergedRecently.reduce((avgDaysOpen, pr)=>{
+      let openedAt = new Date(pr.created_at).getTime();
+      let closedAt = new Date(pr.closed_at).getTime();
+      let daysOpen = Math.abs(closedAt - openedAt) / ONE_DAY_IN_MILLISECONDS;
+      avgDaysOpen = avgDaysOpen + (daysOpen / ceoDependentPrsMergedRecently.length);
+      sails.log.verbose('Processing',pr.head.repo.name,':: #'+pr.number,'open '+daysOpen+' days', 'rolling avg now '+avgDaysOpen);
+      return avgDaysOpen;
+    }, 0);
 
-    // let publicCeoDependentPrsMergedInThePastThreeWeeks = publicPrsMergedInThePastThreeWeeks.filter((pr) => _.pluck(pr.labels, 'name').includes('#g-ceo'));
-    // let ceoDependentPrOpenTime = publicCeoDependentPrsMergedInThePastThreeWeeks.reduce((avgDaysOpen, pr)=>{
-    //   let openedAt = new Date(pr.created_at).getTime();
-    //   let closedAt = new Date(pr.closed_at).getTime();
-    //   let daysOpen = Math.abs(closedAt - openedAt) / ONE_DAY_IN_MILLISECONDS;
-    //   avgDaysOpen = avgDaysOpen + (daysOpen / publicCeoDependentPrsMergedInThePastThreeWeeks.length);
-    //   // console.log('#'+pr.number,'open '+daysOpen+' days', 'rolling avg now '+avgDaysOpen);
-    //   return avgDaysOpen;
-    // }, 0);
 
     // Log the results
     sails.log(`
@@ -281,7 +298,7 @@ module.exports = {
     Pull requests requiring CEO review
     ---------------------------------------
     Number of open #g-ceo pull requests in the fleetdm Github org: ${ceoDependentOpenPrs.length}
-    Average open time (#g-ceo PRs): ${420} days.
+    Average open time (#g-ceo PRs): ${ceoDependentPrOpenTime} days.
     `);
 
   }
