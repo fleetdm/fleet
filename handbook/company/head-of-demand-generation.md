@@ -21,35 +21,38 @@ As Head of Demand Generation at Fleet, you will get the chance to…
 
 In your first 90 days:
 
-- ⏫ Own all Demand Gen efforts and manage a team of contributors in supportive areas, particularly Fleet's existing field marketer and community+content marketer.
-- 🥼 Take over the existing ABM and Enterprise Strategy and then expand it through rigorous experimentation.
-- 🧬 Manage content marketing, community marketing, and enterprise events.
-- 🔌 Cross-functional working closely with CEO and Sales leader.
+- 🧙‍♂️ Wizardy abilities in demand generation campaigns
+  - ⛰️ Recent real-world GA4 experience in an enterprise setting.
+  - 👔 LinkedIn ads
+  - Strong opinions on Google and LinkedIn adds recent (≥2020) hands-on experience.
+
+- 🔗 Collaborate closely with the CEO and Head of Sales on all Demand Gen efforts.
+- 🗺️ Lead and manage workflow for team contributors, particularly Fleet's existing field marketer and community+content marketer.
+- 🥼 Learn and invest in the existing ABM and Enterprise Strategy by expanding it through rigorous experimentation.
+- 🎥 Manage content marketing, community marketing, and enterprise events.
+
+
 
 ### Are you our new team member? 🧑‍🚀
 
 If most of these qualities sound like you, we would love to chat and see if we're a good fit.
 
 ### You "get it":
- 
-- 🤔 Systems thinker. Process-oriented. Analytical.
+
+
+- 🤘 Hands-on marketing operator and capability to manage tools expertly, personally by hand 
+- 🎙️ Experience with open source and how to talk to technical people about it.
+
 - 🧗‍♂️ Experience marketing to enterprise accounts; ideally bottom-up.
 - ⭐️ An up-and-coming leader or someone with no ego who will get their hands dirty.
 
 ### You can "walk the walk":
 
+- 🤔 Systems thinker. Process-oriented. Analytical.
 - 🤝 Collaboration: You work best in a participatory, team-based environment.
-- 📈 Prototype-first: You embrace speed and failure as we iterate towards the right solution. 
+- 🧑‍🏭 Prototype-first: You embrace speed and failure as we iterate towards the right solution. 
 - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
 - 🟣 Openness: You are flexible and open to new ideas and ways of working
-
-### You can "talk the talk":
-
-- 🤘 Hands-on marketing operator and capability to manage tools expertly, personally by hand
-- 🧙‍♂️ Wizardy abilities in demand generation campaigns
-  - Google Analytics 4
-  - LinkedIn ads
-- 🎙️ Experience with open source and how to talk to technical people about it.
 - ➕ Bonus: You are comfortable with concepts like security, APIs, and DevOps.
 
 ## Why should you join us? 🛸
