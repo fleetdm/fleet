@@ -198,12 +198,12 @@ module.exports = {
 
       },
 
-      //   ██████╗███████╗ ██████╗       ██████╗ ███████╗██████╗ ███████╗███╗   ██╗██████╗ ███████╗███╗   ██╗████████╗
-      //  ██╔════╝██╔════╝██╔═══██╗      ██╔══██╗██╔════╝██╔══██╗██╔════╝████╗  ██║██╔══██╗██╔════╝████╗  ██║╚══██╔══╝
-      //  ██║     █████╗  ██║   ██║█████╗██║  ██║█████╗  ██████╔╝█████╗  ██╔██╗ ██║██║  ██║█████╗  ██╔██╗ ██║   ██║
-      //  ██║     ██╔══╝  ██║   ██║╚════╝██║  ██║██╔══╝  ██╔═══╝ ██╔══╝  ██║╚██╗██║██║  ██║██╔══╝  ██║╚██╗██║   ██║
-      //  ╚██████╗███████╗╚██████╔╝      ██████╔╝███████╗██║     ███████╗██║ ╚████║██████╔╝███████╗██║ ╚████║   ██║
-      //   ╚═════╝╚══════╝ ╚═════╝       ╚═════╝ ╚══════╝╚═╝     ╚══════╝╚═╝  ╚═══╝╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝
+      //  ███╗   ██╗ ██████╗ ███╗   ██╗      ██████╗ ██╗   ██╗██████╗ ██╗     ██╗ ██████╗
+      //  ████╗  ██║██╔═══██╗████╗  ██║      ██╔══██╗██║   ██║██╔══██╗██║     ██║██╔════╝
+      //  ██╔██╗ ██║██║   ██║██╔██╗ ██║█████╗██████╔╝██║   ██║██████╔╝██║     ██║██║
+      //  ██║╚██╗██║██║   ██║██║╚██╗██║╚════╝██╔═══╝ ██║   ██║██╔══██╗██║     ██║██║
+      //  ██║ ╚████║╚██████╔╝██║ ╚████║      ██║     ╚██████╔╝██████╔╝███████╗██║╚██████╗
+      //  ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═══╝      ╚═╝      ╚═════╝ ╚═════╝ ╚══════╝╚═╝ ╚═════╝
       //
       async()=>{
 
@@ -245,23 +245,16 @@ module.exports = {
 
 
     // Compute CEO-dependent PR KPIs, which are slightly simpler.
+    // FUTURE: Refactor this to be less messy.
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     let ceoDependentOpenPrs = [];
     ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
     ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
 
     let ceoDependentPrsMergedRecently = [];
-    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(
-      (()=>{
-        let prs = publicPrsMergedInThePastThreeWeeks.filter((pr) => _.pluck(pr.labels, 'name').includes('#g-ceo'));
-        return prs;
-      })()
-    );
-    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(
-      (()=>{
-        let prs = nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => _.pluck(pr.labels, 'name').includes('#g-ceo'));
-        return prs;
-      })()
-    );
+    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(publicPrsMergedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
+    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
+
     let ceoDependentPrOpenTime = ceoDependentPrsMergedRecently.reduce((avgDaysOpen, pr)=>{
       let openedAt = new Date(pr.created_at).getTime();
       let closedAt = new Date(pr.closed_at).getTime();
@@ -270,6 +263,7 @@ module.exports = {
       sails.log.verbose('Processing',pr.head.repo.name,':: #'+pr.number,'open '+daysOpen+' days', 'rolling avg now '+avgDaysOpen);
       return avgDaysOpen;
     }, 0);
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
     // Log the results
