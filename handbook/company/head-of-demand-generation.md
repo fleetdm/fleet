@@ -32,7 +32,7 @@ In your first 90 days:
 
 If most of these qualities sound like you, we would love to chat and see if we're a good fit.
 
-### You "get it":
+### Experience
 
 
 - 🧙‍♂️ Wizardy abilities in demand generation campaigns
