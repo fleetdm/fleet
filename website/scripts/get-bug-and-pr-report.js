@@ -219,7 +219,15 @@ module.exports = {
     Average open time: ${averageDaysPullRequestsAreOpenFor} days.
 
     Number of open pull requests in the fleetdm/fleet Github repo (no bots, no handbook, no ceo): ${daysSinceContributorPullRequestsWereOpened.length}
-    Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.`);
+    Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
+
+
+    Open pull requests
+    ---------------------------
+    Number of open pull requests in the fleetdm/fleet Github repo: ${[].length}
+    Average open time: ${6} days.
+    `);
+
   }
 
 };
