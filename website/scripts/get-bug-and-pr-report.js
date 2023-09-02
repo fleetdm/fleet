@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Get bug and PR report',
 
 
-  description: 'Get information about open bugs and closed pull requests in the fleetdm/fleet GitHub repo.',
+  description: 'Get information about open bugs and pull requests.',
 
 
   inputs: {
@@ -13,8 +13,6 @@ module.exports = {
 
 
   fn: async function ({}) {
-
-    sails.log('Getting metrics for issues with the "bug" label and pull requests in the fleetdm/fleet Github repo...');
 
     if(!sails.config.custom.githubAccessToken) {
       throw new Error('Missing GitHub access token! To use this script, a GitHub access token is required. To resolve, add a GitHub access token to your local configuration (website/config/local.js) as sails.config.custom.githubAccessToken or provide one when running this script. (ex: "sails_custom__githubAccessToken=YOUR_PERSONAL_ACCESS_TOKEN sails run get-bug-and-pr-report")');
@@ -270,13 +268,13 @@ module.exports = {
     sails.log(`
     Bugs:
     ---------------------------
-    Number of open issues with the "bug" label: ${daysSinceBugsWereOpened.length}
+    Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
     Average open time: ${averageNumberOfDaysBugsAreOpenFor} days.
 
 
     Closed pull requests:
     ---------------------------
-    Number of pull requests merged in the past three weeks: ${commitToMergeTimesInDays.length}
+    Number of pull requests merged in the past three weeks in fleetdm/fleet: ${commitToMergeTimesInDays.length}
     Average time from first commit to merge: ${averageNumberOfDaysFromCommitToMerge} days.
 
 
