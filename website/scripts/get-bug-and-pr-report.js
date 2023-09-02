@@ -35,6 +35,9 @@ module.exports = {
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
 
+    let allOpenPullRequests = [];
+    let pullRequestsMergedInThePastThreeWeeks = [];
+
 
     await sails.helpers.flow.simultaneously([
 
@@ -93,10 +96,9 @@ module.exports = {
       async()=>{
 
         let pageNumberForPaginatedResults = 0;
-        let pullRequestsMergedInThePastThreeWeeks = [];
-
 
         // Fetch the last 300 closed pull requests from the fleetdm/fleet GitHub Repo
+        // [?] https://docs.github.com/en/free-pro-team@latest/rest/pulls/pulls#list-pull-requests
         await sails.helpers.flow.until(async ()=>{
           // Increment the page of results we're requesting.
           pageNumberForPaginatedResults += 1;
@@ -149,10 +151,10 @@ module.exports = {
       //
       async()=>{
         let pullRequestResultsPageNumber = 0;
-        let allOpenPullRequests = [];
         let contributorPullRequests = [];
         // Fetch all open pull requests in the fleetdm/fleet repo.
         // Note: This will send requests to GitHub until the number of results is less than the number we requested.
+        // [?] https://docs.github.com/en/free-pro-team@latest/rest/pulls/pulls#list-pull-requests
         await sails.helpers.flow.until(async ()=>{
           // Increment the page of results we're requesting.
           pullRequestResultsPageNumber += 1;
@@ -189,6 +191,27 @@ module.exports = {
           }
         }//∞
 
+      },
+
+      //   ██████╗███████╗ ██████╗       ██████╗ ███████╗██████╗ ███████╗███╗   ██╗██████╗ ███████╗███╗   ██╗████████╗
+      //  ██╔════╝██╔════╝██╔═══██╗      ██╔══██╗██╔════╝██╔══██╗██╔════╝████╗  ██║██╔══██╗██╔════╝████╗  ██║╚══██╔══╝
+      //  ██║     █████╗  ██║   ██║█████╗██║  ██║█████╗  ██████╔╝█████╗  ██╔██╗ ██║██║  ██║█████╗  ██╔██╗ ██║   ██║
+      //  ██║     ██╔══╝  ██║   ██║╚════╝██║  ██║██╔══╝  ██╔═══╝ ██╔══╝  ██║╚██╗██║██║  ██║██╔══╝  ██║╚██╗██║   ██║
+      //  ╚██████╗███████╗╚██████╔╝      ██████╔╝███████╗██║     ███████╗██║ ╚████║██████╔╝███████╗██║ ╚████║   ██║
+      //   ╚═════╝╚══════╝ ╚═════╝       ╚═════╝ ╚══════╝╚═╝     ╚══════╝╚═╝  ╚═══╝╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝
+      //
+      async()=>{
+
+        // TODO: actually build this
+        // let ceoDependentPrs = await sails.helpers.http.get(
+        //   `https://api.github.com/repos/fleetdm/fleet/pulls`,
+        //   {
+        //     'state': 'open',
+        //     'per_page': NUMBER_OF_RESULTS_REQUESTED,
+        //     'page': pullRequestResultsPageNumber,
+        //   },
+        //   baseHeaders
+        // ).retry();
       }
 
     ]);
@@ -222,10 +245,10 @@ module.exports = {
     Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
 
 
-    Open pull requests
-    ---------------------------
-    Number of open pull requests in the fleetdm/fleet Github repo: ${[].length}
-    Average open time: ${6} days.
+    Pull requests requiring CEO review
+    ---------------------------------------
+    Number of open #g-ceo pull requests in the fleetdm Github org: ${[].length}
+    Average open time (#g-ceo PRs): ${6} days.
     `);
 
   }
