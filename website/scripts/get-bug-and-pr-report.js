@@ -290,7 +290,7 @@ module.exports = {
     Pull requests requiring CEO review
     ---------------------------------------
     Number of open #g-ceo pull requests in the fleetdm Github org: ${ceoDependentOpenPrs.length}
-    Average open time (#g-ceo PRs): ${ceoDependentPrOpenTime} days.
+    Average open time (#g-ceo PRs): ${Math.round(ceoDependentPrOpenTime*100)/100} days.
     `);
 
   }
