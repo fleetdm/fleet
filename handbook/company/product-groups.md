@@ -241,7 +241,7 @@ Anyone in the product group can initiate an air guitar session.
   2. Keep it open for future consideration.
   3. Discard if it is invalidated through the process.
 
-Air Guitar sessions should be timeboxed to ensure they are fast and focused. Documentation from this process may inform future user stories and can be invaluable when revisiting the idea at a later stage. While the air guitar process is exploratory in nature, it should be thorough enough to provide meaningful insights and data for future decision-making.
+Air guitar sessions are timeboxed to ensure they are fast and focused. Documentation from this process may inform future user stories and can be invaluable when revisiting the idea at a later stage. While the air guitar process is exploratory in nature, it should be thorough enough to provide meaningful insights and data for future decision-making.
 
 ### Implementing
 
