@@ -220,7 +220,7 @@ The air guitar process is particularly useful when:
 2. The team wishes to explore a new idea or feature without committing engineering effort.
 3. The product group needs to validate whether a user story is worth scheduling for formal development.
 
-##### Process
+##### Initiate an air guitar session
 
 Anyone in the product group can initiate an air guitar session.
 
