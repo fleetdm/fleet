@@ -205,9 +205,9 @@ The product designer prepares proposed changes in the form of wireframes for thi
 
 #### Air guitar
 
-Air guitar is a conceptual exercise that happens before the formal design review stage, focusing on rapid iteration and exploration without immediate plans for engineering implementation. It's like strumming an imaginary guitar — full of movements and rhythm but without strings attached.
+Air guitar is an optional, conceptual exercise that can sometimes happen before (or in lieu of) the formal design review stage, focusing on rapid iteration and exploration without immediate plans for engineering implementation. It's like strumming an imaginary guitar — full of movements and rhythm but without strings attached.
 
-The goal of the air guitar process is to flesh out and iterate upon an idea, feature, or customer request quickly, without affecting the engineering pipeline. This enables the team to:
+The goal of the air guitar process is to explore the shape of an idea, feature, or customer request quickly, without affecting the engineering pipeline. This enables the team to:
 
 1. Validate or invalidate assumptions.
 2. Refine the scope and nature of the user story.
@@ -216,8 +216,8 @@ The goal of the air guitar process is to flesh out and iterate upon an idea, fea
 
 The air guitar process is particularly useful when:
 
-1. The team receives an interesting customer request that may not align with the current development priorities.
-2. The team wishes to explore a new idea or feature without committing engineering resources.
+1. The team receives an interesting customer request that may not yet align with immediate development priorities.
+2. The team wishes to explore a new idea or feature without committing engineering effort.
 3. The product group needs to validate whether a user story is worth scheduling for formal development.
 
 ##### Process
