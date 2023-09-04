@@ -35,7 +35,6 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 Fleet is currently hiring for the following positions:
 
 - [🐋 Head of Public Sector](https://fleetdm.com/handbook/company/head-of-public-sector)
-- [🐋 Customer Support Engineer](https://fleetdm.com/handbook/company/customer-support-engineer)
 - [🐋 Account Executive](https://fleetdm.com/handbook/company/account-executive)
 - [🚀 Software Engineer](https://fleetdm.com/handbook/company/software-engineer)
 - [🚀 Software Engineer (Windows/Go)](https://fleetdm.com/handbook/company/software-engineer-windows)
@@ -78,14 +77,14 @@ It takes a fully-activated mind to achieve ambitious goals, and remote work requ
 - **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Prepare for meetings.  Arrive [on time](https://fleetdm.com/handbook/company/communications#meetings).  Use handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way).
 - **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes.  There's no time for finger-pointing.  [Just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
 - **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
-- **Think long term.** Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose), beyond your department's goals. Minimize maintenance.  Cut surface area and tools. <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy). -->
+- **Think long term.** Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose), beyond your department's goals. Reduce maintenance.  Beware the thicket.  <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy). -->
 
 ### 🟢 Results
 We work to get results. How we work determines what we get.  Aim to deliver results daily.
 
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make [smaller changes](https://about.gitlab.com/handbook/product/product-principles/#the-minimal-viable-change-mvc), more often.  Always publish. <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)). -->
 - **Start quickly.** Be 70% sure.  Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- [Satisfice](https://longform.asmartbear.com/maximizing) before optimizing. -->
-- **Keep it simple.** Spend less. Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Reuse systems. Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
+- **Keep it simple.** [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Reuse systems. Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
 - **Be realistic.** Focus on one or two tasks at a time.  When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity

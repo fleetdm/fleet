@@ -1,0 +1,2 @@
+* Added pagination to policies API to increase response time
+* Added policy count endpoints to support pagination on frontend

@@ -14,13 +14,14 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 ## Current product groups
 
-| Product group             | Goal _(value for customers and/or community)_                       |
-|:--------------------------|:--------------------------------------------------------------------|
-| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.
-| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.
-| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure.
-| [Website](#website-group)                               | Make the website wonderful.
+| Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
+|:--------------------------|:--------------------------------------------------------------------|:-----------------|
+| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category. | 75       |
+| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 60       |
+| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | 16 |
+| [Website](#website-group)                               | Make the website wonderful.                   | 48       |
 
+\* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
 ### MDM group
 
@@ -190,6 +191,7 @@ Design consultations are scheduled as needed with the relevant participants, typ
 - Review wireframes
 - Discuss design input 
 - Discuss implementation details
+
 #### Design reviews
 
 Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/company/ceo#calendar-audit).
@@ -201,13 +203,68 @@ The product designer prepares proposed changes in the form of wireframes for thi
 - For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
 - Zoom in.
 
+#### Air guitar
+
+Air guitar is an optional, conceptual exercise that can sometimes happen before (or in lieu of) the formal design review stage, focusing on rapid iteration and exploration without immediate plans for engineering implementation. It's like strumming an imaginary guitar — full of movements and rhythm but without strings attached.
+
+The goal of the air guitar process is to explore the shape of an idea, feature, or customer request quickly, without affecting the engineering pipeline. This enables the team to:
+
+1. Validate or invalidate assumptions.
+2. Refine the scope and nature of the user story.
+3. Explore multiple avenues with low stakes.
+4. Quickly gather feedback for future planning.
+
+The air guitar process is particularly useful when:
+
+1. The team receives an interesting customer request that may not yet align with immediate development priorities.
+2. The team wishes to explore a new idea or feature without committing engineering effort.
+3. The product group needs to validate whether a user story is worth scheduling for formal development.
+
+##### Initiate an air guitar session
+
+Anyone in the product group can initiate an air guitar session.
+
+1. Initiate: Create a user story and add the `~air-guitar` label to indicate that it is going through the air guitar process.
+
+2. Prioritize: Bring the user story to [feature fest](https://fleetdm.com/handbook/product#rituals). If the user story is prioritized, proceed through the regular steps of specifying and designing as outlined in the drafting process. However, keep in mind that these are conceptual and may or may not proceed to engineering.
+
+> An air guitar session may be needed before the next feature fest. In this case, the product group PM will prioritize the user story. 
+
+3. Review: Conduct an air guitar meeting where the idea or feature is discussed. Involve roles like the product manager, designer, and a sampling of engineers to provide various perspectives.
+
+4. Feedback: Collect internal feedback and iterate on the design. Optionally, conduct customer interviews or gather external feedback.
+
+5. Document: Summarize the learnings, decisions, and next steps in the user story issue.
+
+6. Decide: Bring the issue to a design review to determine an outcome:
+  1. Move forward with the formal drafting process leading to engineering.
+  2. Keep it open for future consideration.
+  3. Discard if it is invalidated through the process.
+
+Air guitar sessions are timeboxed to ensure they are fast and focused. Documentation from this process may inform future user stories and can be invaluable when revisiting the idea at a later stage. While the air guitar process is exploratory in nature, it should be thorough enough to provide meaningful insights and data for future decision-making.
 
 ### Implementing
 
 #### Developing from wireframes
 Please read carefully and [pay special attention](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) to UI wireframes.
 
-Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases!  When you think you've discovered a blocker, communicate.  Leave a comment [mentioning the appropriate PM](https://fleetdm.com/handbook/company/development-groups) or ask for feedback at your next standup.  Then update this user story's estimation, wireframes, and "definition of done" to reflect your updated understanding. 
+Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases! When you think you've discovered a blocker, here's how to proceed:
+
+**For implementation concerns...**
+
+Communicate. Leave a comment [mentioning the appropriate PM](https://fleetdm.com/handbook/company/product-groups#current-product-groups) so they can update the user story and estimation to reflect your new understanding of the issue.
+
+**For all other concerns...**
+
+At Fleet, we prioritize [iteration](https://fleetdm.com/handbook/company#results). So before raising the alarm, think through the following:
+
++ Would addressing this add design work and/or delay shipping the feature?
++ Will this hurt the first-time user experience if we ship as-is?
++ Is this change a "one-way door"?
+
+After these considerations, if you still think you've found a blocker, alert the [appropriate PM](https://fleetdm.com/handbook/company/product-groups#current-product-groups) so that the user story can be brought back for [expedited drafting](https://fleetdm.com/handbook/product#expedited-drafting). Otherwise, this concern may be better suited to a [feature request](https://fleetdm.com/handbook/product#intake).
+
+
 
 
 #### Sub-tasks
