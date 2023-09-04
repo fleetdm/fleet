@@ -6,10 +6,9 @@ Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbo
 
 <!-- With great power comes great openness.  With agents come agency. -->
 
-We are dedicated to:
-
+We are dedicated to clearing the thicket:
 - 🔌 making security and IT interoperable and easy to automate
-- 🚪 an inviting (outsider-friendly) way to manage computers, vulnerabilities, and production infrastructure
+- 🚪 an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure
 - 🪟 clarity and trust through open-source software
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
@@ -20,7 +19,7 @@ This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.co
 Fleet Device Management Inc. is an all-remote company with 40+ team members spread across four continents and nine time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 ### Open source
-The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+Fleet is open by design.  The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 ### Every day
 When something is written down in the handbook, we actually mean it.  This helps us know what to expect from one another.  You can read more about what it's like to work at Fleet in ["📖Company/Communications"](https://fleetdm.com/handbook/company/communications).
