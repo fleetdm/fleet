@@ -27,13 +27,11 @@ In your first 90 days:
 - 🎥 Manage content marketing, community marketing, and enterprise events.
 - ⚡️ Build and evolve strategies and systems around tightly coordinating physical events and digital events.
 
-
 ### Are you our new team member? 🧑‍🚀
 
 If most of these qualities sound like you, we would love to chat and see if we're a good fit.
 
 ### Experience
-
 
 - 🧙‍♂️ Wizardy abilities in demand generation campaigns
   - ⛰️ Recent real-world GA4 experience in an enterprise setting.
