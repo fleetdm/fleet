@@ -32,8 +32,17 @@ module.exports = {
     // users can edit and resave the PR description to trigger their PR to be unfrozen.
     // FUTURE: Go through the trouble to migrate the database and make a little Platform model to hold this state in.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    // Grab the set of GitHub pull request numbers the bot considers "unfrozen".
-    sails.pocketOfPrNumbersUnfrozen = sails.pocketOfPrNumbersUnfrozen || [];
+    // Grab the set of GitHub pull request numbers the bot considers "unfrozen" from the platform record.
+    // If there is more than one platform record, or it is missing, we'll throw an error.
+    let platformRecords = await Platform.find();
+    let platformRecord = platformRecords[0];
+    if(!platformRecord) {
+      throw new Error(`Consistency violation: when the GitHub webhook received an event, no platform record was found.`)
+    } else if(platformRecords.length > 1) {
+      throw new Error(`Consistency violation: when the GitHub webhook received an event, more than one platform record was found.`)
+    }
+
+    let pocketOfPrNumbersUnfrozen = platformRecord.currentUnfrozenGitHubPrNumbers;
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -453,8 +462,8 @@ module.exports = {
           // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
           if (isMainBranchFrozen && repo === 'fleet') {
 
-            sails.pocketOfPrNumbersUnfrozen = _.union(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
-            sails.log.verbose('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
+            pocketOfPrNumbersUnfrozen = _.union(pocketOfPrNumbersUnfrozen, [ prNumber ]);
+            sails.log.verbose('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',pocketOfPrNumbersUnfrozen);
 
             // [?] See May 6th, 2022 changelog, which includes this code sample:
             // (https://www.mergefreeze.com/news)
@@ -467,9 +476,10 @@ module.exports = {
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
               user_name: 'fleet-release',//eslint-disable-line camelcase
-              unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+              unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
             });
-
+            // Update the Platform record to have the current unfrozen PR numbers
+            await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
           }//ﬁ
 
         } else {
@@ -478,14 +488,16 @@ module.exports = {
           // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
           if (isMainBranchFrozen && repo === 'fleet') {
 
-            sails.pocketOfPrNumbersUnfrozen = _.difference(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
-            sails.log.verbose('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
+            pocketOfPrNumbersUnfrozen = _.difference(pocketOfPrNumbersUnfrozen, [ prNumber ]);
+            sails.log.verbose('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',pocketOfPrNumbersUnfrozen);
 
             // [?] See explanation above.
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
               user_name: 'fleet-release',//eslint-disable-line camelcase
-              unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+              unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
             });
+            // Update the Platform record to have the current unfrozen PR numbers
+            await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
           }//ﬁ
 
           // Is this in use?
