@@ -10,16 +10,23 @@
     color: @core-vibrant-blue;
   }
   [purpose='customer-login-container'] {
-    max-width: 800px;
+    max-width: 560px;
   }
   [purpose='login-container'] {
-    max-width: 600px;
+    max-width: 560px;
     [purpose='customer-portal-form'] {
-      max-width: 480px;
+      max-width: 560px;
     }
   }
+  [purpose='page-heading'] {
+    padding-left: 30px;
+    padding-right: 30px;
+    text-align: center;
+  }
   [purpose='customer-portal-form'] {
-    max-width: 520px;
+    max-width: 560px;
+    border-radius: 16px;
+    padding: 30px;
     label {
       font-weight: 700;
       margin-bottom: 4px;
@@ -28,21 +35,21 @@
       height: 40px;
       border-radius: 6px;
     }
-    .card {
-      border-radius: 6px;
-    }
     .card-body {
       padding: 2em;
     }
   }
 
   [purpose='submit-button'] {
+
     margin-left: auto;
     margin-right: auto;
-    border-radius: 4px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    border-radius: 8px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    height: 48px;
     display: flex;
+    align-items: center;
     span {
       display: inline;
       margin-left: auto;
@@ -50,9 +57,8 @@
       font-size: 16px;
       line-height: 20px;
       text-align: center;
-      font-weight: 400;
+      font-weight: 700;
     }
-
   }
 
   [purpose='features-list'] {
@@ -85,6 +91,10 @@
 
   @media (max-width: 576px) {
     padding-top: 40px;
+    [purpose='page-heading'] {
+      padding-left: 0px;
+      padding-right: 0px;
+    }
     [purpose='customer-portal-form'] {
       .card-body {
         padding: 1em;
