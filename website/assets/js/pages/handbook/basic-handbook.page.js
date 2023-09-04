@@ -8,7 +8,7 @@ parasails.registerPage('basic-handbook', {
     breadcrumbs: [],
     subtopics: [],
     handbookIndexLinks: [],
-
+    hideEmojisOnPage: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -19,11 +19,16 @@ parasails.registerPage('basic-handbook', {
       this.isHandbookLandingPage = true;
     }
     this.breadcrumbs = _.trim(this.thisPage.url, /\//).split(/\//);
-
   },
 
   mounted: async function() {
-
+    // If the user is on a windows device, hide emojis in the handbook.
+    if(bowser !== undefined && bowser.windows) {
+      this.hideEmojisOnPage = true;
+      if(!this.isHandbookLandingPage){
+        this._removeEmojiFromThisPage();
+      }
+    }
     // Adding a scroll event listener for scrolling sidebars and showing the back to top button.
     window.addEventListener('scroll', this.handleScrollingInHandbook);
 
@@ -58,8 +63,12 @@ parasails.registerPage('basic-handbook', {
       let handbookPages = [];
       for (let page of this.markdownPages) {
         if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i) && page.sectionRelativeRepoPath.match(/readme\.md$/i)) {
+          let pageTitle = page.title;
+          if(this.hideEmojisOnPage){
+            pageTitle = pageTitle.replace(/\p{Extended_Pictographic}\s*/gu, '');
+          }
           let handbookPage = {
-            pageTitle: page.title,
+            pageTitle: pagetitle,
             url: page.url,
             pageLinks: page.linksForHandbookIndex,
           };
@@ -70,7 +79,7 @@ parasails.registerPage('basic-handbook', {
       this.handbookIndexLinks = _.sortBy(handbookPages, 'url');
       // Sorting the company page to the top of the list, and the handbook page to the bottom
       this.handbookIndexLinks.sort((a)=>{
-        if(a.pageTitle === '🔭 Company') {
+        if(_.endsWith(a.pageTitle, 'Company')) {
           return -1;
         } else {
           return 0;
@@ -129,6 +138,14 @@ parasails.registerPage('basic-handbook', {
       }
 
       this.scrollDistance = scrollTop;
+    },
+    _removeEmojiFromThisPage: function() {
+      $('#body-content').html(
+        $('#body-content').html()
+        .replace(/✅/g, '&#x2713;')// Replace green checkmarks with unicode checkmarks
+        .replace(/❌/g, '&#x2717;')// Replace red crosses with unicode crosses
+        .replace(/\p{Extended_Pictographic}/gu, '')// Remove all other emoji
+      );
     },
     clickScrollToTop: function() {
       window.scrollTo({
