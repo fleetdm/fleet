@@ -129,6 +129,8 @@ Product Managers [write user stories](https://fleetdm.com/handbook/company/devel
 ## Drafting user stories
 Product Designers [draft user stories](https://fleetdm.com/handbook/company/development-groups#drafting) that have been prioritized by PMs. If the estimated user stories for a product group exceed [that group's capacity](https://fleetdm.com/handbook/company/product-groups#current-product-groups), all new design work for that group is paused, and the designer will contribute in other ways (documentation & handbook work, Figma maintenance, QA, etc.) until the PM deprioritizes estimated stories to make room, or until the next sprint begins. (If the designer has existing work-in-progress, they will continue to review and iterate on those designs and see the stories through to estimation.)
 
+In cases where a designer needs more clarity on the requirements of a user story, they will place the issue ticket into the "needs clarity" column of the drafting board, assign the group product manager, and communicate the areas that require additional information. 
+
 ## Estimating user stories
 Engineering Managers estimate user stories.  They are responsible for delivering planned work in the current sprint (0-3 weeks) while quickly getting user stories estimated for the next sprint (3-6 weeks).  Only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's Engineering Manager and occurs on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
