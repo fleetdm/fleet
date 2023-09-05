@@ -6229,7 +6229,7 @@ Gets the result of a script.
 
 | Name         | Type   | In   | Description                                   |
 | ----         | ------ | ---- | --------------------------------------------  |
-| execution_id | string | path | **Required**. This execution id of the script |
+| execution_id | string | path | **Required**. The execution id of the script. |
 
 #### Example
 
