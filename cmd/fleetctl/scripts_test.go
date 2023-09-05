@@ -19,7 +19,8 @@ func TestRunScriptCommand(t *testing.T) {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // to match the production server
+		// increase the default timeout to 90 seconds to match the production server
+		HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // nolint:gosec
 	})
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
