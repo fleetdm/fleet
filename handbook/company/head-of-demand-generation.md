@@ -23,7 +23,7 @@ In your first 90 days:
 
 - 🔗 Collaborate closely with the CEO and Head of Sales on all Demand Gen efforts.
 - 🗺️ Lead and manage workflow for team contributors, particularly Fleet's existing field marketer and community+content marketer.
-- 🥼 Learn and invest in the existing ABM and Enterprise Strategy by expanding it through rigorous experimentation.
+- 🥼 Learn and invest in the existing ABM and enterprise strategy by expanding it through rigorous experimentation.
 - 🎥 Manage content marketing, community marketing, and enterprise events.
 - ⚡️ Build and evolve strategies and systems around tightly coordinating physical events and digital events.
 
