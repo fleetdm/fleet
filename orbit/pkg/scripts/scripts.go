@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -88,7 +89,7 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 		return fmt.Errorf("get host script: %w", err)
 	}
 
-	if script.ExitCode.Valid {
+	if script.ExitCode != nil {
 		// already a result stored for this execution, skip, it shouldn't be sent
 		// again by Fleet.
 		return nil
@@ -119,7 +120,7 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 	scriptFile := filepath.Join(runDir, "script"+ext)
 	// the file does not need the executable bit set, it will be executed as
 	// argument to powershell or /bin/sh.
-	if err := os.WriteFile(scriptFile, []byte(script.ScriptContents), 0600); err != nil {
+	if err := os.WriteFile(scriptFile, []byte(script.ScriptContents), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write script file: %w", err)
 	}
 

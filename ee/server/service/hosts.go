@@ -100,7 +100,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 				}
 				return nil, ctxerr.Wrap(ctx, err, "get script execution result")
 			}
-			if result.ExitCode.Valid {
+			if result.ExitCode != nil {
 				// a result was received from the host, return
 				result.Hostname = host.DisplayName()
 				return result, nil

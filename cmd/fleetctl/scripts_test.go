@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/require"
 )
@@ -111,7 +111,7 @@ func TestRunScriptCommand(t *testing.T) {
 			name:       "script successful",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
-				ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: 0, Valid: true}},
+				ExitCode: ptr.Int64(0),
 				Output:   "hello world",
 			},
 			expectOutput: `
@@ -130,7 +130,7 @@ hello world
 			name:       "script failed",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
-				ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: 1, Valid: true}},
+				ExitCode: ptr.Int64(1),
 				Output:   "",
 			},
 			expectOutput: `
@@ -149,7 +149,7 @@ Output:
 			name:       "script killed",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
-				ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: -1, Valid: true}},
+				ExitCode: ptr.Int64(-1),
 				Output:   "Oh no!",
 				Message:  "Timeout. Fleet stopped the script after 30 seconds to protect host performance.",
 			},
@@ -169,7 +169,7 @@ Oh no!
 			name:       "scripts disabled",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
-				ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: -2, Valid: true}},
+				ExitCode: ptr.Int64(-2),
 				Output:   "",
 				Message:  "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.",
 			},
@@ -182,7 +182,7 @@ Error: Scripts are disabled for this host. To run scripts, deploy a Fleet instal
 			name:       "output truncated",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
-				ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: 0, Valid: true}},
+				ExitCode: ptr.Int64(0),
 				Output:   maxChars,
 			},
 			expectOutput: fmt.Sprintf(`

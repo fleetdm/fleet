@@ -2,9 +2,7 @@ package fleet
 
 import (
 	"bufio"
-	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1092,35 +1090,35 @@ type HostScriptResultPayload struct {
 	ExitCode    int    `json:"exit_code"`
 }
 
-type HostScriptExitCode struct {
-	sql.NullInt64
-}
+// type HostScriptExitCode struct {
+// 	sql.NullInt64
+// }
 
-func (hsec *HostScriptExitCode) Scan(value any) error {
-	return hsec.NullInt64.Scan(value)
-}
+// func (hsec *HostScriptExitCode) Scan(value any) error {
+// 	return hsec.NullInt64.Scan(value)
+// }
 
-func (hsec *HostScriptExitCode) MarshalJSON() ([]byte, error) {
-	if !hsec.Valid {
-		return []byte("null"), nil
-	}
-	return json.Marshal(hsec.Int64)
-}
+// func (hsec *HostScriptExitCode) MarshalJSON() ([]byte, error) {
+// 	if !hsec.Valid {
+// 		return []byte("null"), nil
+// 	}
+// 	return json.Marshal(hsec.Int64)
+// }
 
-func (hsec *HostScriptExitCode) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(data, []byte("null")) {
-		hsec.Valid = false
-		hsec.Int64 = 0
-		return nil
-	}
-	var v int64
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
-	}
-	hsec.Valid = true
-	hsec.Int64 = v
-	return nil
-}
+// func (hsec *HostScriptExitCode) UnmarshalJSON(data []byte) error {
+// 	if bytes.Equal(data, []byte("null")) {
+// 		hsec.Valid = false
+// 		hsec.Int64 = 0
+// 		return nil
+// 	}
+// 	var v int64
+// 	if err := json.Unmarshal(data, &v); err != nil {
+// 		return err
+// 	}
+// 	hsec.Valid = true
+// 	hsec.Int64 = v
+// 	return nil
+// }
 
 // HostScriptResult represents a script result that was requested to execute on
 // a specific host. If no result was received yet for a script, the ExitCode
@@ -1144,7 +1142,7 @@ type HostScriptResult struct {
 	// normally (same as how Go handles this: https://pkg.go.dev/os#ProcessState.ExitCode)
 	// It implements a custom JSON marshaler to return null rather than the zero value when the
 	// underlying integer value has not been set.
-	ExitCode HostScriptExitCode `json:"exit_code" db:"exit_code"`
+	ExitCode *int64 `json:"exit_code" db:"exit_code"`
 	// CreatedAt is the creation timestamp of the script execution request. It is
 	// not returned as part of the payloads, but is used to determine if the script
 	// is too old to still expect a response from the host.
@@ -1176,18 +1174,22 @@ func (hsr HostScriptResult) AuthzType() string {
 // get the script results for an execution ID (e.g. when looking at the details
 // screen of a script execution activity in the website).
 func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
-	switch {
-	case hsr.ExitCode.Int64 == -1:
-		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
-	case hsr.ExitCode.Int64 == -2:
-		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
-	case hostTimeout:
+	if hostTimeout {
 		return RunScriptHostTimeoutErrMsg
-	case !hsr.ExitCode.Valid:
+	}
+
+	if hsr.ExitCode == nil {
 		if time.Since(hsr.CreatedAt) > time.Minute {
 			return RunScriptHostTimeoutErrMsg
 		}
 		return RunScriptAlreadyRunningErrMsg
+	}
+
+	switch *hsr.ExitCode {
+	case -1:
+		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
+	case -2:
+		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
 	default:
 		return ""
 	}
