@@ -1207,16 +1207,3 @@ func ValidateHostScriptContents(s string) error {
 
 	return nil
 }
-
-type ScriptResult struct {
-	ScriptContents string `json:"script_contents"`
-	ExitCode       *int64 `json:"exit_code"`
-	Output         string `json:"output"`
-	Message        string `json:"message"`
-	HostName       string `json:"host_name"`
-	HostTimeout    bool   `json:"host_timeout"`
-
-	HostID      uint   `json:"host_id"`
-	ExecutionID string `json:"execution_id"`
-	Runtime     int    `json:"runtime"`
-}

@@ -674,8 +674,6 @@ type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (
 
 type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error)
 
-type GetScriptResultFunc func(ctx context.Context, scriptID uint) (*fleet.ScriptResult, error)
-
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1660,9 +1658,6 @@ type DataStore struct {
 
 	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
 	ListPendingHostScriptExecutionsFuncInvoked bool
-
-	GetScriptResultFunc           GetScriptResultFunc
-	GetScriptResultFuncInvoked    bool
 
 	mu sync.Mutex
 }
@@ -3961,11 +3956,4 @@ func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID 
 	s.ListPendingHostScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, ignoreOlder)
-}
-
-func (s *DataStore) GetScriptResult(ctx context.Context, scriptID uint) (*fleet.ScriptResult, error) {
-	s.mu.Lock()
-	s.GetScriptResultFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetScriptResult(ctx, scriptID)
 }
