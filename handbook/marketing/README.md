@@ -2,9 +2,7 @@
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) the Marketing department.
 
 ## What we do
-The Marketing department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs]().
-
-and implementation of content for campaigns including events, articles, social media, ads, and conversation-starting. 
+The Marketing department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/marketing#programs).
 
 ## Team
 | Role                                            | Contributor(s)
