@@ -6245,7 +6245,7 @@ Gets the result of a script.
   "exit_code": 0 | null,
   "output": "hello",
   "message": "",
-  "host_name": "Test Host",
+  "hostname": "Test Host",
   "host_timeout": false,
   "host_id": 1,
   "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
