@@ -3700,7 +3700,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.NoError(t, err)
 	require.Equal(t, host.ID, result.HostID)
 	require.Equal(t, "echo", result.ScriptContents)
-	require.False(t, result.ExitCode.Valid)
+	require.Nil(t, result.ExitCode)
 
 	// get script result
 	var scriptResultResp getScriptResultResponse
