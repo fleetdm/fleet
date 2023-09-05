@@ -42,7 +42,7 @@ const StatusMessageSuccess = () => (
   <div className={`${baseClass}__status-message`}>
     <p>
       <Icon name="success-partial" />
-      {`Exit code: 0 (Script ran successfully.)`}
+      Exit code: 0 (Script ran successfully.)
     </p>
   </div>
 );
@@ -51,7 +51,7 @@ const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
   <div className={`${baseClass}__status-message`}>
     <p>
       <Icon name="error-outline" />
-      {`Exit code: ${exitCode} (Script failed.)`}
+      Exit code: {exitCode} (Script failed.)
     </p>{" "}
   </div>
 );
