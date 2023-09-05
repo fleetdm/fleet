@@ -69,6 +69,20 @@ We use these prefixes to organize the Fleet Slack:
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
 
+### Figma
+We use Figma for virtually all our design work. This includes the Fleet product, our website, and our marketing collateral. 
+
+- **Fleet product:** All product design work is done in the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project.  
+See [📖Product#Working with Figma](https://fleetdm.com/handbook/product#working-with-figma) for more details.
+
+- **Fleet website:** All website design work is done in the [fleetdm.com (current, dev-ready)](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/%E2%9C%85-fleetdm.com-(current%2C-dev-ready)?node-id=794%3A373) Figma file.
+
+- **Design system:** Shared logos, typography styles, and UI components can be found in [Design system](https://www.figma.com/files/project/15701210).
+
+- **NOTE:** The Figma docs in Design System contain the master components that are referenced throughout all other Figma files. Use caution when modifying these components, as changes will be reflected in the master Fleet EE (scratchpad) and fleetdm.com (current, dev-ready) Figma docs.
+
+**Marketing assets:** Product screenshots and artwork for social media, articles, and other marketing assets can be found in [Collateral](https://www.figma.com/files/project/20798819).
+
 ## Levels of confidentiality
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
