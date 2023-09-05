@@ -153,7 +153,6 @@ const PoliciesTable = ({
           currentAutomatedPolicies,
           config?.update_interval.osquery_policy
         )}
-        // filters={{ global: searchQuery }}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
