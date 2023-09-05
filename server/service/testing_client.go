@@ -141,7 +141,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx)
+	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
 		var globalPolicyIDs []uint
@@ -149,6 +149,13 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 			globalPolicyIDs = append(globalPolicyIDs, gp.ID)
 		}
 		_, err = ts.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
+		require.NoError(t, err)
+	}
+
+	packs, err := ts.ds.ListPacks(ctx, fleet.PackListOptions{})
+	require.NoError(t, err)
+	for _, pack := range packs {
+		err := ts.ds.DeletePack(ctx, pack.Name)
 		require.NoError(t, err)
 	}
 

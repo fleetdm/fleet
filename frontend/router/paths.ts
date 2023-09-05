@@ -1,6 +1,7 @@
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
+// Note: changes to paths.ts should change page_titles.ts respectively
 export default {
   ROOT: `${URL_PREFIX}/`,
   CONTROLS: `${URL_PREFIX}/controls`,

@@ -1632,13 +1632,13 @@ type runScriptSyncResponse struct {
 	Err error `json:"error,omitempty"`
 	*fleet.HostScriptResult
 
-	// only set if the error was a timeout waiting for a result
-	ErrorMessage string `json:"error_message,omitempty"`
+	Message     string `json:"message"`
+	HostTimeout bool   `json:"host_timeout"`
 }
 
 func (r runScriptSyncResponse) error() error { return r.Err }
 func (r runScriptSyncResponse) Status() int {
-	if r.ErrorMessage != "" {
+	if r.HostTimeout {
 		return http.StatusGatewayTimeout
 	}
 	return http.StatusOK
@@ -1660,23 +1660,22 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}, waitForResult)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			err = fleet.NewGatewayTimeoutError("script execution timed out waiting for a result", err)
 			// it should still return the execution id and host id in this situation,
 			// so the user knows what script request to look at in the UI. We cannot
 			// return an error (field Err) in this case, as the errorer interface's
 			// rendering logic would take over and only render the error part of the
-			// response struct. This is why we use the distinct ErrorMessage field to
-			// add the error message and status code to the response, along with the
-			// script request.
+			// response struct.
 			return runScriptSyncResponse{
 				HostScriptResult: result,
-				ErrorMessage:     err.Error(),
+				HostTimeout:      true,
+				Message:          result.UserMessage(true),
 			}, nil
 		}
 		return runScriptSyncResponse{Err: err}, nil
 	}
 	return runScriptSyncResponse{
 		HostScriptResult: result,
+		Message:          result.UserMessage(false),
 	}, nil
 }
 

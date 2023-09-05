@@ -123,7 +123,7 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 > - 💁 Bombalurina: 0
 > - 💁 Jennyanydots: 0
 > - 💁 Skimbleshanks: 19
-> - 💁 Grizabella: 0
+> - 💁 Griza Bella: 0
 > 
 > More info: https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked
 

@@ -278,7 +278,11 @@ Fleet documents all KPI's with clear definitions that are simple to evaluate, ea
 - **MQL** == a human from an in-ICP organization that meets these parameters when the lead is created:
   - Their organization is _not_ already a Fleet customer
   - Their organization is _not_ already considering buying Fleet as part of a qualified, mutually beneficial opportunity
-  - Our friend, the human, has chosen to open or widen their line of communication with the company (eg scanning a conference badge, or sending a contact form message requesting a call)
+  - Our friend, the human, has chosen to open or widen their line of communication with the company. This could come from an event or or sending a contact form message requesting a call.
+    - Attendees at events are considered MQLs if they have done any of the following:
+      -  Had a 5+ minute conversation or a badge scan at a physical event.
+      -  RSVPed yes to extracurricular in-person side event (e.g. dinner or activity) OR attended the in-person side event and a Fleetie was able to track their attendance.
+      -  RSVPed yes to a virtual event OR indicated intent by sending a follow-up email.
   - Multiple people from the same org each count as _separate_ MQLs. <!-- However, Once the opportunity is created for an account, all MQLs associated with that account become "converted". Meaning they no longer count towards "open MQLs", though they still count as MQLs created. -->
   - When an account converts to an opportunity, all subsequent new leads created for that account are ***NOT*** MQLs (i.e. do not count towards "MQLs created".). If an opportunity is marked "closed lost", then it is _no longer_ open, so subsequent new leads associated with the prospective customer are considered MQLs again.
 
