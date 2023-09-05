@@ -1720,6 +1720,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 	// check if a minute has passed since the script was created at
 	hostTimeout := scriptResult.HostTimeout(waitForResultTime)
 	scriptResult.Message = scriptResult.UserMessage(hostTimeout)
+
 	var exitCode *int64
 	if scriptResult.ExitCode.Valid {
 		exitCode = &scriptResult.ExitCode.Int64
@@ -1739,22 +1740,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
-	// if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
-	// 	return nil, err
-	// }
 	svc.authz.SkipAuthorization(ctx)
 
-	scriptResult, err := svc.ds.GetHostScriptExecutionResult(ctx, execID)
-	if err != nil {
-		return nil, err
-	}
-
-	host, err := svc.ds.HostLite(ctx, scriptResult.HostID)
-	if err != nil {
-		return nil, err
-	}
-
-	scriptResult.Hostname = host.DisplayName()
-
-	return scriptResult, nil
+	return nil, fleet.ErrMissingLicense
 }

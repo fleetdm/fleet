@@ -1158,10 +1158,10 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	return ""
 }
 
-// HostTimeout returns true if the host script result created at time is older
-// than the waitForResultTime.
+// HostTimeout returns true if the current time minus the waitForResultTime
+// is after the host script result created at time.
 func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
-	return time.Now().Add(-waitForResultTime).Before(hsr.CreatedAt)
+	return time.Now().Add(-waitForResultTime).After(hsr.CreatedAt)
 }
 
 const MaxScriptRuneLen = 10000

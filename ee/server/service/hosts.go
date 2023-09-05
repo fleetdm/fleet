@@ -117,3 +117,36 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		}
 	}
 }
+
+func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	scriptResult, err := svc.ds.GetHostScriptExecutionResult(ctx, execID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get script result")
+	}
+
+	host, err := svc.ds.HostLite(ctx, scriptResult.HostID)
+	if err != nil {
+		// if error is because the host does not exist, check first if the user
+		// had access to run a script (to prevent leaking valid host ids).
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	scriptResult.Hostname = host.DisplayName()
+
+	return scriptResult, nil
+}
