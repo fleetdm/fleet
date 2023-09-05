@@ -208,6 +208,14 @@ The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat simila
 
 The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users.
 
+### How do I issue mdm commands with `fleetctl` and an applied `--context` option?
+
+[fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-to-an-existing-fleet-instance) allows users to maintain a context for the environment that they are logging into. This is useful when maintaining a development / staging / production workflow. When issuing mdm commands in combination with the `--context` option, please use the following syntax:
+
+`fleetctl mdm --context dev run-command --payload=restart-device.xml --host=hostname`
+
+> Note: that this behaviour should be fixed based on [this issue](https://github.com/fleetdm/fleet/issues/13712) to ensure using context aligns with the syntax used with other `fleetctl` commands.
+
 ### Why can't I run queries with `fleetctl` using a new API-only user?
 
 In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password).
