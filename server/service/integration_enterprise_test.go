@@ -1109,6 +1109,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
+	// TODO(mna): add test cases that check that no integrations are auto-removed
+	// if unrelated changes are made.
+
 	t := s.T()
 
 	// create a test http server to act as the Jira and Zendesk server
