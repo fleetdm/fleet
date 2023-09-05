@@ -26,7 +26,7 @@ module "acm" {
   source  = "terraform-aws-modules/acm/aws"
   version = "4.3.1"
 
-  domain_name = "${random_pet.main.id}.loadtest.g.fleetdm.com"
+  domain_name = "${random_pet.main.id}.example.com"
   zone_id     = data.aws_route53_zone.main.id
 
   wait_for_validation = true
@@ -34,7 +34,7 @@ module "acm" {
 
 resource "aws_route53_record" "main" {
   zone_id = data.aws_route53_zone.main.id
-  name    = "${random_pet.main.id}.loadtest.g.fleetdm.com"
+  name    = "${random_pet.main.id}.example.com"
   type    = "A"
 
   alias {
@@ -45,7 +45,7 @@ resource "aws_route53_record" "main" {
 }
 
 data "aws_route53_zone" "main" {
-  name         = "loadtest.g.fleetdm.com."
+  name         = "example.com."
   private_zone = false
 }
 
