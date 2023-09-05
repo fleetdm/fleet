@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,13 +43,7 @@ func TestRunScriptCommand(t *testing.T) {
 	generateValidPath := func() string {
 		return writeTmpScriptContents(t, "echo hello world", ".sh")
 	}
-	maxChars := func() string {
-		s := ""
-		for i := 0; i < 10001; i++ {
-			s += "a"
-		}
-		return s
-	}()
+	maxChars := strings.Repeat("a", 10001)
 
 	type testCase struct {
 		name           string

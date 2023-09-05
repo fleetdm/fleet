@@ -1110,8 +1110,6 @@ type HostScriptResult struct {
 	// ExitCode is null if script execution result was never received from the
 	// host. It is -1 if it was received but the script did not terminate
 	// normally (same as how Go handles this: https://pkg.go.dev/os#ProcessState.ExitCode)
-	// It implements a custom JSON marshaler to return null rather than the zero value when the
-	// underlying integer value has not been set.
 	ExitCode *int64 `json:"exit_code" db:"exit_code"`
 	// CreatedAt is the creation timestamp of the script execution request. It is
 	// not returned as part of the payloads, but is used to determine if the script
@@ -1149,7 +1147,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	}
 
 	if hsr.ExitCode == nil {
-		if time.Since(hsr.CreatedAt) > time.Minute {
+		if hsr.HostTimeout(1 * time.Minute) {
 			return RunScriptHostTimeoutErrMsg
 		}
 		return RunScriptAlreadyRunningErrMsg

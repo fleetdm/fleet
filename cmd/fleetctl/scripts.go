@@ -52,7 +52,7 @@ func runScriptCommand() *cli.Command {
 				if errors.As(err, &nfe) {
 					return errors.New(fleet.RunScriptHostNotFoundErrMsg)
 				}
-				var sce service.StatusCodeErr
+				var sce fleet.ErrWithStatusCode
 				if errors.As(err, &sce) {
 					if sce.StatusCode() == http.StatusForbidden {
 						return errors.New(fleet.RunScriptForbiddenErrMsg)
