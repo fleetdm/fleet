@@ -37,9 +37,9 @@ module.exports = {
     let platformRecords = await Platform.find();
     let platformRecord = platformRecords[0];
     if(!platformRecord) {
-      throw new Error(`Consistency violation: when the GitHub webhook received an event, no platform record was found.`)
+      throw new Error(`Consistency violation: when the GitHub webhook received an event, no platform record was found.`);
     } else if(platformRecords.length > 1) {
-      throw new Error(`Consistency violation: when the GitHub webhook received an event, more than one platform record was found.`)
+      throw new Error(`Consistency violation: when the GitHub webhook received an event, more than one platform record was found.`);
     }
 
     let pocketOfPrNumbersUnfrozen = platformRecord.currentUnfrozenGitHubPrNumbers;

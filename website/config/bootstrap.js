@@ -76,9 +76,7 @@ module.exports.bootstrap = async function() {
     password: await sails.helpers.passwords.hashPassword('abc123')
   }).fetch();
 
-  await Platform.create({
-    currentUnfrozenGitHubPrNumbers: []
-  });
+  // Note: We do not create a platform record to avoid potential consistency violations.
 
   if (sails.config.custom.enableBillingFeatures) {
     let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
