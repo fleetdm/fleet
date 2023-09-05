@@ -667,6 +667,7 @@ type Datastore interface {
 	FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
 	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
+	// Even if `results` is empty, the host's `policy_updated_at` will be updated.
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or

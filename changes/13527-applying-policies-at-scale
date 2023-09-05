@@ -1,0 +1,4 @@
+* Improved performance at scale when applying hundreds of policies to thousands of hosts via `fleetctl apply`.
+IMPORTANT: In previous versions of Fleet there's a performance issue (thundering herd) when applying hundreds of
+policies on a large number of hosts. To avoid this, make sure to deploy this version of Fleet, and make sure Fleet
+is running for at least 1h (or the configured `FLEET_OSQUERY_POLICY_UPDATE_INTERVAL`) before applying the policies.

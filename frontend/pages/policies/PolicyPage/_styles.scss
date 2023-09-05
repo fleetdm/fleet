@@ -75,6 +75,7 @@
       margin-bottom: 8px;
       font-size: $x-small;
     }
+
     .selector-block {
       display: flex;
       align-items: center;
@@ -174,6 +175,11 @@
     gap: $pad-xsmall;
     .form-field--checkbox {
       margin-bottom: 0;
+    }
+  }
+  .targets-input {
+    .input-icon-field__icon {
+      top: 34px; // Override styling to include label header
     }
   }
 }
