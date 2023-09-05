@@ -6219,11 +6219,11 @@ Creates a script execution request and waits for a result to return (up to a 1 m
 }
 ```
 
-### Get Script Result
+### Get script result
 
 _Available in Fleet Premium_
 
-Gets the result of a script.
+Gets the result of a script that was executed.
 
 #### Parameters
 
@@ -6242,7 +6242,7 @@ Gets the result of a script.
 ```json
 {
   "script_contents": "echo 'hello'",
-  "exit_code": 0 | null,
+  "exit_code": 0,
   "output": "hello",
   "message": "",
   "hostname": "Test Host",
