@@ -53,7 +53,7 @@ jobs:
         run: make deps
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
+        uses: goreleaser/goreleaser-action@5fdedb94abba051217030cc86d4523cf3f02243d
         with:
           distribution: goreleaser-pro
           version: latest
