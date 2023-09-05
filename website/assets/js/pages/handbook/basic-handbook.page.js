@@ -68,7 +68,7 @@ parasails.registerPage('basic-handbook', {
             pageTitle = pageTitle.replace(/\p{Extended_Pictographic}\s*/gu, '');
           }
           let handbookPage = {
-            pageTitle: pagetitle,
+            pageTitle: pageTitle,
             url: page.url,
             pageLinks: page.linksForHandbookIndex,
           };
