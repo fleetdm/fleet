@@ -587,8 +587,8 @@ module.exports = {
             throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerLinkedInUrl" value. To resolve, add a "hiringManagerLinkedInUrl" value to the "${openPosition.jobTitle}" position and try running this script again.`);
           }
 
-          if(!openPosition.hiringManagerLinkedInUrl){
-            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerLinkedInUrl" value. To resolve, add a "hiringManagerLinkedInUrl" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+          if(!openPosition.hiringManagerGithubUsername){
+            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerGithubUsername" value. To resolve, add a "hiringManagerGithubUsername" value to the "${openPosition.jobTitle}" position and try running this script again.`);
           }
 
           if(!openPosition.responsibilities){
