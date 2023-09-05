@@ -3686,6 +3686,16 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
 
+	// an activity was created for the async script execution
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), runResp.ExecutionID,
+		),
+		0,
+	)
+
 	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, result.HostID)
@@ -3813,6 +3823,16 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.True(t, runSyncResp.ExitCode.Valid)
 	require.Equal(t, int64(0), runSyncResp.ExitCode.Int64)
 	require.False(t, runSyncResp.HostTimeout)
+
+	// an activity was created for the sync script execution
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": false}`,
+			host.ID, host.DisplayName(), runSyncResp.ExecutionID,
+		),
+		0,
+	)
 
 	// simulate a scripts disabled result
 	resultsCh <- &fleet.HostScriptResultPayload{

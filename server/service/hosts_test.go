@@ -1120,6 +1120,10 @@ func TestHostRunScript(t *testing.T) {
 	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
 		return nil, nil
 	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		require.IsType(t, fleet.ActivityTypeRanScript{}, activity)
+		return nil
+	}
 
 	t.Run("authorization checks", func(t *testing.T) {
 		testCases := []struct {
