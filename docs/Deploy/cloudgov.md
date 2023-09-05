@@ -1,4 +1,4 @@
-# Deploying to Cloud.gov (Cloud Foundry)
+# Deploy Fleet on Cloud.gov (Cloud Foundry)
 
 Cloud.gov is a [FEDRAMP moderate Platform-as-a-Service
 (PaaS)](https://marketplace.fedramp.gov/#!/product/18f-cloudgov?sort=productName). This repository

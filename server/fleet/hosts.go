@@ -1169,6 +1169,10 @@ func (hsr HostScriptResult) AuthzType() string {
 // screen of a script execution activity in the website).
 func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	switch {
+	case hostTimeout:
+		return "Fleet hasn't heard from the host in over 1 minute. Fleet doesn't know if the script ran because the host went offline."
+	case !hostTimeout && time.Since(hsr.CreatedAt) > time.Minute:
+		return "Fleet hasn't heard from the host in over 1 minute. Fleet doesn't know if the script ran because the host went offline."
 	case hsr.ExitCode.Int64 == -1:
 		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
 	case hsr.ExitCode.Int64 == -2:
