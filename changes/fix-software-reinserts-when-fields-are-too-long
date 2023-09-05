@@ -1,0 +1,1 @@
+* Fixed software ingestion to not re-insert software when incoming fields from hosts are longer than what Fleet supports.
