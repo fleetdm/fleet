@@ -58,7 +58,7 @@ const OSPolicyModal = ({
               >{`${copyMessage} `}</span>
             )}
             <Button
-              variant="text-icon"
+              variant="unstyled"
               className={`${baseClass}__os-policy-copy-icon`}
               onClick={onCopyOsPolicy}
             >
