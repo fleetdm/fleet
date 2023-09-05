@@ -1,0 +1,1 @@
+- add GET scripts/results/{id} endpoint to get the script result.
