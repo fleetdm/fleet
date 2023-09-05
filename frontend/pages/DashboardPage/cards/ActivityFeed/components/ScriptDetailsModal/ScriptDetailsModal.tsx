@@ -186,7 +186,7 @@ const ScriptDetailsModal = ({
         <>
           <ScriptContent content={data.script_contents} />
           <ScriptResult
-            hostname={data.host_name}
+            hostname={data.hostname}
             hostTimeout={data.host_timeout}
             exitCode={data.exit_code}
             message={data.message}
