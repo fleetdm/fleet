@@ -1158,6 +1158,8 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	return ""
 }
 
+// HostTimeout returns true if the host script result created at time is older
+// than the waitForResultTime.
 func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
 	return time.Now().Add(-waitForResultTime).Before(hsr.CreatedAt)
 }
