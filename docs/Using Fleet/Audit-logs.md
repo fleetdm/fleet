@@ -840,13 +840,13 @@ This activity does not contain any detail fields.
 
 ### Type `ran_script`
 
-Generated when an user sends a script to be run for a host.
+Generated when a script is sent to be run for a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
-- "async": if the script was executed asyncronously.
+- "async": Whether the script was executed asynchronously.
 
 #### Example
 
