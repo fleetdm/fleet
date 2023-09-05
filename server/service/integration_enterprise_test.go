@@ -3813,8 +3813,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.Equal(t, "ok", runSyncResp.Output)
-	require.True(t, runSyncResp.ExitCode.Valid)
-	require.Equal(t, int64(0), runSyncResp.ExitCode.Int64)
+	require.NotNil(t, runSyncResp.ExitCode)
+	require.Equal(t, int64(0), *runSyncResp.ExitCode)
 	require.False(t, runSyncResp.HostTimeout)
 
 	// simulate a scripts disabled result
@@ -3829,8 +3829,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.Empty(t, runSyncResp.Output)
-	require.True(t, runSyncResp.ExitCode.Valid)
-	require.Equal(t, int64(-2), runSyncResp.ExitCode.Int64)
+	require.NotNil(t, runSyncResp.ExitCode)
+	require.Equal(t, int64(-2), *runSyncResp.ExitCode)
 	require.False(t, runSyncResp.HostTimeout)
 	require.Contains(t, runSyncResp.Message, "Scripts are disabled")
 

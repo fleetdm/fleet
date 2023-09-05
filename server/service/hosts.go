@@ -1631,7 +1631,6 @@ func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 type runScriptSyncResponse struct {
 	Err error `json:"error,omitempty"`
 	*fleet.HostScriptResult
-
 	HostTimeout bool `json:"host_timeout"`
 }
 
@@ -1721,14 +1720,9 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 	hostTimeout := scriptResult.HostTimeout(waitForResultTime)
 	scriptResult.Message = scriptResult.UserMessage(hostTimeout)
 
-	var exitCode *int64
-	if scriptResult.ExitCode.Valid {
-		exitCode = &scriptResult.ExitCode.Int64
-	}
-
 	return &getScriptResultResponse{
 		ScriptContents: scriptResult.ScriptContents,
-		ExitCode:       exitCode,
+		ExitCode:       scriptResult.ExitCode,
 		Output:         scriptResult.Output,
 		Message:        scriptResult.Message,
 		HostName:       scriptResult.Hostname,

@@ -24,10 +24,7 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 }
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
-	const (
-		maxScriptRuneLen    = 10000
-		maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
-	)
+	const maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
 
 	// must load the host to get the team (cannot use lite, the last seen time is
 	// required to check if it is online) to authorize with the proper team id.
@@ -103,7 +100,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 				}
 				return nil, ctxerr.Wrap(ctx, err, "get script execution result")
 			}
-			if result.ExitCode.Valid {
+			if result.ExitCode != nil {
 				// a result was received from the host, return
 				result.Hostname = host.DisplayName()
 				return result, nil

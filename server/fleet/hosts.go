@@ -3,7 +3,6 @@ package fleet
 import (
 	"bufio"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1111,7 +1110,7 @@ type HostScriptResult struct {
 	// ExitCode is null if script execution result was never received from the
 	// host. It is -1 if it was received but the script did not terminate
 	// normally (same as how Go handles this: https://pkg.go.dev/os#ProcessState.ExitCode)
-	ExitCode sql.NullInt64 `json:"exit_code" db:"exit_code"`
+	ExitCode *int64 `json:"exit_code" db:"exit_code"`
 	// CreatedAt is the creation timestamp of the script execution request. It is
 	// not returned as part of the payloads, but is used to determine if the script
 	// is too old to still expect a response from the host.
@@ -1143,25 +1142,29 @@ func (hsr HostScriptResult) AuthzType() string {
 // get the script results for an execution ID (e.g. when looking at the details
 // screen of a script execution activity in the website).
 func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
-	switch {
-	case hostTimeout:
+	if hostTimeout {
 		return RunScriptHostTimeoutErrMsg
-	case !hostTimeout && time.Since(hsr.CreatedAt) > time.Minute:
-		return RunScriptHostTimeoutErrMsg
-	case hsr.ExitCode.Int64 == -1:
-		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
-	case hsr.ExitCode.Int64 == -2:
-		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
-	case !hsr.ExitCode.Valid:
-		return "Script is running. To see if the script finished, close this modal and open it again."
 	}
-	return ""
+
+	if hsr.ExitCode == nil {
+		if hsr.HostTimeout(1 * time.Minute) {
+			return RunScriptHostTimeoutErrMsg
+		}
+		return RunScriptAlreadyRunningErrMsg
+	}
+
+	switch *hsr.ExitCode {
+	case -1:
+		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
+	case -2:
+		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
+	default:
+		return ""
+	}
 }
 
-// HostTimeout returns true if the current time minus the waitForResultTime
-// is after the host script result created at time.
 func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
-	return time.Now().Add(-waitForResultTime).After(hsr.CreatedAt)
+	return time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
 const MaxScriptRuneLen = 10000
@@ -1206,12 +1209,12 @@ func ValidateHostScriptContents(s string) error {
 }
 
 type ScriptResult struct {
-	ScriptContents string        `json:"script_contents"`
-	ExitCode       sql.NullInt64 `json:"exit_code"`
-	Output         string        `json:"output"`
-	Message        string        `json:"message"`
-	HostName       string        `json:"host_name"`
-	HostTimeout    bool          `json:"host_timeout"`
+	ScriptContents string `json:"script_contents"`
+	ExitCode       *int64 `json:"exit_code"`
+	Output         string `json:"output"`
+	Message        string `json:"message"`
+	HostName       string `json:"host_name"`
+	HostTimeout    bool   `json:"host_timeout"`
 
 	HostID      uint   `json:"host_id"`
 	ExecutionID string `json:"execution_id"`

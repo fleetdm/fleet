@@ -15,6 +15,7 @@ const DefaultColumnFilter = ({
         onChange={(searchString) => {
           setFilter(searchString || undefined); // Set undefined to remove the filter entirely
         }}
+        icon="filter-funnel"
       />
     </div>
   );

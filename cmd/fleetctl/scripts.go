@@ -52,7 +52,7 @@ func runScriptCommand() *cli.Command {
 				if errors.As(err, &nfe) {
 					return errors.New(fleet.RunScriptHostNotFoundErrMsg)
 				}
-				var sce service.StatusCodeErr
+				var sce fleet.ErrWithStatusCode
 				if errors.As(err, &sce) {
 					if sce.StatusCode() == http.StatusForbidden {
 						return errors.New(fleet.RunScriptForbiddenErrMsg)
@@ -109,27 +109,27 @@ Output {{- if .ExecTimeout }} before timeout {{- end }}:
 	data := struct {
 		ExecTimeout bool
 		ErrorMsg    string
-		ExitCode    int64
+		ExitCode    *int64
 		ExitMessage string
 		Output      string
 		ShowOutput  bool
 	}{
-		ExitCode:    res.ExitCode.Int64,
+		ExitCode:    res.ExitCode,
 		ExitMessage: "Script failed.",
 		ShowOutput:  true,
 	}
 
-	switch res.ExitCode.Int64 {
-	case -2:
+	switch {
+	case res.ExitCode == nil:
+		data.ErrorMsg = res.Message
+	case *res.ExitCode == -2:
 		data.ShowOutput = false
 		data.ErrorMsg = res.Message
-	case -1:
+	case *res.ExitCode == -1:
 		data.ExecTimeout = true
 		data.ErrorMsg = res.Message
-	case 0:
-		if res.ExitCode.Valid {
-			data.ExitMessage = "Script ran successfully."
-		}
+	case *res.ExitCode == 0:
+		data.ExitMessage = "Script ran successfully."
 	}
 
 	if len(res.Output) >= fleet.MaxScriptRuneLen && utf8.RuneCountInString(res.Output) >= fleet.MaxScriptRuneLen {
