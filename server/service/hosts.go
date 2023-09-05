@@ -1631,9 +1631,7 @@ func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 type runScriptSyncResponse struct {
 	Err error `json:"error,omitempty"`
 	*fleet.HostScriptResult
-
-	Message     string `json:"message"`
-	HostTimeout bool   `json:"host_timeout"`
+	HostTimeout bool `json:"host_timeout"`
 }
 
 func (r runScriptSyncResponse) error() error { return r.Err }
@@ -1658,24 +1656,22 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		HostID:         req.HostID,
 		ScriptContents: req.ScriptContents,
 	}, waitForResult)
+	var hostTimeout bool
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			// it should still return the execution id and host id in this situation,
-			// so the user knows what script request to look at in the UI. We cannot
-			// return an error (field Err) in this case, as the errorer interface's
-			// rendering logic would take over and only render the error part of the
-			// response struct.
-			return runScriptSyncResponse{
-				HostScriptResult: result,
-				HostTimeout:      true,
-				Message:          result.UserMessage(true),
-			}, nil
+		if !errors.Is(err, context.DeadlineExceeded) {
+			return runScriptSyncResponse{Err: err}, nil
 		}
-		return runScriptSyncResponse{Err: err}, nil
+		// We should still return the execution id and host id in this timeout case,
+		// so the user knows what script request to look at in the UI. We cannot
+		// return an error (field Err) in this case, as the errorer interface's
+		// rendering logic would take over and only render the error part of the
+		// response struct.
+		hostTimeout = true
 	}
+	result.Message = result.UserMessage(hostTimeout)
 	return runScriptSyncResponse{
 		HostScriptResult: result,
-		Message:          result.UserMessage(false),
+		HostTimeout:      hostTimeout,
 	}, nil
 }
 
