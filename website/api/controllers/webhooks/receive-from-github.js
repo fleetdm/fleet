@@ -26,12 +26,6 @@ module.exports = {
 
   fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release}) {
 
-    // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
-    // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
-    // in-memory pocket here of PRs seen by this instance of the Sails app.  To get around any issues with this,
-    // users can edit and resave the PR description to trigger their PR to be unfrozen.
-    // FUTURE: Go through the trouble to migrate the database and make a little Platform model to hold this state in.
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // Grab the set of GitHub pull request numbers the bot considers "unfrozen" from the platform record.
     // If there is more than one platform record, or it is missing, we'll throw an error.
     let platformRecords = await Platform.find();
