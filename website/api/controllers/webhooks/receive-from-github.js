@@ -253,7 +253,7 @@ module.exports = {
       );
 
     } else if (
-      (ghNoun === 'pull_request' &&  ['opened','reopened','edited', 'synchronize'].includes(action))
+      (ghNoun === 'pull_request' &&  ['opened','reopened','edited', 'synchronize', 'ready_for_review'].includes(action))
     ) {
       //  ██████╗ ██╗   ██╗██╗     ██╗         ██████╗ ███████╗ ██████╗ ██╗   ██╗███████╗███████╗████████╗
       //  ██╔══██╗██║   ██║██║     ██║         ██╔══██╗██╔════╝██╔═══██╗██║   ██║██╔════╝██╔════╝╚══██╔══╝

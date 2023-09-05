@@ -1241,7 +1241,7 @@ func TestHostRunScript(t *testing.T) {
 			script  string
 			wantErr string
 		}{
-			{"empty script", "", "a script to execute is required"},
+			{"empty script", "", "Script contents must not be empty."},
 			{"overly long script", strings.Repeat("a", 10001), "Script is too large."},
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},
 			{"valid without hashbang", "echo 'a'", ""},
