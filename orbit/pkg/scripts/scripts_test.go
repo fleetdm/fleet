@@ -124,7 +124,7 @@ func TestRunner(t *testing.T) {
 		},
 		{
 			desc:        "script with existing results",
-			client:      &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ExitCode: sql.NullInt64{Valid: true}}}},
+			client:      &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: 0, Valid: true}}}}},
 			execer:      &mockExecCmd{},
 			enabled:     true,
 			execIDs:     []string{"a"},
@@ -133,7 +133,7 @@ func TestRunner(t *testing.T) {
 		},
 		{
 			desc:        "multiple errors reported, one get fails, one non-existing",
-			client:      &mockClient{getErr: errFailOnce, scripts: map[string]*fleet.HostScriptResult{"a": {ExitCode: sql.NullInt64{Valid: true}}}},
+			client:      &mockClient{getErr: errFailOnce, scripts: map[string]*fleet.HostScriptResult{"a": {ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: 0, Valid: true}}}}},
 			execer:      &mockExecCmd{},
 			enabled:     true,
 			execIDs:     []string{"a", "b"},

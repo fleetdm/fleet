@@ -7377,7 +7377,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	expectScript := *createdScript
 	expectScript.Output = "foo"
 	expectScript.Runtime = 2
-	expectScript.ExitCode = sql.NullInt64{Int64: 0, Valid: true}
+	expectScript.ExitCode = fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: 0, Valid: true}}
 	require.Equal(t, &expectScript, script)
 
 	// create another script execution request

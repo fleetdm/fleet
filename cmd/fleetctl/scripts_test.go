@@ -110,7 +110,7 @@ func TestRunScriptCommand(t *testing.T) {
 			name:       "script successful",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
-				ExitCode: sql.NullInt64{Int64: 0, Valid: true},
+				ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: 0, Valid: true}},
 				Output:   "hello world",
 			},
 			expectOutput: `
@@ -129,7 +129,7 @@ hello world
 			name:       "script failed",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
-				ExitCode: sql.NullInt64{Int64: 1, Valid: true},
+				ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: 1, Valid: true}},
 				Output:   "",
 			},
 			expectOutput: `
@@ -148,7 +148,7 @@ Output:
 			name:       "script killed",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
-				ExitCode: sql.NullInt64{Int64: -1, Valid: true},
+				ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: -1, Valid: true}},
 				Output:   "Oh no!",
 				Message:  "Timeout. Fleet stopped the script after 30 seconds to protect host performance.",
 			},
@@ -168,7 +168,7 @@ Oh no!
 			name:       "scripts disabled",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
-				ExitCode: sql.NullInt64{Int64: -2, Valid: true},
+				ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: -2, Valid: true}},
 				Output:   "",
 				Message:  "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.",
 			},
@@ -181,7 +181,7 @@ Error: Scripts are disabled for this host. To run scripts, deploy a Fleet instal
 			name:       "output truncated",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
-				ExitCode: sql.NullInt64{Int64: 0, Valid: true},
+				ExitCode: fleet.HostScriptExitCode{NullInt64: sql.NullInt64{Int64: 0, Valid: true}},
 				Output:   maxChars,
 			},
 			expectOutput: fmt.Sprintf(`
