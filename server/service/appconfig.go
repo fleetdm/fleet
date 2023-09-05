@@ -392,32 +392,37 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
-	if err != nil {
-		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: err.Error(),
-			})
+	// TODO(mna): should the condition be "if Jira == nil && Zendesk == nil -> then do not change any integration"
+	// or should they be treated separately (that is, "if Jira == nil -> do not change Jira", and same for zendesk)?
+	// To clarify with how the frontend works.
+	if newAppConfig.Integrations.Jira != nil || newAppConfig.Integrations.Zendesk != nil {
+		delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
+		if err != nil {
+			if errors.As(err, &fleet.IntegrationTestError{}) {
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: err.Error(),
+				})
+			}
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
 		}
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
-	}
-	appConfig.Integrations.Jira = newAppConfig.Integrations.Jira
+		appConfig.Integrations.Jira = newAppConfig.Integrations.Jira
 
-	delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
-	if err != nil {
-		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: err.Error(),
-			})
+		delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
+		if err != nil {
+			if errors.As(err, &fleet.IntegrationTestError{}) {
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: err.Error(),
+				})
+			}
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
 		}
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
-	}
-	appConfig.Integrations.Zendesk = newAppConfig.Integrations.Zendesk
+		appConfig.Integrations.Zendesk = newAppConfig.Integrations.Zendesk
 
-	// if any integration was deleted, remove it from any team that uses it
-	if len(delJira)+len(delZendesk) > 0 {
-		if err := svc.ds.DeleteIntegrationsFromTeams(ctx, fleet.Integrations{Jira: delJira, Zendesk: delZendesk}); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete integrations from teams")
+		// if any integration was deleted, remove it from any team that uses it
+		if len(delJira)+len(delZendesk) > 0 {
+			if err := svc.ds.DeleteIntegrationsFromTeams(ctx, fleet.Integrations{Jira: delJira, Zendesk: delZendesk}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "delete integrations from teams")
+			}
 		}
 	}
 
