@@ -3228,3 +3228,4 @@ If the IP retrieved using the above heuristic belongs to a private range, then F
 
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="This page includes resources for configuring the Fleet binary, managing osquery configurations, and running with systemd.">
+<meta name="navSection" value="Fleet server">
