@@ -4596,7 +4596,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### Count policies
 
-`GET /api/v1/fleet/global/policies/count`
+`GET /api/v1/fleet/policies/count`
 
 
 #### Parameters
@@ -4606,7 +4606,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 #### Example
 
-`GET /api/v1/fleet/global/policies/count`
+`GET /api/v1/fleet/policies/count`
 
 ##### Default response
 
