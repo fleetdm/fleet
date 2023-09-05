@@ -6253,6 +6253,8 @@ Gets the result of a script that was executed.
 }
 ```
 
+> Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
+
 ---
 
 ## Sessions
