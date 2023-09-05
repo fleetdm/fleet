@@ -63,6 +63,7 @@ module.exports = {
       '/deploy',
       '/podcasts',
       '/device-management',
+      '/support',
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
       // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
     ];
@@ -80,7 +81,11 @@ module.exports = {
     //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝╠═╣║ ╦║╣ ╚═╗  ╠╣ ╠╦╝║ ║║║║  ║║║╠═╣╠╦╝╠╩╗ ║║║ ║║║║║║║
     //  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝  ╚  ╩╚═╚═╝╩ ╩  ╩ ╩╩ ╩╩╚═╩ ╩═╩╝╚═╝╚╩╝╝╚╝
     for (let pageInfo of sails.config.builtStaticContent.markdownPages) {
-      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+pageInfo.url)}</loc><lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod></url>`;
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+pageInfo.url)}</loc>`;
+      if(pageInfo.lastModifiedAt) {// Note: We omit lastMod if the page does not have a lastModifiedAt property.
+        `<lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod>`;
+      }
+      sitemapXml += `</url>`;
     }//∞
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     sitemapXml += '</urlset>';
