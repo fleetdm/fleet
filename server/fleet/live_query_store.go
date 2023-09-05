@@ -18,6 +18,8 @@ type LiveQueryStore interface {
 	// given host. After calling QueryCompleted, that query will no longer be
 	// sent to the host.
 	QueryCompletedByHost(name string, hostID uint) error
+
+	PublishLiveQuery(campaignID string) error
 }
 
 type LiveQueryHostChannelMap struct {
