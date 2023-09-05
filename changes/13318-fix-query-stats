@@ -1,0 +1,1 @@
+* Fixed a bug where query stats (aka `Performance impact`) were not being populated in Fleet.
