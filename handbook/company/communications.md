@@ -118,11 +118,7 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 ### Shared calendars
 At Fleet, our shared team calendars are more than just schedules; they are the heartbeats of our operations. Acting as the primary source for team rituals, they facilitate the smooth execution of each sprint.
 
-Looking to add, change, or remove a shared calendar? Follow this process:
-- **Define the goal:** identify and articulate how adjustments will benefit or align with current practices.
-- **Engage your manager:** seek their insight and endorsement.
-- **Seek final approval:** ask your manager to pitch the idea at the e-group weekly meeting for the CEO's approval.
-- **Implement and inform:** set clear agendas, facilitate gong recordings, remove duplicates, and keep key stakeholders informed.
+Looking to add, change, or remove a shared calendar? [Create an issue](https://github.com/fleetdm/fleet/issues/new) with your idea, title it "Calendar idea", write up your idea, and label it with `#g-ceo` so that it can be brought to the e-group or appropriate DRI for feedback.
 
 ### All hands
 Every month, Fleet holds a company-wide meeting called the "All hands".
