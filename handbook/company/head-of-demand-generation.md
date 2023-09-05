@@ -48,7 +48,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 - 🤔 Systems thinker. Process-oriented. Analytical.
 - 🤝 Collaboration: You work best in a participatory, team-based environment.
 - 🧑‍🏭 Prototype-first: You embrace speed and failure as we iterate towards the right solution. 
-- 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
+- 🧬 Simplicity: You love complex questions and use your work to simplify that complexity.
 - 🟣 Openness: You are flexible and open to new ideas and ways of working
 - ➕ Bonus: You are comfortable with concepts like security, APIs, and DevOps.
 
