@@ -86,7 +86,7 @@ From time to time, Fleet is in the news.  Here are a few examples:
 
 ## Responsibilities
 
-### Order Fleet swag
+### Fufill one-time swag request
 We deliver Fleet swag and osquery stickers for those that request it through community contributions, [Fleet documentation](https://fleetdm.com/docs), and social media posts.
 
 - **Community contributions:** Reach out to the contributor to thank them for their contribution, ask if they would like any swag, and fill out their information in the [Fleet swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit#gid=2028707729).
