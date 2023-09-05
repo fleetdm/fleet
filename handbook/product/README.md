@@ -393,6 +393,11 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Bug review (CX)                               | Weekly (Tuesday)         | The product manager meets with the engineering manager and a product quality engineer to ensure synchronization on bug prioritization and actions preceding CX estimation sessions.                                                                                                         | Mo Zhu            |
 | Churned bug review                            | Sprintly (Wednesday)     | The Head of Product meets with the group product managers to examine churned bugs and categorize them as either continue, needs prioritization, or de-prioritize.                                                                                                                                     | Mo Zhu            |
 | Churned bug clean-up | Sprintly | Following the bug de-prioritization meeting, Product Operations completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as continue, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Isabell Reedy |
+| Stand-up (website)           | Daily (Monday - Thursday) | The website product team meets to discuss completed tasks, upcoming work, and address any questions. | Mike Thomas |
+| Prioritization session (website) | Sprintly                | The website product team meets to prioritize tasks for the upcoming sprint. | Mike Thomas |
+| Design review (website)      | Daily (Monday - Thursday) | Review designs from the website team.                                       | Mike Thomas |
+| PMMs R Us                     | Weekly (Sunday)         | The CEO meets with the Head of Design to discuss product marketing strategies. | Mike Thomas |
+
 
 
 ## Slack channels
