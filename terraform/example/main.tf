@@ -18,7 +18,7 @@ provider "aws" {
 resource "random_pet" "main" {}
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.1.0"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.3.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name                 = random_pet.main.id
@@ -34,7 +34,7 @@ module "acm" {
   source  = "terraform-aws-modules/acm/aws"
   version = "4.3.1"
 
-  domain_name = "${random_pet.main.id}.loadtest.fleetdm.com"
+  domain_name = "${random_pet.main.id}.example.com"
   zone_id     = data.aws_route53_zone.main.id
 
   wait_for_validation = true
@@ -42,7 +42,7 @@ module "acm" {
 
 resource "aws_route53_record" "main" {
   zone_id = data.aws_route53_zone.main.id
-  name    = "${random_pet.main.id}.loadtest.fleetdm.com"
+  name    = "${random_pet.main.id}.example.com"
   type    = "A"
 
   alias {
@@ -53,7 +53,7 @@ resource "aws_route53_record" "main" {
 }
 
 data "aws_route53_zone" "main" {
-  name         = "loadtest.fleetdm.com."
+  name         = "example.com."
   private_zone = false
 }
 

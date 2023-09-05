@@ -1245,7 +1245,7 @@ func TestHostRunScript(t *testing.T) {
 			script  string
 			wantErr string
 		}{
-			{"empty script", "", "a script to execute is required"},
+			{"empty script", "", "Script contents must not be empty."},
 			{"overly long script", strings.Repeat("a", 10001), "Script is too large."},
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},
 			{"valid without hashbang", "echo 'a'", ""},
@@ -1268,4 +1268,165 @@ func TestHostRunScript(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestGetScriptResult(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	const (
+		noTeamHostExecID      = "no-team-host"
+		teamHostExecID        = "team-host"
+		nonExistingHostExecID = "non-existing-host"
+	)
+
+	checkAuthErr := func(t *testing.T, shouldFail bool, err error) {
+		if shouldFail {
+			require.Error(t, err)
+			require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+		} else if err != nil {
+			require.NotEqual(t, (&authz.Forbidden{}).Error(), err.Error())
+		}
+	}
+
+	teamHost := &fleet.Host{ID: 1, Hostname: "host-team", TeamID: ptr.Uint(1), SeenTime: time.Now()}
+	noTeamHost := &fleet.Host{ID: 2, Hostname: "host-no-team", TeamID: nil, SeenTime: time.Now()}
+	nonExistingHost := &fleet.Host{ID: 3, Hostname: "no-such-host", TeamID: nil}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetHostScriptExecutionResultFunc = func(ctx context.Context, executionID string) (*fleet.HostScriptResult, error) {
+		switch executionID {
+		case noTeamHostExecID:
+			return &fleet.HostScriptResult{HostID: noTeamHost.ID, ScriptContents: "abc", ExecutionID: executionID}, nil
+		case teamHostExecID:
+			return &fleet.HostScriptResult{HostID: teamHost.ID, ScriptContents: "abc", ExecutionID: executionID}, nil
+		case nonExistingHostExecID:
+			return &fleet.HostScriptResult{HostID: nonExistingHost.ID, ScriptContents: "abc", ExecutionID: executionID}, nil
+		default:
+			return nil, newNotFoundError()
+		}
+	}
+	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		if hostID == 1 {
+			return teamHost, nil
+		}
+		if hostID == 2 {
+			return noTeamHost, nil
+		}
+		return nil, newNotFoundError()
+	}
+
+	testCases := []struct {
+		name                 string
+		user                 *fleet.User
+		shouldFailTeamRead   bool
+		shouldFailGlobalRead bool
+	}{
+		{
+			name:                 "global admin",
+			user:                 &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: false,
+		},
+		{
+			name:                 "global maintainer",
+			user:                 &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: false,
+		},
+		{
+			name:                 "global observer",
+			user:                 &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: false,
+		},
+		{
+			name:                 "global observer+",
+			user:                 &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: false,
+		},
+		{
+			name:                 "global gitops",
+			user:                 &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team admin, belongs to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team maintainer, belongs to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team observer, belongs to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team observer+, belongs to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team gitops, belongs to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team admin, DOES NOT belong to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team maintainer, DOES NOT belong to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team observer, DOES NOT belong to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team observer+, DOES NOT belong to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserverPlus}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team gitops, DOES NOT belong to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+			_, err := svc.GetScriptResult(ctx, noTeamHostExecID)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+			_, err = svc.GetScriptResult(ctx, teamHostExecID)
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
+			// a non-existing host is authorized as for global write (because we can't know what team it belongs to)
+			_, err = svc.GetScriptResult(ctx, nonExistingHostExecID)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+		})
+	}
 }

@@ -1,13 +1,9 @@
 package service
 
 import (
-	"bufio"
 	"context"
 	"net/http"
-	"regexp"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -28,14 +24,8 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	return svc.Service.HostByIdentifier(ctx, identifier, opts)
 }
 
-// anchored, so that it matches to the end of the line
-var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
-
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
-	const (
-		maxScriptRuneLen    = 10000
-		maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
-	)
+	const maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
 
 	// must load the host to get the team (cannot use lite, the last seen time is
 	// required to check if it is online) to authorize with the proper team id.
@@ -57,38 +47,13 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, err
 	}
 
-	if request.ScriptContents == "" {
-		return nil, fleet.NewInvalidArgumentError("script_contents", "a script to execute is required")
-	}
-	// look for the script length in bytes first, as rune counting a huge string
-	// can be expensive.
-	if len(request.ScriptContents) > utf8.UTFMax*maxScriptRuneLen {
-		return nil, fleet.NewInvalidArgumentError("script_contents", "Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
-	}
-	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
-	// we can safely count the runes for a precise check.
-	if utf8.RuneCountInString(request.ScriptContents) > maxScriptRuneLen {
-		return nil, fleet.NewInvalidArgumentError("script_contents", "Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
-	}
-
-	// script must be a "text file", but that's not so simple to validate, so we
-	// assume that if it is valid utf8 encoding, it is a text file (binary files
-	// will often have invalid utf8 byte sequences).
-	if !utf8.ValidString(request.ScriptContents) {
-		return nil, fleet.NewInvalidArgumentError("script_contents", "Wrong data format. Only plain text allowed.")
-	}
-	if strings.HasPrefix(request.ScriptContents, "#!") {
-		// read the first line in a portable way
-		s := bufio.NewScanner(strings.NewReader(request.ScriptContents))
-		// if a hashbang is present, it can only be `/bin/sh` for now
-		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return nil, fleet.NewInvalidArgumentError("script_contents", `Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`)
-		}
+	if err := fleet.ValidateHostScriptContents(request.ScriptContents); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script_contents", err.Error())
 	}
 
 	// host must be online
 	if host.Status(time.Now()) != fleet.StatusOnline {
-		return nil, fleet.NewInvalidArgumentError("host_id", "Script can't run on offline host.")
+		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, maxPendingScriptAge)
@@ -97,7 +62,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	}
 	if len(pending) > 0 {
 		return nil, fleet.NewInvalidArgumentError(
-			"script_contents", "A script is already running on this host. Please wait about 1 minute to let it finish.",
+			"script_contents", fleet.RunScriptAlreadyRunningErrMsg,
 		).WithStatus(http.StatusConflict)
 	}
 
@@ -152,7 +117,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 				}
 				return nil, ctxerr.Wrap(ctx, err, "get script execution result")
 			}
-			if result.ExitCode.Valid {
+			if result.ExitCode != nil {
 				// a result was received from the host, return
 				result.Hostname = host.DisplayName()
 				return result, nil
@@ -165,4 +130,37 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			after.Reset(checkInterval)
 		}
 	}
+}
+
+func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	scriptResult, err := svc.ds.GetHostScriptExecutionResult(ctx, execID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get script result")
+	}
+
+	host, err := svc.ds.HostLite(ctx, scriptResult.HostID)
+	if err != nil {
+		// if error is because the host does not exist, check first if the user
+		// had access to run a script (to prevent leaking valid host ids).
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	scriptResult.Hostname = host.DisplayName()
+
+	return scriptResult, nil
 }
