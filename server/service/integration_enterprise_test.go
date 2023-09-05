@@ -3772,7 +3772,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.True(t, runSyncResp.HostTimeout)
-	require.Contains(t, runSyncResp.Message, "Fleet hasn't heard from the host in over 1 minute because it went offline.")
+	require.Contains(t, runSyncResp.Message, "Fleet hasn't heard from the host in over 1 minute. Fleet doesn't know if the script ran because the host went offline.")
 
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
