@@ -1698,7 +1698,7 @@ type getScriptResultResponse struct {
 	ExitCode       *int64 `json:"exit_code"`
 	Output         string `json:"output"`
 	Message        string `json:"message"`
-	HostName       string `json:"host_name"`
+	HostName       string `json:"hostname"`
 	HostTimeout    bool   `json:"host_timeout"`
 	HostID         uint   `json:"host_id"`
 	ExecutionID    string `json:"execution_id"`
