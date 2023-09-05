@@ -71,6 +71,7 @@ module.exports = {
         : 'View the Fleet handbook.'// « otherwise use a generic description
       ),
       rituals: sails.config.builtStaticContent.rituals,
+      openPositions: sails.config.builtStaticContent.openPositions,
       algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
