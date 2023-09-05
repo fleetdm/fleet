@@ -4,7 +4,7 @@ import endpoints from "utilities/endpoints";
 export interface IScriptResult {
   host_name: string;
   host_id: number;
-  execution_id: number;
+  execution_id: string;
   script_contents: string;
   exit_code: number | null;
   output: string;
@@ -14,7 +14,7 @@ export interface IScriptResult {
 }
 
 export default {
-  getScriptResult(id: number) {
+  getScriptResult(id: string) {
     const { SCRIPT_RESULT } = endpoints;
 
     // TODO: uncomment when API is ready.
@@ -23,7 +23,7 @@ export default {
       resolve({
         host_name: "test host",
         host_id: 1,
-        execution_id: 1,
+        execution_id: "test-id",
         script_contents: "test contentsss here is here",
         exit_code: 1,
         output: "test output",

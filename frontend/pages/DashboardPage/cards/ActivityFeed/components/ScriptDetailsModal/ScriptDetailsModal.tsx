@@ -158,14 +158,18 @@ const ScriptResult = ({
 };
 
 interface IScriptDetailsModalProps {
+  scriptExecutionId: string;
   onCancel: () => void;
 }
 
-const ScriptDetailsModal = ({ onCancel }: IScriptDetailsModalProps) => {
+const ScriptDetailsModal = ({
+  scriptExecutionId,
+  onCancel,
+}: IScriptDetailsModalProps) => {
   const { data, isLoading, isError } = useQuery<IScriptResult>(
     ["scriptDetailsModal"],
     () => {
-      return scriptsAPI.getScriptResult(1);
+      return scriptsAPI.getScriptResult(scriptExecutionId);
     },
     { refetchOnWindowFocus: false }
   );
