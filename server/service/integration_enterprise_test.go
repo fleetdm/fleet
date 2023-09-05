@@ -3686,36 +3686,39 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
 
-	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
-	require.NoError(t, err)
-	require.Equal(t, host.ID, result.HostID)
-	require.Equal(t, "echo", result.ScriptContents)
-	require.Nil(t, result.ExitCode)
+	// get script result
+	var scriptResultResp getScriptResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo", scriptResultResp.ScriptContents)
+	require.Nil(t, scriptResultResp.ExitCode)
+	require.False(t, scriptResultResp.HostTimeout)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
 
 	// verify that orbit would get the notification that it has a script to run
 	var orbitResp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
-	require.Equal(t, []string{result.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
+	require.Equal(t, []string{scriptResultResp.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
 
 	// the orbit endpoint to get a pending script to execute returns it
 	var orbitGetScriptResp orbitGetScriptResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, result.ExecutionID)),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusOK, &orbitGetScriptResp)
 	require.Equal(t, host.ID, orbitGetScriptResp.HostID)
-	require.Equal(t, result.ExecutionID, orbitGetScriptResp.ExecutionID)
+	require.Equal(t, scriptResultResp.ExecutionID, orbitGetScriptResp.ExecutionID)
 	require.Equal(t, "echo", orbitGetScriptResp.ScriptContents)
 
 	// trying to get that script via its execution ID but a different host returns not found
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *otherHost.OrbitNodeKey, result.ExecutionID)),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *otherHost.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusNotFound, &orbitGetScriptResp)
 
 	// trying to get an unknown execution id returns not found
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, result.ExecutionID+"no-such")),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID+"no-such")),
 		http.StatusNotFound, &orbitGetScriptResp)
 
 	// attempt to run a sync script on a non-existing host
@@ -3745,7 +3748,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// save a result via the orbit endpoint
 	var orbitPostScriptResp orbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)
 
 	// verify that orbit does not receive any pending script anymore

@@ -1645,8 +1645,11 @@ func (r runScriptSyncResponse) Status() int {
 // this is to be used only by tests, to be able to use a shorter timeout.
 var testRunScriptWaitForResult time.Duration
 
+// waitForResultTime is the default timeout for the synchronous script execution.
+const waitForResultTime = time.Minute
+
 func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	waitForResult := time.Minute
+	waitForResult := waitForResultTime
 	if testRunScriptWaitForResult != 0 {
 		waitForResult = testRunScriptWaitForResult
 	}
@@ -1676,6 +1679,61 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+// //////////////////////////////////////////////////////////////////////////////
+// Get script result for a host
+// //////////////////////////////////////////////////////////////////////////////
+type getScriptResultRequest struct {
+	ExecutionID string `url:"execution_id"`
+}
+
+type getScriptResultResponse struct {
+	ScriptContents string `json:"script_contents"`
+	ExitCode       *int64 `json:"exit_code"`
+	Output         string `json:"output"`
+	Message        string `json:"message"`
+	HostName       string `json:"hostname"`
+	HostTimeout    bool   `json:"host_timeout"`
+	HostID         uint   `json:"host_id"`
+	ExecutionID    string `json:"execution_id"`
+	Runtime        int    `json:"runtime"`
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getScriptResultResponse) error() error { return r.Err }
+
+func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getScriptResultRequest)
+	scriptResult, err := svc.GetScriptResult(ctx, req.ExecutionID)
+	if err != nil {
+		return getScriptResultResponse{Err: err}, nil
+	}
+
+	// check if a minute has passed since the script was created at
+	hostTimeout := scriptResult.HostTimeout(waitForResultTime)
+	scriptResult.Message = scriptResult.UserMessage(hostTimeout)
+
+	return &getScriptResultResponse{
+		ScriptContents: scriptResult.ScriptContents,
+		ExitCode:       scriptResult.ExitCode,
+		Output:         scriptResult.Output,
+		Message:        scriptResult.Message,
+		HostName:       scriptResult.Hostname,
+		HostTimeout:    hostTimeout,
+		HostID:         scriptResult.HostID,
+		ExecutionID:    scriptResult.ExecutionID,
+		Runtime:        scriptResult.Runtime,
+	}, nil
+}
+
+func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
