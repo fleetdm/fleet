@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -45,7 +46,9 @@ func (shm *SafeHostHostMap) BroadcastSignalToAllHosts() {
 	shm.Lock()
 	defer shm.Unlock()
 
-	for _, ch := range shm.HostMap {
+	for hostid, ch := range shm.HostMap {
+		fmt.Println("Broadcasting signal to:", hostid)
 		ch <- struct{}{}
+		fmt.Println("Broadcasted signal to:", hostid)
 	}
 }

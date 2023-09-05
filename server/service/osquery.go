@@ -561,6 +561,13 @@ type getDistributedQueriesResponse struct {
 func (r getDistributedQueriesResponse) error() error { return r.Err }
 
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return getDistributedQueriesResponse{Err: newOsqueryError("internal error: missing host from request context")}, nil
+	}
+
+	fmt.Println("msg", "endpoint distributed/read", "host_id", host.ID)
+
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
 		return getDistributedQueriesResponse{Err: err}, nil
@@ -574,6 +581,9 @@ func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc
 
 func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
 	// skipauth: Authorization is currently for user endpoints only.
+
+	fmt.Println("msg", "service distributed/read", "GetDistributedQueries Func")
+
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
@@ -587,12 +597,19 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	svc.HostChannels.Lock()
 
 	signalCh, ok := svc.HostChannels.HostMap[host.ID]
+	fmt.Println("msg", "service distributed/read", "HostChannels.HostMap", svc.HostChannels.HostMap, "host_id", host.ID, "signalCh", signalCh, "ok", ok)
 	if !ok {
 		level.Debug(svc.logger).Log("msg", "creating new channel for host", "host_id", host.ID)
 		signalCh = make(chan struct{})
 		svc.HostChannels.HostMap[host.ID] = signalCh
 	}
 	svc.HostChannels.Unlock()
+
+	defer func() {
+		svc.HostChannels.Lock()
+		delete(svc.HostChannels.HostMap, host.ID)
+		svc.HostChannels.Unlock()
+	}()
 
 	timer := time.NewTicker(10 * time.Second)
 	defer timer.Stop()
@@ -617,58 +634,58 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 			}
 			level.Debug(svc.logger).Log("msg", "signal received, returning LiveQueries")
 			return queries, discovery, 0, nil
-		case <-timer.C:
-			level.Debug(svc.logger).Log("msg", "timer expired, running other queries")
-			detailQueries, detailDiscovery, err := svc.detailQueriesForHost(ctx, host)
-			if err != nil {
-				return nil, nil, 0, newOsqueryError(err.Error())
-			}
-			for name, query := range detailQueries {
-				queries[name] = query
-			}
-			for name, query := range detailDiscovery {
-				discovery[name] = query
-			}
+			// case <-timer.C:
+			// 	level.Debug(svc.logger).Log("msg", "timer expired, running other queries")
+			// 	detailQueries, detailDiscovery, err := svc.detailQueriesForHost(ctx, host)
+			// 	if err != nil {
+			// 		return nil, nil, 0, newOsqueryError(err.Error())
+			// 	}
+			// 	for name, query := range detailQueries {
+			// 		queries[name] = query
+			// 	}
+			// 	for name, query := range detailDiscovery {
+			// 		discovery[name] = query
+			// 	}
 
-			labelQueries, err := svc.labelQueriesForHost(ctx, host)
-			if err != nil {
-				return nil, nil, 0, newOsqueryError(err.Error())
-			}
-			for name, query := range labelQueries {
-				queries[hostLabelQueryPrefix+name] = query
-			}
+			// 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
+			// 	if err != nil {
+			// 		return nil, nil, 0, newOsqueryError(err.Error())
+			// 	}
+			// 	for name, query := range labelQueries {
+			// 		queries[hostLabelQueryPrefix+name] = query
+			// 	}
 
-			policyQueries, err := svc.policyQueriesForHost(ctx, host)
-			if err != nil {
-				return nil, nil, 0, newOsqueryError(err.Error())
-			}
-			for name, query := range policyQueries {
-				queries[hostPolicyQueryPrefix+name] = query
-			}
+			// 	policyQueries, err := svc.policyQueriesForHost(ctx, host)
+			// 	if err != nil {
+			// 		return nil, nil, 0, newOsqueryError(err.Error())
+			// 	}
+			// 	for name, query := range policyQueries {
+			// 		queries[hostPolicyQueryPrefix+name] = query
+			// 	}
 
-			accelerate = uint(0)
-			if host.Hostname == "" || host.Platform == "" {
-				// Assume this host is just enrolling, and accelerate checkins
-				// (to allow for platform restricted labels to run quickly
-				// after platform is retrieved from details)
-				accelerate = 10
-			}
+			// 	accelerate = uint(0)
+			// 	if host.Hostname == "" || host.Platform == "" {
+			// 		// Assume this host is just enrolling, and accelerate checkins
+			// 		// (to allow for platform restricted labels to run quickly
+			// 		// after platform is retrieved from details)
+			// 		accelerate = 10
+			// 	}
 
-			// The way osquery's distributed "discovery" queries work is:
-			// If len(discovery) > 0, then only those queries that have a "discovery"
-			// query and return more than one row are executed on the host.
-			//
-			// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
-			// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
-			for name := range queries {
-				discoveryQuery := discovery[name]
-				if discoveryQuery == "" {
-					discoveryQuery = alwaysTrueQuery
-				}
-				discovery[name] = discoveryQuery
-			}
+			// 	// The way osquery's distributed "discovery" queries work is:
+			// 	// If len(discovery) > 0, then only those queries that have a "discovery"
+			// 	// query and return more than one row are executed on the host.
+			// 	//
+			// 	// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
+			// 	// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
+			// 	for name := range queries {
+			// 		discoveryQuery := discovery[name]
+			// 		if discoveryQuery == "" {
+			// 			discoveryQuery = alwaysTrueQuery
+			// 		}
+			// 		discovery[name] = discoveryQuery
+			// 	}
 
-			return queries, discovery, accelerate, nil
+			// 	return queries, discovery, accelerate, nil
 		}
 	}
 }
@@ -1153,7 +1170,10 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 	}
 
 	err = svc.resultStore.WriteResult(res)
+	
+
 	if err != nil {
+		fmt.Printf("ERROR writing to result store: %v\n", err)
 		var pse pubsub.Error
 		ok := errors.As(err, &pse)
 		if !ok || !pse.NoSubscriber() {
@@ -1172,6 +1192,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 		}
 
 		if campaign.CreatedAt.After(svc.clock.Now().Add(-1 * time.Minute)) {
+			time.Now().Add(-1 * time.Minute)
 			// Give the client a minute to connect before considering the
 			// campaign orphaned.
 			//
