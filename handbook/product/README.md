@@ -16,13 +16,15 @@ The product team is responsible for product design tasks like drafting [changes 
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-- Take the top issue that is assigned to you in the "Prioritized" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
+- Take the top user story that is assigned to you in the "Prioritized" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
   
 - Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project. See [Working with Figma](https://fleetdm.com/handbook/product#working-with-figma) below for more details.
   
--  Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
+- Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
 
-- Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
+- Draft changes to the Fleet product that solve the problem specified in the story. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
+
+- Be intentional about style improvements. Improvements to UI components are made opportunistically as part of stories. Currently, Fleet doesn't have to capacity to take on style-only stories.
 
 - While drafting, reach out to sales, customer success, and marketing for a business perspective.
 
