@@ -1,24 +1,5 @@
 # REST API
 
-- [Authentication](#authentication)
-- [Activities](#activities)
-- [Fleet configuration](#fleet-configuration)
-- [File carving](#file-carving)
-- [Hosts](#hosts)
-- [Labels](#labels)
-- [Mobile device management (MDM)](#mobile-device-management-mdm)
-- [Policies](#policies)
-- [Queries](#queries)
-- [Schedule (deprecated)](#schedule)
-- [Scripts](#scripts)
-- [Sessions](#sessions)
-- [Software](#software)
-- [Targets](#targets)
-- [Teams](#teams)
-- [Translator](#translator)
-- [Users](#users)
-- [API errors](#api-responses)
-
 Use the Fleet APIs to automate Fleet.
 
 This page includes a list of available resources and their API routes.
@@ -2530,6 +2511,198 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
+
+#### Get host by device token
+
+Returns information about the host specified by `token`. This is the API route used by the My device page in Fleet desktop to display information about the host to the end user.
+
+`GET /api/v1/fleet/device/{token}`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "software": [
+      {
+        "id": 408,
+        "name": "osquery",
+        "version": "4.5.1",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 1146,
+        "name": "tar",
+        "version": "1.30",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "bundle_identifier": "com.some.app",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      }
+    ],
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "23cfc9caacf0",
+    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "platform": "rhel",
+    "osquery_version": "4.5.1",
+    "os_version": "CentOS Linux 8.3.2011",
+    "build": "",
+    "platform_like": "rhel",
+    "code_name": "",
+    "uptime": 210671000000000,
+    "memory": 16788398080,
+    "cpu_type": "x86_64",
+    "cpu_subtype": "158",
+    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
+    "cpu_physical_cores": 12,
+    "cpu_logical_cores": 12,
+    "hardware_vendor": "",
+    "hardware_model": "",
+    "hardware_version": "",
+    "hardware_serial": "",
+    "computer_name": "23cfc9caacf0",
+    "display_name": "23cfc9caacf0",
+    "public_ip": "",
+    "primary_ip": "172.27.0.6",
+    "primary_mac": "02:42:ac:1b:00:06",
+    "distributed_interval": 10,
+    "config_tls_refresh": 10,
+    "logger_tls_period": 10,
+    "team_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "additional": {},
+    "gigs_disk_space_available": 46.1,
+    "percent_disk_space_available": 73,
+    "disk_encryption_enabled": true,
+    "dep_assigned_to_fleet": false,
+    "users": [
+      {
+        "uid": 0,
+        "username": "root",
+        "type": "",
+        "groupname": "root",
+        "shell": "/bin/bash"
+      },
+      {
+        "uid": 1,
+        "username": "bin",
+        "type": "",
+        "groupname": "bin",
+        "shell": "/sbin/nologin"
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "SELECT 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 9,
+        "name": "CentOS Linux",
+        "description": "All CentOS hosts",
+        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 12,
+        "name": "All Linux",
+        "description": "All Linux distributions",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      }
+    ],
+    "packs": [],
+    "status": "online",
+    "display_text": "23cfc9caacf0",
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": null,
+      "name": "",
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "verifying",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
+    }
+  },
+  "org_logo_url": "https://example.com/logo.jpg",
+  "license": {
+    "tier": "free",
+    "expiration": "2031-01-01T00:00:00Z"
+  },
+  "global_config": {
+    "mdm": {
+      "enabled_and_configured": false
+    }
+  }
+}
+```
 
 ### Delete host
 
