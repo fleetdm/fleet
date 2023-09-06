@@ -22,13 +22,20 @@ module.exports = {
       'Authorization': `token ${sails.config.custom.githubAccessToken}`
     };
 
-    let ritualSources = [
-      { path: 'handbook/company/rituals.yml', },
-    ];
-    for (let ritualSource of ritualSources) {
+    // Find all the files in the top level /handbook folder and it's sub-folders
+    let FILES_IN_HANDBOOK_FOLDER = await sails.helpers.fs.ls.with({
+      dir: path.join(topLvlRepoPath, '/handbook'),
+      depth: 3
+    });
+    // Filter the list of filenames to get the rituals YAML files.
+    let ritualTablesYamlFiles = FILES_IN_HANDBOOK_FOLDER.filter((filePath)=>{
+      return _.endsWith(filePath, 'rituals.yml');
+    });
+
+    for (let ritualSource of ritualTablesYamlFiles) {
 
       // Load rituals
-      let pathToRituals = path.resolve(topLvlRepoPath, ritualSource.path);
+      let pathToRituals = path.resolve(topLvlRepoPath, ritualSource);
       let rituals = [];
       let ritualsYml = await sails.helpers.fs.read(pathToRituals);
       try {
