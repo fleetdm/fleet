@@ -1,5 +1,17 @@
 ## Orbit 1.16.0 (Sep 6 17, 2023)
 
+- Updated the default TUF update roots up to date with the newest metadata in the server (#13381)
+- Updated bundled-in CA certificates (#13446)
+- Removed a listener for the os.Kill signal since golang can't capture it (#12861)
+- Allow clients to report errors back to the server during the MDM migration flow (#13189)
+- Fix theme detection and icon coloring issues for Fleet Desktop on Windows (#13457)
+- Use OrbitNodeKey for windows mdm enrollment authentication instead of HostUUID (#12847)
+- Implement script execution on the fleetd agent (disabled by default) (#9583)
+- Improved the MDM migration dialogs:
+  - Adjusted the copy and images (#13158)
+  - Made sure that all dialogs take over the screen (#13512)
+  - Ensure migration dialog doesn't open automatically if it was opened manually (#13505)
+
 ## Orbit 1.2.0 - Orbit 1.15.0 (Oct 4, 2022 - Aug 17, 2023)
 
 * Fixed an issue preventing Nudge to read the configuration file delivered by Fleet on some installations. This only affects you if Nudge was enabled and configured on a host using Orbit v1.8.0
@@ -28,8 +40,6 @@
   table works without further configuration
 
 * New table was added to support CIS audit process
-
-* Fix theme detection and icon coloring issues for Fleet Desktop on Windows.
 
 * Add `sudo_info` table to Orbit for CIS checks 5.4 and 5.5 on macOS.
 
@@ -70,9 +80,6 @@ when the certificate used for insecure mode gets deleted.
 
 * Add support for mTLS to fleetd.
 
-* Add a `--enable-scripts` flag to `fleetctl package` to build a package capable of script execution
-* Allow script execution to be enabled by providing a configuration profile with `PayloadType` equal to `com.fleetdm.fleetd.config` and a key `ScriptsEnabled` set to `true`.
-
 * Add `authdb` table for macOS CIS check 5.7.
 
 * Fixed a crash that happened when updates where disabled and certain conditions (Nudge configuration set or host elegible for MDM migration) were met.
@@ -106,8 +113,6 @@ when the certificate used for insecure mode gets deleted.
 service start takes longer than 30 secs due to missing calls to the 
 Service Control Manager (SCM) APIs.
 
-* Replace the black and white Fleet desktop icons with a single colorful icon on Windows.
-
 - update fleetctl to generate installer flags that use a larger default file carving block size compatible with MySQL 8 & S3
 
 * Fleet-desktop app on windows now removes the tray icon when it exits
@@ -118,8 +123,6 @@ Service Control Manager (SCM) APIs.
 
 * Orbit now restarts and switches channels when needed,
 even if the new channel is already installed
-
-* Ensure migration dialog is not opened automatically if it was opened manually in the last 15 minutes
 
 * Added a new flag, `--use-system-configuration` to make orbit read configuration values from the system. Currently this is only supported in macOS via configuration profiles.
 
