@@ -6219,6 +6219,42 @@ Creates a script execution request and waits for a result to return (up to a 1 m
 }
 ```
 
+### Get script result
+
+_Available in Fleet Premium_
+
+Gets the result of a script that was executed.
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                   |
+| ----         | ------ | ---- | --------------------------------------------  |
+| execution_id | string | path | **Required**. The execution id of the script. |
+
+#### Example
+
+`GET /api/v1/fleet/scripts/results/{execution_id}`
+
+##### Default Response
+
+`Status: 2000`
+
+```json
+{
+  "script_contents": "echo 'hello'",
+  "exit_code": 0,
+  "output": "hello",
+  "message": "",
+  "hostname": "Test Host",
+  "host_timeout": false,
+  "host_id": 1,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "runtime": 20
+}
+```
+
+> Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
+
 ---
 
 ## Sessions
