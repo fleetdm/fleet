@@ -172,7 +172,8 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 - For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
 
 ### Lodging
-- Choose a modest location with inexpensive lodging and minimally-viable comfort.
+- Choose a modest location with inexpensive lodging and [minimally-viable comfort](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+- For events, check the event's website for travel & hotel accommodations and book as soon as the event is approved. As a general rule, do not spend more on lodging than the average listed hotel accommodations.
 - Avoid expensive neighborhoods and popular destination cities.
 - Do not share bedrooms.  Shared bathrooms are OK, but make sure every hotel room or Airbnb has at least one bathroom per gender identity.   <!-- Make sure everyone is well-rested, efficiently primped, with sufficient privacy. -->
 - Be creative.  If an AirBnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
@@ -637,6 +638,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - **Core team members:** Team members who've signed an NDA employment agreement, are “Fleeties.”
 - **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).  
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.
+- **Fleetd:** Fleetd should always be written in lowercase unless used to start a sentence or heading.
 
 
 #### Device vs endpoint

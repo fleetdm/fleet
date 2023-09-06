@@ -247,6 +247,14 @@ We avoid making the submitter read anything.  We prompt for as little informatio
 For example, here is the [philosophy behind Fleet's bug report template](https://github.com/fleetdm/fleet/pull/13204#issuecomment-1678419117).
 
 
+## Why spend less?
+
+- **Default to efficiency. Reward richly.** At Fleet, we celebrate success and reward hard work.  But we do everyday things cheap.  And that is very important, because it shapes the kind of people we hire, and the kind of expectations we set for the team about what "comfortable" feels like.
+- **Offsites are not rewards.** Day to day, Fleet does not look rich.  Rich !== welcoming.  The company is open, not closed.  Work here means flexible collaboration, accessible people, and clear expectations.  And a rich, exciting future worth working for.  Not a rich, complacent baseline worth coasting for.
+- **Minimally viable comfort.**  We stay at La Quintas by the train tracks every single time unless customers are coming into the room and we need more space.  Even then, we accommodate in the spirit of _hospitality_, not to show off how well Fleet is doing.  They'll know how well we're doing by how great the product is, how great the support is, and [how that makes them feel](https://fleetdm.com/handbook/company#purpose).  They'll remember openness, flexibility, accessibility, and clarity in all of their interactions with the brand.  Not the view from our hotel rooms.
+- **Everyday efficiency.** Fleet isn't the place you work for the everyday amenities.  Like [Southwest Airlines](https://hbsp.harvard.edu/product/W94C04-PDF-ENG), Fleet is egalitarian and outsider-friendly.  We lift people up, but we remember where we came from.  The company is efficient and friendly, more than it is polished or formal.  Never show off.  Look smart _and_ real.  Make Fleet look easy and welcoming, never slick.  And rarely fancy.
+
+
 ## Why don't we sell like everyone else?
 
 Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
@@ -267,24 +275,24 @@ Fleet documents all KPI's with clear definitions that are simple to evaluate, ea
 
 - **Lead** == A "Lead" row in Salesforce.
   
-- **MQL** == a human from a 1000+ employee org that meets these parameters:
-  - The org is _NOT_ already a customer at the time of lead creation (even if they're from a different department).
-  - _NOT_ an existing open opportunity in the pipeline at the time of lead creation.
-  - The human has taken action in some way (e.g. signup on the website, showing up at the Fleet booth and doing a badge scan, or met a minimum threshold of engagement from LinkedIn outbound (threshold TBD-- for now they are excluded altogether)).
-    
-  - Multiple leads from the same org each count as _separate_ MQLs. However, Once the opportunity is created for an account, all MQLs associated with that account become "converted". Meaning they no longer count towards "open MQLs", though they still count as MQLs created. 
+- **MQL** == a human from an in-ICP organization that meets these parameters when the lead is created:
+  - Their organization is _not_ already a Fleet customer
+  - Their organization is _not_ already considering buying Fleet as part of a qualified, mutually beneficial opportunity
+  - Our friend, the human, has chosen to open or widen their line of communication with the company. This could come from an event or or sending a contact form message requesting a call.
+    - Attendees at events are considered MQLs if they have done any of the following:
+      -  Had a 5+ minute conversation or a badge scan at a physical event.
+      -  RSVPed yes to extracurricular in-person side event (e.g. dinner or activity) OR attended the in-person side event and a Fleetie was able to track their attendance.
+      -  RSVPed yes to a virtual event OR indicated intent by sending a follow-up email.
+  - Multiple people from the same org each count as _separate_ MQLs. <!-- However, Once the opportunity is created for an account, all MQLs associated with that account become "converted". Meaning they no longer count towards "open MQLs", though they still count as MQLs created. -->
+  - When an account converts to an opportunity, all subsequent new leads created for that account are ***NOT*** MQLs (i.e. do not count towards "MQLs created".). If an opportunity is marked "closed lost", then it is _no longer_ open, so subsequent new leads associated with the prospective customer are considered MQLs again.
 
-  - When an account converts to an opportunity, all subsequent new leads created for that account are ***NOT*** MQLs (i.e. do not count towards "MQLs created".). If an opportunity is marked "closed lost", then it is _no longer_ open. 
-
-  - Any new leads which are created for a closed opportunity are considered new MQLs created and open MQLs, as long as they ***actually qualify*** as fresh new action taken.
-
-- **Open MQL** == An MQL whose lead status is not _"disqualified" nor "converted"_.
+- **Open MQL** == An MQL whose lead status is neither _"disqualified" nor "converted"_.
   
 - **SQL** == An MQL whose lead status in Salesforce has exceeded a _certain threshold_, for **any** reason, from **any** source (threshold TBD: we aren't reporting these yet in KPIs)
   
-- **Lead source** == where a lead came from. To determine attribution, we will consider the lead source. (e.g. sales-sourced vs. marketing-sourced vs. misc-sourced leads can be determined by looking at the lead source. No need to establish any other *QL or change these.).
+- **Lead source** == where a lead came from. To determine attribution, we will consider the lead source. (e.g. sales-sourced vs. marketing-sourced vs. misc-sourced leads can be determined by looking at the lead source. No need to establish any other *QL or change these.)
 
-  - Instead of saying _"outbound lead"_ or _"inbound lead"_, you can say _"a lead from a badge scan at an event"_ or _"a lead from LinkedIn cold outboud"_ or _"a lead from a customer referral"_ or _"a lead from the website"_.
+  - Instead of saying _"outbound lead"_ or _"inbound lead"_, you can say _"a lead from a badge scan at an event"_ or _"a lead from a customer referral"_ or _"a lead from the website"_.
 
 - **Opportunity** == A _"Opportunity"_ row in Salesforce.
 

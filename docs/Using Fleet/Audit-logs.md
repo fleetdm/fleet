@@ -838,6 +838,27 @@ Windows MDM features are not ready for production and are currently in developme
 
 This activity does not contain any detail fields.
 
+### Type `ran_script`
+
+Generated when a script is sent to be run for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "script_execution_id": Execution ID of the script run.
+- "async": Whether the script was executed asynchronously.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "async": false
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

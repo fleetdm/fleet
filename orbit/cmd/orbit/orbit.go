@@ -170,6 +170,11 @@ func main() {
 			EnvVars: []string{"ORBIT_USE_SYSTEM_CONFIGURATION"},
 			Hidden:  true,
 		},
+		&cli.BoolFlag{
+			Name:    "enable-scripts",
+			Usage:   "Enable script execution",
+			EnvVars: []string{"ORBIT_ENABLE_SCRIPTS"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -266,8 +271,6 @@ func main() {
 				// alarms when users look into the orbit logs, it's perfectly normal to
 				// not have a configuration profile, or to get into this situation in
 				// operating systems that don't have profile support.
-				case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
-					log.Debug().Msgf("reading configuration profile: %v", err)
 				case err != nil:
 					log.Error().Err(err).Msg("reading configuration profile")
 				case config.EnrollSecret == "" || config.FleetURL == "":
@@ -621,6 +624,7 @@ func main() {
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
+		configFetcher = update.ApplyRunScriptsConfigFetcherMiddleware(configFetcher, c.Bool("enable-scripts"), orbitClient)
 
 		switch runtime.GOOS {
 		case "darwin":

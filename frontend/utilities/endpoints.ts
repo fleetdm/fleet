@@ -122,4 +122,8 @@ export default {
   USERS: `/${API_VERSION}/fleet/users`,
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
   VERSION: `/${API_VERSION}/fleet/version`,
+
+  // SCRIPTS
+  SCRIPT_RESULT: (executionId: string) =>
+    `/${API_VERSION}/fleet/scripts/results/${executionId}`,
 };

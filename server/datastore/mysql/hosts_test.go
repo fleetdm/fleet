@@ -135,6 +135,7 @@ func TestHosts(t *testing.T) {
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
 		{"CountHostsNotResponding", testCountHostsNotResponding},
 		{"FailingPoliciesCount", testFailingPoliciesCount},
+		{"HostRecordNoPolicies", testHostsRecordNoPolicies},
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
 		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
@@ -6159,6 +6160,55 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 	})
 }
 
+func testHostsRecordNoPolicies(t *testing.T, ds *Datastore) {
+	initialTime := time.Now()
+
+	for i := 0; i < 2; i++ {
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: initialTime,
+			LabelUpdatedAt:  initialTime,
+			PolicyUpdatedAt: initialTime,
+			SeenTime:        initialTime.Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 2)
+	require.Len(t, hosts, 2)
+
+	h1 := hosts[0]
+	h2 := hosts[1]
+
+	assert.WithinDuration(t, initialTime, h1.PolicyUpdatedAt, 1*time.Second)
+	assert.Zero(t, h1.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, h1.HostIssues.TotalIssuesCount)
+	assert.WithinDuration(t, initialTime, h2.PolicyUpdatedAt, 1*time.Second)
+	assert.Zero(t, h2.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
+
+	policyUpdatedAt := initialTime.Add(1 * time.Hour)
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, nil, policyUpdatedAt, false))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 2)
+	require.Len(t, hosts, 2)
+
+	h1 = hosts[0]
+	h2 = hosts[1]
+
+	assert.WithinDuration(t, policyUpdatedAt, h1.PolicyUpdatedAt, 1*time.Second)
+	assert.Zero(t, h1.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, h1.HostIssues.TotalIssuesCount)
+	assert.WithinDuration(t, initialTime, h2.PolicyUpdatedAt, 1*time.Second)
+	assert.Zero(t, h2.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
+}
+
 func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -7291,7 +7341,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), createdScript.HostID)
 	require.NotEmpty(t, createdScript.ExecutionID)
 	require.Equal(t, "echo", createdScript.ScriptContents)
-	require.False(t, createdScript.ExitCode.Valid)
+	require.Nil(t, createdScript.ExitCode)
 	require.Empty(t, createdScript.Output)
 
 	// the script execution is now listed as pending for this host
@@ -7327,7 +7377,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	expectScript := *createdScript
 	expectScript.Output = "foo"
 	expectScript.Runtime = 2
-	expectScript.ExitCode = sql.NullInt64{Int64: 0, Valid: true}
+	expectScript.ExitCode = ptr.Int64(0)
 	require.Equal(t, &expectScript, script)
 
 	// create another script execution request

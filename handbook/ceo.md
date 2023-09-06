@@ -10,30 +10,26 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 | Role                                           | Contributor(s)
 |:-----------------------------------------------|:----------------------------------------------------------------------|
 | CEO                                            | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
-| Apprentice to the CEO (AttC)                   | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
+| Apprentice to the CEO                          | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
 ## Contact us
 
-- If you mention the CEO from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
-- If urgent or personal, send a Slack direct message (DM) to `@mikermcneil` right away.
-- If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the [Attc](https://fleetdm.com/handbook/ceo#team) in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
-- Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
+- If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
+  - If urgent or personal, send a Slack direct message (DM) to `@mikermcneil` right away.
+  - If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the Apprentice in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
+  - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
+- If the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).  (Or if it's too late, let the Apprentice know what you've done so far in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV).)
 
-<!-- ## Contact the CEO -->
-<!-- - Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO? -->
-<!-- - To make a request of the CEO, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&title=Request%3A+_______________________) and someone will reply within 1 business day. -->
-<!-- - Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.) -->
 
 
 ### Schedule time with the CEO
 
 All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meeting-scheduling) are welcomed and a top priority for the CEO to consider getting on the calendar quickly. 
 
-To grab time with the CEO @mention the [AttC](#team) in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
+To grab time with the CEO @mention the Apprentice in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
 - Proposed date and time
 - Reason for meeting _(e.g. include customer names or a related GitHub issue)_
-
 
 Meetings and blocked time can sometimes be moved to make room. External meetings, travel, and personal commitments can rarely be moved.
 
@@ -120,7 +116,7 @@ From time to time, you will need to schedule an interview between a candidate an
 
 ### Process the CEO's calendar
 
-Time management for the CEO is essential.  The AttC processes the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
+Time management for the CEO is essential.  The Apprentice processes the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
 
 Prioritizing in order of importance:
  - Travel and personal commitments
@@ -152,7 +148,7 @@ Be sure to do this from Mike's browser so as to not lock him out of any meeting 
 ### Process the CEO's inbox
 
 - The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review.
-The [AttC](#team) will reduce the scope of Mike's inbox to only include necessary and actionable communication.
+The Apprentice will reduce the scope of Mike's inbox to only include necessary and actionable communication.
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
@@ -162,7 +158,7 @@ The [AttC](#team) will reduce the scope of Mike's inbox to only include necessar
 
 We like to be open about milestones and announcements.
   - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
-  - Friday nights, the AttC will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
+  - Friday nights, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
     - A link to view KPIs
     - Who was on-call that week
     - Fleeties who are currently onboarding
@@ -188,7 +184,7 @@ We like to be open about milestones and announcements.
 
 ### Schedule travel for the CEO
 
-The AttC schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
+The Apprentice schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
   - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
   - Select a non-middle seat, whenever possible
   - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
@@ -200,18 +196,18 @@ The AttC schedules all travel arrangements for the CEO including flights, hotel,
 
 ### Prepare for the All hands
 
-Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
-  1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
-  2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
-  3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
-  4. **If applicable** Update "🦉 Welcome!" slide to reflect new investors or advisors using "**name** <em>(pronoun)</em>, position, company".
-  5. **If applicable** Update "🤝 Welcome!" slide to reflect new customers.
-  6. Update slides that contain dates to reflect current All Hands date.
-  7. Update slides that contain metrics to reflect current information using the [🌈 Weekly updates](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?pli=1#gid=0) doc.
-  8. **If applicable** Update Quarterly OKRs to reflect current OKR goals for the quarter.
-  9. Test that the transition on the last slides continue to work.
-  10. **If applicable** Add new customer's logo to final slide.
-  11. **If applicable** Add a "Star slide" for guest speakers. 
+- **Every month** the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+  -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands - yyyy month name".
+  - Update "End of the quarter" slides to reflect the current countdown.
+  - Download a copy of the previous month's keynote file and rename the copy pattern matching existing files.
+  - Update the slides to reflect the current "All hands" date (e.g. cover slides month and the "You are here" slide)'
+  - Update slides that contain metrics to reflect current information using the [📈 KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) doc.
+  - Update the "Spotlight slide" for guest speakers.
+  - Add new customer logos from Mike's bookmarks ["Customers list"](https://fleetdm.lightning.force.com/lightning/o/Account/list?filterName=00B4x00000CTHP8EAP) and Google "Company name" to find the current logo.
+
+- **First "All hands" of the quarter**
+  - Audit the "Strategy" slide.
+  - Audit the "Goals" slide
 
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
@@ -255,14 +251,14 @@ TODO: rename to imperative mood (see rituals.yml)
 
 Every two weeks, our CEO Mike has a 1:1 meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
 
-After each meeting, the CEO's apprentice makes a copy of the original document and moves it into a particular folder in the "Fleet" shared drive, with a particular naming convention:
+After each meeting, the Apprentice makes a copy of the original document and moves it into a particular folder in the "Fleet" shared drive, with a particular naming convention:
 
 <img width="364" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/2781ec0c-4f8b-49ca-9586-87ebdc2c71dc">
 
 ### Post-e-group archival  
 TODO: rename to imperative mood (see rituals.yml)
 
-- Immediately after every e-group the AttC duplicates the e-group agenda doc as a backup copy saved to ["Classified" shared drive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).  Rename it to "YYYY-MM-DD backup of e-group agenda".  Then clear out all agenda items from the e-group doc (the ones that people add, not the standard fixtures), and replace them with a single item:  `Sam: FYI: Agenda from last time (YYYY-MM-DD):` [LINK](link)
+- Immediately after every e-group the Apprentice duplicates the e-group agenda doc as a backup copy saved to ["Classified" shared drive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).  Rename it to "YYYY-MM-DD backup of e-group agenda".  Then clear out all agenda items from the e-group doc (the ones that people add, not the standard fixtures), and replace them with a single item:  `Sam: FYI: Agenda from last time (YYYY-MM-DD):` [LINK](link)
 
 
 ### Unroll a Slack thread
@@ -309,7 +305,7 @@ When processing new requests from this channel, consider this:
   - 12:30 PM /beginning of "reserved block"
   - 6:30 PM /post-mortem days meetings
 
-<rituals :rituals="rituals['handbook/company/rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/company/ceo-rituals.yml']"></rituals>
 
 
 

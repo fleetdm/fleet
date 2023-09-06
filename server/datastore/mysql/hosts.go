@@ -164,7 +164,7 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 				}
 				scheduledQueriesArgs = append(scheduledQueriesArgs,
 					teamIDArg,
-					query.QueryName,
+					query.ScheduledQueryName,
 
 					hostID,
 					query.AverageMemory,
@@ -4183,7 +4183,7 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
 		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output) VALUES (?, ?, ?, '')`
-		getStmt = `SELECT id, host_id, execution_id, script_contents FROM host_script_results WHERE id = ?`
+		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at FROM host_script_results WHERE id = ?`
 	)
 
 	execID := uuid.New().String()
@@ -4219,7 +4219,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	if len(output) > utf8.UTFMax*maxOutputRuneLen {
 		// truncate the bytes as we know the output is too long, no point
 		// converting more bytes than needed to runes.
-		output = output[len(output)-utf8.UTFMax*maxOutputRuneLen:]
+		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
 	}
 	if utf8.RuneCountInString(output) > maxOutputRuneLen {
 		outputRunes := []rune(output)
@@ -4269,7 +4269,8 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
     script_contents,
     output,
     runtime,
-    exit_code
+    exit_code,
+    created_at
   FROM
     host_script_results
   WHERE
