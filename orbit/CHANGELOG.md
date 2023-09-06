@@ -21,8 +21,6 @@
 
 ## Orbit 1.2.0 - Orbit 1.15.0 (Oct 4, 2022 - Aug 17, 2023)
 
-# Changelog
-
 * Fixed an issue preventing Nudge from reading the configuration file delivered by Fleet on some installations. This only affects you if Nudge was enabled and configured on a host using Orbit v1.8.0.
 
 * Added `pmset` table extension to Fleet for CIS check 2.9.1.
