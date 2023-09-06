@@ -3611,6 +3611,16 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Equal(t, "qux2", config.Integrations.Jira[1].ProjectKey)
 	require.False(t, config.Integrations.Jira[1].EnableSoftwareVulnerabilities)
 
+	// make an unrelated appconfig change, should not remove the integrations
+	var appCfgResp appConfigResponse
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-integrations"
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Equal(t, "test-integrations", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.Jira, 2)
+
 	// delete first Jira integration
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
 		"integrations": {
@@ -3932,13 +3942,22 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 		}
 	}`, srvURL)), http.StatusOK)
 
-	// remove all integrations
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+	// if no jira nor zendesk integrations are provided, does not remove integrations
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"integrations": {}
+	}`), http.StatusOK, &appCfgResp)
+	require.Len(t, appCfgResp.Integrations.Jira, 1)
+
+	// if explicitly-empty arrays are provided, remove all integrations
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"integrations": {
 			"jira": [],
 			"zendesk": []
 		}
-	}`), http.StatusOK)
+	}`), http.StatusOK, &appCfgResp)
+	require.Len(t, appCfgResp.Integrations.Jira, 0)
 
 	// set environmental varible to use Zendesk test client
 	t.Setenv("TEST_ZENDESK_CLIENT", "true")
@@ -4003,6 +4022,16 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[1].APIToken)
 	require.Equal(t, int64(123), config.Integrations.Zendesk[1].GroupID)
 	require.False(t, config.Integrations.Zendesk[1].EnableSoftwareVulnerabilities)
+
+	// make an unrelated appconfig change, should not remove the integrations
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-integrations-zendesk"
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Equal(t, "test-integrations-zendesk", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.Zendesk, 2)
 
 	// delete first Zendesk integration
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -4397,6 +4426,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			}]
 		}
 	}`, srvURL)), http.StatusUnprocessableEntity)
+
+	// if no jira nor zendesk integrations are provided, does not remove integrations
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"integrations": {}
+	}`), http.StatusOK, &appCfgResp)
+	require.Len(t, appCfgResp.Integrations.Jira, 1)
+	require.Len(t, appCfgResp.Integrations.Zendesk, 1)
 
 	// remove all integrations on exit, so that other tests can enable the
 	// webhook as needed

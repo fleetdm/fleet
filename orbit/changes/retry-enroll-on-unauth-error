@@ -1,1 +1,0 @@
-* Orbit now re-enroll when encountering a 401/unauthenticated error when communicating with orbit endpoints on Fleet server

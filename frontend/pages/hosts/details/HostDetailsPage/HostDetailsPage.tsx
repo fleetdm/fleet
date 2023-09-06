@@ -464,7 +464,9 @@ const HostDetailsPage = ({
     setLastEditedQueryBody(osPolicyQuery);
     setLastEditedQueryResolution("");
     setLastEditedQueryCritical(false);
-    router.replace(NEW_POLICY);
+    router.replace(
+      `${NEW_POLICY}${host?.team_id ? `?team_id=${host?.team_id}` : ""}`
+    );
   };
 
   const onDestroyHost = async () => {
