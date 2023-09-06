@@ -187,8 +187,10 @@ func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 }
 
 // ParseSoftwareLastOpenedAtRowValue attempts to parse the last_opened_at
-// software column value. If the value is empty or if the parsed time is
-// 0 it returns (time.Time{}, nil).
+// software column value. If the value is empty or if the parsed value is
+// less or equal than 0 it returns (time.Time{}, nil). We do this because
+// some macOS apps return "-1.0" when the app was never opened and we hardcode
+// to 0 for some tables that don't have such info.
 func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 	if value == "" {
 		return time.Time{}, nil
@@ -197,7 +199,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	if lastOpenedEpoch == 0 {
+	if lastOpenedEpoch <= 0 {
 		return time.Time{}, nil
 	}
 	return time.Unix(int64(lastOpenedEpoch), 0).UTC(), nil
