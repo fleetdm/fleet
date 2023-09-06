@@ -1,147 +1,146 @@
 ## Orbit 1.16.0 (Sep 6 17, 2023)
 
-- Updated the default TUF update roots up to date with the newest metadata in the server (#13381)
-- Updated bundled-in CA certificates (#13446)
-- Removed a listener for the os.Kill signal since golang can't capture it (#12861)
-- Allow clients to report errors back to the server during the MDM migration flow (#13189)
-- Fix theme detection and icon coloring issues for Fleet Desktop on Windows (#13457)
-- Use OrbitNodeKey for windows mdm enrollment authentication instead of HostUUID (#12847)
-- Implement script execution on the fleetd agent (disabled by default) (#9583)
-- Improved the MDM migration dialogs:
-  - Adjusted the copy and images (#13158)
-  - Made sure that all dialogs take over the screen (#13512)
-  - Ensure migration dialog doesn't open automatically if it was opened manually (#13505)
+* Updated the default TUF update roots with the newest metadata in the server. (#13381)
+
+* Updated bundled-in CA certificates. (#13446)
+
+* Removed a listener for the OS. Kill signal since golang can't capture it. (#12861)
+
+* Allow clients to report errors back to the server during the MDM migration flow. (#13189)
+
+* Use OrbitNodeKey for windows mdm enrollment authentication instead of HostUUID (#12847)
+
+* Implemented script execution on the fleetd agent (disabled by default). (#9583)
+
+* Improved the MDM migration dialogs:
+  * Adjusted the copy and images. (#13158)
+  * Made sure that all dialogs take over the screen. (#13512)
+  * Ensure migration dialog doesn't open automatically if it was opened manually. (#13505)
+
+* Fixed theme detection and icon coloring issues for Fleet Desktop on Windows. (#13457)
 
 ## Orbit 1.2.0 - Orbit 1.15.0 (Oct 4, 2022 - Aug 17, 2023)
 
-* Fixed an issue preventing Nudge to read the configuration file delivered by Fleet on some installations. This only affects you if Nudge was enabled and configured on a host using Orbit v1.8.0
+# Changelog
 
-* Add `pmset` table extension to fleed for CIS check 2.9.1.
+* Fixed an issue preventing Nudge from reading the configuration file delivered by Fleet on some installations. This only affects you if Nudge was enabled and configured on a host using Orbit v1.8.0.
 
-- Fixed a bug in Fleet Desktop causing it to spam servers without licenses for policies.
+* Added `pmset` table extension to Fleet for CIS check 2.9.1.
 
-* MDM: added support to enhance the DEP migration flow in macOS.
+* Fixed a bug in Fleet Desktop causing it to spam servers without licenses for policies.
 
-* Add `firmware_eficheck_integrity_check` table for macOS CIS 5.9.
+* Added support to enhance the DEP migration flow in macOS for MDM.
 
-* Orbit service on windows is not creating the secret-orbit-node-key.txt with a restricted ACL to allow only privileged users to access its content
+* Added `firmware_eficheck_integrity_check` table for macOS CIS 5.9.
 
-* Added periodical restart of the `softwareupdated` service to work around a macOS bug where it sometimes hangs and prevents software updates.
+* Fixed an issue where Orbit service on Windows was not creating the `secret-orbit-node-key.txt` with a restricted ACL.
 
-* Set `--database_path` in the shell osqueryd invocation to retrieve UUID and other fields.
+* Added periodical restart of the `softwareupdated` service to work around a macOS bug.
 
-- Updated MDM migration flow to include checking the output of `profiles show -type enrollment`
-  as a pre-condition for `profiles renew -type enrollment` to mitigate issues where caching or other
-  unexpected delays in Apple DEP profile assignment could cause the wrong profile to be renewed.
+* Set `--database_path` in the shell `osqueryd` invocation to retrieve UUID and other fields.
 
-* Ensure MDM migration modal is not shown, and enrollment commands are not run if the host is already enrolled into Fleet
+* Updated MDM migration flow to include checking the output of `profiles show -type enrollment`.
 
-- Embed augeas lenses into orbit on Unix platforms so that the `augeas`
-  table works without further configuration
+* Ensured MDM migration modal is not shown if the host is already enrolled into Fleet.
 
-* New table was added to support CIS audit process
+* Embedded Augeas lenses into Orbit on Unix platforms.
 
-* Add `sudo_info` table to Orbit for CIS checks 5.4 and 5.5 on macOS.
+* Added a new table to support the CIS audit process.
 
-* Fixed an issue affecting macOS devices with MDM enabled that prevented Orbit for restarting if Nudge was still open.
+* Added `sudo_info` table to Orbit for CIS checks 5.4 and 5.5 on macOS.
 
-* Adding support to query Windows MDM enrollment status and to enforce MDM commands through the mdm_bridge virtual table
+* Fixed an issue affecting macOS devices with MDM enabled that prevented Orbit from restarting if Nudge was still open.
 
-- On Unix systems, dump pprof data into a `profiles` directory in the orbit root dir
-  when receiving a SIGUSR1. This is to assist debugging for memory leaks
+* Added support to query Windows MDM enrollment status and enforce MDM commands through the `mdm_bridge` virtual table.
 
-- Added `launchctl bootstrap` retries in Orbit `pkg` installer to fix MDM deployments of Orbit (when pushed with `InstallEnterpriseApplication`).
+* Dumped pprof data into a `profiles` directory in the Orbit root directory on Unix systems when receiving a SIGUSR1.
 
-* Allow `fleetd` to get an enroll secret and Fleet URL configuration from a configuration profile on macOS.
+* Added `launchctl bootstrap` retries in Orbit `pkg` installer to fix MDM deployments.
 
-* Added version information and icon on orbit and fleet-desktop binaries
+* Allowed `fleetd` to get an enroll secret and Fleet URL configuration from a macOS configuration profile.
 
-- Implement table to hold user_login_settings options extension via Orbit
+* Added version information and icons to Orbit and Fleet Desktop binaries.
 
-* Removed automatic functionality to call `launchctl kickstart -k softwareupdated` periodically, which was causing issues on some macOS devices.
-  The `--disable-kickstart-softwareupdated` flag is kept for backwards compatibility but it doesn't have any effect.
+* Implemented a table to hold `user_login_settings` options extension via Orbit.
 
-* Fix a panic in `fleetd` that might occurr when concurrent requests are made to the server.
+* Removed automatic functionality to call `launchctl kickstart -k softwareupdated`.
 
-* Orbit lost communication with Fleet server 
-when the certificate used for insecure mode gets deleted.  
+* Fixed a panic in `fleetd` that might occur when concurrent requests are made to the server.
 
-* Add `dscl` table to Orbit for CIS check 5.6 on macOS.
+* Fixed an issue where Orbit lost communication with Fleet server when the certificate used for insecure mode was deleted.
 
-* Fixed an issue that prevented orbit shell to run when the osqueryd instance ran through orbit shell attempted to register the same named pipe name used by the osqueryd instance launched by orbit service
+* Added `dscl` table to Orbit for CIS check 5.6 on macOS.
 
-* Orbit now installs propery on Windows Server 2012 and 2016 environments with legacy Orbit or Osquery previously installed
+* Fixed an issue that prevented Orbit shell from running when the `osqueryd` instance attempted to register the same named pipe name.
 
-- Fixed Orbit bug that caused it to restart repeatedly when Fleet agent options are configured with `command_line_flags: {}`.
+* Ensured Orbit now installs properly on Windows Server 2012 and 2016 with legacy Orbit or Osquery previously installed.
 
-* An update bug where orbit symlink was not present is now fixed
+* Fixed an Orbit bug causing repeated restarts when Fleet agent options were configured with `command_line_flags: {}`.
 
-* Adjusted the dialog shown during MDM migration to close when the button to contact IT is pressed.
+* Fixed an update bug where the Orbit symlink was not present.
 
-* Add support for mTLS to fleetd.
+* Adjusted the dialog shown during MDM migration to close when the "contact IT" button is pressed.
 
-* Add `authdb` table for macOS CIS check 5.7.
+* Added support for mTLS to `fleetd`.
 
-* Fixed a crash that happened when updates where disabled and certain conditions (Nudge configuration set or host elegible for MDM migration) were met.
+* Added `authdb` table for macOS CIS check 5.7.
 
-- Implement table to hold csrutil_info extension via Orbit
+* Fixed a crash that occurred when updates were disabled under certain conditions.
+
+* Implemented a table to hold `csrutil_info` extension via Orbit.
 
 * Fixed a bug that set a wrong Fleet URL in Windows installers.
 
-* Add table implementation `sntp_request` to query NTP servers.
+* Added `sntp_request` table implementation to query NTP servers.
 
-* Stop rendering errors as tooltips in Fleet Desktop. Errors can now be found in the Fleet Desktop logs.
+* Stopped rendering errors as tooltips in Fleet Desktop. Errors are now found in the logs.
 
-* When WMI call fails on Windows, UUID can now be retrieved by reading the SMBIOS interface.
+* Retrieved UUID by reading the SMBIOS interface when WMI call fails on Windows.
 
-- Implement autoupdate and deploy extensions via Orbit
+* Implemented autoupdate and deploy extensions via Orbit.
 
-- Implement table to hold nvram_info extension via Orbit
+* Implemented a table to hold `nvram_info` and `pwd_policy` options extension via Orbit.
 
-- Implement table to hold pwd_policy options extension via Orbit
+* Improved the logic to read enroll secrets from macOS configuration profiles.
 
-* Improve the logic to read enroll secrets from macOS configuration profiles to be compatible with different MDM providers.
+* Implemented `icloud_private_relay` table to get iCloud Private Relay status.
 
-- Implement `icloud_private_relay` table to get iCloud Private Relay status.
+* Ensured Orbit kills any pre-existing Fleet Desktop processes at startup.
 
-* Orbit now kills any pre-existing fleet desktop processes at startup.
-* Orbit now handles SIGTERM on unix.
+* Added support for `fleetd` to renew the MDM enrollment profile on pending devices.
 
-* Added support to `fleetd` to run the necessary command to renew the MDM enrollment profile on the devices that are pending automatic enrollment into Fleet MDM.
+* Fixed an issue in Windows where the Fleet service was getting killed if the start took longer than 30 seconds.
 
-* When running on Windows, Fleet service was getting killed by the OS when
-service start takes longer than 30 secs due to missing calls to the 
-Service Control Manager (SCM) APIs.
+* Updated `fleetctl` to generate installer flags that are compatible with MySQL 8 & S3.
 
-- update fleetctl to generate installer flags that use a larger default file carving block size compatible with MySQL 8 & S3
+* Ensured Fleet Desktop app on Windows removes the tray icon when it exits.
 
-* Fleet-desktop app on windows now removes the tray icon when it exits
+* Added functionality to rotate device tokens every one hour.
 
-- Added functionality to rotate device tokens every one hour
+* Waited until the device is fully unenrolled from the previous MDM to close the migration dialog.
 
-* Wait until the device is fully unenrolled from the previous MDM to close the migration dialog.
+* Ensured Orbit restarts and switches channels when needed, even if the new channel is already installed.
 
-* Orbit now restarts and switches channels when needed,
-even if the new channel is already installed
+* Added a new flag, `--use-system-configuration`, for Orbit to read configuration values from the system.
 
-* Added a new flag, `--use-system-configuration` to make orbit read configuration values from the system. Currently this is only supported in macOS via configuration profiles.
+* Added `software_update` table implementation to check whether Apple software needs updating.
 
-* Add table implementation `software_update` to check whether Apple software needs updating.
+* Updated Windows MSI installer to use custom actions to remove Orbit files.
 
-* Windows MSI installer now uses custom actions to remove Orbit files
+* Allowed configuring osquery startup flags from Fleet, with important notes for existing deployments:
 
-* Orbit allows configuring osquery startup flags from Fleet, see [#7377](https://github.com/fleetdm/fleet/issues/7377).
-Important note for existing deployments that use Orbit: 
 This feature requires Orbit to communicate with Fleet. Orbit uses osquery's enroll secret to authenticate and enroll to Fleet.
+
 On environments where an enroll secret has been revoked, Orbit hosts that were deployed with such secret will fail to enroll to Fleet.
-This is not a regression, all existing features should work as expected, but we recommend to fix this issue given that we will be adding
-more features to Orbit that will use the new communication channel.
+
+This is not a regression, all existing features should work as expected, but we recommend to fix this issue given that we will be adding more features to Orbit that will use the new communication channel.
+
 1. To determine which hosts need to be fixed, run the following query: `SELECT * FROM orbit_info WHERE enrolled = false`.
 Hosts not running Orbit will fail to execute such query because the table doesn't exist, those can be ignored.
 2. Generate Orbit packages with the new enroll secret.
 3. Deploy Orbit packages to the hosts returned in (1).
 
-* Orbit now re-enroll when encountering a 401/unauthenticated error when communicating with orbit endpoints on Fleet server
+* Ensured Orbit re-enrolls when encountering a 401/unauthenticated error when communicating with Fleet server endpoints.
 
 ## Orbit 1.1.0 (Aug 19, 2022)
 
