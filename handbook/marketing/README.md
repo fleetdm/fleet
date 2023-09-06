@@ -24,30 +24,35 @@ The Marketing department is directly responsible for growing awareness of Fleet 
 
 
 ## Programs
-Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](#events), [social media](#social-media), [conversation-starting](#conversation-starting), [ads](#ads), [video](#video), [articles](#articles), [product-marketing](#product-marketing), [brand](#brand), and [press](#press).
+Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](#events), [community support](#community-support), [social media](#social-media), [conversation-starting](#conversation-starting), [ads](#ads), [video](#video), [articles](#articles), [product-marketing](#product-marketing), [brand](#brand), and [press](#press).
 
 
 ### Events
 TODO
+
+### Community support
+Fleet team members participate in these communities:
+- [osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) (`#fleet` channel)
+- [MacAdmins Slack](https://www.macadmins.org/) (`#fleet` channel)
+
+<!-- 
+TODO: drew move this down into the spots where you're doing the weekly check in your ritual's responsibility
+- [Discussions on LinkedIn](https://www.linkedin.com/search/results/all/?keywords=osquery)  
+- [Discussions on Twitter](https://twitter.com/search?q=%22osquery%22%20OR%20%22github.com%2Fosquery%2Fosquery%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22github.com%2Fkolide%2Ffleet%22%20OR%20%22fleetdm%22%20OR%20%22fleet%20device%20management%22%20OR%20%22nanomdm%22%20OR%20%22micromdm%22%20OR%20%22swiftDialog%22%20OR%20%22munki%22&src=typed_query&f=live)
+- [reddit.com/r/sysadmins](https://www.reddit.com/r/sysadmin/)
+- [reddit.com/r/SysAdminBlogs](https://www.reddit.com/r/SysAdminBlogs/)
+- [r/sysadmin Discord](https://discord.gg/sysadmin)
+-->
 
 ### Social media
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
 Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).)
 
-Fleet team members participate in these communities:
-- [osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) (`#fleet` channel)
-- [MacAdmins Slack](https://www.macadmins.org/) (`#fleet` channel)
-- [osquery discussions on LinkedIn](https://www.linkedin.com/search/results/all/?keywords=osquery)
-- [osquery discussions on Twitter](https://twitter.com/search?q=osquery&src=typed_query)
-- [reddit.com/r/sysadmins](https://www.reddit.com/r/sysadmin/)
-- [reddit.com/r/SysAdminBlogs](https://www.reddit.com/r/SysAdminBlogs/)
-- [r/sysadmin Discord](https://discord.gg/sysadmin)
-
 Here are some topics for social media posts:
 - Fleet the product
 - Internal progress
-- Highlighting [community contributions](https://fleetdm.com/handbook/community#community-contributions-pull-requests)
+- Highlighting community contributions
 - Highlighting Fleet and osquery accomplishments
 - Industry news about osquery
 - Industry news about device management
