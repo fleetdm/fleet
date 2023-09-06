@@ -45,7 +45,6 @@ func (r runLiveQueryResponse) error() error { return r.Err }
 func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runLiveQueryRequest)
 
-	fmt.Println("Running live query endpoint")
 	// The period used here should always be less than the request timeout for any load
 	// balancer/proxy between Fleet and the API client.
 	period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
@@ -73,7 +72,6 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]fleet.QueryCampaignResult, int) {
-	fmt.Println("Running live query deadline Func")
 	wg := sync.WaitGroup{}
 
 	resultsCh := make(chan fleet.QueryCampaignResult)
@@ -82,12 +80,10 @@ func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, h
 	respondedHostIDs := make(map[uint]struct{})
 
 	for _, queryID := range queryIDs {
-		fmt.Println("starting goroutine for queryID: ", queryID)
 		queryID := queryID
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			fmt.Println("creating campaign")
 			campaign, err := svc.NewDistributedQueryCampaign(ctx, "", &queryID, fleet.HostTargets{HostIDs: hostIDs})
 			if err != nil {
 				fmt.Println("Error creating campaign", err)
@@ -95,7 +91,6 @@ func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, h
 				return
 			}
 
-			fmt.Println("getting campaign reader")
 			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 			if err != nil {
 				fmt.Println("Error getting campaign reader", err)

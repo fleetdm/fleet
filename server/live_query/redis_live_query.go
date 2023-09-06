@@ -295,7 +295,6 @@ func (r *redisLiveQuery) PublishLiveQuery(name string) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	fmt.Println("Publishing live query: ", name)
 	_, err := conn.Do("PUBLISH", "live_query", name)
 	return err
 }

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -81,8 +80,6 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		return
 	}
 	defer cancelFunc()
-
-	svc.liveQueryStore.PublishLiveQuery(strconv.FormatUint(uint64(campaign.ID), 10))
 
 	// Setting the status to completed stops the query from being sent to
 	// targets. If this fails, there is a background job that will clean up

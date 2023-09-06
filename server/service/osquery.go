@@ -561,12 +561,12 @@ type getDistributedQueriesResponse struct {
 func (r getDistributedQueriesResponse) error() error { return r.Err }
 
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	// host, ok := hostctx.FromContext(ctx)
-	// if !ok {
-	// 	return getDistributedQueriesResponse{Err: newOsqueryError("internal error: missing host from request context")}, nil
-	// }
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return getDistributedQueriesResponse{Err: newOsqueryError("internal error: missing host from request context")}, nil
+	}
 
-	// fmt.Println("msg", "endpoint distributed/read", "host_id", host.ID)
+	fmt.Println("msg", "endpoint distributed/read", "host_id", host.ID)
 
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
@@ -582,7 +582,7 @@ func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc
 func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
 	// skipauth: Authorization is currently for user endpoints only.
 
-	// fmt.Println("msg", "service distributed/read", "GetDistributedQueries Func")
+	fmt.Println("msg", "service distributed/read", "GetDistributedQueries Func")
 
 	svc.authz.SkipAuthorization(ctx)
 
@@ -597,9 +597,9 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	svc.HostChannels.Lock()
 
 	signalCh, ok := svc.HostChannels.HostMap[host.ID]
-	// fmt.Println("msg", "service distributed/read", "HostChannels.HostMap", svc.HostChannels.HostMap, "host_id", host.ID, "signalCh", signalCh, "ok", ok)
+	fmt.Println("msg", "service distributed/read", "HostChannels.HostMap", svc.HostChannels.HostMap, "host_id", host.ID, "signalCh", signalCh, "ok", ok)
 	if !ok {
-		// level.Debug(svc.logger).Log("msg", "creating new channel for host", "host_id", host.ID)
+		level.Debug(svc.logger).Log("msg", "creating new channel for host", "host_id", host.ID)
 		signalCh = make(chan struct{})
 		svc.HostChannels.HostMap[host.ID] = signalCh
 	}
@@ -614,7 +614,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	timer := time.NewTicker(10 * time.Second)
 	defer timer.Stop()
 
-	// level.Debug(svc.logger).Log("msg", "waiting for signal from redis listener....", "host_id", host.ID)
+	level.Debug(svc.logger).Log("msg", "waiting for signal from redis listener....", "host_id", host.ID)
 
 	for {
 		select {
@@ -635,7 +635,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 			level.Debug(svc.logger).Log("msg", "signal received, returning LiveQueries", "host_id", host.ID)
 			return queries, discovery, 0, nil
 		case <-timer.C:
-			// level.Debug(svc.logger).Log("msg", "timer expired, running other queries", "host_id", host.ID)
+			level.Debug(svc.logger).Log("msg", "timer expired, running other queries", "host_id", host.ID)
 			detailQueries, detailDiscovery, err := svc.detailQueriesForHost(ctx, host)
 			if err != nil {
 				return nil, nil, 0, newOsqueryError(err.Error())
