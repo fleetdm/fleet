@@ -392,9 +392,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// TODO(mna): should the condition be "if Jira == nil && Zendesk == nil -> then do not change any integration"
-	// or should they be treated separately (that is, "if Jira == nil -> do not change Jira", and same for zendesk)?
-	// To clarify with how the frontend works.
+	// NOTE: the frontend will always send all integrations back when making
+	// changes, so as soon as Jira or Zendesk has something set, it's fair to
+	// assume that integrations are being modified and we have the full set of
+	// those integrations. When deleting, it does send empty arrays (not nulls),
+	// so this is fine - e.g. when deleting the last integration it sends:
+	//
+	//   {"integrations":{"zendesk":[],"jira":[]}}
+	//
 	if newAppConfig.Integrations.Jira != nil || newAppConfig.Integrations.Zendesk != nil {
 		delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
 		if err != nil {
