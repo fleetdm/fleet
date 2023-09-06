@@ -16,6 +16,11 @@
     padding: $pad-small $pad-medium;
   }
 
+  &__count {
+    display: flex;
+    gap: 12px;
+  }
+
   &__header {
     display: flex;
     align-items: center;
@@ -143,12 +148,10 @@
                   display: table-cell;
                 }
               }
-              @media (min-width: $break-md) {
+              @media (min-width: $break-lg) {
                 .version__header {
                   width: $col-md;
                 }
-              }
-              @media (min-width: $break-lg) {
                 .source__header {
                   display: table-cell;
                 }
@@ -157,8 +160,7 @@
 
             tbody {
               .name__cell {
-                width: $col-md;
-
+                max-width: $col-md;
                 // Tooltip does not get cut off
                 .children-wrapper {
                   overflow: initial;
@@ -193,9 +195,9 @@
                   }
                 }
               }
-              @media (min-width: $break-md) {
-                .version_cell {
-                  width: $col-md;
+              @media (min-width: $break-sm) {
+                .name__cell {
+                  max-width: $col-lg;
                 }
               }
               @media (min-width: $break-md) {
@@ -204,6 +206,9 @@
                 }
               }
               @media (min-width: $break-lg) {
+                .version_cell {
+                  width: $col-md;
+                }
                 .source__cell {
                   display: table-cell;
                 }

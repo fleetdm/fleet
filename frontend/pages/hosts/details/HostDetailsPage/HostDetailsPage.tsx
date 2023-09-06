@@ -124,6 +124,8 @@ const HostDetailsPage = ({
     isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
+    availableTeams,
+    setCurrentTeam,
   } = useContext(AppContext);
   const {
     setLastEditedQueryName,
@@ -341,10 +343,41 @@ const HostDetailsPage = ({
     });
   }, [usersSearchString, host?.users]);
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    const hostTab = () => {
+      if (location.pathname.includes("software")) {
+        return "software";
+      }
+      if (location.pathname.includes("schedule")) {
+        return "schedule";
+      }
+      if (location.pathname.includes("policies")) {
+        return "policies";
+      }
+      return "";
+    };
+
+    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
+    document.title = `Host ${hostTab()} details ${
+      host?.display_name ? `| ${host?.display_name} |` : "|"
+    } Fleet for osquery`;
+  }, [location.pathname, host]);
+
   // Used for back to software pathname
   useEffect(() => {
     setPathname(location.pathname + location.search);
   }, [location]);
+
+  // Used to set host's team in AppContext for RBAC action dropdown
+  useEffect(() => {
+    if (host?.team_id) {
+      const hostsTeam = availableTeams?.find(
+        (team) => team.id === host.team_id
+      );
+      setCurrentTeam(hostsTeam);
+    }
+  }, [host]);
 
   const titleData = normalizeEmptyValues(
     pick(host, [
@@ -431,7 +464,9 @@ const HostDetailsPage = ({
     setLastEditedQueryBody(osPolicyQuery);
     setLastEditedQueryResolution("");
     setLastEditedQueryCritical(false);
-    router.replace(NEW_POLICY);
+    router.replace(
+      `${NEW_POLICY}${host?.team_id ? `?team_id=${host?.team_id}` : ""}`
+    );
   };
 
   const onDestroyHost = async () => {

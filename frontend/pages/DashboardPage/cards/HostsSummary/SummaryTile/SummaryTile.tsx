@@ -1,6 +1,5 @@
 import React from "react";
-import { browserHistory } from "react-router";
-import Button from "components/buttons/Button";
+import { Link } from "react-router";
 import { kebabCase } from "lodash";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -49,10 +48,6 @@ const SummaryTile = ({
     opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
   }
 
-  const handleClick = () => {
-    browserHistory.push(path);
-  };
-
   const classes = classnames(`${baseClass}__tile`, `${kebabCase(title)}-tile`, {
     [`${baseClass}__not-supported`]: notSupported,
   });
@@ -68,45 +63,51 @@ const SummaryTile = ({
     }
     return title;
   };
+
+  const tile = (
+    <>
+      <Icon
+        name={iconName}
+        color={iconColor}
+        className={`${baseClass}__tile-icon`}
+      />
+      <div>
+        {notSupported ? (
+          <div className={`${baseClass}__not-supported-text`}>
+            Not supported
+          </div>
+        ) : (
+          <div
+            className={`${baseClass}__count ${baseClass}__count--${kebabCase(
+              title
+            )}`}
+          >
+            {numberWithCommas(count)}
+          </div>
+        )}
+        <div className={`${baseClass}__description`}>
+          {getWrappedTitle()}
+          {isSandboxMode && sandboxPremiumOnlyIcon && (
+            <PremiumFeatureIconWithTooltip
+              tooltipPositionOverrides={{ leftAdj: 2, topAdj: 5 }}
+            />
+          )}
+        </div>
+      </div>
+    </>
+  );
+
+  // Uses Link instead of Button to include right click functionality
+  // Cannot use Link disable option as it doesn't allow hover of tooltip
   return (
     <div className={baseClass} style={opacity} data-testid="tile">
-      <Button
-        className={classes}
-        variant="unstyled"
-        onClick={() => handleClick()}
-        disabled={notSupported}
-      >
-        <>
-          <Icon
-            name={iconName}
-            color={iconColor}
-            className={`${baseClass}__tile-icon`}
-          />
-          <div>
-            {notSupported ? (
-              <div className={`${baseClass}__not-supported-text`}>
-                Not supported
-              </div>
-            ) : (
-              <div
-                className={`${baseClass}__count ${baseClass}__count--${kebabCase(
-                  title
-                )}`}
-              >
-                {numberWithCommas(count)}
-              </div>
-            )}
-            <div className={`${baseClass}__description`}>
-              {getWrappedTitle()}
-              {isSandboxMode && sandboxPremiumOnlyIcon && (
-                <PremiumFeatureIconWithTooltip
-                  tooltipPositionOverrides={{ leftAdj: 2, topAdj: 5 }}
-                />
-              )}
-            </div>
-          </div>
-        </>
-      </Button>
+      {notSupported ? (
+        <div className={classes}>{tile}</div>
+      ) : (
+        <Link className={classes} to={path}>
+          {tile}
+        </Link>
+      )}
     </div>
   );
 };

@@ -45,7 +45,7 @@ When starting a new draft:
 
 #### Keep projects/files clean and up-to-date
 
-- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Designed" column.
+- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Settled" column.
 - After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
 
 #### Questions and missing information
@@ -64,7 +64,7 @@ For external contributors: please consider opening an issue with reference scree
 - Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/company/ceo). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
 - When introducing a story, clarify which review "mode" the CEO should operate in:
   + **Final review** mode — you are 70% sure the design is 100% done.
-  + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback.
+  + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback. Before bringing something in feedback mode consider whether the CEO will be best for giving feedback or if it would be better suited for someone else (engineer or PM).
 - During the review meeting, take detailed notes of any feedback on the draft.
 - Address the feedback by modifying your draft.
 - Rinse and repeat at subsequent sessions until there is no more feedback.
@@ -74,8 +74,8 @@ For external contributors: please consider opening an issue with reference scree
 #### Estimating
 
 Once the draft has been approved: 
-* move it to the "Designed" column in the drafting board and assign it to the appropriate engineering manager.
-* make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
+* move it to the "Settled" column in the drafting board and assign it to the appropriate engineering manager.
+* make sure that the issue is updated with the latest information on the work to be done, such as a link to the correct Figma file and a list of most recent requirements.
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
@@ -111,17 +111,23 @@ Bugs are always prioritized. (Fleet takes quality and stability [very seriously]
 
 If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the Estimated for the next sprint. If a bug [requires drafting](https://fleetdm.com/handbook/engineering#in-product-drafting-as-needed) to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
-If a bug is not addressed within 6 weeks, [it is sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). During the sprint kickoff review ritual, each product group PM should review every bug which is marked in this way with the Head of Product and recommended whether a bug should be kept for the next sprint or de-prioritized. A de-prioritized bugs might include action items such as documentation of the defect. The Head of Product then reviews the bug recommendations with the CEO in the bug de-prioritization review ritual. 
+If a bug is not addressed within six weeks, it is [sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). Each sprint, the Head of Product meets with the group product managers to review these bugs (churned bug review). In this session, bugs are categorized as follows:
+- **Continue**: the bug should be prioritized in the next sprint.
+- **Needs prioritization**: the bug will likely not be worked on within the next six weeks, but it is still a valid bug.
+- **De-prioritized**: the issue will be closed and the necessary subsequent steps will be initiated. This might include updating documentation and informing the community.
 
-If a bug should be kept for the next sprint, the group PM should
-- Remove the :product label.
-- Move the bug to the "Inbox" column on the bugs board and assign it to the appropriate EM.
+After aligning with the group product managers, the Head of Product meets with the CEO and Director of Product Development to discuss and finalize the outcomes for the churned bugs.
+
+Once outcomes have been approved by the CEO, Product Operations will complete the churned bug clean-up ritual. Below are the steps for each category:
+- **Continue**: Product Operations should remove the `:product` label, move the bug ticket to the 'inbox' column on the bug board, and assign it to the appropriate group's Engineering Manager.
+- **Needs prioritization**: Product Operations should remove both the `bug` and `:product` labels, then apply the `needs prioritization` label.
+- **De-prioritized**: Product Operations should close the issue and, as the DRI, ensure all follow-up actions are finalized.
 
 ## Writing user stories
 Product Managers [write user stories](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
 
 ## Drafting user stories
-Product Designers [draft user stories](https://fleetdm.com/handbook/company/development-groups#drafting).
+Product Designers [draft user stories](https://fleetdm.com/handbook/company/development-groups#drafting) that have been prioritized by PMs. If the estimated user stories for a product group exceed [that group's capacity](https://fleetdm.com/handbook/company/product-groups#current-product-groups), all new design work for that group is paused, and the designer will contribute in other ways (documentation & handbook work, Figma maintenance, QA, etc.) until the PM deprioritizes estimated stories to make room, or until the next sprint begins. (If the designer has existing work-in-progress, they will continue to review and iterate on those designs and see the stories through to estimation.)
 
 ## Estimating user stories
 Engineering Managers estimate user stories.  They are responsible for delivering planned work in the current sprint (0-3 weeks) while quickly getting user stories estimated for the next sprint (3-6 weeks).  Only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's Engineering Manager and occurs on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
@@ -266,7 +272,7 @@ That all happens prior to work getting prioritized for the change.
 
 ## Competition
 
-We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
+We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private Google doc).
 
 ## Intake
 
@@ -386,6 +392,8 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Pre-sprint prioritization call (CX)           | Sprintly (Monday)        | The product manager and engineering manager meet to confirm alignment on prioritization for the upcoming sprint.                                                                                                                                                                | Mo Zhu            |
 | Bug review (CX)                               | Weekly (Tuesday)         | The product manager meets with the engineering manager and a product quality engineer to ensure synchronization on bug prioritization and actions preceding CX estimation sessions.                                                                                                         | Mo Zhu            |
 | Churned bug review                            | Sprintly (Wednesday)     | The Head of Product meets with the group product managers to examine churned bugs and categorize them as either continue, needs prioritization, or de-prioritize.                                                                                                                                     | Mo Zhu            |
+| Churned bug clean-up | Sprintly | Following the bug de-prioritization meeting, Product Operations completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as continue, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Isabell Reedy |
+
 
 ## Slack channels
 
