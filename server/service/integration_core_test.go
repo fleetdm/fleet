@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -7297,4 +7299,272 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
 	require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
 	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+}
+
+// TestDirectIngestSoftwareWithLongFields tests that software with reported long fields
+// are inserted properly and subsequent reports of the same software do not generate new
+// entries in the `software` table. (It mainly tests the comparison between the currenly
+// inserted software and the incoming software from a host.)
+func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
+	t := s.T()
+
+	appConfig, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appConfig.Features.EnableSoftwareInventory = true
+
+	globalHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(uuid.New().String()),
+		NodeKey:         ptr.String(uuid.New().String()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Simulate a osquery agent on Windows reporting a software row for Wireshark.
+	rows := []map[string]string{
+		{
+			"name":           "Wireshark 4.0.8 64-bit",
+			"version":        "4.0.8",
+			"type":           "Program (Windows)",
+			"source":         "programs",
+			"vendor":         "The Wireshark developer community, https://www.wireshark.org",
+			"installed_path": "C:\\Program Files\\Wireshark",
+		},
+	}
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+
+	// Check that the software was properly ingested.
+	softwareQueryByName := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE name = ?;"
+	var wiresharkSoftware fleet.Software
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit")
+	})
+	require.NotZero(t, wiresharkSoftware.ID)
+	require.Equal(t, "Wireshark 4.0.8 64-bit", wiresharkSoftware.Name)
+	require.Equal(t, "4.0.8", wiresharkSoftware.Version)
+	require.Equal(t, "programs", wiresharkSoftware.Source)
+	require.Empty(t, wiresharkSoftware.BundleIdentifier)
+	require.Empty(t, wiresharkSoftware.Release)
+	require.Empty(t, wiresharkSoftware.Arch)
+	require.Equal(t, "The Wireshark developer community, https://www.wireshark.org", wiresharkSoftware.Vendor)
+	hostSoftwareInstalledPathsQuery := `SELECT installed_path FROM host_software_installed_paths WHERE software_id = ?;`
+	var wiresharkSoftwareInstalledPath string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &wiresharkSoftwareInstalledPath, hostSoftwareInstalledPathsQuery, wiresharkSoftware.ID)
+	})
+	require.Equal(t, "C:\\Program Files\\Wireshark", wiresharkSoftwareInstalledPath)
+
+	// We now check that the same software is not created again as a new row when it is received again during software ingestion.
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+	var wiresharkSoftware2 fleet.Software
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware2, softwareQueryByName, "Wireshark 4.0.8 64-bit")
+	})
+	require.NotZero(t, wiresharkSoftware2.ID)
+	require.Equal(t, wiresharkSoftware.ID, wiresharkSoftware2.ID)
+
+	// Simulate a osquery agent on Windows reporting a software row with a longer than 114 chars vendor field.
+	rows = []map[string]string{
+		{
+			"name":           "Foobar" + strings.Repeat("A", fleet.SoftwareNameMaxLength),
+			"version":        "4.0.8" + strings.Repeat("B", fleet.SoftwareVersionMaxLength),
+			"type":           "Program (Windows)",
+			"source":         "programs" + strings.Repeat("C", fleet.SoftwareSourceMaxLength),
+			"vendor":         strings.Repeat("D", fleet.SoftwareVendorMaxLength+1),
+			"installed_path": "C:\\Program Files\\Foobar",
+			// Test UTF-8 encoded strings.
+			"bundle_identifier": strings.Repeat("⌘", fleet.SoftwareBundleIdentifierMaxLength+1),
+			"release":           strings.Repeat("F", fleet.SoftwareReleaseMaxLength-1) + "⌘⌘",
+			"arch":              strings.Repeat("G", fleet.SoftwareArchMaxLength+1),
+		},
+	}
+
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+
+	var foobarSoftware fleet.Software
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &foobarSoftware, softwareQueryByName, "Foobar"+strings.Repeat("A", fleet.SoftwareNameMaxLength-6))
+	})
+	require.NotZero(t, foobarSoftware.ID)
+	require.Equal(t, "Foobar"+strings.Repeat("A", fleet.SoftwareNameMaxLength-6), foobarSoftware.Name)
+	require.Equal(t, "4.0.8"+strings.Repeat("B", fleet.SoftwareNameMaxLength-5), foobarSoftware.Version)
+	require.Equal(t, "programs"+strings.Repeat("C", fleet.SoftwareSourceMaxLength-8), foobarSoftware.Source)
+	// Vendor field is currenty trimmed with a different method (... appended at the end)
+	require.Equal(t, strings.Repeat("D", fleet.SoftwareVendorMaxLength-3)+"...", foobarSoftware.Vendor)
+	require.Equal(t, strings.Repeat("⌘", fleet.SoftwareBundleIdentifierMaxLength), foobarSoftware.BundleIdentifier)
+	require.Equal(t, strings.Repeat("F", fleet.SoftwareReleaseMaxLength-1)+"⌘", foobarSoftware.Release)
+	require.Equal(t, strings.Repeat("G", fleet.SoftwareArchMaxLength), foobarSoftware.Arch)
+
+	// We now check that the same software with long (to be trimmed) fields is not created again as a new row.
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+
+	var foobarSoftware2 fleet.Software
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &foobarSoftware2, softwareQueryByName, "Foobar"+strings.Repeat("A", fleet.SoftwareNameMaxLength-6))
+	})
+	require.Equal(t, foobarSoftware.ID, foobarSoftware2.ID)
+}
+
+func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
+	t := s.T()
+
+	appConfig, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appConfig.Features.EnableSoftwareInventory = true
+
+	globalHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(uuid.New().String()),
+		NodeKey:         ptr.String(uuid.New().String()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Ingesting software without name should not fail, but the software won't be inserted.
+	rows := []map[string]string{
+		{
+			"version":        "4.0.8",
+			"type":           "Program (Windows)",
+			"source":         "programs",
+			"vendor":         "The Wireshark developer community, https://www.wireshark.org",
+			"installed_path": "C:\\Program Files\\Wireshark",
+			"last_opened_at": "foobar",
+		},
+	}
+	var w1 bytes.Buffer
+	logger1 := log.NewJSONLogger(&w1)
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		logger1,
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+	logs1, err := io.ReadAll(&w1)
+	require.NoError(t, err)
+	require.Contains(t, string(logs1), "host reported software with empty name", fmt.Sprintf("%s", logs1))
+	require.Contains(t, string(logs1), "debug")
+
+	// Check that the software was not ingested.
+	softwareQueryByVendor := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE vendor = ?;"
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var wiresharkSoftware fleet.Software
+		if sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByVendor, "The Wireshark developer community, https://www.wireshark.org") != sql.ErrNoRows {
+			return errors.New("expected no results")
+		}
+		return nil
+	})
+
+	// Ingesting software without source should not fail, but the software won't be inserted.
+	rows = []map[string]string{
+		{
+			"name":           "Wireshark 4.0.8 64-bit",
+			"version":        "4.0.8",
+			"type":           "Program (Windows)",
+			"vendor":         "The Wireshark developer community, https://www.wireshark.org",
+			"installed_path": "C:\\Program Files\\Wireshark",
+			"last_opened_at": "foobar",
+		},
+	}
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	var w2 bytes.Buffer
+	logger2 := log.NewJSONLogger(&w2)
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		logger2,
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+	logs2, err := io.ReadAll(&w2)
+	require.NoError(t, err)
+	require.Contains(t, string(logs2), "host reported software with empty source")
+	require.Contains(t, string(logs2), "debug")
+
+	// Check that the software was not ingested.
+	softwareQueryByName := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE name = ?;"
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var wiresharkSoftware fleet.Software
+		if sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit") != sql.ErrNoRows {
+			return errors.New("expected no results")
+		}
+		return nil
+	})
+
+	// Ingesting software with invalid last_opened_at should not fail (only log a debug error)
+	rows = []map[string]string{
+		{
+			"name":           "Wireshark 4.0.8 64-bit",
+			"version":        "4.0.8",
+			"type":           "Program (Windows)",
+			"source":         "programs",
+			"vendor":         "The Wireshark developer community, https://www.wireshark.org",
+			"installed_path": "C:\\Program Files\\Wireshark",
+			"last_opened_at": "foobar",
+		},
+	}
+	var w3 bytes.Buffer
+	logger3 := log.NewJSONLogger(&w3)
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		logger3,
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+	logs3, err := io.ReadAll(&w3)
+	require.NoError(t, err)
+	require.Contains(t, string(logs3), "host reported software with invalid last opened timestamp")
+	require.Contains(t, string(logs3), "debug")
+
+	// Check that the software was properly ingested.
+	var wiresharkSoftware fleet.Software
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit")
+	})
+	require.NotZero(t, wiresharkSoftware.ID)
 }
