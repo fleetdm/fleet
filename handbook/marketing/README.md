@@ -76,6 +76,11 @@ Fleet's CEO is the directly responsible individual (DRI) for [Fleet's product ma
 ### Brand
 Fleet's CEO is the directly responsible individual (DRI) for [Fleet's brand marketing and strategy](https://fleetdm.com/handbook/company/communications#strategy).
 
+- **Brand resources:** To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
+
+
+
+
 ### Press
 From time to time, Fleet is in the news.  Here are a few examples:
 - Computer World: [Fleet announces open-source, cross-platform MDM solution](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html)
@@ -86,8 +91,39 @@ From time to time, Fleet is in the news.  Here are a few examples:
 
 ## Responsibilities
 
-### Do some responsibility
-TODO
+### Fufill one-time swag request
+We deliver Fleet swag and osquery stickers for those that request it through community contributions, [Fleet documentation](https://fleetdm.com/docs), and social media posts.
+
+- **Community contributions:** Reach out to the contributor to thank them for their contribution, ask if they would like any swag, and fill out their information in the [Fleet swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit#gid=2028707729).
+  - Typeform integrations automatically populate information within the #help-swag Slack channel for osquery sticker and shirt requests through TypeForm.
+  - Once approved in the sheet, or submitted through [Typeform](https://admin.typeform.com/form/ZfA3sOu0/results#responses), place the order through our Printful account (credentials in 1Password) within 48 hours of submission. If available through the ordering process, add a thank you note for their contribution or request.
+  - When an estimated shipping date is available, notify the requestor by email with an update on shipping, thank them for being a part of the community, and provide the tracking number once shipped.
+  - Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders).
+  - At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
+
+
+### Create a press release
+After creating a press release, it is pitched reporters as an exclusive story. If the story is accepted do not share or publicize any information related to the upcoming press release before the announcement. Also, see [What is a press exclusive, and how does it work](https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work) on Quora.
+
+#### Press release boilerplate
+
+<blockquote purpose="large-quote"> Fleet gives teams fast, reliable access to data about the production servers, employee laptops, and other devices they manage - no matter the operating system. Users can search for any device data using SQL queries, making it faster to respond to incidents and automate IT. Fleet is also used to monitor vulnerabilities, battery health, and software. It can even monitor endpoint detection and response and mobile device management tools like Crowdstrike, Munki, Jamf, and Carbon Black, to help confirm that those platforms are working how administrators think they are. Fleet is open source software. It's easy to deploy and get started quickly, and it even comes with an enterprise-friendly free tier available under the MIT license.
+
+IT and security teams love Fleet because of its flexibility and conventions. Instead of secretly collecting as much data as possible, Fleet defaults to privacy and transparency, capturing only the data your organization needs to meet its compliance, security, and management goals, with clearly-defined, flexible limits.   
+
+That means better privacy, better device performance, and better data but with less noise. </blockquote>
+
+
+### Create branded email campaign
+Create and send branded email blast to multiple recipients in small or large groups. First, base the design on one of our existing [email templates](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/?node-id=3609%3A12552) in Figma. If your Figma boots aren't comfortable (or you don't have edit access), your design could be a Google Drawing, Doc, or just a sketch on paper in a pinch. Bring your content to the #g-website design review for feedback and approval
+
+- **For small groups:** Use "bcc" so recipients don't see each other's email addresses and send an email manually using Gmail.   (Good for small lists.  This is definitely a "thing that doesn't scale.")
+
+- **For large groups:**  design the email and content. The preferred method is to 
+- Bring your request to the brand team by posting it in [their primary Slack channel](#slack-channels), along with your urgency/timeline. The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
+
+  `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
+
 
 ## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
