@@ -1720,6 +1720,7 @@ None.
 - [Get hosts summary](#get-hosts-summary)
 - [Get host](#get-host)
 - [Get host by identifier](#get-host-by-identifier)
+- [Get host by device token](#get-host-by-device-token)
 - [Delete host](#delete-host)
 - [Refetch host](#refetch-host)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
