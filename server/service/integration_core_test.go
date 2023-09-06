@@ -7345,14 +7345,15 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	// Simulate a osquery agent on Windows reporting a software row with a longer than 114 chars vendor field.
 	rows = []map[string]string{
 		{
-			"name":              "Foobar" + strings.Repeat("A", fleet.SoftwareNameMaxLength),
-			"version":           "4.0.8" + strings.Repeat("B", fleet.SoftwareVersionMaxLength),
-			"type":              "Program (Windows)",
-			"source":            "programs" + strings.Repeat("C", fleet.SoftwareSourceMaxLength),
-			"vendor":            strings.Repeat("D", fleet.SoftwareVendorMaxLength+1),
-			"installed_path":    "C:\\Program Files\\Foobar",
-			"bundle_identifier": strings.Repeat("E", fleet.SoftwareBundleIdentifierMaxLength+1),
-			"release":           strings.Repeat("F", fleet.SoftwareBundleIdentifierMaxLength+1),
+			"name":           "Foobar" + strings.Repeat("A", fleet.SoftwareNameMaxLength),
+			"version":        "4.0.8" + strings.Repeat("B", fleet.SoftwareVersionMaxLength),
+			"type":           "Program (Windows)",
+			"source":         "programs" + strings.Repeat("C", fleet.SoftwareSourceMaxLength),
+			"vendor":         strings.Repeat("D", fleet.SoftwareVendorMaxLength+1),
+			"installed_path": "C:\\Program Files\\Foobar",
+			// Test UTF-8 encoded strings.
+			"bundle_identifier": strings.Repeat("⌘", fleet.SoftwareBundleIdentifierMaxLength+1),
+			"release":           strings.Repeat("F", fleet.SoftwareReleaseMaxLength-1) + "⌘⌘",
 			"arch":              strings.Repeat("G", fleet.SoftwareArchMaxLength+1),
 		},
 	}
@@ -7376,8 +7377,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	require.Equal(t, "programs"+strings.Repeat("C", fleet.SoftwareSourceMaxLength-8), foobarSoftware.Source)
 	// Vendor field is currenty trimmed with a different method (... appended at the end)
 	require.Equal(t, strings.Repeat("D", fleet.SoftwareVendorMaxLength-3)+"...", foobarSoftware.Vendor)
-	require.Equal(t, strings.Repeat("E", fleet.SoftwareBundleIdentifierMaxLength), foobarSoftware.BundleIdentifier)
-	require.Equal(t, strings.Repeat("F", fleet.SoftwareReleaseMaxLength), foobarSoftware.Release)
+	require.Equal(t, strings.Repeat("⌘", fleet.SoftwareBundleIdentifierMaxLength), foobarSoftware.BundleIdentifier)
+	require.Equal(t, strings.Repeat("F", fleet.SoftwareReleaseMaxLength-1)+"⌘", foobarSoftware.Release)
 	require.Equal(t, strings.Repeat("G", fleet.SoftwareArchMaxLength), foobarSoftware.Arch)
 
 	// We now check that the same software with long (to be trimmed) fields is not created again as a new row.

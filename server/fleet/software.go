@@ -190,7 +190,6 @@ func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 // software column value. If the value is empty or if the parsed time is
 // 0 it returns (time.Time{}, nil).
 func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
-	// We don't fail if only the last_opened_at cannot be parsed.
 	if value == "" {
 		return time.Time{}, nil
 	}
@@ -227,8 +226,9 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 	}
 
 	truncateString := func(str string, length int) string {
-		if len(str) > length {
-			return str[:length]
+		runes := []rune(str)
+		if len(runes) > length {
+			return string(runes[:length])
 		}
 		return str
 	}
