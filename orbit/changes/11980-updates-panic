@@ -1,1 +1,0 @@
-* Fixed a crash that happened when updates where disabled and certain conditions (Nudge configuration set or host elegible for MDM migration) were met.

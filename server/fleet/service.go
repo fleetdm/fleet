@@ -801,4 +801,7 @@ type Service interface {
 	GetHostScript(ctx context.Context, execID string) (*HostScriptResult, error)
 	// SaveHostScriptResult saves information about execution of a script on a host.
 	SaveHostScriptResult(ctx context.Context, result *HostScriptResultPayload) error
+
+	// GetScriptResult returns the result of a script run
+	GetScriptResult(ctx context.Context, execID string) (*HostScriptResult, error)
 }

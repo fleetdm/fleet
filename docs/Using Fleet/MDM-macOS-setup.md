@@ -32,6 +32,8 @@ Fleet UI:
 
 2. Under **End user authentication**, enter your IdP credentials and select **Save**.
 
+> If you've already configured [single sign-on (SSO) for logging in to Fleet](https://fleetdm.com/docs/configuration/fleet-server-configuration#okta-idp-configuration), you'll need to create a separate app in your IdP so your end users can't log in to Fleet. In this separate app, use "https://fleetserver.com/api/v1/fleet/mdm/sso/callback" for the SSO URL.
+
 fleetctl CLI:
 
 1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
@@ -43,9 +45,9 @@ spec:
   mdm:
     end_user_authentication:
       identity_provider_name: "Okta"
-      entity_id: 123
-      issuer_url: "https://example.com"
-      metadata_url: "https://example.com"
+      entity_id: "https://fleetserver.com"
+      issuer_url: "https://okta-instance.okta.com/84598y345hjdsshsfg/sso/saml/metadata"
+      metadata_url: "https://okta-instance.okta.com/84598y345hjdsshsfg/sso/saml/metadata"
   ...
 ```
 

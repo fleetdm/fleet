@@ -90,4 +90,5 @@ export interface IActivityDetails {
   profile_identifier?: string;
   bootstrap_package_name?: string;
   name?: string;
+  script_execution_id?: string;
 }

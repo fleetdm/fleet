@@ -178,7 +178,7 @@ module "migrations" {
 module "mdm" {
   source             = "github.com/fleetdm/fleet//terraform/addons/mdm?ref=tf-mod-addon-mdm-v1.2.2"
   public_domain_name = "dogfood.fleetdm.com"
-  enable_windows_mdm = false
+  enable_windows_mdm = true
   apn_secret_name    = "${local.customer}-apn"
   scep_secret_name   = "${local.customer}-scep"
   dep_secret_name    = "${local.customer}-dep"
