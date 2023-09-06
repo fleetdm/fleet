@@ -632,60 +632,60 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 					queries[hostDistributedQueryPrefix+name] = query
 				}
 			}
-			level.Debug(svc.logger).Log("msg", "signal received, returning LiveQueries", "host_id", host.ID)
+			level.Debug(svc.logger).Log("msg", "signal received, returning LiveQueries")
 			return queries, discovery, 0, nil
-		case <-timer.C:
-			level.Debug(svc.logger).Log("msg", "timer expired, running other queries", "host_id", host.ID)
-			detailQueries, detailDiscovery, err := svc.detailQueriesForHost(ctx, host)
-			if err != nil {
-				return nil, nil, 0, newOsqueryError(err.Error())
-			}
-			for name, query := range detailQueries {
-				queries[name] = query
-			}
-			for name, query := range detailDiscovery {
-				discovery[name] = query
-			}
+			// case <-timer.C:
+			// 	level.Debug(svc.logger).Log("msg", "timer expired, running other queries")
+			// 	detailQueries, detailDiscovery, err := svc.detailQueriesForHost(ctx, host)
+			// 	if err != nil {
+			// 		return nil, nil, 0, newOsqueryError(err.Error())
+			// 	}
+			// 	for name, query := range detailQueries {
+			// 		queries[name] = query
+			// 	}
+			// 	for name, query := range detailDiscovery {
+			// 		discovery[name] = query
+			// 	}
 
-			labelQueries, err := svc.labelQueriesForHost(ctx, host)
-			if err != nil {
-				return nil, nil, 0, newOsqueryError(err.Error())
-			}
-			for name, query := range labelQueries {
-				queries[hostLabelQueryPrefix+name] = query
-			}
+			// 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
+			// 	if err != nil {
+			// 		return nil, nil, 0, newOsqueryError(err.Error())
+			// 	}
+			// 	for name, query := range labelQueries {
+			// 		queries[hostLabelQueryPrefix+name] = query
+			// 	}
 
-			policyQueries, err := svc.policyQueriesForHost(ctx, host)
-			if err != nil {
-				return nil, nil, 0, newOsqueryError(err.Error())
-			}
-			for name, query := range policyQueries {
-				queries[hostPolicyQueryPrefix+name] = query
-			}
+			// 	policyQueries, err := svc.policyQueriesForHost(ctx, host)
+			// 	if err != nil {
+			// 		return nil, nil, 0, newOsqueryError(err.Error())
+			// 	}
+			// 	for name, query := range policyQueries {
+			// 		queries[hostPolicyQueryPrefix+name] = query
+			// 	}
 
-			accelerate = uint(0)
-			if host.Hostname == "" || host.Platform == "" {
-				// Assume this host is just enrolling, and accelerate checkins
-				// (to allow for platform restricted labels to run quickly
-				// after platform is retrieved from details)
-				accelerate = 10
-			}
+			// 	accelerate = uint(0)
+			// 	if host.Hostname == "" || host.Platform == "" {
+			// 		// Assume this host is just enrolling, and accelerate checkins
+			// 		// (to allow for platform restricted labels to run quickly
+			// 		// after platform is retrieved from details)
+			// 		accelerate = 10
+			// 	}
 
-			// The way osquery's distributed "discovery" queries work is:
-			// If len(discovery) > 0, then only those queries that have a "discovery"
-			// query and return more than one row are executed on the host.
-			//
-			// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
-			// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
-			for name := range queries {
-				discoveryQuery := discovery[name]
-				if discoveryQuery == "" {
-					discoveryQuery = alwaysTrueQuery
-				}
-				discovery[name] = discoveryQuery
-			}
+			// 	// The way osquery's distributed "discovery" queries work is:
+			// 	// If len(discovery) > 0, then only those queries that have a "discovery"
+			// 	// query and return more than one row are executed on the host.
+			// 	//
+			// 	// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
+			// 	// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
+			// 	for name := range queries {
+			// 		discoveryQuery := discovery[name]
+			// 		if discoveryQuery == "" {
+			// 			discoveryQuery = alwaysTrueQuery
+			// 		}
+			// 		discovery[name] = discoveryQuery
+			// 	}
 
-			return queries, discovery, accelerate, nil
+			// 	return queries, discovery, accelerate, nil
 		}
 	}
 }
@@ -1170,6 +1170,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 	}
 
 	err = svc.resultStore.WriteResult(res)
+	
 
 	if err != nil {
 		fmt.Printf("ERROR writing to result store: %v\n", err)

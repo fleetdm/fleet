@@ -86,14 +86,12 @@ func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, h
 			defer wg.Done()
 			campaign, err := svc.NewDistributedQueryCampaign(ctx, "", &queryID, fleet.HostTargets{HostIDs: hostIDs})
 			if err != nil {
-				fmt.Println("Error creating campaign", err)
 				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error())}
 				return
 			}
 
 			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 			if err != nil {
-				fmt.Println("Error getting campaign reader", err)
 				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error())}
 				return
 			}
@@ -105,9 +103,6 @@ func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, h
 					resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error())}
 				}
 			}()
-
-			fmt.Println("Publishing live query")
-			svc.liveQueryStore.PublishLiveQuery(strconv.FormatUint(uint64(queryID), 10))
 
 			var results []fleet.QueryResult
 			timeout := time.After(deadline)

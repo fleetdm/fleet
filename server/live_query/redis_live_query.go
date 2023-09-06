@@ -277,6 +277,10 @@ func (r *redisLiveQuery) storeQueryInfo(name, sql string, hostIDs []uint) error 
 		return fmt.Errorf("set targets: %w", err)
 	}
 
+	_, err = conn.Do("PUBLISH", "live_query", name)
+	if err != nil {
+		return fmt.Errorf("publish: %w", err)
+	}
 	return nil
 }
 
@@ -288,14 +292,6 @@ func (r *redisLiveQuery) storeQueryNames(names ...string) error {
 	args = args.Add(activeQueriesKey)
 	args = args.AddFlat(names)
 	_, err := conn.Do("SADD", args...)
-	return err
-}
-
-func (r *redisLiveQuery) PublishLiveQuery(name string) error {
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
-
-	_, err := conn.Do("PUBLISH", "live_query", name)
 	return err
 }
 
