@@ -326,6 +326,7 @@ func ApplyRunScriptsConfigFetcherMiddleware(fetcher OrbitConfigFetcher, scriptsE
 }
 
 func (h *runScriptsConfigFetcher) runDynamicScriptsEnabledCheck() {
+	log.Debug().Msg("============ runDynamicScriptsEnabledCheck called")
 	getFleetdConfig := h.testGetFleetdConfig
 	if getFleetdConfig == nil {
 		getFleetdConfig = profiles.GetFleetdConfig
@@ -334,8 +335,10 @@ func (h *runScriptsConfigFetcher) runDynamicScriptsEnabledCheck() {
 	// only run on macos and only if scripts are disabled by default for the
 	// agent (but always run if a test get fleetd config function is set).
 	if (runtime.GOOS == "darwin" && !h.ScriptsExecutionEnabled) || (h.testGetFleetdConfig != nil) {
+		log.Debug().Msg("============ starting go loop")
 		go func() {
 			runCheck := func() {
+				log.Debug().Msg("============ runCheck called")
 				cfg, err := getFleetdConfig()
 				if err != nil {
 					if err != profiles.ErrNotImplemented {
@@ -346,6 +349,7 @@ func (h *runScriptsConfigFetcher) runDynamicScriptsEnabledCheck() {
 					}
 					return
 				}
+				log.Debug().Msgf("============ got config, enabled:, %t", cfg.EnableScripts)
 				h.dynamicScriptsEnabled.Store(cfg.EnableScripts)
 			}
 

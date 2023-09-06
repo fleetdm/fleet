@@ -15,6 +15,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/rs/zerolog/log"
 )
 
 const scriptExecTimeout = 30 * time.Second
@@ -54,12 +55,14 @@ func (r *Runner) Run(execIDs []string) error {
 
 	for _, execID := range execIDs {
 		if !r.ScriptExecutionEnabled {
+			log.Debug().Msg("============ script execution is disabled when running the script")
 			if err := r.runOneDisabled(execID); err != nil {
 				errs = append(errs, err)
 			}
 			continue
 		}
 
+		log.Debug().Msg("============ script execution enabled")
 		if err := r.runOne(execID); err != nil {
 			errs = append(errs, err)
 		}
