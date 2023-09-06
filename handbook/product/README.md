@@ -24,7 +24,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 - Draft changes to the Fleet product that solve the problem specified in the story. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
 
-- Be intentional about style changes that affect many parts of the product (e.g. button border radius or modal width). These are made opportunistically as part of user stories. At Fleet we don't prioritize style-only user stories.
+- Be intentional about style changes that affect many parts of the product (e.g. button border-radius or modal width). These are made opportunistically as part of user stories. At Fleet we don't prioritize style-only user stories.
 
 - While drafting, reach out to sales, customer success, and marketing for a business perspective.
 
