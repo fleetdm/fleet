@@ -1,1 +1,2 @@
-* Fixed software ingestion to not re-insert software when incoming fields from hosts are longer than what Fleet supports.
+* Fixed software ingestion to not re-insert software when incoming fields from hosts are longer than what Fleet supports. This bug caused some CVEs to be reported every time the vulnerability cron ran.
+IMPORTANT: After deploying this fix, the vulnerability cron will report the CVEs one last time, and subsequent cron runs will not report the CVE (as expected).
