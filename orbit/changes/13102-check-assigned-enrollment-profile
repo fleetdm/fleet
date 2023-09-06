@@ -1,3 +1,0 @@
-- Updated MDM migration flow to include checking the output of `profiles show -type enrollment`
-  as a pre-condition for `profiles renew -type enrollment` to mitigate issues where caching or other
-  unexpected delays in Apple DEP profile assignment could cause the wrong profile to be renewed.
