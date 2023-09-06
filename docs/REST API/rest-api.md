@@ -1041,8 +1041,6 @@ Modifies the Fleet's configuration with the supplied information.
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
 
-Note that when making changes to the `integrations` object, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
-
 #### Example
 
 `PATCH /api/v1/fleet/config`
