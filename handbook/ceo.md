@@ -197,17 +197,11 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
 ### Prepare for the All hands
 
 Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
-  1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
-  2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
-  3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
-  4. **If applicable** Update "🦉 Welcome!" slide to reflect new investors or advisors using "**name** <em>(pronoun)</em>, position, company".
-  5. **If applicable** Update "🤝 Welcome!" slide to reflect new customers.
-  6. Update slides that contain dates to reflect current All Hands date.
-  7. Update slides that contain metrics to reflect current information using the [🌈 Weekly updates](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?pli=1#gid=0) doc.
-  8. **If applicable** Update Quarterly OKRs to reflect current OKR goals for the quarter.
-  9. Test that the transition on the last slides continue to work.
-  10. **If applicable** Add new customer's logo to final slide.
-  11. **If applicable** Add a "Star slide" for guest speakers. 
+  1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands - yyyy month name".
+  2. Download a copy of the previous month's keynote file and rename the copy pattern matching existing files.
+  3. Update the slides to reflect the current "All hands" date (e.g. cover slides month and the "You are here" slide)'
+  4. Update slides that contain metrics to reflect current information using the [📈 KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) doc.
+  5. Update the "Spotlight slide" for guest speakers. 
 
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
