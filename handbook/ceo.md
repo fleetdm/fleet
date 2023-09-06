@@ -196,12 +196,18 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
 
 ### Prepare for the All hands
 
-Every month the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
-  1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands - yyyy month name".
-  2. Download a copy of the previous month's keynote file and rename the copy pattern matching existing files.
-  3. Update the slides to reflect the current "All hands" date (e.g. cover slides month and the "You are here" slide)'
-  4. Update slides that contain metrics to reflect current information using the [📈 KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) doc.
-  5. Update the "Spotlight slide" for guest speakers. 
+- **Every month** the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+  -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands - yyyy month name".
+  - Update "End of the quarter" slides to reflect the current countdown.
+  - Download a copy of the previous month's keynote file and rename the copy pattern matching existing files.
+  - Update the slides to reflect the current "All hands" date (e.g. cover slides month and the "You are here" slide)'
+  - Update slides that contain metrics to reflect current information using the [📈 KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) doc.
+  - Update the "Spotlight slide" for guest speakers.
+  - Add new customer logos from Mike's bookmarks ["Customers list"](https://fleetdm.lightning.force.com/lightning/o/Account/list?filterName=00B4x00000CTHP8EAP) and Google "Company name" to find the current logo.
+
+- **First "All hands" of the quarter**
+  - Audit the "Strategy" slide.
+  - Audit the "Goals" slide
 
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
