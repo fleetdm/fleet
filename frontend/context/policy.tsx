@@ -155,6 +155,7 @@ const reducer = (state: InitialStateType, action: IAction) => {
   }
 };
 
+// TODO: Can we remove policyTeamId in favor of always using URL team_id param?
 export const PolicyContext = createContext<InitialStateType>(initialState);
 
 const PolicyProvider = ({ children }: Props): JSX.Element => {
