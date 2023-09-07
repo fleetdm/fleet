@@ -116,7 +116,7 @@ To edit an event where someone else at Fleet is the organizer, you can first sub
 This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
 
 ### Shared calendars
-At Fleet, our shared team calendars are more than just schedules; they are the heartbeats of our operations. Acting as the primary source for team rituals, they facilitate the smooth execution of each sprint.
+Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
 
 Looking to add, change, or remove a shared calendar? [Create an issue](https://github.com/fleetdm/fleet/issues/new) with your idea, title it "Calendar idea", write up your idea, and label it with `#g-ceo` so that it can be brought to the e-group or appropriate DRI for feedback.
 
