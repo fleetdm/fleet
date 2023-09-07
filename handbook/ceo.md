@@ -310,8 +310,7 @@ When processing new requests from this channel, consider this:
   - 12:30 PM /beginning of "reserved block"
   - 6:30 PM /post-mortem days meetings
 
-<rituals :rituals="rituals['handbook/company/ceo-rituals.yml']"></rituals>
-
+<rituals :rituals="rituals['handbook/company/ceo.rituals.yml']"></rituals>
 
 
 <meta name="maintainedBy" value="Sampfluger88">
