@@ -44,14 +44,14 @@ module.exports = {
         data: {
           path: '/src/data/osquery_schema_versions/'+VERSION_OF_OSQUERY_SCHEMA_TO_USE+'.json',
           page: 1,
-          per_page: 1,
+          per_page: 1,//eslint-disable-line camelcase
         },
         headers: {
           'User-Agent': 'fleet-schema-builder',
           'Accept': 'application/vnd.github.v3+json',
         },
       }).intercept((err)=>{
-        return new Error(`When trying to send a request to GitHub get a timestamp of the last commit to the osqeury schema JSON, an error occurred. Full error: ${err}`)
+        return new Error(`When trying to send a request to GitHub get a timestamp of the last commit to the osqeury schema JSON, an error occurred. Full error: ${err}`);
       });
       // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit`` we in the API response.
       let mostRecentCommitToOsquerySchema = responseData[0];
@@ -69,8 +69,6 @@ module.exports = {
 
     for(let yamlSchema of yamlSchemaInTablesFolder) {
       let tableYaml = await sails.helpers.fs.read(yamlSchema);
-      relativePathOfThisSchemaFile = path.relative(topLvlRepoPath, yamlSchema);
-
       let parsedYamlTable;
       try {
         parsedYamlTable = YAML.parse(tableYaml, {prettyErrors: true});
