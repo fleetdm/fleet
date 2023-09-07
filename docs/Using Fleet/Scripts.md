@@ -39,7 +39,11 @@ As an example, we'll write a shell script for a macOS host that downloads a Flee
 To run the script, we'll need to create a `set-wallpaper-to-fleet.sh` file locally and copy and paste this script into this `.sh` file:
 
 ```sh
+wallpaper="/tmp/wallpaper.png" 
 
+curl --fail https://fleetdm.com/images/homepage-hero-background-1921x555@2x.png -o $wallpaper
+
+osascript -e 'tell application "Finder" to set desktop picture to POSIX file "'"$wallpaper"'"' 
 ```
 
 ### Step 3: run the script
