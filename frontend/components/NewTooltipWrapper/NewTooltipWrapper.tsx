@@ -1,5 +1,6 @@
 import classnames from "classnames";
 import React from "react";
+import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 import ReactTooltip from "react-tooltip";
 
 import { uniqueId } from "lodash";
@@ -9,9 +10,11 @@ interface ITooltipWrapperProps {
   children: string;
   tipContent: string;
   position?: "top" | "bottom";
-  delayHide?: number;
+  isDelayed?: boolean;
   underline?: boolean;
-  className?: string;
+  wrapperCustomClass?: string;
+  elementCustomClass?: string;
+  tipCustomClass?: string;
 }
 
 const baseClass = "component__new-tooltip-wrapper";
@@ -20,38 +23,67 @@ const TooltipWrapper = ({
   children,
   tipContent,
   position = "bottom",
-  delayHide,
+  isDelayed,
   underline = true,
-  className,
+  wrapperCustomClass,
+  elementCustomClass,
+  tipCustomClass,
 }: // positionOverrides = { leftAdj: 54, topAdj: -3 },
 ITooltipWrapperProps): JSX.Element => {
-  const wrapperClasses = classnames(baseClass, className);
-  const elementClasses = classnames(`${baseClass}__element`, {
+  const wrapperClassNames = classnames(baseClass, {
+    [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
+  });
+
+  const elementClassNames = classnames(`${baseClass}__element`, {
+    [`${baseClass}__${elementCustomClass}`]: !!elementCustomClass,
     [`${baseClass}__underline`]: underline,
+  });
+
+  const tipClassNames = classnames(`${baseClass}__tip-text`, {
+    [`${baseClass}__${tipCustomClass}`]: !!tipCustomClass,
+    [`${baseClass}__tip-text__top`]: position === "top",
+    [`${baseClass}__tip-text__bottom`]: position === "bottom",
   });
   const tipId = uniqueId();
 
   return (
-    <span className={wrapperClasses}>
-      <div className={elementClasses} data-tip data-for={tipId}>
+    <span className={wrapperClassNames}>
+      <div className={elementClassNames} data-tip data-for={tipId}>
         {children}
-        {/* {underline && (
-          <span className={`${baseClass}__underline`} data-text={children} />
-        )} */}
       </div>
       <ReactTooltip
-        className={`${baseClass}__tip-text`}
-        place={position}
+        className={tipClassNames}
         type="dark"
         effect="solid"
         id={tipId}
+        delayShow={isDelayed ? 500 : undefined}
+        delayHide={isDelayed ? 500 : undefined}
         backgroundColor={COLORS["tooltip-bg"]}
-        delayHide={delayHide}
       >
         {tipContent}
       </ReactTooltip>
     </span>
   );
+  // return (
+  //   <span className={wrapperClasses}>
+  //     <div className={elementClasses} data-tooltip-id={tipId}>
+  //       {children}
+  //       {/* {underline && (
+  //         <span className={`${baseClass}__underline`} data-text={children} />
+  //       )} */}
+  //     </div>
+  //     <ReactTooltip5
+  //       // className={`${baseClass}__tip-text`}
+  //       place={position}
+  //       variant="dark"
+  //       // float="solid"
+  //       id={tipId}
+  //       delayHide={delayHide}
+  //     >
+  //       {tipContent}
+  //     </ReactTooltip5>
+  //   </span>
+  // );
 };
 
 export default TooltipWrapper;
