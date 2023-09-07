@@ -8,8 +8,8 @@ export default [
     title: "Manage OS updates | Fleet for osquery",
   },
   {
-    path: "/controls/mac-settings",
-    title: "Manage macOS settings | Fleet for osquery",
+    path: "/controls/os-settings",
+    title: "Manage OS settings | Fleet for osquery",
   },
   {
     path: "/controls/mac-setup",

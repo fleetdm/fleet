@@ -8,13 +8,13 @@ import { ProfileSummaryResponse } from "interfaces/mdm";
 import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
-import MAC_OS_SETTINGS_NAV_ITEMS from "./MacOSSettingsNavItems";
+import OS_SETTINGS_NAV_ITEMS from "./OSSettingsNavItems";
 import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
 
-const baseClass = "mac-os-settings";
+const baseClass = "os-settings";
 
-interface IMacOSSettingsProps {
+interface IOSSettingsProps {
   params: Params;
   router: InjectedRouter;
   location: {
@@ -22,11 +22,11 @@ interface IMacOSSettingsProps {
   };
 }
 
-const MacOSSettings = ({
+const OSSettings = ({
   router,
   location: { search: queryString },
   params,
-}: IMacOSSettingsProps) => {
+}: IOSSettingsProps) => {
   const { section } = params;
   const { config, currentTeam } = useContext(AppContext);
 
@@ -54,10 +54,10 @@ const MacOSSettings = ({
     return <TurnOnMdmMessage router={router} />;
   }
 
-  const DEFAULT_SETTINGS_SECTION = MAC_OS_SETTINGS_NAV_ITEMS[0];
+  const DEFAULT_SETTINGS_SECTION = OS_SETTINGS_NAV_ITEMS[0];
 
   const currentFormSection =
-    MAC_OS_SETTINGS_NAV_ITEMS.find((item) => item.urlSection === section) ??
+    OS_SETTINGS_NAV_ITEMS.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
 
   const CurrentCard = currentFormSection.Card;
@@ -74,7 +74,7 @@ const MacOSSettings = ({
       />
       <SideNav
         className={`${baseClass}__side-nav`}
-        navItems={MAC_OS_SETTINGS_NAV_ITEMS.map((navItem) => ({
+        navItems={OS_SETTINGS_NAV_ITEMS.map((navItem) => ({
           ...navItem,
           path: navItem.path.concat(queryString),
         }))}
@@ -91,4 +91,4 @@ const MacOSSettings = ({
   );
 };
 
-export default MacOSSettings;
+export default OSSettings;

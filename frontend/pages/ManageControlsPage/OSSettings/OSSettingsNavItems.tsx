@@ -5,7 +5,7 @@ import { IMdmProfile } from "interfaces/mdm";
 import DiskEncryption from "./cards/DiskEncryption";
 import CustomSettings from "./cards/CustomSettings";
 
-interface IMacOSSettingsCardProps {
+interface IOSSettingsCardProps {
   currentTeamId?: number;
   profiles?: IMdmProfile[];
   onProfileUpload?: () => void;
@@ -13,9 +13,7 @@ interface IMacOSSettingsCardProps {
 }
 
 // TODO: types
-const MAC_OS_SETTINGS_NAV_ITEMS: ISideNavItem<
-  IMacOSSettingsCardProps | any
->[] = [
+const OS_SETTINGS_NAV_ITEMS: ISideNavItem<IOSSettingsCardProps | any>[] = [
   {
     title: "Disk encryption",
     urlSection: "disk-encryption",
@@ -30,4 +28,4 @@ const MAC_OS_SETTINGS_NAV_ITEMS: ISideNavItem<
   },
 ];
 
-export default MAC_OS_SETTINGS_NAV_ITEMS;
+export default OS_SETTINGS_NAV_ITEMS;

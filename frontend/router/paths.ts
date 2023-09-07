@@ -4,15 +4,18 @@ import URL_PREFIX from "./url_prefix";
 // Note: changes to paths.ts should change page_titles.ts respectively
 export default {
   ROOT: `${URL_PREFIX}/`,
+
+  // Controls pages
   CONTROLS: `${URL_PREFIX}/controls`,
   CONTROLS_OS_UPDATES: `${URL_PREFIX}/controls/os-updates`,
-  CONTROLS_MAC_SETTINGS: `${URL_PREFIX}/controls/mac-settings`,
-  CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/mac-settings/custom-settings`,
-  CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/mac-settings/disk-encryption`,
+  CONTROLS_OS_SETTINGS: `${URL_PREFIX}/controls/os-settings`,
+  CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/custom-settings`,
+  CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_MAC_SETUP: `${URL_PREFIX}/controls/mac-setup`,
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/mac-setup/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/mac-setup/bootstrap-package`,
   CONTROLS_MAC_SCRIPTS: `${URL_PREFIX}/controls/mac-scripts`,
+
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
