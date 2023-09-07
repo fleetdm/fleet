@@ -260,9 +260,9 @@ We merge bug fixes and documentation changes during the freeze period, but we do
 
 It is sometimes necessary to delay the release to allow time to complete partially merged feature work. In these cases, an exception process must be followed before merging during the freeze period. 
 
-1. The engineer requesting the feature work merge exception during freeze notifies their EM. 
-2. The EM notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). 
-3. The EM, QA lead, and release ritual DRI must all approve the feature work PR before it is unfrozen and merged.
+1. The engineer requesting the feature work merge exception during freeze notifies their Engineering Manager. 
+2. The Engineering Manager notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). 
+3. The Engineering Manager, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is unfrozen and merged.
 
 ### Release day
 
