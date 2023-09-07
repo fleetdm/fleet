@@ -2901,19 +2901,19 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
 
 We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Fleet have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).
 
-## Running with systemd
+<h2 id="running-with-systemd">Running with systemd</h2>
 
 This content was moved to [Systemd](http://fleetdm.com/docs/deploy/system-d) on Sept 6th, 2023.
 
-## Using a proxy
+<h2 id="using-a-proxy">Using a proxy</h2>
 
 This content was moved to [Proxies](http://fleetdm.com/docs/deploy/proxies) on Sept 6th, 2023.
 
-## Configuring single sign-on (SSO
+<h2 id="configuring-single-sign-on-sso">Configuring single sign-on (SSO)</h2>
 
 This content was moved to [Single sign-on (SSO)](http://fleetdm.com/deploy/single-sign-on-sso) on Sept 6th, 2023.
 
-## Public IPs of devices
+<h2 id="public-ips-of-devices">Public IPs of devices</h2>
 
 This content was moved to [Public IPs](http://fleetdm.com/docs/deploy/public-ips) on Sept 6th, 2023.
 
