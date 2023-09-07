@@ -1,6 +1,6 @@
 .component__new-tooltip-wrapper {
   display: block;
-  position: static;
+  position: relative;
 
   &__element {
     //   position: static;
@@ -31,10 +31,11 @@
     //   border-bottom: 1px dashed $ui-fleet-black-50;
     // }
   }
+
   &__tip-text {
     position: absolute !important;
-    left: 61px !important;
-    top: 77% !important;
+    left: 0 !important;
+    top: 101% !important;
     margin-top: 4px !important;
     width: 200px;
     max-width: 360px;

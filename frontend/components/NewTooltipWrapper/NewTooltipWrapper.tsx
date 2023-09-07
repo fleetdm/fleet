@@ -41,13 +41,12 @@ ITooltipWrapperProps): JSX.Element => {
       </div>
       <ReactTooltip
         className={`${baseClass}__tip-text`}
-        place={position ?? "top"}
+        place={position}
         type="dark"
         effect="solid"
         id={tipId}
         backgroundColor={COLORS["tooltip-bg"]}
         delayHide={delayHide}
-        // delayUpdate={500}
       >
         {tipContent}
       </ReactTooltip>
