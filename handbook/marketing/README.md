@@ -25,7 +25,7 @@ The Marketing department is directly responsible for growing awareness of Fleet 
 
 
 ## Programs
-Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](#events), [community support](#community-support), [social media](#social-media), [conversation-starting](#conversation-starting), [ads](#ads), [video](#video), [articles](#articles), [product-marketing](#product-marketing), [brand](#brand), and [press](#press).
+Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](#events), [community support](#community-support), [social media](#social-media), [conversation-starting](#conversation-starting), [ads](#ads), [video](#video), [articles](#articles), [product-marketing](#product-marketing), [brand](#brand), [swag requests](#swag-request) and [press](#press).
 
 
 ### Events
@@ -79,23 +79,10 @@ Fleet's CEO is the directly responsible individual (DRI) for [Fleet's brand mark
 
 - **Brand resources:** To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
 
-
-
-
-### Press
-From time to time, Fleet is in the news.  Here are a few examples:
-- Computer World: [Fleet announces open-source, cross-platform MDM solution](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html)
-- 9to5Mac: [Apple @ Work Podcast: Fleet announces open-source, cross-platform device management platform](https://9to5mac.com/2023/04/11/fleet-announces-open-source-cross-platform-device-management-platform/)
-- Open Source For U: [Fleet Unveils The First Ever Open Source, Cross-Platform Device Management Platform](https://www.opensourceforu.com/2023/04/fleet-unveils-the-first-ever-open-source-cross-platform-device-management-platform/)
-- Tech Switch: [Fleet announces open-source, cross-platform MDM solution](https://techswitchcf.com/fleet-announces-open-source-cross-platform-mdm-solution/)
-- TechCrunch: [Fleet nabs $20M to enable enterprises to manage their devices](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices)
-
-## Responsibilities
-
-## Fufill swag requests
+### Swag requests
 We deliver Fleet swag for those who request it through [Fleet documentation](https://fleetdm.com/docs) and may occasionally have upstanding community members and customers who are in need of some cool Fleet swag as well.
 
-### Fulfilling Printful orders
+#### Fulfilling Printful orders
 On a weekly basis, Marketing must log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
 
 To do this:
@@ -107,11 +94,11 @@ To do this:
 5. The results should only display one order. Any additional could be duplicate orders or those made in error.
 6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
 
-### Fulfilling Postal orders
+#### Fulfilling Postal orders
 
 There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. We use [Postal](https://www.postal.com/) to fulfill these swag requests. Postal warehouses Fleet swag that is available to send directly. There are two main ways to send swag through Printful. Direct sends and Magic Links.
 
-#### Magic Link
+##### Magic Link
 This is a great option to send when we only know the item we'd like to send and want the recipient to fill out their own contact information and shipping details. These links can be used by anyone who has access to the link, so only send to the desired recipient.
 
 - Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
@@ -120,7 +107,7 @@ This is a great option to send when we only know the item we'd like to send and 
 - Personalize your magic link page with a customized header or message if you'd like.
 - Continue on to "Review" and "Create MagicLink"
 
-#### Direct send
+##### Direct send
 This is a great option to send when we already have the name, address, and email address of the person we are sending an item to.
 
 - Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
@@ -129,13 +116,21 @@ This is a great option to send when we already have the name, address, and email
 - To create a new contact click the plus sign and fill out the name, email, and shipping address.
 - Select "Configure your item", continue on to "Review", and "Confirm and Send"
 
-#### Send swag for community contributions to Fleet
+##### Send swag for community contributions to Fleet
 - Reach out to the contributor to thank them for their contribution
 - Consider sharing the contribution on social media
 - Ask if we could send the contributor any swag
 - If yes, follow the steps of creating a magic link in Postal to send.
 
-## Create a press release
+### Press
+From time to time, Fleet is in the news.  Here are a few examples:
+- Computer World: [Fleet announces open-source, cross-platform MDM solution](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html)
+- 9to5Mac: [Apple @ Work Podcast: Fleet announces open-source, cross-platform device management platform](https://9to5mac.com/2023/04/11/fleet-announces-open-source-cross-platform-device-management-platform/)
+- Open Source For U: [Fleet Unveils The First Ever Open Source, Cross-Platform Device Management Platform](https://www.opensourceforu.com/2023/04/fleet-unveils-the-first-ever-open-source-cross-platform-device-management-platform/)
+- Tech Switch: [Fleet announces open-source, cross-platform MDM solution](https://techswitchcf.com/fleet-announces-open-source-cross-platform-mdm-solution/)
+- TechCrunch: [Fleet nabs $20M to enable enterprises to manage their devices](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices)
+
+### Create a press release
 After creating a press release, it is pitched reporters as an exclusive story. If the story is accepted do not share or publicize any information related to the upcoming press release before the announcement. Also, see [What is a press exclusive, and how does it work](https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work) on Quora.
 
 #### Press release boilerplate
@@ -161,7 +156,7 @@ Create and send branded email blast to multiple recipients in small or large gro
 ## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
-<!-- TODO: Eeplore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
+<!-- TODO: Explore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 <!-- TODO: Slightly later, in another PR, finish processing this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 
 <meta name="maintainedBy" value="mikermcneil">
