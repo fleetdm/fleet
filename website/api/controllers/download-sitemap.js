@@ -81,11 +81,7 @@ module.exports = {
     //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝╠═╣║ ╦║╣ ╚═╗  ╠╣ ╠╦╝║ ║║║║  ║║║╠═╣╠╦╝╠╩╗ ║║║ ║║║║║║║
     //  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝  ╚  ╩╚═╚═╝╩ ╩  ╩ ╩╩ ╩╩╚═╩ ╩═╩╝╚═╝╚╩╝╝╚╝
     for (let pageInfo of sails.config.builtStaticContent.markdownPages) {
-      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+pageInfo.url)}</loc>`;
-      if(pageInfo.lastModifiedAt) {// Note: We omit lastMod if the page does not have a lastModifiedAt property.
-        `<lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod>`;
-      }
-      sitemapXml += `</url>`;
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+pageInfo.url)}</loc><lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod></url>`;
     }//∞
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     sitemapXml += '</urlset>';
