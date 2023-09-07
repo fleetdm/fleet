@@ -1,6 +1,6 @@
 # Using the Fleet Terraform module with an existing VPC
 
-The Fleet Terraform module is the recommended way to quickly get Fleet up and running in AWS. However, some organizations may already have an existing VPC that they would like leverage to deploy Fleet. This article shows what that would look like, leveraging the module at the bring-your-own VPC (BYO-VPC) level. 
+The Fleet Terraform module is the recommended way to quickly get Fleet up and running in AWS. However, some organizations may already have an existing VPC that they would like leverage to deploy Fleet. This article shows what that would look like, leveraging the module at the bring-your-own VPC (BYO-VPC) level.
 
 ## Required Resources
 
@@ -48,7 +48,7 @@ resource "aws_route53_record" "main" {
 }
 ```
 
-Additionally, we will have to have a VPC created. The [Terraform AWS VPC Module](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/3.18.1) is one of the easiest ways to get all the necessary pieces quickly, so it will be used in the example. 
+Additionally, we will have to have a VPC created. The [Terraform AWS VPC Module](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/3.18.1) is one of the easiest ways to get all the necessary pieces quickly, so it will be used in the example.
 
 ```hcl
 
@@ -56,7 +56,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "3.18.1"
 
-  name = random_pet.main.id
+  name = "fleet-vpc"
   cidr = "10.10.0.0/16"
 
   azs                                       = ["us-east-2a", "us-east-2b", "us-east-2c"]
@@ -209,7 +209,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "3.18.1"
 
-  name = random_pet.main.id
+  name = "fleet-vpc"
   cidr = "10.10.0.0/16"
 
   azs                                       = ["us-east-2a", "us-east-2b", "us-east-2c"]
