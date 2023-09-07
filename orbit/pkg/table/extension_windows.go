@@ -15,6 +15,6 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		// Fleet tables
 		table.NewPlugin("mdm_bridge", mdmbridge.Columns(), mdmbridge.Generate),
 		table.NewPlugin("cis_audit", cisaudit.Columns(), cisaudit.Generate),
-		table.NewPlugin("bitlocker", bitlocker.Columns(), bitlocker.Generate),
+		table.NewPlugin("bitlocker_bridge", bitlocker.Columns(), bitlocker.Generate),
 	}
 }

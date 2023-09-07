@@ -25,8 +25,8 @@ func Columns() []table.ColumnDefinition {
 		table.TextColumn("protection_status"),
 		table.TextColumn("conversion_status"),
 		table.TextColumn("encryption_percentage"),
-		table.TextColumn("bitlocker_command_input"),
-		table.TextColumn("bitlocker_command_output"),
+		table.TextColumn("command_input"),
+		table.TextColumn("command_output"),
 	}
 }
 
@@ -36,12 +36,12 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	// grabbing command input query if present
 	var inputCmd string
 
-	// checking if 'bitlocker_command_input' is in the where clause
-	if constraintList, present := queryContext.Constraints["bitlocker_command_input"]; present {
+	// checking if 'command_input' is in the where clause
+	if constraintList, present := queryContext.Constraints["command_input"]; present {
 		for _, constraint := range constraintList.Constraints {
 			if constraint.Operator == table.OperatorEquals {
 				inputCmd = constraint.Expression // this input as to be kept as-is and returned on the same input column due to a sqlite requirement
-				log.Debug().Msgf("bitlocker_table input command request:\n%s", inputCmd)
+				log.Debug().Msgf("bitlocker_bridge input command request:\n%s", inputCmd)
 			}
 		}
 	}
@@ -52,19 +52,19 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		// performs the actual Bitlocker cmd execution against the Bitlocker WMI APIs
 		outputCmd, err := executeBitlockerCmd(strings.TrimSpace(inputCmd))
 		if err != nil {
-			return nil, fmt.Errorf("mdm command execution: %s ", err)
+			return nil, fmt.Errorf("bitlocker_bridge command execution: %s ", err)
 		}
 
-		log.Debug().Msgf("bitlocker_table output command response:\n%s", outputCmd)
+		log.Debug().Msgf("bitlocker_bridge output command response:\n%s", outputCmd)
 
 		return []map[string]string{
 			{
-				"disk":                     "",
-				"protection_status":        "",
-				"conversion_status":        "",
-				"encryption_percentage":    "",
-				"bitlocker_command_input":  inputCmd,
-				"bitlocker_command_output": outputCmd,
+				"disk":                  "",
+				"protection_status":     "",
+				"conversion_status":     "",
+				"encryption_percentage": "",
+				"command_input":         inputCmd,
+				"command_output":        outputCmd,
 			},
 		}, nil
 	}
@@ -72,7 +72,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	// getting volumes encryption status
 	volumeStatus, err := getVolumeStatus()
 	if err != nil {
-		return nil, fmt.Errorf("there was a problem getting volume status: %s ", err)
+		return nil, fmt.Errorf("bitlocker_bridge - there was a problem getting volume status: %s ", err)
 	}
 
 	// populate table rows for each volume
@@ -83,12 +83,12 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 		// populating the table row
 		rows = append(rows, map[string]string{
-			"disk":                     volumeLetter,
-			"protection_status":        volume.Status.ProtectionStatusDesc,
-			"conversion_status":        volume.Status.ConversionStatusDesc,
-			"encryption_percentage":    volume.Status.EncryptionPercentage,
-			"bitlocker_command_input":  "",
-			"bitlocker_command_output": "",
+			"disk":                  volumeLetter,
+			"protection_status":     volume.Status.ProtectionStatusDesc,
+			"conversion_status":     volume.Status.ConversionStatusDesc,
+			"encryption_percentage": volume.Status.EncryptionPercentage,
+			"command_input":         "",
+			"command_output":        "",
 		})
 	}
 	// returning populated rows

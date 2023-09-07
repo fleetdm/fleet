@@ -29209,5 +29209,54 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/user_login_settings",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/user_login_settings.yml"
+  },
+  {
+    "name": "bitlocker_bridge",
+    "platforms": [
+      "windows"
+    ],
+    "description": "Allows querying Bitlocker encryption/decryption/metainformation status. It also allows triggering volume encryption/decryption process.",
+    "columns": [
+      {
+        "name": "disk",
+        "type": "text",
+        "required": false,
+        "description": "Contains the disk volume to be encrypted/decrypted."
+      },
+      {
+        "name": "protection_status",
+        "type": "text",
+        "required": false,
+        "description": "Contains the current protection status of the disk volume."
+      },
+      {
+        "name": "conversion_status",
+        "type": "text",
+        "required": false,
+        "description": "Contains the current conversion status of the disk volume."
+      },
+      {
+        "name": "encryption_percentage",
+        "type": "text",
+        "required": false,
+        "description": "Contains the current encryption percentage of the disk volume."
+      },            
+      {
+        "name": "command_input",
+        "type": "text",
+        "required": false,
+        "description": "Contains the command to be executed on the disk volume (encrypt/decrypt/keys are the supported commands)."
+      },
+      {
+        "name": "command_output",
+        "type": "text",
+        "required": false,
+        "description": "Contains the output of the command executed on the disk volume."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/bitlocker_bridge",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/bitlocker_bridge.yml"
   }
 ]
