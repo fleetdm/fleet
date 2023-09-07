@@ -28,11 +28,11 @@ module.exports = {
       depth: 3
     });
     // Filter the list of filenames to get the rituals YAML files.
-    let ritualTablesYamlFiles = FILES_IN_HANDBOOK_FOLDER.filter((filePath)=>{
+    let ritualYamlPaths = FILES_IN_HANDBOOK_FOLDER.filter((filePath)=>{
       return _.endsWith(filePath, 'rituals.yml');
     });
 
-    for (let ritualSource of ritualTablesYamlFiles) {
+    for (let ritualSource of ritualYamlPaths) {
 
       // Load rituals
       let pathToRituals = path.resolve(topLvlRepoPath, ritualSource);
