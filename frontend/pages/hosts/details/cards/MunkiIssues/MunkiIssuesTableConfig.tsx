@@ -7,7 +7,7 @@ import { abbreviateTimeUnits } from "utilities/helpers";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import { IMunkiIssue } from "interfaces/host";
 
 interface IHeaderProps {
@@ -59,13 +59,13 @@ export const munkiIssuesTableHeaders: IDataColumn[] = [
     title: "Issue",
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent={`
             Issues reported the last time Munki ran on each host.
           `}
         >
           Issue
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       );
       return (
         <HeaderCell
@@ -94,13 +94,13 @@ export const munkiIssuesTableHeaders: IDataColumn[] = [
     title: "Time",
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent={`
             The first time Munki reported this issue.
           `}
         >
           Time
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       );
       return (
         <HeaderCell

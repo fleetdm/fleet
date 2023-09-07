@@ -1,18 +1,18 @@
 import React from "react";
 import { Meta, Story } from "@storybook/react";
 
-import TooltipWrapper from ".";
+import NewTooltipWrapper from ".";
 
 import "../../index.scss";
 
-interface ITooltipWrapperProps {
+interface INewTooltipWrapperProps {
   children: string;
   tipContent: string;
 }
 
 export default {
-  component: TooltipWrapper,
-  title: "Components/TooltipWrapper",
+  component: NewTooltipWrapper,
+  title: "Components/NewTooltipWrapper",
   args: {
     tipContent: "This is an example tooltip.",
   },
@@ -25,13 +25,13 @@ export default {
 } as Meta;
 
 // using line breaks to create space for top position
-const Template: Story<ITooltipWrapperProps> = (props) => (
+const Template: Story<INewTooltipWrapperProps> = (props) => (
   <>
     <br />
     <br />
     <br />
     <br />
-    <TooltipWrapper {...props}>Example text</TooltipWrapper>
+    <NewTooltipWrapper {...props}>Example text</NewTooltipWrapper>
   </>
 );
 

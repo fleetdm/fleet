@@ -13,7 +13,7 @@ import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
@@ -173,9 +173,9 @@ const PlatformWrapper = ({
             className={`${baseClass}__advanced--heading download-certificate--tooltip`}
           >
             Download your{" "}
-            <TooltipWrapper tipContent="A Fleet certificate is required if Fleet is running with a self signed or otherwise untrusted certificate.">
+            <NewTooltipWrapper tipContent="A Fleet certificate is required if Fleet is running with a self signed or otherwise untrusted certificate.">
               Fleet certificate:
-            </TooltipWrapper>
+            </NewTooltipWrapper>
           </p>
         )}
         {isFetchingCertificate && (
@@ -536,13 +536,13 @@ const PlatformWrapper = ({
           >
             <>
               Include&nbsp;
-              <TooltipWrapper
+              <NewTooltipWrapper
                 tipContent={
                   "Include Fleet Desktop if your’re adding workstations."
                 }
               >
                 Fleet Desktop
-              </TooltipWrapper>
+              </NewTooltipWrapper>
             </>
           </Checkbox>
         )}

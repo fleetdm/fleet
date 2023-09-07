@@ -5,7 +5,7 @@ import { syntaxHighlight } from "utilities/helpers";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 const baseClass = "preview-data-modal";
 
@@ -38,12 +38,12 @@ const PreviewDataModal = ({
     <Modal title={"Example data"} onExit={onCancel} className={baseClass}>
       <div className={`${baseClass}__preview-modal`}>
         <p>
-          <TooltipWrapper
+          <NewTooltipWrapper
             tipContent={`The &quot;snapshot&quot; key includes the query&apos;s results. These will be unique to your query.`}
           >
             The data sent to your configured log destination will look similar
             to the following JSON:
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         </p>
         <div className={`${baseClass}__host-status-webhook-preview`}>
           <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />

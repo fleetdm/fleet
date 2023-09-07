@@ -6,32 +6,36 @@ import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 import { COLORS } from "styles/var/colors";
 
-interface ITooltipWrapperProps {
+interface INewTooltipWrapperProps {
   children: string;
   tipContent: string;
   position?: "top" | "bottom";
   isDelayed?: boolean;
   underline?: boolean;
-  wrapperCustomClass?: string;
+  // wrapperCustomClass?: string;
+  className?: string;
   elementCustomClass?: string;
-  tipCustomClass?: string;
+  // tipCustomClass?: string;
+  tooltipClass?: string;
 }
 
-const baseClass = "component__new-tooltip-wrapper";
+const baseClass = "component__tooltip-wrapper";
 
-const TooltipWrapper = ({
+const NewTooltipWrapper = ({
   children,
   tipContent,
   position = "bottom",
   isDelayed,
   underline = true,
-  wrapperCustomClass,
+  // wrapperCustomClass,
+  className,
   elementCustomClass,
-  tipCustomClass,
+  // tipCustomClass,
+  tooltipClass, // to work with current usage, using above tipCustomClass would be more clear
 }: // positionOverrides = { leftAdj: 54, topAdj: -3 },
-ITooltipWrapperProps): JSX.Element => {
-  const wrapperClassNames = classnames(baseClass, {
-    [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
+INewTooltipWrapperProps): JSX.Element => {
+  const wrapperClassNames = classnames(baseClass, className, {
+    // [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
   });
 
   const elementClassNames = classnames(`${baseClass}__element`, {
@@ -39,8 +43,8 @@ ITooltipWrapperProps): JSX.Element => {
     [`${baseClass}__underline`]: underline,
   });
 
-  const tipClassNames = classnames(`${baseClass}__tip-text`, {
-    [`${baseClass}__${tipCustomClass}`]: !!tipCustomClass,
+  const tipClassNames = classnames(`${baseClass}__tip-text`, tooltipClass, {
+    // [`${baseClass}__${tipCustomClass}`]: !!tipCustomClass,
     [`${baseClass}__tip-text__top`]: position === "top",
     [`${baseClass}__tip-text__bottom`]: position === "bottom",
   });
@@ -86,4 +90,4 @@ ITooltipWrapperProps): JSX.Element => {
   // );
 };
 
-export default TooltipWrapper;
+export default NewTooltipWrapper;

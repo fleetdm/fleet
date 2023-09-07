@@ -4,7 +4,7 @@ import ReactTooltip from "react-tooltip";
 import { IHostMacMdmProfile, BootstrapPackageStatus } from "interfaces/mdm";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
@@ -171,9 +171,9 @@ const HostSummary = ({
     return (
       <div className="info-flex__item info-flex__item--title">
         <span className="info-flex__header">Disk encryption</span>
-        <TooltipWrapper tipContent={tooltipMessage} position="bottom">
+        <NewTooltipWrapper tipContent={tooltipMessage} position="bottom">
           {statusText}
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       </div>
     );
   };

@@ -4,7 +4,7 @@ import { noop, pick } from "lodash";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 const baseClass = "fleet-checkbox";
 
@@ -80,9 +80,9 @@ const Checkbox = (props: ICheckboxProps) => {
         <span className={checkBoxTickClass} />
         {tooltip ? (
           <span className={`${baseClass}__label-tooltip tooltip`}>
-            <TooltipWrapper tipContent={tooltip}>
+            <NewTooltipWrapper tipContent={tooltip}>
               {children as string}
-            </TooltipWrapper>
+            </NewTooltipWrapper>
           </span>
         ) : (
           <span className={`${baseClass}__label`}>{children} </span>

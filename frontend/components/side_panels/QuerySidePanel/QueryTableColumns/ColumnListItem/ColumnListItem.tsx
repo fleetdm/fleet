@@ -3,7 +3,7 @@ import classnames from "classnames";
 
 import { ColumnType, IQueryTableColumn } from "interfaces/osquery_table";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import { buildQueryStringFromParams } from "utilities/url";
 
 interface IColumnListItemProps {
@@ -112,12 +112,12 @@ const ColumnListItem = ({
     <li key={column.name} className={baseClass}>
       <div className={`${baseClass}__name-wrapper`}>
         <span className={columnNameClasses}>
-          <TooltipWrapper
+          <NewTooltipWrapper
             tipContent={createTooltipHtml(column, selectedTableName)}
             className={`${baseClass}__tooltip`}
           >
             {column.name}
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         </span>
         {column.required && <span className={`${baseClass}__asterisk`}>*</span>}
       </div>

@@ -28,7 +28,7 @@ import PageError from "components/DataError";
 import TargetsInput from "components/LiveQuery/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import Icon from "components/Icon";
 
 interface ITargetPillSelectorProps {
@@ -386,11 +386,11 @@ const SelectTargets = ({
         <span>{total}</span>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
         {onlinePercentage}
         %&nbsp;
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent={`Hosts are online if they<br /> have recently checked <br />into Fleet.`}
         >
           online
-        </TooltipWrapper>
+        </NewTooltipWrapper>
         ){" "}
       </>
     );

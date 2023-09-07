@@ -2,7 +2,7 @@ import React from "react";
 import classnames from "classnames";
 import { isEmpty } from "lodash";
 
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 const baseClass = "form-field";
 
@@ -44,9 +44,9 @@ const FormField = ({
       >
         {error ||
           (tooltip ? (
-            <TooltipWrapper tipContent={tooltip}>
+            <NewTooltipWrapper tipContent={tooltip}>
               {label as string}
-            </TooltipWrapper>
+            </NewTooltipWrapper>
           ) : (
             <>{label}</>
           ))}

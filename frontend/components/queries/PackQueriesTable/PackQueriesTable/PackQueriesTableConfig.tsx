@@ -13,7 +13,7 @@ import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
@@ -152,9 +152,9 @@ const generateTableHeaders = (
       Header: () => {
         return (
           <div>
-            <TooltipWrapper tipContent="This is the average performance<br />impact across all hosts where<br />this query was scheduled.">
+            <NewTooltipWrapper tipContent="This is the average performance<br />impact across all hosts where<br />this query was scheduled.">
               Performance impact
-            </TooltipWrapper>
+            </NewTooltipWrapper>
           </div>
         );
       },

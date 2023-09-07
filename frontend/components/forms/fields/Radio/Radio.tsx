@@ -1,7 +1,7 @@
 import React from "react";
 import classnames from "classnames";
 
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 const baseClass = "radio";
 
@@ -50,7 +50,7 @@ const Radio = ({
       </span>
       <span className={`${baseClass}__label`}>
         {tooltip ? (
-          <TooltipWrapper tipContent={tooltip}>{label}</TooltipWrapper>
+          <NewTooltipWrapper tipContent={tooltip}>{label}</NewTooltipWrapper>
         ) : (
           <>{label}</>
         )}

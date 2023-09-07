@@ -6,7 +6,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import CustomLink from "components/CustomLink";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
@@ -91,14 +91,14 @@ const generateVulnTableHeaders = (
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
-          <TooltipWrapper
+          <NewTooltipWrapper
             tipContent={`
             The probability that this vulnerability will be exploited in the next 30 days (EPSS probability).<br />
             This data is reported by FIRST.org.
           `}
           >
             Probability of exploit
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         );
         return (
           <>
@@ -120,14 +120,14 @@ const generateVulnTableHeaders = (
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
-          <TooltipWrapper
+          <NewTooltipWrapper
             tipContent={`
             The worst case impact across different environments (CVSS base score).<br />
             This data is reported by the National Vulnerability Database (NVD).
           `}
           >
             Severity
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         );
         return (
           <>
@@ -150,14 +150,14 @@ const generateVulnTableHeaders = (
       sortType: "boolean",
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
-          <TooltipWrapper
+          <NewTooltipWrapper
             tipContent={`
             The vulnerability has been actively exploited in the wild. This data is reported by 
             the Cybersecurity and Infrustructure Security Agency (CISA).
           `}
           >
             Known exploit
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         );
         return (
           <>
@@ -180,11 +180,11 @@ const generateVulnTableHeaders = (
       sortType: "boolean",
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
-          <TooltipWrapper
+          <NewTooltipWrapper
             tipContent={`The date this vulnerability was published in the National Vulnerability Database (NVD).`}
           >
             Published
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         );
         return (
           <>

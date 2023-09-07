@@ -2,7 +2,6 @@ import React from "react";
 import { Link } from "react-router";
 import { kebabCase } from "lodash";
 
-import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
@@ -55,10 +54,14 @@ const SummaryTile = ({
   const getWrappedTitle = () => {
     if (tooltip) {
       if (title === "Missing hosts") {
-        return <TooltipWrapper tipContent={tooltip}>{title}</TooltipWrapper>;
+        return (
+          <NewTooltipWrapper tipContent={tooltip}>{title}</NewTooltipWrapper>
+        );
       }
       return (
-        <NewTooltipWrapper tipContent={tooltip}>{title}</NewTooltipWrapper>
+        <NewTooltipWrapper tipContent={tooltip} position="top" isDelayed>
+          {title}
+        </NewTooltipWrapper>
       );
     }
     return title;

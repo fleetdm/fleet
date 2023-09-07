@@ -1,4 +1,4 @@
-.component__new-tooltip-wrapper {
+.component__tooltip-wrapper {
   display: block;
   position: relative;
 
@@ -7,6 +7,9 @@
     white-space: nowrap;
   }
   &__underline {
+    position: relative;
+    // compensate for bottom border and padding to maintain centering
+    top: 2px;
     border-bottom: 1px dashed $ui-fleet-black-50;
     padding-bottom: 1px;
   }
@@ -16,7 +19,8 @@
     position: absolute !important;
     left: 0 !important;
     margin-top: 4px !important;
-    width: 200px;
+    // width: 200px;
+    width: max-content;
     max-width: 360px;
     padding: 6px;
     font-weight: $regular;

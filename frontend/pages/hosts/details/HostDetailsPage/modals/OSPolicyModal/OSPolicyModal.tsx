@@ -6,7 +6,7 @@ import { stringToClipboard } from "utilities/copy_text";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 
@@ -80,9 +80,9 @@ const OSPolicyModal = ({
           </span>
         </p>
         <span className={`${baseClass}__os-modal-example-title`}>
-          <TooltipWrapper tipContent="A policy is a yes or no question you can ask all your devices.">
+          <NewTooltipWrapper tipContent="A policy is a yes or no question you can ask all your devices.">
             Example policy:
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         </span>
         <InputField
           disabled

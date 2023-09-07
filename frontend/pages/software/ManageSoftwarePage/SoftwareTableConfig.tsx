@@ -12,7 +12,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
@@ -67,7 +67,7 @@ const condenseVulnerabilities = (
 
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
-    <TooltipWrapper
+    <NewTooltipWrapper
       position="top"
       tipContent={`
         <span>
@@ -78,7 +78,7 @@ const renderBundleTooltip = (name: string, bundle: string) => (
       `}
     >
       {name}
-    </TooltipWrapper>
+    </NewTooltipWrapper>
   </span>
 );
 
@@ -92,7 +92,7 @@ const generateEPSSColumnHeader = (isSandboxMode = false) => {
   return {
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent={`
             The probability that this software will be exploited
             <br />
@@ -102,7 +102,7 @@ const generateEPSSColumnHeader = (isSandboxMode = false) => {
           `}
         >
           Probability of exploit
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       );
       return (
         <>

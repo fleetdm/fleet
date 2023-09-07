@@ -3,7 +3,7 @@ import React from "react";
 import { OsqueryPlatform } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import Icon from "components/Icon";
 
 interface IPlatformCompatibilityProps {
@@ -55,9 +55,9 @@ const PlatformCompatibility = ({
     return (
       <span className={baseClass}>
         <b>
-          <TooltipWrapper tipContent="Estimated compatiblity based on <br /> the tables used in the query.">
+          <NewTooltipWrapper tipContent="Estimated compatiblity based on <br /> the tables used in the query.">
             Compatible with:
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         </b>
 
         {displayIncompatibilityText(error || ERROR_NO_COMPATIBLE_TABLES)}
@@ -69,9 +69,9 @@ const PlatformCompatibility = ({
   return (
     <span className={baseClass}>
       <b>
-        <TooltipWrapper tipContent="Estimated compatiblity based on <br /> the tables used in the query.">
+        <NewTooltipWrapper tipContent="Estimated compatiblity based on <br /> the tables used in the query.">
           Compatible with:
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       </b>
       {DISPLAY_ORDER.map((platform) => {
         const isCompatible = displayPlatforms.includes(platform);

@@ -2,7 +2,7 @@ import React from "react";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -49,9 +49,9 @@ const generateUsersTableHeaders = (): IDataColumn[] => {
     {
       Header: () => {
         return (
-          <TooltipWrapper tipContent="The command line shell, such as bash,<br />that this user is equipped with by<br />default when they log in to the system.">
+          <NewTooltipWrapper tipContent="The command line shell, such as bash,<br />that this user is equipped with by<br />default when they log in to the system.">
             Shell
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         );
       },
       disableSortBy: true,

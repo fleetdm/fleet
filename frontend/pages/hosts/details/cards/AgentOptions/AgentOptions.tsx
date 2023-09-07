@@ -1,4 +1,4 @@
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import React from "react";
 
 import { secondsToHms } from "utilities/helpers";
@@ -46,13 +46,13 @@ const AgentOptions = ({
   return (
     <div className={`${baseClass} section osquery col-50`}>
       {isChromeOS ? (
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent={CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE}
           position="bottom"
           className="section__header"
         >
           Agent options
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       ) : (
         <p className="section__header">Agent options</p>
       )}

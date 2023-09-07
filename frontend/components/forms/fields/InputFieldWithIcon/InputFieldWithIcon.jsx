@@ -4,7 +4,7 @@ import classnames from "classnames";
 
 import Icon from "components/Icon/Icon";
 import FleetIcon from "components/icons/FleetIcon";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import InputField from "../InputField";
 
 const baseClass = "input-icon-field";
@@ -44,9 +44,9 @@ class InputFieldWithIcon extends InputField {
         data-has-tooltip={!!tooltip}
       >
         {tooltip && !error ? (
-          <TooltipWrapper position="top" tipContent={tooltip}>
+          <NewTooltipWrapper position="top" tipContent={tooltip}>
             {label}
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         ) : (
           <>{error || label}</>
         )}

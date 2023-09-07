@@ -24,7 +24,7 @@ import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
@@ -452,13 +452,13 @@ const PolicyForm = ({
           value={lastEditedQueryCritical}
           isLeftLabel
         >
-          <TooltipWrapper
+          <NewTooltipWrapper
             tipContent={
               "<p>If automations are turned on, this<br/> information is included.</p>"
             }
           >
             Critical:
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         </Checkbox>
       </div>
     );

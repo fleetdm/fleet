@@ -14,7 +14,7 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import CustomLink from "components/CustomLink";
 import NotSupported from "components/NotSupported";
@@ -244,16 +244,16 @@ const allHostTableHeaders: IDataColumn[] = [
     title: "Status",
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent={`
-             Online hosts will respond to a live query. Offline<br/>
-             hosts won’t respond to a live query because<br/>
-             they may be shut down, asleep, or not<br/>
+             Online hosts will respond to a live query. Offline
+             hosts won’t respond to a live query because
+             they may be shut down, asleep, or not
              connected to the internet.`}
           className="status-header"
         >
           Status
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       );
       return (
         <HeaderCell
@@ -392,7 +392,7 @@ const allHostTableHeaders: IDataColumn[] = [
     title: "MDM status",
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent={`
             Settings can be updated remotely on <br/>
             hosts with MDM turned on. To filter by<br/>
@@ -400,7 +400,7 @@ const allHostTableHeaders: IDataColumn[] = [
           `}
         >
           MDM status
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       );
       return (
         <HeaderCell
@@ -427,7 +427,7 @@ const allHostTableHeaders: IDataColumn[] = [
     title: "MDM server URL",
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent={`
             The MDM server that updates settings<br/>
             on the host. To filter by MDM server URL,<br/>
@@ -435,7 +435,7 @@ const allHostTableHeaders: IDataColumn[] = [
           `}
         >
           MDM server URL
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       );
       return (
         <HeaderCell
@@ -507,13 +507,13 @@ const allHostTableHeaders: IDataColumn[] = [
     title: "Last fetched",
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent={`
             The last time the host<br/> reported vitals.
           `}
         >
           Last fetched
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       );
       return (
         <HeaderCell
@@ -535,13 +535,13 @@ const allHostTableHeaders: IDataColumn[] = [
     title: "Last seen",
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent={`
             The last time the <br/>host was online.
           `}
         >
           Last seen
-        </TooltipWrapper>
+        </NewTooltipWrapper>
       );
       return (
         <HeaderCell

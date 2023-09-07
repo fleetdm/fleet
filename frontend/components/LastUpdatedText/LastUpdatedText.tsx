@@ -2,7 +2,6 @@ import React from "react";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 import { abbreviateTimeUnits } from "utilities/helpers";
 
-import TooltipWrapper from "components/TooltipWrapper";
 import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 const baseClass = "component__last-updated-text";

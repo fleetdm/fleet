@@ -22,7 +22,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import { COLORS } from "styles/var/colors";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
@@ -197,7 +197,7 @@ const generateTableHeaders = ({
       Header: () => {
         return (
           <div>
-            <TooltipWrapper
+            <NewTooltipWrapper
               tipContent={`
                 This is the average <br />
                 performance impact <br />
@@ -205,7 +205,7 @@ const generateTableHeaders = ({
                 query was scheduled.`}
             >
               Performance impact
-            </TooltipWrapper>
+            </NewTooltipWrapper>
           </div>
         );
       },

@@ -10,7 +10,7 @@ import {
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -79,9 +79,9 @@ const generatePackTableHeaders = (): IDataColumn[] => {
     {
       Header: () => {
         return (
-          <TooltipWrapper tipContent="The last time the query ran<br/>since the last time osquery <br/>started on this host.">
+          <NewTooltipWrapper tipContent="The last time the query ran<br/>since the last time osquery <br/>started on this host.">
             Last run
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         );
       },
       disableSortBy: true,
@@ -93,9 +93,9 @@ const generatePackTableHeaders = (): IDataColumn[] => {
     {
       Header: () => {
         return (
-          <TooltipWrapper tipContent="This is the performance <br />impact on this host.">
+          <NewTooltipWrapper tipContent="This is the performance <br />impact on this host.">
             Performance impact
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         );
       },
       disableSortBy: true,

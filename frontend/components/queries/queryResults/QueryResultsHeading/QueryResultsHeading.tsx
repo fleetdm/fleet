@@ -2,7 +2,7 @@ import React from "react";
 
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 const pluralizeHost = (count: number) => {
   return count > 1 ? "hosts" : "host";
@@ -100,12 +100,12 @@ const QuertResultsHeading = ({
           )}
           <span>
             ({`${percentResponded}% `}
-            <TooltipWrapper
+            <NewTooltipWrapper
               tipContent={`
                 Hosts that respond may<br /> return results, errors, or <br />no results`}
             >
               responded
-            </TooltipWrapper>
+            </NewTooltipWrapper>
             )
           </span>
           {!isQueryFinished && (
@@ -119,11 +119,11 @@ const QuertResultsHeading = ({
         </div>
         {!isQueryFinished && (
           <div className={`${baseClass}__tooltip`}>
-            <TooltipWrapper
+            <NewTooltipWrapper
               tipContent={`The hosts’ distributed interval can <br/>impact live query response times.`}
             >
               Taking longer than 15 seconds?
-            </TooltipWrapper>
+            </NewTooltipWrapper>
           </div>
         )}
       </div>

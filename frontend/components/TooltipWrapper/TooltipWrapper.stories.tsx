@@ -1,7 +1,7 @@
 import React from "react";
 import { Meta, Story } from "@storybook/react";
 
-import NewTooltipWrapper from ".";
+import TooltipWrapper from ".";
 
 import "../../index.scss";
 
@@ -11,8 +11,8 @@ interface ITooltipWrapperProps {
 }
 
 export default {
-  component: NewTooltipWrapper,
-  title: "Components/TooltipWrapper",
+  component: TooltipWrapper,
+  title: "Components/NewTooltipWrapper",
   args: {
     tipContent: "This is an example tooltip.",
   },
@@ -31,7 +31,7 @@ const Template: Story<ITooltipWrapperProps> = (props) => (
     <br />
     <br />
     <br />
-    <NewTooltipWrapper {...props}>Example text</NewTooltipWrapper>
+    <TooltipWrapper {...props}>Example text</TooltipWrapper>
   </>
 );
 

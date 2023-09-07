@@ -7,7 +7,7 @@ import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import stringUtils from "utilities/strings";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -124,7 +124,7 @@ const generateTableHeaders = (
       Cell: (cellProps: ICellProps) => {
         if (cellProps.cell.value === "GitOps") {
           return (
-            <TooltipWrapper
+            <NewTooltipWrapper
               position="top"
               tipContent={`
             The GitOps role is only available on the command-line<br/>
@@ -133,12 +133,12 @@ const generateTableHeaders = (
           `}
             >
               GitOps
-            </TooltipWrapper>
+            </NewTooltipWrapper>
           );
         }
         if (cellProps.cell.value === "Observer+") {
           return (
-            <TooltipWrapper
+            <NewTooltipWrapper
               position="top"
               tipContent={`
             Users with the Observer+ role have access to all of<br/>
@@ -147,7 +147,7 @@ const generateTableHeaders = (
           `}
             >
               {cellProps.cell.value}
-            </TooltipWrapper>
+            </NewTooltipWrapper>
           );
         }
         return <TextCell value={cellProps.cell.value} />;

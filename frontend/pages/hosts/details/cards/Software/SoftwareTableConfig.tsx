@@ -10,7 +10,7 @@ import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
@@ -104,7 +104,7 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
 
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
-    <TooltipWrapper
+    <NewTooltipWrapper
       position="top"
       tipContent={`
         <span>
@@ -115,7 +115,7 @@ const renderBundleTooltip = (name: string, bundle: string) => (
       `}
     >
       {name}
-    </TooltipWrapper>
+    </NewTooltipWrapper>
   </span>
 );
 
@@ -353,9 +353,9 @@ export const generateSoftwareTableHeaders = ({
       title: "File path",
       Header: () => {
         return (
-          <TooltipWrapper tipContent="This is where the software is <br />located on this host.">
+          <NewTooltipWrapper tipContent="This is where the software is <br />located on this host.">
             File path
-          </TooltipWrapper>
+          </NewTooltipWrapper>
         );
       },
       disableSortBy: true,

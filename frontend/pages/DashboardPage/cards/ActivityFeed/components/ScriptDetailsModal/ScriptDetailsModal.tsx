@@ -5,7 +5,7 @@ import scriptsAPI, { IScriptResult } from "services/entities/scripts";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import Icon from "components/Icon";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
@@ -110,13 +110,13 @@ const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
     <div className={`${baseClass}__script-output`}>
       <p>
         The{" "}
-        <TooltipWrapper
+        <NewTooltipWrapper
           tipContent="Fleet records the last 10,000 characters to prevent downtime."
           tooltipClass={`${baseClass}__output-tooltip`}
           isDelayed
         >
           output recorded
-        </TooltipWrapper>{" "}
+        </NewTooltipWrapper>{" "}
         when <b>{hostname}</b> ran the script above:
       </p>
       <Textarea className={`${baseClass}__output-textarea`}>{output}</Textarea>

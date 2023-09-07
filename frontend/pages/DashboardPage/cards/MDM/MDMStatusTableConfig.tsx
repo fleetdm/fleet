@@ -3,7 +3,7 @@ import React from "react";
 import { IMdmStatusCardData, MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { MDM_STATUS_TOOLTIP } from "utilities/constants";
 
@@ -53,12 +53,12 @@ export const generateStatusTableHeaders = (teamId?: number): IDataColumn[] => [
     disableSortBy: true,
     accessor: "status",
     Cell: (cellProps: IStringCellProps) => (
-      <TooltipWrapper
+      <NewTooltipWrapper
         position="top"
         tipContent={MDM_STATUS_TOOLTIP[cellProps.cell.value]}
       >
         {cellProps.cell.value}
-      </TooltipWrapper>
+      </NewTooltipWrapper>
     ),
     sortType: "hasLength",
   },

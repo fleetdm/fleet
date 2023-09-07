@@ -12,7 +12,7 @@ interface ITooltipWrapperProps {
   tooltipClass?: string;
 }
 
-const baseClass = "component__tooltip-wrapper";
+const baseClass = "component__old-tooltip-wrapper";
 
 const TooltipWrapper = ({
   children,

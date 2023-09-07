@@ -1,7 +1,7 @@
 import React from "react";
 import classnames from "classnames";
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
+import NewTooltipWrapper from "components/NewTooltipWrapper";
 import Icon from "components/Icon";
 
 export interface IRevealButtonProps {
@@ -37,7 +37,7 @@ const RevealButton = ({
     const text = isShowing ? hideText : showText;
 
     const buttonText = tooltipHtml ? (
-      <TooltipWrapper tipContent={tooltipHtml}>{text}</TooltipWrapper>
+      <NewTooltipWrapper tipContent={tooltipHtml}>{text}</NewTooltipWrapper>
     ) : (
       text
     );
