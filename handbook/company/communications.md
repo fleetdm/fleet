@@ -118,7 +118,7 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 ### Shared calendars
 Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
 
-Looking to add, change, or remove a shared calendar? [Create an issue](https://github.com/fleetdm/fleet/issues/new) with your idea, title it "Calendar idea", write up your idea, and label it with `#g-ceo` so that it can be brought to the e-group or appropriate DRI for feedback.
+Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/ceo#contact-us) and the appropriate DRI will reply with feedback.
 
 ### All hands
 Every month, Fleet holds a company-wide meeting called the "All hands".
