@@ -92,18 +92,50 @@ From time to time, Fleet is in the news.  Here are a few examples:
 
 ## Responsibilities
 
-### Fufill one-time swag request
-We deliver Fleet swag and osquery stickers for those that request it through community contributions, [Fleet documentation](https://fleetdm.com/docs), and social media posts.
+## Fufill swag requests
+We deliver Fleet swag for those who request it through [Fleet documentation](https://fleetdm.com/docs) and may occasionally have upstanding community members and customers who are in need of some cool Fleet swag as well.
 
-- **Community contributions:** Reach out to the contributor to thank them for their contribution, ask if they would like any swag, and fill out their information in the [Fleet swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit#gid=2028707729).
-  - Typeform integrations automatically populate information within the #help-swag Slack channel for osquery sticker and shirt requests through TypeForm.
-  - Once approved in the sheet, or submitted through [Typeform](https://admin.typeform.com/form/ZfA3sOu0/results#responses), place the order through our Printful account (credentials in 1Password) within 48 hours of submission. If available through the ordering process, add a thank you note for their contribution or request.
-  - When an estimated shipping date is available, notify the requestor by email with an update on shipping, thank them for being a part of the community, and provide the tracking number once shipped.
-  - Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders).
-  - At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
+### Fulfilling Printful orders
+On a weekly basis, Marketing must log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
 
+To do this:
 
-### Create a press release
+1. Go to the ["Orders"](https://www.printful.com/ca/dashboard/default/orders) page in Printful
+2. Look for an order status of "Draft" and click that order.
+3. Copy the address displayed in the draft order. Close the modal.
+4. Under "Order list", there's a search box for customers that you will need to paste the address.
+5. The results should only display one order. Any additional could be duplicate orders or those made in error.
+6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
+
+### Fulfilling Postal orders
+
+There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. We use [Postal](https://www.postal.com/) to fulfill these swag requests. Postal warehouses Fleet swag that is available to send directly. There are two main ways to send swag through Printful. Direct sends and Magic Links.
+
+#### Magic Link
+This is a great option to send when we only know the item we'd like to send and want the recipient to fill out their own contact information and shipping details. These links can be used by anyone who has access to the link, so only send to the desired recipient.
+
+- Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
+- For approved items, hover over the item that you would like to send and click the chain icon.
+- Make sure order limit is 1
+- Personalize your magic link page with a customized header or message if you'd like.
+- Continue on to "Review" and "Create MagicLink"
+
+#### Direct send
+This is a great option to send when we already have the name, address, and email address of the person we are sending an item to.
+
+- Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
+- For approved items, hover over the item that you would like to send and click the paper airplane icon.
+- Choose the "Direct" tab and find an existing contact or create a new one.
+- To create a new contact click the plus sign and fill out the name, email, and shipping address.
+- Select "Configure your item", continue on to "Review", and "Confirm and Send"
+
+#### Send swag for community contributions to Fleet
+- Reach out to the contributor to thank them for their contribution
+- Consider sharing the contribution on social media
+- Ask if we could send the contributor any swag
+- If yes, follow the steps of creating a magic link in Postal to send.
+
+## Create a press release
 After creating a press release, it is pitched reporters as an exclusive story. If the story is accepted do not share or publicize any information related to the upcoming press release before the announcement. Also, see [What is a press exclusive, and how does it work](https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work) on Quora.
 
 #### Press release boilerplate
