@@ -10,6 +10,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { act } from "react-dom/test-utils";
 
 const baseClass = "activity-item";
 
@@ -81,7 +82,7 @@ const getMacOSSetupAssistantMessage = (
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (
     activity: IActivity,
-    onDetailsClick?: (details: IActivityDetails) => void
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
     const count = activity.details?.targets_count;
     const queryName = activity.details?.query_name;
@@ -110,7 +111,11 @@ const TAGGED_TEMPLATES = {
             <Button
               className={`${baseClass}__show-query-link`}
               variant="text-link"
-              onClick={() => onDetailsClick?.({ query_sql: querySql })}
+              onClick={() =>
+                onDetailsClick?.(ActivityType.LiveQuery, {
+                  query_sql: querySql,
+                })
+              }
             >
               Show query{" "}
               <Icon className={`${baseClass}__show-query-icon`} name="eye" />
@@ -490,7 +495,7 @@ const TAGGED_TEMPLATES = {
   },
   ranScript: (
     activity: IActivity,
-    onDetailsClick?: (details: IActivityDetails) => void
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
     return (
       <>
@@ -499,7 +504,11 @@ const TAGGED_TEMPLATES = {
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
-          onClick={() => onDetailsClick?.({ query_sql: "test" })}
+          onClick={() =>
+            onDetailsClick?.(ActivityType.RanScript, {
+              script_execution_id: activity.details?.script_execution_id,
+            })
+          }
         >
           Show details{" "}
           <Icon className={`${baseClass}__show-query-icon`} name="eye" />
@@ -512,7 +521,10 @@ const TAGGED_TEMPLATES = {
 const getDetail = (
   activity: IActivity,
   isPremiumTier: boolean,
-  onDetailsClick?: (details: IActivityDetails) => void
+  onDetailsClick?: (
+    activityType: ActivityType,
+    details: IActivityDetails
+  ) => void
 ) => {
   switch (activity.type) {
     case ActivityType.LiveQuery: {
@@ -635,7 +647,10 @@ interface IActivityItemProps {
    * activites have more details so this is optional. An example of additonal
    * details is showing the query for a live query action.
    */
-  onDetailsClick?: (details: IActivityDetails) => void;
+  onDetailsClick?: (
+    activityType: ActivityType,
+    details: IActivityDetails
+  ) => void;
 }
 
 const ActivityItem = ({

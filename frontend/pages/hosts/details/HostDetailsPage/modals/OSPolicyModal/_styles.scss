@@ -29,11 +29,12 @@
 
   &__name {
     .buttons {
-      margin-top: 10px;
+      margin-top: 20px;
+      right: 45px;
+      height: 20px; // Fix height diff of copy message
     }
   }
   &__os-policy-copy-icon {
-    color: $core-vibrant-blue;
     margin-left: $pad-small;
     margin-right: $pad-medium;
   }
