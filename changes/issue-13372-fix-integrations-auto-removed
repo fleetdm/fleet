@@ -1,0 +1,1 @@
+* Fixed a bug where Jira and/or Zendesk integrations were being removed when an unrelated setting was changed.

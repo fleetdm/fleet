@@ -1186,6 +1186,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 0)
 
 	// disable the webhook and enable the automation
+	tmResp = teamResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		Integrations: &fleet.TeamIntegrations{
 			Jira: []*fleet.TeamJiraIntegration{
@@ -1205,6 +1206,24 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
 	require.Equal(t, "qux", tmResp.Team.Config.Integrations.Jira[0].ProjectKey)
+
+	// update the team with an unrelated field, should not change integrations
+	tmResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Description: ptr.String("team-desc"),
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "team-desc", tmResp.Team.Description)
+
+	// make an unrelated appconfig change, should not remove the global integrations nor the teams'
+	var appCfgResp appConfigResponse
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-integrations"
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Equal(t, "test-integrations", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.Jira, 2)
 
 	// enable the webhook without changing the integration should fail (an integration is already enabled)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
@@ -1400,6 +1419,25 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
 	require.Equal(t, int64(122), tmResp.Team.Config.Integrations.Zendesk[0].GroupID)
 	require.Equal(t, int64(123), tmResp.Team.Config.Integrations.Zendesk[1].GroupID)
+
+	// update the team with an unrelated field, should not change integrations
+	tmResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Description: ptr.String("team-desc-2"),
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
+	require.Equal(t, "team-desc-2", tmResp.Team.Description)
+
+	// make an unrelated appconfig change, should not remove the global integrations nor the teams'
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-integrations-2"
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Equal(t, "test-integrations-2", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.Zendesk, 2)
+	require.Len(t, appCfgResp.Integrations.Jira, 2)
 
 	// enabling the second without disabling the first fails
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
@@ -1629,9 +1667,15 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.False(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Empty(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-		"integrations": {}
-	}`), http.StatusOK)
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"integrations": {
+			"jira": [],
+			"zendesk": []
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Len(t, appCfgResp.Integrations.Jira, 0)
+	require.Len(t, appCfgResp.Integrations.Zendesk, 0)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
@@ -3686,6 +3730,22 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
 
+	// an activity was created for the async script execution
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), runResp.ExecutionID,
+		),
+		0,
+	)
+
+	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, result.HostID)
+	require.Equal(t, "echo", result.ScriptContents)
+	require.Nil(t, result.ExitCode)
+
 	// get script result
 	var scriptResultResp getScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
@@ -3816,6 +3876,16 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.NotNil(t, runSyncResp.ExitCode)
 	require.Equal(t, int64(0), *runSyncResp.ExitCode)
 	require.False(t, runSyncResp.HostTimeout)
+
+	// an activity was created for the sync script execution
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": false}`,
+			host.ID, host.DisplayName(), runSyncResp.ExecutionID,
+		),
+		0,
+	)
 
 	// simulate a scripts disabled result
 	resultsCh <- &fleet.HostScriptResultPayload{

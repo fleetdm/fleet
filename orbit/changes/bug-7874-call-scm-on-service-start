@@ -1,3 +1,0 @@
-* When running on Windows, Fleet service was getting killed by the OS when
-service start takes longer than 30 secs due to missing calls to the 
-Service Control Manager (SCM) APIs.

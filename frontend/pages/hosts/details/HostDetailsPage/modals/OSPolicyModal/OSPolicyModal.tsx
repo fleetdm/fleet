@@ -12,7 +12,7 @@ import Icon from "components/Icon/Icon";
 
 import { ITeam } from "interfaces/team";
 
-interface IRenderOSPolicyModal {
+interface IOSPolicyModal {
   onCreateNewPolicy: (team: ITeam) => void;
   onCancel: () => void;
   osVersion?: string;
@@ -30,7 +30,7 @@ const OSPolicyModal = ({
   detailsUpdatedAt,
   osPolicy,
   osPolicyLabel,
-}: IRenderOSPolicyModal): JSX.Element => {
+}: IOSPolicyModal): JSX.Element => {
   const [copyMessage, setCopyMessage] = useState("");
 
   const renderOsPolicyLabel = () => {

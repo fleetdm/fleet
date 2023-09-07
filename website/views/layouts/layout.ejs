@@ -133,7 +133,7 @@
     </noscript>
     <%/* End Google Tag Manager (noscript) */%>
     <div purpose="page-wrap">
-      <div class="header" purpose="header-container">
+      <div class="header" purpose="header-container" data-nosnippet>
         <%// Page header%>
         <div purpose="page-header" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a purpose="header-logo" href="/">
@@ -274,7 +274,7 @@
       <%- body %>
 
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
-      <div class="invisible" purpose="page-footer" data-hide-until-rendered>
+      <div class="invisible" purpose="page-footer" data-hide-until-rendered data-nosnippet>
         <div purpose="footer-container" class="container-fluid d-flex flex-column flex-sm-row align-items-sm-end justify-content-center justify-content-sm-between">
           <div class="d-flex flex-column order-first justify-content-start">
             <div class="d-flex pb-4 pr-4">

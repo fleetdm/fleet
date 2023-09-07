@@ -582,9 +582,15 @@ const ManagePolicyPage = ({
   const availablePoliciesForAutomation =
     (isAnyTeamSelected ? teamPolicies : globalPolicies) || [];
 
+  const policiesErrors = isAnyTeamSelected
+    ? teamPoliciesError
+    : globalPoliciesError;
+
+  const policyResults = isAnyTeamSelected ? !!teamPolicies : !!globalPolicies;
+
+  // Show CTA buttons if there is no errors AND there are policy results or a search filter
   const showCtaButtons =
-    (isAnyTeamSelected && teamPolicies) ||
-    (!isAnyTeamSelected && globalPolicies);
+    !policiesErrors && (policyResults || searchQuery !== "");
 
   const automationsConfig = isAnyTeamSelected ? teamConfig : config;
 
@@ -610,18 +616,77 @@ const ManagePolicyPage = ({
   }
 
   const renderPoliciesCount = (count?: number) => {
+    // Show count if there is no errors AND there are policy results or a search filter
+    const showCount =
+      count !== undefined &&
+      !policiesErrors &&
+      (policyResults || searchQuery !== "");
+
     return (
       <div className={`${baseClass}__count`}>
-        {count !== undefined && (
+        {showCount && (
           <span>{`${count} polic${count === 1 ? "y" : "ies"}`}</span>
         )}
       </div>
     );
   };
 
-  return !isRouteOk || (isPremiumTier && !userTeams) ? (
-    <Spinner />
-  ) : (
+  const renderMainTable = () => {
+    return !isRouteOk || (isPremiumTier && !userTeams) ? (
+      <Spinner />
+    ) : (
+      <div>
+        {isAnyTeamSelected && teamPoliciesError && <TableDataError />}
+        {isAnyTeamSelected && !teamPoliciesError && (
+          <PoliciesTable
+            policiesList={teamPolicies || []}
+            isLoading={
+              isFetchingTeamPolicies || isFetchingTeamConfig || isFetchingConfig
+            }
+            onAddPolicyClick={onAddPolicyClick}
+            onDeletePolicyClick={onDeletePolicyClick}
+            canAddOrDeletePolicy={canAddOrDeletePolicy}
+            currentTeam={currentTeamSummary}
+            currentAutomatedPolicies={currentAutomatedPolicies}
+            renderPoliciesCount={() =>
+              !isFetchingTeamCount && renderPoliciesCount(teamPoliciesCount)
+            }
+            isPremiumTier={isPremiumTier}
+            isSandboxMode={isSandboxMode}
+            searchQuery={searchQuery}
+            sortHeader={sortHeader}
+            sortDirection={sortDirection}
+            page={page}
+            onQueryChange={onQueryChange}
+          />
+        )}
+        {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
+        {!isAnyTeamSelected && !globalPoliciesError && (
+          <PoliciesTable
+            policiesList={globalPolicies || []}
+            isLoading={isFetchingGlobalPolicies || isFetchingConfig}
+            onAddPolicyClick={onAddPolicyClick}
+            onDeletePolicyClick={onDeletePolicyClick}
+            canAddOrDeletePolicy={canAddOrDeletePolicy}
+            currentTeam={currentTeamSummary}
+            currentAutomatedPolicies={currentAutomatedPolicies}
+            isPremiumTier={isPremiumTier}
+            isSandboxMode={isSandboxMode}
+            renderPoliciesCount={() =>
+              !isFetchingGlobalCount && renderPoliciesCount(globalPoliciesCount)
+            }
+            searchQuery={searchQuery}
+            sortHeader={sortHeader}
+            sortDirection={sortDirection}
+            page={page}
+            onQueryChange={onQueryChange}
+          />
+        )}
+      </div>
+    );
+  };
+
+  return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
@@ -647,30 +712,31 @@ const ManagePolicyPage = ({
           </div>
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
-              {canManageAutomations &&
-                automationsConfig &&
-                !isFetchingGlobalPolicies && (
+              {canManageAutomations && automationsConfig && (
+                <Button
+                  onClick={toggleManageAutomationsModal}
+                  className={`${baseClass}__manage-automations button`}
+                  variant="inverse"
+                  disabled={
+                    isAnyTeamSelected
+                      ? isFetchingTeamPolicies
+                      : isFetchingGlobalPolicies
+                  }
+                >
+                  <span>Manage automations</span>
+                </Button>
+              )}
+              {canAddOrDeletePolicy && (
+                <div className={`${baseClass}__action-button-container`}>
                   <Button
-                    onClick={toggleManageAutomationsModal}
-                    className={`${baseClass}__manage-automations button`}
-                    variant="inverse"
+                    variant="brand"
+                    className={`${baseClass}__select-policy-button`}
+                    onClick={onAddPolicyClick}
                   >
-                    <span>Manage automations</span>
+                    Add a policy
                   </Button>
-                )}
-              {canAddOrDeletePolicy &&
-                ((isAnyTeamSelected && !isFetchingTeamPolicies) ||
-                  !isFetchingGlobalPolicies) && (
-                  <div className={`${baseClass}__action-button-container`}>
-                    <Button
-                      variant="brand"
-                      className={`${baseClass}__select-policy-button`}
-                      onClick={onAddPolicyClick}
-                    >
-                      Add a policy
-                    </Button>
-                  </div>
-                )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -687,65 +753,7 @@ const ManagePolicyPage = ({
             </p>
           )}
         </div>
-        <div>
-          {isAnyTeamSelected && teamPoliciesError && <TableDataError />}
-          {isAnyTeamSelected &&
-            !teamPoliciesError &&
-            (isFetchingTeamPolicies ? (
-              <Spinner />
-            ) : (
-              <PoliciesTable
-                policiesList={teamPolicies || []}
-                isLoading={
-                  isFetchingTeamPolicies ||
-                  isFetchingTeamConfig ||
-                  isFetchingConfig
-                }
-                onAddPolicyClick={onAddPolicyClick}
-                onDeletePolicyClick={onDeletePolicyClick}
-                canAddOrDeletePolicy={canAddOrDeletePolicy}
-                currentTeam={currentTeamSummary}
-                currentAutomatedPolicies={currentAutomatedPolicies}
-                renderPoliciesCount={() =>
-                  !isFetchingTeamCount && renderPoliciesCount(teamPoliciesCount)
-                }
-                isPremiumTier={isPremiumTier}
-                isSandboxMode={isSandboxMode}
-                searchQuery={searchQuery}
-                sortHeader={sortHeader}
-                sortDirection={sortDirection}
-                page={page}
-                onQueryChange={onQueryChange}
-              />
-            ))}
-          {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
-          {!isAnyTeamSelected &&
-            !globalPoliciesError &&
-            (isFetchingGlobalPolicies ? (
-              <Spinner />
-            ) : (
-              <PoliciesTable
-                policiesList={globalPolicies || []}
-                isLoading={isFetchingGlobalPolicies || isFetchingConfig}
-                onAddPolicyClick={onAddPolicyClick}
-                onDeletePolicyClick={onDeletePolicyClick}
-                canAddOrDeletePolicy={canAddOrDeletePolicy}
-                currentTeam={currentTeamSummary}
-                currentAutomatedPolicies={currentAutomatedPolicies}
-                isPremiumTier={isPremiumTier}
-                isSandboxMode={isSandboxMode}
-                renderPoliciesCount={() =>
-                  !isFetchingGlobalCount &&
-                  renderPoliciesCount(globalPoliciesCount)
-                }
-                searchQuery={searchQuery}
-                sortHeader={sortHeader}
-                sortDirection={sortDirection}
-                page={page}
-                onQueryChange={onQueryChange}
-              />
-            ))}
-        </div>
+        {renderMainTable()}
         {showInheritedPoliciesButton && globalPoliciesCount && (
           <RevealButton
             isShowing={showInheritedTable}
@@ -768,27 +776,24 @@ const ManagePolicyPage = ({
         {showInheritedPoliciesButton && showInheritedTable && (
           <div className={`${baseClass}__inherited-policies-table`}>
             {globalPoliciesError && <TableDataError />}
-            {!globalPoliciesError &&
-              (isFetchingGlobalPolicies ? (
-                <Spinner />
-              ) : (
-                <PoliciesTable
-                  isLoading={isFetchingTeamPolicies}
-                  policiesList={inheritedPolicies || []}
-                  onDeletePolicyClick={noop}
-                  canAddOrDeletePolicy={canAddOrDeletePolicy}
-                  tableType="inheritedPolicies"
-                  currentTeam={currentTeamSummary}
-                  searchQuery=""
-                  renderPoliciesCount={() =>
-                    renderPoliciesCount(teamPoliciesCount)
-                  }
-                  sortHeader={inheritedSortHeader}
-                  sortDirection={inheritedSortDirection}
-                  page={inheritedPage}
-                  onQueryChange={onQueryChange}
-                />
-              ))}
+            {!globalPoliciesError && (
+              <PoliciesTable
+                isLoading={isFetchingTeamPolicies}
+                policiesList={inheritedPolicies || []}
+                onDeletePolicyClick={noop}
+                canAddOrDeletePolicy={canAddOrDeletePolicy}
+                tableType="inheritedPolicies"
+                currentTeam={currentTeamSummary}
+                searchQuery=""
+                renderPoliciesCount={() =>
+                  renderPoliciesCount(teamPoliciesCount)
+                }
+                sortHeader={inheritedSortHeader}
+                sortDirection={inheritedSortDirection}
+                page={inheritedPage}
+                onQueryChange={onQueryChange}
+              />
+            )}
           </div>
         )}
         {config && automationsConfig && showManageAutomationsModal && (
