@@ -208,7 +208,7 @@ The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat simila
 
 The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users.
 
-### How do I issue mdm commands with `fleetctl` and an applied `--context` option?
+### How do I issue MDM commands with `fleetctl` and an applied `--context` option?
 
 [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-to-an-existing-fleet-instance) allows users to maintain a context for the environment that they are logging into. This is useful when maintaining a development / staging / production workflow. When issuing mdm commands in combination with the `--context` option, please use the following syntax:
 
