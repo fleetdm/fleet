@@ -4,8 +4,8 @@ export default [
   { path: "/dashboard", title: "Dashboard | Fleet for osquery" },
   { path: "/hosts/manage", title: "Manage hosts | Fleet for osquery" },
   {
-    path: "/controls/mac-os-updates",
-    title: "Manage macOS updates | Fleet for osquery",
+    path: "/controls/os-updates",
+    title: "Manage OS updates | Fleet for osquery",
   },
   {
     path: "/controls/mac-settings",

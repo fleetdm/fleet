@@ -12,14 +12,14 @@ import OsMinVersionForm from "./components/OsMinVersionForm";
 import NudgePreview from "./components/NudgePreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 
-const baseClass = "mac-os-updates";
+const baseClass = "os-updates";
 
-interface IMacOSUpdates {
+interface IOSUpdates {
   router: InjectedRouter;
   teamIdForApi: number;
 }
 
-const MacOSUpdates = ({ router, teamIdForApi }: IMacOSUpdates) => {
+const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
   const { config, isPremiumTier } = useContext(AppContext);
 
   const OperatingSystemCard = useInfoCard({
@@ -69,4 +69,4 @@ const MacOSUpdates = ({ router, teamIdForApi }: IMacOSUpdates) => {
   );
 };
 
-export default MacOSUpdates;
+export default OSUpdates;

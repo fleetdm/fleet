@@ -50,7 +50,7 @@ import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
-import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
+import OSUpdates from "pages/ManageControlsPage/OSUpdates";
 import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
 import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
@@ -186,9 +186,9 @@ const routes = (
 
           <Route component={ExcludeInSandboxRoutes}>
             <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
-              <IndexRedirect to="mac-os-updates" />
+              <IndexRedirect to="os-updates" />
               <Route component={ManageControlsPage}>
-                <Route path="mac-os-updates" component={MacOSUpdates} />
+                <Route path="os-updates" component={OSUpdates} />
                 <Route path="mac-settings" component={MacOSSettings} />
                 <Route path="mac-settings/:section" component={MacOSSettings} />
                 <Route path="mac-setup" component={MacOSSetup} />
