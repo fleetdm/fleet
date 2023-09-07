@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1163,65 +1162,36 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	sPaths := map[string]struct{}{}
 
 	for _, row := range rows {
-		name := row["name"]
-		version := row["version"]
-		source := row["source"]
-		bundleIdentifier := row["bundle_identifier"]
-		vendor := row["vendor"]
-
-		if name == "" {
+		// Attempt to parse the last_opened_at and emit a debug log if it fails.
+		if _, err := fleet.ParseSoftwareLastOpenedAtRowValue(row["last_opened_at"]); err != nil {
 			level.Debug(logger).Log(
-				"msg", "host reported software with empty name",
-				"host", host.Hostname,
-				"version", version,
-				"source", source,
+				"msg", "host reported software with invalid last opened timestamp",
+				"host_id", host.ID,
+				"row", row,
+			)
+		}
+
+		s, err := fleet.SoftwareFromOsqueryRow(
+			row["name"],
+			row["version"],
+			row["source"],
+			row["vendor"],
+			row["installed_path"],
+			row["release"],
+			row["arch"],
+			row["bundle_identifier"],
+			row["last_opened_at"],
+		)
+		if err != nil {
+			level.Debug(logger).Log(
+				"msg", "failed to parse software row",
+				"host_id", host.ID,
+				"row", row,
+				"err", err,
 			)
 			continue
 		}
-		if source == "" {
-			level.Debug(logger).Log(
-				"msg", "host reported software with empty name",
-				"host", host.Hostname,
-				"version", version,
-				"name", name,
-			)
-			continue
-		}
-
-		var lastOpenedAt time.Time
-		if lastOpenedRaw := row["last_opened_at"]; lastOpenedRaw != "" {
-			if lastOpenedEpoch, err := strconv.ParseFloat(lastOpenedRaw, 64); err != nil {
-				level.Debug(logger).Log(
-					"msg", "host reported software with invalid last opened timestamp",
-					"host", host.Hostname,
-					"version", version,
-					"name", name,
-					"last_opened_at", lastOpenedRaw,
-				)
-			} else if lastOpenedEpoch > 0 {
-				lastOpenedAt = time.Unix(int64(lastOpenedEpoch), 0).UTC()
-			}
-		}
-
-		// Check whether the vendor is longer than the max allowed width and if so, truncate it.
-		if utf8.RuneCountInString(vendor) >= fleet.SoftwareVendorMaxLength {
-			vendor = fmt.Sprintf(fleet.SoftwareVendorMaxLengthFmt, vendor)
-		}
-
-		s := fleet.Software{
-			Name:             name,
-			Version:          version,
-			Source:           source,
-			BundleIdentifier: bundleIdentifier,
-
-			Release: row["release"],
-			Vendor:  vendor,
-			Arch:    row["arch"],
-		}
-		if !lastOpenedAt.IsZero() {
-			s.LastOpenedAt = &lastOpenedAt
-		}
-		software = append(software, s)
+		software = append(software, *s)
 
 		installedPath := strings.TrimSpace(row["installed_path"])
 		if installedPath != "" &&

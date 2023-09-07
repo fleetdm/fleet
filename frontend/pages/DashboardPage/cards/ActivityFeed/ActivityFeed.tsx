@@ -6,7 +6,7 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
-import { IActivityDetails } from "interfaces/activity";
+import { ActivityType, IActivityDetails } from "interfaces/activity";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
@@ -35,6 +35,7 @@ const ActivityFeed = ({
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
   const queryShown = useRef("");
+  const scriptExecutionId = useRef("");
 
   const {
     data: activitiesData,
@@ -74,9 +75,22 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
-  const handleDetailsClick = (details: IActivityDetails) => {
-    queryShown.current = details.query_sql ?? "";
-    setShowShowQueryModal(true);
+  const handleDetailsClick = (
+    activityType: ActivityType,
+    details: IActivityDetails
+  ) => {
+    switch (activityType) {
+      case ActivityType.LiveQuery:
+        queryShown.current = details.query_sql ?? "";
+        setShowShowQueryModal(true);
+        break;
+      case ActivityType.RanScript:
+        scriptExecutionId.current = details.script_execution_id ?? "";
+        setShowScriptDetailsModal(true);
+        break;
+      default:
+        break;
+    }
   };
 
   const renderError = () => {
@@ -158,9 +172,11 @@ const ActivityFeed = ({
           onCancel={() => setShowShowQueryModal(false)}
         />
       )}
-      {/* TODO: show/hide when we integrate with API activites. */}
-      {false && (
-        <ScriptDetailsModal onCancel={() => setShowShowQueryModal(false)} />
+      {showScriptDetailsModal && (
+        <ScriptDetailsModal
+          scriptExecutionId={scriptExecutionId.current}
+          onCancel={() => setShowScriptDetailsModal(false)}
+        />
       )}
     </div>
   );
