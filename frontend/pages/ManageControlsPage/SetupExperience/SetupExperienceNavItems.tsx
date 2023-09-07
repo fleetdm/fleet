@@ -5,12 +5,14 @@ import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
 import EndUserAuthentication from "./cards/EndUserAuthentication/EndUserAuthentication";
 import BootstrapPackage from "./cards/BootstrapPackage";
 
-interface IMacOSSetupCardProps {
+interface ISetupExperienceCardProps {
   currentTeamId?: number;
 }
 
 // TODO: types
-const MAC_OS_SETUP_NAV_ITEMS: ISideNavItem<IMacOSSetupCardProps | any>[] = [
+const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<
+  ISetupExperienceCardProps | any
+>[] = [
   {
     title: "End user authentication",
     urlSection: "end-user-auth",
@@ -25,4 +27,4 @@ const MAC_OS_SETUP_NAV_ITEMS: ISideNavItem<IMacOSSetupCardProps | any>[] = [
   },
 ];
 
-export default MAC_OS_SETUP_NAV_ITEMS;
+export default SETUP_EXPERIENCE_NAV_ITEMS;

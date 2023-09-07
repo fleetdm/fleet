@@ -9,10 +9,10 @@ import Button from "components/buttons/Button/Button";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable";
 
-import MAC_OS_SETUP_NAV_ITEMS from "./MacOSSetupNavItems";
+import SETUP_EXPERIENCE_NAV_ITEMS from "./SetupExperienceNavItems";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
 
-const baseClass = "macos-setup";
+const baseClass = "setup-experience";
 
 interface ISetupEmptyState {
   router: InjectedRouter;
@@ -36,19 +36,19 @@ const SetupEmptyState = ({ router }: ISetupEmptyState) => {
   );
 };
 
-interface IMacOSSetupProps {
+interface ISetupExperienceProps {
   params: Params;
   location: { search: string };
   router: any;
   teamIdForApi: number;
 }
 
-const MacOSSetup = ({
+const SetupExperience = ({
   params,
   location: { search: queryString },
   router,
   teamIdForApi,
-}: IMacOSSetupProps) => {
+}: ISetupExperienceProps) => {
   const { section } = params;
   const { isPremiumTier, config } = useContext(AppContext);
 
@@ -61,10 +61,10 @@ const MacOSSetup = ({
     return <SetupEmptyState router={router} />;
   }
 
-  const DEFAULT_SETTINGS_SECTION = MAC_OS_SETUP_NAV_ITEMS[0];
+  const DEFAULT_SETTINGS_SECTION = SETUP_EXPERIENCE_NAV_ITEMS[0];
 
   const currentFormSection =
-    MAC_OS_SETUP_NAV_ITEMS.find((item) => item.urlSection === section) ??
+    SETUP_EXPERIENCE_NAV_ITEMS.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
 
   const CurrentCard = currentFormSection.Card;
@@ -80,7 +80,7 @@ const MacOSSetup = ({
       ) : (
         <SideNav
           className={`${baseClass}__side-nav`}
-          navItems={MAC_OS_SETUP_NAV_ITEMS.map((navItem) => ({
+          navItems={SETUP_EXPERIENCE_NAV_ITEMS.map((navItem) => ({
             ...navItem,
             path: navItem.path.concat(queryString),
           }))}
@@ -98,4 +98,4 @@ const MacOSSetup = ({
   );
 };
 
-export default MacOSSetup;
+export default SetupExperience;

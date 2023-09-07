@@ -26,7 +26,7 @@ const controlsSubNav: IControlsSubNavItem[] = [
   },
   {
     name: "Setup experience",
-    pathname: PATHS.CONTROLS_MAC_SETUP,
+    pathname: PATHS.CONTROLS_SETUP_EXPERIENCE,
   },
 ];
 
