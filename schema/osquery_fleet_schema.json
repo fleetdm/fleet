@@ -27466,6 +27466,127 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cis_audit.yml"
   },
   {
+    "name": "corestorage_logical_volume_families",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about CoreStorage Logical Volume Families from the `diskutil coreStorage list -plist` command.",
+    "columns": [
+      {
+        "name": "vg_UUID",
+        "type": "text",
+        "required": false,
+        "description": "The unique identifier of the containing volume group"
+      },
+      {
+        "name": "vg_Version",
+        "type": "integer",
+        "required": false,
+        "description": "The version of the volume group, probably 1"
+      },
+      {
+        "name": "vg_FreeSpace",
+        "type": "bigint",
+        "required": false,
+        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume\n"
+      },
+      {
+        "name": "vg_FusionDrive",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume group is a \"fusion drive\" (i.e. SSHD)"
+      },
+      {
+        "name": "vg_Name",
+        "type": "text",
+        "required": false,
+        "description": "The customizable name of the volume group"
+      },
+      {
+        "name": "vg_Sequence",
+        "type": "bigint",
+        "required": false,
+        "description": "Current sequence number of the volume group"
+      },
+      {
+        "name": "vg_Size",
+        "type": "bigint",
+        "required": false,
+        "description": "Total (i.e. either allocated or unallocated) size of the volume group"
+      },
+      {
+        "name": "vg_Sparse",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume group allows overcommitting storage"
+      },
+      {
+        "name": "vg_Status",
+        "type": "text",
+        "required": false,
+        "description": "Status of the volume group, e.g. \"Online\""
+      },
+      {
+        "name": "UUID",
+        "type": "text",
+        "required": false,
+        "description": "Unique ID of the logical volume family"
+      },
+      {
+        "name": "EncryptionStatus",
+        "type": "text",
+        "required": false,
+        "description": "Unlock status of the logical volume family, e.g. \"Locked\" or \"Unlocked\""
+      },
+      {
+        "name": "EncryptionType",
+        "type": "text",
+        "required": false,
+        "description": "Encryption algorithm for the logical volume family, normally \"AES-XTS\" or \"None\""
+      },
+      {
+        "name": "HasVisibleUsers",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "HasVolumeKey",
+        "type": "integer",
+        "required": false,
+        "description": "Whether there is an encryption key assigned for the logical volume"
+      },
+      {
+        "name": "IsAcceptingNewUsers",
+        "type": "integer",
+        "required": false,
+        "description": "Whether new users may be granted access to the logical volume family encryption key"
+      },
+      {
+        "name": "IsFullySecure",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "MayHaveEncryptedEvents",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "RequiresPasswordUnlock",
+        "type": "integer",
+        "required": false,
+        "description": "Whether a password is currently required to unlock the volume"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/corestorage_logical_volume_families",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volume_families.yml"
+  },
+  {
     "name": "corestorage_logical_volumes",
     "platforms": [
       "darwin"
@@ -27663,127 +27784,6 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/corestorage_logical_volumes",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volumes.yml"
-  },
-  {
-    "name": "corestorage_logical_volume_families",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information about CoreStorage Logical Volume Families from the `diskutil coreStorage list -plist` command.",
-    "columns": [
-      {
-        "name": "vg_UUID",
-        "type": "text",
-        "required": false,
-        "description": "The unique identifier of the containing volume group"
-      },
-      {
-        "name": "vg_Version",
-        "type": "integer",
-        "required": false,
-        "description": "The version of the volume group, probably 1"
-      },
-      {
-        "name": "vg_FreeSpace",
-        "type": "bigint",
-        "required": false,
-        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume\n"
-      },
-      {
-        "name": "vg_FusionDrive",
-        "type": "integer",
-        "required": false,
-        "description": "Whether the volume group is a \"fusion drive\" (i.e. SSHD)"
-      },
-      {
-        "name": "vg_Name",
-        "type": "text",
-        "required": false,
-        "description": "The customizable name of the volume group"
-      },
-      {
-        "name": "vg_Sequence",
-        "type": "bigint",
-        "required": false,
-        "description": "Current sequence number of the volume group"
-      },
-      {
-        "name": "vg_Size",
-        "type": "bigint",
-        "required": false,
-        "description": "Total (i.e. either allocated or unallocated) size of the volume group"
-      },
-      {
-        "name": "vg_Sparse",
-        "type": "integer",
-        "required": false,
-        "description": "Whether the volume group allows overcommitting storage"
-      },
-      {
-        "name": "vg_Status",
-        "type": "text",
-        "required": false,
-        "description": "Status of the volume group, e.g. \"Online\""
-      },
-      {
-        "name": "UUID",
-        "type": "text",
-        "required": false,
-        "description": "Unique ID of the logical volume family"
-      },
-      {
-        "name": "EncryptionStatus",
-        "type": "text",
-        "required": false,
-        "description": "Unlock status of the logical volume family, e.g. \"Locked\" or \"Unlocked\""
-      },
-      {
-        "name": "EncryptionType",
-        "type": "text",
-        "required": false,
-        "description": "Encryption algorithm for the logical volume family, normally \"AES-XTS\" or \"None\""
-      },
-      {
-        "name": "HasVisibleUsers",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "HasVolumeKey",
-        "type": "integer",
-        "required": false,
-        "description": "Whether there is an encryption key assigned for the logical volume"
-      },
-      {
-        "name": "IsAcceptingNewUsers",
-        "type": "integer",
-        "required": false,
-        "description": "Whether new users may be granted access to the logical volume family encryption key"
-      },
-      {
-        "name": "IsFullySecure",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "MayHaveEncryptedEvents",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "RequiresPasswordUnlock",
-        "type": "integer",
-        "required": false,
-        "description": "Whether a password is currently required to unlock the volume"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/corestorage_logical_volume_families",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volume_families.yml"
   },
   {
     "name": "csrutil_info",
@@ -28288,98 +28288,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
   },
   {
-    "name": "mdm",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher). <p> Due to changes in macOS 12.3, the output of `profiles show -type enrollment` can only be generated once a day. If you are running this command with another tool, you should set the `PROFILES_SHOW_ENROLLMENT_CACHE_PATH` environment variable to the path you are caching this. The cache file should be `json` with the keys `dep_capable` and `rate_limited present`, both booleans representing whether the device is capable of DEP enrollment and whether the response from `profiles show -type enrollment` is being rate limited or not.",
-    "description": "Information on the device's MDM enrollment.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "Identify Macs that are DEP capable but have not been enrolled to MDM.\n```\nSELECT * FROM mdm WHERE dep_capable='true' AND enrolled='false';\n```",
-    "columns": [
-      {
-        "name": "access_rights",
-        "description": "The access rights of the payload. The resulting number is the total of every [AccessRight](https://developer.apple.com/documentation/devicemanagement/mdm) added up.",
-        "required": false,
-        "type": "integer"
-      },
-      {
-        "name": "checkin_url",
-        "description": "The URL the Mac checks in with, which should point to your MDM server.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "dep_capable",
-        "description": "Indicates if the computer is DEP capable or not, even if it is not currently enrolled into MDM.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "enrolled",
-        "description": "Indicates if the computer is enrolled into MDM.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "has_scep_payload",
-        "description": "Indicates if the computer has a certificate used by the MDM server to authenticate it.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "identity_certificate_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "install_date",
-        "description": "The date on which the MDM payload was installed on the Mac.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed_from_dep",
-        "description": "Indicates if the MDM payload was installed via DEP or not.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "payload_identifier",
-        "description": "The identifier of the MDM payload.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "server_url",
-        "description": "The URL of the MDM server used by this computer.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "sign_message",
-        "description": "Indicates if messages sent and received from the MDM server must be signed.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "topic",
-        "description": "The topic MDM listens to for push notifications.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "user_approved",
-        "description": "Indicates if this MDM payload was approved by the user.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/mdm",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm.yml"
-  },
-  {
     "name": "mdm_bridge",
     "platforms": [
       "windows"
@@ -28794,6 +28702,98 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/privacy_preferences.yml"
   },
   {
+    "name": "mdm",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher). <p> Due to changes in macOS 12.3, the output of `profiles show -type enrollment` can only be generated once a day. If you are running this command with another tool, you should set the `PROFILES_SHOW_ENROLLMENT_CACHE_PATH` environment variable to the path you are caching this. The cache file should be `json` with the keys `dep_capable` and `rate_limited present`, both booleans representing whether the device is capable of DEP enrollment and whether the response from `profiles show -type enrollment` is being rate limited or not.",
+    "description": "Information on the device's MDM enrollment.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Identify Macs that are DEP capable but have not been enrolled to MDM.\n```\nSELECT * FROM mdm WHERE dep_capable='true' AND enrolled='false';\n```",
+    "columns": [
+      {
+        "name": "access_rights",
+        "description": "The access rights of the payload. The resulting number is the total of every [AccessRight](https://developer.apple.com/documentation/devicemanagement/mdm) added up.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "checkin_url",
+        "description": "The URL the Mac checks in with, which should point to your MDM server.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "dep_capable",
+        "description": "Indicates if the computer is DEP capable or not, even if it is not currently enrolled into MDM.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "enrolled",
+        "description": "Indicates if the computer is enrolled into MDM.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "has_scep_payload",
+        "description": "Indicates if the computer has a certificate used by the MDM server to authenticate it.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "identity_certificate_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "install_date",
+        "description": "The date on which the MDM payload was installed on the Mac.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "installed_from_dep",
+        "description": "Indicates if the MDM payload was installed via DEP or not.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "payload_identifier",
+        "description": "The identifier of the MDM payload.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "server_url",
+        "description": "The URL of the MDM server used by this computer.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sign_message",
+        "description": "Indicates if messages sent and received from the MDM server must be signed.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "topic",
+        "description": "The topic MDM listens to for push notifications.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "user_approved",
+        "description": "Indicates if this MDM payload was approved by the user.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/mdm",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm.yml"
+  },
+  {
     "name": "puppet_info",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
@@ -28912,58 +28912,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
   },
   {
-    "name": "puppet_logs",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List Puppet logs that are of a level of anything but informational.\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
-    "columns": [
-      {
-        "name": "level",
-        "description": "The level of the log item (info, error, etc).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "message",
-        "description": "The log message content.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "source",
-        "description": "The source of the log item.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "time",
-        "description": "The time at which this item was logged.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "file",
-        "description": "The file from which osquery read this log.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "line",
-        "description": "The line from which this log item was read.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_logs",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
-  },
-  {
     "name": "puppet_state",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
@@ -29056,6 +29004,58 @@
     ],
     "url": "https://fleetdm.com/tables/puppet_state",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
+  },
+  {
+    "name": "puppet_logs",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List Puppet logs that are of a level of anything but informational.\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
+    "columns": [
+      {
+        "name": "level",
+        "description": "The level of the log item (info, error, etc).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "message",
+        "description": "The log message content.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "source",
+        "description": "The source of the log item.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "time",
+        "description": "The time at which this item was logged.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file",
+        "description": "The file from which osquery read this log.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "line",
+        "description": "The line from which this log item was read.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_logs",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
   },
   {
     "name": "pwd_policy",

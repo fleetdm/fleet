@@ -7341,7 +7341,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), createdScript.HostID)
 	require.NotEmpty(t, createdScript.ExecutionID)
 	require.Equal(t, "echo", createdScript.ScriptContents)
-	require.False(t, createdScript.ExitCode.Valid)
+	require.Nil(t, createdScript.ExitCode)
 	require.Empty(t, createdScript.Output)
 
 	// the script execution is now listed as pending for this host
@@ -7377,7 +7377,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	expectScript := *createdScript
 	expectScript.Output = "foo"
 	expectScript.Runtime = 2
-	expectScript.ExitCode = sql.NullInt64{Int64: 0, Valid: true}
+	expectScript.ExitCode = ptr.Int64(0)
 	require.Equal(t, &expectScript, script)
 
 	// create another script execution request

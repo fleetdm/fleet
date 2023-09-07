@@ -1,6 +1,7 @@
 name: Build, Sign and Notarize Orbit
 
 on:
+  workflow_dispatch: # allow manual action
   pull_request:
     paths:
       - 'orbit/**.go'
