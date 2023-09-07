@@ -54,19 +54,23 @@ func VerifyHostMDMProfiles(ctx context.Context, ds ProfileVerificationStore, hos
 	toFail := make([]string, 0, len(missing))
 	toRetry := make([]string, 0, len(missing))
 	if len(missing) > 0 {
-		prevRetries, err := ds.GetHostMDMProfilesRetryCounts(ctx, host.UUID)
+		counts, err := ds.GetHostMDMProfilesRetryCounts(ctx, host.UUID)
 		if err != nil {
 			return err
 		}
-		retriesByProfIdent := make(map[string]uint, len(prevRetries))
-		for _, r := range prevRetries {
-			retriesByProfIdent[r.ProfileIdentifier] = r.Retries
+		retriesByProfileIdentifier := make(map[string]uint, len(counts))
+		for _, r := range counts {
+			retriesByProfileIdentifier[r.ProfileIdentifier] = r.Retries
 		}
 		for _, key := range missing {
-			if retriesByProfIdent[key] >= maxRetries {
-				toFail = append(toFail, key)
-			} else {
+			if retriesByProfileIdentifier[key] < maxRetries {
+				// if we haven't hit the max retries, we set the host profile status to nil (which
+				// causes an install profile command to be enqueued the next time the profile
+				// manager cron runs) and increment the retry count
 				toRetry = append(toRetry, key)
+			} else {
+				// otherwise we set the host profile status to failed
+				toFail = append(toFail, key)
 			}
 		}
 	}
@@ -82,7 +86,8 @@ func HandleHostMDMProfileInstallResult(ctx context.Context, ds ProfileVerificati
 		}
 
 		if m.Retries < maxRetries {
-			// if we haven't hit the max retries, we set the host profile status to nil (which causes an install profile command to be enqueued the next time the profile
+			// if we haven't hit the max retries, we set the host profile status to nil (which
+			// causes an install profile command to be enqueued the next time the profile
 			// manager cron runs) and increment the retry count
 			return ds.UpdateHostMDMProfilesVerification(ctx, hostUUID, nil, nil, []string{m.ProfileIdentifier})
 		}
