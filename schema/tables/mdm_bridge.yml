@@ -1,27 +1,41 @@
 name: mdm_bridge
 platforms:
   - windows
-description: Allows querying MDM enrolled devices using "get" commands.
+description: Allows querying Bitlocker encryption/decryption/metainformation status. It also allows triggering volume encryption/decryption process.
 columns:
-  - name: enrollment_status
+  - name: disk
     type: text
     required: false
-    description: Contains the enrollment status of the device, possible values are "device_enrolled" and "device_unenrolled".
-  - name: enrolled_user
+    description: Contains the disk volume to be encrypted/decrypted.
+  - name: protection_status
     type: text
     required: false
-    description: Contains the enrollment URI of the device.
-  - name: mdm_command_input
+    description: Contains the current protection status of the disk volume.
+  - name: conversion_status
     type: text
     required: false
-    description: The "get" command to execute on the device. If empty, no command is executed and the "enrollment_status" and "enrolled_user" columns are returned.
-  - name: mdm_command_output
+    description: Contains the current conversion status of the disk volume.
+  - name: encryption_percentage
     type: text
     required: false
-    description: Value of the "Results" field of the MDM command output.
-  - name: raw_mdm_command_output
+    description: Contains the current encryption percentage of the disk volume.
+  - name: command_input
     type: text
     required: false
-    description: The full raw output of the MDM command execution.
+    description: Contains the command to be executed on the disk volume (encrypt/decrypt/keys are the supported commands).
+  - name: command_output
+    type: text
+    required: false
+    description: Contains the output of the command executed on the disk volume.
+examples: >-
+  See bitlocker_bridge usage examples
+  
+  ```
+  
+  SELECT * FROM bitlocker_bridge where command_input = '{ "Drive": "C:", "Command": "encrypt", "Data": "" }';
+  SELECT * FROM bitlocker_bridge where command_input = '{ "Drive": "C:", "Command": "decrypt", "Data": "" }';
+  SELECT * FROM bitlocker_bridge where command_input = '{ "Drive": "C:", "Command": "keys", "Data": "" }';
+  
+  ```    
 notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 evented: false
