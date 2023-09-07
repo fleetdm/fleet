@@ -214,7 +214,6 @@ The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human
 
 `fleetctl mdm --context dev run-command --payload=restart-device.xml --host=hostname`
 
-> Note: that this behaviour should be fixed based on [this issue](https://github.com/fleetdm/fleet/issues/13712) to ensure using context aligns with the syntax used with other `fleetctl` commands.
 
 ### Why can't I run queries with `fleetctl` using a new API-only user?
 
