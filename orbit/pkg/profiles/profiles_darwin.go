@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/rs/zerolog/log"
 )
 
 // GetFleetdConfig reads a system level setting set with Fleet's payload identifier.
@@ -29,13 +30,18 @@ func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
            });
          `, mobileconfig.FleetdConfigPayloadIdentifier)
 
+	log.Debug().Msg("============ about to run the following script")
+	log.Debug().Msg(readFleetdConfigAppleScript)
 	outBuf, err := execScript(readFleetdConfigAppleScript)
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
 
+	o := outBuf.Bytes()
+	log.Debug().Msgf("============ raw output from osascript: %s", string(o))
+
 	var cfg fleet.MDMAppleFleetdConfig
-	if err = json.Unmarshal(outBuf.Bytes(), &cfg); err != nil {
+	if err = json.Unmarshal(o, &cfg); err != nil {
 		return nil, fmt.Errorf("unmarshaling configuration: %w", err)
 	}
 
