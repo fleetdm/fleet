@@ -9,8 +9,6 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
-import EmptyTable from "components/EmptyTable";
-import Button from "components/buttons/Button";
 
 interface IControlsSubNavItem {
   name: string;
@@ -19,15 +17,15 @@ interface IControlsSubNavItem {
 
 const controlsSubNav: IControlsSubNavItem[] = [
   {
-    name: "macOS updates",
+    name: "OS updates",
     pathname: PATHS.CONTROLS_MAC_OS_UPDATES,
   },
   {
-    name: "macOS settings",
+    name: "OS settings",
     pathname: PATHS.CONTROLS_MAC_SETTINGS,
   },
   {
-    name: "macOS setup",
+    name: "Setup experience",
     pathname: PATHS.CONTROLS_MAC_SETUP,
   },
 ];
@@ -63,11 +61,9 @@ const ManageControlsPage = ({
   router,
 }: IManageControlsPageProps): JSX.Element => {
   const {
-    config,
     isFreeTier,
     isOnGlobalTeam,
     isPremiumTier,
-    isGlobalAdmin,
     isSandboxMode,
   } = useContext(AppContext);
 
@@ -99,34 +95,8 @@ const ManageControlsPage = ({
     [location, router]
   );
 
-  const onConnectClick = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-  };
-
-  const renderConnectButton = () => {
-    if (isGlobalAdmin) {
-      return (
-        <Button
-          variant="brand"
-          onClick={onConnectClick}
-          className={`${baseClass}__connectAPC-button`}
-        >
-          Connect
-        </Button>
-      );
-    }
-    return <></>;
-  };
-
-  const getInfoText = () => {
-    if (isGlobalAdmin) {
-      return "Connect Fleet to the Apple Push Certificates Portal to get started.";
-    }
-    return "Your Fleet administrator must connect Fleet to the Apple Push Certificates Portal to get started.";
-  };
-
   const renderBody = () => {
-    return config?.mdm.enabled_and_configured ? (
+    return (
       <div>
         <TabsWrapper>
           <Tabs
@@ -146,12 +116,6 @@ const ManageControlsPage = ({
         </TabsWrapper>
         {React.cloneElement(children, { teamIdForApi })}
       </div>
-    ) : (
-      <EmptyTable
-        header="Manage your macOS hosts"
-        info={getInfoText()}
-        primaryButton={renderConnectButton()}
-      />
     );
   };
 

@@ -10,6 +10,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable";
 
 import MAC_OS_SETUP_NAV_ITEMS from "./MacOSSetupNavItems";
+import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
 
 const baseClass = "macos-setup";
 
@@ -51,6 +52,15 @@ const MacOSSetup = ({
   const { section } = params;
   const { isPremiumTier, config } = useContext(AppContext);
 
+  // MDM is not on so show messaging for user to enable it.
+  if (!config?.mdm.enabled_and_configured) {
+    return <TurnOnMdmMessage router={router} />;
+  }
+  // User has not set up Apple Business Manager.
+  if (isPremiumTier && !config?.mdm.apple_bm_enabled_and_configured) {
+    return <SetupEmptyState router={router} />;
+  }
+
   const DEFAULT_SETTINGS_SECTION = MAC_OS_SETUP_NAV_ITEMS[0];
 
   const currentFormSection =
@@ -58,10 +68,6 @@ const MacOSSetup = ({
     DEFAULT_SETTINGS_SECTION;
 
   const CurrentCard = currentFormSection.Card;
-
-  if (isPremiumTier && !config?.mdm.apple_bm_enabled_and_configured) {
-    return <SetupEmptyState router={router} />;
-  }
 
   return (
     <div className={baseClass}>

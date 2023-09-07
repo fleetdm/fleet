@@ -1,31 +1,34 @@
 import React, { useContext } from "react";
-import { Params } from "react-router/lib/Router";
+import { InjectedRouter, Params } from "react-router/lib/Router";
+import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
-import { useQuery } from "react-query";
 import { ProfileSummaryResponse } from "interfaces/mdm";
 import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
 import MAC_OS_SETTINGS_NAV_ITEMS from "./MacOSSettingsNavItems";
 import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators";
+import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
 
 const baseClass = "mac-os-settings";
 
 interface IMacOSSettingsProps {
   params: Params;
+  router: InjectedRouter;
   location: {
     search: string;
   };
 }
 
 const MacOSSettings = ({
+  router,
   location: { search: queryString },
   params,
 }: IMacOSSettingsProps) => {
   const { section } = params;
-  const { currentTeam } = useContext(AppContext);
+  const { config, currentTeam } = useContext(AppContext);
 
   // TODO: consider using useTeamIdParam hook here instead in the future
   const teamId =
@@ -45,6 +48,11 @@ const MacOSSettings = ({
       retry: false,
     }
   );
+
+  // MDM is not on so show messaging for user to enable it.
+  if (!config?.mdm.enabled_and_configured) {
+    return <TurnOnMdmMessage router={router} />;
+  }
 
   const DEFAULT_SETTINGS_SECTION = MAC_OS_SETTINGS_NAV_ITEMS[0];
 
