@@ -362,7 +362,8 @@ Every week, a member of the product team (as determined in the [rituals](#ritual
 4. a release of CIS Benchmarks for [macOS 14 Sonoma](https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
 5. a new major or minor version of [ChromeOS](https://chromereleases.googleblog.com/search/label/Chrome%20OS)
 
-If there are changes, the DRI should send a message in the #help-product Slack channel, noting the current versions and whether any of the above has changed.
+The DRI should record the latest versions in the [maintenance tracker](https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit#gid=0) and then notify the [#help-product Slack channel](https://fleetdm.slack.com/archives/C02A8BRABB5) with an update, noting the current versions and highlighting any changes. 
+
 
 ### New CIS benchmarks
 When we create new CIS benchmarks, also submit the new CIS benchmark set to CIS for [certification](https://www.cisecurity.org/cis-securesuite/pricing-and-categories/product-vendor/cis-benchmark-assessment#:~:text=In%20order%20to%20incorporate%20and,recommendations%20in%20the%20associated%20CIS). 
