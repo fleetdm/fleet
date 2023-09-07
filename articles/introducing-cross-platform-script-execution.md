@@ -1,6 +1,6 @@
 ![Fleet MDM Cover](../website/assets/images/articles/introducing-cross-platform-script-execution@2x.png)
 
-At Fleet, we continuously strive to enhance the functionality of our platform, offering more power and flexibility to IT administrators and security teams. Today, we are thrilled to announce a significant addition to our toolkit - the ability to execute a shell script via command line (CLI) and Fleet's API across macOS, Windows, and Linux.
+At Fleet, we continuously strive to enhance the functionality of our platform, offering more power and flexibility to IT administrators and security teams. Today, we are thrilled to announce a significant addition to our toolkit - the ability to [execute a shell script](https://fleetdm.com/docs/using-fleet/scripts) via command line (CLI) and Fleet's API across macOS, Windows, and Linux.
 
 This feature, available exclusively in Fleet Premium, unlocks the potential to execute a script on a specific host, empowering professionals to remediate issues or collect logs quickly. Whether using Bourne shell or zsh for Mac and Linux or Powershell for Windows, this functionality offers a streamlined and efficient solution to tackle challenges head-on.
 
