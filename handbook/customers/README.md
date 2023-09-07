@@ -10,21 +10,11 @@ TODO
 |:------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | Chief Revenue Officer               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | VP of Customer Success              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Director of Solutions Consulting    | [Dave Her](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
-| Head of Public Sector               | [You?]() _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| VP of Customer Success              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Director of Solutions Consulting    | [Dave Her](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
-| Chief Revenue Officer               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| VP of Customer Success              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Director of Solutions Consulting    | [Dave Her](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
-| VP of Customer Success              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Director of Solutions Consulting    | [Dave Her](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
-| Chief Revenue Officer               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| VP of Customer Success              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Director of Solutions Consulting    | [Dave Her](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
-| Chief Revenue Officer               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| VP of Customer Success              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Director of Solutions Consulting    | [Dave Her](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
+| Director of Solutions Consulting    | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
+| Head of Public Sector               | [Keith Barnes](https://www.linkedin.com/in/keith-barnes-8b666/) _([@KAB703](https://github.com/KAB703))_
+| Business Expansion Lead             | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_
+| Lead Sales Development Rep          | [Brad Macdowall](https://www.linkedin.com/in/bradmacdowall/) _([@BradMacd](https://github.com/BradMacd))_
+| TODO FINISH          | [Brad Macdowall](https://www.linkedin.com/in/bradmacdowall/) _([@BradMacd](https://github.com/BradMacd))_
 
 
 ## Contact us
