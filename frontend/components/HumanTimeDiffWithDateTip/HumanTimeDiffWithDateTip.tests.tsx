@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
 import HumanTimeDiffWithDateTip from "./HumanTimeDiffWithDateTip";
@@ -17,7 +17,7 @@ describe("HumanTimeDiffWithDateTip - component", () => {
     await user.hover(screen.getByText(/years ago/i));
 
     // Note: hour of day varies for timezones
-    expect(screen.getByText(/12\/6\/2020/i)).toBeInTheDocument();
+    expect(screen.getByText(/12\/6\/2015/i)).toBeInTheDocument();
   });
 
   it("handles empty string error", async () => {
