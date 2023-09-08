@@ -4,9 +4,8 @@ import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 
 import { uniqueId } from "lodash";
 
-interface INewTooltipWrapperProps {
+interface INewTooltipWrapperBase {
   children: string;
-  tipContent: React.ReactNode;
   position?: PlacesType;
   isDelayed?: boolean;
   underline?: boolean;
@@ -20,29 +19,41 @@ interface INewTooltipWrapperProps {
   // elementCustomClass?: string;
   // tipCustomClass?: string;
   clickable?: boolean;
+}
+
+// Require either `tipContent` OR `customRender` prop
+interface INewTooltipWrapperCustomRender extends INewTooltipWrapperBase {
   // see https://react-tooltip.com/docs/examples/render
-  customRender?: (render: {
+  customRender: (render: {
     content: string | null;
     activeAnchor: HTMLElement | null;
   }) => any; // should actually return `ChildrenType` - TODO(jacob) - figure out how to type that
+  tipContent?: never;
+}
+
+interface INewTooltipWrapperTipContent extends INewTooltipWrapperBase {
+  customRender?: never;
+  tipContent: string | JSX.Element;
 }
 
 const baseClass = "component__tooltip-wrapper";
 
 const NewTooltipWrapper = ({
+  // wrapperCustomClass,
+  // elementCustomClass,
+  // tipCustomClass,
   children,
   tipContent,
+  customRender,
   position = "bottom-start",
   isDelayed,
   underline = true,
   className,
   tooltipClass,
-  clickable = false,
-  customRender,
-}: // wrapperCustomClass,
-// elementCustomClass,
-// tipCustomClass,
-INewTooltipWrapperProps): JSX.Element => {
+  clickable = true,
+}:
+  | INewTooltipWrapperTipContent
+  | INewTooltipWrapperCustomRender): JSX.Element => {
   const wrapperClassNames = classnames(baseClass, className, {
     // [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
   });
