@@ -69,6 +69,20 @@ We use these prefixes to organize the Fleet Slack:
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
 
+## Figma
+We use Figma for virtually all our design work. This includes the Fleet product, our website, and our marketing collateral. 
+
+- **Fleet product:** All product design work is done in the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project.  
+See [📖Product#Working with Figma](https://fleetdm.com/handbook/product#working-with-figma) for more details.
+
+- **Fleet website:** All website design work is done in the [fleetdm.com (current, dev-ready)](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/%E2%9C%85-fleetdm.com-(current%2C-dev-ready)?node-id=794%3A373) Figma file.
+
+- **Design system:** Shared logos, typography styles, and UI components can be found in [Design system](https://www.figma.com/files/project/15701210).
+
+- **NOTE:** The Figma docs in Design System contain the master components that are referenced throughout all other Figma files. Use caution when modifying these components, as changes will be reflected in the master Fleet EE (scratchpad) and fleetdm.com (current, dev-ready) Figma docs.
+
+**Marketing assets:** Product screenshots and artwork for social media, articles, and other marketing assets can be found in [Collateral](https://www.figma.com/files/project/20798819).
+
 ## Levels of confidentiality
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
@@ -111,10 +125,14 @@ It is also common practice to block out time for focused work.
 
 <blockquote puropse="large-quote">In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.</blockquote>
 
-
 ### Modifying an event organized by someone else
 To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
 This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
+
+### Shared calendars
+Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
+
+Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/ceo#contact-us) and the appropriate DRI will reply with feedback.
 
 ### All hands
 Every month, Fleet holds a company-wide meeting called the "All hands".
