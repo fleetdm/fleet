@@ -159,7 +159,7 @@ fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:808
 You can also indicate the [channels you would like Fleetd to watch for updates](https://fleetdm.com/docs/using-fleet/fleetd#update-channels) using the `--orbit-channel`, `--desktop-channel` , and `--osqueryd-channel` flags:
 
 ```
-fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osquery-channel=4
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osqueryd-channel=4
 ```
 
 You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the `stable`  or `edge` channels.
