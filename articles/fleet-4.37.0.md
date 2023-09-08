@@ -49,12 +49,83 @@ In line with Fleet's values of 🟢 Results and 🟣 Openness, the latest 4.37.0
 
 ## New features, improvements, and bug fixes
 
-* 
+* * Added `/scripts/run` and `scripts/run/sync` API endpoints to send a script to be executed on a host and optionally wait for its results.
+
+* Added `POST /api/fleet/orbit/scripts/request` and `POST /api/fleet/orbit/scripts/result` Orbit-specific API endpoints to get a pending script to execute and send the results back, and added an Orbit notification to let the host know it has scripts pending execution.
+
+* Improved performance at scale when applying hundreds of policies to thousands of hosts via `fleetctl apply`.
+  - IMPORTANT: In previous versions of Fleet, there was a performance issue (thundering herd) when applying hundreds of policies on a large number of hosts. To avoid this, make sure to deploy this version of Fleet, and make sure Fleet is running for at least 1h (or the configured `FLEET_OSQUERY_POLICY_UPDATE_INTERVAL`) before applying the policies.
+
+* Added pagination to the policies API to increase response time.
+
+* Added policy count endpoints to support pagination on the frontend.
+
+* Added an endpoint to report `fleetd` errors.
+
+* Added logic to report errors during MDM migration.
+
+* Added support in fleetd to execute scripts and send back results (disabled by default).
+
+* Added an activity log when script execution was successfully requested.
+
+* Automatically set the DEP profile to be the same as "no team" (if set) for teams created using the `/match` endpoint (used by Puppet).
+
+* Added JumpCloud to the list of well-known MDM solutions.
+
+* Added `fleetctl run-script` command.
+
+* Made all table links right-clickable.
+
+* Improved the layout of the MDM SSO pages.
+
+* Stored user email when a user turned on MDM features with SSO enabled.
+
+* Updated the copy and image displayed on the MDM migration modal.
+
+* Upgraded Go to v1.19.12.
+
+* Updated the macadmins/osquery-extension to v0.0.15.
+
+* Updated nanomdm dependency.
 
 
-#### Bug Fixes:
+#### Bug Fixes
 
-* 
+
+* Fixed a bug where live query UI and export data tables showed all returned columns.
+
+* Fixed a bug where Jira and/or Zendesk integrations were being removed when an unrelated setting was changed.
+
+* Fixed software ingestion to not re-insert software when incoming fields from hosts were longer than what Fleet supports. This bug caused some CVEs to be reported every time the vulnerability cron ran.
+  - IMPORTANT: After deploying this fix, the vulnerability cron will report the CVEs one last time, and subsequent cron runs will not report the CVE (as expected).
+
+* Fixed duplicate policy names in `ee/cis/win-10/cis-policy-queries.yml`.
+
+* Fixed typos in policy queries in the Windows CIS policies YAML (`ee/cis/win-10/cis-policy-queries.yml`).
+
+* Fixed a bug where query stats (aka `Performance impact`) were not being populated in Fleet.
+
+* Added validation to `fleetctl apply` for duplicate policy names in the YAML file and attempting to change the team of an existing policy.
+
+* Optimized host queries when using policy statuses.
+
+* Changed the authentication method during Windows MDM enrollment to use `LoadHostByOrbitNodeKey` instead of `HostByIdentifier`.
+
+* Fixed alignment on long label names on host details label filter dropdown.
+
+* Added UI for script run activity and script details modal.
+
+* Fixed queries navigation bar bug where if in query detail, you could not navigate back to the manage queries table.
+
+* Made policy resolutions that include URLs clickable in the UI.
+
+* Fixed Fleet UI custom query frequency display.
+
+* Fixed live query filter icon and various other live query icons.
+
+* Fixed Fleet UI tabs highlight while tabbing but not on multiple clicks.
+
+* Fixed double scrollbar bug on dashboard page.
 
 
 ## Ready to upgrade?
