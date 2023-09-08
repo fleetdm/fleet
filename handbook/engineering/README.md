@@ -203,9 +203,6 @@ Fleet's documentation for contributors can be found in the [Fleet GitHub repo](h
 
 ## Release process
 
-- [Release freeze period](#release-freeze-period)
-- [Release day](#release-day)
-
 This section outlines the release process at Fleet.
 
 The current release cadence is once every three weeks and is concentrated around Wednesdays.
@@ -249,6 +246,17 @@ Our goal is to keep these dependencies up-to-date with each release of Fleet. If
 #### Create release QA issue
 
 Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=smoke-tests.md&title=). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [CX](https://fleetdm.com/handbook/company/development-groups#customer-experience-group) product groups.
+
+### Merging during the freeze period
+
+We merge bug fixes and documentation changes during the freeze period, but we do not merge other code changes. This minimizes code churn and helps ensure a stable release. To merge a bug fix, you must first unfreeze the PR in [Merge Freeze](https://app.mergefreeze.com/installations/3704/branches), and click the "Unfreeze 1 pull request" text link. 
+
+
+It is sometimes necessary to delay the release to allow time to complete partially merged feature work. In these cases, an exception process must be followed before merging during the freeze period. 
+
+1. The engineer requesting the feature work merge exception during freeze notifies their Engineering Manager. 
+2. The Engineering Manager notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). 
+3. The Engineering Manager, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is unfrozen and merged.
 
 ### Release day
 
