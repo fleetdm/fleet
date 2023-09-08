@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/pkg/buildpkg"
@@ -27,6 +28,10 @@ func main() {
 	acUsername := os.Getenv("AC_USERNAME")
 	acPassword := os.Getenv("AC_PASSWORD")
 	acTeamID := os.Getenv("AC_TEAM_ID")
+
+	version := os.Getenv("ORBIT_VERSION")
+	commit := os.Getenv("ORBIT_COMMIT")
+	date := time.Now().UTC().Format("2006-01-02T15:04:05Z")
 
 	codesign := false
 	if codesignIdentity != "" {
@@ -48,10 +53,10 @@ func main() {
 		binaryPath       = "orbit-darwin"
 		bundleIdentifier = "com.fleetdm.orbit"
 	)
-	if err := buildOrbit(amdBinaryPath, "amd64"); err != nil {
+	if err := buildOrbit(amdBinaryPath, "amd64", version, commit, date); err != nil {
 		panic(err)
 	}
-	if err := buildOrbit(armBinaryPath, "arm64"); err != nil {
+	if err := buildOrbit(armBinaryPath, "arm64", version, commit, date); err != nil {
 		panic(err)
 	}
 
@@ -93,10 +98,11 @@ func main() {
 	}
 }
 
-func buildOrbit(binaryPath, arch string) error {
+func buildOrbit(binaryPath, arch, version, commit, date string) error {
 	/* #nosec G204 -- arguments are actually well defined */
 	buildExec := exec.Command("go", "build",
 		"-o", binaryPath,
+		"-ldflags", fmt.Sprintf("-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=%s -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=%s -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date=%s", version, commit, date),
 		"./"+filepath.Join("orbit", "cmd", "orbit"),
 	)
 	buildExec.Env = append(os.Environ(), "GOOS=darwin", "GOARCH="+arch)

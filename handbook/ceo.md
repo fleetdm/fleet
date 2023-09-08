@@ -15,27 +15,31 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 ## Contact us
 
-- If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
-  - If urgent or personal, send a Slack direct message (DM) to `@mikermcneil` right away.
-  - If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the Apprentice in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
+- **Do not add events to the CEO's calendar.**  Even if the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).
+  - If you create an event directly on the CEO's calendar, it will be declined and removed.
+- **To ask a question or make a request** of the CEO or Apprentice, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&projects=&template=custom-request.md&title=Request%3A+_______________________) and he or the Apprentice will get back to you within one business day.
+  - If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
   - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
-- If the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).  (Or if it's too late, let the Apprentice know what you've done so far in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV).)
-
-
+- **For personal or extremely urgent requests** that cannot wait one business day, send a Slack direct message (DM) to `@mikermcneil` right away.
+- **If you are in Business Operations**, you can [request warehoused equipment be shipped from Fleet IT](#request-equipment-from-fleet-it).
 
 ### Schedule time with the CEO
 
-All [meetings](https://fleetdm.com/handbook/company/communtcations#internal-meeting-scheduling) are welcomed and a top priority for the CEO to consider getting on the calendar quickly. 
+All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
 
-To grab time with the CEO @mention the Apprentice in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
+To request time with the CEO, @mention the Apprentice in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
 - Proposed date and time
 - Reason for meeting _(e.g. include customer names or a related GitHub issue)_
 
-Meetings and blocked time can sometimes be moved to make room. External meetings, travel, and personal commitments can rarely be moved.
+Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 
 - **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](#process-the-ceos-calendar).
 - **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar, unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
 - **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](#why-not-mention-the-ceo-in-slack-threads).
+
+### Request equipment from Fleet IT
+
+The Apprentice fulfills equipment requests once per week.  [Submit an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&projects=&template=custom-request.md&title=Ship%20%equipment%3A+_______________________), including precisely which item you need and where you need it shipped.  The Apprentice will get back to you within one business day.
 
 
 ## Why not mention the CEO in Slack threads?
@@ -305,8 +309,7 @@ When processing new requests from this channel, consider this:
   - 12:30 PM /beginning of "reserved block"
   - 6:30 PM /post-mortem days meetings
 
-<rituals :rituals="rituals['handbook/company/ceo-rituals.yml']"></rituals>
-
+<rituals :rituals="rituals['handbook/company/ceo.rituals.yml']"></rituals>
 
 
 <meta name="maintainedBy" value="Sampfluger88">

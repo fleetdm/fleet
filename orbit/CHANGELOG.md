@@ -1,4 +1,4 @@
-## Orbit 1.16.0 (Sep 6 17, 2023)
+## Orbit 1.16.0 (Sep 6, 2023)
 
 * Updated the default TUF update roots with the newest metadata in the server. (#13381)
 
