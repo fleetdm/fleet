@@ -23,7 +23,7 @@ The introduction of the cross-platform script execution feature in Fleet is a di
 
 ### Supported platforms
 
-Fleet's new script execution supports macOS, Windows, and Linux systems. For macOS and Linux, the execution will utilize the Bourne (`sh`) shell. On Windows, PowerShell scripts are supported, providing a flexible and robust range of options for IT administrators and security engineers.
+Fleet's new script execution supports macOS, Windows, and Linux systems. For macOS and Linux, the execution will utilize the device's default shell. On Windows, PowerShell scripts are supported, providing a flexible and robust range of options for IT administrators and security engineers.
 
 
 ### Prerequisites
