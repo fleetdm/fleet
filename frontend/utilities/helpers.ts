@@ -660,9 +660,9 @@ export const humanLastSeen = (lastSeen: string): string => {
   return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
 
-export const internationalTimeFormat = (timeString: number | Date): string => {
+export const internationalTimeFormat = (date: number | Date): string => {
   return intlFormat(
-    timeString,
+    date,
     {
       year: "numeric",
       month: "numeric",
