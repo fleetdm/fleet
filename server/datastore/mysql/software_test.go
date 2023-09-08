@@ -208,16 +208,13 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
-	longName := strings.Repeat("a", 260)
+	longName := strings.Repeat("a", fleet.SoftwareNameMaxLength+5)
 
 	incoming := make(map[string]fleet.Software)
-	sw := fleet.Software{
-		Name:    longName + "b",
-		Version: "0.0.1",
-		Source:  "chrome_extension",
-	}
+	sw, err := fleet.SoftwareFromOsqueryRow(longName+"b", "0.0.1", "chrome_extension", "", "", "", "", "", "")
+	require.NoError(t, err)
 	soft2Key := sw.ToUniqueStr()
-	incoming[soft2Key] = sw
+	incoming[soft2Key] = *sw
 
 	tx, err := ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
@@ -225,20 +222,39 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 
+	// Check that the software entry was stored for the host.
+	var software []fleet.Software
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
+		&software, `SELECT s.id, s.name FROM software s JOIN host_software hs WHERE hs.host_id = ?`,
+		host1.ID,
+	)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.NotZero(t, software[0].ID)
+	require.Equal(t, strings.Repeat("a", fleet.SoftwareNameMaxLength), software[0].Name)
+
 	incoming = make(map[string]fleet.Software)
-	sw = fleet.Software{
-		Name:    longName + "c",
-		Version: "0.0.1",
-		Source:  "chrome_extension",
-	}
+	sw, err = fleet.SoftwareFromOsqueryRow(longName+"c", "0.0.1", "chrome_extension", "", "", "", "", "", "")
+	require.NoError(t, err)
 	soft3Key := sw.ToUniqueStr()
-	incoming[soft3Key] = sw
+	incoming[soft3Key] = *sw
 
 	tx, err = ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
 	_, err = insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
+
+	// Check that the software entry was not modified with the new insert because of the name trimming.
+	var software2 []fleet.Software
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
+		&software2, `SELECT s.id, s.name FROM software s JOIN host_software hs WHERE hs.host_id = ?`,
+		host1.ID,
+	)
+	require.NoError(t, err)
+	require.Len(t, software2, 1)
+	require.Equal(t, strings.Repeat("a", fleet.SoftwareNameMaxLength), software2[0].Name)
+	require.Equal(t, software[0].ID, software2[0].ID)
 }
 
 func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {

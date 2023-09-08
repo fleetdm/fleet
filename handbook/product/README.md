@@ -131,6 +131,8 @@ Product Managers [write user stories](https://fleetdm.com/handbook/company/devel
 ## Drafting user stories
 Product Designers [draft user stories](https://fleetdm.com/handbook/company/development-groups#drafting) that have been prioritized by PMs. If the estimated user stories for a product group exceed [that group's capacity](https://fleetdm.com/handbook/company/product-groups#current-product-groups), all new design work for that group is paused, and the designer will contribute in other ways (documentation & handbook work, Figma maintenance, QA, etc.) until the PM deprioritizes estimated stories to make room, or until the next sprint begins. (If the designer has existing work-in-progress, they will continue to review and iterate on those designs and see the stories through to estimation.)
 
+If an issue's title or user story summary (_"as a…I want to…so that"_) does not match the intended change being discussed, the designer will move the issue to the "Needs clarity" column of the drafting board and assign the group product manager.  The group product manager will revisit ASAP and edit the issue title and user story summary, then reassign the designer and move the issue back to the "Prioritized" column.
+
 ## Estimating user stories
 Engineering Managers estimate user stories.  They are responsible for delivering planned work in the current sprint (0-3 weeks) while quickly getting user stories estimated for the next sprint (3-6 weeks).  Only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's Engineering Manager and occurs on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
@@ -362,7 +364,8 @@ Every week, a member of the product team (as determined in the [rituals](#ritual
 4. a release of CIS Benchmarks for [macOS 14 Sonoma](https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
 5. a new major or minor version of [ChromeOS](https://chromereleases.googleblog.com/search/label/Chrome%20OS)
 
-If there are changes, the DRI should send a message in the #help-product Slack channel, noting the current versions and whether any of the above has changed.
+The DRI should record the latest versions in the [maintenance tracker](https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit#gid=0) and then notify the [#help-product Slack channel](https://fleetdm.slack.com/archives/C02A8BRABB5) with an update, noting the current versions and highlighting any changes. 
+
 
 ### New CIS benchmarks
 When we create new CIS benchmarks, also submit the new CIS benchmark set to CIS for [certification](https://www.cisecurity.org/cis-securesuite/pricing-and-categories/product-vendor/cis-benchmark-assessment#:~:text=In%20order%20to%20incorporate%20and,recommendations%20in%20the%20associated%20CIS). 
@@ -395,6 +398,11 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Bug review (CX)                               | Weekly (Tuesday)         | The product manager meets with the engineering manager and a product quality engineer to ensure synchronization on bug prioritization and actions preceding CX estimation sessions.                                                                                                         | Mo Zhu            |
 | Churned bug review                            | Sprintly (Wednesday)     | The Head of Product meets with the group product managers to examine churned bugs and categorize them as either continue, needs prioritization, or de-prioritize.                                                                                                                                     | Mo Zhu            |
 | Churned bug clean-up | Sprintly | Following the bug de-prioritization meeting, Product Operations completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as continue, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Isabell Reedy |
+| Stand-up (website)           | Daily (Monday - Thursday) | The website product team meets to discuss completed tasks, upcoming work, and address any questions. | Mike Thomas |
+| Prioritization session (website) | Sprintly                | The website product team meets to prioritize tasks for the upcoming sprint. | Mike Thomas |
+| Design review (website)      | Daily (Monday - Thursday) | Review designs from the website team.                                       | Mike Thomas |
+| PMMs R Us                     | Weekly (Sunday)         | The CEO meets with the Head of Design to discuss product marketing strategies. | Mike Thomas |
+
 
 
 ## Slack channels
