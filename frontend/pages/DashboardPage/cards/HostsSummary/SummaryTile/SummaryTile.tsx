@@ -50,23 +50,6 @@ const SummaryTile = ({
   const classes = classnames(`${baseClass}__tile`, `${kebabCase(title)}-tile`, {
     [`${baseClass}__not-supported`]: notSupported,
   });
-  // TODO CHANGE THIS BACK!
-  const getWrappedTitle = () => {
-    if (tooltip) {
-      if (title === "Missing hosts") {
-        return (
-          <NewTooltipWrapper tipContent={tooltip}>{title}</NewTooltipWrapper>
-        );
-      }
-      return (
-        <NewTooltipWrapper tipContent={tooltip} position="top" isDelayed>
-          {title}
-        </NewTooltipWrapper>
-      );
-    }
-    return title;
-  };
-
   const tile = (
     <>
       <Icon
@@ -89,7 +72,11 @@ const SummaryTile = ({
           </div>
         )}
         <div className={`${baseClass}__description`}>
-          {getWrappedTitle()}
+          {tooltip ? (
+            <NewTooltipWrapper tipContent={tooltip}>{title}</NewTooltipWrapper>
+          ) : (
+            title
+          )}
           {isSandboxMode && sandboxPremiumOnlyIcon && (
             <PremiumFeatureIconWithTooltip
               tooltipPositionOverrides={{ leftAdj: 2, topAdj: 5 }}

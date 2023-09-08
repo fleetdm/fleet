@@ -152,7 +152,17 @@ const generateTableHeaders = (
       Header: () => {
         return (
           <div>
-            <NewTooltipWrapper tipContent="This is the average performance<br />impact across all hosts where<br />this query was scheduled.">
+            <NewTooltipWrapper
+              tipContent={
+                <>
+                  This is the average performance
+                  <br />
+                  impact across all hosts where
+                  <br />
+                  this query was scheduled.
+                </>
+              }
+            >
               Performance impact
             </NewTooltipWrapper>
           </div>

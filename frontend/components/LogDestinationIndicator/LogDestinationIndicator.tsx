@@ -49,30 +49,62 @@ const LogDestinationIndicator = ({
   const tooltipText = () => {
     switch (logDestination) {
       case "filesystem":
-        return `Each time a query runs, the data is sent to <br />
+        return (
+          <>
+            Each time a query runs, the data is sent to <br />
             /var/log/osquery/osqueryd.snapshots.log <br />
-            in each host&apos;s filesystem.`;
+            in each host&apos;s filesystem.
+          </>
+        );
       case "firehose":
-        return `Each time a query runs, the data is sent to <br />
-            Amazon Kinesis Data Firehose.`;
+        return (
+          <>
+            Each time a query runs, the data is sent to <br />
+            Amazon Kinesis Data Firehose.`
+          </>
+        );
       case "kinesis":
-        return `Each time a query runs, the data is sent to <br />
-            Amazon Kinesis Data Streams.`;
+        return (
+          <>
+            Each time a query runs, the data is sent to <br />
+            Amazon Kinesis Data Streams.
+          </>
+        );
       case "lambda":
-        return `
-            Each time a query runs, the data <br />is sent to AWS Lambda.
-          `;
+        return (
+          <>
+            Each time a query runs, the data <br />
+            is sent to AWS Lambda.
+          </>
+        );
       case "pubsub":
-        return `Each time a query runs, the data is <br />sent to Google Cloud Pub/Sub.`;
+        return (
+          <>
+            Each time a query runs, the data is <br /> sent to Google Cloud Pub
+            / Sub.`
+          </>
+        );
       case "kafta":
-        return `Each time a query runs, the data <br />is sent to Apache Kafka.`;
+        return (
+          <>
+            Each time a query runs, the data <br /> is sent to Apache Kafka.
+          </>
+        );
       case "stdout":
-        return `Each time a query runs, the data is sent to <br />
-            standard output (stdout) on the Fleet server.`;
+        return (
+          <>
+            Each time a query runs, the data is sent to <br />
+            standard output(stdout) on the Fleet server.
+          </>
+        );
       case "":
-        return "Please configure a log destination.";
+        return <>Please configure a log destination.</>;
       default:
-        return "No additional information is available about this log destination.";
+        return (
+          <>
+            No additional information is available about this log destination.
+          </>
+        );
     }
   };
 

@@ -68,14 +68,13 @@ const condenseVulnerabilities = (
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <NewTooltipWrapper
-      position="top"
-      tipContent={`
+      position="top-start"
+      tipContent={
         <span>
-          <b>Bundle identifier: </b>
-          <br />
-          ${bundle}
+          <b>Bundle identifier:</b> <br />
+          {bundle}
         </span>
-      `}
+      }
     >
       {name}
     </NewTooltipWrapper>

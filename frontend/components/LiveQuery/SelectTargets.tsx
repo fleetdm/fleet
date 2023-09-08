@@ -387,7 +387,13 @@ const SelectTargets = ({
         {onlinePercentage}
         %&nbsp;
         <NewTooltipWrapper
-          tipContent={`Hosts are online if they<br /> have recently checked <br />into Fleet.`}
+          tipContent={
+            <>
+              Hosts are online if they <br />
+              have recently checked <br />
+              into Fleet.
+            </>
+          }
         >
           online
         </NewTooltipWrapper>

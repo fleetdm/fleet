@@ -27,7 +27,12 @@ const LastUpdatedText = ({
   return (
     <span className={baseClass}>
       <NewTooltipWrapper
-        tipContent={`Fleet periodically queries all hosts <br />to retrieve ${whatToRetrieve}.`}
+        tipContent={
+          <>
+            Fleet periodically queries all hosts <br />
+            to retrieve {whatToRetrieve}.
+          </>
+        }
       >
         {`Updated ${lastUpdatedAt}`}
       </NewTooltipWrapper>
