@@ -24,7 +24,7 @@ Fleet adds a significant new feature, allowing IT administrators and security en
 
 _Available in Fleet Premium and Fleet Ultimate_
 
-Fleet is excited to beta the Vulnerability dashboard, which focuses on actionable data for security and IT teams.. The dashboard will feature the ability to pin priority Common Vulnerabilities and Exposures (CVEs) and set approved Operating System versions. These features offer a straightforward way to monitor and ensure patch compliance across multiple teams, echoing Fleet's emphasis on 🟠 Ownership and efficient execution of tasks.
+Fleet is excited to beta the Vulnerability dashboard, which focuses on actionable data for security and IT teams. The dashboard will feature the ability to pin priority Common Vulnerabilities and Exposures (CVEs) and set approved Operating System versions. These features offer a straightforward way to monitor and ensure patch compliance across multiple teams, echoing Fleet's emphasis on 🟠 Ownership and efficient execution of tasks.
 
 The dashboard is designed to facilitate cross-team reporting of vulnerability information, fulfilling a crucial user story: As a member of the security and IT team, the dashboard enables the tracking and reporting of vulnerabilities to ensure that all teams meet compliance standards. This aligns with Fleet's value of 🟣 Openness, encouraging transparent information sharing within the organization.
 
@@ -44,7 +44,7 @@ The integration ultimately embodies Fleet's value of 🟣 Openness by making it 
 
 ### Web user interface improvements
 
-In line with Fleet's values of 🟢 Results and 🟣 Openness, the latest 4.37.0 release brings practical improvements to the web user interface, building on the foundations set in version 4.32.0. The update enables users to command-click (or ctrl-click on Windows) on table elements to open them in a new browser tab, enhancing workflow efficiency. This comes after the 4.32.0 update, which made URLs the source of truth for the Manage Queries page table state, adding an extra layer of clarity and transparency. These changes aim to simplify user interactions with the platform while promoting efficient, straightforward management of queries.
+In line with Fleet's values of 🟢 Results and 🟣 Openness, the latest 4.37.0 release brings practical improvements to the web user interface, building on the foundations set in [version 4.32.0](https://fleetdm.com/releases/fleet-4.32.0). The update enables users to command-click (or ctrl-click on Windows) on table elements to open them in a new browser tab, enhancing workflow efficiency. This comes after the 4.32.0 update, which made URLs the source of truth for the Manage Queries page table state, adding an extra layer of clarity and transparency. These changes aim to simplify user interactions with the platform while promoting efficient, straightforward management of queries.
 
 
 ## New features, improvements, and bug fixes
