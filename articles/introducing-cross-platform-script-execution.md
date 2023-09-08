@@ -9,7 +9,7 @@ Whether you need to address a security vulnerability, investigate an anomaly, or
 
 ### Why cross-platform script execution matters
 
-In the rapidly evolving world of IT security and device management, the demands placed on administrators and security engineers are continually increasing. The challenges of keeping systems up-to-date, secure, and efficiently managed require tools that are both powerful and adaptable.
+In the rapidly evolving world of IT, security, and device management, the demands placed on administrators and security engineers are continually increasing. The challenges of keeping systems up-to-date, secure, and efficiently managed require tools that are both powerful and adaptable.
 
 The introduction of the cross-platform script execution feature in Fleet is a direct response to these needs. But why does this matter, and what makes this new capability so essential?
 
@@ -30,7 +30,7 @@ Fleet's new script execution supports macOS, Windows, and Linux systems. For mac
 
 Before leveraging the power of this feature, specific prerequisites must be met. Most crucially, it can only be enabled by someone with root access to the device. This access can be proven by pushing a new package, modifying a configuration file with root-only write access, or pushing an MDM profile. Fleet requires this level of access to provide a more convenient mechanism for script execution.
 
-For macOS and Linux, the script execution relies on shell scripts specified in the shebang interpreter. Therefore, it's essential to ensure the chosen interpreter, such as sh or zsh, and is available and configured correctly on the target device.
+For macOS and Linux, the script execution relies on shell scripts specified in the shebang interpreter. Therefore, it's essential to ensure the chosen interpreter, such as sh or zsh, is available and configured correctly on the target device.
 
 
 ### Security considerations
@@ -44,7 +44,7 @@ By outlining the threat model and ensuring only those with root access can enabl
 
 At Fleet, our focus is consistently centered around the needs of our users - the IT administrators and security engineers who tackle complex challenges daily. The introduction of cross-platform script execution represents our continued dedication to delivering solutions that genuinely empower our community.
 
-Fleet's strategic design blends efficiency, security, and practicality. By providing the tools to execute scripts across macOS, Windows, and Linux, we have removed barriers that often hamper swift action. The careful integration of root-level security controls ensures that this powerful functionality is handled with the necessary caution and integrity.
+Fleet's strategic design blends efficiency, security, and practicality. By providing the tools to execute scripts across macOS, Windows, and Linux, we have removed barriers that often hamper swift action. The careful integration of root-level security controls makes sure that this powerful functionality is handled with the necessary caution and integrity.
 
 Whether you are a current Fleet Premium user or considering joining our community, this feature aims to elevate your ability to remediate issues, investigate anomalies, and maintain the highest IT security and device management standard.
 
