@@ -15,12 +15,12 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 ## Contact us
 
+- Do not add events to the CEO's calendar.  Even if the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).
 - To make a request of the CEO, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&projects=&template=custom-request.md&title=Request%3A+_______________________) and he or the Apprentice will get back to you within one business day.
 - If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
   - If urgent or personal, send a Slack direct message (DM) to `@mikermcneil` right away.
   - If it can wait, add your message to the "🐈‍⬛🗣️ CEO office minutes (#g-ceo)" agenda and @mention the Apprentice in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV)
   - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
-- If the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).  (Or if it's too late, let the Apprentice know what you've done so far in the [#g-ceo Slack channel](https://fleetdm.slack.com/archives/C05K87USYUV).)
 - If you are in Business Operations, you can [request warehoused equipment be shipped from Fleet IT](#request-equipment-from-fleet-it).
 
 ### Request equipment from Fleet IT
