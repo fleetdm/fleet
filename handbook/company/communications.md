@@ -69,7 +69,7 @@ We use these prefixes to organize the Fleet Slack:
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
 
-### Figma
+## Figma
 We use Figma for virtually all our design work. This includes the Fleet product, our website, and our marketing collateral. 
 
 - **Fleet product:** All product design work is done in the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project.  
