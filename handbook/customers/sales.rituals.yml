@@ -12,9 +12,9 @@
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-sales" ] # label to be applied to issue
 -
-  task: "Saley thing"
+  task: "Create sales ritual"
   startedOn: "2023-07-29"
-  frequency: "Daily ⏰"
+  frequency: "Daily"
   description: "TODO"
   moreInfoUrl: "https://fleetdm.com/handbook/customers#contact-us"
   dri: "alexmitchelliii"
