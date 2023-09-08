@@ -203,9 +203,6 @@ Fleet's documentation for contributors can be found in the [Fleet GitHub repo](h
 
 ## Release process
 
-- [Release freeze period](#release-freeze-period)
-- [Release day](#release-day)
-
 This section outlines the release process at Fleet.
 
 The current release cadence is once every three weeks and is concentrated around Wednesdays.
