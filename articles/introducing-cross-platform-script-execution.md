@@ -30,7 +30,7 @@ Fleet's new script execution supports macOS, Windows, and Linux systems. For mac
 
 Before leveraging the power of this feature, specific prerequisites must be met. Most crucially, it can only be enabled by someone with root access to the device. This access can be proven by pushing a new package, modifying a configuration file with root-only write access, or pushing an MDM profile. Fleet requires this level of access to provide a more convenient mechanism for script execution.
 
-For macOS and Linux, the script execution relies on shell scripts specified in the shebang interpreter. Therefore, it's essential to ensure the chosen interpreter, such as sh or zsh, is available and configured correctly on the target device.
+For macOS and Linux, the script is always executed in the device's (root) default shell (`/bin/sh`). Therefore, it's important to understand which shell is configured as the default on the target device.
 
 
 ### Security considerations
