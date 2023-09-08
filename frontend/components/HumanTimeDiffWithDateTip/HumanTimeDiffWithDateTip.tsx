@@ -8,7 +8,7 @@ interface IHumanTimeDiffWithDateTip {
   timeString: string;
 }
 
-/** Returns Unavailable if date is "Unavailable" or empty string
+/** Returns "Unavailable" if date is empty string or "Unavailable"
  * Returns "Invalid date" if date is invalid */
 export default ({ timeString }: IHumanTimeDiffWithDateTip): JSX.Element => {
   const id = uniqueId();
