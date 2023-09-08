@@ -19,6 +19,12 @@ interface INewTooltipWrapperProps {
   // wrapperCustomClass?: string;
   // elementCustomClass?: string;
   // tipCustomClass?: string;
+  clickable?: boolean;
+  // see https://react-tooltip.com/docs/examples/render
+  customRender?: (render: {
+    content: string | null;
+    activeAnchor: HTMLElement | null;
+  }) => any; // should actually return `ChildrenType` - TODO(jacob) - figure out how to type that
 }
 
 const baseClass = "component__tooltip-wrapper";
@@ -31,6 +37,8 @@ const NewTooltipWrapper = ({
   underline = true,
   className,
   tooltipClass,
+  clickable = false,
+  customRender,
 }: // wrapperCustomClass,
 // elementCustomClass,
 // tipCustomClass,
@@ -64,11 +72,10 @@ INewTooltipWrapperProps): JSX.Element => {
         place={position}
         opacity={1}
         disableStyleInjection
-        clickable
+        clickable={clickable}
         offset={5}
-      >
-        {tipContent}
-      </ReactTooltip5>
+        render={customRender || (() => tipContent)}
+      />
     </span>
   );
 };
