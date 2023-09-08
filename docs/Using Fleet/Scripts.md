@@ -41,7 +41,7 @@ To run the script, we'll need to create a `set-wallpaper-to-fleet.sh` file local
 ```sh
 wallpaper="/tmp/wallpaper.png" 
 
-curl --fail https://fleetdm.com/images/homepage-hero-background-1921x555@2x.png -o $wallpaper
+curl --fail https://fleetdm.com/images/wallpaper-cloud-city-1920x1080.png -o $wallpaper
 
 osascript -e 'tell application "Finder" to set desktop picture to POSIX file "'"$wallpaper"'"' 
 ```
