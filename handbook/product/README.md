@@ -71,11 +71,13 @@ For external contributors: please consider opening an issue with reference scree
 
 > As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
-#### Estimating
+### Settled 
 
-Once the draft has been approved: 
-* move it to the "Settled" column in the drafting board and assign it to the appropriate engineering manager.
-* make sure that the issue is updated with the latest information on the work to be done, such as a link to the correct Figma file and a list of most recent requirements.
+Once the draft has been approved, it moves to the "Settled" column on the drafting board. 
+
+Before assigning an engineering manager for [estimation](https://fleetdm.com/handbook/engineering#sprint-ceremonies), the product team should ensure the product section of the user story [check-list](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
+
+> The story's designer is responsible for ensuring the checklist has been completed, the requirements section is consistent with the Figma, and the group engineering manager has been assigned. 
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
