@@ -47,7 +47,6 @@ interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
-    isLastColumn?: boolean;
   };
   getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
@@ -149,7 +148,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "display_name",
@@ -208,7 +206,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "hostname",
@@ -220,7 +217,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "computer_name",
@@ -232,7 +228,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "team_name",
@@ -259,7 +254,6 @@ const allHostTableHeaders: IDataColumn[] = [
         <HeaderCell
           value={cellProps.rows.length === 1 ? "Status" : titleWithToolTip}
           disableSortBy
-          isLastColumn={cellProps.column.isLastColumn}
         />
       );
     },
@@ -291,7 +285,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "gigs_disk_space_available",
@@ -321,7 +314,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "os_version",
@@ -382,7 +374,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "primary_ip",
@@ -402,13 +393,7 @@ const allHostTableHeaders: IDataColumn[] = [
           MDM status
         </NewTooltipWrapper>
       );
-      return (
-        <HeaderCell
-          value={titleWithToolTip}
-          isLastColumn={cellProps.column.isLastColumn}
-          disableSortBy
-        />
-      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
     accessor: "mdm.enrollment_status",
@@ -437,13 +422,7 @@ const allHostTableHeaders: IDataColumn[] = [
           MDM server URL
         </NewTooltipWrapper>
       );
-      return (
-        <HeaderCell
-          value={titleWithToolTip}
-          isLastColumn={cellProps.column.isLastColumn}
-          disableSortBy
-        />
-      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
     accessor: "mdm.server_url",
@@ -464,7 +443,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "public_ip",
@@ -519,7 +497,6 @@ const allHostTableHeaders: IDataColumn[] = [
         <HeaderCell
           value={titleWithToolTip}
           isSortedDesc={cellProps.column.isSortedDesc}
-          isLastColumn={cellProps.column.isLastColumn}
         />
       );
     },
@@ -547,7 +524,6 @@ const allHostTableHeaders: IDataColumn[] = [
         <HeaderCell
           value={titleWithToolTip}
           isSortedDesc={cellProps.column.isSortedDesc}
-          isLastColumn={cellProps.column.isLastColumn}
         />
       );
     },
@@ -565,7 +541,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "uuid",
@@ -579,7 +554,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "uptime",
@@ -612,7 +586,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "memory",
@@ -626,7 +599,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "primary_mac",
@@ -638,7 +610,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "hardware_serial",
@@ -650,7 +621,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "hardware_model",
