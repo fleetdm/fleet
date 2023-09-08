@@ -1,6 +1,6 @@
 # Customers
 
-This handbook page details processes specific to working [with](fleetdm.com/handbook/company/customers#contact-us) and [within](fleetdm.com/handbook/company/customers#responsibilities) the Sales department.
+This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## What we do
 TODO
