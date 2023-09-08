@@ -298,7 +298,7 @@ resource "kubernetes_deployment" "redirect" {
 
       spec {
         container {
-          image = "nginx:1.23.1"
+          image = "nginx:1.25.2"
           name  = "nginx"
 
           port {

@@ -1,6 +1,8 @@
 import React from "react";
 import { useQuery } from "react-query";
 
+import scriptsAPI, { IScriptResult } from "services/entities/scripts";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -10,9 +12,6 @@ import DataError from "components/DataError/DataError";
 import Spinner from "components/Spinner/Spinner";
 
 const baseClass = "script-details-modal";
-
-const SCRIPT_RUNNING_CODE = -999;
-const HOST_NOT_REACHED_CODE = -998;
 
 interface IScriptContentProps {
   content: string;
@@ -29,60 +28,84 @@ const ScriptContent = ({ content }: IScriptContentProps) => {
   );
 };
 
+const StatusMessageRunning = () => (
+  <div className={`${baseClass}__status-message`}>
+    <p>
+      <Icon name="pending-partial" />
+      Script is running. To see if the script finished, close this modal and
+      open it again.
+    </p>
+  </div>
+);
+
+const StatusMessageSuccess = () => (
+  <div className={`${baseClass}__status-message`}>
+    <p>
+      <Icon name="success-partial" />
+      Exit code: 0 (Script ran successfully.)
+    </p>
+  </div>
+);
+
+const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
+  <div className={`${baseClass}__status-message`}>
+    <p>
+      <Icon name="error-outline" />
+      Exit code: {exitCode} (Script failed.)
+    </p>{" "}
+  </div>
+);
+
+const StatusMessageError = ({ message }: { message: string }) => (
+  <div className={`${baseClass}__status-message`}>
+    <p>
+      <Icon name="error-outline" />
+      Error: {message}
+    </p>
+  </div>
+);
+
 interface IStatusMessageProps {
-  exitCode: number;
+  hostTimeout: boolean;
+  exitCode: number | null;
   message: string;
-  runtime: number;
 }
 
-const StatusMessage = ({ exitCode, message, runtime }: IStatusMessageProps) => {
-  let statusMessage: JSX.Element;
-
-  // script timed out error
-  if (runtime > 30) {
-    statusMessage = (
-      <p>
-        <Icon name="error-outline" />
-        Timeout error: Fleet stopped the script after 30 seconds to protect host
-        performance.
-      </p>
-    );
-    // host could not be reached
-  } else if (exitCode === HOST_NOT_REACHED_CODE) {
-    statusMessage = (
-      <p>
-        <Icon name="error-outline" />
-        The script ran but Fleet couldn&apos;t get its output because Fleet
-        didn&apos;t hear back from the host.
-      </p>
-    );
-    // script still running
-  } else if (exitCode === SCRIPT_RUNNING_CODE) {
-    statusMessage = (
-      <p>
-        <Icon name="pending-partial" />
-        Script is running. To see if the script finished, close this modal and
-        open it again.
-      </p>
-    );
-  } else {
-    // 0 or 1 exit code with message
-    statusMessage = (
-      <p>
-        <Icon name={exitCode === 0 ? "success-partial" : "error-outline"} />
-        {`Exit code: ${exitCode} (${message})`}
-      </p>
-    );
+const StatusMessage = ({
+  hostTimeout,
+  exitCode,
+  message,
+}: IStatusMessageProps) => {
+  switch (exitCode) {
+    case null:
+      return !hostTimeout ? (
+        // Expected API message: "A script is already running on this host. Please wait about 1 minute to let it finish."
+        <StatusMessageRunning />
+      ) : (
+        // Expected API message: "Fleet hasn’t heard from the host in over 1 minute. Fleet doesn’t know if the script ran because the host went offline."
+        <StatusMessageError message={message} />
+      );
+    case -2:
+      // Expected API message: "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
+      return <StatusMessageError message={message} />;
+    case -1:
+      // Expected API message: "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
+      return <StatusMessageError message={message} />;
+    case 0:
+      // Expected API message: ""
+      return <StatusMessageSuccess />;
+    default:
+      // Expected API message: ""
+      return <StatusMessageFailed exitCode={exitCode} />;
   }
-
-  return <div className={`${baseClass}__status-message`}>{statusMessage}</div>;
 };
 
 interface IScriptOutputProps {
   output: string;
+  hostname: string;
 }
 
-const ScriptOutput = ({ output }: IScriptOutputProps) => {
+const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
   return (
     <div className={`${baseClass}__script-output`}>
       <p>
@@ -94,7 +117,7 @@ const ScriptOutput = ({ output }: IScriptOutputProps) => {
         >
           output recorded
         </TooltipWrapper>{" "}
-        when <b>Marko&apos;s MacBook Pro</b> ran the script above:
+        when <b>{hostname}</b> ran the script above:
       </p>
       <Textarea className={`${baseClass}__output-textarea`}>{output}</Textarea>
     </div>
@@ -102,65 +125,72 @@ const ScriptOutput = ({ output }: IScriptOutputProps) => {
 };
 
 interface IScriptResultProps {
-  exitCode: number;
+  hostname: string;
+  hostTimeout: boolean;
+  exitCode: number | null;
   message: string;
   output: string;
-  runtime: number;
 }
 
 const ScriptResult = ({
+  hostname,
+  hostTimeout,
   exitCode,
   message,
   output,
-  runtime,
 }: IScriptResultProps) => {
-  const showOutputText = exitCode !== -998 && exitCode !== -999 && runtime < 30;
+  const hostTimedOut = exitCode === null && hostTimeout === true;
+  const scriptsDisabledForHost = exitCode === -2;
+  const scriptStillRunning = exitCode === null && hostTimeout === false;
+  const showOutputText =
+    !hostTimedOut && !scriptsDisabledForHost && !scriptStillRunning;
 
   return (
     <div className={`${baseClass}__script-result`}>
-      <StatusMessage exitCode={exitCode} message={message} runtime={runtime} />
-      {showOutputText && <ScriptOutput output={output} />}
+      <StatusMessage
+        hostTimeout={hostTimeout}
+        exitCode={exitCode}
+        message={message}
+      />
+      {showOutputText && <ScriptOutput output={output} hostname={hostname} />}
     </div>
   );
 };
 
 interface IScriptDetailsModalProps {
+  scriptExecutionId: string;
   onCancel: () => void;
 }
 
-const ScriptDetailsModal = ({ onCancel }: IScriptDetailsModalProps) => {
-  const TEST_DATA = {
-    script_contents: "test contentsss",
-    exit_code: 0,
-    output: "test output",
-    message: "test message",
-    runtime: 20,
-  };
-
-  const { data, isLoading, isError } = useQuery<any>(
+const ScriptDetailsModal = ({
+  scriptExecutionId,
+  onCancel,
+}: IScriptDetailsModalProps) => {
+  const { data, isLoading, isError } = useQuery<IScriptResult>(
     ["scriptDetailsModal"],
     () => {
-      return new Promise((resolve) => resolve(TEST_DATA));
+      return scriptsAPI.getScriptResult(scriptExecutionId);
     },
     { refetchOnWindowFocus: false }
   );
 
   const renderContent = () => {
-    let content: JSX.Element;
+    let content = <></>;
 
     if (isLoading) {
       content = <Spinner />;
     } else if (isError) {
       content = <DataError description="Close this modal and try again." />;
-    } else {
+    } else if (data) {
       content = (
         <>
           <ScriptContent content={data.script_contents} />
           <ScriptResult
+            hostname={data.hostname}
+            hostTimeout={data.host_timeout}
             exitCode={data.exit_code}
             message={data.message}
             output={data.output}
-            runtime={data.runtime}
           />
         </>
       );

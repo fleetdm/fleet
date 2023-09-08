@@ -16,48 +16,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const (
-	maxSoftwareNameLen             = 255
-	maxSoftwareVersionLen          = 255
-	maxSoftwareSourceLen           = 64
-	maxSoftwareBundleIdentifierLen = 255
-
-	maxSoftwareReleaseLen = 64
-	maxSoftwareVendorLen  = 32
-	maxSoftwareArchLen    = 16
-)
-
-func truncateString(str string, length int) string {
-	if len(str) > length {
-		return str[:length]
-	}
-	return str
-}
-
-func uniqueStringToSoftware(s string) fleet.Software {
-	parts := strings.Split(s, fleet.SoftwareFieldSeparator)
-
-	// Release, Vendor and Arch fields were added on a migration,
-	// If one of them is defined, then they are included in the string.
-	var release, vendor, arch string
-	if len(parts) > 4 {
-		release = truncateString(parts[4], maxSoftwareReleaseLen)
-		vendor = truncateString(parts[5], maxSoftwareVendorLen)
-		arch = truncateString(parts[6], maxSoftwareArchLen)
-	}
-
-	return fleet.Software{
-		Name:             truncateString(parts[0], maxSoftwareNameLen),
-		Version:          truncateString(parts[1], maxSoftwareVersionLen),
-		Source:           truncateString(parts[2], maxSoftwareSourceLen),
-		BundleIdentifier: truncateString(parts[3], maxSoftwareBundleIdentifierLen),
-
-		Release: release,
-		Vendor:  vendor,
-		Arch:    arch,
-	}
-}
-
 func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software)
 	for _, s := range softwares {
@@ -493,24 +451,31 @@ func insertNewInstalledHostSoftwareDB(
 	var insertsHostSoftware []interface{}
 	var insertedSoftware []fleet.Software
 
-	incomingOrdered := make([]string, 0, len(incomingMap))
-	for s := range incomingMap {
-		incomingOrdered = append(incomingOrdered, s)
+	type softwareWithUniqueName struct {
+		uniqueName string
+		software   fleet.Software
 	}
-	sort.Strings(incomingOrdered)
+	incomingOrdered := make([]softwareWithUniqueName, 0, len(incomingMap))
+	for uniqueName, software := range incomingMap {
+		incomingOrdered = append(incomingOrdered, softwareWithUniqueName{
+			uniqueName: uniqueName,
+			software:   software,
+		})
+	}
+	sort.Slice(incomingOrdered, func(i, j int) bool {
+		return incomingOrdered[i].uniqueName < incomingOrdered[j].uniqueName
+	})
 
 	for _, s := range incomingOrdered {
-		if _, ok := currentMap[s]; !ok {
-			swToInsert := uniqueStringToSoftware(s)
-			id, err := getOrGenerateSoftwareIdDB(ctx, tx, swToInsert)
+		if _, ok := currentMap[s.uniqueName]; !ok {
+			id, err := getOrGenerateSoftwareIdDB(ctx, tx, s.software)
 			if err != nil {
 				return nil, err
 			}
-			sw := incomingMap[s]
-			insertsHostSoftware = append(insertsHostSoftware, hostID, id, sw.LastOpenedAt)
+			insertsHostSoftware = append(insertsHostSoftware, hostID, id, s.software.LastOpenedAt)
 
-			swToInsert.ID = id
-			insertedSoftware = append(insertedSoftware, swToInsert)
+			s.software.ID = id
+			insertedSoftware = append(insertedSoftware, s.software)
 		}
 	}
 

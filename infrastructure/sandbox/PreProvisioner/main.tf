@@ -136,7 +136,7 @@ data "aws_iam_policy_document" "lambda" {
       "kms:GenerateDataKey*",
       "kms:Describe*"
     ]
-    resources = [aws_kms_key.ecr.arn, var.kms_key.arn]
+    resources = [aws_kms_key.ecr.arn, var.kms_key.arn, var.installer_kms_key.arn]
   }
 
   statement {
@@ -289,7 +289,7 @@ resource "aws_ecs_task_definition" "main" {
           },
           {
             name  = "TF_VAR_kms_key_arn"
-            value = var.kms_key.arn
+            value = var.installer_kms_key.arn
           },
           {
             name  = "TF_VAR_ecr_url"
