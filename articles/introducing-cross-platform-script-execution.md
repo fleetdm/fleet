@@ -13,8 +13,6 @@ In the rapidly evolving world of IT, security, and device management, the demand
 
 The introduction of the cross-platform script execution feature in Fleet is a direct response to these needs. But why does this matter, and what makes this new capability so essential?
 
-
-
 * **Enhanced efficiency and flexibility:** Running a script across multiple operating systems – macOS, Windows, and Linux – means that administrators no longer need to navigate different tools for different systems. Whether you are remediating an issue or collecting logs, this feature streamlines the process, saving time and effort.
 * **Root-level security control:** The ability to execute scripts is not just handed out freely. It requires root access to the device, reflecting a carefully considered approach to security. This access level ensures that the powerful capabilities are matched with stringent safeguards, only enabling those with the proper permissions to utilize this feature.
 * **Practical application in real-time remediation and investigation:** In a world where immediate response is often critical, the ability to run a script one-off per host provides IT professionals with the tools to act swiftly. Whether addressing vulnerabilities, conducting inquiries, or implementing standard compliance policies, this feature provides a practical solution tailored to the realities of today's technology landscape.
