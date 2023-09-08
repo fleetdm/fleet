@@ -2,18 +2,16 @@
 
 ### Changes
 
-* Added pagination to the policies API to increase response time.
-
-* Added policy count endpoints to support pagination on the frontend.
-
 * Added `/scripts/run` and `scripts/run/sync` API endpoints to send a script to be executed on a host and optionally wait for its results.
 
 * Added `POST /api/fleet/orbit/scripts/request` and `POST /api/fleet/orbit/scripts/result` Orbit-specific API endpoints to get a pending script to execute and send the results back, and added an Orbit notification to let the host know it has scripts pending execution.
 
-* Updated the copy and image displayed on the MDM migration modal.
-
 * Improved performance at scale when applying hundreds of policies to thousands of hosts via `fleetctl apply`.
   - IMPORTANT: In previous versions of Fleet, there was a performance issue (thundering herd) when applying hundreds of policies on a large number of hosts. To avoid this, make sure to deploy this version of Fleet, and make sure Fleet is running for at least 1h (or the configured `FLEET_OSQUERY_POLICY_UPDATE_INTERVAL`) before applying the policies.
+
+* Added pagination to the policies API to increase response time.
+
+* Added policy count endpoints to support pagination on the frontend.
 
 * Added an endpoint to report `fleetd` errors.
 
@@ -27,8 +25,6 @@
 
 * Added JumpCloud to the list of well-known MDM solutions.
 
-* Updated the macadmins/osquery-extension to v0.0.15.
-
 * Added `fleetctl run-script` command.
 
 * Made all table links right-clickable.
@@ -37,7 +33,11 @@
 
 * Stored user email when a user turned on MDM features with SSO enabled.
 
+* Updated the copy and image displayed on the MDM migration modal.
+
 * Upgraded Go to v1.19.12.
+
+* Updated the macadmins/osquery-extension to v0.0.15.
 
 * Updated nanomdm dependency.
 
