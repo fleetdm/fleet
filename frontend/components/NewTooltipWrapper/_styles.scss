@@ -1,13 +1,7 @@
 .component__tooltip-wrapper {
-  display: block;
-  position: relative;
-
-  &__element {
-    width: min-content;
-    white-space: nowrap;
-  }
   &__underline {
     position: relative;
+    width: fit-content;
     // compensate for bottom border and padding to maintain centering
     top: 2px;
     border-bottom: 1px dashed $ui-fleet-black-50;
@@ -15,36 +9,17 @@
   }
 
   &__tip-text {
-    background-color: $tooltip-bg;
-    position: absolute !important;
-    left: 0 !important;
-    margin-top: 4px !important;
-    // width: 200px;
     width: max-content;
     max-width: 360px;
     padding: 6px;
+    color: $core-white;
+    background-color: $tooltip-bg;
     font-weight: $regular;
     font-size: $xx-small;
     border-radius: 4px;
-    text-align: left !important;
     box-sizing: border-box;
     z-index: 99; // not more than the site nav
+    line-height: 1.375;
     white-space: initial;
-
-    &__top {
-      top: -294% !important;
-    }
-
-    &__bottom {
-      top: 101% !important;
-    }
-
-    &::after {
-      visibility: hidden;
-    }
-
-    p {
-      margin: 0;
-    }
   }
 }
