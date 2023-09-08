@@ -18,7 +18,20 @@ export default {
   },
   argTypes: {
     position: {
-      options: ["top", "bottom"],
+      options: [
+        "top",
+        "top-start",
+        "top-end",
+        "right",
+        "right-start",
+        "right-end",
+        "bottom",
+        "bottom-start",
+        "bottom-end",
+        "left",
+        "left-start",
+        "left-end",
+      ],
       control: "radio",
     },
   },
@@ -32,6 +45,10 @@ const Template: Story<INewTooltipWrapperProps> = (props) => (
     <br />
     <br />
     <NewTooltipWrapper {...props}>Example text</NewTooltipWrapper>
+    <br />
+    <br />
+    <br />
+    <br />
   </>
 );
 
