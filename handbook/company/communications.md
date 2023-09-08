@@ -32,7 +32,7 @@ Most folks at Fleet should see no difference in their meetings if they aren't in
 Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, Nathan Holliday, or Mike McNeil if you have questions or concerns.  
 
 Here are some tips for troubleshooting Gong:
-- In order to use Gong, the Zoom call must be hosted by someone with a Fleet email address.  
+- In order to use Gong, the Zoom call must be hosted by someone with a Fleet email address and a Gong license seat.  
 - You cannot use Gong to record calls hosted by external parties.
 - Cloud recording in Zoom has to be turned on and unlocked company wide for Gong to function properly, because of this, there is a chance that some Gong recordings may still save in Zoom's cloud storage even if they aren't uploaded into Gong.
 - To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
