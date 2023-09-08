@@ -125,10 +125,14 @@ It is also common practice to block out time for focused work.
 
 <blockquote puropse="large-quote">In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.</blockquote>
 
-
 ### Modifying an event organized by someone else
 To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
 This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
+
+### Shared calendars
+Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
+
+Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/ceo#contact-us) and the appropriate DRI will reply with feedback.
 
 ### All hands
 Every month, Fleet holds a company-wide meeting called the "All hands".
