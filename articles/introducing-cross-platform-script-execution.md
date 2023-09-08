@@ -1,4 +1,4 @@
-![Fleet MDM Cover](../website/assets/images/articles/introducing-cross-platform-script-execution@2x.png)
+![Fleet MDM Cover](../website/assets/images/articles/introducing-cross-platform-script-execution-800x450@2x.png)
 
 At Fleet, we strive to enhance the functionality of our platform, offering more power and flexibility to IT administrators and security teams. Today, we are thrilled to announce an addition to our toolkit - the ability to [execute a shell script](https://fleetdm.com/docs/using-fleet/scripts) via command line (CLI) and Fleet's API across macOS, Windows, and Linux.
 
@@ -56,4 +56,4 @@ Thank you for your trust and partnership as we continue this exciting journey to
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2023-09-07">
 <meta name="articleTitle" value="Introducing cross-platform script execution">
-<meta name="articleImageUrl" value="../website/assets/images/articles/introducing-cross-platform-script-execution@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/introducing-cross-platform-script-execution-800x450@2x.png">
