@@ -13,10 +13,10 @@ describe("HumanTimeDiffWithDateTip - component", () => {
       <HumanTimeDiffWithDateTip timeString="2015-12-06T10:30:00Z" />
     );
 
-    // Note: text varies as time passes
+    // Note: number of years varies over time
     await user.hover(screen.getByText(/years ago/i));
 
-    // Note: text varies for timezones
+    // Note: hour of day varies for timezones
     expect(screen.getByText(/12\/6\/2020/i)).toBeInTheDocument();
   });
 
