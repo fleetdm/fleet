@@ -1,5 +1,5 @@
 # Example Open positon entry:
-# - jobTitle: 
+# - jobTitle:
 #   department: 
 #   hiringManagerName: 
 #   hiringManagerLinkedInUrl: 
@@ -8,7 +8,7 @@
 #     Add markdown content to this field.
 #   experience: |
 #     Add markdown content to this field.
-#
+################################################
 - jobTitle: 🐋 Customer Success Manager
   department: Customers
   hiringManagerName: Zay Hanlon
@@ -96,8 +96,6 @@
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
   hiringManagerGithubUsername: alexmitchelliii
   responsibilities: |
-    As an Account Executive at Fleet, you will get the chance to…
-
     - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate
     - 📈 Use available data to identify opportunities and trends with individual prospects
     - 📣 Actively promote FleetDM product and services on social media
@@ -109,23 +107,15 @@
     - 🧑‍💻 Collaborate with the marketing team to plan, execute and track impactful marketing campaigns, in order to meet and/or exceed quarterly pipeline and revenue targets
     - 🤝 Work with prospects to find win-win commercial agreements
   experience: |
-    ### You "get it":
-
     - 🦉 5+ years experience selling to enterprise customers
     - 📣 Have excellent communication and interpersonal skills
     - 🧑‍💻 Love technology and can explain how things work in detail
     - 🧪 Extensive experience with Slack, Salesforce, Zendesk, Google Suite, and GitHub
     - ⏩ Thrive in a complex, fast-paced, results driven environment with the ability to pivot to organizational changes easily
-
-    ### You can "walk the walk":
-
     - 🤝 Decisive with the ability to shift gears between thinking and doing
     - 📈 Ability to partner with various teams and stakeholders to drive sales
     - 👀 Strong understanding of the enterprise procurement process
     - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with SRE,CPE, or SecOps teams
-
-    ### You can "talk the talk":
-
     - 💭 You know how to manage complex sales, difficult escalations, and challenging procurement processes with the utmost care and organization
     - 💖 You know how to manage your time and priorities between leads, opportunities other day-to-day responsibilities
     - ✍ You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them
@@ -137,38 +127,31 @@
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/joanne-stableford/
   hiringManagerGithubUsername: jostableford
   responsibilities: |
-    As an Operations Associate at Fleet, we'll look to you to…
-
     - 🙋 Happily jump in to support the Operations team with a range of tasks across business, people, finance, IT, and RevOps, including:
     - 📝 Assist in the preparation of documentation for a variety of purposes
     - ✅ Help ensure company compliance with internal procedures
     - 🎓 Assist in scheduling company training to teammates
     - 🧑‍🏫 Support onboarding of new teammates, including account creation, device ordering, and basic troubleshooting
     - 🤑 Support payroll functions for teammates and contractors
-    - 💰 Support accounts receivable and accounts payable fuctions
+    - 💰 Support accounts receivable and accounts payable functions
     - 🧾 Maintain accurate records, including ledgers, journals, receipts, and invoices
     - 📣 Speak with vendors and suppliers to ensure charges are accurate, and payments are received promptly
   experience: |
-    ### You "get it":
-
     - 🦉 3+ years of professional work experience
-    - **Willingness and ability to use (or quickly learn how to use) GitHub in the browser and be capable in Markdown before your first day of work, and to continue improving those skills rapidly on your own**
+    - ⚡️ **Willingness and ability to use (or quickly learn how to use) GitHub in the browser and be capable in Markdown before your first day of work, and to continue improving those skills rapidly on your own**
     - 🤝 Enjoy working in a team environment
     - 🎤 You feel confident talking to people
     - 🧑‍💻 Excited about learning new systems and processes on-the-job in a fast-paced environment
     - 👀 Curious about the why of things, and able to think objectively
     - 😊 Low ego team player with a positive attitude when adapting to changes
-    - ➕ Bonus: experience with Slack, Google Suite, HR systems, GitHub, or project management tools
-
-    ### You can "walk the walk":
-
+    - ➕ Bonus: Experience with Slack, Google Suite, HR systems, GitHub, or project management tools
     - 🧩 Previously found a creative solution to a pain point for a team or process
     - 🔍 Have excellent attention to detail
     - 🧑‍💻 Comfortable working independently, but know the right time to ask for help
     - 📣 Have strong communication, listening, and interpersonal skills
     - 🟣 You are flexible and open to new ideas and ways of working
     - 🔒 Trusted to handle sensitive data and operate with confidentiality
-    - ➕ Bonus: You've previously learnt a technical computer software and become a "power user" who can teach others
+    - ➕ Bonus: You've previously learned a technical computer software and become a "power user" who can teach others
     - ➕ Bonus: You've written or edited documentation, correcting inconsistencies or duplications
 - jobTitle: 🚀 Software Engineer (Windows/Go)
   department: Engineering
@@ -176,7 +159,6 @@
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/lukeheath/
   hiringManagerGithubUsername: lukeheath
   responsibilities: |
-    At Fleet, you will get the chance to…
     - 🧑‍🔬 Lead the architecture, development, and implementation of Fleet's Windows MDM offering.
     - 🛠️ Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
     - 💭 Manage and optimize scalable distributed systems in the cloud.
@@ -184,26 +166,18 @@
     - 🚀 Actively participate in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
     - 🌟 Contribute to the overall success of the [customer experience (CX)](https://fleetdm.com/handbook/company/development-groups#customer-experience-group) product group by ensuring users receive valuable new features.
   experience: |
-    ### You "get it":
-
     - 🦉 Translate requirements into well-designed and functional software.
     - 🤝 Communicate regularly with stakeholders, project managers, quality assurance teams, and other developers regarding progress on long-term technology roadmap.
     - 🧪 Collaborate with QA team for testing software features.
     - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
     - 🛠️ Produce quality code, raising the bar for team performance and speed.
     - 📖 Mentor junior team members.
-
-    ### You can "walk the walk":
-
     - 🤝 Collaboration: You work best in a participatory, team-based environment.
     - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
     - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
     - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
     - ➕ Bonus: Cybersecurity or IT background.
-
-    ### You can "talk the talk":
-
     - 💭 3-5 years' of experience in backend/SaaS development.
     - 💭 1-2 years' of experience interfacing with Windows systems and Microsoft protocols.
     - 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
