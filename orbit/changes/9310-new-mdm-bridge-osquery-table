@@ -1,1 +1,0 @@
-* Adding support to query Windows MDM enrollment status and to enforce MDM commands through the mdm_bridge virtual table

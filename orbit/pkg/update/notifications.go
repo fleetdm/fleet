@@ -318,7 +318,7 @@ func ApplyRunScriptsConfigFetcherMiddleware(fetcher OrbitConfigFetcher, scriptsE
 		Fetcher:                            fetcher,
 		ScriptsExecutionEnabled:            scriptsEnabled,
 		ScriptsClient:                      scriptsClient,
-		dynamicScriptsEnabledCheckInterval: time.Minute,
+		dynamicScriptsEnabledCheckInterval: 5 * time.Minute,
 	}
 	// start the dynamic check for scripts enabled if required
 	scriptsFetcher.runDynamicScriptsEnabledCheck()

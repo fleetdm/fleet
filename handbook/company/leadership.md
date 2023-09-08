@@ -29,7 +29,7 @@ If you have any questions or feedback, please contact us: https://fleetdm.com/ha
 </blockquote>
 
 - `# Name of department`
-  - "This handbook page details processes specific to working `[with](fleetdm.com/handbook/company/Name-of-department#contact-us)` and `[within](fleetdm.com/handbook/company/Name-of-department#responsibilities)` the (Name of department) department." 
+  - "This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department." 
     
   - `## What we do`
     - Outline the specific responsibilities of the department.  
@@ -162,13 +162,47 @@ Want to hire?  Here's how to open up a new position on the core team:
 
 1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department. Set the start date to the first Monday of the next month (This position is still only proposed (not approved), but would make it easier for the approver to have the date set).
 2. **Propose job description:** Copy, personalize, and publish the job description:
-   - _Duplicate file:_ Locate [one of the existing job description files inside `handbook/company/`](https://github.com/fleetdm/fleet/tree/main/handbook/company) and duplicate it into a new handbook subpage.  If no other open job descriptions currently exist, you can [copy and paste the raw text](https://raw.githubusercontent.com/fleetdm/fleet/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md) from an [old job description](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md).
-     - _Filename:_ Use the [same style of filename](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md), but based on the new job title.  (This filename will determine the living URL on fleetdm.com where candidates can apply.)
-     - _Contents:_ Keep the structure of the document [identical](https://raw.githubusercontent.com/fleetdm/fleet/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md).  Change only the job title, "Responsibilities", and "Experience".
-   - _Add to list of open positions:_ In [the same pull request](https://www.loom.com/share/75da64632a93415cbe0e7752107c1af2), add a link to your new job posting to the bottom of the list of ["📖 Company#Open positions"](https://fleetdm.com/handbook/company#open-positions) in the handbook.
-     - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.
+  - Create an entry for the proposed position in the [open positions YAML file](https://github.com/fleetdm/fleet/tree/main/handbook/company/open-positions.yml/edit). To do this, you can either duplicate an existing open position and update the values, or you can copy and paste the commented out template at the top of the file.
 
-- _**Note:** The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser._
+  - Update the required values for the new entry:
+    - `jobTitle`: The job title of the proposed position. This will determine the living URL of the page on the Fleet website.
+    - `department`: The department of the proposed position.
+    - `hiringManagerName`: The full name of this proposed position's hiring manager.
+    - `hiringManagerGithubUsername`: The GitHub username of the proposed position's hiring manger. This is used to add the hiring manager as the open position page's maintainer.
+    - `hiringManagerLinkedInUrl`: The url of the hiring manger's LinkedIn profile. People applying for this position will be asked to reach out to the manager on LinkedIn.
+    - `responsibilities`: A Markdown list of the responsibilities of this proposed position.
+    - `experience`: A Markdown list of the experience that applicants should have when applying for the proposed position.
+
+
+A completed open position entry should look something like this:
+
+```
+- jobTitle: 🐈 Railway cat
+  department: Jellicle cats
+  hiringManagerName: Skimbleshanks
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/skimbleshanks-the-railway-cat
+  hiringManagerGithubUsername: skimbieshanks
+  responsibilities: |
+    - ⏫ Elevate the standard of train travel
+    - 📖 Learn the ins and outs of rail operations
+    - 🏃‍♂️ Dash through stations to ensure punctuality
+  experience: |
+    - 🎯 Punctuality is crucial
+    - 🌐 Familiarity with the Northern Line
+    - 👥 Excellent at commanding attention
+    - 🤝 Adept at coordinating with the Night Mail
+    - 🦉 Skilled at nocturnal operations
+    - 🛠️ Proficient in tap-dance communication
+    - 🟣 Ability to maintain railway order and standards
+    - 🐭 Can swiftly and silently eliminate any rodent problems
+    - 💭 Speak the language of timetable jargon
+    - 💖 Sing praises of a smooth rail journey
+    - 🐭 Can articulate effective rodent control strategies
+```
+
+  - Create a pull request to add the new position to the YAML file.
+
+- _**Note:** The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged. A link will be added in the ["Open positions" section](https://fleetdm.com/handbook/company#open-positions) of the company handbook page.
 
 3. **Link to pull request in "Fleeties:"** Include a link to your GitHub pull request in the "Job description" column for the new row you just added in "Fleeties".
 
