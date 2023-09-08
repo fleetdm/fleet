@@ -182,29 +182,18 @@ Want to hire?  Here's how to open up a new position on the core team:
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/skimbleshanks-the-railway-cat
   hiringManagerGithubUsername: skimbieshanks
   responsibilities: |
-    As a Railway cat at Fleet, you will get the chance to…
-
     - ⏫ Elevate the standard of train travel
     - 📖 Learn the ins and outs of rail operations
     - 🏃‍♂️ Dash through stations to ensure punctuality
-
   experience: |
-    ### You "get it":
-
     - 🎯 Punctuality is crucial
     - 🌐 Familiarity with the Northern Line
     - 👥 Excellent at commanding attention
-
-    ### You can "walk the walk":
-
     - 🤝 Adept at coordinating with the Night Mail
     - 🦉 Skilled at nocturnal operations
     - 🛠️ Proficient in tap-dance communication
     - 🟣 Ability to maintain railway order and standards
     - 🐭 Can swiftly and silently eliminate any rodent problems
-
-    ### You can "talk the talk":
-
     - 💭 Speak the language of timetable jargon
     - 💖 Sing praises of a smooth rail journey
     - 🐭 Can articulate effective rodent control strategies
