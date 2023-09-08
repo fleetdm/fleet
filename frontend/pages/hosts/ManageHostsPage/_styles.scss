@@ -200,24 +200,6 @@
             overflow-x: scroll;
           }
           &__table {
-            thead {
-              tr {
-                th {
-                  .last-col-header-with-tip {
-                    min-width: 90px;
-                    .component__tooltip-wrapper__tip-text {
-                      left: -126px;
-                    }
-                  }
-                  .status-header {
-                    .component__tooltip-wrapper__tip-text {
-                      left: -220px !important;
-                    }
-                  }
-                }
-              }
-            }
-
             tbody {
               .issues__cell {
                 display: flex;
