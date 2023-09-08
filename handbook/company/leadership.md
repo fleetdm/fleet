@@ -173,7 +173,8 @@ Want to hire?  Here's how to open up a new position on the core team:
     - `responsibilities`: A Markdown list of the responsibilities of this proposed position.
     - `experience`: A Markdown list of the experience that applicants should have when applying for the proposed position.
 
-    A completed open position entry should look something like this:
+
+A completed open position entry should look something like this:
 
 ```
 - jobTitle: 🐈 Railway cat
