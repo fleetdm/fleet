@@ -66,7 +66,7 @@ You can optionally send all activity feed entries to your log destination. Learn
 
 Script execution can only be enabled by someone with root access to the host.
 
-Turning MDM on for a macOS host or pushing a new fleetd agent quality as root access.
+Turning MDM on for a macOS host or pushing a new fleetd agent qualify as root access.
 
 <meta name="pageOrderInSection" value="1506">
 <meta name="title" value="Scripts">
