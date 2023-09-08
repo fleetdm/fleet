@@ -204,8 +204,6 @@ Fleet's documentation for contributors can be found in the [Fleet GitHub repo](h
 ## Release process
 
 - [Release freeze period](#release-freeze-period)
-- [Freeze day](#freeze-day)
-- [Merging during freeze](#merging-features-during-freeze)
 - [Release day](#release-day)
 
 This section outlines the release process at Fleet.
@@ -256,7 +254,6 @@ Next, create a new GitHub issue using the [Release QA template](https://github.c
 
 We merge bug fixes and documentation changes during the freeze period, but we do not merge other code changes. This minimizes code churn and helps ensure a stable release. To merge a bug fix, you must first unfreeze the PR in [Merge Freeze](https://app.mergefreeze.com/installations/3704/branches), and click the "Unfreeze 1 pull request" text link. 
 
-#### Exceptions
 
 It is sometimes necessary to delay the release to allow time to complete partially merged feature work. In these cases, an exception process must be followed before merging during the freeze period. 
 
