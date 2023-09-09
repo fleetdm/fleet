@@ -89,7 +89,7 @@ In line with Fleet's values of 🟢 Results and 🟣 Openness, the latest 4.37.0
 * Updated nanomdm dependency.
 
 
-#### Bug Fixes
+#### Bug fixes
 
 
 * Fixed a bug where live query UI and export data tables showed all returned columns.
