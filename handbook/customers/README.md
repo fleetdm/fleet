@@ -24,7 +24,7 @@ The Sales department is directly responsible for attaining the revenue goals of 
 
 ## Contact us
 - To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64e6c8e2d35c7f001a457b7f/board) for this department, including pending tasks in the active sprint and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board) for this department, including pending tasks in the active sprint and the status of new requests.
   - Please use issue comments and GitHub mentions to communicate about your request, including follow-ups.  If you mention a team member in a GitHub comment, you will get a reply within one business day.
 - If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/TODO) Slack channel.
 
