@@ -253,7 +253,7 @@ module.exports.custom = {
 
     // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil', 'zwass'],
-    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'zwinnerman-fleetdm', 'rfairburn'],// « what files should not be checked in?
+    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'rfairburn'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 
     // "Secret handbook"
@@ -262,7 +262,7 @@ module.exports.custom = {
     'cold-outbound-strategy.md': ['mikermcneil','bradmacd'],// « Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'jostableford'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil'],// FUTURE: Bust out individual maintainership for issue templates once relevant DRIs are GitHub, markdown, and content design-certified
 
   },
 

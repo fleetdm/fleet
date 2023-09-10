@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"net/http"
 	"time"
-	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -25,15 +25,13 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 }
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
-	const (
-		maxScriptRuneLen    = 10000
-		maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
-	)
+	const maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
 
-	// must load the host (lite is enough, just for the team) to authorize
-	// with the proper team id. We cannot first authorize if the user can list
-	// hosts, because the user could have a write-only role (e.g. gitops).
-	host, err := svc.ds.HostLite(ctx, request.HostID)
+	// must load the host to get the team (cannot use lite, the last seen time is
+	// required to check if it is online) to authorize with the proper team id.
+	// We cannot first authorize if the user can list hosts, in case we
+	// eventually allow a write-only role (e.g. gitops).
+	host, err := svc.ds.Host(ctx, request.HostID)
 	if err != nil {
 		// if error is because the host does not exist, check first if the user
 		// had access to run a script (to prevent leaking valid host ids).
@@ -49,47 +47,50 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, err
 	}
 
-	if request.ScriptContents == "" {
-		return nil, fleet.NewInvalidArgumentError("script_contents", "a script to execute is required")
-	}
-	// look for the script length in bytes first, as rune counting a huge string
-	// can be expensive.
-	if len(request.ScriptContents) > utf8.UTFMax*maxScriptRuneLen {
-		return nil, fleet.NewInvalidArgumentError("script_contents", fmt.Sprintf("script is too long, must be at most %d characters", maxScriptRuneLen))
-	}
-	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
-	// we can safely count the runes for a precise check.
-	if utf8.RuneCountInString(request.ScriptContents) > maxScriptRuneLen {
-		return nil, fleet.NewInvalidArgumentError("script_contents", fmt.Sprintf("script is too long, must be at most %d characters", maxScriptRuneLen))
+	if err := fleet.ValidateHostScriptContents(request.ScriptContents); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script_contents", err.Error())
 	}
 
-	// TODO(mna): any other validation we want to apply to the script? What is the "must be bash/powershell" check?
+	// host must be online
+	if host.Status(time.Now()) != fleet.StatusOnline {
+		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
+	}
 
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, maxPendingScriptAge)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
 	}
 	if len(pending) > 0 {
-		// TODO(mna): there are a number of issues with that validation: it only
-		// really says that there was a script execution _request_ that was made < 1m
-		// ago, and that blocks executing any more scripts on that host, but the
-		// host may not even have received the previous script for execution yet,
-		// so if we accept more scripts after 1m, we may end up having multiple
-		// scripts to execute on the host at the same time (or more likely in
-		// sequence, but still). This may be good enough for now, I think the whole
-		// idea of locking if a script is pending is meant to be temporary anyway.
-		return nil, fleet.NewInvalidArgumentError("script_contents", "a script is currently executing on the host")
+		return nil, fleet.NewInvalidArgumentError(
+			"script_contents", fleet.RunScriptAlreadyRunningErrMsg,
+		).WithStatus(http.StatusConflict)
 	}
 
-	// create the script execution request
+	// create the script execution request, the host will be notified of the
+	// script execution request via the orbit config's Notifications mechanism.
 	script, err := svc.ds.NewHostScriptExecutionRequest(ctx, request)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create script execution request")
 	}
-	// TODO(mna): figure out how to send this to the host, either something to do
-	// here or via the DB checking if there are pending scripts for the host when
-	// sending queries or notifications.
-	if waitForResult <= 0 {
+	script.Hostname = host.DisplayName()
+
+	asyncExecution := waitForResult <= 0
+
+	err = svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeRanScript{
+			HostID:            host.ID,
+			HostDisplayName:   host.DisplayName(),
+			ScriptExecutionID: script.ExecutionID,
+			Async:             asyncExecution,
+		},
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for script execution request")
+	}
+
+	if asyncExecution {
 		// async execution, return
 		return script, nil
 	}
@@ -116,8 +117,9 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 				}
 				return nil, ctxerr.Wrap(ctx, err, "get script execution result")
 			}
-			if result.ExitCode.Valid {
+			if result.ExitCode != nil {
 				// a result was received from the host, return
+				result.Hostname = host.DisplayName()
 				return result, nil
 			}
 
@@ -128,4 +130,37 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			after.Reset(checkInterval)
 		}
 	}
+}
+
+func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	scriptResult, err := svc.ds.GetHostScriptExecutionResult(ctx, execID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get script result")
+	}
+
+	host, err := svc.ds.HostLite(ctx, scriptResult.HostID)
+	if err != nil {
+		// if error is because the host does not exist, check first if the user
+		// had access to run a script (to prevent leaking valid host ids).
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	scriptResult.Hostname = host.DisplayName()
+
+	return scriptResult, nil
 }

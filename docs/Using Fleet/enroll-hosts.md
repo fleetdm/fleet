@@ -45,7 +45,7 @@ The following command creates a Fleetd installer, `.pkg` file, which adds macOS 
 ```sh
 fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
-  >**Note:** The only configuration option required to create an installer is `--type`, but to communicate with a Fleet instance, you'll need to specify a `--fleet-url` and `--enroll-secret`
+  >**Note:** The only configuration option required to create an installer is `--type`. However, to communicate with a Fleet instance, you'll need to specify a `--fleet-url` and `--enroll-secret`. When those flags are not set, fleetd will log errors. 
 
 When you install the generated Fleetd installer on a host, this host will automatically enroll in the specified Fleet instance.
 
@@ -138,6 +138,7 @@ The following command-line flags allow you to configure an osquery installer fur
 | --update-url               | URL for update server (default: `https://tuf.fleetctl.com`)                                                                             |
 | --update-roots             | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
 | --use-system-configuration | Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)               |
+| --enable-scripts           | Enable script execution (default: `false`)                                                                                              |
 | --debug                    | Enable debug logging (default: `false`)                                                                                                 |
 | --verbose                  | Log detailed information when building the package (default: false)                                                                     |
 | --help, -h                 | show help (default: `false`)                                                                                                            |

@@ -10,6 +10,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { act } from "react-dom/test-utils";
 
 const baseClass = "activity-item";
 
@@ -81,7 +82,7 @@ const getMacOSSetupAssistantMessage = (
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (
     activity: IActivity,
-    onDetailsClick?: (details: IActivityDetails) => void
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
     const count = activity.details?.targets_count;
     const queryName = activity.details?.query_name;
@@ -110,7 +111,11 @@ const TAGGED_TEMPLATES = {
             <Button
               className={`${baseClass}__show-query-link`}
               variant="text-link"
-              onClick={() => onDetailsClick?.({ query_sql: querySql })}
+              onClick={() =>
+                onDetailsClick?.(ActivityType.LiveQuery, {
+                  query_sql: querySql,
+                })
+              }
             >
               Show query{" "}
               <Icon className={`${baseClass}__show-query-icon`} name="eye" />
@@ -488,12 +493,38 @@ const TAGGED_TEMPLATES = {
   disabledWindowsMdm: (activity: IActivity) => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
+  ranScript: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    return (
+      <>
+        {" "}
+        ran a script on {activity.details?.host_display_name}.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(ActivityType.RanScript, {
+              script_execution_id: activity.details?.script_execution_id,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
+  },
 };
 
 const getDetail = (
   activity: IActivity,
   isPremiumTier: boolean,
-  onDetailsClick?: (details: IActivityDetails) => void
+  onDetailsClick?: (
+    activityType: ActivityType,
+    details: IActivityDetails
+  ) => void
 ) => {
   switch (activity.type) {
     case ActivityType.LiveQuery: {
@@ -598,6 +629,9 @@ const getDetail = (
     case ActivityType.DisabledWindowsMdm: {
       return TAGGED_TEMPLATES.disabledWindowsMdm(activity);
     }
+    case ActivityType.RanScript: {
+      return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -613,7 +647,10 @@ interface IActivityItemProps {
    * activites have more details so this is optional. An example of additonal
    * details is showing the query for a live query action.
    */
-  onDetailsClick?: (details: IActivityDetails) => void;
+  onDetailsClick?: (
+    activityType: ActivityType,
+    details: IActivityDetails
+  ) => void;
 }
 
 const ActivityItem = ({

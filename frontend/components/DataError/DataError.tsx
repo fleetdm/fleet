@@ -7,12 +7,17 @@ import Icon from "components/Icon";
 const baseClass = "data-error";
 
 interface IDataErrorProps {
+  /** the description text displayed under the header */
+  description?: string;
   children?: React.ReactNode;
   card?: boolean;
   className?: string;
 }
 
+const DEFAULT_DESCRIPTION = "Refresh the page or log in again.";
+
 const DataError = ({
+  description = DEFAULT_DESCRIPTION,
   children,
   card,
   className,
@@ -31,9 +36,7 @@ const DataError = ({
           <>
             {children || (
               <>
-                <span className="info__data">
-                  Refresh the page or log in again.
-                </span>
+                <span className="info__data">{description}</span>
                 <span className="info__data">
                   If this keeps happening, please&nbsp;
                   <CustomLink

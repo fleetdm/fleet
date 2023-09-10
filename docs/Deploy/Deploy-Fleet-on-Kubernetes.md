@@ -1,4 +1,4 @@
-## Deploying Fleet on Kubernetes
+## Deploy Fleet on Kubernetes
 
 In this guide, we will focus on deploying Fleet only on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
 
@@ -242,7 +242,7 @@ In this output, you should see an "EXTERNAL-IP" column. If this column says `<pe
 
 Once you have the public IP address for the load balancer, create an A record in your DNS server of choice. You should now be able to browse to your Fleet server from the internet!
 
-<meta name="title" value="Deploy Fleet on Kubernetes">
+<meta name="title" value="Kubernetes">
 <meta name="pageOrderInSection" value="800">
 <meta name="description" value="A guide to deploy Fleet on Kubernetes.">
 <meta name="navSection" value="Deployment guides">

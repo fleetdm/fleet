@@ -147,15 +147,22 @@ The following command-line flags allow you to configure an osquery installer fur
 | --update-url               | URL for update server (default: `https://tuf.fleetctl.com`)                                                                             |
 | --update-roots             | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
 | --use-system-configuration | Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)               |
+| --enable-scripts           | Enable script execution (default: `false`)                                                                                              |
 | --debug                    | Enable debug logging (default: `false`)                                                                                                 |
 | --verbose                  | Log detailed information when building the package (default: false)                                                                     |
 | --help, -h                 | show help (default: `false`)                                                                                                            |
+
+In addition to the command-line flags, the following environment variables can alter the behaviour of fleetd.
+
+| Environment variable                       | Options                                                                                                                                                                                                                          |
+| --------------------------                 | ---------------------------------------------------------------------------------------------------------------------------------------                                                                                          |
+| FLEET\_PREVENT\_SCRIPT\_TEMPDIR\_DELETION  | If set to a non-empty value, prevents deletion of the temporary directory where the scripts being executed are stored. Those are located in the temporary directory of the system, under a sub-directory starting with `fleet-`. |
 
 #### Fleet Desktop
 
 [Fleet Desktop](./Fleet-desktop.md) is a menu bar icon available on macOS, Windows, and Linux that gives your end users visibility into the security posture of their machine.
 
-You can include Fleet Desktop in the orbit package by including the `--fleet-desktop`option. 
+You can include Fleet Desktop in the orbit package by including the `--fleet-desktop`option.
 
 #### Update channels
 
@@ -327,7 +334,7 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
 ```
 
 Or, using a `flagfile.txt` for osqueryd:
-```sh 
+```sh
 go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     --dev-mode \
     --disable-updates \

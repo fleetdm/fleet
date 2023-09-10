@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +18,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -974,7 +974,11 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		}
 	}
 
-	rawXMLCmd, err := base64.RawStdEncoding.DecodeString(rawBase64Cmd)
+	// using a padding agnostic decoder because we released this using
+	// base64.RawStdEncoding, but it was causing problems as many standard
+	// libraries default to padded strings. We're now supporting both for
+	// backwards compatibility.
+	rawXMLCmd, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
 	if err != nil {
 		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
 

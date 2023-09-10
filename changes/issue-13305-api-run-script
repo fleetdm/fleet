@@ -1,1 +1,0 @@
-* Added `/scripts/run` and `scripts/run/sync` API endpoints to send a script to be executed on a host (and optionally wait for its results).

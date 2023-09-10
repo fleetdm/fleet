@@ -158,15 +158,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /overview': {
-    action: 'view-sales-one-pager',
-    locals: {
-      pageTitleForMeta: 'Overview | Fleet for osquery',
-      pageDescriptionForMeta: 'Fleet helps security and IT teams protect their devices. We\'re the single source of truth for workstation and server telemetry. Click to learn more!',
-      layout: 'layouts/layout-landing'
-    },
-  },
-
   'GET /try-fleet/register': {
     action: 'try-fleet/view-register',
     locals: {
@@ -456,6 +447,10 @@ module.exports.routes = {
   },
   'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
   'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
+  'GET /deploy/deploying-fleet-on-render': '/docs/deploy/deploy-on-render',
+  'GET /deploy/deploy-fleet-on-hetzner-cloud': '/docs/deploy/deploy-on-hetzner-cloud',
+  'GET /deploy': '/docs/deploy',
+  'GET /deploy/deploying-fleet-on-aws-with-terraform': '/docs/deploy/deploy-on-aws-with-terraform',
   'GET /docs/deploy/server-installation': '/docs/deploy/introduction',
   'GET /handbook/company/ceo': '/handbook/ceo',
 

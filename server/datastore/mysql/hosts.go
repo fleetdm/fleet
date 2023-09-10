@@ -164,7 +164,7 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 				}
 				scheduledQueriesArgs = append(scheduledQueriesArgs,
 					teamIDArg,
-					query.QueryName,
+					query.ScheduledQueryName,
 
 					hostID,
 					query.AverageMemory,
@@ -833,15 +833,6 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`
 	}
 
-	failingPoliciesSelect := `,
-    coalesce(failing_policies.count, 0) as failing_policies_count,
-    coalesce(failing_policies.count, 0) as total_issues_count
-	`
-	if opt.DisableFailingPolicies {
-		failingPoliciesSelect = ""
-	}
-	sql += failingPoliciesSelect
-
 	var params []interface{}
 
 	// Only include "additional" if filter provided.
@@ -863,11 +854,20 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		    ) FROM host_additional WHERE host_id = h.id) AS additional
 		    `
 	}
+
 	sql, params = ds.applyHostFilters(opt, sql, filter, params)
 
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
+	}
+
+	if !opt.DisableFailingPolicies {
+		var err error
+		hosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, hosts)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update policy failure counts for hosts")
+		}
 	}
 
 	return hosts, nil
@@ -900,14 +900,6 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	if opt.SoftwareIDFilter != nil {
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
 		params = append(params, opt.SoftwareIDFilter)
-	}
-
-	failingPoliciesJoin := `LEFT JOIN (
-		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
-		    GROUP BY host_id
-		) as failing_policies ON (h.id=failing_policies.host_id)`
-	if opt.DisableFailingPolicies {
-		failingPoliciesJoin = ""
 	}
 
 	operatingSystemJoin := ""
@@ -945,7 +937,6 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     %s
     %s
     %s
-    %s
 		WHERE TRUE AND %s AND %s AND %s AND %s
     `,
 
@@ -953,7 +944,6 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		hostMDMJoin,
 		deviceMappingJoin,
 		policyMembershipJoin,
-		failingPoliciesJoin,
 		operatingSystemJoin,
 		munkiJoin,
 		displayNameJoin,
@@ -4193,7 +4183,7 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
 		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output) VALUES (?, ?, ?, '')`
-		getStmt = `SELECT id, host_id, execution_id, script_contents FROM host_script_results WHERE id = ?`
+		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at FROM host_script_results WHERE id = ?`
 	)
 
 	execID := uuid.New().String()
@@ -4229,7 +4219,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	if len(output) > utf8.UTFMax*maxOutputRuneLen {
 		// truncate the bytes as we know the output is too long, no point
 		// converting more bytes than needed to runes.
-		output = output[len(output)-utf8.UTFMax*maxOutputRuneLen:]
+		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
 	}
 	if utf8.RuneCountInString(output) > maxOutputRuneLen {
 		outputRunes := []rune(output)
@@ -4279,7 +4269,8 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
     script_contents,
     output,
     runtime,
-    exit_code
+    exit_code,
+    created_at
   FROM
     host_script_results
   WHERE
