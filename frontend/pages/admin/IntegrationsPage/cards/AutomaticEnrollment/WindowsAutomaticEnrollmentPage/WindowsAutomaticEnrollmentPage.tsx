@@ -139,7 +139,7 @@ const WindowsAutomaticEnrollmentPage = () => {
           <li>
             <span>10.</span>
             <p>
-              Use your organization&apos;s domain you added in the first step,
+              Use your Fleet URL (e.g. fleet.acme.com)
               and select <b>Save</b>.
             </p>
           </li>
