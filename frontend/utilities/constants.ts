@@ -39,6 +39,9 @@ export const FREQUENCY_DROPDOWN_OPTIONS = [
 export const GITHUB_NEW_ISSUE_LINK =
   "https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md";
 
+/**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
+export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
+
 export const LOGGING_TYPE_OPTIONS = [
   { label: "Snapshot", value: "snapshot" },
   { label: "Differential", value: "differential" },
