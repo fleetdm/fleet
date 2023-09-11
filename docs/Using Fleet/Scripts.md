@@ -56,7 +56,7 @@ osascript -e 'tell application "Finder" to set desktop picture to POSIX file "'"
 
 ### Step 4: View script activities in the UI
 
-Each time a Fleet user runs a script an entry is created in Fleet's activity feed. This entry includes the user's name, script content, script exit code, script output, and a timestamp of when the script was run.
+Each time a Fleet user runs a script an entry is created in [Fleet's activity feed](./Audit-logs.md#type-code-ran-script-code).
 
 To view the activity in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
 
