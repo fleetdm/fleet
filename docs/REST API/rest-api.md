@@ -2515,7 +2515,9 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 #### Get host by device token
 
-Returns information about the host specified by `token`. This is the API route used by the **My device** page in Fleet desktop to display information about the host to the end user.
+Returns a subset of information about the host specified by `token`. To get all information about a host, use the "Get host" endpoint [here](#get-host).
+
+This is the API route used by the **My device** page in Fleet desktop to display information about the host to the end user.
 
 `GET /api/v1/fleet/device/{token}`
 
