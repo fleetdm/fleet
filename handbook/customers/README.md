@@ -36,7 +36,7 @@ TODO
 
 ## Rituals
 
-<rituals :rituals="rituals['handbook/company/sales.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/customers/sales.rituals.yml']"></rituals>
 
 <meta name="maintainedBy" value="alexmitchelliii">
 <meta name="title" value="🐋 Customers">
