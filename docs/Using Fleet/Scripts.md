@@ -18,7 +18,6 @@ To execute a script, we will do the following steps:
 1. Enable script execution
 2. Write a script
 3. Run the script
-4. View script activities in the UI
 
 ### Step 1: Enable script execution
 
@@ -54,11 +53,7 @@ osascript -e 'tell application "Finder" to set desktop picture to POSIX file "'"
 
 2. Look at the on-screen information. In the output you'll see the script's exit code and output.
 
-### Step 4: View script activities in the UI
-
-Each time a Fleet user runs a script an entry is created in [Fleet's activity feed](./Audit-logs.md#type-code-ran-script-code).
-
-To view the activity in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
+Each time a Fleet user runs a script an entry is created in [Fleet's activity feed](./Audit-logs.md#type-code-ran-script-code). To view the activity in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
 
 ## Security considerations
 
