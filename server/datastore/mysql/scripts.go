@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 	"unicode/utf8"
 
@@ -135,8 +136,11 @@ VALUES
 		script.TeamID, globalOrTeamID, script.Name, script.ScriptContents)
 	if err != nil {
 		if isDuplicate(err) {
-			err := alreadyExists("Script", script.Name)
-			return nil, ctxerr.Wrap(ctx, err, "insert script (duplicate)")
+			// name already exists for this team/global
+			err = alreadyExists("Script", script.Name)
+		} else if isChildForeignKeyError(err) {
+			// team does not exist
+			err = foreignKey("scripts", fmt.Sprintf("team_id=%v", script.TeamID))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "insert script")
 	}

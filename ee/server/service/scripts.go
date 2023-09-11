@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -160,6 +162,9 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 	if name == "" {
 		return nil, fleet.NewInvalidArgumentError("script", "The file name must not be empty.")
 	}
+	if filepath.Ext(name) != ".sh" {
+		return nil, fleet.NewInvalidArgumentError("script", "The file should be a .sh file.")
+	}
 
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -177,6 +182,15 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 	}
 	savedScript, err := svc.ds.NewScript(ctx, script)
 	if err != nil {
+		var (
+			existsErr fleet.AlreadyExistsError
+			fkErr     fleet.ForeignKeyError
+		)
+		if errors.As(err, &existsErr) {
+			err = fleet.NewInvalidArgumentError("script", "A script with this name already exists.").WithStatus(http.StatusConflict)
+		} else if errors.As(err, &fkErr) {
+			err = fleet.NewInvalidArgumentError("team_id", "The team does not exist.").WithStatus(http.StatusNotFound)
+		}
 		return nil, ctxerr.Wrap(ctx, err, "create script")
 	}
 	return savedScript, nil

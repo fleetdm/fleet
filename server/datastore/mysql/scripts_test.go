@@ -173,7 +173,8 @@ func testNewScript(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo",
 	})
 	require.Error(t, err)
-	require.True(t, isChildForeignKeyError(err))
+	var fkErr fleet.ForeignKeyError
+	require.ErrorAs(t, err, &fkErr)
 
 	// create a team and a script for that team with the same name as global
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
@@ -195,8 +196,8 @@ func testNewScript(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo",
 	})
 	require.Error(t, err)
-	var isExists interface{ IsExists() bool }
-	require.ErrorAs(t, err, &isExists)
+	var existsErr fleet.AlreadyExistsError
+	require.ErrorAs(t, err, &existsErr)
 
 	// same for a global script
 	_, err = ds.NewScript(ctx, &fleet.Script{
@@ -204,5 +205,5 @@ func testNewScript(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo",
 	})
 	require.Error(t, err)
-	require.ErrorAs(t, err, &isExists)
+	require.ErrorAs(t, err, &existsErr)
 }
