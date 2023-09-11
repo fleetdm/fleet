@@ -60,8 +60,6 @@ Each time a Fleet user runs a script an entry is created in [Fleet's activity fe
 
 To view the activity in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
 
-You can optionally send all activity feed entries to your log destination. Learn more [here](./Audit-logs.md).
-
 ## Security considerations
 
 Script execution can only be enabled by someone with root access to the host.
