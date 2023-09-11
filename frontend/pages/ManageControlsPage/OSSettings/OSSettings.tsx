@@ -1,31 +1,34 @@
 import React, { useContext } from "react";
-import { Params } from "react-router/lib/Router";
+import { InjectedRouter, Params } from "react-router/lib/Router";
+import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
-import { useQuery } from "react-query";
 import { ProfileSummaryResponse } from "interfaces/mdm";
 import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
-import MAC_OS_SETTINGS_NAV_ITEMS from "./MacOSSettingsNavItems";
+import OS_SETTINGS_NAV_ITEMS from "./OSSettingsNavItems";
 import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators";
+import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
 
-const baseClass = "mac-os-settings";
+const baseClass = "os-settings";
 
-interface IMacOSSettingsProps {
+interface IOSSettingsProps {
   params: Params;
+  router: InjectedRouter;
   location: {
     search: string;
   };
 }
 
-const MacOSSettings = ({
+const OSSettings = ({
+  router,
   location: { search: queryString },
   params,
-}: IMacOSSettingsProps) => {
+}: IOSSettingsProps) => {
   const { section } = params;
-  const { currentTeam } = useContext(AppContext);
+  const { config, currentTeam } = useContext(AppContext);
 
   // TODO: consider using useTeamIdParam hook here instead in the future
   const teamId =
@@ -46,10 +49,15 @@ const MacOSSettings = ({
     }
   );
 
-  const DEFAULT_SETTINGS_SECTION = MAC_OS_SETTINGS_NAV_ITEMS[0];
+  // MDM is not on so show messaging for user to enable it.
+  if (!config?.mdm.enabled_and_configured) {
+    return <TurnOnMdmMessage router={router} />;
+  }
+
+  const DEFAULT_SETTINGS_SECTION = OS_SETTINGS_NAV_ITEMS[0];
 
   const currentFormSection =
-    MAC_OS_SETTINGS_NAV_ITEMS.find((item) => item.urlSection === section) ??
+    OS_SETTINGS_NAV_ITEMS.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
 
   const CurrentCard = currentFormSection.Card;
@@ -66,7 +74,7 @@ const MacOSSettings = ({
       />
       <SideNav
         className={`${baseClass}__side-nav`}
-        navItems={MAC_OS_SETTINGS_NAV_ITEMS.map((navItem) => ({
+        navItems={OS_SETTINGS_NAV_ITEMS.map((navItem) => ({
           ...navItem,
           path: navItem.path.concat(queryString),
         }))}
@@ -83,4 +91,4 @@ const MacOSSettings = ({
   );
 };
 
-export default MacOSSettings;
+export default OSSettings;

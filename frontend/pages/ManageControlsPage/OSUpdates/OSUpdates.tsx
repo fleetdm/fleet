@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 
@@ -9,15 +10,17 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import OsMinVersionForm from "./components/OsMinVersionForm";
 import NudgePreview from "./components/NudgePreview";
+import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 
-const baseClass = "mac-os-updates";
+const baseClass = "os-updates";
 
-interface IMacOSUpdates {
+interface IOSUpdates {
+  router: InjectedRouter;
   teamIdForApi: number;
 }
 
-const MacOSUpdates = ({ teamIdForApi }: IMacOSUpdates) => {
-  const { isPremiumTier } = useContext(AppContext);
+const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
+  const { config, isPremiumTier } = useContext(AppContext);
 
   const OperatingSystemCard = useInfoCard({
     title: "macOS versions",
@@ -34,6 +37,10 @@ const MacOSUpdates = ({ teamIdForApi }: IMacOSUpdates) => {
       />
     ),
   });
+
+  if (!config?.mdm.enabled_and_configured) {
+    return <TurnOnMdmMessage router={router} />;
+  }
 
   return isPremiumTier ? (
     <div className={baseClass}>
@@ -62,4 +69,4 @@ const MacOSUpdates = ({ teamIdForApi }: IMacOSUpdates) => {
   );
 };
 
-export default MacOSUpdates;
+export default OSUpdates;
