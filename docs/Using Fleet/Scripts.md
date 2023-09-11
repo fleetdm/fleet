@@ -32,7 +32,7 @@ If you don't use MDM features, to enable scripts, we'll deploy a fleetd agent wi
 
 Learn more about generating a fleetd agent and deploying it [here](./enroll-hosts.md#enroll-hosts-with-fleetd).
 
-### Step 2: write a script
+### Step 2: Write a script
 
 As an example, we'll write a shell script for a macOS host that downloads a Fleet wallpaper and set the host's wallpaper to it.
 
@@ -46,7 +46,7 @@ curl --fail https://fleetdm.com/images/wallpaper-cloud-city-1920x1080.png -o $wa
 osascript -e 'tell application "Finder" to set desktop picture to POSIX file "'"$wallpaper"'"' 
 ```
 
-### Step 3: run the script
+### Step 3: Run the script
 
 1. Run the `fleetctl run-script --script_path=set-wallpaper-to-fleet.sh --host=hostname` command.
 
@@ -54,7 +54,7 @@ osascript -e 'tell application "Finder" to set desktop picture to POSIX file "'"
 
 2. Look at the on-screen information. In the output you'll see the script's exit code and output.
 
-### Step 4: view script activities in the UI
+### Step 4: View script activities in the UI
 
 Each time a Fleet user runs a script an entry is created in Fleet's activity feed. This entry includes the user's name, script content, script exit code, script output, and a timestamp of when the script was run.
 
