@@ -16,6 +16,7 @@ type CVE struct {
 	EPSSProbability  **float64   `json:"epss_probability,omitempty" db:"epss_probability"`
 	CISAKnownExploit **bool      `json:"cisa_known_exploit,omitempty" db:"cisa_known_exploit"`
 	CVEPublished     **time.Time `json:"cve_published,omitempty" db:"cve_published"`
+	Description      **string      `json:"description" db:"description"`
 }
 
 type CVEMeta struct {

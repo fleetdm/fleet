@@ -587,6 +587,7 @@ func listSoftwareDB(
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
 				cve.CVEPublished = &result.CVEPublished
+				cve.Description = &result.Description
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
 		}
@@ -603,6 +604,7 @@ type softwareCVE struct {
 	EPSSProbability  *float64   `db:"epss_probability"`
 	CISAKnownExploit *bool      `db:"cisa_known_exploit"`
 	CVEPublished     *time.Time `db:"cve_published"`
+	Description      *string    `db:"description"`
 }
 
 func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
@@ -696,6 +698,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				goqu.MAX("c.epss_probability").As("epss_probability"),     // for ordering
 				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"), // for ordering
 				goqu.MAX("c.published").As("cve_published"),               // for ordering
+				goqu.MAX("c.description").As("description"),               // for ordering
 			)
 	}
 
@@ -763,6 +766,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"c.cvss_score",
 			"c.epss_probability",
 			"c.cisa_known_exploit",
+			"c.description",
 			goqu.I("c.published").As("cve_published"),
 		)
 	}
@@ -1062,6 +1066,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 				"c.cvss_score",
 				"c.epss_probability",
 				"c.cisa_known_exploit",
+				"c.description",
 				goqu.I("c.published").As("cve_published"),
 			)
 	}
