@@ -445,6 +445,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/scripts/run", runScriptEndpoint, runScriptRequest{})
 	ue.POST("/api/_version_/fleet/scripts/run/sync", runScriptSyncEndpoint, runScriptRequest{})
 	ue.GET("/api/_version_/fleet/scripts/results/{execution_id}", getScriptResultEndpoint, getScriptResultRequest{})
+	ue.POST("/api/_version_/fleet/scripts", createScriptEndpoint, createScriptRequest{})
+	//ue.GET("/api/_version_/fleet/scripts", listScriptsEndpoint, listScriptsRequest{})
+	//ue.GET("/api/_version_/fleet/scripts/{id:[0-9]+}", getScriptEndpoint, getScriptRequest{})
+	//ue.DELETE("/api/_version_/fleet/scripts/{id:[0-9]+}", deleteScriptEndpoint, deleteScriptRequest{})
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update
