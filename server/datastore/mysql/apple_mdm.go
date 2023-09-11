@@ -1614,12 +1614,12 @@ func setMDMProfilesRetryDB(ctx context.Context, tx sqlx.ExtContext, hostUUID str
 		return nil
 	}
 
-	// TODO: Do we want to reset the detail? Do we want to only apply the update to certain statuses?
 	stmt := `
 UPDATE
 	host_mdm_apple_profiles
 SET
 	status = NULL,
+	detail = '',
 	retries = retries + 1	
 WHERE		
 	host_uuid = ?
