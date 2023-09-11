@@ -33,6 +33,8 @@ type CVEMeta struct {
 	CISAKnownExploit *bool `db:"cisa_known_exploit"`
 	// Published is when the cve was published according to NIST.score
 	Published *time.Time `db:"published"`
+	// CVE text description
+	Description string `db:"description"`
 }
 
 // SoftwareCPE represents an entry in the `software_cpe` table.

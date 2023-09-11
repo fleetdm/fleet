@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"io"
 	"net/url"
 	"os"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 
 	"github.com/facebookincubator/nvdtools/cvefeed"
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
@@ -208,7 +209,8 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 			schema := vuln.Schema()
 
 			meta := fleet.CVEMeta{
-				CVE: cve,
+				CVE:         cve,
+				Description: schema.CVE.Description.DescriptionData[0].Value,
 			}
 
 			if schema.Impact.BaseMetricV3 != nil {

@@ -96,6 +96,7 @@ CREATE TABLE `cve_meta` (
   `epss_probability` double DEFAULT NULL,
   `cisa_known_exploit` tinyint(1) DEFAULT NULL,
   `published` timestamp NULL DEFAULT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`cve`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
