@@ -1191,6 +1191,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			)
 			continue
 		}
+
+		sanitizeSoftware(host, s)
+
 		software = append(software, *s)
 
 		installedPath := strings.TrimSpace(row["installed_path"])
@@ -1213,6 +1216,40 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	}
 
 	return nil
+}
+
+var macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+
+// sanitizeSoftware performs any sanitization required to the ingested software fields.
+//
+// Some fields are reported with known incorrect values and we need to fix them before using them.
+func sanitizeSoftware(h *fleet.Host, s *fleet.Software) {
+	softwareSanitizers := []struct {
+		checkSoftware  func(*fleet.Host, *fleet.Software) bool
+		mutateSoftware func(*fleet.Software)
+	}{
+		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
+		// unexpected version format. Thus here we transform the version string to the expected format
+		// (see https://learn.microsoft.com/en-us/officeupdates/teams-app-versioning).
+		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed to `1.6.00.22155`.
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return h.Platform == "darwin" && s.Name == "Microsoft Teams.app"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
+					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
+				}
+			},
+		},
+	}
+
+	for _, softwareSanitizer := range softwareSanitizers {
+		if softwareSanitizer.checkSoftware(h, s) {
+			softwareSanitizer.mutateSoftware(s)
+			return
+		}
+	}
 }
 
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
