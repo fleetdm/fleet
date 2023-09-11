@@ -11,10 +11,15 @@ import (
 
 // Script represents a saved script that can be executed on a host.
 type Script struct {
-	ID             uint   `json:"id" db:"id"`
-	TeamID         *uint  `json:"team_id" db:"team_id"`
-	Name           string `json:"name" db:"name"`
-	ScriptContents string `json:"script_contents" db:"script_contents"`
+	ID     uint   `json:"id" db:"id"`
+	TeamID *uint  `json:"team_id" db:"team_id"`
+	Name   string `json:"name" db:"name"`
+	// ScriptContents is not returned in payloads nor is it returned
+	// from reading from the database, it is only used as payload to
+	// create the script. This is so that we minimize the number of
+	// times this potentially large field is transferred.
+	ScriptContents string    `json:"-"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt serves as the "uploaded at" timestamp, since it is updated each
 	// time the script record gets updated.
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
