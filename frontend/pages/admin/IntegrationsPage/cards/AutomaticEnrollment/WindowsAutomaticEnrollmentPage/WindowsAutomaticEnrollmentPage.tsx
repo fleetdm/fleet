@@ -147,7 +147,7 @@ const WindowsAutomaticEnrollmentPage = () => {
             <span>11.</span>
             <p>
               Select <b>API permissions</b> from the sidebar, then select{" "}
-              <b>+ Add permissions</b>.
+              <b>+ Add a permission</b>.
             </p>
           </li>
           <li>
@@ -164,7 +164,7 @@ const WindowsAutomaticEnrollmentPage = () => {
             <div>
               Select <b>Application permissions</b>, then select following:
               <ul className={`${baseClass}__permissions-list`}>
-                <li>Device.Read.All</li>
+                <li>Device &gt; Device.Read.All</li>
                 <li>Device &gt; Device.ReadWrite.All</li>
                 <li>Directory &gt; Directory.Read.All</li>
                 <li>Group &gt; Group.Read.All</li>
