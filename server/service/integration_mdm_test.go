@@ -677,7 +677,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 			InstallDate: time.Now(),
 		},
 	}
-	reportInstalledProfs := func(t *testing.T, identifiers ...string) {
+	reportHostProfs := func(t *testing.T, identifiers ...string) {
 		report := make(map[string]*fleet.HostMacOSProfile, len(hostProfsByIdent))
 		for _, ident := range identifiers {
 			report[ident] = hostProfsByIdent[ident]
@@ -710,7 +710,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		checkRetryCounts(t)    // no retries yet
 
 		// report osquery results with I2 missing and confirm I2 marked as pending and other profiles are marked as verified
-		reportInstalledProfs(t, "I1", mobileconfig.FleetdConfigPayloadIdentifier)
+		reportHostProfs(t, "I1", mobileconfig.FleetdConfigPayloadIdentifier)
 		expectedProfileStatuses["I2"] = fleet.MDMAppleDeliveryPending
 		expectedProfileStatuses["I1"] = fleet.MDMAppleDeliveryVerified
 		expectedProfileStatuses[mobileconfig.FleetdConfigPayloadIdentifier] = fleet.MDMAppleDeliveryVerified
@@ -725,7 +725,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		require.Empty(t, removes)
 
 		// report osquery results with I2 present and confirm that all profiles are verified
-		reportInstalledProfs(t, "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		reportHostProfs(t, "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 		expectedProfileStatuses["I2"] = fleet.MDMAppleDeliveryVerified
 		checkProfilesStatus(t)
 		checkRetryCounts(t) // unchanged
@@ -739,7 +739,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 
 	t.Run("retry after verification", func(t *testing.T) {
 		// report osquery results with I1 missing and confirm that the I1 marked as pending (initial retry)
-		reportInstalledProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 		expectedProfileStatuses["I1"] = fleet.MDMAppleDeliveryPending
 		checkProfilesStatus(t)
 		expectedRetryCounts["I1"] = 1
@@ -752,7 +752,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		require.Empty(t, removes)
 
 		// report osquery results with I1 missing again and confirm that the I1 marked as failed (max retries exceeded)
-		reportInstalledProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 		expectedProfileStatuses["I1"] = fleet.MDMAppleDeliveryFailed
 		checkProfilesStatus(t)
 		checkRetryCounts(t) // unchanged
@@ -794,7 +794,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 
 		// report osquery results with I3 missing and confirm that the I3 marked as failed (max
 		// retries exceeded)
-		reportInstalledProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 		expectedProfileStatuses["I3"] = fleet.MDMAppleDeliveryFailed
 		checkProfilesStatus(t)
 		checkRetryCounts(t) // unchanged
@@ -871,7 +871,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		checkRetryCounts(t) // unchanged
 
 		// report osquery results with I5 found and confirm that the I5 marked as verified
-		reportInstalledProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I5")
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I5")
 		expectedProfileStatuses["I5"] = fleet.MDMAppleDeliveryVerified
 		checkProfilesStatus(t)
 		checkRetryCounts(t) // unchanged
@@ -884,7 +884,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 
 		// report osquery results again, this time I5 is missing and confirm that the I5 marked as
 		// failed (max retries exceeded)
-		reportInstalledProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 		expectedProfileStatuses["I5"] = fleet.MDMAppleDeliveryFailed
 		checkProfilesStatus(t)
 		checkRetryCounts(t) // unchanged
