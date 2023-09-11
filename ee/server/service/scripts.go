@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"time"
 
@@ -149,4 +150,34 @@ func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.
 	scriptResult.Hostname = host.DisplayName()
 
 	return scriptResult, nil
+}
+
+func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*fleet.Script, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if name == "" {
+		return nil, fleet.NewInvalidArgumentError("script", "The file name must not be empty.")
+	}
+
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read script contents")
+	}
+	contents := string(b)
+	if err := fleet.ValidateHostScriptContents(contents); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
+	script := &fleet.Script{
+		TeamID:         teamID,
+		Name:           name,
+		ScriptContents: contents,
+	}
+	savedScript, err := svc.ds.NewScript(ctx, script)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create script")
+	}
+	return savedScript, nil
 }

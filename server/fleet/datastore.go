@@ -1048,6 +1048,9 @@ type Datastore interface {
 	// older than the ignoreOlder duration are ignored, considered too old to be
 	// pending.
 	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*HostScriptResult, error)
+
+	// NewScript creates a new saved script.
+	NewScript(ctx context.Context, script *Script) (*Script, error)
 }
 
 const (

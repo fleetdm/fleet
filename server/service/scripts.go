@@ -3,10 +3,17 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"path/filepath"
+	"strconv"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -163,20 +170,66 @@ func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.
 ////////////////////////////////////////////////////////////////////////////////
 
 type createScriptRequest struct {
-	ScriptContents string `json:"script_contents"`
+	TeamID *uint
+	Script *multipart.FileHeader
+}
+
+func (createScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var decoded createScriptRequest
+
+	err := r.ParseMultipartForm(512 * units.MiB) // same in-memory size as for other multipart requests we have
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	val := r.MultipartForm.Value["team_id"]
+	if len(val) > 0 {
+		teamID, err := strconv.ParseUint(val[0], 10, 64)
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+		}
+		decoded.TeamID = ptr.Uint(uint(teamID))
+	}
+
+	fhs, ok := r.MultipartForm.File["script"]
+	if !ok || len(fhs) < 1 {
+		return nil, &fleet.BadRequestError{Message: "no file headers for script"}
+	}
+	decoded.Script = fhs[0]
+
+	return &decoded, nil
 }
 
 type createScriptResponse struct {
-	Err         error  `json:"error,omitempty"`
-	HostID      uint   `json:"host_id,omitempty"`
-	ExecutionID string `json:"execution_id,omitempty"`
+	Err      error `json:"error,omitempty"`
+	ScriptID uint  `json:"script_id,omitempty"`
 }
 
 func (r createScriptResponse) error() error { return r.Err }
 
 func createScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createScriptRequest)
-	_ = req
 
-	panic("unimplemented")
+	scriptFile, err := req.Script.Open()
+	if err != nil {
+		return &createScriptResponse{Err: err}, nil
+	}
+	defer scriptFile.Close()
+
+	script, err := svc.NewScript(ctx, req.TeamID, filepath.Base(req.Script.Filename), scriptFile)
+	if err != nil {
+		return createScriptResponse{Err: err}, nil
+	}
+	return createScriptResponse{ScriptID: script.ID}, nil
+}
+
+func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*fleet.Script, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
