@@ -20,7 +20,7 @@ To execute a script, we will do the following steps:
 3. Run the script
 4. View script activities in the UI
 
-### Step 1: enable script execution
+### Step 1: Enable script execution
 
 If you use Fleet's macOS MDM features, scripts are automatically enabled for macOS hosts that have MDM turned on. You're set!
 
