@@ -1,40 +1,44 @@
 import React from "react";
 
 import { uniqueId } from "lodash";
-import { humanHostLastSeen } from "utilities/helpers";
+import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
 import ReactTooltip from "react-tooltip";
-import intlFormat from "date-fns/intlFormat";
 
-export default ({ timeString }: { timeString: string }): JSX.Element => {
+interface IHumanTimeDiffWithDateTip {
+  timeString: string;
+}
+
+/** Returns "Unavailable" if date is empty string or "Unavailable"
+ * Returns "Invalid date" if date is invalid */
+export default ({ timeString }: IHumanTimeDiffWithDateTip): JSX.Element => {
   const id = uniqueId();
-  return timeString === "Unavailable" ? (
-    <span>Unavailable</span>
-  ) : (
-    <>
-      <span className={"date-tooltip"} data-tip data-for={`tooltip-${id}`}>
-        {humanHostLastSeen(timeString)}
-      </span>
-      <ReactTooltip
-        className="date-tooltip-text"
-        place="top"
-        type="dark"
-        effect="solid"
-        id={`tooltip-${id}`}
-        backgroundColor="#3e4771"
-      >
-        {intlFormat(
-          new Date(timeString),
-          {
-            year: "numeric",
-            month: "numeric",
-            day: "numeric",
-            hour: "numeric",
-            minute: "numeric",
-            second: "numeric",
-          },
-          { locale: window.navigator.languages[0] }
-        )}
-      </ReactTooltip>
-    </>
-  );
+
+  if (timeString === "Unavailable" || timeString === "") {
+    return <span>Unavailable</span>;
+  }
+
+  try {
+    return (
+      <>
+        <span className={"date-tooltip"} data-tip data-for={`tooltip-${id}`}>
+          {humanLastSeen(timeString)}
+        </span>
+        <ReactTooltip
+          className="date-tooltip-text"
+          place="top"
+          type="dark"
+          effect="solid"
+          id={`tooltip-${id}`}
+          backgroundColor="#3e4771"
+        >
+          {internationalTimeFormat(new Date(timeString))}
+        </ReactTooltip>
+      </>
+    );
+  } catch (e) {
+    if (e instanceof RangeError) {
+      return <span>Invalid date</span>;
+    }
+    return <span>Unavailable</span>;
+  }
 };

@@ -1,4 +1,5 @@
 project_name: orbit
+timeout: 60m
 
 builds:
   - id: orbit-macos
