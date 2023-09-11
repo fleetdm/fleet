@@ -1368,7 +1368,7 @@ ON DUPLICATE KEY UPDATE
     epss_probability = VALUES(epss_probability),
     cisa_known_exploit = VALUES(cisa_known_exploit),
     published = VALUES(published),
-	description = VALUES(description)
+    description = VALUES(description)
 `
 
 	batchSize := 500
