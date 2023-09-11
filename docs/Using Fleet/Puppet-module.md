@@ -10,10 +10,15 @@ The module also includes functions for releasing a macOS host from await configu
 
 To setup the Puppet module, we will do the following steps:
 
-1. Configure Puppet to talk to Fleet using Hiera
-2. Set Fleet as a reporter
+1. Install the Puppet module
+2. Configure Puppet to talk to Fleet using Hiera
+3. Set Fleet as a reporter
 
-### Step 1: configure Puppet to talk to Fleet using Heira
+### Step 1: install the Puppet module
+
+Install [Fleet's Puppet module](https://forge.puppet.com/modules/fleetdm/fleetdm/readme). For more instructions on how to install Puppet modules, check out the Puppet docs [here](https://www.puppet.com/docs/puppet/8/modules_installing.html).
+
+### Step 2: configure Puppet to talk to Fleet using Heira
 
 1. Create an API-only use with the GitOps role in Fleet. Instructions for creating an API-only user in Fleet are [here](./fleetctl-CLI.md#create-an-api-only-user).
 
@@ -26,11 +31,11 @@ fleetdm::host: https://fleet.example.com
 fleetdm::token: your-api-token 
 ```
 
-If you have staging and production Puppet environments, you can optionally set different values for each environments. This allows you to have your staging and production environment that talk to separate staging and production Fleet servers.
-
 Puppet docs on configuring Hiera are [here](https://www.puppet.com/docs/puppet/6/hiera_config_yaml_5.html).
 
-### Step 2: set Fleet as a reporter
+If you have staging and production Puppet environments, you can optionally set different values for each environments. This allows you to have your staging and production environment that talk to separate staging and production Fleet servers.
+
+### Step 3: set Fleet as a reporter
 
 In your Puppet configuration, set `http:fleetdm` as the value for `reports`. Here's an example of the Puppet configuration:
 
