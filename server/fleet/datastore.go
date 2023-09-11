@@ -710,10 +710,10 @@ type Datastore interface {
 	// GetHostMDMProfilesExpected returns the expected MDM profiles for a given host. The map is
 	// keyed by the profile identifier.
 	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *Host) (map[string]*ExpectedMDMProfile, error)
-	// GetHostMDMProfilesExpected returns a list of MDM profile retry counts for a given host.
+	// GetHostMDMProfilesRetryCounts returns a list of MDM profile retry counts for a given host.
 	GetHostMDMProfilesRetryCounts(ctx context.Context, hostUUID string) ([]HostMDMProfileRetryCount, error)
 	// GetHostMDMProfileRetryCountByCommandUUID returns the retry count for the specified
-	// command UUID and host UUID.
+	// host UUID and command UUID.
 	GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, hostUUID, cmdUUID string) (HostMDMProfileRetryCount, error)
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host

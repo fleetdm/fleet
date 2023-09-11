@@ -28,7 +28,7 @@ import (
 //   in an error, the server determines if the profile should be retried (in which case, a new install profile
 //   command will be enqueued by the server) or marked as "failed" and updates the datastore accordingly.
 //
-// - When host details are reported via osqueery, the Fleet server ingests a list of installed
+// - When host details are reported via osquery, the Fleet server ingests a list of installed
 //   profiles and compares the reported profiles with the list of profiles expected to be
 //   installed on the host. Expected profiles comprise the profiles that belong to the host's assigned
 //   team (or no  team, as applicable). If an expected profile is found, the verification status is
@@ -49,9 +49,9 @@ type ProfileVerificationStore interface {
 	// GetHostMDMProfilesRetryCounts returns the retry counts for the specified host.
 	GetHostMDMProfilesRetryCounts(ctx context.Context, hostUUID string) ([]fleet.HostMDMProfileRetryCount, error)
 	// GetHostMDMProfileRetryCountByCommandUUID returns the retry count for the specified
-	// command UUID and host UUID.
+	// host UUID and command UUID.
 	GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, hostUUID, commandUUID string) (fleet.HostMDMProfileRetryCount, error)
-	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given
+	// UpdateHostMDMProfilesVerification updates status of macOS profiles installed on a given
 	// host. The toVerify, toFail, and toRetry slices contain the identifiers of the profiles that
 	// should be verified, failed, and retried, respectively. For each profile in the toRetry slice,
 	// the retries count is incremented by 1 and the status is set to null so that an install

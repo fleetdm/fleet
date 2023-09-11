@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20230906134103(t *testing.T) {
+func TestUp_20230911163618(t *testing.T) {
 	db := applyUpToPrev(t)
 	insertStmt := `
 INSERT INTO  host_mdm_apple_profiles (

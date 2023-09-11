@@ -6,13 +6,13 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230906134103, Down_20230906134103)
+	MigrationClient.AddMigration(Up_20230911163618, Down_20230911163618)
 }
 
-func Up_20230906134103(tx *sql.Tx) error {
+func Up_20230911163618(tx *sql.Tx) error {
 	stmt := `
 ALTER TABLE host_mdm_apple_profiles
-	ADD COLUMN retries int(2) UNSIGNED NOT NULL DEFAULT 0`
+	ADD COLUMN retries TINYINT(3) UNSIGNED NOT NULL DEFAULT 0`
 
 	if _, err := tx.Exec(stmt); err != nil {
 		return fmt.Errorf("add retries to host_mdm_apple_profiles: %w", err)
@@ -20,6 +20,6 @@ ALTER TABLE host_mdm_apple_profiles
 	return nil
 }
 
-func Down_20230906134103(tx *sql.Tx) error {
+func Down_20230911163618(tx *sql.Tx) error {
 	return nil
 }

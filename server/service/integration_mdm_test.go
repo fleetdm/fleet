@@ -544,8 +544,7 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	resetFn := setupPusher(s, t, mdmDevice)
-	defer resetFn()
+	setupPusher(s, t, mdmDevice)
 
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t, 5*time.Second)
@@ -615,7 +614,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 	ctx := context.Background()
 
 	enrollSecret := "test-profile-retries-secret"
-	err := s.ds.ApplyEnrollSecrets(context.Background(), nil, []*fleet.EnrollSecret{{Secret: enrollSecret}})
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: enrollSecret}})
 	require.NoError(t, err)
 
 	testProfiles := [][]byte{
@@ -625,8 +624,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 	initialExpectedProfiles := append(testProfiles, setupExpectedFleetdProfile(t, s.server.URL, enrollSecret, nil))
 
 	h, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	resetFn := setupPusher(s, t, mdmDevice)
-	defer resetFn()
+	setupPusher(s, t, mdmDevice)
 
 	expectedProfileStatuses := map[string]fleet.MDMAppleDeliveryStatus{
 		"I1": fleet.MDMAppleDeliveryVerifying,
@@ -634,7 +632,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		mobileconfig.FleetdConfigPayloadIdentifier: fleet.MDMAppleDeliveryVerifying,
 	}
 	checkProfilesStatus := func(t *testing.T) {
-		storedProfs, err := s.ds.GetHostMDMProfiles(context.Background(), h.UUID)
+		storedProfs, err := s.ds.GetHostMDMProfiles(ctx, h.UUID)
 		require.NoError(t, err)
 		require.Len(t, storedProfs, len(expectedProfileStatuses))
 		for _, p := range storedProfs {
@@ -650,7 +648,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		mobileconfig.FleetdConfigPayloadIdentifier: 0,
 	}
 	checkRetryCounts := func(t *testing.T) {
-		counts, err := s.ds.GetHostMDMProfilesRetryCounts(context.Background(), h.UUID)
+		counts, err := s.ds.GetHostMDMProfilesRetryCounts(ctx, h.UUID)
 		require.NoError(t, err)
 		require.Len(t, counts, len(expectedRetryCounts))
 		for _, c := range counts {
@@ -682,7 +680,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		for _, ident := range identifiers {
 			report[ident] = hostProfsByIdent[ident]
 		}
-		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, h, report))
+		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, h, report))
 	}
 
 	setProfileUpdatedAt := func(t *testing.T, updatedAt time.Time, identifiers ...interface{}) {
@@ -946,7 +944,7 @@ func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret str
 	return b.Bytes()
 }
 
-func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.TestMDMClient) func() {
+func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.TestMDMClient) {
 	origPush := s.pushProvider.PushFunc
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
 		require.Len(t, pushes, 1)
@@ -959,7 +957,7 @@ func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.Te
 		}
 		return res, nil
 	}
-	return func() { s.pushProvider.PushFunc = origPush }
+	t.Cleanup(func() { s.pushProvider.PushFunc = origPush })
 }
 
 func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
