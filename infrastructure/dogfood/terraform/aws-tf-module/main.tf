@@ -125,7 +125,7 @@ module "main" {
       conditions = [{
         path_patterns = ["/device/*", "/api/*/fleet/device/*"]
       }]
-      }, {
+    }, {
       https_listener_index = 0
       priority             = 9000
       actions = [{
@@ -133,7 +133,17 @@ module "main" {
         target_group_index = 0
       }]
       conditions = [{
-        path_patterns = ["/api/*/fleet/device/*/migrate_mdm", "/api/*/fleet/device/*/rotate_encryption_key", "/api/*/fleet/device/*/debug/errors", "/api/*/fleet/device/*/desktop"]
+        path_patterns = ["/api/*/fleet/device/*/migrate_mdm", "/api/*/fleet/device/*/rotate_encryption_key"]
+      }]
+    }, {
+      https_listener_index = 0
+      priority             = 9001
+      actions = [{
+        type               = "forward"
+        target_group_index = 0
+      }]
+      conditions = [{
+        path_patterns = ["/api/*/fleet/device/*/debug/errors", "/api/*/fleet/device/*/desktop"]
       }]
     }]
   }
