@@ -65,23 +65,6 @@ const condenseVulnerabilities = (
     : condensed;
 };
 
-const renderBundleTooltip = (name: string, bundle: string) => (
-  <span className="name-container">
-    <TooltipWrapper
-      position="top"
-      tipContent={`
-        <span>
-          <b>Bundle identifier: </b>
-          <br />
-          ${bundle}
-        </span>
-      `}
-    >
-      {name}
-    </TooltipWrapper>
-  </span>
-);
-
 const getMaxProbability = (vulns: IVulnerability[]) =>
   vulns.reduce(
     (max, { epss_probability }) => Math.max(max, epss_probability || 0),
@@ -217,8 +200,17 @@ const generateTableHeaders = (
           <LinkCell
             path={PATHS.SOFTWARE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
-            value={bundle ? renderBundleTooltip(name, bundle) : name}
-            withTooltip={!!bundle}
+            value={name}
+            tooltipContent={
+              (bundle ?? undefined) &&
+              `
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `
+            }
           />
         );
       },

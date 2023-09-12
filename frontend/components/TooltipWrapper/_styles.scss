@@ -18,6 +18,11 @@
     position: static;
     display: inline; // treat like a span but allow other tags as children
     white-space: nowrap;
+
+    a {
+      position: relative;
+      z-index: 99;
+    }
   }
   &__underline {
     position: absolute;
@@ -59,6 +64,11 @@
     transition: opacity 0.3s ease;
     line-height: 1.375;
     white-space: initial;
+
+    // &__show-tip {
+    //   visibility: visible;
+    //   opacity: 1;
+    // }
 
     // invisible block to cover space so
     // hover state can continue from text to bubble

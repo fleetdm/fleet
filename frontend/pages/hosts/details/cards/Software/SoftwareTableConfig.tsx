@@ -218,8 +218,17 @@ export const generateSoftwareTableHeaders = ({
           <LinkCell
             path={PATHS.SOFTWARE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
-            value={bundle ? renderBundleTooltip(name, bundle) : name}
-            withTooltip={!!bundle}
+            value={name}
+            tooltipContent={
+              (bundle ?? undefined) &&
+              `
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `
+            }
           />
         );
       },
