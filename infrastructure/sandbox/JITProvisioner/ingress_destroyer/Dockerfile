@@ -1,4 +1,4 @@
-FROM golang:1.19-bullseye as BUILDER
+FROM golang:1.21.1-bullseye@sha256:357be9f9e594a338ba16f54c4df16481e7e82533a6571cecaf22dca833622f91 as BUILDER
 WORKDIR /src
 
 RUN apt update && apt upgrade -y
