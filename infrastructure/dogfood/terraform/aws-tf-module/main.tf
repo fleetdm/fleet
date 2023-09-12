@@ -114,7 +114,7 @@ module "main" {
     }
     https_listener_rules = [{
       https_listener_index = 0
-      priority             = 1
+      priority             = 9000
       actions = [{
         type         = "fixed-response"
         content_type = "text/html"
@@ -127,7 +127,7 @@ module "main" {
       }]
     }, {
       https_listener_index = 0
-      priority             = 9000
+      priority             = 1
       actions = [{
         type               = "forward"
         target_group_index = 0
@@ -137,7 +137,7 @@ module "main" {
       }]
     }, {
       https_listener_index = 0
-      priority             = 9001
+      priority             = 2
       actions = [{
         type               = "forward"
         target_group_index = 0
