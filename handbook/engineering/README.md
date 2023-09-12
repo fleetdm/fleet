@@ -133,11 +133,17 @@ Engineering leaders discuss topics of importance that week. Prepare agenda, anno
 - Director of Product Development
 - CTO
 
+#### Rituals
+
+1. Review Engineering KPIs.
+2. Review each product group's ZenHub board.
+3. Proceed to agenda. 
+
 #### Sample agenda
 
 - Engineer hiring
-- Engineering process discussion
-- Review engineering KPIs
+- Process discussion
+- New documentation needs
 
 ### Eng product bi-weekly
 
