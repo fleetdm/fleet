@@ -10,6 +10,17 @@ class cursorState {
   error: any;
 }
 
+interface ChromeResponse {
+  data: Record<string, string>[];
+  /** Manually add errors in catch response if table requires requests to multiple APIs */
+  errors?: {
+    hostname: string;
+    column: string;
+    error: string;
+    error_stack: string;
+  }[];
+}
+
 export default abstract class Table implements SQLiteModule {
   sqlite3: SQLiteAPI;
   db: number;
@@ -21,7 +32,7 @@ export default abstract class Table implements SQLiteModule {
     idxNum: number,
     idxString: string,
     values: Array<number>
-  ): Promise<Record<string, string>[]>;
+  ): Promise<ChromeResponse>;
 
   constructor(sqlite3: SQLiteAPI, db: number) {
     this.sqlite3 = sqlite3;
@@ -91,10 +102,23 @@ export default abstract class Table implements SQLiteModule {
       const cursorState = this.cursorStates.get(pCursor);
       cursorState.rowIndex = 0;
       try {
-        cursorState.rows = await this.generate(idxNum, idxStr, values);
+        const tableDataReturned = await this.generate(idxNum, idxStr, values);
+        cursorState.rows = tableDataReturned.data;
+        console.log(
+          "Table.ts xfilter try tableDataReturned",
+          tableDataReturned
+        );
+        // This is erroring out creating a host because hostname and other deviceAttributes are returning undefined
+        if (tableDataReturned.errors) {
+          // cursorState.error = tableDataReturned.errors[0].error_stack; // Can cursorState.error can only handle 1 error?
+          // cursorState.error = "foobar";
+          cursorState.error = new Error("foobar");
+        }
       } catch (err) {
+        console.log("Table.ts xfilter catch (err) err", err);
+        console.log("Table.ts xfilter catch (err) typeof err", typeof err);
         // Throwing here doesn't seem to work as expected in testing (the error doesn't seem to be
-        // thrown in away that it can be caught appropriately), so instead we save the error and
+        // thrown in a way that it can be caught appropriately), so instead we save the error and
         // throw in xEof.
         cursorState.error = err;
       }
@@ -115,8 +139,14 @@ export default abstract class Table implements SQLiteModule {
     // Throw any error saved in the cursor state (because throwing in xFilter doesn't seem to work
     // correctly with async code).
     if (cursorState.error) {
+      console.log(
+        "Table.ts xeof if (cursorState.error) cursorState",
+        cursorState
+      );
+      // Shows error OR
       throw cursorState.error;
     }
+    // Shows data, but NOT both >.<
     return Number(cursorState.rowIndex >= cursorState.rows.length);
   }
 

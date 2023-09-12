@@ -29,43 +29,117 @@ export default class TableSystemInfo extends Table {
   }
 
   async generate() {
+    let errorsArray = [];
+
     // @ts-expect-error @types/chrome doesn't yet have instanceID.
     const uuid = (await chrome.instanceID.getID()) as string;
 
     // TODO should it default to UUID or should Fleet handle it somehow?
-    // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-    const hostname = (await chrome.enterprise.deviceAttributes.getDeviceHostname()) as string;
+    let hostname = "";
+    try {
+      // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
+      hostname = (await chrome.enterprise.deviceAttributes.getDeviceHostname()) as string;
+    } catch (err) {
+      console.warn("get hostname:", err);
+      errorsArray.push({
+        host: hostname,
+        column: "hostname",
+        error: err.message,
+        error_stack: err.stack,
+      });
+    }
 
-    // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-    const hwSerial = (await chrome.enterprise.deviceAttributes.getDeviceSerialNumber()) as string;
+    let hwSerial = "";
+    try {
+      // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
+      hwSerial = await chrome.enterprise.deviceAttributes.getDeviceSerialNumber();
+    } catch (err) {
+      console.warn("get serial number:", err);
+      errorsArray.push({
+        host: hostname,
+        column: "hardware_serial",
+        error: err.message,
+        error_stack: err.stack,
+      });
+    }
 
-    // This throws "Not allowed" error if
-    // https://chromeenterprise.google/policies/?policy=EnterpriseHardwarePlatformAPIEnabled is
-    // not configured to enabled for the device.
-    // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-    const platformInfo = await chrome.enterprise.hardwarePlatform.getHardwarePlatformInfo();
-    const hwVendor = platformInfo.manufacturer;
-    const hwModel = platformInfo.model;
+    let hwVendor = "",
+      hwModel = "";
+    try {
+      // This throws "Not allowed" error if
+      // https://chromeenterprise.google/policies/?policy=EnterpriseHardwarePlatformAPIEnabled is
+      // not configured to enabled for the device.
+      // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
+      const platformInfo = await chrome.enterprise.hardwarePlatform.getHardwarePlatformInfo();
+      hwVendor = platformInfo.manufacturer;
+      hwModel = platformInfo.model;
+    } catch (err) {
+      console.warn("get platform info:", err);
+      errorsArray.push({
+        host: hostname,
+        column: "hardware_vendor",
+        error: err.message,
+        error_stack: err.stack,
+      });
+      errorsArray.push({
+        host: hostname,
+        column: "hardware_model",
+        error: err.message,
+        error_stack: err.stack,
+      });
+    }
 
-    const cpuInfo = await chrome.system.cpu.getInfo();
-    const cpuBrand = cpuInfo.modelName;
-    const cpuType = cpuInfo.archName;
+    let cpuBrand = "",
+      cpuType = "";
+    try {
+      const cpuInfo = await chrome.system.cpu.getInfo();
+      cpuBrand = cpuInfo.modelName;
+      cpuType = cpuInfo.archName;
+    } catch (err) {
+      console.warn("get cpu info:", err);
+      errorsArray.push({
+        host: hostname,
+        column: "cpu_brand",
+        error: err.message,
+        error_stack: err.stack,
+      });
+      errorsArray.push({
+        host: hostname,
+        column: "cpu_type",
+        error: err.message,
+        error_stack: err.stack,
+      });
+    }
 
-    const memoryInfo = await chrome.system.memory.getInfo();
-    const physicalMemory = memoryInfo.capacity.toString();
+    let physicalMemory = "";
+    try {
+      const memoryInfo = await chrome.system.memory.getInfo();
+      physicalMemory = memoryInfo.capacity.toString();
+    } catch (err) {
+      console.warn("get memory info:", err);
+      errorsArray.push({
+        host: hostname,
+        column: "physical_memory",
+        error: err.message,
+        error_stack: err.stack,
+      });
+    }
 
-    return [
-      {
-        uuid,
-        hostname,
-        computer_name: this.getComputerName(hostname, hwSerial),
-        hardware_serial: hwSerial,
-        hardware_vendor: hwVendor,
-        hardware_model: hwModel,
-        cpu_brand: cpuBrand,
-        cpu_type: cpuType,
-        physical_memory: physicalMemory,
-      },
-    ];
+    return {
+      data: [
+        {
+          uuid,
+          hostname,
+          computer_name: this.getComputerName(hostname, hwSerial),
+          hardware_serial: hwSerial,
+          hardware_vendor: hwVendor,
+          hardware_model: hwModel,
+          cpu_brand: cpuBrand,
+          cpu_type: cpuType,
+          physical_memory: physicalMemory,
+        },
+      ],
+      errors: errorsArray,
+    };
   }
 }

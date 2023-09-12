@@ -11,12 +11,14 @@ export default class TableNetworkInterfaces extends Table {
     const ipv6 = networkDetails.ipv6;
     const mac = networkDetails.macAddress;
 
-    return [
-      {
-        mac,
-        ipv4,
-        ipv6,
-      },
-    ];
+    return {
+      data: [
+        {
+          mac,
+          ipv4,
+          ipv6,
+        },
+      ],
+    };
   }
 }

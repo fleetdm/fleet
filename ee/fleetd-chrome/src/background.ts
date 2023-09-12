@@ -129,21 +129,34 @@ const live_query = async () => {
         console.debug(
           `Discovery (${query_name} sql: "${query_discovery_sql}") failed: ${err}`
         );
+        results[query_name] = null;
+        statuses[query_name] = 1;
+        messages[query_name] = err.toString();
         continue;
       }
     }
 
     // Run the actual query if discovery passed.
     const query_sql = response.queries[query_name];
+    console.log("\n\n\n NEW QUERY");
+    console.log("query_sql", query_sql);
     try {
       const query_result = await DATABASE.query(query_sql);
+      console.log("query_result", query_result);
       results[query_name] = query_result;
+      console.log("results[query_name]", results[query_name]);
       statuses[query_name] = 0;
+      console.log("statuses[query_name] ", statuses[query_name]);
     } catch (err) {
+      // IF THE ENTIRE TABLE ERRORED
       console.warn(`Query (${query_name} sql: "${query_sql}") failed: ${err}`);
       results[query_name] = null;
       statuses[query_name] = 1;
       messages[query_name] = err.toString();
+      console.log(
+        "\n\n CATCH FIRED \n messages[query_name]",
+        messages[query_name]
+      );
     }
   }
 
