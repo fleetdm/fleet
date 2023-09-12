@@ -541,12 +541,15 @@ the way that the Fleet server works.
 				pushProviderFactory := buford.NewPushProviderFactory()
 				if os.Getenv("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
 					mdmPushService = nopPusher{}
+					level.Info(logger).Log("mdm apns", "using nop pusher for MDM push notifications")
 				} else {
 					mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+					level.Info(logger).Log("mdm apns", "using Apple APNs for MDM push notifications")
 				}
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 				appCfg.MDM.EnabledAndConfigured = true
+				level.Info(logger).Log("mdm", "enabled and configured")
 			}
 
 			// register the Microsoft MDM services
