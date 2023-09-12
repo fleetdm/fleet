@@ -133,7 +133,7 @@ module "main" {
         target_group_index = 0
       }]
       conditions = [{
-        path_patterns = ["/api/*/fleet/device/*/migrate_mdm", "/api/*/fleet/device/*/rotate_encryption_key", "/api/*/fleet/device/*/debug/errors" "/api/*/fleet/device/*/debug/desktop"]
+        path_patterns = ["/api/*/fleet/device/*/migrate_mdm", "/api/*/fleet/device/*/rotate_encryption_key", "/api/*/fleet/device/*/debug/errors", "/api/*/fleet/device/*/debug/desktop"]
       }]
     }]
   }
