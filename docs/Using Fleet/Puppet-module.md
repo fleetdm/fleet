@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 Use [Fleet's Puppet module](https://forge.puppet.com/modules/fleetdm/fleetdm/readme) to automatically install custom configuration profiles on your macOS hosts based on host attributes you define in Puppet.
 
-The module also includes functions for releasing a macOS host from await configuration and sending any custom MDM commands.
+The module also includes functions for releasing a macOS host from [Await Configuration}(https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) and sending any custom MDM commands.
 
 ## Setup
 
