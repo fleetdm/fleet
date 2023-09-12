@@ -565,7 +565,15 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
+### Audit logs
 
+The [Audit logs doc page](../../docs/Using%20Fleet/Audit-logs.md) has a page generator that is used to speed up doc writing when Fleet adds new activity types.
+
+1. If you're making a copy change to an exiting activity type or adding a new activity type, edit the `activities.go` file [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/activities.go).
+
+2. If you're making a change to the top section or meta tags, edit the `gen_activity_doc.go` file [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/gen_activity_doc.go).
+
+3. Save your changes, and run `make generate-doc`. This will generate a new `Audit-logs.md` file. Make sure you run the command in the top level folder of your cloned, Fleet repo.
 
 ### GitHub labels
 We use special characters to define different types of GitHub labels. By combining labels, we
