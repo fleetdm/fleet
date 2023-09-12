@@ -20,7 +20,7 @@ Install [Fleet's Puppet module](https://forge.puppet.com/modules/fleetdm/fleetdm
 
 ### Step 2: configure Puppet to talk to Fleet using Heira
 
-1. Create an API-only use with the GitOps role in Fleet. Instructions for creating an API-only user in Fleet are [here](./fleetctl-CLI.md#create-an-api-only-user).
+1. Create an API-only user with the GitOps role in Fleet. Instructions for creating an API-only user in Fleet are [here](./fleetctl-CLI.md#create-an-api-only-user).
 
 2. Get the API token for your new API-only user. Learn how [here](./fleetctl-CLI.md#get-the-api-token-of-an-api-only-user).
 
