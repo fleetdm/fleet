@@ -143,7 +143,8 @@ SELECT l.name
 FROM labels l JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 `
-			if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Labels, query, spec.ID, fleet.TargetLabel); err != nil {
+			labels := spec.Targets.Labels
+			if err := sqlx.SelectContext(ctx, tx, &labels, query, spec.ID, fleet.TargetLabel); err != nil {
 				return ctxerr.Wrap(ctx, err, "get pack label targets")
 			}
 
@@ -153,7 +154,8 @@ SELECT t.name
 FROM teams t JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = t.id
 `
-			if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Teams, query, spec.ID, fleet.TargetTeam); err != nil {
+			teams := spec.Targets.Teams
+			if err := sqlx.SelectContext(ctx, tx, &teams, query, spec.ID, fleet.TargetTeam); err != nil {
 				return ctxerr.Wrap(ctx, err, "get pack team targets")
 			}
 		}
@@ -167,7 +169,8 @@ snapshot, removed, shard, platform, version, denylist
 FROM scheduled_queries
 WHERE pack_id = ?
 `
-			if err := sqlx.SelectContext(ctx, tx, &spec.Queries, query, spec.ID); err != nil {
+			queries := spec.Queries
+			if err := sqlx.SelectContext(ctx, tx, &queries, query, spec.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "get pack queries")
 			}
 		}

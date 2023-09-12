@@ -50,6 +50,10 @@ func fixupSoftware(tx *sql.Tx, collation string) error {
 		idGroups = append(idGroups, ids)
 	}
 
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating rows: %w", err)
+	}
+
 	if len(idGroups) > 0 {
 		fmt.Printf("INFO: found %d duplicate software entries: %v\n", len(idGroups), idGroups)
 	}
@@ -113,6 +117,10 @@ func fixupHostUsers(tx *sql.Tx, collation string) error {
 		keyGroups = append(keyGroups, hu)
 	}
 
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating rows: %w", err)
+	}
+
 	if len(keyGroups) > 0 {
 		fmt.Printf("INFO: found %d duplicate host_software entries: %v\n", len(keyGroups), keyGroups)
 	}
@@ -168,6 +176,10 @@ func fixupOS(tx *sql.Tx, collation string) error {
 			return fmt.Errorf("unmarshalling dupes: %w", err)
 		}
 		keyGroups = append(keyGroups, o)
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating rows: %w", err)
 	}
 
 	if len(keyGroups) > 0 {

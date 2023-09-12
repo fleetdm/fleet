@@ -130,7 +130,8 @@ func main() {
 					doneCount++
 					continue
 				}
-				teamSummary, err := apiClient.GetConfigProfilesSummary(&team.ID)
+				teamID := team.ID
+				teamSummary, err := apiClient.GetConfigProfilesSummary(&teamID)
 				if err != nil {
 					log.Fatalf("get config profile summary for team %s: %s", team.Name, err)
 				}

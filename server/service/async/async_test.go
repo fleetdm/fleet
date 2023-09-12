@@ -179,7 +179,7 @@ func TestActiveHostIDsSet(t *testing.T) {
 		// add a few hosts with a timestamp that increases by a second for each
 		// note that host IDs will be 1..10 (t[0] == host 1, t[1] == host 2, etc.)
 		tpurgeNone := time.Now()
-		ts := make([]int64, 10)
+		ts := make([]int64, 11)
 		for i := range ts {
 			if i > 0 {
 				ts[i] = time.Unix(ts[i-1], 0).Add(time.Second).Unix()

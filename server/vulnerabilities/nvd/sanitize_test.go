@@ -160,8 +160,9 @@ func TestVariations(t *testing.T) {
 	}
 
 	for _, tc := range variationsTestCases {
-		require.ElementsMatch(t, tc.productVariations, productVariations(&tc.software), tc.software)
-		require.ElementsMatch(t, tc.vendorVariations, vendorVariations(&tc.software), tc.software)
+		s := tc.software
+		require.ElementsMatch(t, tc.productVariations, productVariations(&s), tc.software)
+		require.ElementsMatch(t, tc.vendorVariations, vendorVariations(&s), tc.software)
 	}
 }
 
@@ -201,7 +202,8 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
-			actual := sanitizeSoftwareName(&tc.software)
+			s := tc.software
+			actual := sanitizeSoftwareName(&s)
 			require.Equal(t, tc.expected, actual)
 		}
 	})
@@ -232,7 +234,8 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
-			actual := sanitizeSoftwareName(&tc.software)
+			s := tc.software
+			actual := sanitizeSoftwareName(&s)
 			require.Equal(t, tc.expected, actual)
 		}
 	})
@@ -270,7 +273,8 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
-			actual := sanitizeSoftwareName(&tc.software)
+			s := tc.software
+			actual := sanitizeSoftwareName(&s)
 			require.Equal(t, tc.expected, actual)
 		}
 	})
@@ -292,7 +296,8 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
-			actual := sanitizeSoftwareName(&tc.software)
+			s := tc.software
+			actual := sanitizeSoftwareName(&s)
 			require.Equal(t, tc.expected, actual)
 		}
 	})
@@ -314,7 +319,8 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
-			actual := sanitizeSoftwareName(&tc.software)
+			s := tc.software
+			actual := sanitizeSoftwareName(&s)
 			require.Equal(t, tc.expected, actual)
 		}
 	})
@@ -362,7 +368,8 @@ func TestSanitizedSoftwareName(t *testing.T) {
 			},
 		}
 		for _, tc := range testCases {
-			actual := sanitizeSoftwareName(&tc.software)
+			s := tc.software
+			actual := sanitizeSoftwareName(&s)
 			require.Equal(t, tc.expected, actual)
 		}
 	})

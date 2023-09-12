@@ -4730,7 +4730,8 @@ func TestMDMProfileVerification(t *testing.T) {
 			var reportedProfiles []*fleet.HostMacOSProfile // no profiles reported for this test
 
 			// initialize
-			upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
+			initialStatus := tc.initialStatus
+			upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
 			require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 			// within grace period
@@ -4739,7 +4740,7 @@ func TestMDMProfileVerification(t *testing.T) {
 			require.NoError(t, checkHostStatus(t, h, tc.initialStatus, "")) // if missing within grace period, no change
 
 			// reinitialize
-			upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
+			upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
 			require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 			// outside grace period
@@ -4794,7 +4795,8 @@ func TestMDMProfileVerification(t *testing.T) {
 				}
 
 				// initialize
-				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
+				initialStatus := tc.initialStatus
+				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// within grace period
@@ -4803,7 +4805,7 @@ func TestMDMProfileVerification(t *testing.T) {
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, "")) // outdated profiles are treated similar to missing profiles so status doesn't change if within grace period
 
 				// reinitalize
-				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
+				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// outside grace period
@@ -4857,7 +4859,8 @@ func TestMDMProfileVerification(t *testing.T) {
 				}
 
 				// initialize
-				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
+				initialStatus := tc.initialStatus
+				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// within grace period
@@ -4866,7 +4869,7 @@ func TestMDMProfileVerification(t *testing.T) {
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // if found within grace period, verifying status can become verified so check expected status
 
 				// reinitialize
-				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
+				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// outside grace period
@@ -4925,7 +4928,8 @@ func TestMDMProfileVerification(t *testing.T) {
 				}
 
 				// initialize
-				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
+				initialStatus := tc.initialStatus
+				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// within grace period
@@ -4934,7 +4938,7 @@ func TestMDMProfileVerification(t *testing.T) {
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // if found within grace period, verifying status can become verified so check expected status
 
 				// reinitialize
-				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
+				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &initialStatus, ctx, ds, t)
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// outside grace period
