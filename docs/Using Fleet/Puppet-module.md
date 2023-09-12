@@ -33,7 +33,7 @@ fleetdm::token: your-api-token
 
 Puppet docs on configuring Hiera are [here](https://www.puppet.com/docs/puppet/6/hiera_config_yaml_5.html).
 
-If you have staging and production Puppet environments, you can optionally set different values for each environments. This allows you to have your staging and production environment that talk to separate staging and production Fleet servers.
+If you have staging and production Puppet environments, you can optionally set different values for each environments. This allows you to have your staging and production environments that talk to separate staging and production Fleet servers.
 
 ### Step 3: set Fleet as a reporter
 
