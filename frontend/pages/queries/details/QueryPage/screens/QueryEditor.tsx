@@ -16,7 +16,7 @@ import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 
 import BackLink from "components/BackLink";
-import QueryForm from "pages/queries/QueryPage/components/QueryForm";
+import QueryForm from "pages/queries/details/components/QueryForm";
 
 interface IQueryEditorProps {
   router: InjectedRouter;

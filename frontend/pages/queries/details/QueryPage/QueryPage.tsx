@@ -24,8 +24,8 @@ import SidePanelContent from "components/SidePanelContent";
 import SelectTargets from "components/LiveQuery/SelectTargets";
 import CustomLink from "components/CustomLink";
 
-import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
-import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
+import QueryEditor from "pages/queries/details/QueryPage/screens/QueryEditor";
+import RunQuery from "pages/queries/details/QueryPage/screens/RunQuery";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 interface IQueryPageProps {

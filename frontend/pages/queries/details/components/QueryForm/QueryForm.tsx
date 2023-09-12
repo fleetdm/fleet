@@ -48,6 +48,7 @@ import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveQueryModal from "../SaveQueryModal";
+import SaveChangesModal from "../SaveChangesModal";
 
 const baseClass = "query-form";
 
@@ -153,6 +154,7 @@ const QueryForm = ({
   const savedQueryMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [showSaveQueryModal, setShowSaveQueryModal] = useState(false);
+  const [showSaveChangesModal, setShowSaveChangesModal] = useState(false); // #7766 implementation
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
   );
@@ -203,6 +205,11 @@ const QueryForm = ({
 
   const toggleSaveQueryModal = () => {
     setShowSaveQueryModal(!showSaveQueryModal);
+  };
+
+  // #7766 implementation
+  const toggleSaveChangesModal = () => {
+    setShowSaveChangesModal(!showSaveChangesModal);
   };
 
   const onLoad = (editor: IAceEditor) => {
@@ -400,6 +407,12 @@ const QueryForm = ({
           logging: lastEditedQueryLoggingType,
         });
       }
+
+      // #7766 implementation
+      // savedQueryMode
+      //   ? setShowSaveChangesModal(true)
+      //   : setShowSaveQueryModal(true);
+      // TODO: onUpdate for saveChangesModal
     }
   };
 
@@ -763,6 +776,13 @@ const QueryForm = ({
             toggleSaveQueryModal={toggleSaveQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}
+          />
+        )}
+        {showSaveChangesModal && (
+          <SaveChangesModal
+            onSaveChanges={saveQuery}
+            toggleSaveChangesModal={toggleSaveChangesModal}
+            isUpdating={isQuerySaving}
           />
         )}
       </>
