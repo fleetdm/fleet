@@ -6,15 +6,15 @@ If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
 ### Deploying your code to the loadtesting environment
 
 1. Push your branch to https://github.com/fleetdm/fleet and wait for the build to complete (https://github.com/fleetdm/fleet/actions).
-1. arm64 (M1/M2/etc) Mac Only: run `helpers/setup-darwin_arm64.sh` to build terraform plugins that lack arm64 builds in the registry.  Alternatively, you can use the amd64 terraform binary, which works with Rosetta 2.
-1. Log into AWS SSO on `loadtesting` via `aws sso login`. (If you have multiple profiles, export the `AWS_PROFILE` variable.) For configuration, see `infrastructure/sso` folder's readme in the `confidential` private repo.
-1. Initialize your terraform environment with `terraform init`.
-1. Select a workspace for your test: `terraform workspace new WORKSPACE-NAME; terraform workspace select WORKSPACE-NAME`. Ensure your `WORKSPACE-NAME` is less than or equal to 17 characters and contains only alphanumeric characters and hyphens, as it is used to generate names for AWS resources.
-1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes, > ~30m). You should always use a branch other than `main` (Branch `main` changes often and it might trigger rebuilts of the images.) Note that for a few minutes after `terraform apply`, the Fleet instances may be failing to start with a permission issue (to read a database secret), but this should resolve automatically after a bit and ECS will begin to start the Fleet instances, but they may still fail due to missing database migrations (this will show up in the instances' logs). At this point you can move on to the next step.
-1. Run database migrations (see [Running migrations](#running-migrations)). You will get 500 errors and your containers will not run if you do not do this. After running this step, you might need to wait a few minutes until the environment is up and running.
-1. Perform your tests (see [Running a loadtest](#running-a-loadtest)). Your deployment will be available at `https://WORKSPACE-NAME.loadtest.fleetdm.com`. Reach out to the infrastructure team to get the credentials to log in.
-1. For instructions on how to deploy new code changes to Fleet to the environment, see [Deploying code changes to Fleet](#deploying-code-changes-to-fleet). This is useful to test performance improvements without having to set up a new loadtest environment.
-1. When you're done, clean up the environment with `terraform destroy` (it will prompt for the branch name). If A destroy fails, see [ECR Cleanup Troubleshooting](#ecr-cleanup-troubleshooting) for the most common reason.
+2. arm64 (M1/M2/etc) Mac Only: run `helpers/setup-darwin_arm64.sh` to build terraform plugins that lack arm64 builds in the registry.  Alternatively, you can use the amd64 terraform binary, which works with Rosetta 2.
+3. Log into AWS SSO on `loadtesting` via `aws sso login`. (If you have multiple profiles, export the `AWS_PROFILE` variable.) For configuration, see `infrastructure/sso` folder's readme in the `confidential` private repo.
+4. Initialize your terraform environment with `terraform init`.
+5. Select a workspace for your test: `terraform workspace new WORKSPACE-NAME; terraform workspace select WORKSPACE-NAME`. Ensure your `WORKSPACE-NAME` is less than or equal to 17 characters and contains only alphanumeric characters and hyphens, as it is used to generate names for AWS resources.
+6. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes, > ~30m). You should always use a branch other than `main` (Branch `main` changes often and it might trigger rebuilts of the images.) Note that for a few minutes after `terraform apply`, the Fleet instances may be failing to start with a permission issue (to read a database secret), but this should resolve automatically after a bit and ECS will begin to start the Fleet instances, but they may still fail due to missing database migrations (this will show up in the instances' logs). At this point you can move on to the next step.
+7. Run database migrations (see [Running migrations](#running-migrations)). You will get 500 errors and your containers will not run if you do not do this. After running this step, you might need to wait a few minutes until the environment is up and running.
+8. Perform your tests (see [Running a loadtest](#running-a-loadtest)). Your deployment will be available at `https://WORKSPACE-NAME.loadtest.fleetdm.com`. Reach out to the infrastructure team to get the credentials to log in.
+9. For instructions on how to deploy new code changes to Fleet to the environment, see [Deploying code changes to Fleet](#deploying-code-changes-to-fleet). This is useful to test performance improvements without having to set up a new loadtest environment.
+10. When you're done, clean up the environment with `terraform destroy` (it will prompt for the branch name). If A destroy fails, see [ECR Cleanup Troubleshooting](#ecr-cleanup-troubleshooting) for the most common reason.
 
 ### Running migrations
 
@@ -45,7 +45,7 @@ export TF_VAR_fleet_config='{"FLEET_DEV_MDM_APPLE_DISABLE_PUSH":"1","FLEET_MDM_A
 ```
 
 - The above is needed because the newline characters in the certificate/key/token files.
-- The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument. 
+- The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument.
 - The above `export TF_VAR_fleet_config=...` command was tested on `bash`. It did not work in `zsh`.
 - Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1`. We don't want to generate push notifications against fake UUIDs (otherwise it may cause Apple to rate limit due to invalid requests).
 This has an impact on real devices because they will not be notified of any command to execute (it may take a reboot for them to reach out to Fleet for more commands).
