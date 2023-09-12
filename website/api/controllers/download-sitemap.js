@@ -52,7 +52,6 @@ module.exports = {
       '/docs',
       '/logos',
       '/reports/state-of-device-management',
-      '/overview',
       '/releases',
       '/success-stories',
       '/securing',
