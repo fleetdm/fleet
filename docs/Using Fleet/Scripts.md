@@ -53,7 +53,7 @@ osascript -e 'tell application "Finder" to set desktop picture to POSIX file "'"
 
 2. Look at the on-screen information. In the output you'll see the script's exit code and output.
 
-Each time a Fleet user runs a script an entry is created in [Fleet's activity feed](./Audit-logs.md#type-code-ran-script-code). To view the activity in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
+Each time a Fleet user runs a script an entry is created in [Fleet's activity feed](./Audit-logs.md#type-code-ran-script-code).
 
 ## Security considerations
 
