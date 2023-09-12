@@ -56,7 +56,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.1.0"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.3.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -112,6 +112,30 @@ module "main" {
       prefix  = local.customer
       enabled = true
     }
+    https_listener_rules = [{
+      https_listener_index = 0
+      priority             = 1
+      actions = [{
+        type         = "fixed-response"
+        content_type = "text/html"
+        status_code  = "403"
+        message_body = "<h1>Forbidden</h1>"
+
+      }]
+      conditions = [{
+        path_patterns = ["/device/*", "/api/*/fleet/device/*"]
+      }]
+      }, {
+      https_listener_index = 0
+      priority             = 9000
+      actions = [{
+        type               = "forward"
+        target_group_index = 0
+      }]
+      conditions = [{
+        path_patterns = ["/api/*/fleet/device/*/migrate_mdm", "/api/*/fleet/device/*/rotate_encryption_key", "/api/*/fleet/device/*/debug/errors"]
+      }]
+    }]
   }
 }
 
