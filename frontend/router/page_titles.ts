@@ -4,16 +4,16 @@ export default [
   { path: "/dashboard", title: "Dashboard | Fleet for osquery" },
   { path: "/hosts/manage", title: "Manage hosts | Fleet for osquery" },
   {
-    path: "/controls/mac-os-updates",
-    title: "Manage macOS updates | Fleet for osquery",
+    path: "/controls/os-updates",
+    title: "Manage OS updates | Fleet for osquery",
   },
   {
-    path: "/controls/mac-settings",
-    title: "Manage macOS settings | Fleet for osquery",
+    path: "/controls/os-settings",
+    title: "Manage OS settings | Fleet for osquery",
   },
   {
-    path: "/controls/mac-setup",
-    title: "Manage macOS MDM setup | Fleet for osquery",
+    path: "/controls/setup-experience",
+    title: "Manage setup experience | Fleet for osquery",
   },
   { path: "/software/manage", title: "Manage software | Fleet for osquery" },
   { path: "/queries/manage", title: "Manage queries | Fleet for osquery" },
