@@ -60,7 +60,7 @@ Fleet UI:
 
 ### Step 3: run the command
 
-1. Run the `fleetctl mdm run-command --payload=restart-device.xml --host=hostname `
+1. Run the `fleetctl mdm run-command --payload=restart-device.xml --host=hostname ` command.
 > Replace the --payload and --host flags with your `.xml` file and hostname respectively.
 
 2. Look at the on-screen information. In the output you'll see the command required to see results. Be sure to copy this command. If you don't, it will be difficult to view command results later.

@@ -17,7 +17,7 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 - **Do not add events to the CEO's calendar.**  Even if the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).
   - If you create an event directly on the CEO's calendar, it will be declined and removed.
-- **To ask a question or make a request** of the CEO or Apprentice, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&projects=&template=custom-request.md&title=Request%3A+_______________________) and he or the Apprentice will get back to you within one business day.
+- **To ask a question or make a request** of the CEO or Apprentice, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________) and he or the Apprentice will get back to you within one business day.
   - If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
   - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
 - **For personal or extremely urgent requests** that cannot wait one business day, send a Slack direct message (DM) to `@mikermcneil` right away.
@@ -27,9 +27,10 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
 
-To request time with the CEO, @mention the Apprentice in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
+To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________) with:
 - Proposed date and time
 - Reason for meeting _(e.g. include customer names or a related GitHub issue)_
+- Meeting agenda
 
 Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 
@@ -39,7 +40,7 @@ Internal meetings can sometimes be moved to make room. External meetings, blocke
 
 ### Request equipment from Fleet IT
 
-The Apprentice fulfills equipment requests once per week.  [Submit an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&projects=&template=custom-request.md&title=Ship%20%equipment%3A+_______________________), including precisely which item you need and where you need it shipped.  The Apprentice will get back to you within one business day.
+The Apprentice fulfills equipment requests once per week.  [Submit an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&projects=&template=custom-request.md&title=Ship%20equipment%3A+_______________________), including precisely which item you need and where you need it shipped.  The Apprentice will get back to you within one business day.
 
 
 ## Why not mention the CEO in Slack threads?
