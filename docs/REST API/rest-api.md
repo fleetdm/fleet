@@ -1,5 +1,24 @@
 # REST API
 
+- [Authentication](#authentication)
+- [Activities](#activities)
+- [Fleet configuration](#fleet-configuration)
+- [File carving](#file-carving)
+- [Hosts](#hosts)
+- [Labels](#labels)
+- [Mobile device management (MDM)](#mobile-device-management-mdm)
+- [Policies](#policies)
+- [Queries](#queries)
+- [Schedule (deprecated)](#schedule)
+- [Scripts](#scripts)
+- [Sessions](#sessions)
+- [Software](#software)
+- [Targets](#targets)
+- [Teams](#teams)
+- [Translator](#translator)
+- [Users](#users)
+- [API errors](#api-responses)
+
 Use the Fleet APIs to automate Fleet.
 
 This page includes a list of available resources and their API routes.
