@@ -225,7 +225,7 @@ const generateTableHeaders = (
 const generateStatus = (type: string, data: IUser | IInvite): string => {
   const { teams, global_role } = data;
   if (global_role === null && teams.length === 0) {
-    return "No Access";
+    return "No access";
   }
 
   return type === "invite" ? "Invite pending" : "Active";

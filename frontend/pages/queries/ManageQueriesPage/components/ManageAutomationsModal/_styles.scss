@@ -1,7 +1,6 @@
 .manage-automations-modal {
   display: flex;
   flex-direction: column;
-  gap: $pad-xlarge;
 
   &__selection {
     margin-bottom: $pad-small;
@@ -31,6 +30,8 @@
   }
 
   .info-banner {
+    margin: $pad-large 0;
+
     &__info {
       display: flex;
       flex-direction: column;
