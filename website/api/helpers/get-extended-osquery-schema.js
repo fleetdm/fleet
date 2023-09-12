@@ -28,6 +28,8 @@ module.exports = {
   fn: async function ({includeLastModifiedAtValue}) {
     let path = require('path');
     let YAML = require('yaml');
+    let util = require('util');
+
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
     require('assert')(sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation, 'Please set sails.config.custom.sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation to the version of osquery to use, for example \'5.8.1\'.');
@@ -39,8 +41,8 @@ module.exports = {
     let rawOsqueryTablesLastModifiedAt;
     if(includeLastModifiedAtValue) {
       // If we're including a lastModifiedAt value for schema tables, we'll send a request to the GitHub API to get a timestamp of when the last commit
-      let responseData = await sails.helpers.http.get.with({
-        url: 'https://api.github.com/repos/osquery/osquery-site/commits',// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
+      let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
+        url: 'https://api.github.com/repos/osquery/osquery-site/commits',
         data: {
           path: '/src/data/osquery_schema_versions/'+VERSION_OF_OSQUERY_SCHEMA_TO_USE+'.json',
           page: 1,
@@ -51,13 +53,13 @@ module.exports = {
           'Accept': 'application/vnd.github.v3+json',
         },
       }).intercept((err)=>{
-        return new Error(`When trying to send a request to GitHub get a timestamp of the last commit to the osqeury schema JSON, an error occurred. Full error: ${err}`);
+        return new Error(`When trying to send a request to GitHub get a timestamp of the last commit to the osqeury schema JSON, an error occurred. Full error: ${util.inspect(err)}`);
       });
       // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit`` we in the API response.
       let mostRecentCommitToOsquerySchema = responseData[0];
       if(!mostRecentCommitToOsquerySchema.commit || !mostRecentCommitToOsquerySchema.commit.committer) {
         // Throw an error if the the response from GitHub is missing a commit or commiter.
-        throw new Error(`When trying to get a lastModifiedAt timestamp for the osqeury schema json, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${responseData}`);
+        throw new Error(`When trying to get a lastModifiedAt timestamp for the osqeury schema json, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
       }
       rawOsqueryTablesLastModifiedAt = (new Date(mostRecentCommitToOsquerySchema.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
     }
