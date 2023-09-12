@@ -25,7 +25,7 @@ If you use Fleet's macOS MDM features, scripts are automatically enabled for mac
 
 If you don't use MDM features, to enable scripts, we'll deploy a fleetd agent with scripts enabled:
 
-1. Generate a new fleetd agent for macOS, Windows, or Linux using the `fleetctl package` command with the `--script-execution` flag. 
+1. Generate a new fleetd agent for macOS, Windows, or Linux using the `fleetctl package` command with the `--enable-scripts` flag. 
 
 2. Deploy fleetd to your hosts. If your hosts already have fleetd installed, you can deploy the new fleetd on-top of the old installation.
 
