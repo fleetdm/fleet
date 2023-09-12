@@ -53,7 +53,7 @@ module.exports = {
       }).intercept((err)=>{
         return new Error(`When trying to send a request to GitHub get a timestamp of the last commit to the osqeury schema JSON, an error occurred. Full error: ${err}`);
       });
-      // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit`` we in the API response.
+      // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
       let mostRecentCommitToOsquerySchema = responseData[0];
       if(!mostRecentCommitToOsquerySchema.commit || !mostRecentCommitToOsquerySchema.commit.committer) {
         // Throw an error if the the response from GitHub is missing a commit or commiter.
