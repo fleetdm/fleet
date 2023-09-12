@@ -16,6 +16,7 @@ export default abstract class Table implements SQLiteModule {
   name: string;
   columns: string[];
   cursorStates: Map<number, cursorState>;
+  warnings: object;
 
   abstract generate(
     idxNum: number,
@@ -23,10 +24,11 @@ export default abstract class Table implements SQLiteModule {
     values: Array<number>
   ): Promise<Record<string, string | number>[]>;
 
-  constructor(sqlite3: SQLiteAPI, db: number) {
+  constructor(sqlite3: SQLiteAPI, db: number, warnings: object) {
     this.sqlite3 = sqlite3;
     this.db = db;
     this.cursorStates = new Map();
+    this.warnings = warnings;
   }
 
   // This is replaced by wa-sqlite when SQLite is loaded up, but missing from the SQLiteModule

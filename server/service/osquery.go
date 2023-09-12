@@ -1122,7 +1122,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 		},
 		Rows: rows,
 	}
-	if failed {
+	if errMsg != "" {
 		res.Error = &errMsg
 	}
 
