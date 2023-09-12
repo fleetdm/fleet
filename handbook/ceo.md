@@ -27,9 +27,10 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 
 All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
 
-To request time with the CEO, @mention the Apprentice in the [#g-ceo channel](https://fleetdm.slack.com/archives/C05K87USYUV) with:
+To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&projects=&template=custom-request.md&title=Ship%20%equipment%3A+_______________________) with:
 - Proposed date and time
 - Reason for meeting _(e.g. include customer names or a related GitHub issue)_
+- Meeting agenda
 
 Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 

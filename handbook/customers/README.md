@@ -32,11 +32,18 @@ The Sales department is directly responsible for attaining the revenue goals of 
 TODO
 
 ## Responsibilities
-TODO
+
+### Review rep activity
+Following up with people interested in Fleet is an important part of finding out whether or not they'd like to continue the process of buying the product.  It is also very important not to be annoying.  At Fleet, team members follow up with people, but not too often.
+
+To help coach reps and avoid being annoying to Fleet users, Fleet reviews rep activity on a regular basis following these steps:
+1. In Salesforce, visit the activity report on your dashboard.  (TODO: taylor will replace this and/or link it)
+2. For each rep, review recent activity from the last 30 days across all of that rep's accounts.
+3. If outreach is too frequent or doesn't fit the company's strategy, then set up a 30 minute coaching session to discuss with the rep.
 
 ## Rituals
 
-<rituals :rituals="rituals['handbook/company/sales.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/customers/sales.rituals.yml']"></rituals>
 
 <meta name="maintainedBy" value="alexmitchelliii">
 <meta name="title" value="🐋 Customers">
