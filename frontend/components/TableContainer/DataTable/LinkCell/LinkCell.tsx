@@ -25,28 +25,22 @@ const LinkCell = ({
   title,
   tooltipContent,
 }: ILinkCellProps): JSX.Element => {
-  const cellClasses = classnames(
-    baseClass,
-    className,
-    tooltipContent && "link-cell-tooltip"
-  );
+  const cellClasses = classnames(baseClass, className);
 
   const onClick = (e: React.MouseEvent): void => {
     customOnClick && customOnClick(e);
   };
 
   return tooltipContent ? (
-    <span className="name-container">
-      <TooltipWrapper
-        position="top"
-        className="link-cell-tooltip"
-        tipContent={tooltipContent}
-      >
-        <Link className={cellClasses} to={path} onClick={onClick} title={title}>
-          {value}
-        </Link>
-      </TooltipWrapper>
-    </span>
+    <TooltipWrapper
+      position="top"
+      className="link-cell-tooltip-wrapper"
+      tipContent={tooltipContent}
+    >
+      <Link className={cellClasses} to={path} onClick={onClick} title={title}>
+        {value}
+      </Link>
+    </TooltipWrapper>
   ) : (
     <Link
       className={cellClasses}
