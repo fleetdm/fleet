@@ -45,11 +45,11 @@ jobs:
     - name: Verify test schema changes
       run: |
         make dump-test-schema
-        if [[ $(git diff server/datastore/mysql/schema.sql > diff) ]]; then
+        if [[ $(git diff server/datastore/mysql/schema.sql > changes) ]]; then
           echo "❌ fail: uncommited changes in schema.sql"
           echo "please run `make dump-test-schema` and commit the changes"
           echo "changes:"
-          cat diff
+          cat changes
           exit 1
         fi
 
