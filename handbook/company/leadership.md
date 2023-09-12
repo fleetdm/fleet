@@ -162,7 +162,7 @@ Want to hire?  Here's how to open up a new position on the core team:
 
 1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department. Set the start date to the first Monday of the next month (This position is still only proposed (not approved), but would make it easier for the approver to have the date set).
 2. **Propose job description:** Copy, personalize, and publish the job description:
-  - Create an entry for the proposed position in the [open positions YAML file](https://github.com/fleetdm/fleet/tree/main/handbook/company/open-positions.yml/edit). To do this, you can either duplicate an existing open position and update the values, or you can copy and paste the commented out template at the top of the file.
+  - Create an entry for the proposed position in the [open positions YAML file](https://github.com/fleetdm/fleet/tree/main/handbook/company/open-positions.yml). To do this, you can either duplicate an existing open position and update the values, or you can copy and paste the commented out template at the top of the file.
 
   - Update the required values for the new entry:
     - `jobTitle`: The job title of the proposed position. This will determine the living URL of the page on the Fleet website.
