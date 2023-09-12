@@ -900,6 +900,16 @@ export const getNextLocationPath = ({
   return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };
 
+export const getSoftwareBundleTooltipMarkup = (bundle: string) => {
+  return `
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `;
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
