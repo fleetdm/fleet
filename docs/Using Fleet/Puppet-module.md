@@ -8,7 +8,7 @@ The module also includes functions for releasing a macOS host from [Await Config
 
 ## Setup
 
-To setup the Puppet module, we will do the following steps:
+To set up the Puppet module, we will do the following steps:
 
 1. Install the Puppet module
 2. Configure Puppet to talk to Fleet using Hiera
