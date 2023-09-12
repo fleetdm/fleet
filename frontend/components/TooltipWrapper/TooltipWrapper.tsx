@@ -33,7 +33,10 @@ const TooltipWrapper = ({
     <div className={classname} data-position={position}>
       <div className={`${baseClass}__element`}>
         {children}
-        <div className={`${baseClass}__underline`} data-text={children} />
+        <div
+          className={`${baseClass}__element__underline`}
+          data-text={children}
+        />
       </div>
       <div
         className={tipClass}

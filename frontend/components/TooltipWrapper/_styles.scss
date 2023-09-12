@@ -18,31 +18,31 @@
     position: static;
     display: inline; // treat like a span but allow other tags as children
     white-space: nowrap;
+    &__underline {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+
+      &::before {
+        content: attr(data-text);
+        opacity: 0;
+        visibility: hidden;
+      }
+      &::after {
+        content: "";
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        border-bottom: 1px dashed $ui-fleet-black-50;
+      }
+    }
 
     a {
       position: relative;
       z-index: 99;
-    }
-  }
-  &__underline {
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-
-    &::before {
-      content: attr(data-text);
-      opacity: 0;
-      visibility: hidden;
-    }
-    &::after {
-      content: "";
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      bottom: -2px;
-      left: 0;
-      border-bottom: 1px dashed $ui-fleet-black-50;
     }
   }
   &__tip-text {
