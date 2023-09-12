@@ -566,6 +566,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			EPSSProbability:  ptr.Float64(0.01),
 			CISAKnownExploit: ptr.Bool(false),
 			Published:        ptr.Time(now.Add(-2 * time.Hour)),
+			Description:      "this is a description for CVE-2022-0001",
 		},
 		{
 			CVE:              "CVE-2022-0002",
@@ -573,6 +574,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			EPSSProbability:  ptr.Float64(0.99),
 			CISAKnownExploit: ptr.Bool(false),
 			Published:        ptr.Time(now),
+			Description:      "this is a description for CVE-2022-0002",
 		},
 		{
 			CVE:              "CVE-2022-0003",
@@ -580,6 +582,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			EPSSProbability:  ptr.Float64(0.98),
 			CISAKnownExploit: ptr.Bool(true),
 			Published:        ptr.Time(now.Add(-1 * time.Hour)),
+			Description:      "this is a description for CVE-2022-0003",
 		},
 	}
 	err = ds.InsertCVEMeta(context.Background(), cveMeta)
@@ -598,6 +601,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				EPSSProbability:  ptr.Float64Ptr(0.01),
 				CISAKnownExploit: ptr.BoolPtr(false),
 				CVEPublished:     ptr.TimePtr(now.Add(-2 * time.Hour)),
+				Description:      ptr.StringPtr("this is a description for CVE-2022-0001"),
 			},
 			{
 				CVE:              "CVE-2022-0002",
@@ -606,6 +610,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				EPSSProbability:  ptr.Float64Ptr(0.99),
 				CISAKnownExploit: ptr.BoolPtr(false),
 				CVEPublished:     ptr.TimePtr(now),
+				Description:      ptr.StringPtr("this is a description for CVE-2022-0002"),
 			},
 		},
 	}
@@ -625,6 +630,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				EPSSProbability:  ptr.Float64Ptr(0.98),
 				CISAKnownExploit: ptr.BoolPtr(true),
 				CVEPublished:     ptr.TimePtr(now.Add(-1 * time.Hour)),
+				Description:      ptr.StringPtr("this is a description for CVE-2022-0003"),
 			},
 		},
 	}
