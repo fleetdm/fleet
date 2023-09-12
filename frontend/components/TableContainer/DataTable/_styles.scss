@@ -253,11 +253,15 @@ $shadow-transition-width: 10px;
               overflow: hidden;
               &__underline {
                 width: 100%;
+
+                &::after {
+                  bottom: 9px; // compensate for padding to make larger clickable area
+                }
               }
               // TODO – this naming is now confusing, as this .link-cell is not the outermost layer of
               // the cell – it's a NameCell
               .link-cell {
-                padding: 0;
+                padding: 10px 0;
               }
             }
 
