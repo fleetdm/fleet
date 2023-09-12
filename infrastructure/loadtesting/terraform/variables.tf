@@ -31,3 +31,7 @@ variable "redis_instance_type" {
   type        = string
   default     = "cache.m6g.large"
 }
+
+variable "scep_challenge" {
+  description = "The mdm scep challenge to use for osquery-perf, must match the one provided to Fleet"
+}
