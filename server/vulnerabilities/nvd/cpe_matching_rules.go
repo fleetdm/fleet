@@ -106,6 +106,40 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				"CVE-2016-7656": {},
 			},
 		},
+		// The NVD dataset contains an invalid rule for CVE-2020-10146 that matches all versions of
+		// Microsoft Teams.
+		//
+		//	"cve" : {
+		//		"data_type" : "CVE",
+		//		"data_format" : "MITRE",
+		//		"data_version" : "4.0",
+		//		"CVE_data_meta" : {
+		// 			"ID" : "CVE-2020-10146",
+		// 			"ASSIGNER" : "cert@cert.org"
+		// 		},
+		//	[...]
+		//	"configurations" : {
+		//		"CVE_data_version" : "4.0",
+		//		"nodes" : [ {
+		//			"operator" : "OR",
+		//			"children" : [ ],
+		//			"cpe_match" : [ {
+		//				"vulnerable" : true,
+		//				"cpe23Uri" : "cpe:2.3:a:microsoft:teams:*:*:*:*:*:*:*:*", <<<<<<
+		//				"versionEndExcluding" : "2020-10-29",
+		//				"cpe_name" : [ ]
+		//			} ]
+		//		} ]
+		//	},
+		//
+		// Such CVE corresponds to a vulnerability on Microsoft's online service
+		// that has been patched since October 2020.
+		CPEMatchingRule{
+			IgnoreAll: true,
+			CVEs: map[string]struct{}{
+				"CVE-2020-10146": {},
+			},
+		},
 	}
 
 	for i, rule := range rules {

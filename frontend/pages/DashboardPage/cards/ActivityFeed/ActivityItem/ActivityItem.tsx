@@ -1,16 +1,18 @@
 import React from "react";
 import { find, lowerCase, noop } from "lodash";
-import { intlFormat, formatDistanceToNowStrict } from "date-fns";
+import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
-import { addGravatarUrlToResource } from "utilities/helpers";
+import {
+  addGravatarUrlToResource,
+  internationalTimeFormat,
+} from "utilities/helpers";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import { act } from "react-dom/test-utils";
 
 const baseClass = "activity-item";
 
@@ -705,18 +707,7 @@ const ActivityItem = ({
             id={`activity-${activity.id}`}
             backgroundColor="#3e4771"
           >
-            {intlFormat(
-              activityCreatedAt,
-              {
-                year: "numeric",
-                month: "numeric",
-                day: "numeric",
-                hour: "numeric",
-                minute: "numeric",
-                second: "numeric",
-              },
-              { locale: window.navigator.languages[0] }
-            )}
+            {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>
         </p>
       </div>

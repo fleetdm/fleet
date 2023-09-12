@@ -41,6 +41,7 @@ services:
         "--log_output=TABLE",
         "--log-queries-not-using-indexes",
         "--innodb-file-per-table=OFF",
+        "--table-definition-cache=2048",
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
