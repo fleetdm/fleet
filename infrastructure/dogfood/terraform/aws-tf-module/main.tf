@@ -120,7 +120,7 @@ module "main" {
         protocol    = "HTTPS"
         port        = "443"
         host        = "fleetdm.com"
-        path        = "/handbook/company/why-this-way#why-open-source"
+        path        = "/handbook/company/why-this-way"
         status_code = "HTTP_302"
       }]
       conditions = [{
