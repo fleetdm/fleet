@@ -122,7 +122,7 @@ const SaveNewPolicyModal = ({
             label="Name"
             placeholder="What yes or no question does your policy ask about your devices?"
             autofocus
-            ignore1Password
+            ignore1password
           />
           <InputField
             name="description"
