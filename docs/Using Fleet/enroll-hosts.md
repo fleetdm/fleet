@@ -309,7 +309,7 @@ If you deploy any chrome extension to an OU that only has DEVICES, it will not b
 On the other hand if you deploy an extension to an OU that hold USERS with both ChromeBooks and
 managed Chrome web browsers (e.g. Chrome browser on a MacBook), it will deploy the extension to that Chrome Web Browser.
 
-Our recommendation: 
+#### Our recommendation: 
 - Create an OU that will hold all USERs with ChromeBooks. Deploy our extension to it (Force-Install).
 - Create an OU to holds the managed Chrome Web Browsers of the USERS above. Make sure our extension
   is blocked on this OU. 
