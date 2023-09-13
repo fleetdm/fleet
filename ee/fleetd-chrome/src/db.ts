@@ -21,7 +21,7 @@ interface ChromeWarning {
 }
 interface ChromeResponse {
   data: Record<string, string>[];
-  /** Manually add errors in catch response if table requires requests to multiple APIs */
+  /** Manually add errors in catch response if table requires multiple APIs requests */
   warnings?: ChromeWarning[];
 }
 
@@ -76,7 +76,6 @@ export default class VirtualDatabase {
   }
 
   async query(sql: string): Promise<ChromeResponse> {
-    // this.warnings = [];
     let rows = [];
     await this.sqlite3.exec(this.db, sql, (row, columns) => {
       // map each row to object

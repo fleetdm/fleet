@@ -119,7 +119,6 @@ const live_query = async () => {
     const query_discovery_sql = response.discovery[query_name];
     if (query_discovery_sql) {
       try {
-        DATABASE.warnings;
         const discovery_result = (await DATABASE.query(query_discovery_sql))
           .data;
         if (discovery_result.length == 0) {
@@ -146,9 +145,8 @@ const live_query = async () => {
       results[query_name] = query_result.data;
       statuses[query_name] = 0;
       if (query_result.warnings.length !== 0) {
-        // Warnings array is concatenated in Table.ts xfilter
-        statuses[query_name] = 1; // Set to show warnings in errors table
-        messages[query_name] = query_result.warnings;
+        statuses[query_name] = 1; // Set to show warnings in errors table and campaign.ts returned host_counts to +1 failing instead of +1 successful
+        messages[query_name] = query_result.warnings; // Warnings array is concatenated in Table.ts xfilter
       }
     } catch (err) {
       console.warn(`Query (${query_name} sql: "${query_sql}") failed: ${err}`);
