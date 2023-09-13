@@ -58,7 +58,7 @@ resource "aws_ecs_task_definition" "loadtest" {
           "--orbit_prob", "1.0",
 					"--empty_serial_prob", "0.0",
 					"--mdm_prob", "1.0",
-					"--mdm_scep_challenge", var.scep_challenge
+					"--mdm_scep_challenge", "978Ov9jttRoiN+ZghGuuq+CGYcaSSVnVpZ6JgangouE="
         ]
       }
   ])
