@@ -18,7 +18,9 @@ func main() {
 			detail = fmt.Sprintf("| BODY: %s", string(body))
 		}
 		log.Printf("%s %s %s\n", request.Method, request.URL.Path, detail)
-		request.Write(writer)
+		if err := request.Write(writer); err != nil {
+			log.Fatalf(err.Error())
+		}
 	})
 
 	port := ":4648"

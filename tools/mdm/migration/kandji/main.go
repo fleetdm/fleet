@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"io"
 	"log"
 	"net/http"
@@ -76,7 +77,7 @@ func unenroll(serialNumber string) error {
 	}
 	// Get device info to grab the device id
 	// https://api-docs.kandji.io/#78209960-31a7-4e3b-a2c0-95c7e65bb5f9
-	client := &http.Client{}
+	client := fleethttp.NewClient()
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.api.kandji.io/api/v1/devices?serial_number=%s", *subdomainFlag, serialNumber), nil)
 	if err != nil {
 		return err
@@ -105,7 +106,6 @@ func unenroll(serialNumber string) error {
 
 	// Delete the device, which triggers unenrollment
 	// https://api-docs.kandji.io/#97deb582-d86c-444a-aa3b-3528b9a8478f
-	client = &http.Client{}
 	req, err = http.NewRequest("DELETE", fmt.Sprintf("https://%s.api.kandji.io/api/v1/devices/%s", *subdomainFlag, deviceInfo[0].DeviceID), nil)
 	if err != nil {
 		return err
