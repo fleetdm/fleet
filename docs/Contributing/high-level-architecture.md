@@ -178,27 +178,12 @@ status.
 graph LR;
     frontend[Frontend on web browser];
 
-    subgraph Customer
+    subgraph Customer Cloud
         fleetServer(Fleet Server);
     end
 
-    subgraph Heroku
+    subgraph Heroku Cloud
         vulnServer(Vuln Web Server);
-    end
-
-    frontend --> vulnServer;
-    vulnServer --> fleetServer;
-```
-```mermaid
-graph LR;
-    frontend[Frontend on web browser];
-
-    subgraph Heroku (FleetDM)
-        vulnServer(Vuln Web Server);
-    end
-
-    subgraph Customer cloud
-        fleetServer(Fleet Server);
     end
 
     frontend --> vulnServer;
