@@ -186,7 +186,7 @@ graph LR;
         fleetServer(Fleet Server);
     end
 
-    frontend --> vulnServer;
-    vulnServer --> fleetServer;
+    frontend -> vulnServer;
+    vulnServer -> fleetServer;
 ```
 
