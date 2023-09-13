@@ -9,6 +9,7 @@ REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
+GOEXPERIMENT = ""
 
 ifdef GO_TEST_EXTRA_FLAGS
 GO_TEST_EXTRA_FLAGS_VAR := $(GO_TEST_EXTRA_FLAGS)
@@ -113,18 +114,26 @@ help:
 build: fleet fleetctl
 
 fleet: .prefix .pre-build .pre-fleet
-	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 GOEXPERIMENT=${GOEXPERIMENT} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+
+fleet-fips: GOEXPERIMENT=boringcrypto
+fleet-fips: fleet
+	go tool nm ./build/fleet | grep '_Cfunc__goboringcrypto_' 1> /dev/null
 
 fleet-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleet-dev: fleet
 
-fleetctl: .prefix .pre-build .pre-fleetctl
-	# Race requires cgo
-	$(eval CGO_ENABLED := $(shell [[ "${GO_BUILD_RACE_ENABLED_VAR}" = "true" ]] && echo 1 || echo 0))
-	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-
-fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
+# Race requires cgo
+fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true CGO_ENABLED=1
 fleetctl-dev: fleetctl
+
+fleetctl: .prefix .pre-build .pre-fleetctl
+	CGO_ENABLED=${CGO_ENABLED} GOEXPERIMENT=${GOEXPERIMENT} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+
+fleetctl-fips: GOEXPERIMENT=boringcrypto
+fleetctl-fips: CGO_ENABLED=1
+fleetctl-fips: fleetctl
+	go tool nm ./build/fleetctl | grep '_Cfunc__goboringcrypto_' 1> /dev/null
 
 lint-js:
 	yarn lint
