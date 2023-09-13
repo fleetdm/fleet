@@ -4,6 +4,7 @@
 
 import * as SQLite from "wa-sqlite";
 
+/** Creates a single UI friendly string out of chrome tables that return multiple warnings */
 const CONCAT_CHROME_WARNINGS = (warnings: ChromeWarning[]): string => {
   const warningStrings = warnings.map(
     (warning) => `Column: ${warning.column} - ${warning.error_message}`
@@ -111,7 +112,7 @@ export default abstract class Table implements SQLiteModule {
       try {
         const tableDataReturned = await this.generate(idxNum, idxStr, values);
 
-        // Set warnings to this.warnings for database
+        // Set warnings to this.warnings for database to surface in UI
         if (tableDataReturned.warnings) {
           globalThis.DB.warnings = []; // Reset warnings
           globalThis.DB.warnings = CONCAT_CHROME_WARNINGS(

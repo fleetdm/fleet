@@ -110,7 +110,7 @@ export default class TableSystemInfo extends Table {
         error_message: err.message.toString(),
       });
     }
-    console.log("warningsArray", warningsArray);
+
     return {
       data: [
         {

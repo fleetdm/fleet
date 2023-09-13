@@ -13,11 +13,6 @@ interface requestArgs {
   reenroll?: boolean;
 }
 
-interface ChromeWarning {
-  column: string;
-  error_message: string;
-}
-
 const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
   const { fleet_url } = await chrome.storage.managed.get({
     fleet_url: FLEET_URL,
@@ -144,40 +139,22 @@ const live_query = async () => {
       }
     }
 
-    const CONCAT_CHROME_WARNINGS = (warnings: ChromeWarning[]): string => {
-      const warningStrings = warnings.map(
-        (warning) => `Column: ${warning.column} - ${warning.error_message}`
-      );
-      return warningStrings.toString();
-    };
-
     // Run the actual query if discovery passed.
     const query_sql = response.queries[query_name];
-    console.log("\n\n\n NEW QUERY");
-    console.log("query_sql", query_sql);
     try {
       const query_result = await DATABASE.query(query_sql);
-      console.log("query_result", query_result);
       results[query_name] = query_result.data;
-      console.log("results[query_name]", results[query_name]);
       statuses[query_name] = 0;
-      console.log("statuses[query_name] ", statuses[query_name]);
       if (query_result.warnings.length !== 0) {
         // Warnings array is concatenated in Table.ts xfilter
-        statuses[query_name] = 1;
+        statuses[query_name] = 1; // Set to show warnings in errors table
         messages[query_name] = query_result.warnings;
       }
-      console.log("messages[query_name] ", messages[query_name]);
     } catch (err) {
-      // IF THE ENTIRE TABLE ERRORED
       console.warn(`Query (${query_name} sql: "${query_sql}") failed: ${err}`);
       results[query_name] = null;
       statuses[query_name] = 1;
       messages[query_name] = err.toString();
-      console.log(
-        "\n\n CATCH FIRED \n messages[query_name]",
-        messages[query_name]
-      );
     }
   }
 
