@@ -616,14 +616,6 @@ const ManageSoftwarePage = ({
 
   const renderSoftwareTable = () => {
     if (
-      isFetchingCount ||
-      isFetchingSoftware ||
-      !globalConfig ||
-      (!softwareConfig && !softwareConfigError)
-    ) {
-      return <Spinner />;
-    }
-    if (
       (softwareError && !isFetchingSoftware) ||
       (softwareConfigError && !isFetchingSoftwareConfig)
     ) {
@@ -633,7 +625,12 @@ const ManageSoftwarePage = ({
       <TableContainer
         columns={softwareTableHeaders}
         data={(isSoftwareEnabled && software?.software) || []}
-        isLoading={false}
+        isLoading={
+          isFetchingCount ||
+          isFetchingSoftware ||
+          !globalConfig ||
+          (!softwareConfig && !softwareConfigError)
+        }
         resultsTitle={"software items"}
         emptyComponent={() => (
           <EmptySoftwareTable

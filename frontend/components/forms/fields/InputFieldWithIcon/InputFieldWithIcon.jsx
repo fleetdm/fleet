@@ -27,6 +27,7 @@ class InputFieldWithIcon extends InputField {
     iconPosition: PropTypes.oneOf(["start", "end"]),
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     tooltip: PropTypes.string,
+    ignore1Password: PropTypes.bool,
   };
 
   renderHeading = () => {
@@ -78,6 +79,7 @@ class InputFieldWithIcon extends InputField {
       disabled,
       iconPosition,
       inputOptions,
+      ignore1Password,
     } = this.props;
     const { onInputChange, renderHint } = this;
 
@@ -120,6 +122,7 @@ class InputFieldWithIcon extends InputField {
           value={value}
           disabled={disabled}
           {...inputOptions}
+          data-1p-ignore={ignore1Password}
         />
         {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
         {iconName && <FleetIcon name={iconName} className={iconClasses} />}

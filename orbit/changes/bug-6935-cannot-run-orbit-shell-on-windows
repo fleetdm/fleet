@@ -1,1 +1,0 @@
-* Fixed an issue that prevented orbit shell to run when the osqueryd instance ran through orbit shell attempted to register the same named pipe name used by the osqueryd instance launched by orbit service

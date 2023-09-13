@@ -159,7 +159,7 @@ fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:808
 You can also indicate the [channels you would like Fleetd to watch for updates](https://fleetdm.com/docs/using-fleet/fleetd#update-channels) using the `--orbit-channel`, `--desktop-channel` , and `--osqueryd-channel` flags:
 
 ```
-fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osquery-channel=4
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osqueryd-channel=4
 ```
 
 You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the `stable`  or `edge` channels.
@@ -207,6 +207,13 @@ Currently, Fleet only stores the current state of your hosts (when they last com
 The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat similar to fleetctl, but it tends to be used more by other computer programs rather than human users (although humans can use it too). For example, our [Fleet UI](https://fleetdm.com/docs/using-fleet/rest-api) talks to the server via the REST API. Folks can also use the REST API if they want to build their own programs that talk to the Fleet server.
 
 The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users.
+
+### How do I issue MDM commands with `fleetctl` and an applied `--context` option?
+
+[fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-to-an-existing-fleet-instance) allows users to maintain a context for the environment that they are logging into. This is useful when maintaining a development / staging / production workflow. When issuing MDM commands in combination with the `--context` option, please use the following syntax:
+
+`fleetctl mdm --context dev run-command --payload=restart-device.xml --host=hostname`
+
 
 ### Why can't I run queries with `fleetctl` using a new API-only user?
 
