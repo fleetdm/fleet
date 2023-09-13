@@ -324,6 +324,8 @@ We respond within 1-hour (during business hours) for interactions and ask the on
 
 PRs from Fleeties are reviewed by auto-assignment of codeowners, or by selecting the group or reviewer manually.
 
+PRs should remain in draft until they are ready to be reviewed for final approval, this means the feature is complete with tests already added. This helps keep our active list of PRs relevant and focused. It is ok and encouraged to request feedback while a PR is in draft to engage the team.
+
 All PRs from the community are routed through the oncall engineer. For documentation changes, the community contact ([Kathy](https://github.com/ksatter)) is assigned by the oncall engineer. For code changes, if the oncall engineer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
 
 #### Customer success meetings
