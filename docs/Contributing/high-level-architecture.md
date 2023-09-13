@@ -176,9 +176,21 @@ status.
 ### Vuln dashboard hosted by FleetDM
 ```mermaid
 graph LR;
+    agent[Osquery Agent<br>Runs query and sends results];
+
+    subgraph Cloud
+        server(Server);
+        log[Optional External Log<br>e.g. S3];
+    end
+
+    agent --> server;
+    server --> log;
+```
+```mermaid
+graph LR;
     frontend[Frontend on web browser];
 
-    subgraph Heroku cloud (FleetDM)
+    subgraph Heroku (FleetDM)
         vulnServer(Vuln Web Server);
     end
 
@@ -186,7 +198,7 @@ graph LR;
         fleetServer(Fleet Server);
     end
 
-    frontend -> vulnServer;
-    vulnServer -> fleetServer;
+    frontend --> vulnServer;
+    vulnServer --> fleetServer;
 ```
 
