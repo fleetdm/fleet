@@ -299,6 +299,16 @@ Enter the "Extension ID," "Installation URL," and "Policy for extensions" using 
 
 Under "Installation Policy", select "Force install". Under "Update URL", select "Installation URL (see above)".
 
+> Potential issues and trubleshooting: 
+> 1 The extension does not install on out ChromeBooks.
+> 2 Chrome Web Browsers on other OSs (Mac/Linux/Windows) get this extension (where it's not needed).
+
+Google Admin is arranged in a hirarchy of Organizational Units (OUs). Chrome extensions can only be
+installed at USERs level (not DEVICES). So if you install the extension to an OU that only has
+devices, it will not be installed.
+It is necessary that your Google Admin Hirarchy will be built
+
+
 > For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
 
 ## Grant full disk access to osquery on macOS
