@@ -30,8 +30,8 @@ jobs:
     # Only run it when the push is to the fleetdm/fleet repo. Otherwise the secrets for pushing to
     # Docker will not be available.
     #
-    # Also not run if author is dependabot (it doesn't have access to Github secrets).
-    if: ${{ (github.repository == 'fleetdm/fleet') && (github.actor != 'dependabot[bot]') }}
+    # Also do not run if author is dependabot or is on a fork (it doesn't have access to Github secrets).
+    if: ${{ (github.repository == 'fleetdm/fleet') && (github.actor != 'dependabot[bot]') && (github.event.pull_request.head.repo.full_name == github.repository)}}
     runs-on: ubuntu-20.04
     environment: Docker Hub
     steps:
