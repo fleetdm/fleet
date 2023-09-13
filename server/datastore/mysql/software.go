@@ -598,11 +598,12 @@ func listSoftwareDB(
 // softwareCVE is used for left joins with cve
 type softwareCVE struct {
 	fleet.Software
-	CVE              *string    `db:"cve"`
-	CVSSScore        *float64   `db:"cvss_score"`
-	EPSSProbability  *float64   `db:"epss_probability"`
-	CISAKnownExploit *bool      `db:"cisa_known_exploit"`
-	CVEPublished     *time.Time `db:"cve_published"`
+	CVE               *string    `db:"cve"`
+	CVSSScore         *float64   `db:"cvss_score"`
+	EPSSProbability   *float64   `db:"epss_probability"`
+	CISAKnownExploit  *bool      `db:"cisa_known_exploit"`
+	CVEPublished      *time.Time `db:"cve_published"`
+	ResolvedInVersion *string    `db:"resolved_in_version"`
 }
 
 func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
@@ -692,10 +693,11 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 			).
 			SelectAppend(
-				goqu.MAX("c.cvss_score").As("cvss_score"),                 // for ordering
-				goqu.MAX("c.epss_probability").As("epss_probability"),     // for ordering
-				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"), // for ordering
-				goqu.MAX("c.published").As("cve_published"),               // for ordering
+				goqu.MAX("c.cvss_score").As("cvss_score"),                     // for ordering
+				goqu.MAX("c.epss_probability").As("epss_probability"),         // for ordering
+				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"),     // for ordering
+				goqu.MAX("c.published").As("cve_published"),                   // for ordering
+				goqu.MAX("scv.resolved_in_version").As("resolved_in_version"), // for ordering
 			)
 	}
 
@@ -1063,6 +1065,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 				"c.epss_probability",
 				"c.cisa_known_exploit",
 				goqu.I("c.published").As("cve_published"),
+				"scv.resolved_in_version",
 			)
 	}
 
@@ -1402,8 +1405,8 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 
 	var args []interface{}
 
-	stmt := `INSERT INTO software_cve (cve, source, software_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE updated_at=?`
-	args = append(args, vuln.CVE, source, vuln.SoftwareID, time.Now().UTC())
+	stmt := `INSERT INTO software_cve (cve, source, software_id, resolved_in_version) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE updated_at=?`
+	args = append(args, vuln.CVE, source, vuln.SoftwareID, vuln.ResolvedInVersion, time.Now().UTC())
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
@@ -1438,6 +1441,7 @@ func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 			goqu.I("hs.host_id"),
 			goqu.I("sc.software_id"),
 			goqu.I("sc.cve"),
+			goqu.I("sc.resolved_in_version"),
 		).
 		Where(
 			goqu.I("hs.host_id").In(hostIDs),
