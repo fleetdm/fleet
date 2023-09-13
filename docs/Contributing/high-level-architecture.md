@@ -177,7 +177,10 @@ status.
 ```mermaid
 graph LR;
     frontend[Frontend on web browser];
-    fleetServer(Fleet Server);
+
+    subgraph Customer
+        fleetServer(Fleet Server);
+    end
 
     subgraph Heroku
         vulnServer(Vuln Web Server);
