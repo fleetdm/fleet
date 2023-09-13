@@ -46,6 +46,7 @@ Assumptions around the first customer using the FIPS build:
 - All MDM funtionality will be disabled/not-used.
 - The Fleet server won't be doing TLS termination. Thus we don't need to verify/test such feature.
 - This build will be used as part of a new deployment (not migrating an existing one). This is important because we have to change the password hashing algorithm thus to reduce complexity on the first iteration we don't need to worry about migrating from old to new password hashing.
+- The `fleetctl` command is outside the scope.
 
 Tasks:
 
