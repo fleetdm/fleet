@@ -299,7 +299,7 @@ Enter the "Extension ID," "Installation URL," and "Policy for extensions" using 
 
 Under "Installation Policy", select "Force install". Under "Update URL", select "Installation URL (see above)".
 
-> Note: For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
+> For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which
