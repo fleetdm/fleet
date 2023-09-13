@@ -311,8 +311,7 @@ managed Chrome web browsers (e.g. Chrome browser on a MacBook), it will deploy t
 
 #### Our recommendation: 
 - Create an OU that will hold all USERs with ChromeBooks. Deploy our extension to it (Force-Install).
-- Create an OU to holds the managed Chrome Web Browsers of the USERS above. Make sure our extension
-  is blocked on this OU. 
+- Create an OU to holds the managed Chrome Web Browsers of the USERS above (not the USERS just the Chrome Web Brwosers). Make sure our extension is blocked on this OU. 
 
 > Note 1: When deployed on OSs other than ChromeOS, our Chrome Extension will detect it and not perform any operation.  
 
