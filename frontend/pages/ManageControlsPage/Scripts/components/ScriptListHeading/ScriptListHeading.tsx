@@ -13,28 +13,6 @@ const ScriptListHeading = () => {
         <span>Script</span>
       </div>
       <div
-        className={`${baseClass}__heading-group ${baseClass}__script-statuses`}
-      >
-        <div className={`${baseClass}__status`}>
-          <div data-tip data-for="ran">
-            <Icon name="success" />
-            <span>Ran</span>
-          </div>
-        </div>
-        <div className={`${baseClass}__status`}>
-          <div data-tip data-for="pending">
-            <Icon name="pending" />
-            <span>Pending</span>
-          </div>
-        </div>
-        <div className={`${baseClass}__status`}>
-          <div data-tip data-for="errors">
-            <Icon name="error" />
-            <span>Errors</span>
-          </div>
-        </div>
-      </div>
-      <div
         className={`${baseClass}__heading-group ${baseClass}__actions-heading`}
       >
         <span>Actions</span>
