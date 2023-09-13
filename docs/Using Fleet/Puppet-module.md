@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 Use [Fleet's Puppet module](https://forge.puppet.com/modules/fleetdm/fleetdm/readme) to automatically install custom configuration profiles on your macOS hosts based on host attributes you define in Puppet.
 
-The module also includes functions for releasing a macOS host from [Await Configuration}(https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) and sending any custom MDM commands.
+The module also includes functions for releasing a macOS host from [Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) and sending any custom MDM commands.
 
 ## Setup
 
@@ -33,7 +33,7 @@ fleetdm::token: your-api-token
 
 Puppet docs on configuring Hiera are [here](https://www.puppet.com/docs/puppet/6/hiera_config_yaml_5.html).
 
-If you have staging and production Puppet environments, you can optionally set different values for each environments. This allows you to have your staging and production environments that talk to separate staging and production Fleet servers.
+If you have staging and production Puppet environments, you can optionally set different values for each environment. This allows you to have your staging and production environments that talk to separate staging and production Fleet servers.
 
 ### Step 3: set Fleet as a reporter
 
