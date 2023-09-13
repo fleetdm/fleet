@@ -116,16 +116,17 @@ module "main" {
       https_listener_index = 0
       priority             = 9000
       actions = [{
-        type         = "fixed-response"
-        content_type = "text/html"
-        status_code  = "403"
-        message_body = "<h1>Forbidden</h1>"
-
+        type        = "redirect"
+        protocol    = "HTTPS"
+        port        = "443"
+        host        = "fleetdm.com"
+        path        = "/handbook/company/why-this-way#why-open-source"
+        status_code = "HTTP_302"
       }]
       conditions = [{
         path_patterns = ["/device/*", "/api/*/fleet/device/*"]
       }]
-    }, {
+      }, {
       https_listener_index = 0
       priority             = 1
       actions = [{
@@ -135,7 +136,7 @@ module "main" {
       conditions = [{
         path_patterns = ["/api/*/fleet/device/*/migrate_mdm", "/api/*/fleet/device/*/rotate_encryption_key"]
       }]
-    }, {
+      }, {
       https_listener_index = 0
       priority             = 2
       actions = [{
@@ -144,6 +145,16 @@ module "main" {
       }]
       conditions = [{
         path_patterns = ["/api/*/fleet/device/*/debug/errors", "/api/*/fleet/device/*/desktop"]
+      }]
+      }, {
+      https_listener_index = 0
+      priority             = 3
+      actions = [{
+        type               = "forward"
+        target_group_index = 0
+      }]
+      conditions = [{
+        path_patterns = ["/api/*/fleet/device/*/refetch", "/api/*/fleet/device/*/transparency"]
       }]
     }]
   }
