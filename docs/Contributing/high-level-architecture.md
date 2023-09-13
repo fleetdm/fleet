@@ -112,7 +112,7 @@ graph LR;
 ### 1 - IT person initiates the query
 ```mermaid
 graph LR;
-    it_person[IT person<br>Creates a scheduked<br>for a team / global];
+    it_person[IT person<br>Creates a scheduled<br>for a team / global];
     api[API Client Frontend or Fleetctl];
 
     subgraph Cloud
@@ -150,7 +150,7 @@ graph LR;
     end
 
     agent --> server;
-    server --> log
+    server --> log;
 ```
 
 
