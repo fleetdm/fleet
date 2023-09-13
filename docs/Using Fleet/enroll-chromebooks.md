@@ -24,6 +24,22 @@ By default, the hostname for a Chromebook host will be blank. The hostname can b
 ## Debugging ChromeOS
 To learn how to debug the Fleetd Chrome extension, visit [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#fleetd-chrome-extension).
 
+## Potential issues and trubleshooting: 
+- 1 The extension does not install on our ChromeBooks.
+- 2 Chrome Web Browsers on other OSs (Mac/Linux/Windows) get this extension (where it's not needed).
+
+Google Admin is arranged in a hirarchy of Organizational Units (OUs). (All) Chrome extensions can only be
+installed at USERs level (not DEVICES).
+If you deploy any chrome extension to an OU that only has DEVICES, it will not be installed. 
+On the other hand if you deploy an extension to an OU that hold USERS with both ChromeBooks and
+managed Chrome web browsers (e.g. Chrome browser on a MacBook), it will deploy the extension to that Chrome Web Browser.
+
+### Our recommendation: 
+- Create an OU that will hold all USERs with ChromeBooks. Deploy our extension to it (Force-Install).
+- Create an OU to holds the managed Chrome Web Browsers of the USERS above (Not the USERS. Just the Chrome Web Brwosers). Make sure our extension is blocked on this OU. 
+
+> Note: When deployed on OSs other than ChromeOS, our Chrome Extension will detect it and not perform any operation.  
+
 
 <meta name="title" value="Enroll Chromebooks">
 <meta name="pageOrderInSection" value="2000">
