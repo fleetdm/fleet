@@ -567,7 +567,7 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 ### Audit logs
 
-The [Audit logs doc page](../../docs/Using%20Fleet/Audit-logs.md) has a page generator that is used to speed up doc writing when Fleet adds new activity types.
+The [Audit logs doc page](https://fleetdm.com/docs/Using%20Fleet/Audit-logs.md) has a page generator that is used to speed up doc writing when Fleet adds new activity types.
 
 - If you're making a copy change to an exiting activity type, edit the `activities.go` file [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/activities.go).
 
