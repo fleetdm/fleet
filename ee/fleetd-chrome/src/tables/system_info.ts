@@ -29,7 +29,7 @@ export default class TableSystemInfo extends Table {
   }
 
   async generate() {
-    let errorsArray = [];
+    let warningsArray = [];
 
     // @ts-expect-error @types/chrome doesn't yet have instanceID.
     const uuid = (await chrome.instanceID.getID()) as string;
@@ -41,25 +41,21 @@ export default class TableSystemInfo extends Table {
       hostname = (await chrome.enterprise.deviceAttributes.getDeviceHostname()) as string;
     } catch (err) {
       console.warn("get hostname:", err);
-      errorsArray.push({
-        host: hostname,
+      warningsArray.push({
         column: "hostname",
-        error: err.message,
-        error_stack: err.stack,
+        error_message: err.message.toString(),
       });
     }
 
     let hwSerial = "";
     try {
       // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      hwSerial = await chrome.enterprise.deviceAttributes.getDeviceSerialNumber();
+      hwSerial = (await chrome.enterprise.deviceAttributes.getDeviceSerialNumber()) as string;
     } catch (err) {
       console.warn("get serial number:", err);
-      errorsArray.push({
-        host: hostname,
+      warningsArray.push({
         column: "hardware_serial",
-        error: err.message,
-        error_stack: err.stack,
+        error_message: err.message.toString(),
       });
     }
 
@@ -75,17 +71,13 @@ export default class TableSystemInfo extends Table {
       hwModel = platformInfo.model;
     } catch (err) {
       console.warn("get platform info:", err);
-      errorsArray.push({
-        host: hostname,
+      warningsArray.push({
         column: "hardware_vendor",
-        error: err.message,
-        error_stack: err.stack,
+        error_message: err.message.toString(),
       });
-      errorsArray.push({
-        host: hostname,
+      warningsArray.push({
         column: "hardware_model",
-        error: err.message,
-        error_stack: err.stack,
+        error_message: err.message.toString(),
       });
     }
 
@@ -97,17 +89,13 @@ export default class TableSystemInfo extends Table {
       cpuType = cpuInfo.archName;
     } catch (err) {
       console.warn("get cpu info:", err);
-      errorsArray.push({
-        host: hostname,
+      warningsArray.push({
         column: "cpu_brand",
-        error: err.message,
-        error_stack: err.stack,
+        error_message: err.message.toString(),
       });
-      errorsArray.push({
-        host: hostname,
+      warningsArray.push({
         column: "cpu_type",
-        error: err.message,
-        error_stack: err.stack,
+        error_message: err.message.toString(),
       });
     }
 
@@ -117,14 +105,12 @@ export default class TableSystemInfo extends Table {
       physicalMemory = memoryInfo.capacity.toString();
     } catch (err) {
       console.warn("get memory info:", err);
-      errorsArray.push({
-        host: hostname,
+      warningsArray.push({
         column: "physical_memory",
-        error: err.message,
-        error_stack: err.stack,
+        error_message: err.message.toString(),
       });
     }
-
+    console.log("warningsArray", warningsArray);
     return {
       data: [
         {
@@ -139,7 +125,7 @@ export default class TableSystemInfo extends Table {
           physical_memory: physicalMemory,
         },
       ],
-      errors: errorsArray,
+      warnings: warningsArray,
     };
   }
 }
