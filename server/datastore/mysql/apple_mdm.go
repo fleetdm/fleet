@@ -1593,22 +1593,59 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
-func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, verified, failed []string) error {
+func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, hostUUID string, toVerify, toFail, toRetry []string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := setMDMProfilesVerifiedDB(ctx, tx, host, verified); err != nil {
+		if err := setMDMProfilesVerifiedDB(ctx, tx, hostUUID, toVerify); err != nil {
 			return err
 		}
-		if err := setMDMProfilesFailedDB(ctx, tx, host, failed); err != nil {
+		if err := setMDMProfilesFailedDB(ctx, tx, hostUUID, toFail); err != nil {
+			return err
+		}
+		if err := setMDMProfilesRetryDB(ctx, tx, hostUUID, toRetry); err != nil {
 			return err
 		}
 		return nil
 	})
 }
 
+// setMDMProfilesRetryDB sets the status of the given identifiers to retry (nil) and increments the retry count
+func setMDMProfilesRetryDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, identifiers []string) error {
+	if len(identifiers) == 0 {
+		return nil
+	}
+
+	stmt := `
+UPDATE
+	host_mdm_apple_profiles
+SET
+	status = NULL,
+	detail = '',
+	retries = retries + 1	
+WHERE		
+	host_uuid = ?
+	AND operation_type = ?	
+	AND profile_identifier IN(?)`
+
+	args := []interface{}{
+		hostUUID,
+		fleet.MDMAppleOperationTypeInstall,
+		identifiers,
+	}
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building sql statement to set retry host macOS profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting retry host macOS profiles")
+	}
+	return nil
+}
+
 // setMDMProfilesFailedDB sets the status of the given identifiers to failed if the current status
 // is verifying or verified. It also sets the detail to a message indicating that the profile was
 // either verifying or verified. Only profiles with the install operation type are updated.
-func setMDMProfilesFailedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiers []string) error {
+func setMDMProfilesFailedDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, identifiers []string) error {
 	if len(identifiers) == 0 {
 		return nil
 	}
@@ -1630,7 +1667,7 @@ WHERE
 		fleet.HostMDMProfileDetailFailedWasVerifying,
 		fleet.HostMDMProfileDetailFailedWasVerified,
 		fleet.MDMAppleDeliveryFailed,
-		host.UUID,
+		hostUUID,
 		[]interface{}{fleet.MDMAppleDeliveryVerifying, fleet.MDMAppleDeliveryVerified},
 		fleet.MDMAppleOperationTypeInstall,
 		identifiers,
@@ -1648,7 +1685,7 @@ WHERE
 
 // setMDMProfilesVerifiedDB sets the status of the given identifiers to verified if the current
 // status is verifying. Only profiles with the install operation type are updated.
-func setMDMProfilesVerifiedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiers []string) error {
+func setMDMProfilesVerifiedDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, identifiers []string) error {
 	if len(identifiers) == 0 {
 		return nil
 	}
@@ -1661,14 +1698,14 @@ SET
 	status = ?
 WHERE
 	host_uuid = ?
-	AND status = ?
+	AND status IN(?)
 	AND operation_type = ?
 	AND profile_identifier IN(?)`
 
 	args := []interface{}{
 		fleet.MDMAppleDeliveryVerified,
-		host.UUID,
-		fleet.MDMAppleDeliveryVerifying,
+		hostUUID,
+		[]interface{}{fleet.MDMAppleDeliveryVerifying, fleet.MDMAppleDeliveryFailed},
 		fleet.MDMAppleOperationTypeInstall,
 		identifiers,
 	}
@@ -1718,6 +1755,45 @@ WHERE
 	}
 
 	return byIdentifier, nil
+}
+
+func (ds *Datastore) GetHostMDMProfilesRetryCounts(ctx context.Context, hostUUID string) ([]fleet.HostMDMProfileRetryCount, error) {
+	stmt := `
+SELECT
+	profile_identifier,
+	retries
+FROM
+	host_mdm_apple_profiles hmap
+WHERE
+	hmap.host_uuid = ?`
+
+	var dest []fleet.HostMDMProfileRetryCount
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting retry counts for host %s", hostUUID))
+	}
+
+	return dest, nil
+}
+
+func (ds *Datastore) GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, hostUUID, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
+	stmt := `
+SELECT
+	profile_identifier, retries
+FROM
+	host_mdm_apple_profiles hmap
+WHERE
+	hmap.host_uuid = ?
+	AND hmap.command_uuid = ?`
+
+	var dest fleet.HostMDMProfileRetryCount
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, hostUUID, cmdUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return dest, notFound("HostMDMCommand").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", cmdUUID, hostUUID))
+		}
+		return dest, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting retry count for host %s command uuid %s", hostUUID, cmdUUID))
+	}
+
+	return dest, nil
 }
 
 func subqueryHostsMacOSSettingsStatusFailing() (string, []interface{}) {
@@ -1921,19 +1997,20 @@ WHERE
 func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
 	stmt := `
       INSERT INTO mdm_idp_accounts
-        (uuid, username, fullname)
+        (uuid, username, fullname, email)
       VALUES
-        (?, ?, ?)
+        (?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
-        fullname   = VALUES(fullname)`
+        fullname   = VALUES(fullname),
+        email      = VALUES(email)`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname, account.Email)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
 func (ds *Datastore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname FROM mdm_idp_accounts WHERE uuid = ?`
+	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
 	var acct fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, uuid)
 	if err != nil {

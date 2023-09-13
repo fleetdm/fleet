@@ -10,6 +10,7 @@
 - [Policies](#policies)
 - [Queries](#queries)
 - [Schedule (deprecated)](#schedule)
+- [Scripts](#scripts)
 - [Sessions](#sessions)
 - [Software](#software)
 - [Targets](#targets)
@@ -1040,6 +1041,8 @@ Modifies the Fleet's configuration with the supplied information.
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
 
+Note that when making changes to the `integrations` object, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+
 #### Example
 
 `PATCH /api/v1/fleet/config`
@@ -1738,6 +1741,7 @@ None.
 - [Get hosts summary](#get-hosts-summary)
 - [Get host](#get-host)
 - [Get host by identifier](#get-host-by-identifier)
+- [Get host by device token](#get-host-by-device-token)
 - [Delete host](#delete-host)
 - [Refetch host](#refetch-host)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
@@ -2530,6 +2534,200 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
+#### Get host by device token
+
+Returns a subset of information about the host specified by `token`. To get all information about a host, use the "Get host" endpoint [here](#get-host).
+
+This is the API route used by the **My device** page in Fleet desktop to display information about the host to the end user.
+
+`GET /api/v1/fleet/device/{token}`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "software": [
+      {
+        "id": 408,
+        "name": "osquery",
+        "version": "4.5.1",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 1146,
+        "name": "tar",
+        "version": "1.30",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "bundle_identifier": "com.some.app",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      }
+    ],
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "23cfc9caacf0",
+    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "platform": "rhel",
+    "osquery_version": "4.5.1",
+    "os_version": "CentOS Linux 8.3.2011",
+    "build": "",
+    "platform_like": "rhel",
+    "code_name": "",
+    "uptime": 210671000000000,
+    "memory": 16788398080,
+    "cpu_type": "x86_64",
+    "cpu_subtype": "158",
+    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
+    "cpu_physical_cores": 12,
+    "cpu_logical_cores": 12,
+    "hardware_vendor": "",
+    "hardware_model": "",
+    "hardware_version": "",
+    "hardware_serial": "",
+    "computer_name": "23cfc9caacf0",
+    "display_name": "23cfc9caacf0",
+    "public_ip": "",
+    "primary_ip": "172.27.0.6",
+    "primary_mac": "02:42:ac:1b:00:06",
+    "distributed_interval": 10,
+    "config_tls_refresh": 10,
+    "logger_tls_period": 10,
+    "team_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "additional": {},
+    "gigs_disk_space_available": 46.1,
+    "percent_disk_space_available": 73,
+    "disk_encryption_enabled": true,
+    "dep_assigned_to_fleet": false,
+    "users": [
+      {
+        "uid": 0,
+        "username": "root",
+        "type": "",
+        "groupname": "root",
+        "shell": "/bin/bash"
+      },
+      {
+        "uid": 1,
+        "username": "bin",
+        "type": "",
+        "groupname": "bin",
+        "shell": "/sbin/nologin"
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "SELECT 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 9,
+        "name": "CentOS Linux",
+        "description": "All CentOS hosts",
+        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 12,
+        "name": "All Linux",
+        "description": "All Linux distributions",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      }
+    ],
+    "packs": [],
+    "status": "online",
+    "display_text": "23cfc9caacf0",
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": null,
+      "name": "",
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "verifying",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
+    }
+  },
+  "org_logo_url": "https://example.com/logo.jpg",
+  "license": {
+    "tier": "free",
+    "expiration": "2031-01-01T00:00:00Z"
+  },
+  "global_config": {
+    "mdm": {
+      "enabled_and_configured": false
+    }
+  }
+}
+```
+
 ### Delete host
 
 Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
@@ -3126,7 +3324,7 @@ Retrieves the disk encryption key for a host.
 }
 ```
 
-### Get configuration profiles assigned to a host 
+### Get configuration profiles assigned to a host
 
 Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
@@ -3922,7 +4120,7 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 ### Run custom MDM command
 
-This endpoint tells Fleet to run a custom an MDM command, on the targeted macOS hosts, the next time they come online.
+This endpoint tells Fleet to run a custom MDM command, on the targeted macOS hosts, the next time they come online.
 
 `POST /api/v1/fleet/mdm/apple/enqueue`
 
@@ -3930,7 +4128,7 @@ This endpoint tells Fleet to run a custom an MDM command, on the targeted macOS 
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) |
+| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries). Supported formats are standard ([RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)) and raw (unpadded) encoding ([RFC 4648 section 3.2](https://www.rfc-editor.org/rfc/rfc4648.html#section-3.2)) |
 | device_ids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
 
 Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
@@ -4514,6 +4712,7 @@ Body: <blob>
 ## Policies
 
 - [List policies](#list-policies)
+- [Count policies](#count-policies)
 - [Get policy by ID](#get-policy-by-id)
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
@@ -4533,6 +4732,13 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 ### List policies
 
 `GET /api/v1/fleet/global/policies`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.
 
 #### Example
 
@@ -4582,6 +4788,34 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
   ]
 }
 ```
+
+---
+
+### Count policies
+
+`GET /api/v1/fleet/policies/count`
+
+
+#### Parameters
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| query                 | string | query | Search query keywords. Searchable fields include `name`.  |
+
+#### Example
+
+`GET /api/v1/fleet/policies/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
+}
+```
+
+---
 
 ### Get policy by ID
 
@@ -4865,6 +5099,7 @@ _Teams are available in Fleet Premium_
 ### Team policies
 
 - [List team policies](#list-team-policies)
+- [Count team policies](#count-team-policies)
 - [Get team policy by ID](#get-team-policy-by-id)
 - [Add team policy](#add-team-policy)
 - [Remove team policies](#remove-team-policies)
@@ -4883,7 +5118,8 @@ Team policies work the same as policies, but at the team level.
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | id                 | integer | url  | Required. Defines what team id to operate on                                                                            |
-
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page. |
 #### Example
 
 `GET /api/v1/fleet/teams/1/policies`
@@ -4951,6 +5187,31 @@ Team policies work the same as policies, but at the team level.
   ]
 }
 ```
+
+### Count team policies
+
+`GET /api/v1/fleet/team/{team_id}/policies/count`
+
+#### Parameters
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| query                 | string | query | Search query keywords. Searchable fields include `name`. |
+
+#### Example
+
+`GET /api/v1/fleet/team/1/policies/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
+}
+```
+
+---
 
 ### Get team policy by ID
 
@@ -5626,7 +5887,7 @@ load balancer timeout.
 
 ## Schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 - [Get schedule (deprecated)](#get-schedule)
@@ -5641,7 +5902,7 @@ These API routes let you control your scheduled queries.
 
 ### Get schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `GET /api/v1/fleet/global/schedule`
@@ -5715,7 +5976,7 @@ None.
 
 ### Add query to schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `POST /api/v1/fleet/global/schedule`
@@ -5776,7 +6037,7 @@ None.
 
 ### Edit query in schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `PATCH /api/v1/fleet/global/schedule/{id}`
@@ -5832,7 +6093,7 @@ None.
 
 ### Remove query from schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `DELETE /api/v1/fleet/global/schedule/{id}`
@@ -5854,7 +6115,7 @@ None.
 
 ### Team schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 - [Get team schedule (deprecated)](#get-team-schedule)
@@ -5866,7 +6127,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Get team schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `GET /api/v1/fleet/teams/{id}/schedule`
@@ -5946,7 +6207,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Add query to team schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `POST /api/v1/fleet/teams/{id}/schedule`
@@ -6004,7 +6265,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Edit query in team schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
@@ -6061,7 +6322,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Remove query from team schedule
 
-> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility. 
+> The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 `DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
@@ -6080,6 +6341,116 @@ This allows you to easily configure scheduled queries that will impact a whole t
 ##### Default response
 
 `Status: 200`
+
+---
+
+## Scripts
+
+- [Run script asynchronously](#run-script-asynchronously)
+- [Run script synchronously](#run-script-synchronously)
+
+
+### Run script asynchronously
+
+_Available in Fleet Premium_
+
+Creates a script execution request and returns the execution identifier to retrieve results at a later time.
+
+`POST /api/v1/fleet/scripts/run`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_contents | string  | body | **Required**. The contents of the script to run. |
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run`
+
+##### Default response
+
+`Status: 202`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
+### Run script synchronously
+
+_Available in Fleet Premium_
+
+Creates a script execution request and waits for a result to return (up to a 1 minute timeout).
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_contents | string  | body | **Required**. The contents of the script to run. |
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "script_contents": "echo 'hello'",
+  "output": "hello",
+  "message": "",
+  "runtime": 1,
+  "host_timeout": false,
+  "exit_code": 0
+}
+```
+
+### Get script result
+
+_Available in Fleet Premium_
+
+Gets the result of a script that was executed.
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                   |
+| ----         | ------ | ---- | --------------------------------------------  |
+| execution_id | string | path | **Required**. The execution id of the script. |
+
+#### Example
+
+`GET /api/v1/fleet/scripts/results/{execution_id}`
+
+##### Default Response
+
+`Status: 2000`
+
+```json
+{
+  "script_contents": "echo 'hello'",
+  "exit_code": 0,
+  "output": "hello",
+  "message": "",
+  "hostname": "Test Host",
+  "host_timeout": false,
+  "host_id": 1,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "runtime": 20
+}
+```
+
+> Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
 
 ---
 

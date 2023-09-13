@@ -14,17 +14,12 @@
     margin-bottom: 0;
   }
 
-  img {
-    height: 16px;
-    width: auto;
-    padding-right: 10px;
-  }
-
   &__count {
     display: flex;
     align-content: center;
     align-items: center;
     font-size: $x-small;
     font-weight: $bold;
+    gap: $pad-small;
   }
 }

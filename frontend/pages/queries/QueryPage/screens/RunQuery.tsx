@@ -205,6 +205,7 @@ const RunQuery = ({
       isQueryFinished={isQueryFinished}
       setSelectedTargets={setSelectedTargets}
       goToQueryEditor={goToQueryEditor}
+      queryName={storedQuery?.name}
       targetsTotalCount={targetsTotalCount}
     />
   );

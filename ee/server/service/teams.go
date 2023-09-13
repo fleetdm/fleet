@@ -449,7 +449,13 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-	hosts, err := svc.ds.ListHosts(ctx, filter, fleet.HostListOptions{TeamFilter: &teamID})
+
+	opts := fleet.HostListOptions{
+		TeamFilter:             &teamID,
+		DisableFailingPolicies: true, // don't need to check policies for hosts that are being deleted
+	}
+
+	hosts, err := svc.ds.ListHosts(ctx, filter, opts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list hosts for reconcile profiles on team change")
 	}

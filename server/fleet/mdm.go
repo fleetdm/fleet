@@ -61,6 +61,7 @@ type MDMIdPAccount struct {
 	UUID     string
 	Username string
 	Fullname string
+	Email    string
 }
 
 type MDMAppleBootstrapPackage struct {
@@ -126,4 +127,11 @@ type ExpectedMDMProfile struct {
 func (ep ExpectedMDMProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) bool {
 	gracePeriod := 1 * time.Hour
 	return hostDetailUpdatedAt.Before(ep.EarliestInstallDate.Add(gracePeriod))
+}
+
+// HostMDMProfileRetryCount represents the number of times Fleet has attempted to install
+// the identified profile on a host.
+type HostMDMProfileRetryCount struct {
+	ProfileIdentifier string `db:"profile_identifier"`
+	Retries           uint   `db:"retries"`
 }

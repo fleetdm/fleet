@@ -1,9 +1,12 @@
 import React from "react";
 import { find, lowerCase, noop } from "lodash";
-import { intlFormat, formatDistanceToNowStrict } from "date-fns";
+import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
-import { addGravatarUrlToResource } from "utilities/helpers";
+import {
+  addGravatarUrlToResource,
+  internationalTimeFormat,
+} from "utilities/helpers";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
@@ -81,7 +84,7 @@ const getMacOSSetupAssistantMessage = (
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (
     activity: IActivity,
-    onDetailsClick?: (details: IActivityDetails) => void
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
     const count = activity.details?.targets_count;
     const queryName = activity.details?.query_name;
@@ -110,7 +113,11 @@ const TAGGED_TEMPLATES = {
             <Button
               className={`${baseClass}__show-query-link`}
               variant="text-link"
-              onClick={() => onDetailsClick?.({ query_sql: querySql })}
+              onClick={() =>
+                onDetailsClick?.(ActivityType.LiveQuery, {
+                  query_sql: querySql,
+                })
+              }
             >
               Show query{" "}
               <Icon className={`${baseClass}__show-query-icon`} name="eye" />
@@ -488,12 +495,38 @@ const TAGGED_TEMPLATES = {
   disabledWindowsMdm: (activity: IActivity) => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
+  ranScript: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    return (
+      <>
+        {" "}
+        ran a script on {activity.details?.host_display_name}.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(ActivityType.RanScript, {
+              script_execution_id: activity.details?.script_execution_id,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
+  },
 };
 
 const getDetail = (
   activity: IActivity,
   isPremiumTier: boolean,
-  onDetailsClick?: (details: IActivityDetails) => void
+  onDetailsClick?: (
+    activityType: ActivityType,
+    details: IActivityDetails
+  ) => void
 ) => {
   switch (activity.type) {
     case ActivityType.LiveQuery: {
@@ -598,6 +631,9 @@ const getDetail = (
     case ActivityType.DisabledWindowsMdm: {
       return TAGGED_TEMPLATES.disabledWindowsMdm(activity);
     }
+    case ActivityType.RanScript: {
+      return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -613,7 +649,10 @@ interface IActivityItemProps {
    * activites have more details so this is optional. An example of additonal
    * details is showing the query for a live query action.
    */
-  onDetailsClick?: (details: IActivityDetails) => void;
+  onDetailsClick?: (
+    activityType: ActivityType,
+    details: IActivityDetails
+  ) => void;
 }
 
 const ActivityItem = ({
@@ -668,18 +707,7 @@ const ActivityItem = ({
             id={`activity-${activity.id}`}
             backgroundColor="#3e4771"
           >
-            {intlFormat(
-              activityCreatedAt,
-              {
-                year: "numeric",
-                month: "numeric",
-                day: "numeric",
-                hour: "numeric",
-                minute: "numeric",
-                second: "numeric",
-              },
-              { locale: window.navigator.languages[0] }
-            )}
+            {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>
         </p>
       </div>

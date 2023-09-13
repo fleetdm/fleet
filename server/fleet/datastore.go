@@ -499,14 +499,17 @@ type Datastore interface {
 
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
+	PolicyByName(ctx context.Context, name string) (*Policy, error)
+
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy) error
 
-	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
+	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
@@ -533,7 +536,7 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
@@ -664,6 +667,7 @@ type Datastore interface {
 	FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
 	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
+	// Even if `results` is empty, the host's `policy_updated_at` will be updated.
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
@@ -697,11 +701,20 @@ type Datastore interface {
 
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 
-	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
-	UpdateHostMDMProfilesVerification(ctx context.Context, host *Host, verified, failed []string) error
+	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given
+	// host. The toVerify, toFail, and toRetry slices contain the identifiers of the profiles that
+	// should be verified, failed, and retried, respectively. For each profile in the toRetry slice,
+	// the retries count is incremented by 1 and the status is set to null so that an install
+	// profile command is enqueued the next time the profile manager cron runs.
+	UpdateHostMDMProfilesVerification(ctx context.Context, hostUUID string, toVerify, toFail, toRetry []string) error
 	// GetHostMDMProfilesExpected returns the expected MDM profiles for a given host. The map is
 	// keyed by the profile identifier.
 	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *Host) (map[string]*ExpectedMDMProfile, error)
+	// GetHostMDMProfilesRetryCounts returns a list of MDM profile retry counts for a given host.
+	GetHostMDMProfilesRetryCounts(ctx context.Context, hostUUID string) ([]HostMDMProfileRetryCount, error)
+	// GetHostMDMProfileRetryCountByCommandUUID returns the retry count for the specified
+	// host UUID and command UUID.
+	GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, hostUUID, cmdUUID string) (HostMDMProfileRetryCount, error)
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
@@ -1007,6 +1020,25 @@ type Datastore interface {
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
 	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Host Script Results
+
+	// NewHostScriptExecutionRequest creates a new host script result entry with
+	// just the script to run information (result is not yet available).
+	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
+	// SetHostScriptExecutionResult stores the result of a host script execution.
+	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) error
+	// GetHostScriptExecutionResult returns the result of a host script
+	// execution. It returns the host script results even if no results have been
+	// received, it is the caller's responsibility to check if that was the case
+	// (with ExitCode being null).
+	GetHostScriptExecutionResult(ctx context.Context, execID string) (*HostScriptResult, error)
+	// ListPendingHostScriptExecutions returns all the pending host script
+	// executions, which are those that have yet to record a result. Entries
+	// older than the ignoreOlder duration are ignored, considered too old to be
+	// pending.
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*HostScriptResult, error)
 }
 
 const (

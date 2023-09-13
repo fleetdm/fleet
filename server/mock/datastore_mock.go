@@ -368,13 +368,17 @@ type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.Po
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
+type PolicyByNameFunc func(ctx context.Context, name string) (*fleet.Policy, error)
+
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
 
-type ListGlobalPoliciesFunc func(ctx context.Context) ([]*fleet.Policy, error)
+type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
 
 type PoliciesByIDFunc func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error)
 
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
+
+type CountPoliciesFunc func(ctx context.Context, teamID *uint, matchQuery string) (int, error)
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
@@ -398,7 +402,7 @@ type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.V
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
-type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -484,9 +488,13 @@ type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet
 
 type SetDiskEncryptionResetStatusFunc func(ctx context.Context, hostID uint, status bool) error
 
-type UpdateHostMDMProfilesVerificationFunc func(ctx context.Context, host *fleet.Host, verified []string, failed []string) error
+type UpdateHostMDMProfilesVerificationFunc func(ctx context.Context, hostUUID string, toVerify []string, toFail []string, toRetry []string) error
 
 type GetHostMDMProfilesExpectedForVerificationFunc func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error)
+
+type GetHostMDMProfilesRetryCountsFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMProfileRetryCount, error)
+
+type GetHostMDMProfileRetryCountByCommandUUIDFunc func(ctx context.Context, hostUUID string, cmdUUID string) (fleet.HostMDMProfileRetryCount, error)
 
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
@@ -661,6 +669,14 @@ type MDMWindowsGetEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID strin
 type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error
 
 type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) error
+
+type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
+
+type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) error
+
+type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
+
+type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1188,6 +1204,9 @@ type DataStore struct {
 	PolicyFunc        PolicyFunc
 	PolicyFuncInvoked bool
 
+	PolicyByNameFunc        PolicyByNameFunc
+	PolicyByNameFuncInvoked bool
+
 	SavePolicyFunc        SavePolicyFunc
 	SavePolicyFuncInvoked bool
 
@@ -1199,6 +1218,9 @@ type DataStore struct {
 
 	DeleteGlobalPoliciesFunc        DeleteGlobalPoliciesFunc
 	DeleteGlobalPoliciesFuncInvoked bool
+
+	CountPoliciesFunc        CountPoliciesFunc
+	CountPoliciesFuncInvoked bool
 
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
@@ -1367,6 +1389,12 @@ type DataStore struct {
 
 	GetHostMDMProfilesExpectedForVerificationFunc        GetHostMDMProfilesExpectedForVerificationFunc
 	GetHostMDMProfilesExpectedForVerificationFuncInvoked bool
+
+	GetHostMDMProfilesRetryCountsFunc        GetHostMDMProfilesRetryCountsFunc
+	GetHostMDMProfilesRetryCountsFuncInvoked bool
+
+	GetHostMDMProfileRetryCountByCommandUUIDFunc        GetHostMDMProfileRetryCountByCommandUUIDFunc
+	GetHostMDMProfileRetryCountByCommandUUIDFuncInvoked bool
 
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
@@ -1628,6 +1656,18 @@ type DataStore struct {
 
 	MDMWindowsDeleteEnrolledDeviceFunc        MDMWindowsDeleteEnrolledDeviceFunc
 	MDMWindowsDeleteEnrolledDeviceFuncInvoked bool
+
+	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
+	NewHostScriptExecutionRequestFuncInvoked bool
+
+	SetHostScriptExecutionResultFunc        SetHostScriptExecutionResultFunc
+	SetHostScriptExecutionResultFuncInvoked bool
+
+	GetHostScriptExecutionResultFunc        GetHostScriptExecutionResultFunc
+	GetHostScriptExecutionResultFuncInvoked bool
+
+	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
+	ListPendingHostScriptExecutionsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -2857,6 +2897,13 @@ func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) 
 	return s.PolicyFunc(ctx, id)
 }
 
+func (s *DataStore) PolicyByName(ctx context.Context, name string) (*fleet.Policy, error) {
+	s.mu.Lock()
+	s.PolicyByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.PolicyByNameFunc(ctx, name)
+}
+
 func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	s.mu.Lock()
 	s.SavePolicyFuncInvoked = true
@@ -2864,11 +2911,11 @@ func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	return s.SavePolicyFunc(ctx, p)
 }
 
-func (s *DataStore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
+func (s *DataStore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	s.mu.Lock()
 	s.ListGlobalPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListGlobalPoliciesFunc(ctx)
+	return s.ListGlobalPoliciesFunc(ctx, opts)
 }
 
 func (s *DataStore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
@@ -2883,6 +2930,13 @@ func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uin
 	s.DeleteGlobalPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteGlobalPoliciesFunc(ctx, ids)
+}
+
+func (s *DataStore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error) {
+	s.mu.Lock()
+	s.CountPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountPoliciesFunc(ctx, teamID, matchQuery)
 }
 
 func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -2962,11 +3016,11 @@ func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *ui
 	return s.NewTeamPolicyFunc(ctx, teamID, authorID, args)
 }
 
-func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 	s.mu.Lock()
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListTeamPoliciesFunc(ctx, teamID)
+	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts)
 }
 
 func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
@@ -3263,11 +3317,11 @@ func (s *DataStore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uin
 	return s.SetDiskEncryptionResetStatusFunc(ctx, hostID, status)
 }
 
-func (s *DataStore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, verified []string, failed []string) error {
+func (s *DataStore) UpdateHostMDMProfilesVerification(ctx context.Context, hostUUID string, toVerify []string, toFail []string, toRetry []string) error {
 	s.mu.Lock()
 	s.UpdateHostMDMProfilesVerificationFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostMDMProfilesVerificationFunc(ctx, host, verified, failed)
+	return s.UpdateHostMDMProfilesVerificationFunc(ctx, hostUUID, toVerify, toFail, toRetry)
 }
 
 func (s *DataStore) GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
@@ -3275,6 +3329,20 @@ func (s *DataStore) GetHostMDMProfilesExpectedForVerification(ctx context.Contex
 	s.GetHostMDMProfilesExpectedForVerificationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostMDMProfilesExpectedForVerificationFunc(ctx, host)
+}
+
+func (s *DataStore) GetHostMDMProfilesRetryCounts(ctx context.Context, hostUUID string) ([]fleet.HostMDMProfileRetryCount, error) {
+	s.mu.Lock()
+	s.GetHostMDMProfilesRetryCountsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMProfilesRetryCountsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, hostUUID string, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
+	s.mu.Lock()
+	s.GetHostMDMProfileRetryCountByCommandUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMProfileRetryCountByCommandUUIDFunc(ctx, hostUUID, cmdUUID)
 }
 
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
@@ -3884,4 +3952,32 @@ func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevic
 	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.NewHostScriptExecutionRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewHostScriptExecutionRequestFunc(ctx, request)
+}
+
+func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
+	s.mu.Lock()
+	s.SetHostScriptExecutionResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostScriptExecutionResultFunc(ctx, result)
+}
+
+func (s *DataStore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.GetHostScriptExecutionResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostScriptExecutionResultFunc(ctx, execID)
+}
+
+func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.ListPendingHostScriptExecutionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, ignoreOlder)
 }

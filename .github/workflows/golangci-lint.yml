@@ -37,14 +37,14 @@ jobs:
       matrix:
         # See #9943, we just need to add windows-latest here once all issues are fixed.
         os: [ubuntu-latest, macos-latest]
-        go-version: ['1.19.11']
+        go-version: ['1.21.1']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Go
-        uses: actions/setup-go@v4.0.1
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -59,5 +59,5 @@ jobs:
           # Don't forget to update
           # docs/Contributing/Testing-and-local-development.md when this
           # version changes
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@411e0bbbd3096aa0ee2b924160629bdf2bc81d40 # v1.54.2
           make lint-go

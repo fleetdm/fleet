@@ -1,1 +1,0 @@
-* Fix a panic in `fleetd` that might occurr when concurrent requests are made to the server.

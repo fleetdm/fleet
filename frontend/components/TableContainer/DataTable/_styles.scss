@@ -215,13 +215,59 @@ $shadow-transition-width: 10px;
         }
         .link-cell,
         .text-cell {
-          display: block;
           overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
           margin: 0;
           .__react_component_tooltip {
             white-space: normal;
+          }
+        }
+        .text-cell {
+          display: inline-block;
+        }
+        .link-cell {
+          display: block;
+          padding: $pad-small 0; // larger clickable area
+
+          &:hover {
+            text-decoration: underline;
+          }
+          > div {
+            display: block;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+        }
+        // css to properly style link-cell with tooltip
+        .link-cell-tooltip-wrapper {
+          overflow: visible; // fixes tooltip overflow cut off by cell
+          white-space: nowrap; // single line
+          margin: 0; // padding applied to .link-cell for larger clickable area
+          .component__tooltip-wrapper {
+            &__element {
+              display: block;
+              white-space: nowrap; // single line
+              text-overflow: ellipsis; // truncates text
+              overflow: hidden;
+              &__underline {
+                width: 100%;
+
+                &::after {
+                  bottom: 9px; // compensate for padding to make larger clickable area
+                }
+              }
+              // TODO – this naming is now confusing, as this .link-cell is not the outermost layer of
+              // the cell – it's a NameCell
+              .link-cell {
+                padding: 10px 0;
+              }
+            }
+
+            &__tip-text {
+              cursor: auto;
+            }
           }
         }
         .w400 {

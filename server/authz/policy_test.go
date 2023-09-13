@@ -1814,6 +1814,96 @@ func TestAuthorizeMDMAppleCommand(t *testing.T) {
 	})
 }
 
+func TestAuthorizeHostScriptResult(t *testing.T) {
+	t.Parallel()
+
+	globalScript := &fleet.HostScriptResult{}
+	team1Script := &fleet.HostScriptResult{
+		TeamID: ptr.Uint(1),
+	}
+	runTestCases(t, []authTestCase{
+		{user: test.UserNoRoles, object: globalScript, action: write, allow: false},
+		{user: test.UserNoRoles, object: globalScript, action: read, allow: false},
+		{user: test.UserNoRoles, object: team1Script, action: write, allow: false},
+		{user: test.UserNoRoles, object: team1Script, action: read, allow: false},
+
+		{user: test.UserAdmin, object: globalScript, action: write, allow: true},
+		{user: test.UserAdmin, object: globalScript, action: read, allow: true},
+		{user: test.UserAdmin, object: team1Script, action: write, allow: true},
+		{user: test.UserAdmin, object: team1Script, action: read, allow: true},
+
+		{user: test.UserMaintainer, object: globalScript, action: write, allow: true},
+		{user: test.UserMaintainer, object: globalScript, action: read, allow: true},
+		{user: test.UserMaintainer, object: team1Script, action: write, allow: true},
+		{user: test.UserMaintainer, object: team1Script, action: read, allow: true},
+
+		{user: test.UserObserver, object: globalScript, action: write, allow: false},
+		{user: test.UserObserver, object: globalScript, action: read, allow: true},
+		{user: test.UserObserver, object: team1Script, action: write, allow: false},
+		{user: test.UserObserver, object: team1Script, action: read, allow: true},
+
+		{user: test.UserObserverPlus, object: globalScript, action: write, allow: false},
+		{user: test.UserObserverPlus, object: globalScript, action: read, allow: true},
+		{user: test.UserObserverPlus, object: team1Script, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team1Script, action: read, allow: true},
+
+		{user: test.UserGitOps, object: globalScript, action: write, allow: false},
+		{user: test.UserGitOps, object: globalScript, action: read, allow: false},
+		{user: test.UserGitOps, object: team1Script, action: write, allow: false},
+		{user: test.UserGitOps, object: team1Script, action: read, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1Script, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team1Script, action: read, allow: true},
+
+		{user: test.UserTeamAdminTeam2, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1Script, action: read, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1Script, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team1Script, action: read, allow: true},
+
+		{user: test.UserTeamMaintainerTeam2, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1Script, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Script, action: read, allow: true},
+
+		{user: test.UserTeamObserverTeam2, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: team1Script, action: read, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Script, action: read, allow: true},
+
+		{user: test.UserTeamObserverPlusTeam2, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: team1Script, action: read, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Script, action: read, allow: false},
+
+		{user: test.UserTeamGitOpsTeam2, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: team1Script, action: read, allow: false},
+	})
+}
+
 func TestJSONToInterfaceUser(t *testing.T) {
 	t.Parallel()
 

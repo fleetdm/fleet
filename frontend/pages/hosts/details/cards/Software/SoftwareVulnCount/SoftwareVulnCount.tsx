@@ -1,7 +1,7 @@
 import React from "react";
 
 import { ISoftware } from "interfaces/software";
-import IssueIcon from "../../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "software-vuln-count";
 
@@ -20,7 +20,7 @@ const SoftwareVulnCount = ({
   return vulnCount ? (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__count`}>
-        <img alt="Issue icon" src={IssueIcon} />
+        <Icon name="issue" />
         {vulnCount === 1
           ? "1 software item with vulnerabilities detected"
           : `${vulnCount} software items with vulnerabilities detected`}

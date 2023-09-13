@@ -30,7 +30,7 @@ const PlatformCell = ({ platforms }: IPlatformCellProps): JSX.Element => {
     platforms.includes(platform)
   );
   return (
-    <span className={`${baseClass}__wrapper`}>
+    <span className={`${baseClass}__wrapper`} data-testid="icons">
       {orderedList.length ? (
         orderedList.map((platform) => {
           return ICONS[platform] ? (

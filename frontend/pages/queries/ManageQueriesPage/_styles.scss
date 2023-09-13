@@ -135,13 +135,25 @@
             .name__cell {
               max-width: $col-lg;
 
+              .query-name-cell {
+                display: flex; // required for inline icon
+                .children-wrapper {
+                  .query-name-text {
+                    text-overflow: ellipsis;
+                    overflow: hidden;
+                  }
+                }
+              }
+              .query-icon {
+                display: block;
+              }
+
               .children-wrapper {
                 display: flex;
                 gap: $pad-xsmall;
-
-                .observer-can-run-tooltip {
-                  font-weight: $regular;
-                }
+              }
+              .observer-can-run-tooltip {
+                font-weight: $regular;
               }
             }
 
@@ -176,20 +188,6 @@
           }
         }
       }
-    }
-
-    .query-name-cell {
-      .children-wrapper {
-        .query-name-text {
-          text-overflow: ellipsis;
-          overflow: hidden;
-        }
-      }
-    }
-    .query-icon {
-      position: relative;
-      top: 2px;
-      display: block;
     }
   }
 }

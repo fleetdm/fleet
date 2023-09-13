@@ -74,15 +74,17 @@ Share [these guided instructions](./MDM-migration-guide.md#how-to-turn-on-disk-e
 
 In the Fleet UI, head to the **Controls > macOS settings > Disk encryption** tab. You will see a table that shows the status of disk encryption on your hosts. 
 
-* Applied: disk encryption is turned on and key stored in Fleet. See instructions for viewing the disk encryption key [here](#view-disk-encryption-key).
+* Verified: the host turned disk encryption on and sent their key to Fleet. Fleet verified with osquery. See instructions for viewing the disk encryption key [here](#view-disk-encryption-key).
 
-* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. 
-
-* Enforcing (pending): disk encryption will be enforced and the disk encryption key will be sent to Fleet when the hosts come online.
+* Verifying: the host acknowledged the MDM command to install the disk encryption profile. Fleet is verifying with osquery and retrieving the disk encryption key.
 
 > It may take up to one hour for Fleet to collect and store the disk encryption keys from all hosts.
 
-* Removing enforcement (pending): disk encryption enforcement will be removed when the hosts come online. 
+* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. 
+
+* Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online.
+
+* Removing enforcement (pending): the host will receive the MDM command to remove the disk encryption profile when the host comes online.
 
 * Failed: hosts that are failed to enforce disk encryption. 
 

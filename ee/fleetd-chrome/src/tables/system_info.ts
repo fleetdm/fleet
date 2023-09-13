@@ -15,22 +15,22 @@ export default class TableSystemInfo extends Table {
   ];
 
   getComputerName(hostname: string, hwSerial: string): string {
-    const prefix = 'Chromebook'
+    const prefix = "Chromebook";
 
     if (!!hostname?.length) {
-      return hostname
+      return hostname;
     }
 
     if (!!hwSerial?.length) {
-      return `${prefix} ${hwSerial}`
+      return `${prefix} ${hwSerial}`;
     }
 
-    return prefix
+    return prefix;
   }
 
   async generate() {
     // @ts-expect-error @types/chrome doesn't yet have instanceID.
-    const uuid = await chrome.instanceID.getID();
+    const uuid = (await chrome.instanceID.getID()) as string;
 
     // TODO should it default to UUID or should Fleet handle it somehow?
     let hostname = "";
@@ -85,7 +85,7 @@ export default class TableSystemInfo extends Table {
       {
         uuid,
         hostname,
-        computer_name: this.getComputerName(hostname, hwSerial) ,
+        computer_name: this.getComputerName(hostname, hwSerial),
         hardware_serial: hwSerial,
         hardware_vendor: hwVendor,
         hardware_model: hwModel,

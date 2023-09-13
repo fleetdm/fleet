@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
@@ -267,6 +268,124 @@ func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {
 	})
 }
 
+func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T, additionalWait time.Duration) {
+	ch := make(chan struct{})
+	s.onProfileScheduleDone = func() {
+		close(ch)
+	}
+	_, err := s.profileSchedule.Trigger()
+	require.NoError(t, err)
+	<-ch
+	time.Sleep(additionalWait)
+}
+
+func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
+	// see https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
+	t := s.T()
+	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	checkStoredCertAuthAssociation := func(id string, expectedCount uint) {
+		// confirm expected cert auth association
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var ct uint
+			// query duplicates the logic in nanomdm/storage/mysql/certauth.go
+			if err := sqlx.GetContext(context.Background(), q, &ct, "SELECT COUNT(*) FROM nano_cert_auth_associations WHERE id = ?", mdmDevice.UUID); err != nil {
+				return err
+			}
+			require.Equal(t, expectedCount, ct)
+			return nil
+		})
+	}
+	checkStoredCertAuthAssociation(mdmDevice.UUID, 1)
+
+	checkStoredBootstrapToken := func(id string, expectedToken *string, expectedErr error) {
+		// confirm expected bootstrap token
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var tok *string
+			err := sqlx.GetContext(context.Background(), q, &tok, "SELECT bootstrap_token_b64 FROM nano_devices WHERE id = ?", mdmDevice.UUID)
+			if err != nil || expectedErr != nil {
+				require.ErrorIs(t, err, expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if expectedToken != nil {
+				require.NotEmpty(t, tok)
+				decoded, err := base64.StdEncoding.DecodeString(*tok)
+				require.NoError(t, err)
+				require.Equal(t, *expectedToken, string(decoded))
+			} else {
+				require.Empty(t, tok)
+			}
+			return nil
+		})
+	}
+
+	t.Run("bootstrap token not set", func(t *testing.T) {
+		// device record exists, but bootstrap token not set
+		checkStoredBootstrapToken(mdmDevice.UUID, nil, nil)
+
+		// if token not set, server returns empty body and no error (see https://github.com/micromdm/nanomdm/pull/63)
+		res, err := mdmDevice.GetBootstrapToken()
+		require.NoError(t, err)
+		require.Nil(t, res)
+	})
+
+	t.Run("bootstrap token set", func(t *testing.T) {
+		// device record exists, set bootstrap token
+		token := base64.StdEncoding.EncodeToString([]byte("testtoken"))
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), "UPDATE nano_devices SET bootstrap_token_b64 = ? WHERE id = ?", base64.StdEncoding.EncodeToString([]byte(token)), mdmDevice.UUID)
+			require.NoError(t, err)
+			return nil
+		})
+		checkStoredBootstrapToken(mdmDevice.UUID, &token, nil)
+
+		// if token set, server returns token
+		res, err := mdmDevice.GetBootstrapToken()
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, token, string(res))
+	})
+
+	t.Run("no device record", func(t *testing.T) {
+		// delete the entire device record
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), "DELETE FROM nano_devices WHERE id = ?", mdmDevice.UUID)
+			require.NoError(t, err)
+			return nil
+		})
+		checkStoredBootstrapToken(mdmDevice.UUID, nil, sql.ErrNoRows)
+
+		// if not found, server returns empty body and no error (see https://github.com/fleetdm/nanomdm/pull/8)
+		res, err := mdmDevice.GetBootstrapToken()
+		require.NoError(t, err)
+		require.Nil(t, res)
+	})
+
+	t.Run("no cert auth association", func(t *testing.T) {
+		// on mdm checkout, nano soft deletes by calling storage.Disable, which leaves the cert auth
+		// association in place, so what if we hard delete instead?
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), "DELETE FROM nano_cert_auth_associations WHERE id = ?", mdmDevice.UUID)
+			require.NoError(t, err)
+			return nil
+		})
+		checkStoredCertAuthAssociation(mdmDevice.UUID, 0)
+
+		// TODO: server returns 500 on account of cert auth but what is the expected behavior?
+		res, err := mdmDevice.GetBootstrapToken()
+		require.ErrorContains(t, err, "500") // getbootstraptoken service: cert auth: existing enrollment: enrollment not associated with cert
+		require.Nil(t, res)
+	})
+}
+
 func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	t := s.T()
 
@@ -373,20 +492,12 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
-	var globalFleetdProfile bytes.Buffer
-	params := mobileconfig.FleetdProfileOptions{
-		EnrollSecret: t.Name(),
-		ServerURL:    s.server.URL,
-		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
-	}
-	err = mobileconfig.FleetdProfileTemplate.Execute(&globalFleetdProfile, params)
-	require.NoError(t, err)
 
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 	}
-	wantGlobalProfiles := append(globalProfiles, globalFleetdProfile.Bytes())
+	wantGlobalProfiles := append(globalProfiles, setupExpectedFleetdProfile(t, s.server.URL, t.Name(), nil))
 
 	// add global profiles
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
@@ -405,11 +516,7 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	teamProfiles := [][]byte{
 		mobileconfigForTest("N3", "I3"),
 	}
-	var teamFleetdProfile bytes.Buffer
-	params.EnrollSecret = "team1_enroll_sec"
-	err = mobileconfig.FleetdProfileTemplate.Execute(&teamFleetdProfile, params)
-	require.NoError(t, err)
-	wantTeamProfiles := append(teamProfiles, teamFleetdProfile.Bytes())
+	wantTeamProfiles := append(teamProfiles, setupExpectedFleetdProfile(t, s.server.URL, "team1_enroll_sec", &tm.ID))
 	// add profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 
@@ -437,71 +544,11 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-
-	triggerSchedule := func() {
-		ch := make(chan struct{})
-		s.onProfileScheduleDone = func() {
-			close(ch)
-		}
-		_, err := s.profileSchedule.Trigger()
-		require.NoError(t, err)
-		<-ch
-	}
-
-	origPush := s.pushProvider.PushFunc
-	defer func() { s.pushProvider.PushFunc = origPush }()
-	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
-		require.Len(t, pushes, 1)
-		require.Equal(t, pushes[0].PushMagic, "pushmagic"+mdmDevice.SerialNumber)
-		res := map[string]*push.Response{
-			pushes[0].Token.String(): {
-				Id:  uuid.New().String(),
-				Err: nil,
-			},
-		}
-		return res, nil
-	}
-
-	checkNextPayloads := func() ([][]byte, []string) {
-		var cmd *micromdm.CommandPayload
-		installs := [][]byte{}
-		removes := []string{}
-
-		for {
-			// on the first run, cmd will be nil and we need to
-			// ping the server via idle
-			if cmd == nil {
-				cmd, err = mdmDevice.Idle()
-			} else {
-				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			}
-			require.NoError(t, err)
-
-			// if after idle or acknowledge cmd is still nil, it
-			// means there aren't any commands left to run
-			if cmd == nil {
-				break
-			}
-
-			switch cmd.Command.RequestType {
-			case "InstallProfile":
-				installs = append(installs, cmd.Command.InstallProfile.Payload)
-			case "RemoveProfile":
-				removes = append(removes, cmd.Command.RemoveProfile.Identifier)
-
-			}
-		}
-
-		return installs, removes
-	}
+	setupPusher(s, t, mdmDevice)
 
 	// trigger a profile sync
-	triggerSchedule()
-
-	time.Sleep(5 * time.Second)
-
-	installs, removes := checkNextPayloads()
-
+	s.awaitTriggerProfileSchedule(t, 5*time.Second)
+	installs, removes := checkNextPayloads(t, mdmDevice, false)
 	// verify that we received all profiles
 	require.ElementsMatch(t, wantGlobalProfiles, installs)
 	require.Empty(t, removes)
@@ -511,9 +558,8 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.NoError(t, err)
 
 	// trigger a profile sync
-	triggerSchedule()
-
-	installs, removes = checkNextPayloads()
+	s.awaitTriggerProfileSchedule(t, 0)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	// verify that we should install the team profile
 	require.ElementsMatch(t, wantTeamProfiles, installs)
 	// verify that we should delete both profiles
@@ -528,17 +574,16 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 
 	// trigger a profile sync
-	triggerSchedule()
-	installs, removes = checkNextPayloads()
+	s.awaitTriggerProfileSchedule(t, 0)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	// verify that we should install the team profiles
 	require.ElementsMatch(t, wantTeamProfiles, installs)
 	// verify that we should delete the old team profiles
 	require.ElementsMatch(t, []string{"I3"}, removes)
 
 	// with no changes
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
-	installs, removes = checkNextPayloads()
+	s.awaitTriggerProfileSchedule(t, 0)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	require.Empty(t, installs)
 	require.Empty(t, removes)
 
@@ -564,6 +609,357 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.Equal(t, uint(0), noTeamSummaryResp.Verified)
 }
 
+func (s *integrationMDMTestSuite) TestProfileRetries() {
+	t := s.T()
+	ctx := context.Background()
+
+	enrollSecret := "test-profile-retries-secret"
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: enrollSecret}})
+	require.NoError(t, err)
+
+	testProfiles := [][]byte{
+		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N2", "I2"),
+	}
+	initialExpectedProfiles := append(testProfiles, setupExpectedFleetdProfile(t, s.server.URL, enrollSecret, nil))
+
+	h, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+
+	expectedProfileStatuses := map[string]fleet.MDMAppleDeliveryStatus{
+		"I1": fleet.MDMAppleDeliveryVerifying,
+		"I2": fleet.MDMAppleDeliveryVerifying,
+		mobileconfig.FleetdConfigPayloadIdentifier: fleet.MDMAppleDeliveryVerifying,
+	}
+	checkProfilesStatus := func(t *testing.T) {
+		storedProfs, err := s.ds.GetHostMDMProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Len(t, storedProfs, len(expectedProfileStatuses))
+		for _, p := range storedProfs {
+			want, ok := expectedProfileStatuses[p.Identifier]
+			require.True(t, ok, "unexpected profile: %s", p.Identifier)
+			require.Equal(t, want, *p.Status, "expected status %s but got %s for profile: %s", want, *p.Status, p.Identifier)
+		}
+	}
+
+	expectedRetryCounts := map[string]uint{
+		"I1": 0,
+		"I2": 0,
+		mobileconfig.FleetdConfigPayloadIdentifier: 0,
+	}
+	checkRetryCounts := func(t *testing.T) {
+		counts, err := s.ds.GetHostMDMProfilesRetryCounts(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Len(t, counts, len(expectedRetryCounts))
+		for _, c := range counts {
+			want, ok := expectedRetryCounts[c.ProfileIdentifier]
+			require.True(t, ok, "unexpected profile: %s", c.ProfileIdentifier)
+			require.Equal(t, want, c.Retries, "expected retry count %d but got %d for profile: %s", want, c.Retries, c.ProfileIdentifier)
+		}
+	}
+
+	hostProfsByIdent := map[string]*fleet.HostMacOSProfile{
+		"I1": {
+			Identifier:  "I1",
+			DisplayName: "N1",
+			InstallDate: time.Now(),
+		},
+		"I2": {
+			Identifier:  "I2",
+			DisplayName: "N2",
+			InstallDate: time.Now(),
+		},
+		mobileconfig.FleetdConfigPayloadIdentifier: {
+			Identifier:  mobileconfig.FleetdConfigPayloadIdentifier,
+			DisplayName: "Fleetd configuration",
+			InstallDate: time.Now(),
+		},
+	}
+	reportHostProfs := func(t *testing.T, identifiers ...string) {
+		report := make(map[string]*fleet.HostMacOSProfile, len(hostProfsByIdent))
+		for _, ident := range identifiers {
+			report[ident] = hostProfsByIdent[ident]
+		}
+		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, h, report))
+	}
+
+	setProfileUpdatedAt := func(t *testing.T, updatedAt time.Time, identifiers ...interface{}) {
+		bindVars := strings.TrimSuffix(strings.Repeat("?, ", len(identifiers)), ", ")
+		stmt := fmt.Sprintf("UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE identifier IN(%s)", bindVars)
+		args := append([]interface{}{updatedAt}, identifiers...)
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+
+	t.Run("retry after verifying", func(t *testing.T) {
+		// upload test profiles then simulate expired grace period by setting updated_at timestamp of profiles back by 48 hours
+		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		setProfileUpdatedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+
+		// trigger initial profile sync and confirm that we received all profiles
+		s.awaitTriggerProfileSchedule(t, 5*time.Second)
+		installs, removes := checkNextPayloads(t, mdmDevice, false)
+		require.ElementsMatch(t, initialExpectedProfiles, installs)
+		require.Empty(t, removes)
+
+		checkProfilesStatus(t) // all profiles verifying
+		checkRetryCounts(t)    // no retries yet
+
+		// report osquery results with I2 missing and confirm I2 marked as pending and other profiles are marked as verified
+		reportHostProfs(t, "I1", mobileconfig.FleetdConfigPayloadIdentifier)
+		expectedProfileStatuses["I2"] = fleet.MDMAppleDeliveryPending
+		expectedProfileStatuses["I1"] = fleet.MDMAppleDeliveryVerified
+		expectedProfileStatuses[mobileconfig.FleetdConfigPayloadIdentifier] = fleet.MDMAppleDeliveryVerified
+		checkProfilesStatus(t)
+		expectedRetryCounts["I2"] = 1
+		checkRetryCounts(t)
+
+		// trigger a profile sync and confirm that the install profile command for I2 was resent
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes = checkNextPayloads(t, mdmDevice, false)
+		require.ElementsMatch(t, [][]byte{initialExpectedProfiles[1]}, installs)
+		require.Empty(t, removes)
+
+		// report osquery results with I2 present and confirm that all profiles are verified
+		reportHostProfs(t, "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		expectedProfileStatuses["I2"] = fleet.MDMAppleDeliveryVerified
+		checkProfilesStatus(t)
+		checkRetryCounts(t) // unchanged
+
+		// trigger a profile sync and confirm that no profiles were sent
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes = checkNextPayloads(t, mdmDevice, false)
+		require.Empty(t, installs)
+		require.Empty(t, removes)
+	})
+
+	t.Run("retry after verification", func(t *testing.T) {
+		// report osquery results with I1 missing and confirm that the I1 marked as pending (initial retry)
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		expectedProfileStatuses["I1"] = fleet.MDMAppleDeliveryPending
+		checkProfilesStatus(t)
+		expectedRetryCounts["I1"] = 1
+		checkRetryCounts(t)
+
+		// trigger a profile sync and confirm that the install profile command for I1 was resent
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes := checkNextPayloads(t, mdmDevice, false)
+		require.ElementsMatch(t, [][]byte{initialExpectedProfiles[0]}, installs)
+		require.Empty(t, removes)
+
+		// report osquery results with I1 missing again and confirm that the I1 marked as failed (max retries exceeded)
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		expectedProfileStatuses["I1"] = fleet.MDMAppleDeliveryFailed
+		checkProfilesStatus(t)
+		checkRetryCounts(t) // unchanged
+
+		// trigger a profile sync and confirm that the install profile command for I1 was not resent
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes = checkNextPayloads(t, mdmDevice, false)
+		require.Empty(t, installs)
+		require.Empty(t, removes)
+	})
+
+	t.Run("retry after device error", func(t *testing.T) {
+		// add another profile and set the updated_at timestamp back by 48 hours
+		newProfile := mobileconfigForTest("N3", "I3")
+		testProfiles = append(testProfiles, newProfile)
+		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		setProfileUpdatedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3")
+
+		// trigger a profile sync and confirm that the install profile command for I3 was sent and
+		// simulate a device error
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes := checkNextPayloads(t, mdmDevice, true)
+		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		require.Empty(t, removes)
+		expectedProfileStatuses["I3"] = fleet.MDMAppleDeliveryPending
+		checkProfilesStatus(t)
+		expectedRetryCounts["I3"] = 1
+		checkRetryCounts(t)
+
+		// trigger a profile sync and confirm that the install profile command for I3 was sent and
+		// simulate a device ack
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes = checkNextPayloads(t, mdmDevice, false)
+		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		require.Empty(t, removes)
+		expectedProfileStatuses["I3"] = fleet.MDMAppleDeliveryVerifying
+		checkProfilesStatus(t)
+		checkRetryCounts(t) // unchanged
+
+		// report osquery results with I3 missing and confirm that the I3 marked as failed (max
+		// retries exceeded)
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		expectedProfileStatuses["I3"] = fleet.MDMAppleDeliveryFailed
+		checkProfilesStatus(t)
+		checkRetryCounts(t) // unchanged
+
+		// trigger a profile sync and confirm that the install profile command for I3 was not resent
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes = checkNextPayloads(t, mdmDevice, false)
+		require.Empty(t, installs)
+		require.Empty(t, removes)
+	})
+
+	t.Run("repeated device error", func(t *testing.T) {
+		// add another profile and set the updated_at timestamp back by 48 hours
+		newProfile := mobileconfigForTest("N4", "I4")
+		testProfiles = append(testProfiles, newProfile)
+		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		setProfileUpdatedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3", "I4")
+
+		// trigger a profile sync and confirm that the install profile command for I3 was sent and
+		// simulate a device error
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes := checkNextPayloads(t, mdmDevice, true)
+		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		require.Empty(t, removes)
+		expectedProfileStatuses["I4"] = fleet.MDMAppleDeliveryPending
+		checkProfilesStatus(t)
+		expectedRetryCounts["I4"] = 1
+		checkRetryCounts(t)
+
+		// trigger a profile sync and confirm that the install profile command for I4 was sent and
+		// simulate a second device error
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes = checkNextPayloads(t, mdmDevice, true)
+		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		require.Empty(t, removes)
+		expectedProfileStatuses["I4"] = fleet.MDMAppleDeliveryFailed
+		checkProfilesStatus(t)
+		checkRetryCounts(t) // unchanged
+
+		// trigger a profile sync and confirm that the install profile command for I3 was not resent
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes = checkNextPayloads(t, mdmDevice, false)
+		require.Empty(t, installs)
+		require.Empty(t, removes)
+	})
+
+	t.Run("retry count does not reset", func(t *testing.T) {
+		// add another profile and set the updated_at timestamp back by 48 hours
+		newProfile := mobileconfigForTest("N5", "I5")
+		testProfiles = append(testProfiles, newProfile)
+		hostProfsByIdent["I5"] = &fleet.HostMacOSProfile{Identifier: "I5", DisplayName: "N5", InstallDate: time.Now()}
+		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		setProfileUpdatedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3", "I4", "I5")
+
+		// trigger a profile sync and confirm that the install profile command for I3 was sent and
+		// simulate a device error
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes := checkNextPayloads(t, mdmDevice, true)
+		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		require.Empty(t, removes)
+		expectedProfileStatuses["I5"] = fleet.MDMAppleDeliveryPending
+		checkProfilesStatus(t)
+		expectedRetryCounts["I5"] = 1
+		checkRetryCounts(t)
+
+		// trigger a profile sync and confirm that the install profile command for I5 was sent and
+		// simulate a device ack
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes = checkNextPayloads(t, mdmDevice, false)
+		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		require.Empty(t, removes)
+		expectedProfileStatuses["I5"] = fleet.MDMAppleDeliveryVerifying
+		checkProfilesStatus(t)
+		checkRetryCounts(t) // unchanged
+
+		// report osquery results with I5 found and confirm that the I5 marked as verified
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I5")
+		expectedProfileStatuses["I5"] = fleet.MDMAppleDeliveryVerified
+		checkProfilesStatus(t)
+		checkRetryCounts(t) // unchanged
+
+		// trigger a profile sync and confirm that the install profile command for I5 was not resent
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes = checkNextPayloads(t, mdmDevice, false)
+		require.Empty(t, installs)
+		require.Empty(t, removes)
+
+		// report osquery results again, this time I5 is missing and confirm that the I5 marked as
+		// failed (max retries exceeded)
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		expectedProfileStatuses["I5"] = fleet.MDMAppleDeliveryFailed
+		checkProfilesStatus(t)
+		checkRetryCounts(t) // unchanged
+
+		// trigger a profile sync and confirm that the install profile command for I5 was not resent
+		s.awaitTriggerProfileSchedule(t, 0)
+		installs, removes = checkNextPayloads(t, mdmDevice, false)
+		require.Empty(t, installs)
+		require.Empty(t, removes)
+	})
+}
+
+func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestMDMClient, forceDeviceErr bool) ([][]byte, []string) {
+	var cmd *micromdm.CommandPayload
+	var err error
+	installs := [][]byte{}
+	removes := []string{}
+
+	// on the first run, cmd will be nil and we need to
+	// ping the server via idle
+	// if after idle or acknowledge cmd is still nil, it
+	// means there aren't any commands left to run
+	for {
+		if cmd == nil {
+			cmd, err = mdmDevice.Idle()
+		} else {
+			if forceDeviceErr {
+				cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{})
+			} else {
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			}
+		}
+		require.NoError(t, err)
+
+		if cmd == nil {
+			break
+		}
+
+		switch cmd.Command.RequestType {
+		case "InstallProfile":
+			installs = append(installs, cmd.Command.InstallProfile.Payload)
+		case "RemoveProfile":
+			removes = append(removes, cmd.Command.RemoveProfile.Identifier)
+
+		}
+	}
+	return installs, removes
+}
+
+func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret string, teamID *uint) []byte {
+	var b bytes.Buffer
+	params := mobileconfig.FleetdProfileOptions{
+		EnrollSecret: enrollSecret,
+		ServerURL:    serverURL,
+		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+	}
+	err := mobileconfig.FleetdProfileTemplate.Execute(&b, params)
+	require.NoError(t, err)
+	return b.Bytes()
+}
+
+func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.TestMDMClient) {
+	origPush := s.pushProvider.PushFunc
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		require.Len(t, pushes, 1)
+		require.Equal(t, pushes[0].PushMagic, "pushmagic"+mdmDevice.SerialNumber)
+		res := map[string]*push.Response{
+			pushes[0].Token.String(): {
+				Id:  uuid.New().String(),
+				Err: nil,
+			},
+		}
+		return res, nil
+	}
+	t.Cleanup(func() { s.pushProvider.PushFunc = origPush })
+}
+
 func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	ctx := context.Background()
 	t := s.T()
@@ -581,6 +977,22 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		Platform:      "darwin",
 	})
 	require.NoError(t, err)
+
+	// create a setup assistant for no team, for this we need to:
+	// 1. mock the ABM API, as it gets called to set the profile
+	// 2. run the DEP schedule, as this registers the default profile
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+	}))
+	s.runDEPSchedule()
+	noTeamProf := `{"x": 1}`
+	var globalAsstResp createMDMAppleSetupAssistantResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "no-team",
+		EnrollmentProfile: json.RawMessage(noTeamProf),
+	}, http.StatusOK, &globalAsstResp)
 
 	// preassign an empty profile, fails
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "empty", HostUUID: nonMDMHost.UUID, Profile: nil}}, http.StatusUnprocessableEntity)
@@ -617,8 +1029,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NoError(t, err)
 	require.Equal(t, "g1", tm1.Name)
 
-	// it create activities for the new team, the profiles assigned to it, and
-	// the host moved to it
+	// it create activities for the new team, the profiles assigned to it,
+	// the host moved to it, and setup assistant
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeCreatedTeam{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
@@ -632,6 +1044,11 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
 			tm1.ID, tm1.Name, h.ID, h.DisplayName()),
 		0)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "name": %q, "team_name": %q}`,
+			tm1.ID, globalAsstResp.Name, tm1.Name),
+		0)
 
 	// and the team has the expected profiles
 	profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
@@ -642,6 +1059,11 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
 	// filevault is enabled by default
 	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
+	// setup assistant settings are copyied from "no team"
+	teamAsst, err := s.ds.GetMDMAppleSetupAssistant(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.Equal(t, globalAsstResp.Name, teamAsst.Name)
+	require.JSONEq(t, string(globalAsstResp.Profile), string(teamAsst.Profile))
 
 	// create a team and set profiles to it
 	tm2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -1153,6 +1575,7 @@ func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testi
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	t := s.T()
+
 	ctx := context.Background()
 	devices := []godep.Device{
 		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
@@ -1166,15 +1589,6 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		Devices     []string `json:"devices"`
 	}
 	profileAssignmentReqs := []profileAssignmentReq{}
-
-	runDEPSchedule := func() {
-		profileAssignmentReqs = []profileAssignmentReq{}
-		ch := make(chan bool)
-		s.onDEPScheduleDone = func() { close(ch) }
-		_, err := s.depSchedule.Trigger()
-		require.NoError(t, err)
-		<-ch
-	}
 
 	// add global profiles
 	globalProfile := mobileconfigForTest("N1", "I1")
@@ -1257,7 +1671,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.Empty(t, listHostsRes.Hosts)
 
 	// trigger a profile sync
-	runDEPSchedule()
+	s.runDEPSchedule()
 
 	// all hosts should be returned from the hosts endpoint
 	listHostsRes = listHostsResponse{}
@@ -1362,7 +1776,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "deleted"},
 		{SerialNumber: addedSerial, Model: "MacBook Mini", OS: "osx", OpType: "added"},
 	}
-	runDEPSchedule()
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
 
 	// all hosts should be returned from the hosts endpoint
 	listHostsRes = listHostsResponse{}
@@ -1389,15 +1804,22 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// TODO: seems like we're doing this request on each loop?
 	require.Len(t, profileAssignmentReqs[0].Devices, 1)
 	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[0].Devices[0])
+
+	// profileAssignmentReqs[1] and [2] can be in any order
+	ix2Devices, ix1Device := 1, 2
+	if len(profileAssignmentReqs[1].Devices) == 1 {
+		ix2Devices, ix1Device = ix1Device, ix2Devices
+	}
+
 	// - existing device with "added"
 	// - new device with "added"
-	require.Len(t, profileAssignmentReqs[1].Devices, 2)
-	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[1].Devices[0])
-	require.Equal(t, addedSerial, profileAssignmentReqs[1].Devices[1])
+	require.Len(t, profileAssignmentReqs[ix2Devices].Devices, 2, "%#+v", profileAssignmentReqs)
+	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[ix2Devices].Devices[0])
+	require.Equal(t, addedSerial, profileAssignmentReqs[ix2Devices].Devices[1])
 
 	// - existing device with "modified" and a different team (thus different profile request)
-	require.Len(t, profileAssignmentReqs[2].Devices, 1)
-	require.Equal(t, devices[1].SerialNumber, profileAssignmentReqs[2].Devices[0])
+	require.Len(t, profileAssignmentReqs[ix1Device].Devices, 1)
+	require.Equal(t, devices[1].SerialNumber, profileAssignmentReqs[ix1Device].Devices[0])
 
 	// entries for all hosts except for the one with OpType = "deleted"
 	assignment, err := s.ds.GetHostDEPAssignment(ctx, deletedHostID)
@@ -3512,7 +3934,9 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	uuid1 := uuid.New().String()
 	s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
 		enqueueMDMAppleCommandRequest{
-			Command:   base64Cmd(newRawCmd(uuid1)),
+			// explicitly use standard encoding to make sure it also works
+			// see #11384
+			Command:   base64.StdEncoding.EncodeToString([]byte(newRawCmd(uuid1))),
 			DeviceIDs: []string{"no-such-host"},
 		}, http.StatusNotFound)
 
@@ -4197,11 +4621,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 			require.NoError(t, err)
 		}
 	}))
-	ch := make(chan bool)
-	s.onDEPScheduleDone = func() { close(ch) }
-	_, err = s.depSchedule.Trigger()
-	require.NoError(t, err)
-	<-ch
+	s.runDEPSchedule()
 
 	// hosts meets all requirements, webhook is run
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
@@ -5091,11 +5511,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}))
 
 	// sync the list of ABM devices
-	ch := make(chan bool)
-	s.onDEPScheduleDone = func() { close(ch) }
-	_, err := s.depSchedule.Trigger()
-	require.NoError(t, err)
-	<-ch
+	s.runDEPSchedule()
 
 	// MDM SSO fields are empty by default
 	acResp := appConfigResponse{}
@@ -5221,6 +5637,14 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
+	checkStoredIdPInfo := func(uuid string) {
+		acc, err := s.ds.GetMDMIdPAccount(context.Background(), uuid)
+		require.NoError(t, err)
+		require.Equal(t, "sso_user", acc.Username)
+		require.Equal(t, "SSO User 1", acc.Fullname)
+		require.Equal(t, "sso_user@example.com", acc.Email)
+	}
+
 	res := s.LoginMDMSSOUser("sso_user", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
@@ -5241,6 +5665,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 			q.Get("enrollment_reference"),
 		),
 	)
+
+	// IdP info stored is accurate for the account
+	checkStoredIdPInfo(q.Get("enrollment_reference"))
 
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
@@ -5273,6 +5700,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.EqualValues(t, pdfBytes, respBytes)
+
+	// IdP info stored is accurate for the account
+	checkStoredIdPInfo(q.Get("enrollment_reference"))
 
 	enrollURL := ""
 	scepURL := ""
@@ -5443,14 +5873,10 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 				require.NoError(t, err)
 			}
 		}))
-		ch := make(chan bool)
-		s.onDEPScheduleDone = func() { close(ch) }
-		_, err := s.depSchedule.Trigger()
-		require.NoError(t, err)
-		<-ch
+		s.runDEPSchedule()
 
 		// simulate that the device is enrolled in a third-party MDM and DEP capable
-		err = s.ds.SetOrUpdateMDMData(
+		err := s.ds.SetOrUpdateMDMData(
 			ctx,
 			host.ID,
 			false,
@@ -5930,18 +6356,10 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithDeviceToken() {
 	t := s.T()
 
 	// create a new Host to get the UUID on the DB
-	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		ID:            1,
-		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
-		NodeKey:       ptr.String("Desktop-ABCQWE"),
-		UUID:          uuid.New().String(),
-		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
+	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, windowsHost.UUID)
+	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
@@ -6044,18 +6462,10 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 	t := s.T()
 
 	// create a new Host to get the UUID on the DB
-	linuxHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		ID:            1,
-		OsqueryHostID: ptr.String("Ubuntu01"),
-		NodeKey:       ptr.String("Ubuntu01"),
-		UUID:          uuid.New().String(),
-		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "linux",
-	})
-	require.NoError(t, err)
+	linuxHost := createOrbitEnrolledHost(t, "linux", "h1", s.ds)
 
 	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, linuxHost.UUID)
+	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *linuxHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
@@ -6083,23 +6493,13 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 
 func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDeviceToken() {
 	t := s.T()
-
-	// create a new Host to get the UUID on the DB
-	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		ID:            1,
-		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
-		NodeKey:       ptr.String("Desktop-ABCQWE"),
-		UUID:          uuid.New().String(),
-		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
+	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Delete the host from the list of MDM enrolled devices if present
 	_ = s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
 
 	// Preparing the RequestSecurityToken Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, windowsHost.UUID)
+	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
@@ -6182,18 +6582,10 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	t := s.T()
 
 	// create a new Host to get the UUID on the DB
-	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		ID:            1,
-		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
-		NodeKey:       ptr.String("Desktop-ABCQWE"),
-		UUID:          uuid.New().String(),
-		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
+	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Preparing the RequestSecurityToken Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, windowsHost.UUID)
+	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, true)
@@ -6311,6 +6703,14 @@ func (s *integrationMDMTestSuite) runWorker() {
 	pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
 	require.NoError(s.T(), err)
 	require.Empty(s.T(), pending)
+}
+
+func (s *integrationMDMTestSuite) runDEPSchedule() {
+	ch := make(chan bool)
+	s.onDEPScheduleDone = func() { close(ch) }
+	_, err := s.depSchedule.Trigger()
+	require.NoError(s.T(), err)
+	<-ch
 }
 
 func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {
