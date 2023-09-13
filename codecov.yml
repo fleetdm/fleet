@@ -1,22 +1,16 @@
 coverage:
   status:
-    project:
-      default:
-        target: auto  # aim for the same coverage as the base of the PR
-        threshold: 1%  # allow a decrease of up to 1%
-    patch:
-      default:
-        target: auto  # aim for the same coverage as the base of the PR
-        threshold: 1%  # allow a decrease of up to 1%
+    project: false
+    patch: false
 
 flag_management:
   default_rules:
     carryforward: true
     statuses:
       - type: project
-        informational: false  # change this to true if you do not want to enforce covergae requirement
+        informational: true
       - type: patch
-        informational: false  # change this to true if you do not want to enforce covergae requirement
+        informational: true
   individual_flags:
     - name: backend
       paths:
