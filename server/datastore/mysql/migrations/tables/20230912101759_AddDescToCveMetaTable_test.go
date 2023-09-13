@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20230908141250(t *testing.T) {
+func TestUp_20230912101759(t *testing.T) {
 	db := applyUpToPrev(t)
 	insertStmt := `
           INSERT INTO cve_meta

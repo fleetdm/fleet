@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230908141250, Down_20230908141250)
+	MigrationClient.AddMigration(Up_20230912101759, Down_20230912101759)
 }
 
-func Up_20230908141250(tx *sql.Tx) error {
+func Up_20230912101759(tx *sql.Tx) error {
 	stmt := `
           ALTER TABLE cve_meta
           ADD COLUMN description TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL;
@@ -20,6 +20,6 @@ func Up_20230908141250(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230908141250(tx *sql.Tx) error {
+func Down_20230912101759(tx *sql.Tx) error {
 	return nil
 }
