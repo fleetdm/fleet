@@ -347,7 +347,7 @@ The following document explains how you can generate a TUF repository and instal
 
 **Using `fleetd` without enrolling Orbit**
 
-*Only available in fleetd v1.15.1 on Linux and MacOS*
+*Only available in fleetd v1.15.1 on Linux and macOS*
 
 It is possible to generate a fleetd package that does not connect to Fleet by omitting the `--fleet-url` and `--enroll-secret` flags when building a package.
 
