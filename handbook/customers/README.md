@@ -41,6 +41,14 @@ To help coach reps and avoid being annoying to Fleet users, Fleet reviews rep ac
 2. For each rep, review recent activity from the last 30 days across all of that rep's accounts.
 3. If outreach is too frequent or doesn't fit the company's strategy, then set up a 30 minute coaching session to discuss with the rep.
 
+### Sending quotes and orders
+During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
+
+The Fleet owner of the opportunity (usually AE or CSM) will prepare a quote and/or a Purchase Order when requested.
+1. Because the champion may need to socialize "what is Fleet" or "what are we getting when buying Fleet," it is most often best to send the quote in slide form, similar to [this](https://docs.google.com/presentation/d/15kbqm0OYPf1OmmTZvDp4F7VvMERnX4K6TMYqCYNr-wI/edit?usp=sharing)
+2. Docusign can be used to create a standard Purchase Order if no special terms or pricing are needed. Watch [this recording](https://www.loom.com/share/Loom-Message-16-January-2023-2ba8cf195ec645ebabac267d7df59823?sid=214f8c6b-beb3-427a-a3a8-e8c20b5dc350) to see ho.
+3. All quotes and purchase orders must be approved by CRO before being sent to the prospect or customer. Often, the CRO will request Fleet business operations/legal of any unique terms required.
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customers/sales.rituals.yml']"></rituals>
