@@ -15,6 +15,12 @@ func init() {
 }
 
 func fixupSoftware(tx *sql.Tx, collation string) error {
+	// the query below can be expensive, increasing the sort buffer size
+	// for the session avoids errors when reading the rows.
+	_, err := tx.Exec("SET SESSION sort_buffer_size = 2560000000")
+	if err != nil {
+		return fmt.Errorf("increasing global sort buffer size: %w", err)
+	}
 	//nolint:gosec // string formatting must be used here, but input is not user-controllable
 	rows, err := tx.Query(`
          SELECT
