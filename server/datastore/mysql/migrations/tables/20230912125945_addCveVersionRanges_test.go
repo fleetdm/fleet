@@ -1,71 +1,71 @@
 package tables
 
 import (
-	"database/sql"
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-type VersionRange struct {
-	VersionStartIncluding string `db:"versionStartIncluding,omitempty"`
-	VersionEndExcluding   string `db:"versionEndExcluding,omitempty"`
-}
-
 func TestUp_20230912125945(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	// Define the struct to scan the version_ranges data into
-	var scve struct {
-		ID            uint           `db:"id"`
-		SoftwareID    uint           `db:"software_id"`
-		CreatedAt     string         `db:"created_at"`
-		UpdatedAt     string         `db:"updated_at"`
-		CPE           string         `db:"cpe"`
-		VersionRanges sql.NullString `db:"version_ranges"`
-	}
-
+	// Insert a record without the new columns before applying the migration
 	insertStmt := `
-	INSERT INTO software_cpe (
-		software_id, 
-		cpe, 
-		version_ranges) 
-	VALUES 
-		(?, ?, ?)`
+		INSERT INTO software_cve (
+			cve,
+			source,
+			software_id
+		)
+		VALUES
+			(?, ?, ?)
+	`
 
-	applyNext(t, db)
-
-	// Prepare version ranges data as a JSON string
-	versionRanges := []VersionRange{
-		{
-			VersionStartIncluding: "1.0.0",
-			VersionEndExcluding:   "2.0.0",
-		},
-		{
-			VersionStartIncluding: "3.0.0",
-			VersionEndExcluding:   "4.0.0",
-		},
-	}
-	versionRangesJSON, err := json.Marshal(versionRanges)
-	require.NoError(t, err)
-
-	// Insert data including a JSON field
 	args := []interface{}{
-		1,
-		"test-cpe",
-		versionRangesJSON,
+		"test-cve",
+		0,
+		1, // Assuming a valid software_id exists with this ID
 	}
 	execNoErr(t, db, insertStmt, args...)
 
-	// Query the inserted data
-	selectStmt := "SELECT * FROM software_cpe WHERE cpe = ?"
-	err = db.Get(&scve, selectStmt, "test-cpe")
-	require.NoError(t, err)
+	applyNext(t, db)
 
-	// Parse the JSON data from the version_ranges column into a slice of VersionRange structs
-	var retrievedVersionRanges []VersionRange
-	require.NoError(t, json.Unmarshal([]byte(scve.VersionRanges.String), &retrievedVersionRanges))
+	// Insert a new record with the new columns after applying the migration
+	insertStmt = `
+		INSERT INTO software_cve (
+			cve, 
+			source, 
+			software_id, 
+			versionStartIncluding, 
+			versionEndExcluding
+		)
+		VALUES
+			(?, ?, ?, ?, ?)
+	`
 
-	require.Equal(t, versionRanges, retrievedVersionRanges)
+	args = []interface{}{
+		"test-cve-2",
+		0,
+		1,
+		"1.0",
+		"2.0",
+	}
+	execNoErr(t, db, insertStmt, args...)
+
+	// retrieve the stored value for the new record
+	var scve struct {
+		ID                    uint   `db:"id"`
+		CVE                   string `db:"cve"`
+		Source                int    `db:"source"`
+		SoftwareID            uint   `db:"software_id"`
+		VersionStartIncluding string `db:"versionStartIncluding"`
+		VersionEndExcluding   string `db:"versionEndExcluding"`
+	}
+
+	selectStmt := "SELECT * FROM software_cve WHERE cve = ?"
+	require.NoError(t, db.Get(&scve, selectStmt, "test-cve-2"))
+	require.Equal(t, "test-cve-2", scve.CVE)
+	require.Equal(t, 0, scve.Source)
+	require.Equal(t, uint(1), scve.SoftwareID)
+	require.Equal(t, "1.0", scve.VersionStartIncluding)
+	require.Equal(t, "2.0", scve.VersionEndExcluding)
 }

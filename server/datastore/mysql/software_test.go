@@ -1804,54 +1804,6 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, occurrence["cve-1"])
 		require.Equal(t, 1, occurrence["cve-2"])
 	})
-
-	t.Run("vulnerability includes version ranges", func(t *testing.T) {
-		// new host
-		host := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
-
-		// new software
-		software := fleet.Software{
-			Name: "host3software", Version: "0.0.1", Source: "chrome_extensions",
-		}
-
-		_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software})
-		require.NoError(t, err)
-		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
-
-		// new software cpe
-		cpes := []fleet.SoftwareCPE{
-			{SoftwareID: host.Software[0].ID, CPE: "cpe:2.3:a:foo:foo:0.0.1:*:*:*:*:*:*:*"},
-		}
-
-		_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
-		require.NoError(t, err)
-
-		// new vulnerability
-		vuln := fleet.SoftwareVulnerability{
-			SoftwareID: host.Software[0].ID,
-			CVE:        "cve-3",
-			VersionRanges: []fleet.VersionRange{
-				{VersionStartIncluding: "0.0.1", VersionEndExcluding: "0.0.5"},
-				{VersionStartIncluding: "1.0.0", VersionEndExcluding: "2.1.0"},
-			},
-		}
-
-		inserted, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.UbuntuOVALSource)
-		require.NoError(t, err)
-		require.True(t, inserted)
-
-		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
-		require.NoError(t, err)
-
-		fmt.Println(storedVulns)
-		require.Len(t, storedVulns[host.ID], 1)
-		require.Equal(t, "cve-3", storedVulns[host.ID][0].CVE)
-		require.Len(t, storedVulns[host.ID][0].VersionRanges, 2)
-		require.Equal(t, "0.0.1", storedVulns[host.ID][0].VersionRanges[0].VersionStartIncluding)
-		require.Equal(t, "0.0.5", storedVulns[host.ID][0].VersionRanges[0].VersionEndExcluding)
-		require.Equal(t, "1.0.0", storedVulns[host.ID][0].VersionRanges[1].VersionStartIncluding)
-		require.Equal(t, "2.1.0", storedVulns[host.ID][0].VersionRanges[1].VersionEndExcluding)
-	})
 }
 
 func testListCVEs(t *testing.T, ds *Datastore) {

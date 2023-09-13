@@ -12,11 +12,11 @@ func init() {
 func Up_20230912125945(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE software_cve
-		ADD COLUMN version_ranges JSON
-	`
+		ADD COLUMN versionStartIncluding VARCHAR(255) COLLATE utf8mb4_unicode_ci,
+		ADD COLUMN versionEndExcluding VARCHAR(255) COLLATE utf8mb4_unicode_ci`
 
 	if _, err := tx.Exec(stmt); err != nil {
-		return fmt.Errorf("add version_ranges to software_cve: %w", err)
+		return fmt.Errorf("add versionStartIncluding and versionEndExcluding to software_cve: %w", err)
 	}
 	return nil
 }
