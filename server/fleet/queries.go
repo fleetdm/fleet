@@ -142,6 +142,7 @@ func (q *Query) GetRemoved() *bool {
 }
 
 // Verify verifies the query payload is valid.
+// Called when creating or modifying a query
 func (q *QueryPayload) Verify() error {
 	if q.Name != nil {
 		if err := verifyQueryName(*q.Name); err != nil {
@@ -167,6 +168,7 @@ func (q *QueryPayload) Verify() error {
 }
 
 // Verify verifies the query fields are valid.
+// Called when creating queries by spec
 func (q *Query) Verify() error {
 	if err := verifyQueryName(q.Name); err != nil {
 		return err

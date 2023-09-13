@@ -142,76 +142,6 @@ spec:
 			},
 			false,
 		},
-		{
-			`---
-apiVersion: v1
-kind: query
-spec:
-  name: q001
-  query: select 1
-  interval: 1234567890
-  automations_enabled: true
-  platform: arc,drf!
----
-apiVersion: v1
-kind: query
-spec:
-  name: q002
-  query: select 1
-  interval: 1234567890
-  automations_enabled: true
-  platform: arc
----
-apiVersion: v1
-kind: query
-spec:
-  name: q003
-  query: select 1
-  interval: 1234567890
-  automations_enabled: true
-  platform: linux, notos
-	
-	`,
-			[]*Query{},
-			true,
-		},
-		{
-			`---
-apiVersion: v1
-kind: query
-spec:
-  name: q004
-  query: select 1
-  interval: 1234567890
-  automations_enabled: true
-  platform: windows, darwin
----
-apiVersion: v1
-kind: query
-spec:
-  name: q005
-  query: select 1
-  interval: 1234567890
-  automations_enabled: true
-  platform: darwin,windows
----
-apiVersion: v1
-kind: query
-spec:
-  name: q006
-  query: select 1
-  interval: 1234567890
-  automations_enabled: true
-  platform: linux
-
-`,
-			[]*Query{
-				{Name: "q004", Query: "select 1", Interval: 1234567890, AutomationsEnabled: true, Platform: "windows, darwin"},
-				{Name: "q005", Query: "select 1", Interval: 1234567890, AutomationsEnabled: true, Platform: "darwin,windows"},
-				{Name: "q006", Query: "select 1", Interval: 1234567890, AutomationsEnabled: true, Platform: "linux"},
-			},
-			false,
-		},
 	}
 
 	for _, tt := range testCases {
@@ -247,6 +177,34 @@ func TestRoundtripQueriesYaml(t *testing.T) {
 			queries, err := LoadQueriesFromYaml(yml)
 			require.Nil(t, err)
 			assert.Equal(t, tt.queries, queries)
+		})
+	}
+}
+
+func TestVerifyQueryPlatforms(t *testing.T) {
+	testCases := []struct {
+		platformString string
+		shouldErr      bool
+	}{
+		{"", false},
+		{"darwin", false},
+		{"linux", false},
+		{"windows", false},
+		{"darwin,linux,windows", false},
+		{"foo", true},
+		{"charles,darwin,linux,windows", true},
+		{"charles darwin", true},
+		{"darwin windows", true},
+	}
+
+	for _, tt := range testCases {
+		t.Run("", func(t *testing.T) {
+			err := verifyQueryPlatforms(tt.platformString)
+			if tt.shouldErr {
+				require.NotNil(t, err)
+			} else {
+				require.Nil(t, err)
+			}
 		})
 	}
 }
