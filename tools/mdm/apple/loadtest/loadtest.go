@@ -126,12 +126,12 @@ func main() {
 		for {
 			doneCount := 0
 			for _, team := range teamsToWait {
+				team := team
 				if teamSummary, ok := teamSummaries[team.ID]; ok && summaryDone(teamSummary) {
 					doneCount++
 					continue
 				}
-				teamID := team.ID
-				teamSummary, err := apiClient.GetConfigProfilesSummary(&teamID)
+				teamSummary, err := apiClient.GetConfigProfilesSummary(&team.ID)
 				if err != nil {
 					log.Fatalf("get config profile summary for team %s: %s", team.Name, err)
 				}

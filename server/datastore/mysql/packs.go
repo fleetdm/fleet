@@ -136,6 +136,7 @@ func (ds *Datastore) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error
 
 		// Load targets
 		for _, spec := range specs {
+			spec := spec
 
 			// Load labels
 			query = `
@@ -143,8 +144,7 @@ SELECT l.name
 FROM labels l JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 `
-			labels := spec.Targets.Labels
-			if err := sqlx.SelectContext(ctx, tx, &labels, query, spec.ID, fleet.TargetLabel); err != nil {
+			if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Labels, query, spec.ID, fleet.TargetLabel); err != nil {
 				return ctxerr.Wrap(ctx, err, "get pack label targets")
 			}
 
@@ -154,14 +154,14 @@ SELECT t.name
 FROM teams t JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = t.id
 `
-			teams := spec.Targets.Teams
-			if err := sqlx.SelectContext(ctx, tx, &teams, query, spec.ID, fleet.TargetTeam); err != nil {
+			if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Teams, query, spec.ID, fleet.TargetTeam); err != nil {
 				return ctxerr.Wrap(ctx, err, "get pack team targets")
 			}
 		}
 
 		// Load queries
 		for _, spec := range specs {
+			spec := spec
 			query = `
 SELECT
 query_name, name, description, ` + "`interval`" + `,
@@ -169,8 +169,7 @@ snapshot, removed, shard, platform, version, denylist
 FROM scheduled_queries
 WHERE pack_id = ?
 `
-			queries := spec.Queries
-			if err := sqlx.SelectContext(ctx, tx, &queries, query, spec.ID); err != nil {
+			if err := sqlx.SelectContext(ctx, tx, &spec.Queries, query, spec.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "get pack queries")
 			}
 		}

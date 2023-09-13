@@ -123,8 +123,8 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 	}
 	secretsCreatedAt := make(map[string]*time.Time, len(existingSecrets))
 	for _, es := range existingSecrets {
-		createdAt := es.CreatedAt
-		secretsCreatedAt[es.Secret] = &createdAt
+		es := es
+		secretsCreatedAt[es.Secret] = &es.CreatedAt
 	}
 
 	// next, remove all existing secrets for that team or global

@@ -708,8 +708,8 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 
 	for _, tt := range passwordChangeTests {
 		t.Run("", func(t *testing.T) {
-			user := tt.user
-			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &user})
+			tt := tt
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &tt.user})
 
 			err := svc.ChangePassword(ctx, tt.oldPassword, tt.newPassword)
 			if tt.anyErr {
