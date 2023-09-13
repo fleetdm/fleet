@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
@@ -29,7 +30,11 @@ func main() {
 	}
 
 	fmt.Printf("Server running at http://localhost%s\n", port)
-	if err := http.ListenAndServe(""+port, nil); err != nil {
+	server := &http.Server{
+		Addr:              port,
+		ReadHeaderTimeout: 3 * time.Second,
+	}
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf(err.Error())
 	}
 }
