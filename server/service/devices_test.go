@@ -103,16 +103,16 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		}
 
 		for _, c := range cases {
+			c := c
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				appCfg := fleet.AppConfig{}
 				appCfg.MDM = c.mdm
 				return &appCfg, nil
 			}
 
-			depAssigned := c.depAssigned
 			ctx := test.HostContext(ctx, &fleet.Host{
 				OsqueryHostID:      ptr.String("test"),
-				DEPAssignedToFleet: &depAssigned,
+				DEPAssignedToFleet: &c.depAssigned,
 				MDMInfo: &fleet.HostMDM{
 					IsServer:         false,
 					InstalledFromDep: true,
@@ -195,16 +195,16 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		}
 
 		for _, c := range cases {
+			c := c
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				appCfg := fleet.AppConfig{}
 				appCfg.MDM = c.mdm
 				return &appCfg, nil
 			}
 
-			depAssigned := c.depAssigned
 			ctx = test.HostContext(ctx, &fleet.Host{
 				OsqueryHostID:      ptr.String("test"),
-				DEPAssignedToFleet: &depAssigned,
+				DEPAssignedToFleet: &c.depAssigned,
 				MDMInfo: &fleet.HostMDM{
 					IsServer:         false,
 					InstalledFromDep: true,
