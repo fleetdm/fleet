@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -1400,10 +1401,15 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 		return false, nil
 	}
 
+	rangesJSON, err := json.Marshal(vuln.VersionRanges)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "marshaling version ranges")
+	}
+
 	var args []interface{}
 
-	stmt := `INSERT INTO software_cve (cve, source, software_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE updated_at=?`
-	args = append(args, vuln.CVE, source, vuln.SoftwareID, time.Now().UTC())
+	stmt := `INSERT INTO software_cve (cve, source, software_id, version_ranges) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE updated_at=?`
+	args = append(args, vuln.CVE, source, vuln.SoftwareID, rangesJSON, time.Now().UTC())
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
@@ -1421,8 +1427,10 @@ func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 	result := make(map[uint][]fleet.SoftwareVulnerability)
 
 	type softwareVulnerabilityWithHostId struct {
-		fleet.SoftwareVulnerability
-		HostID uint `db:"host_id"`
+		SoftwareID        uint            `db:"software_id"`
+		CVE               string          `db:"cve"`
+		HostID            uint            `db:"host_id"`
+		VersionRangesJSON json.RawMessage `db:"version_ranges"`
 	}
 	var queryR []softwareVulnerabilityWithHostId
 
@@ -1438,6 +1446,7 @@ func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 			goqu.I("hs.host_id"),
 			goqu.I("sc.software_id"),
 			goqu.I("sc.cve"),
+			goqu.I("sc.version_ranges"),
 		).
 		Where(
 			goqu.I("hs.host_id").In(hostIDs),
@@ -1454,7 +1463,17 @@ func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 	}
 
 	for _, r := range queryR {
-		result[r.HostID] = append(result[r.HostID], r.SoftwareVulnerability)
+		var versionRanges []fleet.VersionRange
+		if err := json.Unmarshal(r.VersionRangesJSON, &versionRanges); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling version ranges")
+		}
+		sv := fleet.SoftwareVulnerability{
+			CVE:           r.CVE,
+			SoftwareID:    r.SoftwareID,
+			VersionRanges: versionRanges,
+		}
+
+		result[r.HostID] = append(result[r.HostID], sv)
 	}
 
 	return result, nil

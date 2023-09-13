@@ -45,8 +45,18 @@ type SoftwareCPE struct {
 // SoftwareVulnerability is a vulnerability on a software.
 // Represents an entry in the `software_cve` table.
 type SoftwareVulnerability struct {
-	SoftwareID uint   `db:"software_id"`
-	CVE        string `db:"cve"`
+	SoftwareID    uint           `db:"software_id"`
+	CVE           string         `db:"cve"`
+	VersionRanges []VersionRange
+}
+
+type VersionRange struct {
+	// VersionStartIncluding is the version of the software where the vulnerability starts to affect
+	// the software.
+	VersionStartIncluding string `json:"version_start_including"`
+	// VersionEndExcluding is the version of the software where the vulnerability stops affecting
+	// the software.
+	VersionEndExcluding string `json:"verison_end_excluding"`
 }
 
 // String implements fmt.Stringer.
