@@ -5159,6 +5159,120 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure Redirection Guard' is set to 'Enabled: Redirection Guard Enabled' 
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether Redirection Guard is enabled for the print spooler. Redirection Guard can prevent file redirections from being used within the print spooler.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Redirection Guard Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure Redirection Guard'
+    Note: This Group Policy path is provided by the Group Policy template Printing.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\RedirectionGuardPolicy' AND (data = 1));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.2
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure RPC connection settings: Protocol to use for outgoing RPC connections' is set to 'Enabled: RPC over TCP' 
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls which protocol and protocol settings to use for outgoing Remote Procedure Call (RPC) connections to a remote print spooler.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: RPC over TCP':
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC connection settings: Protocol to use for outgoing RPC connections'
+    Note: This Group Policy path is provided by the Group Policy template Printing.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (and newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\RPC\RpcUseNamedPipeProtocol' AND (data = 0));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.3
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure RPC connection settings: Use authentication for outgoing RPC connections' is set to 'Enabled: Default' 
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls which protocol and protocol settings to use for outgoing Remote Procedure Call (RPC) connections to a remote print spooler.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: RPC over TCP':
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC connection settings: Use authentication for outgoing RPC connections'
+    Note: This Group Policy path is provided by the Group Policy template Printing.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (and newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\RPC\RpcAuthentication' AND (data = 0));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.4
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure RPC listener settings: Protocols to allow for incoming RPC connections' is set to 'Enabled: RPC over TCP'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls which protocols incoming Remote Procedure Call (RPC) connections to the print spooler are allowed to use.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: RPC over TCP':
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC listener settings: Configure protocol options for incoming RPC connections'
+    Note: This Group Policy path is provided by the Group Policy template Printing.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (and newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\RPC\RpcProtocols' AND (data = 5));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.5
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure RPC listener settings: Authentication protocol to use for incoming RPC connections:' is set to 'Enabled: Negotiate' or higher
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls which protocols incoming Remote Procedure Call (RPC) connections to the print spooler are allowed to use.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Negotiate':
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC listener settings: Configure protocol options for incoming RPC connections'
+    Note: This Group Policy path is provided by the Group Policy template Printing.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (and newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\RPC\ForceKerberosForRpc' AND (data = 0));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.6
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Manage processing of Queue-specific files' is set to 'Enabled: Limit Queue-specific files to Color profiles'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting manages how queue-specific files are processed during printer installation. At printer installation time, a vendor-supplied installation application can specify a set of files, of any type, to be associated with a particular print queue. The files are downloaded to each client that connects to the print server.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Limit Queue-specific files to Color profiles':
+    'Computer Configuration\Policies\Administrative Templates\Printers\Manage processing of Queue-specific files'
+    Note: This Group Policy path is provided by the Group Policy template Printing.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (and newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\CopyFilesPolicy' AND (data = 1));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.9
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Limits print driver installation to Administrators' is set to 'Enabled'
   platforms: win10
   platform: windows
@@ -9720,6 +9834,25 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\\fDisableWebAuthn' AND (data = 1));
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.57.3.3.7
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow search highlights' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls search highlights in the start menu search box and in search home.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    Computer Configuration\Policies\Administrative Templates\Windows Components\Search\Allow search highlights
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template Search.admx/adml that is included with the Microsoft Windows 10 Release 21H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search\\EnableDynamicContentInWSB' AND (data = 0));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.59.7
   contributors: DefensiveDepth
 ---
 apiVersion: v1
