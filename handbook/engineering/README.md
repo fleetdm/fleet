@@ -13,7 +13,7 @@ Fleet [product groups](https://fleetdm.com/handbook/company/development-groups#w
 Each sprint is marked by five essential ceremonies:
 
 1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, select items from the backlog to work on. The team then commits to completing these items within the sprint.
-2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required partipants. 
+2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required partipants.
 3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints. The EM is responsible for the point values assigned to each item and ensures they are as realistic as possible.
 4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review completed work. Engineers are allotted 3-10 minutes to present their accomplishments, as well as any pending tasks. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
 5. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.
@@ -137,7 +137,7 @@ Engineering leaders discuss topics of importance that week. Prepare agenda, anno
 
 1. Review Engineering KPIs.
 2. Review each product group's ZenHub board.
-3. Proceed to agenda. 
+3. Proceed to agenda.
 
 #### Sample agenda
 
@@ -165,7 +165,7 @@ Engineering and product bi-weekly sync to discuss process, roadmap, and scheduli
 
 ### Product development process review
 
-A once-per-sprint review of the bugs, drafting, and sprint boards to make sure that the current state of the boards reflects the process as defined in the handbook, or if any changes are needed to the documented process. 
+A once-per-sprint review of the bugs, drafting, and sprint boards to make sure that the current state of the boards reflects the process as defined in the handbook, or if any changes are needed to the documented process.
 
 #### Participants
 
@@ -179,7 +179,7 @@ A once-per-sprint review of the bugs, drafting, and sprint boards to make sure t
 - Review bugs board
 - Review drafting board
 - Review sprint boards
-- How is the process working? Are any changes needed? 
+- How is the process working? Are any changes needed?
 
 ## Engineering-initiated stories
 
@@ -255,13 +255,13 @@ Next, create a new GitHub issue using the [Release QA template](https://github.c
 
 ### Merging during the freeze period
 
-We merge bug fixes and documentation changes during the freeze period, but we do not merge other code changes. This minimizes code churn and helps ensure a stable release. To merge a bug fix, you must first unfreeze the PR in [Merge Freeze](https://app.mergefreeze.com/installations/3704/branches), and click the "Unfreeze 1 pull request" text link. 
+We merge bug fixes and documentation changes during the freeze period, but we do not merge other code changes. This minimizes code churn and helps ensure a stable release. To merge a bug fix, you must first unfreeze the PR in [Merge Freeze](https://app.mergefreeze.com/installations/3704/branches), and click the "Unfreeze 1 pull request" text link.
 
 
-It is sometimes necessary to delay the release to allow time to complete partially merged feature work. In these cases, an exception process must be followed before merging during the freeze period. 
+It is sometimes necessary to delay the release to allow time to complete partially merged feature work. In these cases, an exception process must be followed before merging during the freeze period.
 
-1. The engineer requesting the feature work merge exception during freeze notifies their Engineering Manager. 
-2. The Engineering Manager notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). 
+1. The engineer requesting the feature work merge exception during freeze notifies their Engineering Manager.
+2. The Engineering Manager notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals).
 3. The Engineering Manager, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is unfrozen and merged.
 
 ### Release day
@@ -299,7 +299,7 @@ See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo
 
 Fleet team members can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
 
-New engineers are added to the oncall rotation by their manager after they have completed onboarding and at least one full release cycle. We aim to alternate the rotation between product groups when possible. 
+New engineers are added to the oncall rotation by their manager after they have completed onboarding and at least one full release cycle. We aim to alternate the rotation between product groups when possible.
 
 > The oncall rotation may be adjusted with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
 
@@ -543,12 +543,20 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 ## Bug process
 
+- [Creating bugs](#creating-bugs)
 - [Bug states](#bug-states)
 - [Finding bugs](#finding-bugs)
 - [Outages](#outages)
 - [All bugs](#all-bugs)
 
 All bugs in Fleet are tracked by QA on the [bugs board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) in ZenHub.
+
+### Creating bugs
+
+Bugs can be created in github
+[here](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=).
+You should fill out the bug template and place the correct labels on the bug. If this bug is
+reported by a customer you should add the customer codename label, which can be found [here](https://github.com/fleetdm/confidential/labels?q=customer-)
 
 ### Bug states
 The lifecycle stages of a bug at Fleet are:
