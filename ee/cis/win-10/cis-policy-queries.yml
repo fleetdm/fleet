@@ -7707,6 +7707,25 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Allow Custom SSPs and APs to be loaded into LSASS' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the configuration under which the Local Security Authority Subsystem Service (LSASS) will load custom Security Support Provider/Authentication Package (SSP/AP).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Local Security Authority\Allow Custom SSPs and APs to be loaded into LSASS'
+        
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\Policies\\Microsoft\\Windows\\System\\AllowCustomSSPsAPs' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.25.1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Application: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
   platforms: win10
   platform: windows
@@ -9593,6 +9612,82 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Enable App Installer' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether user have access to the Windows Package Manager. Windows Package Manager is a package manager solution that consists of a command line tool and set of services for installing applications on Microsoft Windows 10 and 11.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Desktop App Installer\Enable App Installer'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DesktopAppInstaller.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableAppInstaller' AND (data = 0));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.17.1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable App Installer Experimental Features' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether users can enable experimental features in the Windows Package Manager.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Desktop App Installer\Enable App Installer Experimental Features'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DesktopAppInstaller.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableExperimentalFeatures' AND (data = 0));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.17.2
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable App Installer Hash Override' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether or not users can override the SHA256 security validation in the Windows Package Manager settings.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Desktop App Installer\Enable App Installer Hash Override'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DesktopAppInstaller.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableHashOverride' AND (data = 0));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.17.3
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable App Installer ms-appinstaller protocol' is set to 'Disabled' 
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether users can install packages from a website that is using the ms-appinstaller protocol. The ms-appinstaller protocol allows users to install an application by clicking a link on a website.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Desktop App Installer\Enable App Installer ms-appinstaller protocol'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DesktopAppInstaller.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableMSAppInstallerProtocol' AND (data = 0));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.17.4
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Disable Internet Explorer 11 as a standalone browser' is set to 'Enabled: Always'
   platforms: win10
   platform: windows
@@ -9607,6 +9702,25 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.35.1
   contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Do not allow WebAuthn redirection' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the redirection of web authentication (WebAuthn) requests from a Remote Desktop session to the local device. This redirection enables users to authenticate to resources inside the Remote Desktop session using their local authenticator (e.g. Windows Hello for Business, security key, or other).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    Computer Configuration\Policies\Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Device and Resource Redirection\Do not allow WebAuthn redirection
+    Note: This Group Policy path is provided by the Group Policy template TerminalServer.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\\fDisableWebAuthn' AND (data = 1));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.57.3.3.7
+  contributors: DefensiveDepth
 ---
 apiVersion: v1
 kind: policy
