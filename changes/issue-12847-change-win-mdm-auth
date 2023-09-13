@@ -1,2 +1,0 @@
-- change the authentication method during windows mdm enrollment to use `LoadHostByOrbitNodeKey`
-instead of `HostByIdentifier`

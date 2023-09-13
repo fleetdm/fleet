@@ -24,12 +24,13 @@ assignees: ''
 ### Product
 - [ ] UI changes: TODO <!-- Insert the link to the relevant Figma file describing all relevant changes. Remove this checkbox if there are no changes to the user interface. -->
 - [ ] CLI usage changes: TODO <!-- Specify what changes to the CLI usage are required. Remove this checkbox if there are no changes to the CLI. -->
+- [ ] REST API changes: TODO <!-- Specify what changes to the API are required.  Remove this checkbox if there are no changes necessary. The product manager may move this item to the engineering list below if they decide that engineering will design the API changes. -->
 - [ ] Permissions changes: TODO <!-- Specify what changes to the permissions are required.  Remove this checkbox if there are no changes necessary. -->
 - [ ] Outdated documentation changes: TODO <!-- Specify what changes to the documentation are required. Remove this checkbox if there are no changes necessary. -->
-- [ ] Changes to paid features or tiers TODO  <!-- List changes to paid features or tiers required.  Implementation of paid features should live in the `ee/` directory.  Remove this checkbox if there are no changes necessary. -->
+- [ ] Changes to paid features or tiers: TODO  <!-- List changes to paid features or tiers required.  Implementation of paid features should live in the `ee/` directory.  Remove this checkbox if there are no changes necessary. -->
+- [ ] Scalability testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
 
 ### Engineering
-- [ ] REST API changes: TODO <!-- Specify what changes to the API are required.  Remove this checkbox if there are no changes necessary. Product may move this item to the list above if they choose to design the API changes. -->
 - [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This willl be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 - [ ] Documentation changes complete
 

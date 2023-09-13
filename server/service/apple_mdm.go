@@ -2380,13 +2380,14 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	switch requestType {
 	case "InstallProfile":
-		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
-			CommandUUID:   res.CommandUUID,
-			HostUUID:      res.UDID,
-			Status:        mdmAppleDeliveryStatusFromCommandStatus(res.Status),
-			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
-			OperationType: fleet.MDMAppleOperationTypeInstall,
-		})
+		return nil, apple_mdm.HandleHostMDMProfileInstallResult(
+			r.Context,
+			svc.ds,
+			res.UDID,
+			res.CommandUUID,
+			mdmAppleDeliveryStatusFromCommandStatus(res.Status),
+			apple_mdm.FmtErrorChain(res.ErrorChain),
+		)
 	case "RemoveProfile":
 		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   res.CommandUUID,

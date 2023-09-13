@@ -1,1 +1,0 @@
-* Automatically set the DEP profile to be the same as "no team" (if set) for teams created using the `/match` endpoint (used by Puppet)
