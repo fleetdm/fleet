@@ -21,9 +21,10 @@ func TestUp_20230912101759(t *testing.T) {
 
 	// retrieve the stored value
 	var cveMeta struct {
-		CVE         string
-		Description *string
+		CVE         string  `db:"cve"`
+		Description *string `db:"description"`
 	}
+
 	err := db.Get(&cveMeta, "SELECT * FROM cve_meta WHERE cve = ?", cveVal)
 	require.NoError(t, err)
 	require.Equal(t, cveVal, cveMeta.CVE)
