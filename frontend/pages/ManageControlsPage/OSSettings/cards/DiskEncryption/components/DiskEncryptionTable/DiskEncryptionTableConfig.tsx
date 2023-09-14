@@ -80,9 +80,10 @@ const defaultTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        disableSortBy={false}
+        disableSortBy
       />
     ),
+    disableSortBy: true,
     accessor: "macosHosts",
     Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
       return (
@@ -98,9 +99,10 @@ const defaultTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        disableSortBy={false}
+        disableSortBy
       />
     ),
+    disableSortBy: true,
     accessor: "windowsHosts",
     Cell: ({
       cell: { value: aggregateCount },
@@ -176,6 +178,16 @@ const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
 
 type StatusEntry = [DiskEncryptionStatus, IDiskEncryptionStatusAggregate];
 
+// Order of the status column. We want the order to always be the same.
+const statusOrder: DiskEncryptionStatus[] = [
+  "verified",
+  "verifying",
+  "failed",
+  "action_required",
+  "enforcing",
+  "removing_enforcement",
+];
+
 export const generateTableData = (
   data?: IDiskEncryptionSummaryResponse,
   currentTeamId?: number
@@ -184,6 +196,11 @@ export const generateTableData = (
 
   // type cast here gives a little more typing information than Object.entries alone.
   const entries = Object.entries(data) as StatusEntry[];
+
+  // ensure the order of the status column is always the same.
+  entries.sort(([statusA], [statusB]) => {
+    return statusOrder.indexOf(statusA) - statusOrder.indexOf(statusB);
+  });
 
   return entries.map(([status, statusAggregate]) => ({
     status: STATUS_CELL_VALUES[status],

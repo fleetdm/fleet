@@ -53,8 +53,9 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
         isLoading={false}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        defaultSortHeader={DEFAULT_SORT_HEADER}
-        defaultSortDirection={DEFAULT_SORT_DIRECTION}
+        manualSortBy
+        // defaultSortHeader={DEFAULT_SORT_HEADER}
+        // defaultSortDirection={DEFAULT_SORT_DIRECTION}
         disableTableHeader
         disablePagination
         disableCount
