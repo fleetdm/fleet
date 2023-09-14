@@ -346,7 +346,7 @@ func main() {
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
 		// sofwareupdated is a macOS daemon that automatically updates Apple software.
-		if !c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
+		if c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
 			log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
 		}
 
