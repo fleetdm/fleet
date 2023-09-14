@@ -281,7 +281,6 @@ func checkCVEs(
 	level.Debug(logger).Log("pushing cpes", "done")
 	wg.Wait()
 
-	fmt.Println("checkCVE foundVulns", foundVulns)
 	return foundVulns, nil
 }
 
@@ -341,47 +340,22 @@ func getMatchingVersionEndExcluding(cve string, hostSoftwareMeta *wfn.Attributes
 			continue
 		}
 
-		if rule.VersionStartIncluding == "" && rule.VersionStartExcluding == "" {
-			fmt.Println("msg", "VersionStartIncluding and VersionStartExcluding are empty, returning VersionEndExcluding", "cve", cve)
-			return rule.VersionEndExcluding, nil
+		versionEnd, err := checkVersion(rule, softwareVersion)
+		if err != nil {
+			fmt.Println("msg", "error checking version", "cve", cve, "err", err)
+			return "", err
 		}
-
-		if rule.VersionStartIncluding != "" {
-			constraint, err := semver.NewConstraint(">= " + rule.VersionStartIncluding + " < " + rule.VersionEndExcluding)
-			if err != nil {
-				fmt.Println("msg", "error parsing constraint", "cve", cve, "constraint", ">= "+rule.VersionStartIncluding+" < "+rule.VersionEndExcluding)
-				return "", err
-			}
-
-			if constraint.Check(softwareVersion) {
-				fmt.Println("msg", "constraint check passed", "cve", cve, "constraint", ">= "+rule.VersionStartIncluding+" < "+rule.VersionEndExcluding)
-				return rule.VersionEndExcluding, nil
-			} else {
-				fmt.Println("msg", "constraint check failed", "cve", cve, "constraint", ">= "+rule.VersionStartIncluding+" < "+rule.VersionEndExcluding)
-			}
-		}
-
-		if rule.VersionStartExcluding != "" {
-			constraint, err := semver.NewConstraint("> " + rule.VersionStartExcluding + " < " + rule.VersionEndExcluding)
-			if err != nil {
-				fmt.Println("msg", "error parsing constraint", "cve", cve, "constraint", "> "+rule.VersionStartExcluding+" < "+rule.VersionEndExcluding)
-				return "", err
-			}
-
-			if constraint.Check(softwareVersion) {
-				fmt.Println("msg", "constraint check passed", "cve", cve, "constraint", "> "+rule.VersionStartExcluding+" < "+rule.VersionEndExcluding)
-				return rule.VersionEndExcluding, nil
-			} else {
-				fmt.Println("msg", "constraint check failed", "cve", cve, "constraint", "> "+rule.VersionStartExcluding+" < "+rule.VersionEndExcluding)
-			}
+		if versionEnd != "" {
+			return versionEnd, nil
 		}
 	}
 
 	fmt.Println("msg", "no matching rule found", "cve", cve)
 
-	return "", nil
+	return "", fmt.Errorf("no matching rule found for CVE: %s", cve)
 }
 
+// findCPEMatch recursively searches the nodes for a CPEMatch
 func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJSON10DefCPEMatch {
 	for _, node := range nodes {
 		if len(node.CPEMatch) > 0 {
@@ -396,4 +370,40 @@ func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJ
 		}
 	}
 	return nil
+}
+
+func checkVersion(rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *semver.Version) (string, error) {
+	for _, condition := range []struct {
+		startIncluding string
+		startExcluding string
+	}{
+		{rule.VersionStartIncluding, ""},
+		{"", rule.VersionStartExcluding},
+	} {
+		constraintStr := buildConstraintString(condition.startIncluding, condition.startExcluding, rule.VersionEndExcluding)
+		if constraintStr == "" {
+			return rule.VersionEndExcluding, nil
+		}
+
+		constraint, err := semver.NewConstraint(constraintStr)
+		if err != nil {
+			return "", err
+		}
+
+		if constraint.Check(softwareVersion) {
+			return rule.VersionEndExcluding, nil
+		}
+	}
+
+	return "", nil
+}
+
+func buildConstraintString(startIncluding, startExcluding, endExcluding string) string {
+	if startIncluding == "" && startExcluding == "" {
+		return ""
+	}
+	if startIncluding != "" {
+		return fmt.Sprintf(">= %s < %s", startIncluding, endExcluding)
+	}
+	return fmt.Sprintf("> %s < %s", startExcluding, endExcluding)
 }
