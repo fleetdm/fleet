@@ -339,7 +339,7 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
 
-<meta name="pageOrderInSection" value="1505">
+<meta name="pageOrderInSection" value="1506">
 <meta name="title" value="MDM macOS setup">
 <meta name="description" value="Customize your macOS setup experience with Fleet Premium by managing user authentication, Setup Assistant panes, and installing bootstrap packages.">
 <meta name="navSection" value="Device management">

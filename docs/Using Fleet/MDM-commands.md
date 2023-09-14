@@ -117,7 +117,7 @@ The command ID can be used to view command results as documented in [step 4 of t
 * Error: the host responded with "Error" status via the MDM protocol: an error occurred. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 * CommandFormatError: the host responded with "CommandFormatError" status via the MDM protocol: a protocol error occurred, which can result from a malformed command. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 
-<meta name="pageOrderInSection" value="1506">
+<meta name="pageOrderInSection" value="1507">
 <meta name="title" value="MDM commands">
 <meta name="description" value="Learn how to run custom MDM commands on macOS hosts using Fleet.">
 <meta name="navSection" value="Device management">
