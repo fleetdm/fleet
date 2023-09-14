@@ -25,6 +25,8 @@ interface IStatusIndicatorWithIconProps {
   };
   layout?: "horizontal" | "vertical";
   className?: string;
+  /** Classname to add to the value text */
+  valueClassName?: string;
 }
 
 const statusIconNameMapping: Record<IndicatorStatus, IconNames> = {
@@ -41,11 +43,12 @@ const StatusIndicatorWithIcon = ({
   tooltip,
   layout = "horizontal",
   className,
+  valueClassName,
 }: IStatusIndicatorWithIconProps) => {
   const classNames = classnames(baseClass, className);
   const id = `status-${uniqueId()}`;
 
-  const valueClasses = classnames(`${baseClass}__value`, {
+  const valueClasses = classnames(`${baseClass}__value`, valueClassName, {
     [`${baseClass}__value-vertical`]: layout === "vertical",
   });
   const valueContent = (

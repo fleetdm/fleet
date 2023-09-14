@@ -9,46 +9,47 @@ import StatusIndicatorWithIcon, {
   IndicatorStatus,
 } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
+import AGGREGATE_STATUS_DISPLAY_OPTIONS from "./ProfileStatusAggregateOptions";
+
 const baseClass = "profile-status-aggregate";
 
-interface IAggregateDisplayOption {
-  value: MdmProfileStatus;
-  text: string;
-  iconName: IndicatorStatus;
+interface IProfileStatusCountProps {
+  statusIcon: IndicatorStatus;
+  statusValue: MdmProfileStatus;
+  title: string;
+  teamId: number;
+  hostCount: number;
   tooltipText: string;
 }
 
-const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
-  {
-    value: "verified",
-    text: "Verified",
-    iconName: "success",
-    tooltipText:
-      "These hosts installed all configuration profiles. Fleet verified with osquery.",
-  },
-  {
-    value: "verifying",
-    text: "Verifying",
-    iconName: "successPartial",
-    tooltipText:
-      "These hosts acknowledged all MDM commands to install configuration profiles. " +
-      "Fleet is verifying the profiles are installed with osquery.",
-  },
-  {
-    value: "pending",
-    text: "Pending",
-    iconName: "pendingPartial",
-    tooltipText:
-      "These hosts will receive MDM commands to install configuration profiles when the hosts come online.",
-  },
-  {
-    value: "failed",
-    text: "Failed",
-    iconName: "error",
-    tooltipText:
-      "These hosts failed to install configuration profiles. Click on a host to view error(s).",
-  },
-];
+const ProfileStatusCount = ({
+  statusIcon,
+  statusValue,
+  teamId,
+  title,
+  hostCount,
+  tooltipText,
+}: IProfileStatusCountProps) => {
+  const generateFilterHostsByStatusLink = () => {
+    return `${paths.MANAGE_HOSTS}?${buildQueryStringFromParams({
+      team_id: teamId,
+      macos_settings: statusValue,
+    })}`;
+  };
+
+  return (
+    <div className={`${baseClass}__profile-status-count`}>
+      <StatusIndicatorWithIcon
+        status={statusIcon}
+        value={title}
+        tooltip={{ tooltipText, position: "top" }}
+        layout="vertical"
+        valueClassName={`${baseClass}__status-indicator-value`}
+      />
+      <a href={generateFilterHostsByStatusLink()}>{hostCount} hosts</a>
+    </div>
+  );
+};
 
 interface ProfileStatusAggregateProps {
   isLoading: boolean;
@@ -68,23 +69,14 @@ const ProfileStatusAggregate = ({
     const count = aggregateProfileStatusData[value];
 
     return (
-      <div className={`${baseClass}__profile-status-count`}>
-        <StatusIndicatorWithIcon
-          status={iconName}
-          value={text}
-          tooltip={{ tooltipText, position: "top" }}
-          layout="vertical"
-          className={`${baseClass}__status-indicator`}
-        />
-        <a
-          href={`${paths.MANAGE_HOSTS}?${buildQueryStringFromParams({
-            team_id: teamId,
-            macos_settings: value,
-          })}`}
-        >
-          {count} hosts
-        </a>
-      </div>
+      <ProfileStatusCount
+        statusIcon={iconName}
+        statusValue={value}
+        teamId={teamId}
+        title={text}
+        hostCount={count}
+        tooltipText={tooltipText}
+      />
     );
   });
 
