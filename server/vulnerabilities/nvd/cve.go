@@ -284,65 +284,67 @@ func checkCVEs(
 	return foundVulns, nil
 }
 
+// Returns the versionEndExcluding string for the given CVE and host software meta
+// data, if it exists in the NVD feed.  This effectively gives us the version of the
+// software it needs to upgrade to in order to address the CVE.
 func getMatchingVersionEndExcluding(cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary) (string, error) {
 	vuln, ok := dict[cve].(*feednvd.Vuln)
 	if !ok {
-		fmt.Println("msg", "Vuln interface", "cve", cve, "type", fmt.Sprintf("%T", dict[cve])) // TODO remove
 		return "", nil
 	}
 
+	// Schema() maps to the JSON schema of the NVD feed for a given CVE
 	vulnSchema := vuln.Schema()
 	if vulnSchema == nil {
-		fmt.Println("msg", "vulnSchema is nil", "cve", cve) // TODO remove
 		return "", nil
 	}
 
 	config := vulnSchema.Configurations
 	if config == nil {
-		fmt.Println("msg", "Configurations is nil", "cve", cve) // TODO remove
 		return "", nil
 	}
 
 	nodes := config.Nodes
 	if len(nodes) == 0 {
-		fmt.Println("msg", "Nodes is nil", "cve", cve) // TODO remove
 		return "", nil
 	}
 
 	cpeMatch := findCPEMatch(nodes)
 	if cpeMatch == nil || len(cpeMatch) == 0 {
-		fmt.Println("msg", "CPEMatch is nil or empty", "cve", cve) // TODO remove
 		return "", nil
 	}
 
+	// convert the host software version to semver for later comparison
 	softwareVersion, err := semver.NewVersion(wfn.StripSlashes(hostSoftwareMeta.Version))
 	if err != nil {
-		fmt.Println("msg", "error parsing host software version", "cve", cve, "version", hostSoftwareMeta.Version) // TODO remove
 		return "", err
 	}
 
+	// Check if the host software version matches any of the CPEMatch rules.
+	// CPEMatch rules can include version strings for the following:
+	// - versionStartIncluding
+	// - versionStartExcluding
+	// - versionEndExcluding
+	// - versionEndIncluding - not used in this function
 	for _, rule := range cpeMatch {
 		if rule.VersionEndExcluding == "" {
-			fmt.Println("msg", "VersionEndExcluding is empty", "cve", cve)
 			continue
 		}
 
-		// convert the NVD cpe23URi to wfn.Attributes
+		// convert the NVD cpe23URi to wfn.Attributes for later comparison
 		attr, err := wfn.Parse(rule.Cpe23Uri)
 		if err != nil {
-			fmt.Println("msg", "error parsing cpe23Uri", "cve", cve, "cpe23Uri", rule.Cpe23Uri)
 			return "", err
 		}
 
 		// ensure the product and vendor match
 		if attr.Product != hostSoftwareMeta.Product || attr.Vendor != hostSoftwareMeta.Vendor {
-			fmt.Println("msg", "product or vendor do not match", "cve", cve, "product", attr.Product, "vendor", attr.Vendor)
 			continue
 		}
 
+		// versionEnd is the version string that the vulnerable host software version must be less than
 		versionEnd, err := checkVersion(rule, softwareVersion)
 		if err != nil {
-			fmt.Println("msg", "error checking version", "cve", cve, "err", err)
 			return "", err
 		}
 		if versionEnd != "" {
@@ -350,12 +352,10 @@ func getMatchingVersionEndExcluding(cve string, hostSoftwareMeta *wfn.Attributes
 		}
 	}
 
-	fmt.Println("msg", "no matching rule found", "cve", cve)
-
 	return "", fmt.Errorf("no matching rule found for CVE: %s", cve)
 }
 
-// findCPEMatch recursively searches the nodes for a CPEMatch
+// CPEMatch can be nested in Children nodes. Recursively search the nodes for a CPEMatch
 func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJSON10DefCPEMatch {
 	for _, node := range nodes {
 		if len(node.CPEMatch) > 0 {
@@ -372,6 +372,7 @@ func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJ
 	return nil
 }
 
+// checkVersion checks if the host software version matches the CPEMatch rule
 func checkVersion(rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *semver.Version) (string, error) {
 	for _, condition := range []struct {
 		startIncluding string
@@ -398,6 +399,8 @@ func checkVersion(rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *sem
 	return "", nil
 }
 
+// buildConstraintString builds a semver constraint string from the startIncluding,
+// startExcluding, and endExcluding strings
 func buildConstraintString(startIncluding, startExcluding, endExcluding string) string {
 	if startIncluding == "" && startExcluding == "" {
 		return ""

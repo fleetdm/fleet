@@ -340,8 +340,9 @@ func TestSyncsCVEFromURL(t *testing.T) {
 	)
 }
 
+// This test is using real data from the 2022 NVD feed
 func TestGetMatchingVersionEndExcluding(t *testing.T) {
-	testDict := loadDictFromFixture("../testdata/nvdcve-1.1-2022.json.gz")
+	testDict := loadDict(t, "../testdata/nvdcve-1.1-2022.json.gz")
 
 	tests := []struct {
 		name    string
@@ -399,11 +400,11 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 	}
 }
 
-// loadDictFromFixture loads a cvefeed.Dictionary from a JSON fixture file.
-func loadDictFromFixture(path string) cvefeed.Dictionary {
+// loadDict loads a cvefeed.Dictionary from a JSON NVD feed file.
+func loadDict(t *testing.T, path string) cvefeed.Dictionary {
 	dict, err := cvefeed.LoadJSONDictionary(path)
 	if err != nil {
-		panic(fmt.Sprintf("failed to load dictionary from fixture: %v", err))
+		t.Fatal(err)
 	}
 	return dict
 }
