@@ -4,7 +4,7 @@
 
 This section outlines the release process at Fleet after all EMs have certified that they are ready for release. 
 
-The current release cadence is once every three weeks and concentrates around Wednesdays. Patch versions are released as needed.
+The current release cadence is once every three weeks. Patch versions are released as needed.
 #### Release candidate process
 
 Major, minor, and patch releases go through the same release candidate and smoke testing process prior to release. 

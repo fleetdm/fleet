@@ -215,7 +215,7 @@ The current release cadence is once every three weeks and is concentrated around
 
 ### Release freeze period
 
-To ensure release quality, Fleet has a freeze period for testing beginning the Thursday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
+To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
 
 Bugs are exempt from the release freeze period.
 
