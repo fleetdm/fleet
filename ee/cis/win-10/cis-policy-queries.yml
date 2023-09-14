@@ -4759,20 +4759,20 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds' is set to 'Enabled: 300,000 or 5 minutes'
+    CIS - Ensure 'LSA Protection' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
-    This value controls how often TCP attempts to verify that an idle connection is still intact by sending a keep-alive packet. If the remote computer is still reachable, it acknowledges the keep-alive packet.
+    This policy setting controls whether the Local Security Authority Server Service (LSASS) process runs protected. The Local Security Authority (LSA), which includes the Local Security Authority Server Service (LSASS) process, validates users for local and remote sign-ins and enforces local security policies.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 300,000 or 5 minutes (recommended)':
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\MS Security Guide\LSA Protection'
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (SecGuide.admx/adml) is required - it is available from Microsoft.
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\KeepAliveTime' AND data = 300000);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\RunAsPPL' AND (data = 1));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.4.6, CIS_group_policy_template_required
-  contributors: rachelelysia
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.4.6
+  contributors: DefensiveDepth
 ---
 apiVersion: v1
 kind: policy
@@ -4949,6 +4949,25 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.5.5.1
   contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds' is set to 'Enabled: 300,000 or 5 minutes'
+  platforms: win10
+  platform: windows
+  description: |
+    This value controls how often TCP attempts to verify that an idle connection is still intact by sending a keep-alive packet. If the remote computer is still reachable, it acknowledges the keep-alive packet.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 300,000 or 5 minutes (recommended)':
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds'
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\KeepAliveTime' AND data = 300000);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.5.6, CIS_group_policy_template_required
+  contributors: rachelelysia
 ---
 apiVersion: v1
 kind: policy
@@ -5136,6 +5155,24 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.6.3
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure NetBIOS settings' is set to 'Enabled: Disable NetBIOS name resolution on public networks'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies if the Domain Name System (DNS) client will perform name resolution over Network Basic Input/Output System (NetBIOS). NetBIOS is a legacy name resolution method for internal Microsoft networking that predates the use of DNS for that purpose (pre–Active Directory). Some legacy applications still require the use of NetBIOS for full functionality.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Disable NetBIOS name resolution on public networks':
+    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Configure NetBIOS settings'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\\EnableNetbios' AND (data = 0));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.6.4.1
+  contributors: DefensiveDepth
 ---
 apiVersion: v1
 kind: policy
