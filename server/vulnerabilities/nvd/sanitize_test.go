@@ -160,6 +160,7 @@ func TestVariations(t *testing.T) {
 	}
 
 	for _, tc := range variationsTestCases {
+		tc := tc
 		require.ElementsMatch(t, tc.productVariations, productVariations(&tc.software), tc.software)
 		require.ElementsMatch(t, tc.vendorVariations, vendorVariations(&tc.software), tc.software)
 	}
@@ -201,6 +202,7 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
+			tc := tc
 			actual := sanitizeSoftwareName(&tc.software)
 			require.Equal(t, tc.expected, actual)
 		}
@@ -232,6 +234,7 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
+			tc := tc
 			actual := sanitizeSoftwareName(&tc.software)
 			require.Equal(t, tc.expected, actual)
 		}
@@ -270,6 +273,7 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
+			tc := tc
 			actual := sanitizeSoftwareName(&tc.software)
 			require.Equal(t, tc.expected, actual)
 		}
@@ -292,6 +296,7 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
+			tc := tc
 			actual := sanitizeSoftwareName(&tc.software)
 			require.Equal(t, tc.expected, actual)
 		}
@@ -314,6 +319,7 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
+			tc := tc
 			actual := sanitizeSoftwareName(&tc.software)
 			require.Equal(t, tc.expected, actual)
 		}
@@ -362,6 +368,7 @@ func TestSanitizedSoftwareName(t *testing.T) {
 			},
 		}
 		for _, tc := range testCases {
+			tc := tc
 			actual := sanitizeSoftwareName(&tc.software)
 			require.Equal(t, tc.expected, actual)
 		}

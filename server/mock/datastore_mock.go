@@ -488,9 +488,13 @@ type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet
 
 type SetDiskEncryptionResetStatusFunc func(ctx context.Context, hostID uint, status bool) error
 
-type UpdateHostMDMProfilesVerificationFunc func(ctx context.Context, host *fleet.Host, verified []string, failed []string) error
+type UpdateHostMDMProfilesVerificationFunc func(ctx context.Context, hostUUID string, toVerify []string, toFail []string, toRetry []string) error
 
 type GetHostMDMProfilesExpectedForVerificationFunc func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error)
+
+type GetHostMDMProfilesRetryCountsFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMProfileRetryCount, error)
+
+type GetHostMDMProfileRetryCountByCommandUUIDFunc func(ctx context.Context, hostUUID string, cmdUUID string) (fleet.HostMDMProfileRetryCount, error)
 
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
@@ -1385,6 +1389,12 @@ type DataStore struct {
 
 	GetHostMDMProfilesExpectedForVerificationFunc        GetHostMDMProfilesExpectedForVerificationFunc
 	GetHostMDMProfilesExpectedForVerificationFuncInvoked bool
+
+	GetHostMDMProfilesRetryCountsFunc        GetHostMDMProfilesRetryCountsFunc
+	GetHostMDMProfilesRetryCountsFuncInvoked bool
+
+	GetHostMDMProfileRetryCountByCommandUUIDFunc        GetHostMDMProfileRetryCountByCommandUUIDFunc
+	GetHostMDMProfileRetryCountByCommandUUIDFuncInvoked bool
 
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
@@ -3307,11 +3317,11 @@ func (s *DataStore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uin
 	return s.SetDiskEncryptionResetStatusFunc(ctx, hostID, status)
 }
 
-func (s *DataStore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, verified []string, failed []string) error {
+func (s *DataStore) UpdateHostMDMProfilesVerification(ctx context.Context, hostUUID string, toVerify []string, toFail []string, toRetry []string) error {
 	s.mu.Lock()
 	s.UpdateHostMDMProfilesVerificationFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostMDMProfilesVerificationFunc(ctx, host, verified, failed)
+	return s.UpdateHostMDMProfilesVerificationFunc(ctx, hostUUID, toVerify, toFail, toRetry)
 }
 
 func (s *DataStore) GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
@@ -3319,6 +3329,20 @@ func (s *DataStore) GetHostMDMProfilesExpectedForVerification(ctx context.Contex
 	s.GetHostMDMProfilesExpectedForVerificationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostMDMProfilesExpectedForVerificationFunc(ctx, host)
+}
+
+func (s *DataStore) GetHostMDMProfilesRetryCounts(ctx context.Context, hostUUID string) ([]fleet.HostMDMProfileRetryCount, error) {
+	s.mu.Lock()
+	s.GetHostMDMProfilesRetryCountsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMProfilesRetryCountsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, hostUUID string, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
+	s.mu.Lock()
+	s.GetHostMDMProfileRetryCountByCommandUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMProfileRetryCountByCommandUUIDFunc(ctx, hostUUID, cmdUUID)
 }
 
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {

@@ -162,7 +162,7 @@ Want to hire?  Here's how to open up a new position on the core team:
 
 1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department. Set the start date to the first Monday of the next month (This position is still only proposed (not approved), but would make it easier for the approver to have the date set).
 2. **Propose job description:** Copy, personalize, and publish the job description:
-  - Create an entry for the proposed position in the [open positions YAML file](https://github.com/fleetdm/fleet/tree/main/handbook/company/open-positions.yml/edit). To do this, you can either duplicate an existing open position and update the values, or you can copy and paste the commented out template at the top of the file.
+  - Create an entry for the proposed position in the [open positions YAML file](https://github.com/fleetdm/fleet/tree/main/handbook/company/open-positions.yml). To do this, you can either duplicate an existing open position and update the values, or you can copy and paste the commented out template at the top of the file.
 
   - Update the required values for the new entry:
     - `jobTitle`: The job title of the proposed position. This will determine the living URL of the page on the Fleet website.
@@ -275,6 +275,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - First and last name
    - Preferred pronoun _("them", "her", or "him")_
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
+   - Location of candidate
    - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
      > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
 2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.

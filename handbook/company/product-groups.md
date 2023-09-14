@@ -16,10 +16,10 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
 |:--------------------------|:--------------------------------------------------------------------|:-----------------|
-| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category. | 75       |
-| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 60       |
-| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | 16 |
-| [Website](#website-group)                               | Make the website wonderful.                   | 48       |
+| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category. | 65       |
+| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 65       |
+| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | 13 |
+| [Website](#website-group)                               | Make the website wonderful.                   | 13       |
 
 \* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
@@ -33,7 +33,7 @@ The goal of the MDM group is to reach [product maturity](https://drive.google.co
 | Engineering manager               | George Karr
 | Quality assurance                 | Sabrina Coy
 | Product manager                   | Noah Talerman
-| Software engineers (developers)   | Gabe Hernandez, Roberto Dip, Sarah Gillespie, Marcos Oviedo
+| Software engineers (developers)   | Gabe Hernandez, Roberto Dip, Sarah Gillespie, Marcos Oviedo, Martin Angers
 
 > The Slack channel, kanban release board, and label for this product group is `#g-mdm`.
 
@@ -51,7 +51,7 @@ The goal of the customer experience (CX) group is to make users and customers ha
 | Engineering manager               | Sharon Katz
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Mo Zhu
-| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Martin Angers, Tim Lee
+| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Tim Lee
 
 > The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
@@ -63,7 +63,7 @@ The goal of the infrastructure group is to provide and support reliable and secu
 |:----------------------------------|:--------------------------|
 | Engineering manager               | Luke Heath                
 | Product manager                   | Luke Heath               
-| Infrastructure engineers          | Robert Fairburn, Zach Winnerman
+| Infrastructure engineers          | Robert Fairburn
 
 > The Slack channel, kanban release board, and label for this product group is `#g-infra`.
 
