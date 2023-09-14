@@ -217,10 +217,10 @@ When writing error messages in the UI or CLI, follow these rules:
 
 **Fleetctl commands with `--hosts` or `--host` flag**
 
-When designing CLI experience for commands that target hosts (e.g. `fleetctl query` or `fleetctl mdm run-command`) that include `--hosts`/`--host` flag, in case if non-existing host is specified, use the following error message: `Error: No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.`  
+When designing CLI experience for commands that target hosts (e.g. `fleetctl query` or `fleetctl mdm run-command` when including the `--hosts` or `--host` flag), if a non-existing host is specified, use a single error message such as: `Error: No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.`
 
-When writing copy for CLI help pages use the following descriptions.
-```other
+When writing copy for CLI help pages use the following descriptions:
+```
 $ fleetctl <command with --hosts/--host flag> -h
 
 OPTIONS
