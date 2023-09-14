@@ -224,7 +224,7 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 	}
 
 	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemEnrollmentType)
-	if err != nil || reqEnrollType != mdm.ReqSecTokenEnrollType {
+	if err != nil || (reqEnrollType != mdm.ReqSecTokenEnrollTypeDevice && reqEnrollType != mdm.ReqSecTokenEnrollTypeFull) {
 		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
 	}
 
