@@ -208,7 +208,7 @@ func (tq *TargetedQuery) AuthzType() string {
 var (
 	errQueryEmptyName       = errors.New("query name cannot be empty")
 	errQueryEmptyQuery      = errors.New("query's SQL query cannot be empty")
-	errQueryInvalidPlatform = errors.New("query's platform must be a commas-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string")
+	ErrQueryInvalidPlatform = errors.New("query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string")
 	errInvalidLogging       = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
 )
 
@@ -245,7 +245,7 @@ func verifyQueryPlatforms(platforms string) error {
 		case "windows", "linux", "darwin", "chrome":
 			// OK
 		default:
-			return errQueryInvalidPlatform
+			return ErrQueryInvalidPlatform
 		}
 	}
 	return nil
