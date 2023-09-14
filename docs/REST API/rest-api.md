@@ -101,6 +101,42 @@ Authenticates the user with the specified credentials. Use the token returned fr
 }
 ```
 
+##### Authentication failed
+
+`Status: 401 Unauthorized`
+
+```json
+{
+  "message": "Authentication failed",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Authentication failed"
+    }
+  ],
+  "uuid": "1272014b-902b-4b36-bcdb-75fde5eac1fc"
+}
+```
+
+##### Too many requests / Rate limiting
+
+`Status: 429 Too Many Requests`
+`Header: retry-after: N`
+
+> This response includes a header `retry-after` that indicates how many more seconds you are blocked before you can try again.
+
+```json
+{
+  "message": "limit exceeded, retry after: Ns",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "limit exceeded, retry after: Ns"
+    }
+  ]
+}
+```
+
 ---
 
 ### Log out
