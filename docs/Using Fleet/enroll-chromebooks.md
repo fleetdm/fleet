@@ -26,19 +26,19 @@ To learn how to debug the Fleetd Chrome extension, visit [here](https://github.c
 
 ## Potential issues and troubleshooting: 
 - 1 The extension does not install on our Chromebooks.
-- 2 Chrome Web Browsers on other OSs (Mac/Linux/Windows) get this extension (where it's not needed).
+- 2 Chrome web browsers on other OSs (Mac/Linux/Windows) get this extension (where it's not needed).
 
 Google Admin is arranged in a hierarchy of Organizational Units (OUs) tree. Each of the OUs can hold a combination of USERs and/or DEVICEs.
-Chrome extensions can be set for a specific OU (force-installed, allow install or block). However, extensions can only be set at USERs level (not DEVICES).
+Chrome extensions can be set for a specific OU (force-installed, allow-install or block). However, extensions can only be set at USERs level (not DEVICES).
 If a Chrome extension is deployed to an OU that only has DEVICES, it will not be installed. 
 On the other hand, if you deploy an extension to an OU that hold USERS with both ChromeBooks and
-managed Chrome web browsers (e.g. Chrome browser on a MacBook), it will deploy the extension to that Chrome Web Browser.
+managed Chrome web browsers (e.g. Chrome browser on a MacBook), it will deploy the extension to these Chrome web browser.
 
 ### Our recommendation: 
 - Create an OU that will hold all USERs with Chromebooks. Deploy our extension to it (Force-Install).
 - Create an OU to holds the managed Chrome Web Browsers of the USERS above (Not the USERS. Just the Chrome Web Brwosers). Make sure our extension is blocked on this OU. 
 
-> Note: When deployed on OSs other than ChromeOS, our Chrome Extension will detect it and not perform any operation.  
+> Note: When deployed on OSs other than ChromeOS, our Chrome extension will detect it and not perform any operation.  
 
 
 <meta name="title" value="Enroll Chromebooks">
