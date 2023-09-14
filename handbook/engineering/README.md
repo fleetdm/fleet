@@ -288,7 +288,7 @@ How to deploy a new release to dogfood:
 
 Immediately after publishing a new release, we close out the associated GitHub issues and milestones. 
 
-### Update Milestone in GitHub
+### Update milestone in GitHub
 
 1. **Rename Current Milestone**: In GitHub, [change the current milestone name](https://github.com/fleetdm/fleet/milestones) from `4.x.x-tentative` to `4.x.x`. `4.37.0-tentative` becomes `4.37.0`.
 
