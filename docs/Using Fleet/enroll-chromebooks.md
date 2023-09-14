@@ -28,7 +28,7 @@ To learn how to debug the Fleetd Chrome extension, visit [here](https://github.c
 - 1 The extension does not install on our ChromeBooks.
 - 2 Chrome Web Browsers on other OSs (Mac/Linux/Windows) get this extension (where it's not needed).
 
-Google Admin is arranged in a hirarchy of Organizational Units (OUs) tree. Each of the OUs can hold a combination of USERs and/or DEVICEs.
+Google Admin is arranged in a hierarchy of Organizational Units (OUs) tree. Each of the OUs can hold a combination of USERs and/or DEVICEs.
 Chrome extensions can be set for a specific OU (force-installed, allow install or block). However, Extensions can only be set at USERs level (not DEVICES).
 If a chrome extension is deployed to an OU that only has DEVICES, it will not be installed. 
 On the other hand if you deploy an extension to an OU that hold USERS with both ChromeBooks and
