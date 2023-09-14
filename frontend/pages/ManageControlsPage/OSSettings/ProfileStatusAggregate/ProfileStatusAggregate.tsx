@@ -3,17 +3,18 @@ import React from "react";
 import paths from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
 import { MdmProfileStatus, ProfileSummaryResponse } from "interfaces/mdm";
-import MacSettingsIndicator from "pages/hosts/details/MacSettingsIndicator";
 
-import { IconNames } from "components/icons";
 import Spinner from "components/Spinner";
+import StatusIndicatorWithIcon, {
+  IndicatorStatus,
+} from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
-const baseClass = "aggregate-mac-settings-indicators";
+const baseClass = "profile-status-aggregate";
 
 interface IAggregateDisplayOption {
   value: MdmProfileStatus;
   text: string;
-  iconName: IconNames;
+  iconName: IndicatorStatus;
   tooltipText: string;
 }
 
@@ -28,7 +29,7 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
   {
     value: "verifying",
     text: "Verifying",
-    iconName: "success-partial",
+    iconName: "successPartial",
     tooltipText:
       "These hosts acknowledged all MDM commands to install configuration profiles. " +
       "Fleet is verifying the profiles are installed with osquery.",
@@ -36,7 +37,7 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
   {
     value: "pending",
     text: "Pending",
-    iconName: "pending-partial",
+    iconName: "pendingPartial",
     tooltipText:
       "These hosts will receive MDM commands to install configuration profiles when the hosts come online.",
   },
@@ -49,17 +50,17 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
   },
 ];
 
-interface AggregateMacSettingsIndicatorsProps {
+interface ProfileStatusAggregateProps {
   isLoading: boolean;
   teamId: number;
   aggregateProfileStatusData?: ProfileSummaryResponse;
 }
 
-const AggregateMacSettingsIndicators = ({
+const ProfileStatusAggregate = ({
   isLoading,
   teamId,
   aggregateProfileStatusData,
-}: AggregateMacSettingsIndicatorsProps) => {
+}: ProfileStatusAggregateProps) => {
   const indicators = AGGREGATE_STATUS_DISPLAY_OPTIONS.map((status) => {
     if (!aggregateProfileStatusData) return null;
 
@@ -67,11 +68,13 @@ const AggregateMacSettingsIndicators = ({
     const count = aggregateProfileStatusData[value];
 
     return (
-      <div className="aggregate-mac-settings-indicator">
-        <MacSettingsIndicator
-          indicatorText={text}
-          iconName={iconName}
+      <div className={`${baseClass}__profile-status-count`}>
+        <StatusIndicatorWithIcon
+          status={iconName}
+          value={text}
           tooltip={{ tooltipText, position: "top" }}
+          layout="vertical"
+          className={`${baseClass}__status-indicator`}
         />
         <a
           href={`${paths.MANAGE_HOSTS}?${buildQueryStringFromParams({
@@ -96,4 +99,4 @@ const AggregateMacSettingsIndicators = ({
   return <div className={baseClass}>{indicators}</div>;
 };
 
-export default AggregateMacSettingsIndicators;
+export default ProfileStatusAggregate;

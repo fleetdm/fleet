@@ -9,7 +9,7 @@ import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
 import OS_SETTINGS_NAV_ITEMS from "./OSSettingsNavItems";
-import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators";
+import ProfileStatusAggregate from "./ProfileStatusAggregate";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
 
 const baseClass = "os-settings";
@@ -67,7 +67,7 @@ const OSSettings = ({
       <p className={`${baseClass}__description`}>
         Remotely enforce settings on macOS hosts assigned to this team.
       </p>
-      <AggregateMacSettingsIndicators
+      <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}
         teamId={teamId}
         aggregateProfileStatusData={aggregateProfileStatusData}
