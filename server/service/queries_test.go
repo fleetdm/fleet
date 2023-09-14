@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -113,6 +114,174 @@ func TestListQueries(t *testing.T) {
 		})
 	}
 }
+
+// used in ModifyQuery and NewQuery
+func TestQueryPayloadValidation(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testCases := []struct {
+		name         string
+		queryPayload fleet.QueryPayload
+		shouldErr    bool
+	}{
+		{
+			"All valid",
+			fleet.QueryPayload{
+				Name:     ptr.String("test query"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			false,
+		},
+		{
+			"Invalid  - empty string name",
+			fleet.QueryPayload{
+				Name:     ptr.String(""),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		// {
+		// 	"Invalid SQL",
+		// 	{
+		// 		// TODO
+		// 	},
+		// 	true,
+		// },
+		// {
+		// 	"Invalid logging",
+		// 	{
+		// 		// TODO
+		// 	},
+		// 	true,
+		// },
+		// {
+		// 	"Invalid platform 0",
+		// 	{
+		// 		// TODO
+		// 	},
+		// 	true,
+		// },
+		// {
+		// 	"Invalid platform 1",
+		// 	{
+		// 		// TODO
+		// 	},
+		// 	true,
+		// },
+		// {
+		// 	"Invalid platform 2",
+		// 	{
+		// 		// TODO
+		// 	},
+		// 	true,
+		// },
+		// {
+		// 	"Invalid platform 3",
+		// 	{
+		// 		// TODO
+		// 	},
+		// 	true,
+		// },
+	}
+
+	// testAdmin := fleet.User{
+	// 	ID:    1,
+	// 	Teams: []fleet.UserTeam{},
+	// }
+
+	fmt.Printf("running tests\n----\n")
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			// viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+			fmt.Printf("running test: %v\n----\n", &tt)
+			// query, err := svc.NewQuery(viewerCtx, tt.queryPayload)
+			query, err := svc.NewQuery(ctx, tt.queryPayload)
+			fmt.Printf("tried to save query\n---\n")
+			if tt.shouldErr {
+				fmt.Printf("branch: tt.shouldErr\n---\n")
+				assert.Error(t, err)
+				assert.Nil(t, query)
+			}
+			// else {
+			// 	fmt.Printf("branch: !tt.shouldErr\n---\n")
+			// 	assert.NoError(t, err)
+			// 	assert.NotEmpty(t, query)
+			// }
+		})
+	}
+}
+
+// used in ApplyQuerySpecs
+// func TestQueryValidation(t *testing.T) {
+// 	// TODO
+// 	testCases := []struct {
+// 		name         string
+// 		queryPayload fleet.Query
+// 		isValid      bool
+// 	}{
+// 		{
+// 			"All valid",
+// 			{
+// 				// TODO
+// 			},
+// 			true,
+// 		},
+// 		{
+// 			"Invalid (empty) name",
+// 			{
+// 				// TODO
+// 			},
+// 			false,
+// 		},
+// 		{
+// 			"Invalid SQL",
+// 			{
+// 				// TODO
+// 			},
+// 			false,
+// 		},
+// 		{
+// 			"Invalid logging",
+// 			{
+// 				// TODO
+// 			},
+// 			false,
+// 		},
+// 		{
+// 			"Invalid platform 0",
+// 			{
+// 				// TODO
+// 			},
+// 			false,
+// 		},
+// 		{
+// 			"Invalid platform 1",
+// 			{
+// 				// TODO
+// 			},
+// 			false,
+// 		},
+// 		{
+// 			"Invalid platform 2",
+// 			{
+// 				// TODO
+// 			},
+// 			false,
+// 		},
+// 		{
+// 			"Invalid platform 3",
+// 			{
+// 				// TODO
+// 			},
+// 			false,
+// 		},
+// 	}
+// }
 
 func TestQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
