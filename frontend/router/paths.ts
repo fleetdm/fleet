@@ -57,6 +57,11 @@ export default {
       teamId ? `?team_id=${teamId}` : ""
     }`;
   },
+  QUERY: (queryId: number, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId}/details${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
+  },
   EDIT_POLICY: (policy: IPolicy): string => {
     return `${URL_PREFIX}/policies/${policy.id}${
       policy.team_id ? `?team_id=${policy.team_id}` : ""

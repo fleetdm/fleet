@@ -36,6 +36,7 @@ import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PolicyPage from "pages/policies/PolicyPage";
+import QueryDetailsPage from "pages/queries/details/QueryDetailsPage";
 import QueryPage from "pages/queries/details/QueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
@@ -222,7 +223,10 @@ const routes = (
             <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
               <Route path="new" component={QueryPage} />
             </Route>
-            <Route path=":id" component={QueryPage} />
+            <Route path=":id">
+              <IndexRoute component={QueryPage} />
+              <Route path="details" component={QueryDetailsPage} />
+            </Route>
           </Route>
           <Route path="policies">
             <IndexRedirect to="manage" />
