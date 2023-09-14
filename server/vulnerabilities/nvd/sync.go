@@ -33,11 +33,12 @@ type SyncOptions struct {
 }
 
 // Sync downloads all the vulnerability data sources.
-func Sync(opts SyncOptions) error {
+func Sync(opts SyncOptions, logger log.Logger) error {
 	if err := DownloadCPEDBFromGithub(opts.VulnPath, opts.CPEDBURL); err != nil {
 		return fmt.Errorf("sync CPE database: %w", err)
 	}
 
+	level.Debug(logger).Log("msg", "downloading CPE translations", "url", opts.CPETranslationsURL)
 	if err := DownloadCPETranslationsFromGithub(opts.VulnPath, opts.CPETranslationsURL); err != nil {
 		return fmt.Errorf("sync CPE translations: %w", err)
 	}

@@ -32,8 +32,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/getsentry/sentry-go"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/hashicorp/go-multierror"
 	"github.com/micromdm/nanodep/godep"
 )
@@ -354,7 +354,7 @@ func checkNVDVulnerabilities(
 			CPETranslationsURL: config.CPETranslationsURL,
 			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
 		}
-		err := nvd.Sync(opts)
+		err := nvd.Sync(opts, logger)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
 			// don't return, continue on ...
