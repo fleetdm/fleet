@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -115,9 +114,17 @@ func TestListQueries(t *testing.T) {
 	}
 }
 
-// used in ModifyQuery and NewQuery
-func TestQueryPayloadValidation(t *testing.T) {
+func TestQueryPayloadValidationCreate(t *testing.T) {
 	ds := new(mock.Store)
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return query, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		act, ok := activity.(fleet.ActivityTypeCreatedSavedQuery)
+		assert.True(t, ok)
+		assert.NotEmpty(t, act.Name)
+		return nil
+	}
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	testCases := []struct {
@@ -145,76 +152,81 @@ func TestQueryPayloadValidation(t *testing.T) {
 			},
 			true,
 		},
-		// {
-		// 	"Invalid SQL",
-		// 	{
-		// 		// TODO
-		// 	},
-		// 	true,
-		// },
-		// {
-		// 	"Invalid logging",
-		// 	{
-		// 		// TODO
-		// 	},
-		// 	true,
-		// },
-		// {
-		// 	"Invalid platform 0",
-		// 	{
-		// 		// TODO
-		// 	},
-		// 	true,
-		// },
-		// {
-		// 	"Invalid platform 1",
-		// 	{
-		// 		// TODO
-		// 	},
-		// 	true,
-		// },
-		// {
-		// 	"Invalid platform 2",
-		// 	{
-		// 		// TODO
-		// 	},
-		// 	true,
-		// },
-		// {
-		// 	"Invalid platform 3",
-		// 	{
-		// 		// TODO
-		// 	},
-		// 	true,
-		// },
+		{
+			"Empty SQL",
+			fleet.QueryPayload{
+				Name:     ptr.String("bad sql"),
+				Query:    ptr.String(""),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Invalid logging",
+			fleet.QueryPayload{
+				Name:     ptr.String("bad logging"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("hopscotch"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Unsupported platform",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("charles"),
+			},
+			true,
+		},
+		{
+			"Missing comma",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("darwin windows"),
+			},
+			true,
+		},
+		{
+			"Unsupported platform 2",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("darwin,windows,sphinx"),
+			},
+			true,
+		},
 	}
 
-	// testAdmin := fleet.User{
-	// 	ID:    1,
-	// 	Teams: []fleet.UserTeam{},
-	// }
+	testAdmin := fleet.User{
+		ID:         1,
+		Teams:      []fleet.UserTeam{},
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
 
-	fmt.Printf("running tests\n----\n")
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			// viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
-			fmt.Printf("running test: %v\n----\n", &tt)
-			// query, err := svc.NewQuery(viewerCtx, tt.queryPayload)
-			query, err := svc.NewQuery(ctx, tt.queryPayload)
-			fmt.Printf("tried to save query\n---\n")
+			viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+			query, err := svc.NewQuery(viewerCtx, tt.queryPayload)
 			if tt.shouldErr {
-				fmt.Printf("branch: tt.shouldErr\n---\n")
 				assert.Error(t, err)
 				assert.Nil(t, query)
+			} else {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, query)
 			}
-			// else {
-			// 	fmt.Printf("branch: !tt.shouldErr\n---\n")
-			// 	assert.NoError(t, err)
-			// 	assert.NotEmpty(t, query)
-			// }
 		})
 	}
 }
+
+// similar for modify
+// TODO
 
 // used in ApplyQuerySpecs
 // func TestQueryValidation(t *testing.T) {
