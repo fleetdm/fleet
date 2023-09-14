@@ -138,6 +138,7 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			IgnoreAll: true,
 			CVEs: map[string]struct{}{
 				"CVE-2020-10146": {},
+				"CVE-2013-0340":  {},
 			},
 		},
 	}
