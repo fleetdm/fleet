@@ -100,9 +100,12 @@ const DiskEncryption = ({
     setIsLoadingTeam(false);
   }
 
-  // TODO: remove when we release windows MDM. This is temporary dynamic text
-  // depending on the feature flag.
   const createDescriptionText = () => {
+    // table is showing disk encryption status.
+    if (showAggregate) {
+      return "If turned on, hosts' disk encryption keys will be stored in Fleet. ";
+    }
+
     const isWindowsFeatureFlagEnabled = config?.mdm_enabled ?? false;
     const dynamicText = isWindowsFeatureFlagEnabled
       ? " and “BitLocker” on Windows"
