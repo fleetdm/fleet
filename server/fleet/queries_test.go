@@ -183,27 +183,28 @@ func TestRoundtripQueriesYaml(t *testing.T) {
 
 func TestVerifyQueryPlatforms(t *testing.T) {
 	testCases := []struct {
+		name           string
 		platformString string
 		shouldErr      bool
 	}{
-		{"", false},
-		{"darwin", false},
-		{"linux", false},
-		{"windows", false},
-		{"darwin,linux,windows", false},
-		{"foo", true},
-		{"charles,darwin,linux,windows", true},
-		{"charles darwin", true},
-		{"darwin windows", true},
+		{"empty platform string okay", "", false},
+		{"platform string 'darwin' okay", "darwin", false},
+		{"platform string 'linux' okay", "linux", false},
+		{"platform string 'windows' okay", "windows", false},
+		{"platform string 'darwin,linux,windows' okay", "darwin,linux,windows", false},
+		{"platform string 'foo' invalid – not a supported platform", "foo", true},
+		{"platform string 'charles,darwin,linux,windows' invalid – 'charles' not a supported platform", "charles,darwin,linux,windows", true},
+		{"platform string 'darwin windows' invalid – missing comma delimiter", "darwin windows", true},
+		{"platform string 'charles darwin' invalid – 'charles' not supported and missing comma delimiter", "charles darwin", true},
 	}
 
 	for _, tt := range testCases {
-		t.Run("", func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			err := verifyQueryPlatforms(tt.platformString)
 			if tt.shouldErr {
-				require.NotNil(t, err)
+				require.Error(t, err)
 			} else {
-				require.Nil(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

@@ -240,6 +240,7 @@ func verifyQueryPlatforms(platforms string) error {
 	}
 	platformsList := strings.Split(platforms, ",")
 	for _, platform := range platformsList {
+		// TODO(jacob) – should we accept these strings with spaces? If not, remove `TrimSpace`
 		switch strings.TrimSpace(platform) {
 		case "windows", "linux", "darwin", "chrome":
 			// OK
