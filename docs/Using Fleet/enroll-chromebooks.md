@@ -13,7 +13,7 @@ To see the available tables for ChromeOS, visit [here](https://fleetdm.com/table
 ## Setting the hostname
 By default, the hostname for a Chromebook host will be blank. The hostname can be customized in Google Admin under Devices > Chrome > Settings > Device > Device Settings > Other Settings > [Device network hostname template](https://support.google.com/chrome/a/answer/1375678#zippy=%2Cdevice-network-hostname-template%2Creport-device-os-information).
 
-## Current Limitations in ChromeOS
+## Current limitations in ChromeOS
 - Scheduled queries are currently not available in ChromeOS
 - The Fleetd Chrome extension must be force-installed by enterprise policy in order to have full access to the host's data.
 - More tables that could be added:
