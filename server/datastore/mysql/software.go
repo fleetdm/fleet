@@ -1420,7 +1420,6 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	`
 	args = append(args, vuln.CVE, source, vuln.SoftwareID, vuln.ResolvedInVersion, time.Now().UTC())
 
-	fmt.Println(stmt, args)
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "insert software vulnerability")
