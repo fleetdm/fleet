@@ -31,6 +31,7 @@ interface ICellProps {
   };
   row: {
     original: {
+      includeWindows: boolean;
       status: IStatusCellValue;
       teamId: number;
     };
@@ -85,14 +86,32 @@ const defaultTableHeaders: IDataColumn[] = [
     ),
     disableSortBy: true,
     accessor: "macosHosts",
-    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
+    Cell: ({
+      cell: { value: aggregateCount },
+      row: { original },
+    }: ICellProps) => {
       return (
         <div className="disk-encryption-table__aggregate-table-data">
           <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
+          {/* TODO: WINDOWS FEATURE FLAG: remove this conditional when windows mdm
+          is released. the view all UI will show in the windows column when we
+          release the feature. */}
+          {!original.includeWindows && (
+            <ViewAllHostsLink
+              className="view-hosts-link"
+              queryParams={{
+                macos_settings_disk_encryption: original.status.value,
+                team_id: original.teamId,
+              }}
+            />
+          )}
         </div>
       );
     },
   },
+];
+
+const windowsTableHeader: IDataColumn[] = [
   {
     title: "Windows hosts",
     Header: (cellProps: IHeaderProps) => (
@@ -124,7 +143,13 @@ const defaultTableHeaders: IDataColumn[] = [
   },
 ];
 
-export const generateTableHeaders = (): IDataColumn[] => {
+// TODO: WINDOWS FEATURE FLAG: return all headers when windows feature flag is removed.
+export const generateTableHeaders = (
+  includeWindows: boolean
+): IDataColumn[] => {
+  return includeWindows
+    ? [...defaultTableHeaders, ...windowsTableHeader]
+    : defaultTableHeaders;
   return defaultTableHeaders;
 };
 
@@ -189,6 +214,9 @@ const statusOrder: DiskEncryptionStatus[] = [
 ];
 
 export const generateTableData = (
+  // TODO: WINDOWS FEATURE FLAG: remove includeWindows when windows feature flag is removed.
+  // This is used to conditionally show "View all hosts" link in table cells.
+  includeWindows: boolean,
   data?: IDiskEncryptionSummaryResponse,
   currentTeamId?: number
 ) => {
@@ -203,6 +231,7 @@ export const generateTableData = (
   });
 
   return entries.map(([status, statusAggregate]) => ({
+    includeWindows,
     status: STATUS_CELL_VALUES[status],
     macosHosts: statusAggregate.macos,
     windowsHosts: statusAggregate.windows,
