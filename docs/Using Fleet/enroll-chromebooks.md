@@ -24,7 +24,7 @@ By default, the hostname for a Chromebook host will be blank. The hostname can b
 ## Debugging ChromeOS
 To learn how to debug the Fleetd Chrome extension, visit [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#fleetd-chrome-extension).
 
-## Potential issues and trubleshooting: 
+## Potential issues and troubleshooting: 
 - 1 The extension does not install on our ChromeBooks.
 - 2 Chrome Web Browsers on other OSs (Mac/Linux/Windows) get this extension (where it's not needed).
 
