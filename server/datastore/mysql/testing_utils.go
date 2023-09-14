@@ -417,5 +417,6 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint
 		}
 		t.Logf("%s", sb.String())
 	}
+	require.NoError(t, rows.Err())
 	t.Logf("<< dumping table %s completed", tableName)
 }

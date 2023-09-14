@@ -1230,12 +1230,13 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 		}
 		return expected, nil
 	}
-	ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, verified, failed []string) error {
-		require.Equal(t, h.ID, host.ID)
-		require.Equal(t, len(installedProfiles), len(verified))
-		require.Len(t, failed, 0)
+	ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, hostUUID string, toVerify, toFailed, toRetry []string) error {
+		require.Equal(t, h.UUID, hostUUID)
+		require.Equal(t, len(installedProfiles), len(toVerify))
+		require.Len(t, toFailed, 0)
+		require.Len(t, toRetry, 0)
 		for _, p := range installedProfiles {
-			require.Contains(t, verified, p.Identifier)
+			require.Contains(t, toVerify, p.Identifier)
 		}
 		return nil
 	}

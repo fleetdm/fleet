@@ -112,6 +112,7 @@ const (
 	MDMDeviceStateEnrolled = "MDMDeviceEnrolledEnrolled"
 
 	// Device is MDM enrolled and managed
+	/* #nosec G101 -- this constant doesn't contain any credentials */
 	MDMDeviceStateManaged = "MDMDeviceEnrolledManaged"
 )
 
