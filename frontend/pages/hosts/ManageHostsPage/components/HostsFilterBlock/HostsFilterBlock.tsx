@@ -7,7 +7,7 @@ import {
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
 import {
-  FileVaultProfileStatus,
+  DiskEncryptionStatus,
   BootstrapPackageStatus,
   IMdmSolution,
   MDM_ENROLLMENT_STATUS,
@@ -60,7 +60,7 @@ interface IHostsFilterBlockProps {
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: ISoftware | null;
     mdmSolutionDetails: IMdmSolution | null;
-    diskEncryptionStatus?: FileVaultProfileStatus;
+    diskEncryptionStatus?: DiskEncryptionStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
   };
   selectedLabel?: ILabel;
@@ -68,9 +68,7 @@ interface IHostsFilterBlockProps {
   handleClearRouteParam: () => void;
   handleClearFilter: (omitParams: string[]) => void;
   onChangePoliciesFilter: (response: PolicyResponse) => void;
-  onChangeDiskEncryptionStatusFilter: (
-    response: FileVaultProfileStatus
-  ) => void;
+  onChangeDiskEncryptionStatusFilter: (response: DiskEncryptionStatus) => void;
   onChangeBootstrapPackageStatusFilter: (
     response: BootstrapPackageStatus
   ) => void;

@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery } from "react-query";
 
-import mdmAPI, { IFileVaultSummaryResponse } from "services/entities/mdm";
+import mdmAPI, { IDiskEncryptionSummaryResponse } from "services/entities/mdm";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
@@ -25,9 +25,9 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
   const {
     data: diskEncryptionStatusData,
     error: diskEncryptionStatusError,
-  } = useQuery<IFileVaultSummaryResponse, Error, IFileVaultSummaryResponse>(
+  } = useQuery<IDiskEncryptionSummaryResponse, Error>(
     ["disk-encryption-summary", currentTeamId],
-    () => mdmAPI.getDiskEncryptionAggregate(currentTeamId),
+    () => mdmAPI.getDiskEncryptionSummary(currentTeamId),
     {
       refetchOnWindowFocus: false,
       retry: false,

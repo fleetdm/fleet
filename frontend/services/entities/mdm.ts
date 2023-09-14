@@ -1,17 +1,25 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { FileVaultProfileStatus } from "interfaces/mdm";
+import { DiskEncryptionStatus } from "interfaces/mdm";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
-
-export type IFileVaultSummaryResponse = Record<FileVaultProfileStatus, number>;
 
 export interface IEulaMetadataResponse {
   name: string;
   token: string;
   created_at: string;
 }
+
+export interface IDiskEncryptionStatusAggregate {
+  macos: string;
+  windows: string;
+}
+
+export type IDiskEncryptionSummaryResponse = Record<
+  DiskEncryptionStatus,
+  IDiskEncryptionStatusAggregate
+>;
 
 export default {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
@@ -80,14 +88,25 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getDiskEncryptionAggregate: (teamId?: number) => {
-    let { MDM_APPLE_DISK_ENCRYPTION_AGGREGATE: path } = endpoints;
+  getDiskEncryptionSummary: (teamId?: number) => {
+    let { MDM_DISK_ENCRYPTION_SUMMARY: path } = endpoints;
 
     if (teamId) {
       path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
     }
 
-    return sendRequest("GET", path);
+    // TODO: change when API is implemented
+    return new Promise<IDiskEncryptionSummaryResponse>((resolve) => {
+      resolve({
+        verified: { macos: "0", windows: "5" },
+        verifying: { macos: "1", windows: "4" },
+        action_required: { macos: "2", windows: "3" },
+        enforcing: { macos: "3", windows: "2" },
+        failed: { macos: "4", windows: "1" },
+        removing_enforcement: { macos: "5", windows: "0" },
+      });
+    });
+    // return sendRequest("GET", path);
   },
 
   updateAppleMdmSettings: (enableDiskEncryption: boolean, teamId?: number) => {

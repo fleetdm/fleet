@@ -1,4 +1,4 @@
-import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
+import { DiskEncryptionStatus, BootstrapPackageStatus } from "interfaces/mdm";
 import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
 import { MacSettingsStatusQueryParam } from "services/entities/hosts";
 
@@ -24,7 +24,7 @@ interface IMutuallyExclusiveHostParams {
   osId?: number;
   osName?: string;
   osVersion?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
