@@ -530,7 +530,7 @@ export const generateTeam = (
   if (globalRole === null) {
     if (teams.length === 0) {
       // no global role and no teams
-      return "No Team";
+      return "No team";
     } else if (teams.length === 1) {
       // no global role and only one team
       return teams[0].name;
@@ -546,7 +546,7 @@ export const generateTeam = (
 };
 
 export const greyCell = (roleOrTeamText: string): boolean => {
-  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No Team", "Unknown"];
+  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No team", "Unknown"];
 
   return (
     GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" teams")
@@ -898,6 +898,16 @@ export const getNextLocationPath = ({
   );
 
   return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
+};
+
+export const getSoftwareBundleTooltipMarkup = (bundle: string) => {
+  return `
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `;
 };
 
 export default {

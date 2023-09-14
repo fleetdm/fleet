@@ -112,6 +112,7 @@ const (
 	MDMDeviceStateEnrolled = "MDMDeviceEnrolledEnrolled"
 
 	// Device is MDM enrolled and managed
+	/* #nosec G101 -- this constant doesn't contain any credentials */
 	MDMDeviceStateManaged = "MDMDeviceEnrolledManaged"
 )
 
@@ -153,8 +154,14 @@ const (
 	// Certificate Renewal Period in seconds (180 days)
 	PolicyCertRenewalPeriodInSecs = "15552000"
 
-	// Supported Enroll Type
-	ReqSecTokenEnrollType = "Full"
+	// Supported Enroll types gathered from MS-MDE2 Spec Section 2.2.9.3
+	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/f7553554-b6e1-4a0d-abd6-6a2534503af7
+
+	// Supported Enroll Type Device
+	ReqSecTokenEnrollTypeDevice = "Device"
+
+	// Supported Enroll Type Full
+	ReqSecTokenEnrollTypeFull = "Full"
 
 	// Provisioning Doc Certificate Renewal Period (365 days)
 	WstepCertRenewalPeriodInDays = "365"

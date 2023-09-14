@@ -100,5 +100,24 @@
     "filter": {
       "skip": true
     }
+  },
+  {
+    "software": {
+      "name": ["flock"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["Flock.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["flock"],
+      "vendor": ["flock"]
+    }
   }
 ]
