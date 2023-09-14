@@ -587,6 +587,7 @@ func listSoftwareDB(
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
 				cve.CVEPublished = &result.CVEPublished
+				cve.ResolvedInVersion = &result.ResolvedInVersion
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
 		}
@@ -766,6 +767,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"c.epss_probability",
 			"c.cisa_known_exploit",
 			goqu.I("c.published").As("cve_published"),
+			"scv.resolved_in_version",
 		)
 	}
 
@@ -1107,6 +1109,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
 				cve.CVEPublished = &result.CVEPublished
+				cve.ResolvedInVersion = &result.ResolvedInVersion
 			}
 			software.Vulnerabilities = append(software.Vulnerabilities, cve)
 		}
@@ -1405,9 +1408,19 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 
 	var args []interface{}
 
-	stmt := `INSERT INTO software_cve (cve, source, software_id, resolved_in_version) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE updated_at=?`
+	stmt := `
+		INSERT INTO software_cve (cve, source, software_id, resolved_in_version) 
+		VALUES (?,?,?,?) 
+		ON DUPLICATE KEY UPDATE
+			cve = VALUES(cve),
+			source = VALUES(source),
+			software_id = VALUES(software_id),
+			resolved_in_version = VALUES(resolved_in_version),
+			updated_at=?
+	`
 	args = append(args, vuln.CVE, source, vuln.SoftwareID, vuln.ResolvedInVersion, time.Now().UTC())
 
+	fmt.Println(stmt, args)
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "insert software vulnerability")

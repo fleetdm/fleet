@@ -1194,7 +1194,7 @@ CREATE TABLE `software_cve` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `source` int(11) DEFAULT '0',
   `software_id` bigint(20) unsigned DEFAULT NULL,
-  `resolved_in_version` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `resolved_in_version` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unq_software_id_cve` (`software_id`,`cve`),
   KEY `software_cve_software_id` (`software_id`)

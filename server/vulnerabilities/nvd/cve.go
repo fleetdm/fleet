@@ -12,7 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/facebookincubator/nvdtools/cvefeed"
+	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
+	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -110,11 +113,13 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
+	// get all the software CPEs from the database
 	CPEs, err := ds.ListSoftwareCPEs(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	// hydrate the CPEs with the meta data
 	var parsed []softwareCPEWithNVDMeta
 	for _, CPE := range CPEs {
 		attr, err := wfn.Parse(CPE.CPE)
@@ -243,9 +248,15 @@ func checkCVEs(
 							}
 						}
 
+						resolvedVersion, err := getMatchingVersionEndExcluding(matches.CVE.ID(), softwareCPE.meta, dict)
+						if err != nil {
+							level.Error(logger).Log(logKey, "error", "err", err)
+						}
+
 						vuln := fleet.SoftwareVulnerability{
-							SoftwareID: softwareCPE.SoftwareID,
-							CVE:        matches.CVE.ID(),
+							SoftwareID:        softwareCPE.SoftwareID,
+							CVE:               matches.CVE.ID(),
+							ResolvedInVersion: resolvedVersion,
 						}
 
 						mu.Lock()
@@ -270,5 +281,119 @@ func checkCVEs(
 	level.Debug(logger).Log("pushing cpes", "done")
 	wg.Wait()
 
+	fmt.Println("checkCVE foundVulns", foundVulns)
 	return foundVulns, nil
+}
+
+func getMatchingVersionEndExcluding(cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary) (string, error) {
+	vuln, ok := dict[cve].(*feednvd.Vuln)
+	if !ok {
+		fmt.Println("msg", "Vuln interface", "cve", cve, "type", fmt.Sprintf("%T", dict[cve])) // TODO remove
+		return "", nil
+	}
+
+	vulnSchema := vuln.Schema()
+	if vulnSchema == nil {
+		fmt.Println("msg", "vulnSchema is nil", "cve", cve) // TODO remove
+		return "", nil
+	}
+
+	config := vulnSchema.Configurations
+	if config == nil {
+		fmt.Println("msg", "Configurations is nil", "cve", cve) // TODO remove
+		return "", nil
+	}
+
+	nodes := config.Nodes
+	if len(nodes) == 0 {
+		fmt.Println("msg", "Nodes is nil", "cve", cve) // TODO remove
+		return "", nil
+	}
+
+	cpeMatch := findCPEMatch(nodes)
+	if cpeMatch == nil || len(cpeMatch) == 0 {
+		fmt.Println("msg", "CPEMatch is nil or empty", "cve", cve) // TODO remove
+		return "", nil
+	}
+
+	softwareVersion, err := semver.NewVersion(wfn.StripSlashes(hostSoftwareMeta.Version))
+	if err != nil {
+		fmt.Println("msg", "error parsing host software version", "cve", cve, "version", hostSoftwareMeta.Version) // TODO remove
+		return "", err
+	}
+
+	for _, rule := range cpeMatch {
+		if rule.VersionEndExcluding == "" {
+			fmt.Println("msg", "VersionEndExcluding is empty", "cve", cve)
+			continue
+		}
+
+		// convert the NVD cpe23URi to wfn.Attributes
+		attr, err := wfn.Parse(rule.Cpe23Uri)
+		if err != nil {
+			fmt.Println("msg", "error parsing cpe23Uri", "cve", cve, "cpe23Uri", rule.Cpe23Uri)
+			return "", err
+		}
+
+		// ensure the product and vendor match
+		if attr.Product != hostSoftwareMeta.Product || attr.Vendor != hostSoftwareMeta.Vendor {
+			fmt.Println("msg", "product or vendor do not match", "cve", cve, "product", attr.Product, "vendor", attr.Vendor)
+			continue
+		}
+
+		if rule.VersionStartIncluding == "" && rule.VersionStartExcluding == "" {
+			fmt.Println("msg", "VersionStartIncluding and VersionStartExcluding are empty, returning VersionEndExcluding", "cve", cve)
+			return rule.VersionEndExcluding, nil
+		}
+
+		if rule.VersionStartIncluding != "" {
+			constraint, err := semver.NewConstraint(">= " + rule.VersionStartIncluding + " < " + rule.VersionEndExcluding)
+			if err != nil {
+				fmt.Println("msg", "error parsing constraint", "cve", cve, "constraint", ">= "+rule.VersionStartIncluding+" < "+rule.VersionEndExcluding)
+				return "", err
+			}
+
+			if constraint.Check(softwareVersion) {
+				fmt.Println("msg", "constraint check passed", "cve", cve, "constraint", ">= "+rule.VersionStartIncluding+" < "+rule.VersionEndExcluding)
+				return rule.VersionEndExcluding, nil
+			} else {
+				fmt.Println("msg", "constraint check failed", "cve", cve, "constraint", ">= "+rule.VersionStartIncluding+" < "+rule.VersionEndExcluding)
+			}
+		}
+
+		if rule.VersionStartExcluding != "" {
+			constraint, err := semver.NewConstraint("> " + rule.VersionStartExcluding + " < " + rule.VersionEndExcluding)
+			if err != nil {
+				fmt.Println("msg", "error parsing constraint", "cve", cve, "constraint", "> "+rule.VersionStartExcluding+" < "+rule.VersionEndExcluding)
+				return "", err
+			}
+
+			if constraint.Check(softwareVersion) {
+				fmt.Println("msg", "constraint check passed", "cve", cve, "constraint", "> "+rule.VersionStartExcluding+" < "+rule.VersionEndExcluding)
+				return rule.VersionEndExcluding, nil
+			} else {
+				fmt.Println("msg", "constraint check failed", "cve", cve, "constraint", "> "+rule.VersionStartExcluding+" < "+rule.VersionEndExcluding)
+			}
+		}
+	}
+
+	fmt.Println("msg", "no matching rule found", "cve", cve)
+
+	return "", nil
+}
+
+func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJSON10DefCPEMatch {
+	for _, node := range nodes {
+		if len(node.CPEMatch) > 0 {
+			return node.CPEMatch
+		}
+
+		if len(node.Children) > 0 {
+			match := findCPEMatch(node.Children)
+			if match != nil {
+				return match
+			}
+		}
+	}
+	return nil
 }

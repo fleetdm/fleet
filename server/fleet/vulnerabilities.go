@@ -12,10 +12,11 @@ type CVE struct {
 	// 1. omitted when using the free tier
 	// 2. null when using the premium tier, but there is no value available. This may be due to an issue with syncing cve scores.
 	// 3. non-null when using the premium tier, and value is available.
-	CVSSScore        **float64   `json:"cvss_score,omitempty" db:"cvss_score"`
-	EPSSProbability  **float64   `json:"epss_probability,omitempty" db:"epss_probability"`
-	CISAKnownExploit **bool      `json:"cisa_known_exploit,omitempty" db:"cisa_known_exploit"`
-	CVEPublished     **time.Time `json:"cve_published,omitempty" db:"cve_published"`
+	CVSSScore         **float64   `json:"cvss_score,omitempty" db:"cvss_score"`
+	EPSSProbability   **float64   `json:"epss_probability,omitempty" db:"epss_probability"`
+	CISAKnownExploit  **bool      `json:"cisa_known_exploit,omitempty" db:"cisa_known_exploit"`
+	CVEPublished      **time.Time `json:"cve_published,omitempty" db:"cve_published"`
+	ResolvedInVersion **string    `json:"resolved_in_version,omitempty" db:"resolved_in_version"`
 }
 
 type CVEMeta struct {
