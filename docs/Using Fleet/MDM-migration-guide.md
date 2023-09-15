@@ -1,4 +1,4 @@
-# Migration
+# Migration guide
 
 This section provides instructions for migrating your hosts away from your old MDM solution to Fleet.
 
@@ -221,6 +221,6 @@ For all other settings:
 <img width="1399" alt="My device page - turn on disk encryption" src="https://user-images.githubusercontent.com/5359586/229950451-cfcd2314-a993-48db-aecf-11aac576d297.png">
 
 <meta name="pageOrderInSection" value="1502">
-<meta name="title" value="MDM migration guide">
+<meta name="title" value="Migration guide">
 <meta name="description" value="Instructions for migrating hosts away from an old MDM solution to Fleet.">
 <meta name="navSection" value="Device management">

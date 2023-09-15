@@ -159,6 +159,6 @@ Request payload:
 ```
 
 <meta name="pageOrderInSection" value="1503">
-<meta name="title" value="MDM macOS updates">
+<meta name="title" value="macOS updates">
 <meta name="description" value="Learn how to manage macOS updates and set up end user reminders with Fleet MDM.">
 <meta name="navSection" value="Device management">
