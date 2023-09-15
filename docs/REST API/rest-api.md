@@ -3293,7 +3293,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 Requires the [macadmins osquery extension](https://github.com/macadmins/osquery-extension) which comes bundled
 in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
-Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
+Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 Retrieves the disk encryption key for a host.
 
@@ -3326,7 +3326,7 @@ Retrieves the disk encryption key for a host.
 
 ### Get configuration profiles assigned to a host
 
-Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
+Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 Retrieves a list of the configuration profiles assigned to a host.
 
@@ -3809,7 +3809,7 @@ Deletes the label specified by ID.
 
 ## Mobile device management (MDM)
 
-These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
+These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 - [Add custom macOS setting (configuration profile)](#add-custom-macos-setting-configuration-profile)
 - [List custom macOS settings (configuration profiles)](#list-custom-macos-settings-configuration-profiles)

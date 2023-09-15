@@ -512,13 +512,13 @@ To enable the [DEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/g
 
 First ask @zwass to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
 
-Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
+Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
 
 ### APNs and SCEP setup
 
 The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
 
-To generate both, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-setup#apple-push-notification-service-apns).
+To generate both, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-push-notification-service-apns).
 
 Note that:
 
