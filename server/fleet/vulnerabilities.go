@@ -16,6 +16,7 @@ type CVE struct {
 	EPSSProbability  **float64   `json:"epss_probability,omitempty" db:"epss_probability"`
 	CISAKnownExploit **bool      `json:"cisa_known_exploit,omitempty" db:"cisa_known_exploit"`
 	CVEPublished     **time.Time `json:"cve_published,omitempty" db:"cve_published"`
+	Description      **string    `json:"cve_description,omitempty" db:"description"`
 }
 
 type CVEMeta struct {
@@ -33,6 +34,8 @@ type CVEMeta struct {
 	CISAKnownExploit *bool `db:"cisa_known_exploit"`
 	// Published is when the cve was published according to NIST.score
 	Published *time.Time `db:"published"`
+	// CVE text description
+	Description string `db:"description"`
 }
 
 // SoftwareCPE represents an entry in the `software_cpe` table.
