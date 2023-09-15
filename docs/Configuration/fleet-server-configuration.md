@@ -2896,7 +2896,7 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
   mdm:
     apple_dep_sync_periodicity: 10m
   ```
-##### fleet_mdm_windows_wstep_identity_cert_bytes
+##### mdm.windows_wstep_identity_cert_bytes
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
 - Default value: ""
 - Environment variable: fleet_mdm_windows_wstep_identity_cert_bytes  
