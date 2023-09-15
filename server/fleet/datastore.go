@@ -1021,6 +1021,11 @@ type Datastore interface {
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
 	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
 
+	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
+	// each Windows host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*MDMWindowsBitLockerSummary, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
 

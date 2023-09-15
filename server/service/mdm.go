@@ -404,3 +404,77 @@ func (svc *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 
 	return nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/disk_encryption/summary
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMDiskEncryptionSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMDiskEncryptionSummaryResponse struct {
+	*fleet.MDMDiskEncryptionSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMDiskEncryptionSummaryResponse) error() error { return r.Err }
+
+func getMDMDiskEncryptionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMDiskEncryptionSummaryRequest)
+
+	des, err := svc.GetMDMDiskEncryptionSummary(ctx, req.TeamID)
+	if err != nil {
+		return getMDMDiskEncryptionSummaryResponse{Err: err}, nil
+	}
+
+	return &getMDMDiskEncryptionSummaryResponse{
+		MDMDiskEncryptionSummary: des,
+	}, nil
+}
+
+func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*fleet.MDMDiskEncryptionSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	var macOS fleet.MDMAppleFileVaultSummary
+	if m, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting filevault summary")
+	} else if m != nil {
+		macOS = *m
+	}
+
+	var windows fleet.MDMWindowsBitLockerSummary
+	if w, err := svc.ds.GetMDMWindowsBitLockerSummary(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting bitlocker summary")
+	} else if w != nil {
+		windows = *w
+	}
+
+	return &fleet.MDMDiskEncryptionSummary{
+		Verified: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Verified,
+			Windows: windows.Verified,
+		},
+		Verifying: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Verifying,
+			Windows: windows.Verifying,
+		},
+		ActionRequired: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.ActionRequired,
+			Windows: windows.ActionRequired,
+		},
+		Enforcing: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Enforcing,
+			Windows: windows.Enforcing,
+		},
+		Failed: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Failed,
+			Windows: windows.Failed,
+		},
+		RemovingEnforcement: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.RemovingEnforcement,
+			Windows: windows.RemovingEnforcement,
+		},
+	}, nil
+}

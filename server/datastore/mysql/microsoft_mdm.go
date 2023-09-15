@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -89,4 +90,41 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevi
 	}
 
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+}
+
+func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
+	// Note verifying, action_required, and removing_enforcement are not applicable to Windows hosts
+	sqlFmt := `
+SELECT
+    COUNT( if(hdek.decryptable = 1, 1, NULL)) AS verified,
+    0 AS verifying,
+    0 AS action_required,
+    COUNT( if(hdek.host_id IS NOT NULL AND hdek.decryptable IS NULL AND hdek.client_error = '', 1, NULL)) AS enforcing,
+    COUNT( if(hdek.host_id IS NOT NULL AND hdek.client_error != '', 1, NULL)) AS failed,
+    0 AS removing_enforcement
+FROM
+    hosts h
+    LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
+WHERE
+    h.platform = 'windows' AND %s`
+
+	// TODO: Do we need to left join hdek? Should we check if the host is a Windows server?
+
+	var args []interface{}
+
+	teamFilter := "h.team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = "h.team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	stmt := fmt.Sprintf(sqlFmt, teamFilter)
+
+	var res fleet.MDMWindowsBitLockerSummary
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &res, nil
 }

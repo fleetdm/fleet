@@ -625,6 +625,9 @@ func mdmAppleConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
+		// TODO: this endpoint encompasses both Windows and macOS, we need to figure out a way to
+		// handle both configuration checks.
+		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, false},
 	}
 }
 
