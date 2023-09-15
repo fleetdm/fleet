@@ -99,29 +99,11 @@ const (
 )
 
 func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
-	var enabled bool
-	var teamFilter string
-	var args []interface{}
-	switch {
-	case teamID == nil || *teamID == 0:
-		ac, err := ds.AppConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
-		enabled = ac.MDM.MacOSSettings.EnableDiskEncryption
-		teamFilter = "h.team_id IS NULL"
-	default:
-		tc, err := ds.TeamMDMConfig(ctx, *teamID)
-		if err != nil {
-			return nil, err
-		}
-		enabled = tc.MacOSSettings.EnableDiskEncryption
-		teamFilter = "h.team_id = ?"
-		args = append(args, *teamID)
+	enabled, err := ds.getConfigEnableDiskEncryption(ctx, teamID)
+	if err != nil {
+		return nil, err
 	}
-
 	if !enabled {
-		// if disk encryption is not enabled, return early with empty summary
 		return &fleet.MDMWindowsBitLockerSummary{}, nil
 	}
 
@@ -142,6 +124,13 @@ WHERE
     h.platform = 'windows' AND hmdm.is_server = 0 AND %s`
 
 	// TODO: Consider if we should use right joins instead?
+
+	var args []interface{}
+	teamFilter := "h.team_id IS NULL"
+	if teamID != nil || *teamID > 0 {
+		teamFilter = "h.team_id = ?"
+		args = append(args, *teamID)
+	}
 
 	var res fleet.MDMWindowsBitLockerSummary
 	stmt := fmt.Sprintf(sqlFmt, whereBitLockerVerified, whereBitLockerPending, whereBitLockerFailed, teamFilter)
