@@ -2903,7 +2903,7 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
 - Config file format: 
   ```
   mdm:
-   fleet_mdm_windows_wstep_identity_cert_bytes: |
+   windows_wstep_identity_cert_bytes: |
       -----BEGIN CERTIFICATE-----
       ... PEM-encoded content ...
       -----END CERTIFICATE-----
