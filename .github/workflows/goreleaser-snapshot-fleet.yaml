@@ -31,10 +31,16 @@ jobs:
     # Docker will not be available.
     #
     # Also do not run if author is dependabot or is on a fork (it doesn't have access to Github secrets).
-    if: ${{ (github.repository == 'fleetdm/fleet') && (github.actor != 'dependabot[bot]') && (github.event.pull_request.head.repo.full_name == github.repository)}}
+    if: ${{ (github.repository == 'fleetdm/fleet') && (github.actor != 'dependabot[bot]')}}
     runs-on: ubuntu-20.04
     environment: Docker Hub
     steps:
+      - name: Debug outputs
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "PR head repo: ${{ github.event.pull_request.head.repo.full_name }}"
+          
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
