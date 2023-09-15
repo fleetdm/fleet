@@ -366,6 +366,8 @@ spec:
     zendesk: null
   org_info:
     org_logo_url: ""
+    org_logo_url_light_background: ""
+    contact_url: ""
     org_name: Fleet
   server_settings:
     deferred_save_host: false
@@ -599,12 +601,40 @@ The name of the organization.
 
 The URL of the logo of the organization.
 
+This logo is displayed in the top bar and other areas of Fleet that have dark backgrounds.
+
 - Optional setting (string)
 - Default value: none (uses Fleet's logo)
 - Config file format:
   ```yaml
   org_info:
-  	org_logo_url: https://example.com/logo.png
+    org_logo_url: https://example.com/logo.png
+  ```
+
+##### org_info.org_logo_url_light_background
+
+The URL of a logo of the organization that can be used with light backgrounds.
+
+> Note: this URL is currently only used for the dialogs displayed during MDM migration
+
+- Optional setting (string)
+- Default value: none (uses Fleet's logo)
+- Config file format:
+  ```yaml
+  org_info:
+    org_logo_url_light_background: https://example.com/logo-light.png
+  ```
+
+##### org_info.contact_url
+
+An URL that can be used by ends user to contact the organization.
+
+- Optional setting (string)
+- Default value: https://fleetdm.com/company/contact
+- Config file format:
+  ```yaml
+  org_info:
+    contact_url: https://example.com/contact-us
   ```
 
 #### Server settings

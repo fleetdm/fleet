@@ -2295,6 +2295,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
     "org_info": {
       "org_name": "Fleet",
       "org_logo_url": "https://example.com/logo.jpg",
+      "org_logo_url_light_background": "https://example.com/logo-light.jpg",
       "contact_url": "https://fleetdm.com/company/contact"
     },
     "mdm": {

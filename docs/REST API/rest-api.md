@@ -980,6 +980,8 @@ Modifies the Fleet's configuration with the supplied information.
 | ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | org_name                          | string  | body  | _Organization information_. The organization name.                                                                                                                                     |
 | org_logo_url                      | string  | body  | _Organization information_. The URL for the organization logo.                                                                                                                         |
+| org_logo_url_light_background     | string  | body  | _Organization information_. The URL for the organization logo displayed in Fleet on top of light backgrounds.                                                                          |
+| contact_url                       | string  | body  | _Organization information_. An URL that can be used by end users to contact the organization.                                                                                          |
 | server_url                        | string  | body  | _Server settings_. The Fleet server URL.                                                                                                                                               |
 | live_query_disabled               | boolean | body  | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
 | enable_smtp                       | boolean | body  | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
@@ -1072,6 +1074,7 @@ Note that when making changes to the `integrations` object, all integrations mus
   "org_info": {
     "org_name": "Fleet Device Management",
     "org_logo_url": "https://fleetdm.com/logo.png",
+    "org_logo_url_light_background": "https://fleetdm.com/logo-light.png",
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
