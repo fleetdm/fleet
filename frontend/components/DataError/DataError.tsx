@@ -14,7 +14,7 @@ interface IDataErrorProps {
   className?: string;
 }
 
-const DEFAULT_DESCRIPTION = "Refresh the page or log in again.";
+const DEFAULT_DESCRIPTION = "Refresh the page or log in again. test";
 
 const DataError = ({
   description = DEFAULT_DESCRIPTION,
