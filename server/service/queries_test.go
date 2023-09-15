@@ -193,7 +193,7 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 			true,
 		},
 		{
-			"Unsupported platform 2",
+			"Unsupported platform 'sphinx' ",
 			fleet.QueryPayload{
 				Name:     ptr.String("invalid platform"),
 				Query:    ptr.String("select 1"),
@@ -308,7 +308,7 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 			true,
 		},
 		{
-			"Missing comma",
+			"Missing comma delimeter in platform string",
 			fleet.QueryPayload{
 				Name:     ptr.String("invalid platform"),
 				Query:    ptr.String("select 1"),

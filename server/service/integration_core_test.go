@@ -4464,49 +4464,66 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 	defer cleanupQuery(s, existingQueryID)
 
 	for _, tc := range []struct {
-		tname    string
-		name     string
-		query    string
-		platform string
+		tname       string
+		name        string
+		query       string
+		platform    string
+		logging     string
+		expectedErr error
 	}{
 		{
-			tname: "empty name",
-			name:  " ", // #3704
-			query: "select 42;",
+			tname:       "empty name",
+			name:        " ", // #3704
+			query:       "select 42;",
+			expectedErr: fleet.ErrQueryEmptyName,
 		},
 		{
-			tname: "empty query",
-			name:  "Some name",
-			query: "",
+			tname:       "empty query",
+			name:        "Some name",
+			query:       "",
+			expectedErr: fleet.ErrQueryEmptyQuery,
 		},
 		{
-			tname: "Invalid query",
-			name:  "Invalid query",
-			query: "",
+			tname:       "Invalid query",
+			name:        "Invalid query",
+			query:       "",
+			expectedErr: fleet.ErrQueryEmptyQuery,
 		},
 		{
-			tname:    "unsupported platform",
-			name:     "bad query",
-			query:    "select 1",
-			platform: "oops",
+			tname:       "unsupported platform",
+			name:        "bad query",
+			query:       "select 1",
+			platform:    "oops",
+			expectedErr: fleet.ErrQueryInvalidPlatform,
 		},
 		{
-			tname:    "unsupported platform",
-			name:     "bad query",
-			query:    "select 1",
-			platform: "charles,darwin",
+			tname:       "unsupported platform",
+			name:        "bad query",
+			query:       "select 1",
+			platform:    "charles,darwin",
+			expectedErr: fleet.ErrQueryInvalidPlatform,
 		},
 		{
-			tname:    "missing platform comma delimeter",
-			name:     "bad query",
-			query:    "select 1",
-			platform: "linuxdarwin",
+			tname:       "missing platform comma delimeter",
+			name:        "bad query",
+			query:       "select 1",
+			platform:    "linuxdarwin",
+			expectedErr: fleet.ErrQueryInvalidPlatform,
 		},
 		{
-			tname:    "missing platform comma delimeter",
-			name:     "bad query",
-			query:    "select 1",
-			platform: "windows darwin",
+			tname:       "missing platform comma delimeter",
+			name:        "bad query",
+			query:       "select 1",
+			platform:    "windows darwin",
+			expectedErr: fleet.ErrQueryInvalidPlatform,
+		},
+		{
+			tname:       "invalid logging",
+			name:        "bad query",
+			query:       "select 1",
+			platform:    "windows,darwin",
+			logging:     "hi tim",
+			expectedErr: fleet.ErrInvalidLogging,
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
@@ -4526,6 +4543,11 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 			}
 			mResp := modifyQueryResponse{}
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", existingQueryID), &payload, http.StatusBadRequest, &mResp)
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, mResp.Err, tc.expectedErr)
+			} else {
+				require.Error(t, mResp.Err)
+			}
 			require.Nil(t, mResp.Query)
 		})
 	}

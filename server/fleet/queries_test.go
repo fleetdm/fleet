@@ -196,6 +196,7 @@ func TestVerifyQueryPlatforms(t *testing.T) {
 		{"platform string 'charles,darwin,linux,windows' invalid – 'charles' not a supported platform", "charles,darwin,linux,windows", true},
 		{"platform string 'darwin windows' invalid – missing comma delimiter", "darwin windows", true},
 		{"platform string 'charles darwin' invalid – 'charles' not supported and missing comma delimiter", "charles darwin", true},
+		{"platform string ';inux' invalid – ';inux' not a supported platform", ";inux", true},
 	}
 
 	for _, tt := range testCases {
