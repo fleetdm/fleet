@@ -22,8 +22,6 @@ export const MDM_ENROLLMENT_STATUS = {
 
 export type MdmEnrollmentStatus = keyof typeof MDM_ENROLLMENT_STATUS;
 
-export type ProfileSummaryResponse = Record<MdmProfileStatus, number>;
-
 export interface IMdmStatusCardData {
   status: MdmEnrollmentStatus;
   hosts: number;

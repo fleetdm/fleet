@@ -2,7 +2,8 @@ import React from "react";
 
 import paths from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
-import { MdmProfileStatus, ProfileSummaryResponse } from "interfaces/mdm";
+import { MdmProfileStatus } from "interfaces/mdm";
+import { ProfileStatusSummaryResponse } from "services/entities/mdm";
 
 import Spinner from "components/Spinner";
 import StatusIndicatorWithIcon, {
@@ -54,7 +55,7 @@ const ProfileStatusCount = ({
 interface ProfileStatusAggregateProps {
   isLoading: boolean;
   teamId: number;
-  aggregateProfileStatusData?: ProfileSummaryResponse;
+  aggregateProfileStatusData?: ProfileStatusSummaryResponse;
 }
 
 const ProfileStatusAggregate = ({

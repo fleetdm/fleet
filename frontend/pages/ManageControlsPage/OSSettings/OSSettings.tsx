@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
-import { ProfileSummaryResponse } from "interfaces/mdm";
 import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
@@ -40,9 +39,10 @@ const OSSettings = ({
     data: aggregateProfileStatusData,
     refetch: refetchAggregateProfileStatus,
     isLoading: isLoadingAggregateProfileStatus,
-  } = useQuery<ProfileSummaryResponse>(
+  } = useQuery(
     ["aggregateProfileStatuses", teamId],
-    () => mdmAPI.getAggregateProfileStatuses(teamId),
+    () =>
+      mdmAPI.getAggregateProfileStatuses(teamId, config?.mdm_enabled ?? false),
     {
       refetchOnWindowFocus: false,
       retry: false,
@@ -61,6 +61,8 @@ const OSSettings = ({
     DEFAULT_SETTINGS_SECTION;
 
   const CurrentCard = currentFormSection.Card;
+
+  console.log("aggregate data:", aggregateProfileStatusData);
 
   return (
     <div className={baseClass}>
