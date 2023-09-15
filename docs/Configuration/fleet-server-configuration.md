@@ -2897,6 +2897,8 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
     apple_dep_sync_periodicity: 10m
   ```
 ##### mdm.windows_wstep_identity_cert_bytes
+> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
+
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
 - Default value: ""
 - Environment variable: fleet_mdm_windows_wstep_identity_cert_bytes  
@@ -2911,24 +2913,20 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
 
 
 
+##### mdm.windows_wstep_identity_key_bytes
 > Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
-
-##### fleet_mdm_windows_wstep_identity_key_bytes
 The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 - Default value: ""
 - Environment variable: fleet_mdm_windows_wstep_identity_key_bytes 
 - Config file format:  
   ```
   mdm:
-    fleet_mdm_windows_wstep_identity_key_bytes: |
+    windows_wstep_identity_key_bytes: |
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
   ```
-
-
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.
 
 
 ## Managing osquery configurations
