@@ -226,74 +226,126 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 }
 
 // similar for modify
-// TODO
+func TestQueryPayloadValidationModify(t *testing.T) {
+	ds := new(mock.Store)
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:             id,
+			Name:           "mock saved query",
+			Description:    "some desc",
+			Query:          "select 1;",
+			Platform:       "",
+			Saved:          true,
+			ObserverCanRun: false,
+		}, nil
+	}
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query) error {
+		assert.NotEmpty(t, query)
+		return nil
+	}
 
-// used in ApplyQuerySpecs
-// func TestQueryValidation(t *testing.T) {
-// 	// TODO
-// 	testCases := []struct {
-// 		name         string
-// 		queryPayload fleet.Query
-// 		isValid      bool
-// 	}{
-// 		{
-// 			"All valid",
-// 			{
-// 				// TODO
-// 			},
-// 			true,
-// 		},
-// 		{
-// 			"Invalid (empty) name",
-// 			{
-// 				// TODO
-// 			},
-// 			false,
-// 		},
-// 		{
-// 			"Invalid SQL",
-// 			{
-// 				// TODO
-// 			},
-// 			false,
-// 		},
-// 		{
-// 			"Invalid logging",
-// 			{
-// 				// TODO
-// 			},
-// 			false,
-// 		},
-// 		{
-// 			"Invalid platform 0",
-// 			{
-// 				// TODO
-// 			},
-// 			false,
-// 		},
-// 		{
-// 			"Invalid platform 1",
-// 			{
-// 				// TODO
-// 			},
-// 			false,
-// 		},
-// 		{
-// 			"Invalid platform 2",
-// 			{
-// 				// TODO
-// 			},
-// 			false,
-// 		},
-// 		{
-// 			"Invalid platform 3",
-// 			{
-// 				// TODO
-// 			},
-// 			false,
-// 		},
-// 	}
-// }
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		act, ok := activity.(fleet.ActivityTypeEditedSavedQuery)
+		assert.True(t, ok)
+		assert.NotEmpty(t, act.Name)
+		return nil
+	}
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testCases := []struct {
+		name         string
+		queryPayload fleet.QueryPayload
+		shouldErr    bool
+	}{
+		{
+			"All valid",
+			fleet.QueryPayload{
+				Name:     ptr.String("updated test query"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			false,
+		},
+		{
+			"Invalid  - empty string name",
+			fleet.QueryPayload{
+				Name:     ptr.String(""),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Empty SQL",
+			fleet.QueryPayload{
+				Name:     ptr.String("bad sql"),
+				Query:    ptr.String(""),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Invalid logging",
+			fleet.QueryPayload{
+				Name:     ptr.String("bad logging"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("hopscotch"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Unsupported platform",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("charles"),
+			},
+			true,
+		},
+		{
+			"Missing comma",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("darwin windows"),
+			},
+			true,
+		},
+		{
+			"Unsupported platform 2",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("darwin,windows,sphinx"),
+			},
+			true,
+		},
+	}
+
+	testAdmin := fleet.User{
+		ID:         1,
+		Teams:      []fleet.UserTeam{},
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+			_, err := svc.ModifyQuery(viewerCtx, 1, tt.queryPayload)
+			if tt.shouldErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
 
 func TestQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
