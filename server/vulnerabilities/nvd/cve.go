@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -248,7 +250,7 @@ func checkCVEs(
 							}
 						}
 
-						resolvedVersion, err := getMatchingVersionEndExcluding(matches.CVE.ID(), softwareCPE.meta, dict)
+						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), softwareCPE.meta, dict, file)
 						if err != nil {
 							level.Error(logger).Log(logKey, "error", "err", err)
 						}
@@ -287,7 +289,7 @@ func checkCVEs(
 // Returns the versionEndExcluding string for the given CVE and host software meta
 // data, if it exists in the NVD feed.  This effectively gives us the version of the
 // software it needs to upgrade to in order to address the CVE.
-func getMatchingVersionEndExcluding(cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary) (string, error) {
+func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary, nvdfile string) (string, error) {
 	vuln, ok := dict[cve].(*feednvd.Vuln)
 	if !ok {
 		return "", nil
@@ -315,9 +317,10 @@ func getMatchingVersionEndExcluding(cve string, hostSoftwareMeta *wfn.Attributes
 	}
 
 	// convert the host software version to semver for later comparison
-	softwareVersion, err := semver.NewVersion(wfn.StripSlashes(hostSoftwareMeta.Version))
+	formattedVersion := preprocessVersion(wfn.StripSlashes(hostSoftwareMeta.Version))
+	softwareVersion, err := semver.NewVersion(formattedVersion)
 	if err != nil {
-		return "", err
+		return "", ctxerr.Wrap(ctx, err, "parsing software version", hostSoftwareMeta.Product, hostSoftwareMeta.Version)
 	}
 
 	// Check if the host software version matches any of the CPEMatch rules.
@@ -334,7 +337,7 @@ func getMatchingVersionEndExcluding(cve string, hostSoftwareMeta *wfn.Attributes
 		// convert the NVD cpe23URi to wfn.Attributes for later comparison
 		attr, err := wfn.Parse(rule.Cpe23Uri)
 		if err != nil {
-			return "", err
+			return "", ctxerr.Wrap(ctx, err, "parsing cpe23Uri")
 		}
 
 		// ensure the product and vendor match
@@ -343,16 +346,16 @@ func getMatchingVersionEndExcluding(cve string, hostSoftwareMeta *wfn.Attributes
 		}
 
 		// versionEnd is the version string that the vulnerable host software version must be less than
-		versionEnd, err := checkVersion(rule, softwareVersion)
+		versionEnd, err := checkVersion(ctx, rule, softwareVersion)
 		if err != nil {
-			return "", err
+			return "", ctxerr.Wrap(ctx, err, "checking version")
 		}
 		if versionEnd != "" {
 			return versionEnd, nil
 		}
 	}
 
-	return "", fmt.Errorf("no matching rule found for CVE: %s", cve)
+	return "", fmt.Errorf("getting resolved in version: no matching rule found for CVE: %s", cve)
 }
 
 // CPEMatch can be nested in Children nodes. Recursively search the nodes for a CPEMatch
@@ -373,7 +376,7 @@ func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJ
 }
 
 // checkVersion checks if the host software version matches the CPEMatch rule
-func checkVersion(rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *semver.Version) (string, error) {
+func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *semver.Version) (string, error) {
 	for _, condition := range []struct {
 		startIncluding string
 		startExcluding string
@@ -388,7 +391,7 @@ func checkVersion(rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *sem
 
 		constraint, err := semver.NewConstraint(constraintStr)
 		if err != nil {
-			return "", err
+			return "", ctxerr.Wrap(nil, err, "parsing constraint:", constraintStr)
 		}
 
 		if constraint.Check(softwareVersion) {
@@ -406,7 +409,18 @@ func buildConstraintString(startIncluding, startExcluding, endExcluding string) 
 		return ""
 	}
 	if startIncluding != "" {
-		return fmt.Sprintf(">= %s < %s", startIncluding, endExcluding)
+		return fmt.Sprintf(">= %s, < %s", startIncluding, endExcluding)
 	}
-	return fmt.Sprintf("> %s < %s", startExcluding, endExcluding)
+	return fmt.Sprintf("> %s, < %s", startExcluding, endExcluding)
+}
+
+// Products using 4 part versioning scheme (ie. docker desktop)
+// need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0+3) for use with
+// the semver library.
+func preprocessVersion(version string) string {
+	parts := strings.Split(version, ".")
+	if len(parts) == 4 {
+		return parts[0] + "." + parts[1] + "." + parts[2] + "+" + parts[3]
+	}
+	return version
 }
