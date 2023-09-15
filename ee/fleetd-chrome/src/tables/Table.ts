@@ -9,7 +9,7 @@ const CONCAT_CHROME_WARNINGS = (warnings: ChromeWarning[]): string => {
   const warningStrings = warnings.map(
     (warning) => `Column: ${warning.column} - ${warning.error_message}`
   );
-  return warningStrings.toString();
+  return warningStrings.join("\n");
 };
 class cursorState {
   rowIndex: number;

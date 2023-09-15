@@ -29,7 +29,20 @@ const convertToCSV = ({
   const jsonFields = fields.map((field) => JSON.stringify(field));
   const rows = objArray.map((row: any) => {
     // TODO: typing
-    return fields.map((field) => JSON.stringify(row[field])).join(",");
+    console.log("row", row);
+
+    const returnStatement = fields
+      .map((field) => {
+        console.log("typeof row[field]", typeof row[field]);
+
+        return JSON.stringify(
+          row[field] ? row[field].replaceAll("\n", "\\n") : undefined
+        );
+      })
+      .join(","); // Renders any \n on a new line in the
+
+    console.log("returnStatement", returnStatement);
+    return returnStatement;
   });
 
   rows.unshift(jsonFields.join(","));
