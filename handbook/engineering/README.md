@@ -316,7 +316,7 @@ Immediately after publishing a new release, we close out the associated GitHub i
 
 11. **Remove the freeze**: [Open the repo in Merge Freeze](https://app.mergefreeze.com/installations/3704/branches/6847) and click the "Unfreeze" button. 
 
-12. Announce that `main` is unforzen and the milestone has been closed in #help-engineering.
+12. Announce that `main` is unfrozen and the milestone has been closed in #help-engineering.
 
 ## Oncall rotation
 
