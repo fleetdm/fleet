@@ -1,2 +1,0 @@
-* Added an endpoint to report `fleetd` errors
-* Added logic to report errors during MDM migration

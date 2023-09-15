@@ -68,7 +68,7 @@ Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/f
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2
 ```
 
 Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
@@ -89,8 +89,8 @@ $ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
 
 To run all Go unit tests, run the following:
 
-```
-REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 make test-go
+```bash
+REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make test-go
 ```
 
 ### Go linters

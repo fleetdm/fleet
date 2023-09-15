@@ -6,7 +6,10 @@ import ReactTooltip from "react-tooltip";
 import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
-import { formatFloatAsPercentage } from "utilities/helpers";
+import {
+  formatFloatAsPercentage,
+  getSoftwareBundleTooltipMarkup,
+} from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -64,23 +67,6 @@ const condenseVulnerabilities = (
     ? condensed.concat(`+${vulnerabilities.length - 3} more`)
     : condensed;
 };
-
-const renderBundleTooltip = (name: string, bundle: string) => (
-  <span className="name-container">
-    <TooltipWrapper
-      position="top"
-      tipContent={`
-        <span>
-          <b>Bundle identifier: </b>
-          <br />
-          ${bundle}
-        </span>
-      `}
-    >
-      {name}
-    </TooltipWrapper>
-  </span>
-);
 
 const getMaxProbability = (vulns: IVulnerability[]) =>
   vulns.reduce(
@@ -217,8 +203,10 @@ const generateTableHeaders = (
           <LinkCell
             path={PATHS.SOFTWARE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
-            value={bundle ? renderBundleTooltip(name, bundle) : name}
-            withTooltip={!!bundle}
+            value={name}
+            tooltipContent={
+              bundle ? getSoftwareBundleTooltipMarkup(bundle) : undefined
+            }
           />
         );
       },

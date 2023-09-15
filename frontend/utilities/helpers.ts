@@ -15,9 +15,10 @@ import { buildQueryStringFromParams } from "utilities/url";
 import md5 from "js-md5";
 import {
   formatDistanceToNow,
-  isAfter,
-  intervalToDuration,
   formatDuration,
+  intlFormat,
+  intervalToDuration,
+  isAfter,
 } from "date-fns";
 import yaml from "js-yaml";
 
@@ -44,6 +45,7 @@ import {
   DEFAULT_GRAVATAR_LINK_FALLBACK,
   DEFAULT_GRAVATAR_LINK_DARK,
   DEFAULT_GRAVATAR_LINK_DARK_FALLBACK,
+  INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
@@ -528,7 +530,7 @@ export const generateTeam = (
   if (globalRole === null) {
     if (teams.length === 0) {
       // no global role and no teams
-      return "No Team";
+      return "No team";
     } else if (teams.length === 1) {
       // no global role and only one team
       return teams[0].name;
@@ -544,7 +546,7 @@ export const generateTeam = (
 };
 
 export const greyCell = (roleOrTeamText: string): boolean => {
-  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No Team", "Unknown"];
+  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No team", "Unknown"];
 
   return (
     GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" teams")
@@ -586,7 +588,7 @@ export const humanHostLastRestart = (
     !detailUpdatedAt ||
     !uptime ||
     detailUpdatedAt === DEFAULT_EMPTY_CELL_VALUE ||
-    detailUpdatedAt < "2016-07-28T00:00:00Z" ||
+    detailUpdatedAt < INITIAL_FLEET_DATE ||
     typeof uptime !== "number"
   ) {
     return "Unavailable";
@@ -613,7 +615,7 @@ export const humanHostLastRestart = (
 };
 
 export const humanHostLastSeen = (lastSeen: string): string => {
-  if (!lastSeen || lastSeen < "2016-07-28T00:00:00Z") {
+  if (!lastSeen || lastSeen < INITIAL_FLEET_DATE) {
     return "Never";
   }
   if (lastSeen === "Unavailable") {
@@ -623,7 +625,7 @@ export const humanHostLastSeen = (lastSeen: string): string => {
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
-  if (!enrolled || enrolled < "2016-07-28T00:00:00Z") {
+  if (!enrolled || enrolled < INITIAL_FLEET_DATE) {
     return "Never";
   }
   return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
@@ -636,8 +638,7 @@ export const humanHostMemory = (bytes: number): string => {
 export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   // Handles the case when a host has checked in to Fleet but
   // its details haven't been updated.
-  // July 28, 2016 is the date of the initial commit to fleet/fleet.
-  if (!detailUpdated || detailUpdated < "2016-07-28T00:00:00Z") {
+  if (!detailUpdated || detailUpdated < INITIAL_FLEET_DATE) {
     return "unavailable";
   }
   try {
@@ -645,6 +646,33 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   } catch {
     return "unavailable";
   }
+};
+
+/** Unlike humanHost helper functions, there are no Fleet-related date restrictions */
+export const humanLastSeen = (lastSeen: string): string => {
+  if (!lastSeen) {
+    return "Never";
+  }
+  if (lastSeen === "Unavailable") {
+    return "Unavailable";
+  }
+
+  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+};
+
+export const internationalTimeFormat = (date: number | Date): string => {
+  return intlFormat(
+    date,
+    {
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+    },
+    { locale: window.navigator.languages[0] }
+  );
 };
 
 const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
@@ -687,8 +715,7 @@ export const hostTeamName = (teamName: string | null): string => {
 
 export const humanQueryLastRun = (lastRun: string): string => {
   // Handles the case when a query has never been ran.
-  // July 28, 2016 is the date of the initial commit to fleet/fleet.
-  if (!lastRun || lastRun < "2016-07-28T00:00:00Z") {
+  if (!lastRun || lastRun < INITIAL_FLEET_DATE) {
     return "Has not run";
   }
 
@@ -873,6 +900,16 @@ export const getNextLocationPath = ({
   return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };
 
+export const getSoftwareBundleTooltipMarkup = (bundle: string) => {
+  return `
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `;
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -893,6 +930,8 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
+  humanLastSeen,
+  internationalTimeFormat,
   getHostDiskEncryptionTooltipMessage,
   hostTeamName,
   humanQueryLastRun,

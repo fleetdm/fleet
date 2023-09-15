@@ -103,6 +103,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		}
 
 		for _, c := range cases {
+			c := c
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				appCfg := fleet.AppConfig{}
 				appCfg.MDM = c.mdm
@@ -194,6 +195,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		}
 
 		for _, c := range cases {
+			c := c
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				appCfg := fleet.AppConfig{}
 				appCfg.MDM = c.mdm
