@@ -62,9 +62,9 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 
 3. Set the `mdm.macos_settings.enable_disk_encryption` configuration option to `true`.
 
-4. Set the `DeferForceAtUserLoginMaxBypassAttempts` property to `1` to mandate FileVault activation upon set-up. 
+4. Run the `fleetctl apply -f workstations-canary-config.yml` command.
 
-5. Run the `fleetctl apply -f workstations-canary-config.yml` command.
+> Fleet auto-configures `DeferForceAtUserLoginMaxBypassAttempts` to `1`, ensuring mandatory disk encryption during new Mac setup.
 
 ### Step 2: share migration instructions with your end users
 
