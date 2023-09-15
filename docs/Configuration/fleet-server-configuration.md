@@ -1049,6 +1049,8 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
     enable_async_host_processing: true
   ```
 
+  Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
+
 ##### osquery_async_host_collect_interval
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each Fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
