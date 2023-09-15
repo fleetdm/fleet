@@ -289,7 +289,9 @@ expiration setting. To configure this setting, in the Fleet UI, head to **Settin
 
 Visit the Google Admin console. In the navigation menu, visit Devices > Chrome > Apps & Extensions > Users & browsers.
 
-Currently, the Chrome extension can only be installed across the entire organization. The work to enable installation for sub-groups is tracked in https://github.com/fleetdm/fleet/issues/13353. 
+Select the relevant organizational unit, users, or group where you want the fleetd Chrome extension to be installed.
+
+> Currently, the Chrome extension can only be installed across the entire organization. The work to enable installation for sub-groups is tracked in https://github.com/fleetdm/fleet/issues/13353. 
 
 In the bottom right, click the yellow "+" button and select "Add Chrome app or extension by ID."
 
