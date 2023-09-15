@@ -136,6 +136,7 @@ func (ds *Datastore) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error
 
 		// Load targets
 		for _, spec := range specs {
+			spec := spec
 
 			// Load labels
 			query = `
@@ -160,6 +161,7 @@ WHERE pack_id = ? AND pt.type = ? AND pt.target_id = t.id
 
 		// Load queries
 		for _, spec := range specs {
+			spec := spec
 			query = `
 SELECT
 query_name, name, description, ` + "`interval`" + `,

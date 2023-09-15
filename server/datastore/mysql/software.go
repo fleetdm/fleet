@@ -587,6 +587,7 @@ func listSoftwareDB(
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
 				cve.CVEPublished = &result.CVEPublished
+				cve.Description = &result.Description
 				cve.ResolvedInVersion = &result.ResolvedInVersion
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
@@ -604,6 +605,7 @@ type softwareCVE struct {
 	EPSSProbability   *float64   `db:"epss_probability"`
 	CISAKnownExploit  *bool      `db:"cisa_known_exploit"`
 	CVEPublished      *time.Time `db:"cve_published"`
+	Description       *string    `db:"description"`
 	ResolvedInVersion *string    `db:"resolved_in_version"`
 }
 
@@ -698,6 +700,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				goqu.MAX("c.epss_probability").As("epss_probability"),         // for ordering
 				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"),     // for ordering
 				goqu.MAX("c.published").As("cve_published"),                   // for ordering
+				goqu.MAX("c.description").As("description"),                   // for ordering
 				goqu.MAX("scv.resolved_in_version").As("resolved_in_version"), // for ordering
 			)
 	}
@@ -766,6 +769,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"c.cvss_score",
 			"c.epss_probability",
 			"c.cisa_known_exploit",
+			"c.description",
 			goqu.I("c.published").As("cve_published"),
 			"scv.resolved_in_version",
 		)
@@ -1066,6 +1070,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 				"c.cvss_score",
 				"c.epss_probability",
 				"c.cisa_known_exploit",
+				"c.description",
 				goqu.I("c.published").As("cve_published"),
 				"scv.resolved_in_version",
 			)
@@ -1362,13 +1367,14 @@ func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]fleet.HostVu
 
 func (ds *Datastore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) error {
 	query := `
-INSERT INTO cve_meta (cve, cvss_score, epss_probability, cisa_known_exploit, published)
+INSERT INTO cve_meta (cve, cvss_score, epss_probability, cisa_known_exploit, published, description)
 VALUES %s
 ON DUPLICATE KEY UPDATE
     cvss_score = VALUES(cvss_score),
     epss_probability = VALUES(epss_probability),
     cisa_known_exploit = VALUES(cisa_known_exploit),
-    published = VALUES(published)
+    published = VALUES(published),
+    description = VALUES(description)
 `
 
 	batchSize := 500
@@ -1380,10 +1386,10 @@ ON DUPLICATE KEY UPDATE
 
 		batch := cveMeta[i:end]
 
-		valuesFrag := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?), ", len(batch)), ", ")
+		valuesFrag := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?), ", len(batch)), ", ")
 		var args []interface{}
 		for _, meta := range batch {
-			args = append(args, meta.CVE, meta.CVSSScore, meta.EPSSProbability, meta.CISAKnownExploit, meta.Published)
+			args = append(args, meta.CVE, meta.CVSSScore, meta.EPSSProbability, meta.CISAKnownExploit, meta.Published, meta.Description)
 		}
 
 		query := fmt.Sprintf(query, valuesFrag)
@@ -1530,6 +1536,7 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 			goqu.C("epss_probability"),
 			goqu.C("cisa_known_exploit"),
 			goqu.C("published"),
+			goqu.C("description"),
 		).
 		Where(goqu.C("published").Gte(maxAgeDate))
 

@@ -264,7 +264,7 @@ spec:
 
 ### Team secrets
 
-The `secrets` section provides the list of enroll secrets that will be valid for this team. If the section is missing, the existing secrets are left unmodified. Otherwise, they are replaced with this list of secrets for this team.
+The `secrets` section provides the list of enroll secrets that will be valid for this team. When a new team is created via `fleetctl apply`, an enroll secret is automatically generated for it. If the section is missing, the existing secrets are left unmodified. Otherwise, they are replaced with this list of secrets for this team.
 
 - Optional setting (array of dictionaries)
 - Default value: none (empty)

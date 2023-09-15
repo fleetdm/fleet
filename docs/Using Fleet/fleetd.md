@@ -345,8 +345,24 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
 ##### Generate installer packages from Orbit source
 
 The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
-To generate an installer that contains an Orbit built from source, you need to setup a local TUF repository.
+To generate an installer that contains an Orbit built from source, you need to set up a local TUF repository.
 The following document explains how you can generate a TUF repository and installers that use it: [tools/tuf/test](https://github.com/fleetdm/fleet/tree/main/tools/tuf/test/README.md).
+
+##### Experimental Features
+
+> Any features listed here are not recommended for use in production environments
+
+**Using `fleetd` without enrolling Orbit**
+
+*Only available in fleetd v1.15.1 on Linux and macOS*
+
+It is possible to generate a fleetd package that does not connect to Fleet by omitting the `--fleet-url` and `--enroll-secret` flags when building a package.
+
+This can be useful in situations where you would like to test using `fleetd` to manage osquery updates while still managing osquery command-line flags and extensions locally 
+but can result in a large volume of error logs. In fleetd v1.15.1, we added an experimental feature to reduce log chatter in this scenario.
+ 
+Applying the environmental variable `"FLEETD_SILENCE_ENROLL_ERROR"=1` on a host will silence fleetd enrollment errors if a `--fleet-url` is not present.
+This variable is read at launch and will require a restart of the Orbit service if it is not set before installing `fleetd` v1.15.1.
 
 #### Troubleshooting
 
@@ -358,7 +374,6 @@ These are the log destinations for each platform:
 - macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
 - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
  Users will need administrative permissions on the host to access these log destinations.
-
 
 #### Uninstall
 

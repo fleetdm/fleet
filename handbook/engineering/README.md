@@ -299,6 +299,10 @@ See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo
 
 Fleet team members can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
 
+New engineers are added to the oncall rotation by their manager after they have completed onboarding and at least one full release cycle. We aim to alternate the rotation between product groups when possible. 
+
+> The oncall rotation may be adjusted with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
+
 ### Responsibilities
 
 - [Second-line response](#second-line-response)
@@ -319,6 +323,8 @@ We respond within 1-hour (during business hours) for interactions and ask the on
 #### PR reviews
 
 PRs from Fleeties are reviewed by auto-assignment of codeowners, or by selecting the group or reviewer manually.
+
+PRs should remain in draft until they are ready to be reviewed for final approval, this means the feature is complete with tests already added. This helps keep our active list of PRs relevant and focused. It is ok and encouraged to request feedback while a PR is in draft to engage the team.
 
 All PRs from the community are routed through the oncall engineer. For documentation changes, the community contact ([Kathy](https://github.com/ksatter)) is assigned by the oncall engineer. For code changes, if the oncall engineer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
 

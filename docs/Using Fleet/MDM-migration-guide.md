@@ -111,11 +111,8 @@ Fleet UI:
 3. Under **Mode** choose a mode and enter the webhook URL for you automation tool (ex. Tines) under **Webhook URL** and select **Save**.
 
 4. During the end user migration workflow, an end user's device will have their selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
-
-    1. Head to **Settings** > **Organization settings** >
-**Organization info** and add URLs to your logos in the **Organization avatar URL(for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields.
-    
-    2. Select **Save**.
+Head to **Settings** > **Organization settings** >
+**Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**.
 
 fleetctl CLI:
 
