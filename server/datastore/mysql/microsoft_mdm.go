@@ -92,17 +92,47 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevi
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
 }
 
-const whereBitLockerPending = `hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = ''`
+const (
+	whereBitLockerVerified = `hmdm.is_server = 0 AND hdek.decryptable = 1`
+	whereBitLockerPending  = `hmdm.is_server = 0 AND hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = ''`
+	whereBitLockerFailed   = `hmdm.is_server = 0 AND hdek.host_id IS NOT NULL AND hdek.client_error != ''`
+)
 
 func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
+	var enabled bool
+	var teamFilter string
+	var args []interface{}
+	switch {
+	case teamID == nil || *teamID == 0:
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		enabled = ac.MDM.MacOSSettings.EnableDiskEncryption
+		teamFilter = "h.team_id IS NULL"
+	default:
+		tc, err := ds.TeamMDMConfig(ctx, *teamID)
+		if err != nil {
+			return nil, err
+		}
+		enabled = tc.MacOSSettings.EnableDiskEncryption
+		teamFilter = "h.team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	if !enabled {
+		// if disk encryption is not enabled, return early with empty summary
+		return &fleet.MDMWindowsBitLockerSummary{}, nil
+	}
+
 	// Note verifying, action_required, and removing_enforcement are not applicable to Windows hosts
 	sqlFmt := `
 SELECT
-    COUNT( if(hdek.decryptable = 1, 1, NULL)) AS verified,
+    COUNT(if(%s, 1, NULL)) AS verified,
     0 AS verifying,
     0 AS action_required,
-    COUNT( if(hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = '', 1, NULL) ) AS enforcing,
-    COUNT( if(hdek.host_id IS NOT NULL AND hdek.client_error != '', 1, NULL) ) AS failed,
+    COUNT(if(%s, 1, NULL)) AS enforcing,
+    COUNT(if(%s, 1, NULL)) AS failed,
     0 AS removing_enforcement
 FROM
     hosts h
@@ -113,19 +143,9 @@ WHERE
 
 	// TODO: Consider if we should use right joins instead?
 
-	var args []interface{}
-
-	teamFilter := "h.team_id IS NULL"
-	if teamID != nil && *teamID > 0 {
-		teamFilter = "h.team_id = ?"
-		args = append(args, *teamID)
-	}
-
-	stmt := fmt.Sprintf(sqlFmt, teamFilter)
-
 	var res fleet.MDMWindowsBitLockerSummary
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...)
-	if err != nil {
+	stmt := fmt.Sprintf(sqlFmt, whereBitLockerVerified, whereBitLockerPending, whereBitLockerFailed, teamFilter)
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
 		return nil, err
 	}
 
