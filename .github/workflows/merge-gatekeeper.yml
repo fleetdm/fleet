@@ -4,6 +4,10 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - "handbook/**"
+      - "website/**"
+      - "mdm-profiles/**"
 
 jobs:
   merge-gatekeeper:
