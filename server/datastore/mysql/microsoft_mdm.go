@@ -99,16 +99,17 @@ SELECT
     COUNT( if(hdek.decryptable = 1, 1, NULL)) AS verified,
     0 AS verifying,
     0 AS action_required,
-    COUNT( if(hdek.host_id IS NOT NULL AND hdek.decryptable IS NULL AND hdek.client_error = '', 1, NULL)) AS enforcing,
-    COUNT( if(hdek.host_id IS NOT NULL AND hdek.client_error != '', 1, NULL)) AS failed,
+    COUNT( if(hdek.host_id IS NOT NULL AND hdek.decryptable IS NULL AND hdek.client_error = '', 1, NULL) ) AS enforcing,
+    COUNT( if(hdek.host_id IS NOT NULL AND hdek.client_error != '', 1, NULL) ) AS failed,
     0 AS removing_enforcement
 FROM
     hosts h
     LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
+	LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
 WHERE
-    h.platform = 'windows' AND %s`
+    h.platform = 'windows' AND hmdm.is_server = 0 AND %s`
 
-	// TODO: Do we need to left join hdek? Should we check if the host is a Windows server?
+	// TODO: Consider if we should use right joins instead?
 
 	var args []interface{}
 
