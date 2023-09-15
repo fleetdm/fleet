@@ -206,22 +206,22 @@ func (tq *TargetedQuery) AuthzType() string {
 }
 
 var (
-	ErrQueryEmptyName       = errors.New("query name cannot be empty")
-	ErrQueryEmptyQuery      = errors.New("query's SQL query cannot be empty")
+	errQueryEmptyName       = errors.New("query name cannot be empty")
+	errQueryEmptyQuery      = errors.New("query's SQL query cannot be empty")
 	ErrQueryInvalidPlatform = errors.New("query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string")
-	ErrInvalidLogging       = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
+	errInvalidLogging       = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
 )
 
 func verifyQueryName(name string) error {
 	if emptyString(name) {
-		return ErrQueryEmptyName
+		return errQueryEmptyName
 	}
 	return nil
 }
 
 func verifyQuerySQL(query string) error {
 	if emptyString(query) {
-		return ErrQueryEmptyQuery
+		return errQueryEmptyQuery
 	}
 	return nil
 }
@@ -229,7 +229,7 @@ func verifyQuerySQL(query string) error {
 func verifyLogging(logging string) error {
 	// Empty string means snapshot.
 	if logging != "" && logging != LoggingSnapshot && logging != LoggingDifferential && logging != LoggingDifferentialIgnoreRemovals {
-		return ErrInvalidLogging
+		return errInvalidLogging
 	}
 	return nil
 }
