@@ -205,6 +205,9 @@ The product designer prepares proposed changes in the form of wireframes for thi
 
 #### Air guitar
 
+1. Air guitar issues are always intended to be designed right away.
+2. If they can't be, the requestor is notified via at-mention in the issue.  (That person is either the CSM or AE.)  These comments (like every github comment) should at-mention the intended recipient.  GitHub comments without at-mentions do not notify anyone.
+
 ##### Initiate an air guitar session
 
 Anyone in the product group can initiate an air guitar session.
