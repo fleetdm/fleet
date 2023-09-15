@@ -22,6 +22,33 @@
     color: @core-vibrant-blue;
   }
 
+  pre {
+    width: 100%;
+    max-width: 100%;
+    padding: 30px;
+    background: #F9FAFC;
+    border: 1px solid @core-vibrant-blue-15;
+    border-radius: 4px;
+    margin-bottom: 0px;
+    code {
+      .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
+        color: #AE6DDF;
+        white-space: pre;
+      }
+      .hljs-string { // For words wrapped in quotation marks
+        color: #3DB67B;
+        white-space: pre;
+      }
+      background-color: @ui-off-white;
+      border: none;
+      word-break: break-word;
+      white-space: normal;
+      padding: 0;
+      font-size: 13px;
+      line-height: 24px;
+    }
+  }
+
   .border-top {
     border-color: #E2E4EA;
   }
