@@ -355,7 +355,7 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 		}
 	}
 
-	return "", fmt.Errorf("getting resolved in version: no matching rule found for CVE: %s", cve)
+	return "", nil
 }
 
 // CPEMatch can be nested in Children nodes. Recursively search the nodes for a CPEMatch
