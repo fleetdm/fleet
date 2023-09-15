@@ -465,20 +465,11 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 	// We are supporting only C: volume for now
 	targetVolume := "C:"
 
-	recoveryKey, err := bitlocker.EncryptVolume(targetVolume)
-
 	// Setting up encryption result
-	var payload fleet.OrbitHostDiskEncryptionKeyPayload
-	if err != nil {
-		payload = fleet.OrbitHostDiskEncryptionKeyPayload{
-			Key:         "",
-			ClientError: err.Error(),
-		}
-	}
-
-	payload = fleet.OrbitHostDiskEncryptionKeyPayload{
+	recoveryKey, err := bitlocker.EncryptVolume(targetVolume)
+	payload := fleet.OrbitHostDiskEncryptionKeyPayload{
 		Key:         recoveryKey,
-		ClientError: "",
+		ClientError: err.Error(),
 	}
 
 	err = w.EncryptionResult.SetOrUpdateDiskEncryptionPayload(payload)
