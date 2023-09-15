@@ -962,6 +962,8 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = filterHostsByMacOSSettingsStatus(sql, opt, params)
 	sql, params = filterHostsByMacOSDiskEncryptionStatus(sql, opt, params)
+	sql, params = filterHostsByOSSettingsStatus(sql, opt, params)
+	sql, params = filterHostsByOSSettingsDiskEncryptionStatus(sql, opt, params)
 	sql, params = filterHostsByMDMBootstrapPackageStatus(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params, _ = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
@@ -1073,13 +1075,13 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	var subquery string
 	var subqueryParams []interface{}
 	switch opt.MacOSSettingsFilter {
-	case fleet.MacOSSettingsFailed:
+	case fleet.OSSettingsFailed:
 		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
-	case fleet.MacOSSettingsPending:
+	case fleet.OSSettingsPending:
 		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
-	case fleet.MacOSSettingsVerifying:
+	case fleet.OSSettingsVerifying:
 		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
-	case fleet.MacOSSettingsVerified:
+	case fleet.OSSettingsVerified:
 		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerified()
 	}
 	if subquery != "" {
@@ -1112,6 +1114,88 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	}
 
 	return sql + fmt.Sprintf(` AND EXISTS (%s)`, subquery), append(params, subqueryParams...)
+}
+
+func filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if !opt.OSSettingsFilter.IsValid() {
+		return sql, params
+	}
+
+	newSQL := " AND h.platform IN('windows', 'darwin')"
+	if opt.TeamFilter == nil {
+		// macOS settings filter is not compatible with the "all teams" option so append the "no
+		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
+		newSQL += ` AND h.team_id IS NULL`
+	}
+
+	var subquery string
+	var subqueryParams []interface{}
+	switch opt.OSSettingsFilter {
+	case fleet.OSSettingsFailed:
+		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
+		newSQL += fmt.Sprintf(` AND ((h.platform = 'windows' AND hmdm.is_server = 0 AND hdek.client_error != '') 
+        OR (h.platform = 'darwin' AND EXISTS (%s)))`, subquery)
+	case fleet.OSSettingsPending:
+		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
+		newSQL += fmt.Sprintf(` AND ((h.platform = 'windows' AND hmdm.is_server = 0 AND hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = '') 
+        OR (h.platform = 'darwin' AND EXISTS (%s)))`, subquery)
+	case fleet.OSSettingsVerifying:
+		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
+		// Windows hosts cannot be verifying status in the current implementation.
+		newSQL += fmt.Sprintf(` AND ((h.platform = 'windows' AND FALSE) OR (h.platform = 'darwin' AND EXISTS (%s)))`, subquery)
+	case fleet.OSSettingsVerified:
+		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerified()
+		newSQL += fmt.Sprintf(` AND ((h.platform = 'windows' AND hmdm.is_server = 0 AND hdek.host_id IS NOT NULL AND hdek.decryptable = 1 AND hdek.client_error = '') 
+        OR (h.platform = 'darwin' AND EXISTS (%s)))`, subquery)
+	}
+
+	return sql + newSQL, append(params, subqueryParams...)
+}
+
+func filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if !opt.OSSettingsDiskEncryptionFilter.IsValid() {
+		return sql, params
+	}
+
+	// TODO: Should we add no team filter here? It isn't included for the FileVault filter but is
+	// for the general macOS settings filter.
+	newSQL := " AND h.platform IN('windows', 'darwin')"
+	// if opt.TeamFilter == nil {
+	// 	// macOS settings filter is not compatible with the "all teams" option so append the "no
+	// 	// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
+	// 	newSQL += ` AND h.team_id IS NULL`
+	// }
+
+	var subquery string
+	var subqueryParams []interface{}
+	switch opt.OSSettingsDiskEncryptionFilter {
+	case fleet.DiskEncryptionVerified:
+		subquery, subqueryParams = subqueryFileVaultVerified()
+		newSQL += fmt.Sprintf(` AND ((h.platform = 'windows' AND hmdm.is_server = 0 AND hdek.host_id IS NOT NULL AND hdek.decryptable = 1 AND hdek.client_error = '') 
+        OR (h.platform = 'darwin' AND EXISTS (%s)))`, subquery)
+	case fleet.DiskEncryptionVerifying:
+		subquery, subqueryParams = subqueryFileVaultVerifying()
+		// Windows hosts cannot be verifying status in the current implementation.
+		newSQL += fmt.Sprintf(` AND ((h.platform = 'windows' AND FALSE) OR (h.platform = 'darwin' AND EXISTS (%s)))`, subquery)
+	case fleet.DiskEncryptionActionRequired:
+		subquery, subqueryParams = subqueryFileVaultActionRequired()
+		// Windows hosts cannot be action required status in the current implementation.
+		newSQL += fmt.Sprintf(` AND ((h.platform = 'windows' AND FALSE) OR (h.platform = 'darwin' AND EXISTS (%s)))`, subquery)
+	case fleet.DiskEncryptionEnforcing:
+		subquery, subqueryParams = subqueryFileVaultEnforcing()
+		newSQL += fmt.Sprintf(` AND ((h.platform = 'windows' AND hmdm.is_server = 0 AND hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = '') 
+        OR (h.platform = 'darwin' AND EXISTS (%s)))`, subquery)
+	case fleet.DiskEncryptionFailed:
+		subquery, subqueryParams = subqueryFileVaultFailed()
+		newSQL += fmt.Sprintf(` AND ((h.platform = 'windows' AND hmdm.is_server = 0 AND hdek.client_error != '') 
+        OR (h.platform = 'darwin' AND EXISTS (%s)))`, subquery)
+	case fleet.DiskEncryptionRemovingEnforcement:
+		subquery, subqueryParams = subqueryFileVaultRemovingEnforcement()
+		// Windows hosts cannot be removing enforcement status in the current implementation.
+		newSQL += fmt.Sprintf(` AND ((h.platform = 'windows' AND FALSE) OR (h.platform = 'darwin' AND EXISTS (%s)))`, subquery)
+	}
+
+	return sql + newSQL, append(params, subqueryParams...)
 }
 
 func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {

@@ -92,6 +92,8 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevi
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
 }
 
+const whereBitLockerPending = `hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = ''`
+
 func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
 	// Note verifying, action_required, and removing_enforcement are not applicable to Windows hosts
 	sqlFmt := `
@@ -99,7 +101,7 @@ SELECT
     COUNT( if(hdek.decryptable = 1, 1, NULL)) AS verified,
     0 AS verifying,
     0 AS action_required,
-    COUNT( if(hdek.host_id IS NOT NULL AND hdek.decryptable IS NULL AND hdek.client_error = '', 1, NULL) ) AS enforcing,
+    COUNT( if(hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = '', 1, NULL) ) AS enforcing,
     COUNT( if(hdek.host_id IS NOT NULL AND hdek.client_error != '', 1, NULL) ) AS failed,
     0 AS removing_enforcement
 FROM
