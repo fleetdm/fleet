@@ -111,7 +111,12 @@ Thus, to ensure consistency, completeness, and secure development practices, no 
 Product Managers prioritize all potential product improvements worked on by Fleeties. Anyone (Fleeties, customers, and community members) are invited to suggest improvements. See [the intake section](#intake) for more information on how Fleet's product team intakes new feature requests.
 
 ## Prioritizing bugs
-Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
+Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).) Bugs should be prioritized in the following order:
+1. Quality: product does what it's supposed to (what is documented).
+2. Common-sense user criticality: If no one can load any page, that's obviously important.
+3. Age of bugs: Long-open bugs are open wounds bleeding quality out of the product.  They must be closed quickly.
+4. Customer criticality: How important it is to a customer use case.
+
 
 If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized and estimated for the next sprint. If a bug [requires drafting](https://fleetdm.com/handbook/engineering#in-product-drafting-as-needed) to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
