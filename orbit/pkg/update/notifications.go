@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -396,4 +397,96 @@ func (h *runScriptsConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 		}
 	}
 	return cfg, err
+}
+
+type BitlockDiskEncryptionPayload interface {
+	SetOrUpdateDiskEncryptionPayload(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error
+}
+
+type windowsMDMBitlockerConfigFetcher struct {
+	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
+	// for actually returning the orbit configuration or an error.
+	Fetcher OrbitConfigFetcher
+	// Frequency is the minimum amount of time that must pass between two
+	// executions of the windows MDM enrollment attempt.
+	Frequency time.Duration
+	// HostUUID is the current host's UUID.
+	HostUUID string
+
+	// Bitlocker Operation Results
+	EncryptionResult BitlockDiskEncryptionPayload
+
+	lastEnrollRun time.Time
+}
+
+func ApplyWindowsMDMBitlockerFetcherMiddleware(
+	fetcher OrbitConfigFetcher,
+	frequency time.Duration,
+	hostUUID string,
+	encryptionResult BitlockDiskEncryptionPayload,
+) OrbitConfigFetcher {
+	return &windowsMDMBitlockerConfigFetcher{
+		Fetcher:          fetcher,
+		Frequency:        frequency,
+		HostUUID:         hostUUID,
+		EncryptionResult: encryptionResult,
+	}
+}
+
+// GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
+// server set the "needs windows enrollment" flag to true, executes the command
+// to enroll into Windows MDM (or not, if the device is a Windows Server).
+func (w *windowsMDMBitlockerConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+	cfg, err := w.Fetcher.GetConfig()
+
+	if err == nil {
+		if cfg.Notifications.EnforceBitLocker {
+			w.attemptBitlockerEncryption(cfg.Notifications)
+		}
+	}
+	return cfg, err
+}
+
+func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fleet.OrbitConfigNotifications) {
+	// do not trigger Bitlocker encryption if running on a Windwos server
+	isWindowsServer, err := IsRunningOnWindowsServer()
+	if err != nil || isWindowsServer {
+		log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
+		return
+	}
+
+	if time.Since(w.lastEnrollRun) <= w.Frequency {
+		log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, last run was too recent")
+		return
+	}
+
+	// Performing Bitlocker encryption operation against C: volum
+
+	// We are supporting only C: volume for now
+	targetVolume := "C:"
+
+	recoveryKey, err := bitlocker.EncryptVolume(targetVolume)
+
+	// Setting up encryption result
+	var payload fleet.OrbitHostDiskEncryptionKeyPayload
+	if err != nil {
+		payload = fleet.OrbitHostDiskEncryptionKeyPayload{
+			Key:         "",
+			ClientError: err.Error(),
+		}
+	}
+
+	payload = fleet.OrbitHostDiskEncryptionKeyPayload{
+		Key:         recoveryKey,
+		ClientError: "",
+	}
+
+	err = w.EncryptionResult.SetOrUpdateDiskEncryptionPayload(payload)
+	if err != nil {
+		log.Debug().Err(err).Msg("failed to get send encryption result to Fleet Server")
+		return
+	}
+
+	w.lastEnrollRun = time.Now()
+	log.Info().Msg("successfully called RegisterDeviceWithManagement to enroll Windows device")
 }

@@ -450,3 +450,11 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 	return fleet.ErrMissingLicense
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit Disk Encryption result
+/////////////////////////////////////////////////////////////////////////////////
+
+type setOrUpdateDiskEncryptionResponse struct {
+	Err error `json:"error,omitempty"`
+}

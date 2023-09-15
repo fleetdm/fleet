@@ -174,3 +174,17 @@ func generateWindowsMDMAccessTokenPayload(args WindowsMDMEnrollmentArgs) ([]byte
 	pld.Payload.OrbitNodeKey = args.OrbitNodeKey
 	return json.Marshal(pld)
 }
+
+// Determins is calling logic is running on a Windows server. Exported so it can be used across packages.
+func IsRunningOnWindowsServer() (bool, error) {
+	installType, err := readInstallationType()
+	if err != nil {
+		return false, err
+	}
+
+	if strings.ToLower(installType) == "server" {
+		return true, nil
+	}
+
+	return false, nil
+}
