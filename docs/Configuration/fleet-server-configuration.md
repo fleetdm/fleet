@@ -2911,7 +2911,7 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
 
 
 
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.
+> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 
 ##### fleet_mdm_windows_wstep_identity_key_bytes
