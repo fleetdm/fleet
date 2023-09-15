@@ -2912,8 +2912,8 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(
 		ctx, fleet.SoftwareVulnerability{
-			SoftwareID: bar.ID,
-			CVE:        "cve-123",
+			SoftwareID:        bar.ID,
+			CVE:               "cve-123",
 			ResolvedInVersion: "1.2.3",
 		}, fleet.NVDSource,
 	)
