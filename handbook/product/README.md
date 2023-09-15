@@ -123,7 +123,7 @@ If a bug is not addressed within six weeks, it is [sent to the product team for 
 After aligning with the group product managers, the Head of Product meets with the CEO and Director of Product Development to discuss and finalize the outcomes for the churned bugs.
 
 Once outcomes have been approved by the CEO, Product Operations will complete the churned bug clean-up ritual. Below are the steps for each category:
-- **Continue**: Product Operations should remove the `:product` label, move the bug ticket to the 'inbox' column on the bug board, and assign it to the appropriate group's Engineering Manager.
+- **Continue**: Product Operations should remove the `:product` label, move the bug ticket to the 'to be scheduled' column on the bug board, and assign it to the appropriate group's Product Manager so that it can be prioritized into the sprint backlog.
 - **Needs prioritization**: Product Operations should remove both the `bug` and `:product` labels, then apply the `needs prioritization` label.
 - **De-prioritized**: Product Operations should close the issue and, as the DRI, ensure all follow-up actions are finalized.
 
