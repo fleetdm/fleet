@@ -54,6 +54,7 @@ Tasks:
 - Add a new target `fleet-fips` to the `Makefile` to build Fleet in FIPS mode. (Would set `GOEXPERIMENT=boringcrypto CGO_ENABLED=1`.) Smoke test the Fleet server when built this way. (See the [POC]https://github.com/fleetdm/fleet/compare/13288-poc-fleet-fips?expand=1()) // 1 pt.
 - Make changes in goreleaser yamls to create a new docker image fleetdm/fleet-fips // 2 pt.
 - Perform full QA of the Feet docker image FIPS build (by full QA we mean: we need to test ALL Fleet features). This should be performed by a QA engineer. // 5 pt.
+- Perform any code changes to fleetd (and add documentation for vanilla osquery) to be able to connect (via TLS) to a FIPS-compliant Fleet. We will know if this is necessary from the previous task (QA). // 2 pt.
 - Add tests to make sure the Fleet server TLS client is using the FIPS approved ciphers when connecting to TLS servers (SSO, users, vuln processing, webhooks). E.g. by using TLS servers that will fail the connection if the FIPS ciphers are not used. // 3 pt.
 - Replace bcrypt with PBKDF2 for password hashing (when compiling in FIPS mode) // 5 pt. (assumming we don't need to migrate from bcrypt)
 - Terminate the Fleet sever if MDM or TLS server is enabled when running the FIPS build (security measure). // 1 pt.
