@@ -266,7 +266,7 @@ It is sometimes necessary to delay the release to allow time to complete partial
 
 ### Release readiness
 
-After each product group finishes their QA process during the freeze period, the EM @ mentioned the release ritual DRI in the #help-qa Slack channel. When all EMs have certified that they are ready for release, the release ritual DRI begins the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md). 
+After each product group finishes their QA process during the freeze period, the EM @ mentions the release ritual DRI in the #help-qa Slack channel. When all EMs have certified that they are ready for release, the release ritual DRI begins the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md). 
 
 ### Release day
 
