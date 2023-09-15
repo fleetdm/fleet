@@ -25,7 +25,7 @@ For webhook automations, if a new CVE is detected on more than one host during t
 
 Example webhook payload:
 
-```
+```http
 POST https://server.com/example
 ```
 
@@ -83,7 +83,7 @@ For webhooks automations, if a policy is newly failing on more than one host dur
 
 Example webhook payload:
 
-```
+```http
 POST https://server.com/example
 ```
 
@@ -139,7 +139,7 @@ Fleet sends these webhook requests once per day by default. This interval can be
 
 Example webhook payload:
 
-```
+```http
 POST https://server.com/example
 ```
 
