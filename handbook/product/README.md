@@ -112,10 +112,10 @@ Product Managers prioritize all potential product improvements worked on by Flee
 
 ## Prioritizing bugs
 Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).) Bugs should be prioritized in the following order:
-1. Quality: product does what it's supposed to (what is documented)
+1. Quality: product does what it's supposed to (what is documented).
 2. Common-sense user criticality: If no one can load any page, that's obviously important.
-3. Age of bugs:  Long-open bugs are vicious sores bleeding quality out of the product.  They must be closed quickly.
-4. Customer criticality: How important it is to a customer use case
+3. Age of bugs: Long-open bugs are open wounds bleeding quality out of the product.  They must be closed quickly.
+4. Customer criticality: How important it is to a customer use case.
 
 
 If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized and estimated for the next sprint. If a bug [requires drafting](https://fleetdm.com/handbook/engineering#in-product-drafting-as-needed) to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
