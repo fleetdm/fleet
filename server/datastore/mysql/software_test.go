@@ -548,9 +548,9 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	vulns := []fleet.SoftwareVulnerability{
-		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0001"},
-		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0002"},
-		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003"},
+		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0001", ResolvedInVersion: "2.0.0"},
+		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0002", ResolvedInVersion: "2.0.0"},
+		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003", ResolvedInVersion: "2.0.0"},
 	}
 
 	for _, v := range vulns {
@@ -595,22 +595,24 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		GenerateCPE: "somecpe",
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
-				CVE:              "CVE-2022-0001",
-				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0001",
-				CVSSScore:        ptr.Float64Ptr(2.0),
-				EPSSProbability:  ptr.Float64Ptr(0.01),
-				CISAKnownExploit: ptr.BoolPtr(false),
-				CVEPublished:     ptr.TimePtr(now.Add(-2 * time.Hour)),
-				Description:      ptr.StringPtr("this is a description for CVE-2022-0001"),
+				CVE:               "CVE-2022-0001",
+				DetailsLink:       "https://nvd.nist.gov/vuln/detail/CVE-2022-0001",
+				CVSSScore:         ptr.Float64Ptr(2.0),
+				EPSSProbability:   ptr.Float64Ptr(0.01),
+				CISAKnownExploit:  ptr.BoolPtr(false),
+				CVEPublished:      ptr.TimePtr(now.Add(-2 * time.Hour)),
+				Description:       ptr.StringPtr("this is a description for CVE-2022-0001"),
+				ResolvedInVersion: ptr.StringPtr("2.0.0"),
 			},
 			{
-				CVE:              "CVE-2022-0002",
-				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0002",
-				CVSSScore:        ptr.Float64Ptr(1.0),
-				EPSSProbability:  ptr.Float64Ptr(0.99),
-				CISAKnownExploit: ptr.BoolPtr(false),
-				CVEPublished:     ptr.TimePtr(now),
-				Description:      ptr.StringPtr("this is a description for CVE-2022-0002"),
+				CVE:               "CVE-2022-0002",
+				DetailsLink:       "https://nvd.nist.gov/vuln/detail/CVE-2022-0002",
+				CVSSScore:         ptr.Float64Ptr(1.0),
+				EPSSProbability:   ptr.Float64Ptr(0.99),
+				CISAKnownExploit:  ptr.BoolPtr(false),
+				CVEPublished:      ptr.TimePtr(now),
+				Description:       ptr.StringPtr("this is a description for CVE-2022-0002"),
+				ResolvedInVersion: ptr.StringPtr("2.0.0"),
 			},
 		},
 	}
@@ -624,13 +626,14 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		GenerateCPE: "somecpe2",
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
-				CVE:              "CVE-2022-0003",
-				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0003",
-				CVSSScore:        ptr.Float64Ptr(3.0),
-				EPSSProbability:  ptr.Float64Ptr(0.98),
-				CISAKnownExploit: ptr.BoolPtr(true),
-				CVEPublished:     ptr.TimePtr(now.Add(-1 * time.Hour)),
-				Description:      ptr.StringPtr("this is a description for CVE-2022-0003"),
+				CVE:               "CVE-2022-0003",
+				DetailsLink:       "https://nvd.nist.gov/vuln/detail/CVE-2022-0003",
+				CVSSScore:         ptr.Float64Ptr(3.0),
+				EPSSProbability:   ptr.Float64Ptr(0.98),
+				CISAKnownExploit:  ptr.BoolPtr(true),
+				CVEPublished:      ptr.TimePtr(now.Add(-1 * time.Hour)),
+				Description:       ptr.StringPtr("this is a description for CVE-2022-0003"),
+				ResolvedInVersion: ptr.StringPtr("2.0.0"),
 			},
 		},
 	}
