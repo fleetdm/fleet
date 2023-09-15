@@ -6,20 +6,21 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 - **Note** When the CEO is out of office, these responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 ## Team
-| Role                                           | Contributor(s)
-|:-----------------------------------------------|:----------------------------------------------------------------------|
-| CEO                                            | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
-| Apprentice to the CEO                          | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
+| Role                            | Contributor(s)
+|:--------------------------------|:----------------------------------------------------------------------|
+| CEO                             | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Apprentice to the CEO           | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
 ## Contact us
-- **Do not add events to the CEO's calendar.**  Even if the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).
-  - If you create an event directly on the CEO's calendar, it will be declined and removed.
-- **To ask a question or make a request** of the CEO or Apprentice, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________) and he or the Apprentice will get back to you within one business day.
-  - If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
-  - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board) (confidential) for this team, including pending tasks and requests.
+- To **ask a question** or **make a request** of the CEO or Apprentice, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________) and he or the Apprentice will get back to you within one business day.
+  - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
+  - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board?sprints=none) (confidential) for this team, including pending tasks and requests.
+- **Do not add events to the CEO's calendar.** events added directly to the CEO's calendar will be declined and removed. Even if the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).
 - **For personal or extremely urgent requests** that cannot wait one business day, send a Slack direct message (DM) to `@mikermcneil` right away.
+  - If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
 - **If you are in Business Operations**, you can [request warehoused equipment be shipped from Fleet IT](#request-equipment-from-fleet-it).
+- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) Slack channel.
 
 ### Schedule time with the CEO
 All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
