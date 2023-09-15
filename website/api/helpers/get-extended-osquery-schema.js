@@ -304,10 +304,8 @@ module.exports = {
         expandedTables.push(fleetOverrideToPush);
       }//∞ After each Fleet overrides table
     }
-    // Sort the merged tables by table name
-    let sortedMergedSchema = _.sortBy(expandedTables, 'name');
-    // Return the sorted merged schema
-    return sortedMergedSchema;
+    // Return the merged schema
+    return expandedTables;
   }
 
 };
