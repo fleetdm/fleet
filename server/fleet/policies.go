@@ -158,6 +158,9 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
+	FailedPolicyCount    uint `json:"failed_policy_count" db:"failed_policy_counts"`
+	SucceededPolicyCount uint `json:"succeeded_policy_count" db:"succeeded_policy_counts"`
+
 	UpdateCreateTimestamps
 }
 
