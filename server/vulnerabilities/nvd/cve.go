@@ -250,7 +250,7 @@ func checkCVEs(
 							}
 						}
 
-						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), softwareCPE.meta, dict, file)
+						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), softwareCPE.meta, dict)
 						if err != nil {
 							level.Error(logger).Log(logKey, "error", "err", err)
 						}
@@ -289,7 +289,7 @@ func checkCVEs(
 // Returns the versionEndExcluding string for the given CVE and host software meta
 // data, if it exists in the NVD feed.  This effectively gives us the version of the
 // software it needs to upgrade to in order to address the CVE.
-func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary, nvdfile string) (string, error) {
+func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary) (string, error) {
 	vuln, ok := dict[cve].(*feednvd.Vuln)
 	if !ok {
 		return "", nil

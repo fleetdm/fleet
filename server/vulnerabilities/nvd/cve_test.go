@@ -342,6 +342,7 @@ func TestSyncsCVEFromURL(t *testing.T) {
 
 // This test is using real data from the 2022 NVD feed
 func TestGetMatchingVersionEndExcluding(t *testing.T) {
+	ctx := context.Background()
 	testDict := loadDict(t, "../testdata/nvdcve-1.1-2022.json.gz")
 
 	tests := []struct {
@@ -388,7 +389,7 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getMatchingVersionEndExcluding(tt.cve, tt.meta, testDict)
+			got, err := getMatchingVersionEndExcluding(ctx, tt.cve, tt.meta, testDict)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getMatchingVersionEndExcluding() error = %v, wantErr %v", err, tt.wantErr)
 				return
