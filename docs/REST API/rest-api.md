@@ -2926,7 +2926,7 @@ Retrieves information about a single host's device health.
 This includes a subset of host vitals. To get all information about a host, use the "Get host" endpoint [here](#get-host).
 
 
-`GET /api/v1/fleet/hosts/{id}/device_health`
+`GET /api/v1/fleet/hosts/{id}/health`
 
 #### Parameters
 
@@ -2936,7 +2936,7 @@ This includes a subset of host vitals. To get all information about a host, use 
 
 #### Example
 
-`GET /api/v1/fleet/hosts/1/device_health`
+`GET /api/v1/fleet/hosts/1/health`
 
 ##### Default response
 
@@ -2945,58 +2945,21 @@ This includes a subset of host vitals. To get all information about a host, use 
 ```json
 {
   "host_id": 1,
-  "device_health": [
-    {
+  "health": {
       // TODO: define which host vitals we want included.
       "policies": [
         {
           "id": 123,
           "name": "Google Chrome is up to date",
-          "query": "SELECT EXISTS(SELECT 1 FROM apps WHERE bundle_identifier=\"com.google.Chrome\" AND (bundle_short_version IS '116.0.5845.187')) as is_chrome_ok;",
-          "critical": true,
-          "description": "Out of date browsers are one of the biggest contributors toward corporate breach scenarios. Ensure your Google Chrome browser has been updated to the latest version.",
-          "author_id": 123,
-          "author_name": "John",
-          "author_email": "john@example.com",
           "team_id": null,
-          "resolution": "https://support.google.com/chrome/answer/95414?hl=en\u0026co=GENIE.Platform%3DDesktop",
-          "platform": "darwin",
-          "created_at": "2022-09-02T18:52:19Z",
-          "updated_at": "2022-12-23T10:32:43Z",
-          "response": "fail",
-          "resolution_deadline": 7,
-          "activities": [
-            {
-              "created_at": "2023-09-16T23:18:19Z",
-              "id": 12345,
-              "actor_full_name": "John",
-              "actor_id": 321,
-              "actor_gravatar": "",
-              "actor_email": "john@example.com",
-              "type": "policy_resolution_deadline_passed",
-              "details": {
-                "policy_id": 123,
-                "resolution_deadline": 7,
-              }
-            },
-            {
-              "created_at": "2023-08-16T23:18:19Z",
-              "id": 12345,
-              "actor_full_name": "John",
-              "actor_id": 321,
-              "actor_gravatar": "",
-              "actor_email": "john@example.com",
-              "type": "resolved_overdue_policy",
-              "details": {
-                "policy_id": 123,
-                "resolution_deadline": 30,
-              }
-            }
-          ]
+          "resolution_deadline": 14,
+          "response": "overdue", // Either "pass", "fail", or "overdue"
+          "response_changed_at": "2023-09-02T18:52:19Z",
+          "response_updated_at": "2023-09-16T18:52:19Z",
         }
       ]
     }
-  ]
+  }
 }
 ```
 
