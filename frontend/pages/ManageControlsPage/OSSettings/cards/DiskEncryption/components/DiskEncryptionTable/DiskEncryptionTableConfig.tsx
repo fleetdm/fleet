@@ -6,6 +6,8 @@ import {
   IDiskEncryptionSummaryResponse,
 } from "services/entities/mdm";
 
+import { DISK_ENCRYPTION_QUERY_PARAM_NAME } from "pages/hosts/ManageHostsPage/HostsPageConfig";
+
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
@@ -100,7 +102,7 @@ const defaultTableHeaders: IDataColumn[] = [
             <ViewAllHostsLink
               className="view-hosts-link"
               queryParams={{
-                macos_settings_disk_encryption: original.status.value,
+                [DISK_ENCRYPTION_QUERY_PARAM_NAME]: original.status.value,
                 team_id: original.teamId,
               }}
             />
@@ -133,7 +135,7 @@ const windowsTableHeader: IDataColumn[] = [
           <ViewAllHostsLink
             className="view-hosts-link"
             queryParams={{
-              macos_settings_disk_encryption: original.status.value,
+              [DISK_ENCRYPTION_QUERY_PARAM_NAME]: original.status.value,
               team_id: original.teamId,
             }}
           />

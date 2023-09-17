@@ -29,7 +29,10 @@ import Icon from "components/Icon/Icon";
 
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
-import { MAC_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
+import {
+  DISK_ENCRYPTION_QUERY_PARAM_NAME,
+  MAC_SETTINGS_FILTER_OPTIONS,
+} from "../../HostsPageConfig";
 import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
@@ -374,8 +377,8 @@ const HostsFilterBlock = ({
           onChange={onChangeDiskEncryptionStatusFilter}
         />
         <FilterPill
-          label="macOS settings: Disk encryption"
-          onClear={() => handleClearFilter(["macos_settings_disk_encryption"])}
+          label="OS settings: Disk encryption"
+          onClear={() => handleClearFilter([DISK_ENCRYPTION_QUERY_PARAM_NAME])}
         />
       </>
     );
