@@ -2923,7 +2923,7 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
 
 Retrieves information about a single host's device health.
 
-This includes a subset of host vitals. To get all information about a host, use the "Get host" endpoint [here](#get-host).
+This cached report includes a subset of host vitals, with simplified policy and vulnerable software information. To get all information about a host, use the "Get host" endpoint [here](#get-host).
 
 
 `GET /api/v1/fleet/hosts/{id}/health`
@@ -2946,19 +2946,39 @@ This includes a subset of host vitals. To get all information about a host, use 
 {
   "host_id": 1,
   "health": {
-      // TODO: define which host vitals we want included.
-      "policies": [
-        {
-          "id": 123,
-          "name": "Google Chrome is up to date",
-          "team_id": null,
-          "resolution_deadline": 14,
-          "response": "overdue", // Either "pass", "fail", or "overdue"
-          "response_changed_at": "2023-09-02T18:52:19Z",
-          "response_updated_at": "2023-09-16T18:52:19Z",
-        }
-      ]
-    }
+    "updated_at": "2023-09-16T18:52:19Z",
+    "osquery_version": "4.5.1",
+    "os_version": "CentOS Linux 8.3.2011",
+    "uptime": 210671000000000,
+    "disk_encryption_enabled": true,
+    "seen_time": "2021-08-19T21:14:58Z",
+    "policies": [
+      {
+        "id": 123,
+        "name": "Google Chrome is up to date",
+        "team_id": null,
+        "resolution_deadline": 14,
+        "response": "overdue", // Either "pass", "fail", or "overdue"
+        "failed_at": "2023-09-02T12:52:19Z",//
+        "response_updated_at": "2023-09-16T18:52:19Z",
+      }
+    ],
+    "vulnerable_software": [
+      {
+        "id": 321,
+        "name": "Firefox.app",
+        "version": "116.0.3",
+        "bundle_identifier": "org.mozilla.firefox",
+        "source": "apps",
+        "generated_cpe": "cpe:2.3:a:mozilla:firefox:116.0.3:*:*:*:*:macos:*:*",
+        "vulnerabilities": [
+          {
+            "cve": "CVE-2023-4573",
+            "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-4573",
+          },
+        ]
+      }
+    ]
   }
 }
 ```
