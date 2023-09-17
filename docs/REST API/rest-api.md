@@ -2959,7 +2959,7 @@ This cached report includes a subset of host vitals, with simplified policy and 
         "team_id": null,
         "resolution_deadline": 14,
         "response": "overdue", // Either "pass", "fail", or "overdue"
-        "failed_at": "2023-09-02T12:52:19Z",//
+        "failed_at": "2023-09-02T12:52:19Z",
         "response_updated_at": "2023-09-16T18:52:19Z",
       }
     ],
@@ -2969,7 +2969,6 @@ This cached report includes a subset of host vitals, with simplified policy and 
         "name": "Firefox.app",
         "version": "116.0.3",
         "bundle_identifier": "org.mozilla.firefox",
-        "source": "apps",
         "generated_cpe": "cpe:2.3:a:mozilla:firefox:116.0.3:*:*:*:*:macos:*:*",
         "vulnerabilities": [
           {
