@@ -2923,7 +2923,7 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
 
 Retrieves information about a single host's device health.
 
-This cached report includes a subset of host vitals, with simplified policy and vulnerable software information. To get all information about a host, use the "Get host" endpoint [here](#get-host).
+This report includes a subset of host vitals, and simplified policy and vulnerable software information. Data is cached to preserve performance. To get all up-to-date information about a host, use the "Get host" endpoint [here](#get-host).
 
 
 `GET /api/v1/fleet/hosts/{id}/health`
