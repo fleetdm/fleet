@@ -62,8 +62,6 @@ const OSSettings = ({
 
   const CurrentCard = currentFormSection.Card;
 
-  console.log("aggregate data:", aggregateProfileStatusData);
-
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>

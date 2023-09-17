@@ -67,8 +67,6 @@ const ProfileStatusAggregate = ({
     if (!aggregateProfileStatusData) return null;
 
     const { value, text, iconName, tooltipText } = status;
-
-    // TODO: figure out how to get windows hosts count in here too.
     const count = aggregateProfileStatusData[value];
 
     return (
