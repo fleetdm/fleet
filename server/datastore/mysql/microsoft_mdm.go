@@ -94,7 +94,7 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevi
 
 const (
 	whereBitLockerVerified = `hmdm.is_server = 0 AND hdek.decryptable = 1`
-	whereBitLockerPending  = `hmdm.is_server = 0 AND hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = ''`
+	whereBitLockerPending  = `hmdm.is_server = 0 AND (hdek.host_id IS NULL OR (hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = ''))`
 	whereBitLockerFailed   = `hmdm.is_server = 0 AND hdek.host_id IS NOT NULL AND hdek.client_error != ''`
 )
 
@@ -123,11 +123,9 @@ FROM
 WHERE
     h.platform = 'windows' AND hmdm.is_server = 0 AND %s`
 
-	// TODO: Consider if we should use right joins instead?
-
 	var args []interface{}
 	teamFilter := "h.team_id IS NULL"
-	if teamID != nil || *teamID > 0 {
+	if teamID != nil && *teamID > 0 {
 		teamFilter = "h.team_id = ?"
 		args = append(args, *teamID)
 	}
