@@ -66,7 +66,7 @@ jobs:
 
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@5e780fc7bbd0cac69fc73271ed86edf5dcb72d67
+      uses: dawidd6/action-download-artifact@268677152d06ba59fcec7a7f0b5d961b6ccd7e1e
       with:
         workflow: build-binaries.yaml
         branch: main
@@ -137,7 +137,7 @@ jobs:
    steps:
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@5e780fc7bbd0cac69fc73271ed86edf5dcb72d67
+      uses: dawidd6/action-download-artifact@268677152d06ba59fcec7a7f0b5d961b6ccd7e1e
       with:
         workflow: build-binaries.yaml
         branch: main
