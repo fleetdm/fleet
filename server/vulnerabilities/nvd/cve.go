@@ -25,6 +25,9 @@ import (
 	"github.com/go-kit/log/level"
 )
 
+// Define a regex pattern for semver (simplified)
+var semverPattern = `^v?(\d+\.\d+\.\d+)`
+
 // DownloadNVDCVEFeed downloads the NVD CVE feed. Skips downloading if the cve feed has not changed since the last time.
 func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
 	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
@@ -419,8 +422,6 @@ func buildConstraintString(startIncluding, startExcluding, endExcluding string) 
 // need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0+3) for use with
 // the semver library.
 func preprocessVersion(version string) string {
-	// Define a regex pattern for semver (simplified)
-	semverPattern := `^v?(\d+\.\d+\.\d+)`
 	re := regexp.MustCompile(semverPattern)
 
 	// If "+" is already present, validate the part before "+" as a semver
