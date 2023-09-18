@@ -210,7 +210,7 @@ export interface IHost {
   osquery_version: string;
   os_version: string;
   build: string;
-  platform_like: string;
+  platform_like: string; // TODO: replace with more specific union type
   code_name: string;
   uptime: number;
   memory: number;
