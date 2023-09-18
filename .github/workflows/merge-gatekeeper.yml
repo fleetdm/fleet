@@ -10,7 +10,7 @@ on:
       - "mdm-profiles/**"
 
 jobs:
-  merge-gatekeeper:
+  merge-gatekeeper: 
     runs-on: ubuntu-latest
     # Restrict permissions of the GITHUB_TOKEN.
     # Docs: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
