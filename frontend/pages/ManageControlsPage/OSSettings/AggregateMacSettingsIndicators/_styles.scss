@@ -1,4 +1,4 @@
-.profile-status-aggregate {
+.aggregate-mac-settings-indicators {
   display: flex;
   height: 94px;
   border-top: 1px solid #e2e4ea;
@@ -10,7 +10,7 @@
     margin: auto;
   }
 
-  &__profile-status-count {
+  .aggregate-mac-settings-indicator {
     flex-grow: 1;
 
     display: flex;
@@ -29,17 +29,13 @@
       font-weight: $regular;
     }
 
-    .profile-status-indicator {
+    .settings-indicator {
       flex-direction: column;
     }
   }
 
-  &__profile-status-count:last-child {
+  .aggregate-mac-settings-indicator:last-child {
     border-top-right-radius: 6px;
     border-bottom-right-radius: 6px;
-  }
-
-  &__status-indicator-value {
-    font-weight: $bold;
   }
 }
