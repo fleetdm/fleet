@@ -392,7 +392,7 @@ func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch,
 
 		constraint, err := semver.NewConstraint(constraintStr)
 		if err != nil {
-			return "", ctxerr.Wrap(nil, err, "parsing constraint:", constraintStr)
+			return "", ctxerr.Wrapf(ctx, err, "parsing constraint: %s", constraintStr)
 		}
 
 		if constraint.Check(softwareVersion) {
@@ -419,9 +419,23 @@ func buildConstraintString(startIncluding, startExcluding, endExcluding string) 
 // need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0+3) for use with
 // the semver library.
 func preprocessVersion(version string) string {
-	parts := strings.Split(version, ".")
-	if len(parts) == 4 {
-		return parts[0] + "." + parts[1] + "." + parts[2] + "+" + parts[3]
+	// Define a regex pattern for semver (simplified)
+	semverPattern := `^v?(\d+\.\d+\.\d+)`
+	re := regexp.MustCompile(semverPattern)
+
+	// If "+" is already present, validate the part before "+" as a semver
+	if strings.Contains(version, "+") {
+		parts := strings.Split(version, "+")
+		if re.MatchString(parts[0]) {
+			return version
+		}
 	}
+
+	// If the version string contains more than 3 parts, convert it to 3 parts
+	parts := strings.Split(version, ".")
+	if len(parts) > 3 {
+		return parts[0] + "." + parts[1] + "." + parts[2] + "+" + strings.Join(parts[3:], ".")
+	}
+
 	return version
 }
