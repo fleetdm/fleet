@@ -389,7 +389,7 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getMatchingVersionEndExcluding(ctx, tt.cve, tt.meta, testDict)
+			got, err := getMatchingVersionEndExcluding(ctx, tt.cve, tt.meta, testDict, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getMatchingVersionEndExcluding() error = %v, wantErr %v", err, tt.wantErr)
 				return
