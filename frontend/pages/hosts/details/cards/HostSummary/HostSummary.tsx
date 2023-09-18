@@ -207,7 +207,7 @@ const HostSummary = ({
           mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
-            <HostSummaryIndicator title="macOS settings">
+            <HostSummaryIndicator title="OS settings">
               <MacSettingsIndicator
                 profiles={hostMdmProfiles}
                 onClick={toggleMacSettingsModal}
