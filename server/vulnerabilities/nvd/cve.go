@@ -258,7 +258,7 @@ func checkCVEs(
 
 						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), softwareCPE.meta, dict, logger)
 						if err != nil {
-							level.Error(logger).Log(logKey, "error", "err", err)
+							level.Debug(logger).Log(logKey, "error", "err", err)
 						}
 
 						vuln := fleet.SoftwareVulnerability{
