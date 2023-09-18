@@ -353,7 +353,7 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 		}
 
 		// versionEnd is the version string that the vulnerable host software version must be less than
-		versionEnd, err := checkVersion(ctx, rule, softwareVersion)
+		versionEnd, err := checkVersion(ctx, rule, softwareVersion, cve)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking version")
 		}
@@ -383,7 +383,7 @@ func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJ
 }
 
 // checkVersion checks if the host software version matches the CPEMatch rule
-func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *semver.Version) (string, error) {
+func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *semver.Version, cve string) (string, error) {
 	for _, condition := range []struct {
 		startIncluding string
 		startExcluding string
@@ -398,7 +398,7 @@ func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch,
 
 		constraint, err := semver.NewConstraint(constraintStr)
 		if err != nil {
-			return "", ctxerr.Wrapf(ctx, err, "parsing constraint: %s", constraintStr)
+			return "", ctxerr.Wrapf(ctx, err, "parsing constraint: %s for cve: %s", constraintStr, cve)
 		}
 
 		if constraint.Check(softwareVersion) {
@@ -415,6 +415,10 @@ func buildConstraintString(startIncluding, startExcluding, endExcluding string) 
 	if startIncluding == "" && startExcluding == "" {
 		return ""
 	}
+	startIncluding = preprocessVersion(startIncluding)
+	startExcluding = preprocessVersion(startExcluding)
+	endExcluding = preprocessVersion(endExcluding)
+
 	if startIncluding != "" {
 		return fmt.Sprintf(">= %s, < %s", startIncluding, endExcluding)
 	}
