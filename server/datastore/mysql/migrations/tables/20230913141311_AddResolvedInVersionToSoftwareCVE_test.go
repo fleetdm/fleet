@@ -3,6 +3,7 @@ package tables
 import (
 	"testing"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,13 +29,21 @@ func TestUp_20230913141311(t *testing.T) {
 	// Apply current migration.
 	applyNext(t, db)
 
-	var softwareCVE struct {
-		SoftwareID        uint   `db:"software_id"`
-		Source            uint   `db:"source"`
-		CVE               string `db:"cve"`
-		ResolvedInVersion string `db:"resolved_in_version"`
-	}
+	// check for null resolved_in_version default
+	selectAndAssert(t, db, 1, 0, "CVE-2021-1234", nil)
 
+	// Update the resolved_in_version and verify
+	updateVersion := "6.0.2-76060002.202210150739~1666289067~22.04~fe0ce53" // long string to test the capacity of the new column
+	updateStmt := `
+		UPDATE software_cve 
+		SET resolved_in_version = ? 
+		WHERE software_id = ? AND source = ? AND cve = ?
+		`
+
+	execNoErr(t, db, updateStmt, updateVersion, 1, 0, "CVE-2021-1234")
+	selectAndAssert(t, db, 1, 0, "CVE-2021-1234", &updateVersion)
+
+	// Insert a new record and verify
 	insertStmt = `
 		INSERT INTO software_cve (
 			software_id,
@@ -44,14 +53,18 @@ func TestUp_20230913141311(t *testing.T) {
 		)
 		VALUES (?, ?, ?, ?)
 	`
-	args = []interface{}{
-		1,
-		0,
-		"CVE-2021-1235",
-		"6.0.2-76060002.202210150739~1666289067~22.04~fe0ce53", // This is a long linux kernel version string to test the capacity of the new column
-	}
 
-	execNoErr(t, db, insertStmt, args...)
+	execNoErr(t, db, insertStmt, 1, 0, "CVE-2021-1235", updateVersion)
+	selectAndAssert(t, db, 1, 0, "CVE-2021-1235", &updateVersion)
+}
+
+func selectAndAssert(t *testing.T, db *sqlx.DB, softwareID uint, source uint, cve string, resolvedInVersion *string) {
+	var softwareCVE struct {
+		SoftwareID        uint    `db:"software_id"`
+		Source            uint    `db:"source"`
+		CVE               string  `db:"cve"`
+		ResolvedInVersion *string `db:"resolved_in_version"`
+	}
 
 	selectStmt := `
 		SELECT software_id, source, cve, resolved_in_version
@@ -59,9 +72,9 @@ func TestUp_20230913141311(t *testing.T) {
 		WHERE software_id = ? AND source = ? AND cve = ?
 	`
 
-	require.NoError(t, db.Get(&softwareCVE, selectStmt, 1, 0, "CVE-2021-1235"))
-	require.Equal(t, uint(1), softwareCVE.SoftwareID)
-	require.Equal(t, uint(0), softwareCVE.Source)
-	require.Equal(t, "CVE-2021-1235", softwareCVE.CVE)
-	require.Equal(t, "6.0.2-76060002.202210150739~1666289067~22.04~fe0ce53", softwareCVE.ResolvedInVersion)
+	require.NoError(t, db.Get(&softwareCVE, selectStmt, softwareID, source, cve))
+	require.Equal(t, softwareID, softwareCVE.SoftwareID)
+	require.Equal(t, source, softwareCVE.Source)
+	require.Equal(t, cve, softwareCVE.CVE)
+	require.Equal(t, resolvedInVersion, softwareCVE.ResolvedInVersion)
 }
