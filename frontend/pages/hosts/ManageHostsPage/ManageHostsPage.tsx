@@ -49,7 +49,7 @@ import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
+import { DiskEncryptionStatus, BootstrapPackageStatus } from "interfaces/mdm";
 
 import sortUtils from "utilities/sort";
 import {
@@ -85,6 +85,7 @@ import {
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
+  DISK_ENCRYPTION_QUERY_PARAM_NAME,
 } from "./HostsPageConfig";
 import { isAcceptableStatus } from "./helpers";
 
@@ -232,8 +233,8 @@ const ManageHostsPage = ({
       ? parseInt(queryParams.low_disk_space, 10)
       : undefined;
   const missingHosts = queryParams?.status === "missing";
-  const diskEncryptionStatus: FileVaultProfileStatus | undefined =
-    queryParams?.macos_settings_disk_encryption;
+  const diskEncryptionStatus: DiskEncryptionStatus | undefined =
+    queryParams?.[DISK_ENCRYPTION_QUERY_PARAM_NAME];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
     queryParams?.bootstrap_package;
 
@@ -558,7 +559,7 @@ const ManageHostsPage = ({
   };
 
   const handleChangeDiskEncryptionStatusFilter = (
-    newStatus: FileVaultProfileStatus
+    newStatus: DiskEncryptionStatus
   ) => {
     handleResetPageIndex();
 
@@ -569,7 +570,7 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          macos_settings_disk_encryption: newStatus,
+          [DISK_ENCRYPTION_QUERY_PARAM_NAME]: newStatus,
           page: 0, // resets page index
         },
       })
@@ -768,7 +769,7 @@ const ManageHostsPage = ({
         newQueryParams.os_version = osVersion;
       } else if (diskEncryptionStatus && isPremiumTier) {
         // Premium feature only
-        newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
+        newQueryParams[DISK_ENCRYPTION_QUERY_PARAM_NAME] = diskEncryptionStatus;
       } else if (bootstrapPackageStatus && isPremiumTier) {
         newQueryParams.bootstrap_package = bootstrapPackageStatus;
       }

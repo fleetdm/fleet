@@ -566,6 +566,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			EPSSProbability:  ptr.Float64(0.01),
 			CISAKnownExploit: ptr.Bool(false),
 			Published:        ptr.Time(now.Add(-2 * time.Hour)),
+			Description:      "this is a description for CVE-2022-0001",
 		},
 		{
 			CVE:              "CVE-2022-0002",
@@ -573,6 +574,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			EPSSProbability:  ptr.Float64(0.99),
 			CISAKnownExploit: ptr.Bool(false),
 			Published:        ptr.Time(now),
+			Description:      "this is a description for CVE-2022-0002",
 		},
 		{
 			CVE:              "CVE-2022-0003",
@@ -580,6 +582,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			EPSSProbability:  ptr.Float64(0.98),
 			CISAKnownExploit: ptr.Bool(true),
 			Published:        ptr.Time(now.Add(-1 * time.Hour)),
+			Description:      "this is a description for CVE-2022-0003",
 		},
 	}
 	err = ds.InsertCVEMeta(context.Background(), cveMeta)
@@ -598,6 +601,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				EPSSProbability:  ptr.Float64Ptr(0.01),
 				CISAKnownExploit: ptr.BoolPtr(false),
 				CVEPublished:     ptr.TimePtr(now.Add(-2 * time.Hour)),
+				Description:      ptr.StringPtr("this is a description for CVE-2022-0001"),
 			},
 			{
 				CVE:              "CVE-2022-0002",
@@ -606,6 +610,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				EPSSProbability:  ptr.Float64Ptr(0.99),
 				CISAKnownExploit: ptr.BoolPtr(false),
 				CVEPublished:     ptr.TimePtr(now),
+				Description:      ptr.StringPtr("this is a description for CVE-2022-0002"),
 			},
 		},
 	}
@@ -625,6 +630,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				EPSSProbability:  ptr.Float64Ptr(0.98),
 				CISAKnownExploit: ptr.BoolPtr(true),
 				CVEPublished:     ptr.TimePtr(now.Add(-1 * time.Hour)),
+				Description:      ptr.StringPtr("this is a description for CVE-2022-0003"),
 			},
 		},
 	}
@@ -1815,10 +1821,10 @@ func testListCVEs(t *testing.T, ds *Datastore) {
 	twoMonthsAgo := now.Add(-60 * 24 * time.Hour)
 
 	testCases := []fleet.CVEMeta{
-		{CVE: "cve-1", Published: &threeDaysAgo},
-		{CVE: "cve-2", Published: &twoWeeksAgo},
-		{CVE: "cve-3", Published: &twoMonthsAgo},
-		{CVE: "cve-4"},
+		{CVE: "cve-1", Published: &threeDaysAgo, Description: "cve-1 description"},
+		{CVE: "cve-2", Published: &twoWeeksAgo, Description: "cve-2 description"},
+		{CVE: "cve-3", Published: &twoMonthsAgo}, // past maxAge
+		{CVE: "cve-4"},                           // no published date
 	}
 
 	err := ds.InsertCVEMeta(ctx, testCases)
@@ -1827,12 +1833,12 @@ func testListCVEs(t *testing.T, ds *Datastore) {
 	result, err := ds.ListCVEs(ctx, 30*24*time.Hour)
 	require.NoError(t, err)
 
-	expected := []string{"cve-1", "cve-2"}
+	expected := []string{"cve-1", "cve-1 description", "cve-2", "cve-2 description"}
 	var actual []string
 	for _, r := range result {
 		actual = append(actual, r.CVE)
+		actual = append(actual, r.Description)
 	}
-
 	require.ElementsMatch(t, expected, actual)
 }
 
