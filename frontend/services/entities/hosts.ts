@@ -11,7 +11,7 @@ import {
 import { SelectedPlatform } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import {
-  FileVaultProfileStatus,
+  DiskEncryptionStatus,
   BootstrapPackageStatus,
   IMdmSolution,
 } from "interfaces/mdm";
@@ -57,7 +57,7 @@ export interface ILoadHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
@@ -83,7 +83,7 @@ export interface IExportHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export interface IActionByFilter {
