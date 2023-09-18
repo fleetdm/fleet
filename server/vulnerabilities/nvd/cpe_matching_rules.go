@@ -140,6 +140,13 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				"CVE-2020-10146": {},
 			},
 		},
+		// #9835 Python expat 2.1.0 CVE recommends rejecting the report, no CVSS score, broad CPE criteria
+		CPEMatchingRule{
+			IgnoreAll: true,
+			CVEs: map[string]struct{}{
+				"CVE-2013-0340": {},
+			},
+		},
 	}
 
 	for i, rule := range rules {

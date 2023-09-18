@@ -4464,9 +4464,10 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 	defer cleanupQuery(s, existingQueryID)
 
 	for _, tc := range []struct {
-		tname string
-		name  string
-		query string
+		tname    string
+		name     string
+		query    string
+		platform string
 	}{
 		{
 			tname: "empty name",
@@ -4483,23 +4484,50 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 			name:  "Invalid query",
 			query: "",
 		},
+		{
+			tname:    "unsupported platform",
+			name:     "bad query",
+			query:    "select 1",
+			platform: "oops",
+		},
+		{
+			tname:    "unsupported platform",
+			name:     "bad query",
+			query:    "select 1",
+			platform: "charles,darwin",
+		},
+		{
+			tname:    "missing platform comma delimeter",
+			name:     "bad query",
+			query:    "select 1",
+			platform: "linuxdarwin",
+		},
+		{
+			tname:    "missing platform comma delimeter",
+			name:     "bad query",
+			query:    "select 1",
+			platform: "windows darwin",
+		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
 			reqQuery := &fleet.QueryPayload{
-				Name:  ptr.String(tc.name),
-				Query: ptr.String(tc.query),
+				Name:     ptr.String(tc.name),
+				Query:    ptr.String(tc.query),
+				Platform: ptr.String(tc.platform),
 			}
 			createQueryResp := createQueryResponse{}
 			s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
 			require.Nil(t, createQueryResp.Query)
 
 			payload := fleet.QueryPayload{
-				Name:  ptr.String(tc.name),
-				Query: ptr.String(tc.query),
+				Name:     ptr.String(tc.name),
+				Query:    ptr.String(tc.query),
+				Platform: ptr.String(tc.platform),
 			}
 			mResp := modifyQueryResponse{}
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", existingQueryID), &payload, http.StatusBadRequest, &mResp)
 			require.Nil(t, mResp.Query)
+			// TODO – add checks for specific errors
 		})
 	}
 }
@@ -5035,6 +5063,21 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 			{Name: q3, Query: "SELECT 3"},
 		},
 	}, http.StatusOK, &applyResp)
+
+	// try to create a query with invalid platform, fail
+	q4 := q1 + "_4"
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: q4, Query: "SELECT 4", Platform: "not valid"},
+		},
+	}, http.StatusBadRequest, &applyResp)
+
+	// try to edit a query with invalid platform, fail
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: q3, Query: "SELECT 3", Platform: "charles darwin"},
+		},
+	}, http.StatusBadRequest, &applyResp)
 
 	// list specs - has 3, not 4 (one was an update)
 	s.DoJSON("GET", "/api/latest/fleet/spec/queries", nil, http.StatusOK, &getSpecsResp)
