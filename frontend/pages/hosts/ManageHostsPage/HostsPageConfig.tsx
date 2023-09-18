@@ -2,12 +2,6 @@ import React from "react";
 
 import Icon from "components/Icon";
 
-// the source of truth for the filter option names.
-// there are used on many other pages but we define them here.
-// TODO: add other filter options here. Also look to define this in
-// the host entities file later.
-export const DISK_ENCRYPTION_QUERY_PARAM_NAME = "os_settings_disk_encryption";
-
 export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "query",
   "team_id",
@@ -23,7 +17,7 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "os_version",
   "munki_issue_id",
   "low_disk_space",
-  DISK_ENCRYPTION_QUERY_PARAM_NAME,
+  "macos_settings_disk_encryption",
   "bootstrap_package",
 ] as const;
 

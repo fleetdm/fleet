@@ -22,6 +22,8 @@ export const MDM_ENROLLMENT_STATUS = {
 
 export type MdmEnrollmentStatus = keyof typeof MDM_ENROLLMENT_STATUS;
 
+export type ProfileSummaryResponse = Record<MdmProfileStatus, number>;
+
 export interface IMdmStatusCardData {
   status: MdmEnrollmentStatus;
   hosts: number;
@@ -81,13 +83,17 @@ export interface IHostMacMdmProfile {
   detail: string;
 }
 
-export type DiskEncryptionStatus =
+export type FileVaultProfileStatus =
   | "verified"
   | "verifying"
   | "action_required"
   | "enforcing"
   | "failed"
   | "removing_enforcement";
+
+// // TODO: update when list profiles API returns identifier
+// export const FLEET_FILEVAULT_PROFILE_IDENTIFIER =
+//   "com.fleetdm.fleet.mdm.filevault";
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
 

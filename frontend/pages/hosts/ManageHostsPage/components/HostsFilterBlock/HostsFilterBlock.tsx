@@ -7,7 +7,7 @@ import {
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
 import {
-  DiskEncryptionStatus,
+  FileVaultProfileStatus,
   BootstrapPackageStatus,
   IMdmSolution,
   MDM_ENROLLMENT_STATUS,
@@ -29,10 +29,7 @@ import Icon from "components/Icon/Icon";
 
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
-import {
-  DISK_ENCRYPTION_QUERY_PARAM_NAME,
-  MAC_SETTINGS_FILTER_OPTIONS,
-} from "../../HostsPageConfig";
+import { MAC_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
 import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
@@ -63,7 +60,7 @@ interface IHostsFilterBlockProps {
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: ISoftware | null;
     mdmSolutionDetails: IMdmSolution | null;
-    diskEncryptionStatus?: DiskEncryptionStatus;
+    diskEncryptionStatus?: FileVaultProfileStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
   };
   selectedLabel?: ILabel;
@@ -71,7 +68,9 @@ interface IHostsFilterBlockProps {
   handleClearRouteParam: () => void;
   handleClearFilter: (omitParams: string[]) => void;
   onChangePoliciesFilter: (response: PolicyResponse) => void;
-  onChangeDiskEncryptionStatusFilter: (response: DiskEncryptionStatus) => void;
+  onChangeDiskEncryptionStatusFilter: (
+    response: FileVaultProfileStatus
+  ) => void;
   onChangeBootstrapPackageStatusFilter: (
     response: BootstrapPackageStatus
   ) => void;
@@ -377,8 +376,8 @@ const HostsFilterBlock = ({
           onChange={onChangeDiskEncryptionStatusFilter}
         />
         <FilterPill
-          label="OS settings: Disk encryption"
-          onClear={() => handleClearFilter([DISK_ENCRYPTION_QUERY_PARAM_NAME])}
+          label="macOS settings: Disk encryption"
+          onClear={() => handleClearFilter(["macos_settings_disk_encryption"])}
         />
       </>
     );

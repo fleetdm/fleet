@@ -4,7 +4,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { DiskEncryptionStatus } from "interfaces/mdm";
+import { FileVaultProfileStatus } from "interfaces/mdm";
 
 const baseClass = "disk-encryption-status-filter";
 
@@ -42,8 +42,8 @@ const DISK_ENCRYPTION_STATUS_OPTIONS: IDropdownOption[] = [
 ];
 
 interface IDiskEncryptionStatusFilterProps {
-  diskEncryptionStatus: DiskEncryptionStatus;
-  onChange: (value: DiskEncryptionStatus) => void;
+  diskEncryptionStatus: FileVaultProfileStatus;
+  onChange: (value: FileVaultProfileStatus) => void;
 }
 
 const DiskEncryptionStatusFilter = ({
