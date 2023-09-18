@@ -68,7 +68,6 @@ describe("QueryForm - component", () => {
         isQueryUpdating={false}
         saveQuery={jest.fn()}
         onOsqueryTableSelect={jest.fn()}
-        goToSelectTargets={jest.fn()}
         onUpdate={jest.fn()}
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}

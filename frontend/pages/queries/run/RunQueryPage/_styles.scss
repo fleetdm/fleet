@@ -9,61 +9,6 @@
     min-height: 400px;
   }
 
-  &__warning {
-    padding: $pad-medium;
-    font-size: $x-small;
-    color: $core-fleet-black;
-    background-color: #fff0b9;
-    border: 1px solid #f2c94c;
-    border-radius: $border-radius;
-
-    p {
-      margin: 0;
-      line-height: 20px;
-    }
-  }
-
-  &__observer-query-view {
-    width: 90%;
-    max-width: 1060px;
-    margin: 0 auto;
-    color: $core-fleet-black;
-
-    h1 {
-      font-size: $medium;
-    }
-    p {
-      font-size: $x-small;
-    }
-  }
-
-  &__observer-query-details {
-    padding: 0 2rem;
-
-    h1 {
-      margin: $pad-large 0;
-      font-size: $large;
-    }
-
-    p {
-      margin-bottom: $pad-small;
-    }
-
-    .sql-button {
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      font-size: $x-small;
-    }
-  }
-
-  &__query-preview {
-    margin-top: 15px;
-
-    .fleet-ace__label {
-      display: none;
-    }
-  }
-
   .ace_content {
     min-height: 500px !important;
   }
@@ -170,12 +115,6 @@
       margin: 0;
       margin-top: $pad-medium;
       font-size: $x-small;
-    }
-  }
-
-  .targets-input {
-    .input-icon-field__icon {
-      top: 34px; // Override styling to include label header
     }
   }
 }

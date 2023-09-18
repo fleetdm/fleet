@@ -64,7 +64,6 @@ interface IQueryFormProps {
   isQueryUpdating: boolean;
   saveQuery: (formData: ICreateQueryRequestBody) => void;
   onOsqueryTableSelect: (tableName: string) => void;
-  goToSelectTargets: () => void;
   onUpdate: (formData: ICreateQueryRequestBody) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
@@ -111,7 +110,6 @@ const QueryForm = ({
   isQueryUpdating,
   saveQuery,
   onOsqueryTableSelect,
-  goToSelectTargets,
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
@@ -588,7 +586,9 @@ const QueryForm = ({
           <Button
             className={`${baseClass}__run`}
             variant="blue-green"
-            onClick={goToSelectTargets}
+            onClick={() => {
+              queryIdForEdit && router.push(PATHS.RUN_QUERY(queryIdForEdit));
+            }}
           >
             Live query
           </Button>
@@ -762,7 +762,9 @@ const QueryForm = ({
             <Button
               className={`${baseClass}__run`}
               variant="blue-green"
-              onClick={goToSelectTargets}
+              onClick={() => {
+                queryIdForEdit && router.push(PATHS.RUN_QUERY(queryIdForEdit));
+              }}
             >
               Live query
             </Button>

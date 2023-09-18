@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
-import { UseMutateAsyncFunction, useQuery } from "react-query";
+import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
@@ -10,8 +10,6 @@ import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
 import { IHost, IHostResponse } from "interfaces/host";
-import { ILabel } from "interfaces/label";
-import { ITeam } from "interfaces/team";
 import {
   IGetQueryResponse,
   ICreateQueryRequestBody,
@@ -48,7 +46,7 @@ interface IEditQueryPageProps {
   };
 }
 
-const baseClass = "run-query-page";
+const baseClass = "edit-query-page";
 
 const EditQueryPage = ({
   router,
@@ -190,7 +188,7 @@ const EditQueryPage = ({
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // e.g., Query details | Discover TLS certificates | Fleet for osquery
-    document.title = `Query details | ${storedQuery?.name} | Fleet for osquery`;
+    document.title = `Edit query | ${storedQuery?.name} | Fleet for osquery`;
   }, [location.pathname, storedQuery?.name]);
 
   useEffect(() => {
@@ -301,28 +299,6 @@ const EditQueryPage = ({
 
   const params = { id: paramsQueryId };
 
-  const renderScreen = () => {
-    const step1Props = {
-      router,
-      baseClass,
-      queryIdForEdit: queryId,
-      teamNameForQuery,
-      apiTeamIdForQuery,
-      showOpenSchemaActionText,
-      storedQuery,
-      isStoredQueryLoading,
-      storedQueryError,
-      onOsqueryTableSelect,
-      goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
-      onOpenSchemaSidebar,
-      renderLiveQueryWarning,
-      params,
-      location,
-    };
-
-    return "Cool beans";
-  };
-
   // Function instead of constant eliminates race condition with filteredSoftwarePath
   const backToQueriesPath = () => {
     return filteredQueriesPath || PATHS.MANAGE_QUERIES;
@@ -347,9 +323,6 @@ const EditQueryPage = ({
             <QueryForm
               router={router}
               saveQuery={saveQuery}
-              goToSelectTargets={() => {
-                console.log("TODO");
-              }}
               onOsqueryTableSelect={onOsqueryTableSelect}
               onUpdate={onUpdateQuery}
               storedQuery={storedQuery}

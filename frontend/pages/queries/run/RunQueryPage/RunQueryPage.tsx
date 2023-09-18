@@ -84,10 +84,6 @@ const RunQueryPage = ({
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
-    false
-  );
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -163,47 +159,9 @@ const RunQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Query details | Discover TLS certificates | Fleet for osquery
-    document.title = `Query details | ${storedQuery?.name} | Fleet for osquery`;
+    // e.g., Run live query | Discover TLS certificates | Fleet for osquery
+    document.title = `Run live query | ${storedQuery?.name} | Fleet for osquery`;
   }, [location.pathname, storedQuery?.name]);
-
-  useEffect(() => {
-    setShowOpenSchemaActionText(!isSidebarOpen);
-  }, [isSidebarOpen]);
-
-  const onOsqueryTableSelect = (tableName: string) => {
-    setSelectedOsqueryTable(tableName);
-  };
-
-  const onCloseSchemaSidebar = () => {
-    setIsSidebarOpen(false);
-  };
-
-  const onOpenSchemaSidebar = () => {
-    setIsSidebarOpen(true);
-  };
-
-  const renderLiveQueryWarning = (): JSX.Element | null => {
-    if (isLiveQueryRunnable) {
-      return null;
-    }
-
-    return (
-      <div className={`${baseClass}__warning`}>
-        <div className={`${baseClass}__message`}>
-          <p>
-            Fleet is unable to run a live query. Refresh the page or log in
-            again. If this keeps happening please{" "}
-            <CustomLink
-              url="https://github.com/fleetdm/fleet/issues/new/choose"
-              text="file an issue"
-              newTab
-            />
-          </p>
-        </div>
-      </div>
-    );
-  };
 
   const goToQueryEditor = useCallback(() => setStep(QUERIES_PAGE_STEPS[1]), []);
   const params = { id: paramsQueryId };

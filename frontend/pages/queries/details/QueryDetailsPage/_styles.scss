@@ -30,4 +30,22 @@
     margin-top: 0;
     font-size: $x-small;
   }
+
+  .empty-table__inner {
+    .component__tooltip-wrapper__tip-text {
+      text-align: left;
+      width: 320px;
+    }
+
+    ul {
+      color: $core-white;
+
+      li {
+        &::before {
+          content: "•";
+          color: $core-white;
+        }
+      }
+    }
+  }
 }

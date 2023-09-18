@@ -1,12 +1,15 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
 import differenceInSeconds from "date-fns/differenceInSeconds";
+import formatDistance from "date-fns/formatDistance";
+import add from "date-fns/add";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import {
   IGetQueryResponse,
@@ -18,7 +21,7 @@ import queryAPI from "services/entities/queries";
 import Button from "components/buttons/Button";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
-import useTeamIdParam from "hooks/useTeamIdParam";
+import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import EmptyTable from "components/EmptyTable/EmptyTable";
 import CachedDetails from "../components/CachedDetails/CachedDetails";
 
@@ -75,6 +78,12 @@ const QueryDetailsPage = ({
     setLastEditedQueryPlatforms,
   } = useContext(QueryContext);
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Run live query | Discover TLS certificates | Fleet for osquery
+    document.title = `Query details | ${lastEditedQueryName} | Fleet for osquery`;
+  }, [location.pathname, lastEditedQueryName]);
+
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
   const {
@@ -102,6 +111,8 @@ const QueryDetailsPage = ({
       onError: (error) => handlePageError(error),
     }
   );
+
+  const errorsOnly = true; // TODO
 
   const canEditQuery =
     isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
@@ -157,31 +168,78 @@ const QueryDetailsPage = ({
   };
 
   const renderReport = () => {
-    const collectingResults = true; // TODO: Fix so it's correct
-    const noResults = true; // TODO: Fix so it's correct
+    const disabledSaving = true; // TODO: Update accordingly
+    const disabledSavingGlobally = true; // TODO: Update accordingly
+    const discardDataEnabled = true; // TODO: Update accordingly
+    const loggingSnapshot = storedQuery?.logging === "snapshot";
 
-    const dynamicFrequency = () => {
+    const secondsCheckbackTime = () => {
       const secondsSinceUpdate = storedQuery?.updated_at
         ? differenceInSeconds(new Date(), new Date(storedQuery?.updated_at))
         : 0;
       const secondsUpdateWaittime = lastEditedQueryFrequency + 60;
-      const secondsCheckbackTime = secondsUpdateWaittime - secondsSinceUpdate;
-
-      console.log("secondsSinceUpdate", secondsSinceUpdate);
-      console.log("secondsUpdateWaittime", secondsUpdateWaittime);
-      console.log("secondsCheckbackTime", secondsCheckbackTime);
-
-      return secondsCheckbackTime;
+      return secondsUpdateWaittime - secondsSinceUpdate;
     };
 
+    const collectingResults = secondsCheckbackTime() > 0;
+    const noResults = secondsCheckbackTime() <= 0;
+
+    const readableCheckbackTime = formatDistance(
+      add(new Date(), { seconds: secondsCheckbackTime() }),
+      new Date()
+    );
+
     const collectingResultsInfo = () =>
-      `Fleet is collecting query results. Check back in about ${dynamicFrequency()} hour.`;
+      `Fleet is collecting query results. Check back in about ${readableCheckbackTime}.`;
+
     const noResultsInfo = () => {
+      if (!storedQuery?.interval) {
+        return (
+          <>
+            This query does not collect data on a schedule. Add a{" "}
+            <strong>frequency</strong> or run this as a live query to see
+            results.
+          </>
+        );
+      }
+      if (disabledSaving) {
+        // TODO: Where's the tooltip underline?
+        const tipContent = () => {
+          if (disabledSavingGlobally) {
+            return "The following setting prevents saving this query's results in Fleet:<ul><li>Query reports are globally disabled in organization settings.</li></ul>";
+          }
+          if (discardDataEnabled) {
+            return "The following setting prevents saving this query's results in Fleet:<ul><li>This query has Discard data enabled.</li></ul>";
+          }
+          if (!loggingSnapshot) {
+            return "The following setting prevents saving this query's results in Fleet:<ul><li>The logging setting for this query is not Snapshot.</li></ul>";
+          }
+          return "Unknown";
+        };
+        return (
+          <>
+            Results from this query are{" "}
+            <TooltipWrapper tipContent={tipContent()}>
+              not reported in Fleet
+            </TooltipWrapper>
+            .
+          </>
+        );
+      }
+      if (errorsOnly) {
+        return (
+          <>
+            This query had trouble collecting data on some hosts. Check out the{" "}
+            <strong>Errors</strong> tab to see why.
+          </>
+        );
+      }
       return "This query has returned no data so far."; // TODO: Fix so it's correct
     };
     if (collectingResults) {
       return (
         <EmptyTable
+          iconName="collecting-results"
           header={"Collecting results..."}
           info={collectingResultsInfo()}
         />
@@ -189,10 +247,14 @@ const QueryDetailsPage = ({
     }
     if (noResults) {
       return (
-        <EmptyTable header={"Nothing to report yet"} info={noResultsInfo()} />
+        <EmptyTable
+          iconName="empty-software"
+          header={"Nothing to report yet"}
+          info={noResultsInfo()}
+        />
       );
     }
-    return <CachedDetails />; // TODO
+    return <CachedDetails />; // TODO: Everything related to new APIs including surfacing errorsOnly
   };
 
   return (

@@ -2,12 +2,6 @@
   .body-wrap {
     min-width: 0;
   }
-  &__results {
-    display: flex;
-    flex-grow: 1;
-    position: relative;
-    min-height: 400px;
-  }
 
   &__warning {
     padding: $pad-medium;
@@ -23,127 +17,10 @@
     }
   }
 
-  &__observer-query-view {
-    width: 90%;
-    max-width: 1060px;
-    margin: 0 auto;
-    color: $core-fleet-black;
-
-    h1 {
-      font-size: $medium;
-    }
-    p {
-      font-size: $x-small;
-    }
-  }
-
-  &__observer-query-details {
-    padding: 0 2rem;
-
-    h1 {
-      margin: $pad-large 0;
-      font-size: $large;
-    }
-
-    p {
-      margin-bottom: $pad-small;
-    }
-
-    .sql-button {
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      font-size: $x-small;
-    }
-  }
-
-  &__query-preview {
-    margin-top: 15px;
-
-    .fleet-ace__label {
-      display: none;
-    }
-  }
-
   .ace_content {
     min-height: 500px !important;
   }
 
-  &__target-selectors {
-    margin-top: 24px;
-    margin-bottom: 24px;
-    max-width: 980px;
-
-    h3 {
-      margin-top: 24px;
-      margin-bottom: 8px;
-      font-size: $x-small;
-    }
-
-    .selector-block {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-
-      .target-pill-selector {
-        padding: $pad-small;
-        background-color: $core-white;
-        border: none;
-        box-shadow: inset 0 0 0 1px $ui-fleet-black-25;
-        border-radius: 6px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        margin-bottom: $pad-small;
-
-        &:not(:last-of-type) {
-          margin-right: $pad-small;
-        }
-        img {
-          max-width: 12px;
-        }
-        .plus-icon {
-          padding-right: 3px;
-        }
-        .selector-name {
-          margin-left: 8px;
-          font-size: $x-small;
-          flex: 1;
-        }
-        .selector-count {
-          margin-left: 8px;
-          font-size: $xxx-small;
-          font-weight: $bold;
-        }
-        &[data-selected="true"] {
-          background-color: $ui-vibrant-blue-10;
-          box-shadow: inset 0 0 0 1px $core-vibrant-blue;
-        }
-      }
-    }
-  }
-  &__targets-button-wrap {
-    margin-top: 30px;
-    display: flex;
-    align-items: center;
-
-    button:not(:first-of-type) {
-      margin-left: 16px;
-    }
-  }
-  &__targets-total-count {
-    margin-left: 16px;
-    font-size: $x-small;
-    display: flex;
-    align-items: center;
-
-    span {
-      font-weight: $bold;
-    }
-
-    .icon-tooltip {
-      margin-left: $pad-small;
-    }
-  }
   &__count-spinner {
     margin-right: $pad-small;
   }
@@ -170,12 +47,6 @@
       margin: 0;
       margin-top: $pad-medium;
       font-size: $x-small;
-    }
-  }
-
-  .targets-input {
-    .input-icon-field__icon {
-      top: 34px; // Override styling to include label header
     }
   }
 }
