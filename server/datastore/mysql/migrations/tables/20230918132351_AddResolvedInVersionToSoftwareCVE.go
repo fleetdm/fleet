@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230913141311, Down_20230913141311)
+	MigrationClient.AddMigration(Up_20230918132351, Down_20230918132351)
 }
 
-func Up_20230913141311(tx *sql.Tx) error {
+func Up_20230918132351(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE software_cve
 		ADD COLUMN resolved_in_version VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL;
@@ -22,6 +22,6 @@ func Up_20230913141311(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230913141311(tx *sql.Tx) error {
+func Down_20230918132351(tx *sql.Tx) error {
 	return nil
 }
