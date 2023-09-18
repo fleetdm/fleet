@@ -114,7 +114,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		pushFactory,
 		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
 	)
-	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, kitlog.NewNopLogger())
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
 	var depSchedule *schedule.Schedule

@@ -181,7 +181,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			mailer,
 			c,
 			depStorage,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
+			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, kitlog.NewNopLogger()),
 			"",
 			ssoStore,
 			profMatcher,
@@ -331,7 +331,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				logger,
 				&MDMAppleCheckinAndCommandService{
 					ds:        ds,
-					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
+					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, logger),
 					logger:    kitlog.NewNopLogger(),
 				},
 			)

@@ -126,7 +126,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, nopLog),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -159,7 +159,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, nopLog),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -197,7 +197,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, nopLog),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -242,7 +242,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, nopLog),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -276,7 +276,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, nopLog),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -315,7 +315,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, nopLog),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -362,7 +362,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, nopLog),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)

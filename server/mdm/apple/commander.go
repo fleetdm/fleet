@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/groob/plist"
 	"github.com/micromdm/nanomdm/mdm"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
@@ -30,13 +31,15 @@ type commandPayload struct {
 type MDMAppleCommander struct {
 	storage nanomdm_storage.AllStorage
 	pusher  nanomdm_push.Pusher
+	logger  kitlog.Logger
 }
 
 // NewMDMAppleCommander creates a new commander instance.
-func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService nanomdm_push.Pusher) *MDMAppleCommander {
+func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService nanomdm_push.Pusher, logger kitlog.Logger) *MDMAppleCommander {
 	return &MDMAppleCommander{
 		storage: mdmStorage,
 		pusher:  mdmPushService,
+		logger:  logger,
 	}
 }
 
@@ -216,6 +219,7 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 
 	apnsResponses, err := svc.pusher.Push(ctx, hostUUIDs)
 	if err != nil {
+		svc.logger.Log("error", "Apple Push failed", "err", err)
 		return ctxerr.Wrap(ctx, err, "commander push")
 	}
 
@@ -224,12 +228,15 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 	var failed []string
 	for uuid, response := range apnsResponses {
 		if response.Err != nil {
+			err = response.Err
 			failed = append(failed, uuid)
 		}
 	}
 	if len(failed) > 0 {
+		svc.logger.Log("error", "Apple Push failed (some responses)", "err", err)
 		return &APNSDeliveryError{FailedUUIDs: failed, Err: err}
 	}
+	svc.logger.Log("info", "Apple Push succeeded")
 
 	return nil
 }

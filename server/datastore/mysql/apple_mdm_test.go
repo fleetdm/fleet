@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -3109,7 +3110,7 @@ func createMDMAppleCommanderAndStorage(t *testing.T, ds *Datastore) (*apple_mdm.
 	mdmStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
 	require.NoError(t, err)
 
-	return apple_mdm.NewMDMAppleCommander(mdmStorage, pusherFunc(okPusherFunc)), mdmStorage
+	return apple_mdm.NewMDMAppleCommander(mdmStorage, pusherFunc(okPusherFunc), kitlog.NewNopLogger()), mdmStorage
 }
 
 func okPusherFunc(ctx context.Context, ids []string) (map[string]*push.Response, error) {
