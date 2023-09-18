@@ -1436,10 +1436,6 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 		INSERT INTO software_cve (cve, source, software_id, resolved_in_version) 
 		VALUES (?,?,?,?) 
 		ON DUPLICATE KEY UPDATE
-			cve = VALUES(cve),
-			source = VALUES(source),
-			software_id = VALUES(software_id),
-			resolved_in_version = VALUES(resolved_in_version),
 			updated_at=?
 	`
 	args = append(args, vuln.CVE, source, vuln.SoftwareID, vuln.ResolvedInVersion, time.Now().UTC())
