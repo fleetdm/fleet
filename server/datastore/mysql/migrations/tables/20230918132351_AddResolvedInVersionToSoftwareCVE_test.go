@@ -56,10 +56,6 @@ func TestUp_20230918132351(t *testing.T) {
 
 	execNoErr(t, db, insertStmt, 1, 0, "CVE-2021-1235", updateVersion)
 	selectAndAssert(t, db, 1, 0, "CVE-2021-1235", &updateVersion)
-
-	// Insert a record that should violate the unique constraint
-	_, err := db.Exec(insertStmt, 1, 0, "CVE-2021-1235", updateVersion)
-	require.Error(t, err)
 }
 
 func selectAndAssert(t *testing.T, db *sqlx.DB, softwareID uint, source uint, cve string, resolvedInVersion *string) {

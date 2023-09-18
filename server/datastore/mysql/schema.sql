@@ -1198,7 +1198,7 @@ CREATE TABLE `software_cve` (
   `software_id` bigint(20) unsigned DEFAULT NULL,
   `resolved_in_version` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unq_software_id_cve` (`software_id`,`cve`,`source`,`resolved_in_version`),
+  UNIQUE KEY `unq_software_id_cve` (`software_id`,`cve`),
   KEY `software_cve_software_id` (`software_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
