@@ -41,8 +41,8 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
       iconName: "pending-partial",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
-          ? "The host will receive the MDM command to install the disk encryption profile when the " +
-            "host comes online."
+          ? "The hosts will receive the MDM command to turn on the disk encryption " +
+            "when the hosts come online."
           : "The host will receive the MDM command to install the configuration profile when the " +
             "host comes online.",
     },
@@ -56,8 +56,8 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
       iconName: "success",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
-          ? "The host turned disk encryption on and " +
-            "sent their key to Fleet. Fleet verified with osquery."
+          ? "The host turned disk encryption on and sent the key to Fleet. " +
+            "Fleet verified with osquery."
           : "The host installed the configuration profile. Fleet verified with osquery.",
     },
     verifying: {
@@ -65,8 +65,9 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
       iconName: "success-partial",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
-          ? "The host acknowledged the MDM command to install disk encryption profile. Fleet is " +
-            "verifying with osquery and retrieving the disk encryption key. This may take up to one hour."
+          ? "The host acknowledged the MDM command to turn on disk encryption. " +
+            "Fleet is verifying with osquery and retrieving the disk encryption key. " +
+            "This may take up to one hour."
           : "The host acknowledged the MDM command to install the configuration profile. Fleet is " +
             "verifying with osquery.",
     },
