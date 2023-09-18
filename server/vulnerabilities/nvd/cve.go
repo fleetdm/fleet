@@ -26,7 +26,10 @@ import (
 )
 
 // Define a regex pattern for semver (simplified)
-var semverPattern = `^v?(\d+\.\d+\.\d+)`
+var semverPattern = regexp.MustCompile(`^v?(\d+\.\d+\.\d+)`)
+
+// Define a regex pattern for splitting version strings into subparts
+var nonNumericPartRegex = regexp.MustCompile(`(\d+)(\D.*)`)
 
 // DownloadNVDCVEFeed downloads the NVD CVE feed. Skips downloading if the cve feed has not changed since the last time.
 func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
@@ -422,12 +425,10 @@ func buildConstraintString(startIncluding, startExcluding, endExcluding string) 
 // need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0+3) for use with
 // the semver library.
 func preprocessVersion(version string) string {
-	re := regexp.MustCompile(semverPattern)
-
 	// If "+" is already present, validate the part before "+" as a semver
 	if strings.Contains(version, "+") {
 		parts := strings.Split(version, "+")
-		if re.MatchString(parts[0]) {
+		if semverPattern.MatchString(parts[0]) {
 			return version
 		}
 	}
@@ -438,5 +439,14 @@ func preprocessVersion(version string) string {
 		return parts[0] + "." + parts[1] + "." + parts[2] + "+" + strings.Join(parts[3:], ".")
 	}
 
-	return version
+	// If the version string ends with a non-numeric character (like '1.0.0b'), replace
+	// it with '+<char>' (like '1.0.0+b')
+	if len(parts) == 3 {
+		matches := nonNumericPartRegex.FindStringSubmatch(parts[2])
+		if len(matches) > 2 {
+			parts[2] = matches[1] + "+" + matches[2]
+		}
+	}
+
+	return strings.Join(parts, ".")
 }
