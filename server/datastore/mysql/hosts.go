@@ -1178,14 +1178,14 @@ func filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListO
 		return sql, params
 	}
 
+	sqlFmt := " AND h.platform IN('windows', 'darwin')"
 	// TODO: Should we add no team filter here? It isn't included for the FileVault filter but is
 	// for the general macOS settings filter.
-	sqlFmt := " AND h.platform IN('windows', 'darwin')"
-	// if opt.TeamFilter == nil {
-	// 	// macOS settings filter is not compatible with the "all teams" option so append the "no
-	// 	// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
-	// 	newSQL += ` AND h.team_id IS NULL`
-	// }
+	if opt.TeamFilter == nil {
+		// macOS settings filter is not compatible with the "all teams" option so append the "no
+		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
+		sqlFmt += ` AND h.team_id IS NULL`
+	}
 	sqlFmt += ` AND ((h.platform = 'windows' AND %s) OR (h.platform = 'darwin' AND %s))`
 
 	var subqueryMacOS string
