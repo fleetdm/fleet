@@ -172,12 +172,12 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return fleet.OrbitConfig{Notifications: notifs}, fleet.OrbitError{Message: "internal error: missing host from request context"}
+		return fleet.OrbitConfig{}, fleet.OrbitError{Message: "internal error: missing host from request context"}
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return fleet.OrbitConfig{Notifications: notifs}, err
+		return fleet.OrbitConfig{}, err
 	}
 
 	// set the host's orbit notifications for macOS MDM
@@ -201,7 +201,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			// Since this is an user initiated action, we disable
 			// the flag when we deliver the notification to Orbit
 			if err := svc.ds.SetDiskEncryptionResetStatus(ctx, host.ID, false); err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
 		}
 	}
@@ -211,7 +211,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if host.IsEligibleForWindowsMDMEnrollment() {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
 			notifs.WindowsMDMDiscoveryEndpoint = discoURL
 			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
@@ -226,7 +226,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	// load the pending script executions for that host
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
 	if err != nil {
-		return fleet.OrbitConfig{Notifications: notifs}, err
+		return fleet.OrbitConfig{}, err
 	}
 	if len(pending) > 0 {
 		execIDs := make([]string, 0, len(pending))
@@ -240,19 +240,24 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
 		if err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
 
 		var opts fleet.AgentOptions
 		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
 			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
+		}
+
+		extensionsFiltered, err := filterExtensionsByPlatform(opts.Extensions, host.Platform)
+		if err != nil {
+			return fleet.OrbitConfig{}, err
 		}
 
 		mdmConfig, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 		if err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
 
 		var nudgeConfig *fleet.NudgeConfig
@@ -261,13 +266,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			mdmConfig.MacOSUpdates.EnabledForHost(host) {
 			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
 			if err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
 		}
 
 		return fleet.OrbitConfig{
 			Flags:         opts.CommandLineStartUpFlags,
-			Extensions:    opts.Extensions,
+			Extensions:    extensionsFiltered,
 			Notifications: notifs,
 			NudgeConfig:   nudgeConfig,
 		}, nil
@@ -277,8 +282,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	var opts fleet.AgentOptions
 	if appConfig.AgentOptions != nil {
 		if err := json.Unmarshal(*appConfig.AgentOptions, &opts); err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
+	}
+
+	extensionsFiltered, err := filterExtensionsByPlatform(opts.Extensions, host.Platform)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
 	}
 
 	var nudgeConfig *fleet.NudgeConfig
@@ -286,16 +296,34 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
 		nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
 		if err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
 	}
 
 	return fleet.OrbitConfig{
 		Flags:         opts.CommandLineStartUpFlags,
-		Extensions:    opts.Extensions,
+		Extensions:    extensionsFiltered,
 		Notifications: notifs,
 		NudgeConfig:   nudgeConfig,
 	}, nil
+}
+
+// filterExtensionsByPlatform filters a extensions configuration depending on the host platform.
+// (to not send extensions targeted to other operating systems).
+func filterExtensionsByPlatform(extensions json.RawMessage, hostPlatform string) (json.RawMessage, error) {
+	if len(extensions) == 0 {
+		return extensions, nil
+	}
+	var extensionsInfo fleet.Extensions
+	if err := json.Unmarshal(extensions, &extensionsInfo); err != nil {
+		return nil, err
+	}
+	extensionsInfo.FilterByHostPlatform(hostPlatform)
+	extensionsFiltered, err := json.Marshal(extensionsInfo)
+	if err != nil {
+		return nil, err
+	}
+	return extensionsFiltered, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

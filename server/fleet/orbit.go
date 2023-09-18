@@ -50,3 +50,32 @@ type OrbitHostInfo struct {
 	// Platform is the device's platform as defined by osquery.
 	Platform string
 }
+
+// ExtensionInfo holds the data of a osquery extension to apply to an Orbit client.
+type ExtensionInfo struct {
+	// Platform is one of "windows", "linux" or "macos".
+	Platform string `json:"platform"`
+	// Channel is the select TUF channel to listen for updates.
+	Channel string `json:"channel"`
+}
+
+// Extensions holds a set of extensions to apply to an Orbit client.
+// The key of the map is the extension name (as defined on the TUF server).
+type Extensions map[string]ExtensionInfo
+
+// FilterByHostPlatform filters out extensions that are not targeted for hostPlatform.
+// It supports host platforms reported by osquery and by Go's runtime.GOOS.
+func (es *Extensions) FilterByHostPlatform(hostPlatform string) {
+	switch {
+	case IsLinux(hostPlatform):
+		hostPlatform = "linux"
+	case hostPlatform == "darwin":
+		// Osquery uses "darwin", whereas the extensions feature uses "macos".
+		hostPlatform = "macos"
+	}
+	for extensionName, extensionInfo := range *es {
+		if hostPlatform != extensionInfo.Platform {
+			delete(*es, extensionName)
+		}
+	}
+}

@@ -7,12 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
 
@@ -231,24 +233,27 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		}
 	}
 
-	type ExtensionInfo struct {
-		Platform string `json:"platform"`
-		Channel  string `json:"channel"`
-	}
-
-	var data map[string]ExtensionInfo
-	err = json.Unmarshal(config.Extensions, &data)
+	var extensions fleet.Extensions
+	err = json.Unmarshal(config.Extensions, &extensions)
 	if err != nil {
 		// we do not want orbit to restart
 		return false, fmt.Errorf("error unmarshing json extensions config from fleet: %w", err)
 	}
 
+	// Filter out extensions not targeted to this OS.
+	extensions.FilterByHostPlatform(runtime.GOOS)
+
 	var sb strings.Builder
-	for extensionName, extensionInfo := range data {
+	for extensionName, extensionInfo := range extensions {
 		// infer filename from extension name
 		// osquery enforces .ext, so we just add that
 		// we expect filename to match extension name
 		filename := extensionName + ".ext"
+
+		// All Windows executables must end with `.exe`.
+		if runtime.GOOS == "windows" {
+			filename = filename + ".exe"
+		}
 
 		// we don't want path traversal and the like in the filename
 		if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
@@ -268,7 +273,8 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		r.updateRunner.updater.SetTargetInfo(targetName, TargetInfo{Platform: platform, Channel: channel, TargetFile: filename})
 
 		// the full path to where the extension would be on disk, for e.g. for extension name "hello_world"
-		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext
+		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext on macOS/Linux
+		// and <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext.exe on Windows.
 		path := filepath.Join(rootDir, "bin", "extensions", extensionName, platform, channel, filename)
 
 		if err := r.updateRunner.updater.UpdateMetadata(); err != nil {

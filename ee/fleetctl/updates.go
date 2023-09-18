@@ -262,6 +262,10 @@ func updatesAddFunc(c *cli.Context) error {
 		case name == "desktop" && platform == "linux":
 			// This is a special case for the desktop target on Linux.
 			dstPath += ".tar.gz"
+		// The convention for Windows extensions is to use the extension `.ext.exe`
+		// All Windows executables must end with `.exe`.
+		case strings.HasSuffix(target, ".ext.exe"):
+			dstPath += ".ext.exe"
 		case strings.HasSuffix(target, ".exe"):
 			dstPath += ".exe"
 		case strings.HasSuffix(target, ".app.tar.gz"):
