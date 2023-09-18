@@ -45,7 +45,7 @@ type Software struct {
 	// (e.g. "30.el7" for a CentOS package).
 	Release string `json:"release,omitempty" db:"release"`
 	// Vendor is the supplier of the software (e.g. "CentOS").
-	Vendor strin `json:"vendor,omitempty" db:"vendor"`
+	Vendor string `json:"vendor,omitempty" db:"vendor"`
 
 	// TODO: Remove this as part of the clean up of https://github.com/fleetdm/fleet/pull/7297
 	// DO NOT USE THIS, use 'Vendor' instead. We had to 'recreate' the vendor column because we
