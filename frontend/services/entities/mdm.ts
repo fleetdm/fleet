@@ -1,11 +1,9 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { FileVaultProfileStatus } from "interfaces/mdm";
+import { DiskEncryptionStatus, MdmProfileStatus } from "interfaces/mdm";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
-
-export type IFileVaultSummaryResponse = Record<FileVaultProfileStatus, number>;
 
 export interface IEulaMetadataResponse {
   name: string;
@@ -13,7 +11,50 @@ export interface IEulaMetadataResponse {
   created_at: string;
 }
 
-export default {
+export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
+
+export interface IDiskEncryptionStatusAggregate {
+  macos: number;
+  windows: number;
+}
+
+export type IDiskEncryptionSummaryResponse = Record<
+  DiskEncryptionStatus,
+  IDiskEncryptionStatusAggregate
+>;
+
+// This function combines the profile status summary and the disk encryption summary
+// to generate the aggregate profile status summary. We are doing this as a temporary
+// solution until we have the API that will return the aggregate profile status summary
+// from one call.
+// TODO: API INTEGRATION: remove when API is implemented
+const generateCombinedProfileStatusSummary = (
+  profileStatuses: ProfileStatusSummaryResponse,
+  diskEncryptionSummary: IDiskEncryptionSummaryResponse
+): ProfileStatusSummaryResponse => {
+  const { verified, verifying, failed, pending } = profileStatuses;
+  const {
+    verified: verifiedDiskEncryption,
+    verifying: verifyingDiskEncryption,
+    failed: failedDiskEncryption,
+    action_required: actionRequiredDiskEncryption,
+    enforcing: enforcingDiskEncryption,
+    removing_enforcement: removingEnforcementDiskEncryption,
+  } = diskEncryptionSummary;
+
+  return {
+    verified: verified + verifiedDiskEncryption.windows,
+    verifying: verifying + verifyingDiskEncryption.windows,
+    failed: failed + failedDiskEncryption.windows,
+    pending:
+      pending +
+      actionRequiredDiskEncryption.windows +
+      enforcingDiskEncryption.windows +
+      removingEnforcementDiskEncryption.windows,
+  };
+};
+
+const mdmService = {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
     return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
@@ -72,22 +113,70 @@ export default {
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },
 
-  getAggregateProfileStatuses: (teamId = APP_CONTEXT_NO_TEAM_ID) => {
+  // TODO: API INTEGRATION: we need to rework this when we create API call that
+  // will return the aggregate statuses for windows included in the response.
+  // Currently to get windows data included we will need to make a separate call.
+  // We will likely change this to go back to single "getProfileStatusSummary" API call.
+  getAggregateProfileStatuses: async (
+    teamId = APP_CONTEXT_NO_TEAM_ID,
+    // TODO: WINDOWS FEATURE FLAG: remove when we windows feature is released.
+    includeWindows: boolean
+  ) => {
+    // if we are not including windows we can just call the existing profile summary API
+    if (!includeWindows) {
+      return mdmService.getProfileStatusSummary(teamId);
+    }
+
+    // otherwise we have to make two calls and combine the results.
+    const [
+      profileStatuses,
+      diskEncryptionSummary,
+    ] = await mdmService.getAggregateProfileStatusesWithWindows(teamId);
+
+    return new Promise<ProfileStatusSummaryResponse>((resolve) => {
+      resolve(
+        generateCombinedProfileStatusSummary(
+          profileStatuses,
+          diskEncryptionSummary
+        )
+      );
+    });
+  },
+
+  getAggregateProfileStatusesWithWindows: async (teamId: number) => {
+    const [profileStatuses, diskEncryptionSummary] = await Promise.all([
+      mdmService.getProfileStatusSummary(teamId),
+      mdmService.getDiskEncryptionSummary(teamId),
+    ]);
+    return [profileStatuses, diskEncryptionSummary];
+  },
+
+  getProfileStatusSummary: (teamId = APP_CONTEXT_NO_TEAM_ID) => {
     const path = `${
       endpoints.MDM_PROFILES_AGGREGATE_STATUSES
     }?${buildQueryStringFromParams({ team_id: teamId })}`;
-
     return sendRequest("GET", path);
   },
 
-  getDiskEncryptionAggregate: (teamId?: number) => {
-    let { MDM_APPLE_DISK_ENCRYPTION_AGGREGATE: path } = endpoints;
+  getDiskEncryptionSummary: (teamId?: number) => {
+    let { MDM_DISK_ENCRYPTION_SUMMARY: path } = endpoints;
 
     if (teamId) {
       path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
     }
 
-    return sendRequest("GET", path);
+    // TODO: API INTEGRATION: change when API is implemented
+    return new Promise<IDiskEncryptionSummaryResponse>((resolve) => {
+      resolve({
+        verified: { macos: 0, windows: 5 },
+        verifying: { macos: 1, windows: 4 },
+        action_required: { macos: 2, windows: 3 },
+        enforcing: { macos: 3, windows: 2 },
+        failed: { macos: 4, windows: 1 },
+        removing_enforcement: { macos: 5, windows: 0 },
+      });
+    });
+    // return sendRequest("GET", path);
   },
 
   updateAppleMdmSettings: (enableDiskEncryption: boolean, teamId?: number) => {
@@ -179,3 +268,5 @@ export default {
     });
   },
 };
+
+export default mdmService;
