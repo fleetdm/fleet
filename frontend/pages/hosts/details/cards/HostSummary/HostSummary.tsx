@@ -65,7 +65,7 @@ const HostSummary = ({
   renderActionButtons,
   deviceUser,
 }: IHostSummaryProps): JSX.Element => {
-  const { status, id, platform } = titleData;
+  const { status, platform } = titleData;
 
   // TODO: remove test data
   hostMdmProfiles = [];
@@ -202,7 +202,7 @@ const HostSummary = ({
         {isPremiumTier && renderHostTeam()}
 
         {/* Rendering of OS Settings data */}
-        {platform === "darwin" &&
+        {(platform === "darwin" || platform === "windows") &&
           isPremiumTier &&
           mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
