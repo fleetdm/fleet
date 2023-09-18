@@ -89,8 +89,8 @@ $ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
 
 To run all Go unit tests, run the following:
 
-```
-REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 make test-go
+```bash
+REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make test-go
 ```
 
 ### Go linters
