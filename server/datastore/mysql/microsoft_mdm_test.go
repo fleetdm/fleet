@@ -208,4 +208,16 @@ func TestGetMDMWindowsBitLockerSummary(t *testing.T) {
 	require.Equal(t, uint(1), bls.Failed)
 	require.Equal(t, uint(2), bls.Enforcing)
 	require.Equal(t, uint(0), bls.RemovingEnforcement)
+
+	// Set hosts[3] to be a server
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[3].ID, true, true, "https://example.com", false, fleet.WellKnownMDMFleet))
+
+	// Test Windows servers not counted
+	bls, err = ds.GetMDMWindowsBitLockerSummary(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), bls.Verified)
+	require.Equal(t, uint(0), bls.Verifying)
+	require.Equal(t, uint(1), bls.Failed)
+	require.Equal(t, uint(1), bls.Enforcing) // hosts[3] is not counted
+	require.Equal(t, uint(0), bls.RemovingEnforcement)
 }

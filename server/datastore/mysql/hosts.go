@@ -981,21 +981,6 @@ func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOpt
 	return sql, params, nil
 }
 
-func (ds *Datastore) getConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
-	if teamID != nil && *teamID > 0 {
-		tc, err := ds.TeamMDMConfig(ctx, *teamID)
-		if err != nil {
-			return false, err
-		}
-		return tc.MacOSSettings.EnableDiskEncryption, nil
-	}
-	ac, err := ds.AppConfig(ctx)
-	if err != nil {
-		return false, err
-	}
-	return ac.MDM.MacOSSettings.EnableDiskEncryption, nil
-}
-
 func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	if opt.TeamFilter == nil {
 		// default "all teams" option
