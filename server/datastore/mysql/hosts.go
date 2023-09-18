@@ -2969,7 +2969,7 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 	)
 }
 
-func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
            INSERT INTO host_disk_encryption_keys (host_id, base64_encrypted)
 	   VALUES (?, ?)
@@ -2982,6 +2982,14 @@ func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostI
 }
 
 func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+	// NOTE(mna): currently we only verify encryption keys for macOS,
+	// Windows/bitlocker uses a different approach where orbit sends the
+	// encryption key and we encrypt it server-side with the WSTEP certificate,
+	// so it is always decryptable once received.
+	//
+	// To avoid sending Windows-related keys to verify as part of this call, we
+	// only return rows that have a non-empty encryption key (for Windows, the
+	// key is blanked if an error occurred trying to retrieve it on the host).
 	var keys []fleet.HostDiskEncryptionKey
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &keys, `
           SELECT
@@ -2991,7 +2999,8 @@ func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fle
           FROM
             host_disk_encryption_keys
           WHERE
-            decryptable IS NULL
+            decryptable IS NULL AND
+            base64_encrypted != ''
 	`)
 	return keys, err
 }

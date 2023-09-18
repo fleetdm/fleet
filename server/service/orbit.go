@@ -450,3 +450,53 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 	return fleet.ErrMissingLicense
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit disk encryption key
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostDiskEncryptionKeyRequest struct {
+	OrbitNodeKey  string `json:"orbit_node_key"`
+	EncryptionKey []byte `json:"encryption_key"`
+	ClientError   string `json:"client_error"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostDiskEncryptionKeyRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPostDiskEncryptionKeyRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostDiskEncryptionKeyResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostDiskEncryptionKeyResponse) error() error { return r.Err }
+func (r orbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNoContent }
+
+func postOrbitDiskEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPostDiskEncryptionKeyRequest)
+	if err := svc.SetOrUpdateDiskEncryptionKey(ctx, string(req.EncryptionKey), req.ClientError); err != nil {
+		return orbitPostDiskEncryptionKeyResponse{Err: err}, nil
+	}
+	return orbitPostDiskEncryptionKeyResponse{}, nil
+}
+
+func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return newOsqueryError("internal error: missing host from request context")
+	}
+
+	// TODO(mna): encrypt the key using WSTEP certificate
+	encryptedEncryptionKey := encryptionKey
+
+	return svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError)
+}
