@@ -78,6 +78,32 @@ func (r *appConfigResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON implements the json.Marshaler interface to make sure we serialize
+// both AppConfig and responseFields properly:
+//
+// - If this function is not defined, AppConfig.MarshalJSON gets promoted and
+// will be called instead.
+// - If we try to unmarshal everything in one go, AppConfig.MarshalJSON doesn't get
+// called.
+func (r appConfigResponse) MarshalJSON() ([]byte, error) {
+	// Marshal only the response fields
+	responseData, err := json.Marshal(r.appConfigResponseFields)
+	if err != nil {
+		return nil, err
+	}
+
+	// Marshal the base AppConfig
+	appConfigData, err := json.Marshal(r.AppConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// combine the two byte arrays
+	combinedJSON := append(responseData[:len(responseData)-1], ',')
+	combinedJSON = append(combinedJSON, appConfigData[1:]...)
+	return combinedJSON, nil
+}
+
 func (r appConfigResponse) error() error { return r.Err }
 
 func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -340,6 +366,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// TODO: move this logic to the AppConfig unmarshaller? we need to do
+	// this because we unmarshal twice into appConfig:
+	//
+	// 1. To get the JSON value from the database
+	// 2. To update fields with the incoming values
+	if newAppConfig.MDM.EnableDiskEncryption.Valid {
+		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
+	}
+
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
@@ -502,9 +537,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption != appConfig.MDM.MacOSSettings.EnableDiskEncryption {
+	if oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
 		var act fleet.ActivityDetails
-		if appConfig.MDM.MacOSSettings.EnableDiskEncryption {
+		if appConfig.MDM.EnableDiskEncryption.Value {
 			act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
 			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
@@ -565,7 +600,7 @@ func (svc *Service) validateMDM(
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
 ) {
-	if mdm.MacOSSettings.EnableDiskEncryption && !license.IsPremium() {
+	if mdm.EnableDiskEncryption.Value && !license.IsPremium() {
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
 	if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !license.IsPremium() {
@@ -586,7 +621,7 @@ func (svc *Service) validateMDM(
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
-		if mdm.MacOSSettings.EnableDiskEncryption {
+		if mdm.EnableDiskEncryption.Value {
 			invalid.Append("macos_settings.enable_disk_encryption",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}

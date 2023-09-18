@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -890,12 +891,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 		}
 
 		payload.MDM = &fleet.TeamPayloadMDM{
-			MacOSSettings: &fleet.MacOSSettings{
-				// teams created by the match endpoint have disk encryption
-				// enabled by default.
-				// TODO: maybe make this configurable?
-				EnableDiskEncryption: true,
-			},
+			EnableDiskEncryption: optjson.SetBool(true),
 			MacOSSetup: &fleet.MacOSSetup{
 				MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
 				// NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
