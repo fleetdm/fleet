@@ -67,6 +67,9 @@ const HostSummary = ({
 }: IHostSummaryProps): JSX.Element => {
   const { status, id, platform } = titleData;
 
+  // TODO: remove test data
+  hostMdmProfiles = [];
+
   const renderRefetch = () => {
     const isOnline = titleData.status === "online";
 
@@ -198,6 +201,7 @@ const HostSummary = ({
 
         {isPremiumTier && renderHostTeam()}
 
+        {/* Rendering of OS Settings data */}
         {platform === "darwin" &&
           isPremiumTier &&
           mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and

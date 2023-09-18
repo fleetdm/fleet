@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import ProfileStatusIndicator from "./ProfileStatusIndicator";
 
-describe("MacSettingsIndicator", () => {
+describe("ProfileStatusIndicator component", () => {
   it("Renders the text and icon", () => {
     const indicatorText = "test text";
     render(

@@ -24,23 +24,23 @@ const STATUS_DISPLAY_OPTIONS: StatusDisplayOptions = {
   Verified: {
     iconName: "success",
     tooltipText:
-      "The host installed all configuration profiles. Fleet verified with osquery.",
+      "The host applied all OS settings. Fleet verified with osquery.",
   },
   Verifying: {
     iconName: "success-partial",
     tooltipText:
-      "The hosts acknowledged all MDM commands to install configuration profiles. Fleet is verifying " +
-      "the profiles are installed with osquery.",
+      "The host acknowledged all MDM commands to apply OS settings. " +
+      "Fleet is verifying the OS settings are applied with osquery.",
   },
   Pending: {
     iconName: "pending-partial",
     tooltipText:
-      "The host will receive MDM commands to install configuration profiles when the host comes online.",
+      "The host will receive MDM command to apply OS settings when the host comes online.",
   },
   Failed: {
     iconName: "error",
     tooltipText:
-      "Host failed to install configuration profiles. Click to view error(s).",
+      "The host failed to apply the latest OS settings. Click to view error(s).",
   },
 };
 
