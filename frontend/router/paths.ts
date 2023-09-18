@@ -53,12 +53,17 @@ export default {
     return `${URL_PREFIX}/labels/${labelId}`;
   },
   EDIT_QUERY: (queryId: number, teamId?: number): string => {
-    return `${URL_PREFIX}/queries/${queryId}${
+    return `${URL_PREFIX}/queries/${queryId}/edit${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
+  },
+  RUN_QUERY: (queryId: number, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId}/run${
       teamId ? `?team_id=${teamId}` : ""
     }`;
   },
   QUERY: (queryId: number, teamId?: number): string => {
-    return `${URL_PREFIX}/queries/${queryId}/details${
+    return `${URL_PREFIX}/queries/${queryId}${
       teamId ? `?team_id=${teamId}` : ""
     }`;
   },

@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
+import differenceInSeconds from "date-fns/differenceInSeconds";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -19,6 +20,7 @@ import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import EmptyTable from "components/EmptyTable/EmptyTable";
+import CachedDetails from "../components/CachedDetails/CachedDetails";
 
 interface IQueryDetailsPageProps {
   router: InjectedRouter; // v3
@@ -140,9 +142,8 @@ const QueryDetailsPage = ({
                 <Button
                   className={`${baseClass}__run`}
                   variant="blue-green"
-                  // onClick={goToSelectTargets} // TODO
                   onClick={() => {
-                    console.log("goToSelectTargets");
+                    queryId && router.push(PATHS.RUN_QUERY(queryId));
                   }}
                 >
                   Live query
@@ -158,9 +159,23 @@ const QueryDetailsPage = ({
   const renderReport = () => {
     const collectingResults = true; // TODO: Fix so it's correct
     const noResults = true; // TODO: Fix so it's correct
-    const dynamicFrequency = lastEditedQueryFrequency; // TODO: Fix so it's correct
+
+    const dynamicFrequency = () => {
+      const secondsSinceUpdate = storedQuery?.updated_at
+        ? differenceInSeconds(new Date(), new Date(storedQuery?.updated_at))
+        : 0;
+      const secondsUpdateWaittime = lastEditedQueryFrequency + 60;
+      const secondsCheckbackTime = secondsUpdateWaittime - secondsSinceUpdate;
+
+      console.log("secondsSinceUpdate", secondsSinceUpdate);
+      console.log("secondsUpdateWaittime", secondsUpdateWaittime);
+      console.log("secondsCheckbackTime", secondsCheckbackTime);
+
+      return secondsCheckbackTime;
+    };
+
     const collectingResultsInfo = () =>
-      `Fleet is collecting query results. Check back in about ${dynamicFrequency} hour.`;
+      `Fleet is collecting query results. Check back in about ${dynamicFrequency()} hour.`;
     const noResultsInfo = () => {
       return "This query has returned no data so far."; // TODO: Fix so it's correct
     };
@@ -177,7 +192,7 @@ const QueryDetailsPage = ({
         <EmptyTable header={"Nothing to report yet"} info={noResultsInfo()} />
       );
     }
-    return <>Report here</>; // TODO
+    return <CachedDetails />; // TODO
   };
 
   return (

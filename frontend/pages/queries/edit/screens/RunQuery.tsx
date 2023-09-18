@@ -15,7 +15,7 @@ import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
-import QueryResults from "../../components/QueryResults";
+import QueryResults from "../../edit/components/QueryResults";
 
 interface IRunQueryProps {
   storedQuery: IQuery | undefined;
