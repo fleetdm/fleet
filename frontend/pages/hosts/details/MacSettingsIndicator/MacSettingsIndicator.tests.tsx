@@ -1,15 +1,12 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import ProfileStatusIndicator from "./ProfileStatusIndicator";
+import MacSettingsIndicator from "./MacSettingsIndicator";
 
 describe("ProfileStatusIndicator component", () => {
   it("Renders the text and icon", () => {
     const indicatorText = "test text";
     render(
-      <ProfileStatusIndicator
-        indicatorText={indicatorText}
-        iconName="success"
-      />
+      <MacSettingsIndicator indicatorText={indicatorText} iconName="success" />
     );
     const renderedIndicatorText = screen.getByText(indicatorText);
     const renderedIcon = screen.getByTestId("success-icon");
@@ -22,7 +19,7 @@ describe("ProfileStatusIndicator component", () => {
     const indicatorText = "test text";
     const tooltipText = "test tooltip text";
     render(
-      <ProfileStatusIndicator
+      <MacSettingsIndicator
         indicatorText={indicatorText}
         iconName="success"
         tooltip={{ tooltipText }}
@@ -45,7 +42,7 @@ describe("ProfileStatusIndicator component", () => {
       document.body.appendChild(newDiv);
     };
     render(
-      <ProfileStatusIndicator
+      <MacSettingsIndicator
         indicatorText={indicatorText}
         iconName="success"
         onClick={() => {

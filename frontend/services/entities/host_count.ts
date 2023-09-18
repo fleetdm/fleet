@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { DiskEncryptionStatus, BootstrapPackageStatus } from "interfaces/mdm";
+import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
 import { HostStatus } from "interfaces/host";
 import {
   buildQueryStringFromParams,
@@ -43,7 +43,7 @@ export interface IHostCountLoadOptions {
   osId?: number;
   osName?: string;
   osVersion?: string;
-  diskEncryptionStatus?: DiskEncryptionStatus;
+  diskEncryptionStatus?: FileVaultProfileStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
