@@ -598,15 +598,33 @@ func listSoftwareDB(
 }
 
 // softwareCVE is used for left joins with cve
+//
+//
+
 type softwareCVE struct {
 	fleet.Software
-	CVE               *string    `db:"cve"`
-	CVSSScore         *float64   `db:"cvss_score"`
-	EPSSProbability   *float64   `db:"epss_probability"`
-	CISAKnownExploit  *bool      `db:"cisa_known_exploit"`
-	CVEPublished      *time.Time `db:"cve_published"`
-	Description       *string    `db:"description"`
-	ResolvedInVersion *string    `db:"resolved_in_version"`
+
+	// CVE is the CVE identifier pulled from the NVD json (e.g. CVE-2019-1234)
+	CVE *string `db:"cve"`
+
+	// CVSSScore is the CVSS score pulled from the NVD json (premium only)
+	CVSSScore *float64 `db:"cvss_score"`
+
+	// EPSSProbability is the EPSS probability pulled from FIRST (premium only)
+	EPSSProbability *float64 `db:"epss_probability"`
+
+	// CISAKnownExploit is the CISAKnownExploit pulled from CISA (premium only)
+	CISAKnownExploit *bool `db:"cisa_known_exploit"`
+
+	// CVEPublished is the CVE published date pulled from the NVD json (premium only)
+	CVEPublished *time.Time `db:"cve_published"`
+
+	// Description is the CVE description field pulled from the NVD json
+	Description *string `db:"description"`
+
+	// ResolvedInVersion is the version of software where the CVE is no longer applicable.
+	// This is pulled from the versionEndExcluding field in the NVD json
+	ResolvedInVersion *string `db:"resolved_in_version"`
 }
 
 func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
