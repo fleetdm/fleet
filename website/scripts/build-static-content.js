@@ -566,6 +566,14 @@ module.exports = {
         // Now build EJS partials from open positions in open-positions.yml. Note: We don't build these
         builtStaticContent.openPositions = [];// This will be passed into a component on the company handbook page to render a list of open positions.
         let RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO = 'handbook/company/open-positions.yml';
+
+        // Get last modified timestamp using git, and represent it as a JS timestamp.
+        // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+          command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
+          dir: topLvlRepoPath,
+        })).stdout)).getTime();
+
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
 
@@ -658,7 +666,7 @@ module.exports = {
           builtStaticContent.markdownPages.push({
             url: rootRelativeUrlPath,
             title: pageTitle,
-            lastModifiedAt: Date.now(),
+            lastModifiedAt: lastModifiedAt,
             htmlId: htmlId,
             sectionRelativeRepoPath: 'company/open-positions.yml', // This is used to create the url for the "Edit this page" link
             meta: {maintainedBy: openPosition.hiringManagerGithubUsername},// Set the page maintainer to be the position's hiring manager.
@@ -671,7 +679,7 @@ module.exports = {
         }
 
         // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
-        let expandedTables = await sails.helpers.getExtendedOsquerySchema();
+        let expandedTables = await sails.helpers.getExtendedOsquerySchema.with({includeLastModifiedAtValue: true});
 
         // Once we have our merged schema, we'll create ejs partials for each table.
         for(let table of expandedTables) {
@@ -782,6 +790,7 @@ module.exports = {
               title: table.name,
               htmlId: htmlId,
               evented: table.evented,
+              lastModifiedAt: table.lastModifiedAt,
               platforms: table.platforms,
               keywordsForSyntaxHighlighting: keywordsForSyntaxHighlighting,
               sectionRelativeRepoPath: table.name, // Setting the sectionRelativeRepoPath to an arbitrary string to work with existing pages.

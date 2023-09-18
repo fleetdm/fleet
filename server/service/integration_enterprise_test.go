@@ -2925,6 +2925,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		EPSSProbability:  ptr.Float64(0.5),
 		CISAKnownExploit: ptr.Bool(true),
 		Published:        &now,
+		Description:      "a long description of the cve",
 	}}))
 
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now().UTC()))
@@ -2953,6 +2954,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, ptr.Float64Ptr(0.5))
 	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, ptr.BoolPtr(true))
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
+	require.Equal(t, barPayload.Vulnerabilities[0].Description, ptr.StringPtr("a long description of the cve"))
 }
 
 // TestGitOpsUserActions tests the permissions listed in ../../docs/Using-Fleet/Permissions.md.

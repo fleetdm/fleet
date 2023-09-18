@@ -110,6 +110,7 @@ func TestUp_20230721161508(t *testing.T) {
 			teamIDs = append(teamIDs, *query.TeamID)
 		}
 	}
+	require.NoError(t, rows.Err())
 	require.Equal(t, nRows, 2)
 	require.ElementsMatch(t, teamIDStrs, []string{"", "2"})
 	require.Contains(t, teamIDs, uint(2))
@@ -175,6 +176,7 @@ func TestUp_20230721161508(t *testing.T) {
 		require.Equal(t, query.Saved, true)
 		require.Equal(t, query.ObserverCanRun, true)
 	}
+	require.NoError(t, rows.Err())
 	require.ElementsMatch(t, names, []string{"Admin Global Query - 1 - Jul 21 20:33:54.000", "Admin Global Query - 2 - Jul 21 20:34:00.000"})
 	require.ElementsMatch(t, scheduleIntervals, []uint{3600, 86400})
 	require.ElementsMatch(t, automationsEnabled, []bool{true, true})
@@ -220,6 +222,7 @@ func TestUp_20230721161508(t *testing.T) {
 		require.Equal(t, query.Saved, true)
 		require.Equal(t, query.ObserverCanRun, false)
 	}
+	require.NoError(t, rows.Err())
 	require.ElementsMatch(t, names, []string{"per_query_perf", "per_query_perf - 7 - Jul 21 20:34:46.000", "per_query_perf - 8 - Jul 21 20:34:51.000"})
 	require.ElementsMatch(t, scheduleIntervals, []uint{0, 86400, 86400})
 	require.ElementsMatch(t, automationsEnabled, []bool{false, true, true})
@@ -288,6 +291,7 @@ func TestUp_20230721161508(t *testing.T) {
 		require.Equal(t, query.Saved, true)
 		require.Equal(t, query.ObserverCanRun, false)
 	}
+	require.NoError(t, rows.Err())
 	require.ElementsMatch(t, names, []string{"per_query_perf - 11 - Jul 21 20:36:25.000"})
 	require.ElementsMatch(t, scheduleIntervals, []uint{86400})
 	require.ElementsMatch(t, automationsEnabled, []bool{true})

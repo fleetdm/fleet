@@ -73,11 +73,13 @@ For external contributors: please consider opening an issue with reference scree
 
 > As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
-#### Estimating
+### Settled 
 
-Once the draft has been approved: 
-* move it to the "Settled" column in the drafting board and assign it to the appropriate engineering manager.
-* make sure that the issue is updated with the latest information on the work to be done, such as a link to the correct Figma file and a list of most recent requirements.
+Once the draft has been approved, it moves to the "Settled" column on the drafting board. 
+
+Before assigning an engineering manager for [estimation](https://fleetdm.com/handbook/engineering#sprint-ceremonies), the product team should ensure the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
+
+> The story's designer is responsible for ensuring the checklist has been completed, the requirements section is consistent with the Figma, and the group engineering manager has been assigned. 
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
@@ -109,19 +111,24 @@ Thus, to ensure consistency, completeness, and secure development practices, no 
 Product Managers prioritize all potential product improvements worked on by Fleeties. Anyone (Fleeties, customers, and community members) are invited to suggest improvements. See [the intake section](#intake) for more information on how Fleet's product team intakes new feature requests.
 
 ## Prioritizing bugs
-Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
+Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).) Bugs should be prioritized in the following order:
+1. Quality: product does what it's supposed to (what is documented).
+2. Common-sense user criticality: If no one can load any page, that's obviously important.
+3. Age of bugs: Long-open bugs are open wounds bleeding quality out of the product.  They must be closed quickly.
+4. Customer criticality: How important it is to a customer use case.
+
 
 If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized and estimated for the next sprint. If a bug [requires drafting](https://fleetdm.com/handbook/engineering#in-product-drafting-as-needed) to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
 If a bug is not addressed within six weeks, it is [sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). Each sprint, the Head of Product meets with the group product managers to review these bugs (churned bug review). In this session, bugs are categorized as follows:
-- **Continue**: the bug should be prioritized in the next sprint.
+- **Schedule**: the bug should be prioritized in the next sprint.
 - **Needs prioritization**: the bug will likely not be worked on within the next six weeks, but it is still a valid bug.
 - **De-prioritized**: the issue will be closed and the necessary subsequent steps will be initiated. This might include updating documentation and informing the community.
 
 After aligning with the group product managers, the Head of Product meets with the CEO and Director of Product Development to discuss and finalize the outcomes for the churned bugs.
 
 Once outcomes have been approved by the CEO, Product Operations will complete the churned bug clean-up ritual. Below are the steps for each category:
-- **Continue**: Product Operations should remove the `:product` label, move the bug ticket to the 'inbox' column on the bug board, and assign it to the appropriate group's Engineering Manager.
+- **Schedule**: Product Operations should remove the `:product` label, move the bug ticket to the 'to be scheduled' column on the bug board, and assign it to the appropriate group's Product Manager so that it can be prioritized into the sprint backlog.
 - **Needs prioritization**: Product Operations should remove both the `bug` and `:product` labels, then apply the `needs prioritization` label.
 - **De-prioritized**: Product Operations should close the issue and, as the DRI, ensure all follow-up actions are finalized.
 
@@ -394,13 +401,13 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Report number of estimated stories (MDM) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Noah Talerman |
 | Maintenance | Weekly (Friday) | Product Operations checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #help-product Slack channel. | Isabell Reedy |
 | Quality check  | Daily         | Every day, Product Operations will review the "Settled" column on the drafting board to ensure all product action items are complete.                                | Isabell Reedy |
-| Bug de-prioritization | Mid-sprint  | CEO, Head of Product, and Director of Product Development review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to continue into the next sprint and which can be de-prioritized. | Mo Zhu |
+| Bug de-prioritization | Mid-sprint  | CEO, Head of Product, and Director of Product Development review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to schedule into the next sprint and which can be de-prioritized. | Mo Zhu |
 | Product confirm and celebrate                 | Weekly (Wednesday)       | The Head of Product meets with the designers and product managers to discuss completed user stories. They also verify all updates to documentation, communications, guides, and the pricing and transparency pages, ensuring everything is set for the next steps.                                      | Mo Zhu            |
 | Pre-sprint prioritization call (CX)           | Sprintly (Monday)        | The product manager and engineering manager meet to confirm alignment on prioritization for the upcoming sprint.                                                                                                                                                                | Mo Zhu            |
 | Bug review (CX)                               | Weekly (Tuesday)         | The product manager meets with the engineering manager and a product quality engineer to ensure synchronization on bug prioritization and actions preceding CX estimation sessions.                                                                                                         | Mo Zhu            |
 | Bug round-up   | Mid-sprint | Product Operations will compile a list of churned bugs, including issue numbers, specifics, and age. They will also notify the Customer Success team of any churned bugs that have customer tags  | Isabell Reedy |
-| Churned bug review                            | Mid-sprint     | The Head of Product meets with the group product managers to examine churned bugs and categorize them as either continue, needs prioritization, or de-prioritize.                                                                                                                                     | Mo Zhu            |
-| Churned bug clean-up | Mid-sprint  | Following the bug de-prioritization meeting, Product Operations completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as continue, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Isabell Reedy |
+| Churned bug review                            | Mid-sprint     | The Head of Product meets with the group product managers to examine churned bugs and categorize them as either schedule, needs prioritization, or de-prioritize.                                                                                                                                     | Mo Zhu            |
+| Churned bug clean-up | Mid-sprint  | Following the bug de-prioritization meeting, Product Operations completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as schedule, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Isabell Reedy |
 | Stand-up (website)           | Daily (Monday - Thursday) | The website product team meets to discuss completed tasks, upcoming work, and address any questions. | Mike Thomas |
 | Prioritization session (website) | Sprintly                | The website product team meets to prioritize tasks for the upcoming sprint. | Mike Thomas |
 | Design review (website)      | Daily (Monday - Thursday) | Review designs from the website team.                                       | Mike Thomas |

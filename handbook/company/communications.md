@@ -242,6 +242,13 @@ After the plan for the offsite is approved at the e-group meeting (including par
 When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
 
 
+### SOC 2
+
+You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1B-Xb4ZVmZk7Fk0IA1eCr8tCVJ-cfipid/view?usp=drivesdk).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
+
+You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
+
+
 ## Vendor questionnaires 
 In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires) 
 
@@ -316,7 +323,7 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 When you need to take time off, follow this process:
 - Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
 - Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
-- Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
+- Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) coverage, anything where someone might be depending on you).
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
 - If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
 - If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
@@ -565,7 +572,17 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
+### Audit logs
 
+The [Audit logs doc page](https://fleetdm.com/docs/Using%20Fleet/Audit-logs.md) has a page generator that is used to speed up doc writing when Fleet adds new activity types.
+
+- If you're making a copy change to an exiting activity type, edit the `activities.go` file [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/activities.go).
+
+- If you're making a change to the top section or meta tags, edit the `gen_activity_doc.go` file [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/gen_activity_doc.go).
+
+- If you're adding a new activity type, add the activity to the `ActivityDetailsList` list in the `activities.go` file.
+
+After making your changes, save them and run `make generate-doc`. This will generate a new `Audit-logs.md` file. Make sure you run the command in the top level folder of your cloned, Fleet repo.
 
 ### GitHub labels
 We use special characters to define different types of GitHub labels. By combining labels, we

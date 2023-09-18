@@ -64,11 +64,21 @@ func TestLoadCVEMeta(t *testing.T) {
 	require.Equal(t, float64(7.2), *meta.CVSSScore)
 	require.Equal(t, float64(0.00885), *meta.EPSSProbability)
 	require.Equal(t, false, *meta.CISAKnownExploit)
+	require.Equal(
+		t,
+		"CSCMS Music Portal System v4.2 was discovered to contain a SQL injection vulnerability via the id parameter at /admin.php/pic/admin/lists/zhuan.",
+		*&meta.Description,
+	)
 
 	meta = metaMap["CVE-2022-22587"]
 	require.Equal(t, float64(9.8), *meta.CVSSScore)
 	require.Equal(t, float64(0.01843), *meta.EPSSProbability)
 	require.Equal(t, true, *meta.CISAKnownExploit)
+	require.Equal(
+		t,
+		"A memory corruption issue was addressed with improved input validation. This issue is fixed in iOS 15.3 and iPadOS 15.3, macOS Big Sur 11.6.3, macOS Monterey 12.2. A malicious application may be able to execute arbitrary code with kernel privileges. Apple is aware of a report that this issue may have been actively exploited..",
+		*&meta.Description,
+	)
 }
 
 func TestDownloadCPETranslations(t *testing.T) {
