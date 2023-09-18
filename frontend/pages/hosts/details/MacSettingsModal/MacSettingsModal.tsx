@@ -20,7 +20,7 @@ const MacSettingsModal = ({ hostMDMData, onClose }: IMacSettingsModalProps) => {
 
   return (
     <Modal
-      title="macOS settings"
+      title="OS settings"
       onExit={onClose}
       className={baseClass}
       width="large"
