@@ -12,7 +12,7 @@ func init() {
 func Up_20230913141311(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE software_cve
-		ADD COLUMN resolved_in_version VARCHAR(50)
+		ADD COLUMN resolved_in_version VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL;
 	`
 
 	if _, err := tx.Exec(stmt); err != nil {

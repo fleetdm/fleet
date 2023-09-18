@@ -48,7 +48,7 @@ func TestUp_20230913141311(t *testing.T) {
 		1,
 		0,
 		"CVE-2021-1235",
-		"1.2.3",
+		"6.0.2-76060002.202210150739~1666289067~22.04~fe0ce53", // This is a long linux kernel version string to test the capacity of the new column
 	}
 
 	execNoErr(t, db, insertStmt, args...)
@@ -63,5 +63,5 @@ func TestUp_20230913141311(t *testing.T) {
 	require.Equal(t, uint(1), softwareCVE.SoftwareID)
 	require.Equal(t, uint(0), softwareCVE.Source)
 	require.Equal(t, "CVE-2021-1235", softwareCVE.CVE)
-	require.Equal(t, "1.2.3", softwareCVE.ResolvedInVersion)
+	require.Equal(t, "6.0.2-76060002.202210150739~1666289067~22.04~fe0ce53", softwareCVE.ResolvedInVersion)
 }
