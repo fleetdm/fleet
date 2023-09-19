@@ -2901,7 +2901,7 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
 
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
 - Default value: ""
-- Environment variable: fleet_mdm_windows_wstep_identity_cert_bytes  
+- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES`
 - Config file format: 
   ```
   mdm:
@@ -2918,7 +2918,7 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
 
 The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 - Default value: ""
-- Environment variable: fleet_mdm_windows_wstep_identity_key_bytes 
+- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES` 
 - Config file format:  
   ```
   mdm:
