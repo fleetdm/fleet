@@ -370,7 +370,7 @@ endif
 # Generate swiftDialog.app.tar.gz bundle from the swiftDialog repo.
 #
 # Usage:
-# make swift-dialog-app-tar-gz version=2.2.1 build=4951 out-path=.
+# make swift-dialog-app-tar-gz version=2.2.1 build=4591 out-path=.
 swift-dialog-app-tar-gz:
 ifneq ($(shell uname), Darwin)
 	@echo "Makefile target swift-dialog-app-tar-gz is only supported on macOS"
@@ -383,8 +383,8 @@ ifneq ($(version), 2.2.1)
 	@exit 1
 endif
 
-ifneq ($(build), 4951)
-	@echo "Build version is locked at 4148, see comments in Makefile target for details"
+ifneq ($(build), 4591)
+	@echo "Build version is locked at 4591, see comments in Makefile target for details"
 	@exit 1
 endif
 	$(eval TMP_DIR := $(shell mktemp -d))
