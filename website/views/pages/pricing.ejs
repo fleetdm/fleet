@@ -133,7 +133,7 @@
       <h2 class="text-center pb-3 mb-4">Compare plans</h2>
       <div class="d-flex flex-column justify-content-center p-0">
         <%// Desktop IT-focused features tables %>
-        <div class="d-none d-sm-block">
+        <div class="d-none d-md-block">
           <% for(let category of pricingTable) {%>
             <table purpose="pricing-categories-table" class="table">
              <thead>
@@ -158,13 +158,13 @@
               <tbody>
                 <% for( let feature of category.features){ %>
                   <tr>
-                    <td purpose="feature-name" class="w-50"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
                     <%if(feature.tier === 'Free') {%>
-                      <td><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                     <%} else {%>
-                      <td></td>
+                      <td purpose="table-checkmark"></td>
                     <%}%>
-                    <td><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                    <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                   </tr>
                 <% }%>
               </tbody>
@@ -174,7 +174,7 @@
         </div>
         <%// Mobile IT-focused features tables %>
         <% for(let category of pricingTable) {%>
-          <div purpose="mobile-feature-table-section" class="d-block d-sm-none">
+          <div purpose="mobile-feature-table-section" class="d-block d-md-none">
             <h4><%- category.categoryName %></h4>
             <% for( let feature of category.features){ %>
               <div purpose="mobile-features-table" class="d-flex flex-column">
@@ -195,7 +195,7 @@
             <% }%>
           </div>
         <% }%>
-          <p style="color: #515774;" class="d-block d-sm-none mb-0 w-100">* Coming soon</p>
+          <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
       </div>
     </div>
     <%// Security-focused features table %>
@@ -203,20 +203,20 @@
       <h2 class="text-center pb-3 mb-4">Compare plans</h2>
       <div class="d-flex flex-column justify-content-center p-0">
         <%// Desktop security-focused features tables %>
-        <div class="d-none d-sm-block">
+        <div class="d-none d-md-block">
           <% for(let category of pricingTableForSecurity) {%>
             <table purpose="pricing-categories-table" class="table">
              <thead>
                 <tr>
                   <td><h4><%- category.categoryName %></h4></td>
-                  <%if(pricingTable.indexOf(category) === 0) {%>
+                  <%if(pricingTableForSecurity.indexOf(category) === 0) {%>
                   <td class="text-center">
                     <strong>Free</strong>
                   </td>
                   <%}else {%>
                   <td ></td>
                   <%}%>
-                  <%if(pricingTable.indexOf(category) === 0) {%>
+                  <%if(pricingTableForSecurity.indexOf(category) === 0) {%>
                   <td class="text-center">
                     <strong>Premium</strong>
                   </td>
@@ -230,11 +230,11 @@
                   <tr>
                     <td purpose="feature-name" class="w-50"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
                     <%if(feature.tier === 'Free') {%>
-                      <td><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                     <%} else {%>
-                      <td></td>
+                      <td purpose="table-checkmark"></td>
                     <%}%>
-                    <td><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                    <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                   </tr>
                 <% }%>
               </tbody>
@@ -244,7 +244,7 @@
         </div>
         <%// Mobile security-focused features tables %>
         <% for(let category of pricingTableForSecurity) {%>
-          <div purpose="mobile-feature-table-section" class="d-block d-sm-none">
+          <div purpose="mobile-feature-table-section" class="d-block d-md-none">
             <h4><%- category.categoryName %></h4>
             <% for( let feature of category.features){ %>
               <div purpose="mobile-features-table" class="d-flex flex-column">
@@ -265,7 +265,7 @@
             <% }%>
           </div>
         <% }%>
-          <p style="color: #515774;" class="d-block d-sm-none mb-0 w-100">* Coming soon</p>
+          <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
       </div>
     </div>
     <%// FAQ %>

@@ -55,7 +55,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			Query:              "select * from foo",
 			ObserverCanRun:     true,
 			Interval:           10,
-			Platform:           "macos",
+			Platform:           "darwin",
 			MinOsqueryVersion:  "5.2.1",
 			AutomationsEnabled: true,
 			Logging:            "differential",
@@ -135,6 +135,23 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			require.Equal(t, zwass.Name, q.AuthorName)
 		}
 	}
+
+	// Zach tries to add a query with an invalid platform string
+	invalidQueries := []*fleet.Query{
+		{
+			Name:               "foo",
+			Description:        "get the foos",
+			Query:              "select * from foo",
+			ObserverCanRun:     true,
+			Interval:           10,
+			Platform:           "not valid",
+			MinOsqueryVersion:  "5.2.1",
+			AutomationsEnabled: true,
+			Logging:            "differential",
+		},
+	}
+	err = ds.ApplyQueries(context.Background(), zwass.ID, invalidQueries)
+	require.ErrorIs(t, err, fleet.ErrQueryInvalidPlatform)
 }
 
 func testQueriesDelete(t *testing.T, ds *Datastore) {

@@ -24,6 +24,6 @@ export default class TableSystemState extends Table {
       }
     );
 
-    return [{ idle_state: idleState }];
+    return { data: [{ idle_state: idleState }] };
   }
 }

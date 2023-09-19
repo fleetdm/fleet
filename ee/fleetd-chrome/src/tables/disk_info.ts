@@ -15,6 +15,6 @@ export default class TableDiskInfo extends Table {
         type: d.type,
       });
     }
-    return rows;
+    return { data: rows };
   }
 }

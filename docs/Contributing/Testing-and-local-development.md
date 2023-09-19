@@ -44,6 +44,7 @@
       - [Debugging tips](#debugging-tips)
     - [Bootstrap package](#bootstrap-package)
     - [Puppet module](#puppet-module)
+    - [Testing the end user flow for MDM migrations](#testing-the-end-user-flow-for-mdm-migrations)
 
 ## License key
 
@@ -89,8 +90,8 @@ $ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
 
 To run all Go unit tests, run the following:
 
-```
-REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 make test-go
+```bash
+REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make test-go
 ```
 
 ### Go linters
@@ -676,6 +677,12 @@ The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo
 ### Puppet module
 
 Instructions to develop and test the module can be found in the [`CONTRIBUTING.md` file](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/CONTRIBUTING.md) that sits alongside the module code.
+
+### Testing the end user flow for MDM migrations
+
+The [end user flow](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#end-user-workflow) requires you to have a webserver running to receive a webhook from the Fleet server and perform an unenrollment.
+
+We have a few servers in `tools/mdm/migration` that you can use. Follow the instructions on their README and configure your Fleet server to point to them.
 
 <meta name="pageOrderInSection" value="1500">
 <meta name="description" value="An overview of Fleet's full test suite and integration tests.">
