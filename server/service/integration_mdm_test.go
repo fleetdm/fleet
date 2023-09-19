@@ -6694,6 +6694,58 @@ func (s *integrationMDMTestSuite) TestValidSyncMLRequestNoAuth() {
 	require.True(t, s.isXMLTagContentPresent("Add", resSoapMsg))
 }
 
+func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
+	t := s.T()
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
+
+	// set its encryption key
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey:  *host.OrbitNodeKey,
+		EncryptionKey: []byte("ABC"),
+	}, http.StatusNoContent)
+
+	hdek, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, hdek.Decryptable)
+	require.True(t, *hdek.Decryptable)
+
+	// the key is encrypted the same way as the macOS keys (except with the WSTEP
+	// certificate), so it can be decrypted using the same decryption function.
+	wstepCert, _, _, err := s.fleetCfg.MDM.MicrosoftWSTEP()
+	require.NoError(t, err)
+	decrypted, err := apple_mdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+	require.NoError(t, err)
+	require.Equal(t, "ABC", string(decrypted))
+
+	// set it with a client error
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey: *host.OrbitNodeKey,
+		ClientError:  "fail",
+	}, http.StatusNoContent)
+
+	hdek, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, hdek.Decryptable)
+	require.Empty(t, hdek.Base64Encrypted)
+
+	// set a different key
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey:  *host.OrbitNodeKey,
+		EncryptionKey: []byte("DEF"),
+	}, http.StatusNoContent)
+
+	hdek, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, hdek.Decryptable)
+	require.True(t, *hdek.Decryptable)
+
+	decrypted, err = apple_mdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+	require.NoError(t, err)
+	require.Equal(t, "DEF", string(decrypted))
+}
+
 // ///////////////////////////////////////////////////////////////////////////
 // Common helpers
 
