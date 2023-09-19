@@ -215,7 +215,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.31.1")
+    image                        = optional(string, "fleetdm/fleet:v4.37.0")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])
@@ -387,10 +387,11 @@ variable "migration_config" {
 
 variable "alb_config" {
   type = object({
-    name            = optional(string, "fleet")
-    security_groups = optional(list(string), [])
-    access_logs     = optional(map(string), {})
-    allowed_cidrs   = optional(list(string), ["0.0.0.0/0"])
+    name                 = optional(string, "fleet")
+    security_groups      = optional(list(string), [])
+    access_logs          = optional(map(string), {})
+    allowed_cidrs        = optional(list(string), ["0.0.0.0/0"])
+    https_listener_rules = optional(any, [])
   })
   default = {}
 }

@@ -1,9 +1,13 @@
-name: Build, Sign and Notarize Orbit
+name: Build, Sign and Notarize Orbit for macOS
 
 on:
+  workflow_dispatch: # allow manual action
   pull_request:
     paths:
       - 'orbit/**.go'
+
+env:
+  ORBIT_VERSION: 1.16.0
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -43,7 +47,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: 1.19.12
+          go-version: 1.21.1
 
       - name: Build, codesign and notarize orbit
         run: go run ./orbit/tools/build/build.go 
@@ -53,6 +57,8 @@ jobs:
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
+          ORBIT_VERSION: ${{ env.ORBIT_VERSION }}
+          ORBIT_COMMIT: ${{ github.sha }}
 
       - name: Upload orbit
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2

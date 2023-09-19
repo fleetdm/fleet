@@ -1,0 +1,1 @@
+- UI improvement: Surface chrome live query errors to Fleet UI (including errors for specific columns while maintaining successful data in results)

@@ -115,7 +115,7 @@ const QueryResults = ({
           variant="text-icon"
         >
           <>
-            Show query <Icon name="eye" size="small" />
+            Show query <Icon name="eye" />
           </>
         </Button>
         <Button

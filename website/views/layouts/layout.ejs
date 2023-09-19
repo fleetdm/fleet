@@ -133,7 +133,7 @@
     </noscript>
     <%/* End Google Tag Manager (noscript) */%>
     <div purpose="page-wrap">
-      <div class="header" purpose="header-container">
+      <div class="header" purpose="header-container" data-nosnippet>
         <%// Page header%>
         <div purpose="page-header" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a purpose="header-logo" href="/">
@@ -274,7 +274,7 @@
       <%- body %>
 
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
-      <div class="invisible" purpose="page-footer" data-hide-until-rendered>
+      <div class="invisible" purpose="page-footer" data-hide-until-rendered data-nosnippet>
         <div purpose="footer-container" class="container-fluid d-flex flex-column flex-sm-row align-items-sm-end justify-content-center justify-content-sm-between">
           <div class="d-flex flex-column order-first justify-content-start">
             <div class="d-flex pb-4 pr-4">
@@ -322,23 +322,27 @@
             </div>
 
             <div purpose="footer-socials" style="" class="flex-row d-inline-flex font-weight-bold order-first order-md-last justify-content-start justify-content-md-end pl-md-3 py-3">
-              <a target="_blank" href="https://twitter.com/fleetctl">
-                <img alt="Twitter logo" src="/images/logo-twitter-dark-25x20@2x.png" class="pr-4"/>
+              <a target="_blank" href="/slack" class="mr-4">
+                <img alt="Slack logo" src="/images/logo-slack-dark-20x20@2x.png"/>
               </a>
-              <a target="_blank" href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ">
-                <img alt="Youtube logo" src="/images/logo-youtube-29x20@2x.png"  class="pr-4"/>
-              </a>
-              <a target="_blank" href="/slack">
-                <img alt="Slack logo" src="/images/logo-slack-dark-20x20@2x.png" class="pr-4"/>
-              </a>
-              <a target="_blank" href="https://github.com/fleetdm/fleet">
+              <a target="_blank" href="https://github.com/fleetdm/fleet" class="mr-4">
                 <img alt="GitHub logo" src="/images/logo-github-dark-24x24@2x.png" />
               </a>
+              <a target="_blank" href="https://www.linkedin.com/company/fleetdm" class="mr-4">
+                <img alt="LinkedIn logo" src="/images/logo-linkedin-24x24@2x.png" />
+              </a>
+              <a target="_blank" href="https://twitter.com/fleetctl" class="mr-4">
+                <img alt="Twitter logo" src="/images/logo-twitter-dark-25x20@2x.png"/>
+              </a>
+              <a target="_blank" href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ" class="mr-4">
+                <img alt="Youtube logo" src="/images/logo-youtube-29x20@2x.png" />
+              </a>
+              <a target="_blank" href="https://mastodon.social/@Fleet@discuss.systems" class="mr-4">
+                <img alt="Mastadon logo" src="/images/logo-mastadon-24x23@2x.png"/>
+              </a>
             </div>
-
           </div>
         </div>
-
       </div>
     </div>
 
@@ -403,6 +407,7 @@
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
+    <script src="/js/components/open-positions.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
@@ -449,7 +454,6 @@
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
-    <script src="/js/pages/sales-one-pager.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/register.page.js"></script>
@@ -479,14 +483,14 @@
         //    - https://github.com/lancedikson/bowser/tree/1fb99ced0e8834fd9662604bad7e0f0c3eba2786#rendering-engine-flags
         // --------------------------------------------------------------------
         var LATEST_SUPPORTED_VERSION_BY_OS = {
-          iOS: '12',//« earliest version that suppports the hubspot chatbot.
+          iOS: '13',//« earliest version that suppports the embedded podcast player.
           Android: '7' // « earliest version we can test for compatibility issues with on browserstack
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
           msedge: '80',//« earliest version to support the backdrop filter css property.
-          safari: '12',//« earliest version that suppports the hubspot chatbot.
-          firefox: '102',//« earliest version to support the backdrop filter css property.
-          chrome: '76',//« earliest version to support the backdrop filter css property.
+          safari: '13',//« earliest version that suppports the hubspot chatbot.
+          firefox: '103',//« earliest version to support the backdrop filter css property.
+          chrome: '80',//« earliest version to support the embedded podcast player.
           opera: '64',//« earliest version to support the backdrop filter css property.
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {

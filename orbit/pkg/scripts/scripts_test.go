@@ -2,7 +2,6 @@ package scripts
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -124,7 +124,7 @@ func TestRunner(t *testing.T) {
 		},
 		{
 			desc:        "script with existing results",
-			client:      &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ExitCode: sql.NullInt64{Valid: true}}}},
+			client:      &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ExitCode: ptr.Int64(0)}}},
 			execer:      &mockExecCmd{},
 			enabled:     true,
 			execIDs:     []string{"a"},
@@ -133,7 +133,7 @@ func TestRunner(t *testing.T) {
 		},
 		{
 			desc:        "multiple errors reported, one get fails, one non-existing",
-			client:      &mockClient{getErr: errFailOnce, scripts: map[string]*fleet.HostScriptResult{"a": {ExitCode: sql.NullInt64{Valid: true}}}},
+			client:      &mockClient{getErr: errFailOnce, scripts: map[string]*fleet.HostScriptResult{"a": {ExitCode: ptr.Int64(0)}}},
 			execer:      &mockExecCmd{},
 			enabled:     true,
 			execIDs:     []string{"a", "b"},

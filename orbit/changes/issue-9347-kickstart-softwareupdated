@@ -1,1 +1,0 @@
-* Added periodical restart of the `softwareupdated` service to work around a macOS bug where it sometimes hangs and prevents software updates.

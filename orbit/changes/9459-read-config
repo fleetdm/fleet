@@ -1,1 +1,0 @@
-* Allow `fleetd` to get an enroll secret and Fleet URL configuration from a configuration profile on macOS.

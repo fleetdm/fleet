@@ -268,7 +268,7 @@ func testPacksApplySpecRoundtrip(t *testing.T, ds *Datastore) {
 
 	gotSpec, err := ds.GetPackSpecs(context.Background())
 	require.Nil(t, err)
-	assert.Equal(t, expectedSpecs, gotSpec)
+	assert.EqualValues(t, expectedSpecs, gotSpec)
 }
 
 func testPacksGetSpec(t *testing.T, ds *Datastore) {

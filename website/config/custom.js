@@ -253,7 +253,7 @@ module.exports.custom = {
 
     // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil', 'zwass'],
-    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'zwinnerman-fleetdm', 'rfairburn'],// « what files should not be checked in?
+    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'rfairburn'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 
     // "Secret handbook"
