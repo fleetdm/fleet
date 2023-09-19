@@ -965,12 +965,11 @@ func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOpt
 	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = filterHostsByMacOSSettingsStatus(sql, opt, params)
 	sql, params = filterHostsByMacOSDiskEncryptionStatus(sql, opt, params)
-	if opt.OSSettingsFilter.IsValid() || opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter)
-		if err != nil {
-			return "", nil, err
-		}
+	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
+		return "", nil, err
+	} else if opt.OSSettingsFilter.IsValid() {
 		sql, params = filterHostsByOSSettingsStatus(sql, opt, params, enableDiskEncryption)
+	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		sql, params = filterHostsByOSSettingsDiskEncryptionStatus(sql, opt, params, enableDiskEncryption)
 	}
 	sql, params = filterHostsByMDMBootstrapPackageStatus(sql, opt, params)
