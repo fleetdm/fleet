@@ -41,11 +41,11 @@ VALUES
 	require.Equal(t, "Test policy description", policy.Description)
 	require.Equal(t, "darwin,linux", policy.Platform)
 	require.Equal(t, true, policy.Critical)
-	require.Equal(t, uint(0), policy.FailedPolicyCount)    // Default value
-	require.Equal(t, uint(0), policy.SucceededPolicyCount) // Default value
+	require.Equal(t, uint(0), policy.FailingHostCount) // Default value
+	require.Equal(t, uint(0), policy.PassingHostCount) // Default value
 
 	// Update the counts and verify
-	updateStmt := "UPDATE policies SET failed_policy_counts = ?, succeeded_policy_counts = ? WHERE name = ?"
+	updateStmt := "UPDATE policies SET failing_host_count = ?, passing_host_count = ? WHERE name = ?"
 	updateArgs := []interface{}{
 		500000, // Setting a large value to test the capacity of the new columns
 		300000,
@@ -54,6 +54,6 @@ VALUES
 	execNoErr(t, db, updateStmt, updateArgs...)
 
 	require.NoError(t, db.Get(&policy, selectStmt, "test-policy"))
-	require.Equal(t, uint(500000), policy.FailedPolicyCount)
-	require.Equal(t, uint(300000), policy.SucceededPolicyCount)
+	require.Equal(t, uint(500000), policy.FailingHostCount)
+	require.Equal(t, uint(300000), policy.PassingHostCount)
 }
