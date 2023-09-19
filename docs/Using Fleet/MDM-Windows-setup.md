@@ -20,10 +20,23 @@ To use Fleet's Windows MDM features you need to have:
 Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows host.
 
 This section will show you how to:
-1. Configure Fleet with your certificate and key
-2. Turn on Windows MDM in Fleet
+1. Generate your certificate and key
+2. Configure Fleet with your certificate and key
+3. Turn on Windows MDM in Fleet
 
-### Step 1: configure Fleet with your certificate and key
+### Step 1: generate your certificate and key
+
+If you're already using Fleet's macOS MDM features, you already have a certificate and key. These are your SCEP certificate and SCEP private key you used when turning on macOS MDM.
+
+If you're not using macOS MDM features, run the following command to download three files and send an email to you with an attached CSR file.
+
+```
+fleetctl generate mdm-apple --email <email> --org <org> 
+```
+
+Save the SCEP certificate and SCEP key. These are your certificate and key. You can ignore the downloaded APNs key and the APNs CSR that was sent to your email.
+
+### Step 2: configure Fleet with your certificate and key
 
 1. In your Fleet server configuration, set the contents of the certificate and key in the following environment variables:
 
