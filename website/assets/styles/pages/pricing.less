@@ -282,13 +282,19 @@
       border-top-right-radius: 8px;
       border-top: none;
     }
+    div:last-of-type {
+      border-bottom-left-radius: 8px;
+      border-bottom-right-radius: 8px;
+    }
     div {
       border-top: 1px solid #E2E4EA;
     }
     [purpose='striped-row'] {
       background-color: #F9FAFC;
     }
-
+    strong {
+      color: @core-fleet-black-75;
+    }
   }
   [purpose='premium-price-linebreak'] {
     display: none;
@@ -296,6 +302,9 @@
   [purpose='checkmark'] {
     height: 16px;
     width: 16px;
+  }
+  [purpose='table-checkmark'] {
+    width: 175px;
   }
   [purpose='pricing-categories-table'] {
     margin-bottom: 40px;
@@ -315,7 +324,6 @@
       color: #515774;
       border-radius: 8px;
       outline: 1px solid #E2E4EA;
-      box-shadow: 0 0 0 1px #E2E4EA;
       td {
         padding: 12px 24px;
         vertical-align: middle;
@@ -346,6 +354,7 @@
       font-size: 24px;
       line-height: 32px;
       color: #192147;
+      margin-bottom: 24px;
     }
   }
 
@@ -396,7 +405,11 @@
     [purpose='premium-card'] {
       width: 100%;
     }
+    [purpose='premium-tier-card'] {
+      margin-left: 0px;
+    }
   }
+
   @media (max-width: 575px) {
     // >575px:
     //   - The Premium Cloud card switches to a column layout
