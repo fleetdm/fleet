@@ -6421,6 +6421,16 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	// the orbit endpoint to set the disk encryption key always fails in this
+	// suite because MDM is not configured.
+	orbitHost := createOrbitEnrolledHost(t, "windows", "diskenc", s.ds)
+	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey:  *orbitHost.OrbitNodeKey,
+		EncryptionKey: []byte("testkey"),
+	}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 }
 
 func (s *integrationTestSuite) TestOSVersions() {

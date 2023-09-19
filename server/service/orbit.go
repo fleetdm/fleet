@@ -496,9 +496,8 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		return newOsqueryError("internal error: missing host from request context")
 	}
 
-	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
-		// if there is no WSTEP config, fail with a 404
-		return newNotFoundError()
+	if !svc.config.MDM.IsMicrosoftWSTEPSet() || !config.IsMDMFeatureFlagEnabled() {
+		return &fleet.MDMNotConfiguredError{}
 	}
 
 	var (
