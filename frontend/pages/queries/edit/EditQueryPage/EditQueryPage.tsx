@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -7,15 +7,12 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries";
-import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { IHost, IHostResponse } from "interfaces/host";
 import {
   IGetQueryResponse,
   ICreateQueryRequestBody,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { ITarget } from "interfaces/target";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import MainContent from "components/MainContent";
@@ -80,6 +77,7 @@ const EditQueryPage = ({
     lastEditedQueryPlatforms,
     lastEditedQueryLoggingType,
     lastEditedQueryMinOsqueryVersion,
+    selectedQueryTargets,
     setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -89,13 +87,13 @@ const EditQueryPage = ({
     setLastEditedQueryLoggingType,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryPlatforms,
+    // setSelectedQueryTargets,
   } = useContext(QueryContext);
   const { currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
-  const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
-  const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
+  // const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
+  // const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
 
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -131,29 +129,32 @@ const EditQueryPage = ({
     }
   );
 
-  useQuery<IHostResponse, Error, IHost>(
-    "hostFromURL",
-    () =>
-      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
-    {
-      enabled: !!location.query.host_ids && !queryParamHostsAdded,
-      select: (data: IHostResponse) => data.host,
-      onSuccess: (host) => {
-        setTargetedHosts((prevHosts) =>
-          prevHosts.filter((h) => h.id !== host.id).concat(host)
-        );
-        const targets = selectedTargets;
-        host.target_type = "hosts";
-        targets.push(host);
-        setSelectedTargets([...targets]);
-        if (!queryParamHostsAdded) {
-          setQueryParamHostsAdded(true);
-        }
-        router.replace(location.pathname);
-      },
-    }
-  );
+  // useQuery<IHostResponse, Error, IHost>(
+  //   "hostFromURL",
+  //   () =>
+  //     hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
+  //   {
+  //     enabled: !!location.query.host_ids && !queryParamHostsAdded,
+  //     select: (data: IHostResponse) => data.host,
+  //     onSuccess: (host) => {
+  //       setTargetedHosts((prevHosts) =>
+  //         prevHosts.filter((h) => h.id !== host.id).concat(host)
+  //       );
+  //       console.log("selectedQueryTargets", selectedQueryTargets);
+  //       const targets = selectedQueryTargets;
+  //       host.target_type = "hosts";
+  //       targets.push(host);
+  //       console.log("targets", targets);
+  //       setSelectedQueryTargets([...targets]);
+  //       if (!queryParamHostsAdded) {
+  //         setQueryParamHostsAdded(true);
+  //       }
+  //       router.replace(location.pathname);
+  //     },
+  //   }
+  // );
 
+  console.log("selectedQueryTargets", selectedQueryTargets);
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);

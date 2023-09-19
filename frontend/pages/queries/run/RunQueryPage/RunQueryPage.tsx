@@ -82,6 +82,12 @@ const RunQueryPage = ({
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
 
+  const TAGGED_TEMPLATES = {
+    queryByHostRoute: (hostId: number | undefined | null) => {
+      return `${hostId ? `?host_ids=${hostId}` : ""}`;
+    },
+  };
+
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
   const { data: storedQuery } = useQuery<
@@ -129,6 +135,8 @@ const RunQueryPage = ({
     }
   );
 
+  console.log("RunQueryPage.tsx selectedQueryTargets", selectedQueryTargets);
+
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
@@ -160,7 +168,7 @@ const RunQueryPage = ({
     () => queryId && router.push(PATHS.EDIT_QUERY(queryId)),
     []
   );
-  const params = { id: paramsQueryId };
+  // const params = { id: paramsQueryId };
 
   const renderScreen = () => {
     const step1Props = {
@@ -189,6 +197,8 @@ const RunQueryPage = ({
       targetsTotalCount,
     };
 
+    console.log("step2Props", step2Props);
+    console.log("step1Props", step1Props);
     switch (step) {
       case RUN_QUERY_STEPS[2]:
         return <RunQuery {...step2Props} />;
