@@ -6327,7 +6327,7 @@ Deletes the session specified by ID. When the user associated with the session n
             "epss_probability": 0.01537,
             "cisa_known_exploit": false,
             "cve_published": "2022-01-01 12:32:00",
-            "resolved_in_version"
+            "resolved_in_version": "2.28"
           }
         ],
         "hosts_count": 1
