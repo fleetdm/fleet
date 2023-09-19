@@ -1460,7 +1460,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"], "")
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"], "", nil)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -1511,7 +1511,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b), "")
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b), "", nil)
 }
 
 func directIngestMacOSProfiles(

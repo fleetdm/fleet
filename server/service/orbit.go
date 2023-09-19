@@ -498,5 +498,5 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	// TODO(mna): encrypt the key using WSTEP certificate
 	encryptedEncryptionKey := encryptionKey
 
-	return svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError)
+	return svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError, nil)
 }

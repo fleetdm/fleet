@@ -2969,15 +2969,18 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 	)
 }
 
-func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string) error {
+func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
-           INSERT INTO host_disk_encryption_keys (host_id, base64_encrypted)
-	   VALUES (?, ?)
-	   ON DUPLICATE KEY UPDATE
-   	     /* if the key has changed, NULLify this value so it can be calculated again */
-             decryptable = IF(base64_encrypted = VALUES(base64_encrypted), decryptable, NULL),
-   	     base64_encrypted = VALUES(base64_encrypted)
-      `, hostID, encryptedBase64Key)
+INSERT INTO host_disk_encryption_keys
+  (host_id, base64_encrypted, client_error, decryptable)
+VALUES
+  (?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+  /* if the key has changed, NULLify this value so it can be calculated again */
+  decryptable = IF(base64_encrypted = VALUES(base64_encrypted), decryptable, VALUES(decryptable)),
+  base64_encrypted = VALUES(base64_encrypted),
+  client_error = VALUES(client_error)
+`, hostID, encryptedBase64Key, clientError, decryptable)
 	return err
 }
 

@@ -781,7 +781,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	var hostID uint
 	err = sqlx.GetContext(context.Background(), ds.reader(context.Background()), &hostID, `SELECT id  FROM hosts WHERE uuid = ?`, testUUID)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hostID, "asdf", "")
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hostID, "asdf", "", nil)
 	require.NoError(t, err)
 
 	key, err := ds.GetHostDiskEncryptionKey(ctx, hostID)
@@ -1555,7 +1555,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
 
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "foo", "")
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "foo", "", nil)
 	require.NoError(t, err)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -1595,7 +1595,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(1), res.Verified) // hosts[0] now has filevault fully enforced and verified
 
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[1].ID, "bar", "")
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[1].ID, "bar", "", nil)
 	require.NoError(t, err)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[1].ID}, false, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
@@ -1661,7 +1661,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
 
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[9].ID, "baz", "")
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[9].ID, "baz", "", nil)
 	require.NoError(t, err)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[9].ID}, true, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
@@ -2165,7 +2165,7 @@ func testDeleteMDMAppleProfilesForHost(t *testing.T, ds *Datastore) {
 }
 
 func createDiskEncryptionRecord(ctx context.Context, ds *Datastore, t *testing.T, hostId uint, key string, decryptable bool, threshold time.Time) {
-	err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, hostId, key, "")
+	err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, hostId, key, "", nil)
 	require.NoError(t, err)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hostId}, decryptable, threshold)
 	require.NoError(t, err)
