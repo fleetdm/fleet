@@ -12,8 +12,8 @@ func init() {
 func Up_20230919121207(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE policies
-		ADD COLUMN failing_host_count MEDIUMINT UNSIGNED DEFAULT 0,
-		ADD COLUMN passing_host_count MEDIUMINT UNSIGNED DEFAULT 0
+		ADD COLUMN failing_host_count MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
+		ADD COLUMN passing_host_count MEDIUMINT UNSIGNED NOT NULL DEFAULT 0
 	`
 
 	if _, err := tx.Exec(stmt); err != nil {
