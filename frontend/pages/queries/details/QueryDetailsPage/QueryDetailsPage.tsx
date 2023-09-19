@@ -22,8 +22,10 @@ import Button from "components/buttons/Button";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
+import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
 import EmptyTable from "components/EmptyTable/EmptyTable";
 import CachedDetails from "../components/CachedDetails/CachedDetails";
+import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 
 interface IQueryDetailsPageProps {
   router: InjectedRouter; // v3
@@ -161,6 +163,23 @@ const QueryDetailsPage = ({
                 </Button>
               </div>
             )}
+          </div>
+        </div>
+        <div className={`${baseClass}__settings`}>
+          <div className={`${baseClass}__automations`}>
+            <TooltipWrapper tipContent="Query automations let you send data to your log destination on a schedule. When automations are on, data is sent according to a query’s frequency.">
+              Automations:
+            </TooltipWrapper>
+            <QueryAutomationsStatusIndicator
+              automationsEnabled={storedQuery?.automations_enabled || false}
+              interval={storedQuery?.interval || 0}
+            />
+          </div>
+          <div className={`${baseClass}__log-destination`}>
+            <strong>Log destination:</strong>{" "}
+            <LogDestinationIndicator
+              logDestination={storedQuery?.logging || ""}
+            />
           </div>
         </div>
       </>
