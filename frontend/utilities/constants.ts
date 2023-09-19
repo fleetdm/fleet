@@ -96,10 +96,15 @@ export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "1.8.1 +", value: "1.8.1" },
 ];
 
-export const QUERIES_PAGE_STEPS = {
+export const RUN_POLICY_STEPS = {
   1: "EDITOR",
   2: "TARGETS",
   3: "RUN",
+};
+
+export const RUN_QUERY_STEPS = {
+  1: "TARGETS",
+  2: "RUN",
 };
 
 export const DEFAULT_QUERY: ISchedulableQuery = {

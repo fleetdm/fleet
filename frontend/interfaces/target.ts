@@ -51,8 +51,4 @@ export interface IPackTargets {
 }
 
 // TODO: Also use for testing
-export const DEFAULT_TARGETS: ITargets = {
-  hosts: [],
-  labels: [],
-  teams: [],
-};
+export const DEFAULT_TARGETS: ITarget[] = [];

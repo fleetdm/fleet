@@ -5,7 +5,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
+import { DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
@@ -20,11 +20,8 @@ import { ITarget } from "interfaces/target";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
-// import SelectTargets from "components/LiveQuery/SelectTargets";
 import CustomLink from "components/CustomLink";
 
-// import EditQueryPage from "pages/queries/edit/EditQueryPage/EditQueryPage";
-// import RunQuery from "pages/queries/run/screens/RunQuery";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { NotificationContext } from "context/notification";
@@ -97,7 +94,6 @@ const EditQueryPage = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
-  const [step, setStep] = useState(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
 

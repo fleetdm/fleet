@@ -48,7 +48,9 @@ interface ISelectTargetsProps {
   targetedTeams: ITeam[];
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
-  setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
+  setSelectedTargets:
+    | React.Dispatch<React.SetStateAction<ITarget[]>> // Used for policies page level useState hook
+    | ((value: ITarget[]) => void); // Used for queries app level QueryContext
   setTargetedHosts: React.Dispatch<React.SetStateAction<IHost[]>>;
   setTargetedLabels: React.Dispatch<React.SetStateAction<ILabel[]>>;
   setTargetedTeams: React.Dispatch<React.SetStateAction<ITeam[]>>;
