@@ -6572,6 +6572,19 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, hFleet.ID, loadFleet.ID)
 	require.False(t, loadFleet.MDMInfo.IsServer)
+
+	// fill in disk encryption information
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true))
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hFleet.ID, "test-key")
+	require.NoError(t, err)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hFleet.ID}, true, time.Now())
+	require.NoError(t, err)
+	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
+	require.NoError(t, err)
+	require.True(t, loadFleet.MDM.EncryptionKeyAvailable)
+	require.NoError(t, err)
+	require.NotNil(t, loadFleet.DiskEncryptionEnabled)
+	require.True(t, *loadFleet.DiskEncryptionEnabled)
 }
 
 func checkEncryptionKeyStatus(t *testing.T, ds *Datastore, hostID uint, expected *bool) {
