@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230916091643, Down_20230916091643)
+	MigrationClient.AddMigration(Up_20230919121207, Down_20230919121207)
 }
 
-func Up_20230916091643(tx *sql.Tx) error {
+func Up_20230919121207(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE policies
 		ADD COLUMN failing_host_count MEDIUMINT UNSIGNED DEFAULT 0,
@@ -23,6 +23,6 @@ func Up_20230916091643(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230916091643(tx *sql.Tx) error {
+func Down_20230919121207(tx *sql.Tx) error {
 	return nil
 }
