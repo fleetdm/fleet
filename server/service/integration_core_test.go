@@ -6483,14 +6483,14 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 	s.DoRawNoAuth("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 }
 
-func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
+func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	t := s.T()
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
 	createHostAndDeviceToken(t, s.ds, tkn)
 
-	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+	for _, route := range mdmConfigurationRequiredEndpoints() {
 		which := fmt.Sprintf("%s %s", route.method, route.path)
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		if route.premiumOnly && route.deviceAuthenticated {

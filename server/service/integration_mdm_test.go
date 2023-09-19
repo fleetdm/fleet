@@ -6700,6 +6700,18 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 
 	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
+	// try to call the endpoint while the host is not MDM-enrolled
+	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey:  *host.OrbitNodeKey,
+		EncryptionKey: []byte("WILL-FAIL"),
+	}, http.StatusBadRequest)
+	msg := extractServerErrorText(res.Body)
+	require.Contains(t, msg, "host is not enrolled with fleet")
+
+	// mark it as enrolled in Fleet
+	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
 	// set its encryption key
 	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
 		OrbitNodeKey:  *host.OrbitNodeKey,

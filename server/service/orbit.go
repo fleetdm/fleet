@@ -495,9 +495,8 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	if !ok {
 		return newOsqueryError("internal error: missing host from request context")
 	}
-
-	if !svc.config.MDM.IsMicrosoftWSTEPSet() || !config.IsMDMFeatureFlagEnabled() {
-		return &fleet.MDMNotConfiguredError{}
+	if !host.MDMInfo.IsFleetEnrolled() {
+		return badRequest("host is not enrolled with fleet")
 	}
 
 	var (

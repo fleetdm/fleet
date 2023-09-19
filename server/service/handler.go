@@ -448,7 +448,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update
-	// `service.mdmAppleConfigurationRequiredEndpoints` when you add an
+	// `service.mdmConfigurationRequiredEndpoints` when you add an
 	// endpoint that's behind the mdmConfiguredMiddleware, this applies
 	// both to this set of endpoints and to any public/token-authenticated
 	// endpoints using `neMDM` below in this file.
@@ -586,7 +586,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// endpoints are POST due to passing the device token in the JSON body.
 	oe.POST("/api/fleet/orbit/scripts/request", getOrbitScriptEndpoint, orbitGetScriptRequest{})
 	oe.POST("/api/fleet/orbit/scripts/result", postOrbitScriptResultEndpoint, orbitPostScriptResultRequest{})
-	oe.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, orbitPostDiskEncryptionKeyRequest{})
+
+	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, orbitPostDiskEncryptionKeyRequest{})
 
 	// unauthenticated endpoints - most of those are either login-related,
 	// invite-related or host-enrolling. So they typically do some kind of
@@ -598,7 +600,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// These endpoint are token authenticated.
 	// NOTE: remember to update
-	// `service.mdmAppleConfigurationRequiredEndpoints` when you add an
+	// `service.mdmConfigurationRequiredEndpoints` when you add an
 	// endpoint that's behind the mdmConfiguredMiddleware, this applies
 	// both to this set of endpoints and to any user authenticated
 	// endpoints using `mdmAppleMW.*` above in this file.
