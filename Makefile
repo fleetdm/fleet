@@ -428,6 +428,7 @@ desktop-linux:
 		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
 		/usr/lib/x86_64-linux-gnu/libayatana-indicator3.so.7 \
 		/lib/x86_64-linux-gnu/libm.so.6 \
+		/usr/lib/x86_64-linux-gnu/libcairo.so.2 \
 		/usr/lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4 \
 		/usr/lib/x86_64-linux-gnu/libdbusmenu-glib.so.4 \
 		/output/fleet-desktop && cd /output && \
