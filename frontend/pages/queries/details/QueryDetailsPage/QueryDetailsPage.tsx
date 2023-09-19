@@ -18,14 +18,15 @@ import {
 
 import queryAPI from "services/entities/queries";
 
+import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
 import EmptyTable from "components/EmptyTable/EmptyTable";
-import CachedDetails from "../components/CachedDetails/CachedDetails";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
+import CachedDetails from "../components/CachedDetails/CachedDetails";
 
 interface IQueryDetailsPageProps {
   router: InjectedRouter; // v3
@@ -63,6 +64,8 @@ const QueryDetailsPage = ({
     isAnyTeamMaintainerOrTeamAdmin,
     isObserverPlus,
     isAnyTeamObserverPlus,
+    config,
+    filteredQueriesPath,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -119,69 +122,78 @@ const QueryDetailsPage = ({
   const canEditQuery =
     isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
 
+  // Function instead of constant eliminates race condition with filteredQueriesPath
+  const backToQueriesPath = () => {
+    return filteredQueriesPath || PATHS.MANAGE_QUERIES;
+  };
+
   const renderHeader = () => {
     return (
       <>
         {" "}
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to queries" path={PATHS.MANAGE_QUERIES} />
+          <BackLink text="Back to queries" path={backToQueriesPath()} />
         </div>
-        <div className={`${baseClass}__title-bar`}>
-          <div className="name-description">
-            <h1 className={`${baseClass}__query-name`}>
-              {lastEditedQueryName}
-            </h1>
-            <p className={`${baseClass}__query-description`}>
-              {lastEditedQueryDescription}
-            </p>
-          </div>
-          <div className={`${baseClass}__action-button-container`}>
-            <Button
-              onClick={() => {
-                queryId && router.push(PATHS.EDIT_QUERY(queryId));
-              }}
-              className={`${baseClass}__manage-automations button`}
-              variant="brand"
-            >
-              {canEditQuery ? "Edit query" : "More details"}
-            </Button>
-            {(lastEditedQueryObserverCanRun ||
-              isObserverPlus ||
-              isAnyTeamObserverPlus ||
-              canEditQuery) && (
-              <div
-                className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+        {!isStoredQueryLoading && (
+          <div className={`${baseClass}__title-bar`}>
+            <div className="name-description">
+              <h1 className={`${baseClass}__query-name`}>
+                {lastEditedQueryName}
+              </h1>
+              <p className={`${baseClass}__query-description`}>
+                {lastEditedQueryDescription}
+              </p>
+            </div>
+            <div className={`${baseClass}__action-button-container`}>
+              <Button
+                onClick={() => {
+                  queryId && router.push(PATHS.EDIT_QUERY(queryId));
+                }}
+                className={`${baseClass}__manage-automations button`}
+                variant="brand"
               >
-                <Button
-                  className={`${baseClass}__run`}
-                  variant="blue-green"
-                  onClick={() => {
-                    queryId && router.push(PATHS.RUN_QUERY(queryId));
-                  }}
+                {canEditQuery ? "Edit query" : "More details"}
+              </Button>
+              {(lastEditedQueryObserverCanRun ||
+                isObserverPlus ||
+                isAnyTeamObserverPlus ||
+                canEditQuery) && (
+                <div
+                  className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
                 >
-                  Live query
-                </Button>
-              </div>
-            )}
+                  <Button
+                    className={`${baseClass}__run`}
+                    variant="blue-green"
+                    onClick={() => {
+                      queryId && router.push(PATHS.RUN_QUERY(queryId));
+                    }}
+                  >
+                    Live query
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-        <div className={`${baseClass}__settings`}>
-          <div className={`${baseClass}__automations`}>
-            <TooltipWrapper tipContent="Query automations let you send data to your log destination on a schedule. When automations are on, data is sent according to a query’s frequency.">
-              Automations:
-            </TooltipWrapper>
-            <QueryAutomationsStatusIndicator
-              automationsEnabled={storedQuery?.automations_enabled || false}
-              interval={storedQuery?.interval || 0}
-            />
+        )}
+        {!isStoredQueryLoading && (
+          <div className={`${baseClass}__settings`}>
+            <div className={`${baseClass}__automations`}>
+              <TooltipWrapper tipContent="Query automations let you send data to your log destination on a schedule. When automations are on, data is sent according to a query’s frequency.">
+                Automations:
+              </TooltipWrapper>
+              <QueryAutomationsStatusIndicator
+                automationsEnabled={storedQuery?.automations_enabled || false}
+                interval={storedQuery?.interval || 0}
+              />
+            </div>
+            <div className={`${baseClass}__log-destination`}>
+              <strong>Log destination:</strong>{" "}
+              <LogDestinationIndicator
+                logDestination={config?.logging.result.plugin || ""}
+              />
+            </div>
           </div>
-          <div className={`${baseClass}__log-destination`}>
-            <strong>Log destination:</strong>{" "}
-            <LogDestinationIndicator
-              logDestination={storedQuery?.logging || ""}
-            />
-          </div>
-        </div>
+        )}
       </>
     );
   };
@@ -255,6 +267,10 @@ const QueryDetailsPage = ({
       }
       return "This query has returned no data so far.";
     };
+
+    if (isStoredQueryLoading) {
+      return <Spinner />;
+    }
 
     if (collectingResults) {
       return (

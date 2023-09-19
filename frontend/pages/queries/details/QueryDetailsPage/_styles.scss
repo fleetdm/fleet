@@ -28,12 +28,13 @@
 
   &__query-description {
     margin-top: 0;
+    margin-bottom: $pad-small;
     font-size: $x-small;
   }
 
   &__settings {
     display: flex;
-    gap: $pad-medium;
+    gap: $pad-large;
     font-size: $x-small;
   }
 

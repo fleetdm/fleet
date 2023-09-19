@@ -90,7 +90,7 @@ const EditQueryPage = ({
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryPlatforms,
   } = useContext(QueryContext);
-  const { currentUser, filteredQueriesPath } = useContext(AppContext);
+  const { currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
@@ -291,9 +291,9 @@ const EditQueryPage = ({
     );
   };
 
-  // Function instead of constant eliminates race condition with filteredSoftwarePath
+  // Function instead of constant eliminates race condition
   const backToQueriesPath = () => {
-    return filteredQueriesPath || PATHS.MANAGE_QUERIES;
+    return queryId ? PATHS.QUERY(queryId) : PATHS.MANAGE_QUERIES;
   };
 
   const showSidebar =
@@ -310,7 +310,7 @@ const EditQueryPage = ({
         <div className={`${baseClass}_wrapper`}>
           <div className={`${baseClass}__form`}>
             <div className={`${baseClass}__header-links`}>
-              <BackLink text="Back to queries" path={backToQueriesPath()} />
+              <BackLink text="Back to report" path={backToQueriesPath()} />
             </div>
             <QueryForm
               router={router}
