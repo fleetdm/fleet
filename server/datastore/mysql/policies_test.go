@@ -53,6 +53,7 @@ func TestPolicies(t *testing.T) {
 		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
 		{"TestCountPolicies", testCountPolicies},
+		{"TestUpdatePolicyHostCounts", testUpdatePolicyHostCounts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -273,6 +274,8 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host2, map[uint]*bool{p2.ID: nil}, time.Now(), deferred))
 
+	require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
+
 	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
@@ -287,6 +290,8 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), deferred))
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host2, map[uint]*bool{p2.ID: ptr.Bool(false)}, time.Now(), deferred))
+
+	require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
 
 	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -2408,10 +2413,7 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 10, globalCount)
 }
 
-func TestUpdatePolicyHostCounts(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	// new policy
 	policy, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "policy1"})
 	require.NoError(t, err)

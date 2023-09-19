@@ -62,7 +62,7 @@ func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Poli
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy,
 		fmt.Sprint(`SELECT `+policyCols+`,
 		COALESCE(u.name, '<deleted>') AS author_name,
-		COALESCE(u.email, '') AS author_email,
+		COALESCE(u.email, '') AS author_email
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE p.name=?`), name)
