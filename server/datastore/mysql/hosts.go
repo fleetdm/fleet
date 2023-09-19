@@ -1156,9 +1156,7 @@ func filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params
 		}
 	case fleet.OSSettingsVerifying:
 		subqueryMacOS, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
-		if isDiskEncryptionEnabled {
-			// Windows hosts cannot be verifying status in the current implementation.
-		}
+		// Windows hosts cannot be verifying status in the current implementation.
 	case fleet.OSSettingsVerified:
 		subqueryMacOS, subqueryParams = subqueryHostsMacOSSetttingsStatusVerified()
 		if isDiskEncryptionEnabled {
