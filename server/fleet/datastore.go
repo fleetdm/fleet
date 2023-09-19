@@ -1025,6 +1025,8 @@ type Datastore interface {
 	// each Windows host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*MDMWindowsBitLockerSummary, error)
+	// GetMDMWindowsBitLockerStatus returns the disk encryption status for a given host
+	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*DiskEncryptionStatus, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results

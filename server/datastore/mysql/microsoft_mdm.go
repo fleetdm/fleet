@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -137,4 +138,53 @@ WHERE
 	}
 
 	return &res, nil
+}
+
+func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error) {
+	if host == nil {
+		return nil, errors.New("host cannot be nil")
+	}
+
+	if host.MDMInfo != nil && host.MDMInfo.IsServer {
+		// TODO: confirm this is what we want to do
+		return nil, nil
+	}
+
+	enabled, err := ds.getConfigEnableDiskEncryption(ctx, host.TeamID)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		// TODO: confirm this is what we want to do
+		return nil, nil
+	}
+
+	// Note verifying, action_required, and removing_enforcement are not applicable to Windows hosts
+	stmt := fmt.Sprintf(`
+SELECT
+	CASE
+		WHEN %s THEN '%s'
+		WHEN %s THEN '%s'
+		WHEN %s THEN '%s'
+	END AS status
+FROM
+	hosts h
+	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
+	LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
+WHERE
+	h.id = ? AND h.platform = 'windows'`,
+		whereBitLockerVerified,
+		fleet.DiskEncryptionVerified,
+		whereBitLockerPending,
+		fleet.DiskEncryptionEnforcing,
+		whereBitLockerFailed,
+		fleet.DiskEncryptionFailed,
+	)
+
+	var des fleet.DiskEncryptionStatus
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &des, stmt, host.ID); err != nil {
+		return nil, err
+	}
+
+	return &des, nil
 }

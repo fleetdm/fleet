@@ -308,7 +308,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			}
 			require.NoError(t, mdmData.Scan([]byte(fmt.Sprintf(`{"raw_decryptable": %s}`, rawDecrypt))))
 
-			host := &fleet.Host{ID: 3, MDM: mdmData, UUID: "abc"}
+			host := &fleet.Host{ID: 3, MDM: mdmData, UUID: "abc", Platform: "darwin"}
 			opts := fleet.HostDetailOptions{
 				IncludeCVEScores: false,
 				IncludePolicies:  false,
@@ -322,6 +322,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			}
 			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
 			require.NoError(t, err)
+			require.NotNil(t, hostDetail.MDM.MacOSSettings)
 
 			if c.wantState == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
@@ -1005,7 +1006,8 @@ func TestHostMDMProfileDetail(t *testing.T) {
 
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{
-			ID: 1,
+			ID:       1,
+			Platform: "darwin",
 		}, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {

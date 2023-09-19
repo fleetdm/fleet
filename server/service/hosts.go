@@ -910,21 +910,41 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	var profiles []fleet.HostMDMAppleProfile
 	if ac.MDM.EnabledAndConfigured {
-		profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
-		}
-
-		// determine disk encryption and action required here based on profiles and
-		// raw decryptable key status.
-		host.MDM.DetermineDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
-
-		for _, p := range profs {
-			if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
-				p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+		switch host.Platform {
+		case "windows":
+			if license.IsPremium(ctx) {
+				bls, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
+				}
+				host.MDM.OSSettings = &fleet.HostMDMOSSettings{
+					DiskEncryption: fleet.HostMDMDiskEncryption{
+						Status: bls,
+					},
+				}
 			}
-			p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-			profiles = append(profiles, p)
+		case "darwin":
+			profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
+			}
+
+			// determine disk encryption and action required here based on profiles and
+			// raw decryptable key status.
+			host.MDM.DetermineMacOSDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+			host.MDM.OSSettings = &fleet.HostMDMOSSettings{
+				DiskEncryption: fleet.HostMDMDiskEncryption{
+					Status: host.MDM.MacOSSettings.DiskEncryption,
+				},
+			}
+
+			for _, p := range profs {
+				if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
+					p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+				}
+				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
+				profiles = append(profiles, p)
+			}
 		}
 	}
 	host.MDM.Profiles = &profiles
