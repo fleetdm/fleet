@@ -234,8 +234,9 @@ const QueryDetailsPage = ({
           </>
         );
       }
-      return "This query has returned no data so far."; // TODO: Fix so it's correct
+      return "This query has returned no data so far.";
     };
+
     if (collectingResults) {
       return (
         <EmptyTable
@@ -245,6 +246,7 @@ const QueryDetailsPage = ({
         />
       );
     }
+
     if (noResults) {
       return (
         <EmptyTable

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
+import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
@@ -175,7 +176,7 @@ const RunQueryPage = ({
       targetedLabels,
       targetedTeams,
       targetsTotalCount,
-      goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
+      goToQueryEditor: () => queryId && router.push(PATHS.EDIT_QUERY(queryId)),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
       setTargetedHosts,

@@ -295,10 +295,6 @@ const EditQueryPage = ({
     );
   };
 
-  const goToQueryEditor = useCallback(() => setStep(QUERIES_PAGE_STEPS[1]), []);
-
-  const params = { id: paramsQueryId };
-
   // Function instead of constant eliminates race condition with filteredSoftwarePath
   const backToQueriesPath = () => {
     return filteredQueriesPath || PATHS.MANAGE_QUERIES;
