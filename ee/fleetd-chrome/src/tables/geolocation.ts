@@ -14,13 +14,15 @@ export default class TableGeolocation extends Table {
   async generate() {
     const resp = await fetch("https://ipapi.co/json");
     const json = await resp.json();
-    return [
-      {
-        ip: this.ensureString(json.ip),
-        city: this.ensureString(json.city),
-        country: this.ensureString(json.country_name),
-        region: this.ensureString(json.region),
-      },
-    ];
+    return {
+      data: [
+        {
+          ip: this.ensureString(json.ip),
+          city: this.ensureString(json.city),
+          country: this.ensureString(json.country_name),
+          region: this.ensureString(json.region),
+        },
+      ],
+    };
   }
 }

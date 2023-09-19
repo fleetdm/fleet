@@ -29,6 +29,8 @@ export default class TableSystemInfo extends Table {
   }
 
   async generate() {
+    let warningsArray = [];
+
     // @ts-expect-error @types/chrome doesn't yet have instanceID.
     const uuid = (await chrome.instanceID.getID()) as string;
 
@@ -39,14 +41,22 @@ export default class TableSystemInfo extends Table {
       hostname = (await chrome.enterprise.deviceAttributes.getDeviceHostname()) as string;
     } catch (err) {
       console.warn("get hostname:", err);
+      warningsArray.push({
+        column: "hostname",
+        error_message: err.message.toString(),
+      });
     }
 
     let hwSerial = "";
     try {
       // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      hwSerial = await chrome.enterprise.deviceAttributes.getDeviceSerialNumber();
+      hwSerial = (await chrome.enterprise.deviceAttributes.getDeviceSerialNumber()) as string;
     } catch (err) {
       console.warn("get serial number:", err);
+      warningsArray.push({
+        column: "hardware_serial",
+        error_message: err.message.toString(),
+      });
     }
 
     let hwVendor = "",
@@ -61,6 +71,14 @@ export default class TableSystemInfo extends Table {
       hwModel = platformInfo.model;
     } catch (err) {
       console.warn("get platform info:", err);
+      warningsArray.push({
+        column: "hardware_vendor",
+        error_message: err.message.toString(),
+      });
+      warningsArray.push({
+        column: "hardware_model",
+        error_message: err.message.toString(),
+      });
     }
 
     let cpuBrand = "",
@@ -71,6 +89,14 @@ export default class TableSystemInfo extends Table {
       cpuType = cpuInfo.archName;
     } catch (err) {
       console.warn("get cpu info:", err);
+      warningsArray.push({
+        column: "cpu_brand",
+        error_message: err.message.toString(),
+      });
+      warningsArray.push({
+        column: "cpu_type",
+        error_message: err.message.toString(),
+      });
     }
 
     let physicalMemory = "";
@@ -79,20 +105,27 @@ export default class TableSystemInfo extends Table {
       physicalMemory = memoryInfo.capacity.toString();
     } catch (err) {
       console.warn("get memory info:", err);
+      warningsArray.push({
+        column: "physical_memory",
+        error_message: err.message.toString(),
+      });
     }
 
-    return [
-      {
-        uuid,
-        hostname,
-        computer_name: this.getComputerName(hostname, hwSerial),
-        hardware_serial: hwSerial,
-        hardware_vendor: hwVendor,
-        hardware_model: hwModel,
-        cpu_brand: cpuBrand,
-        cpu_type: cpuType,
-        physical_memory: physicalMemory,
-      },
-    ];
+    return {
+      data: [
+        {
+          uuid,
+          hostname,
+          computer_name: this.getComputerName(hostname, hwSerial),
+          hardware_serial: hwSerial,
+          hardware_vendor: hwVendor,
+          hardware_model: hwModel,
+          cpu_brand: cpuBrand,
+          cpu_type: cpuType,
+          physical_memory: physicalMemory,
+        },
+      ],
+      warnings: warningsArray,
+    };
   }
 }
