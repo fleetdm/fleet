@@ -182,11 +182,11 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_NATIVE_TOOLING"},
 				Destination: &opt.NativeTooling,
 			},
-			&cli.BoolFlag{
-				Name:        "local-wix",
-				Usage:       "Use local install of WiX instead of Docker Hub (only available on Windows)",
-				EnvVars:     []string{"FLEETCTL_LOCAL_WIX"},
-				Destination: &opt.LocalWix,
+			&cli.StringFlag{
+				Name:        "local-wix-dir",
+				Usage:       "Use locally installed binaries of WiX tools in the provided directory instead of those from a prepared Docker Hub container. Available on Windows only.)",
+				EnvVars:     []string{"FLEETCTL_LOCAL_WIX_DIR"},
+				Destination: &opt.LocalWixDir,
 			},
 			&cli.StringFlag{
 				Name:        "macos-devid-pem-content",
@@ -268,7 +268,7 @@ func packageCommand() *cli.Command {
 				return errors.New("native tooling is only available in Linux")
 			}
 
-			if opt.LocalWix && runtime.GOOS != "windows" {
+			if opt.LocalWixDir != "" && runtime.GOOS != "windows" {
 				return errors.New(`Could not use local WiX to generate an osquery installer. This option is only available on Windows.
 				Visit https://wixtoolset.org/ for more information about how to use WiX.`)
 			}
