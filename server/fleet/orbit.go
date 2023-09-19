@@ -57,6 +57,8 @@ type ExtensionInfo struct {
 	Platform string `json:"platform"`
 	// Channel is the select TUF channel to listen for updates.
 	Channel string `json:"channel"`
+	// Labels are the label names the host must be member of to run this extension.
+	Labels []string `json:"labels,omitempty"`
 }
 
 // Extensions holds a set of extensions to apply to an Orbit client.

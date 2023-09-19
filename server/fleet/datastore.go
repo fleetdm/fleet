@@ -230,6 +230,12 @@ type Datastore interface {
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
 	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
+	// HostMemberOfAllLabels returns whether the given host is a member of all the provided labels.
+	// If a label name does not exist, then the host is considered not a member of the provided label.
+	// A host will always be a member of an empty label set, so this method returns (true, nil)
+	// if labelNames is empty.
+	HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error)
+
 	// TODO JUAN: Refactor this to use the Operating System type instead.
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
 	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)

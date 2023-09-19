@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -37,7 +38,7 @@ func (o *AgentOptions) ForPlatform(platform string) json.RawMessage {
 // Options payload. It ensures that all fields are known and have valid values.
 // The validation always uses the most recent Osquery version that is available
 // at the time of the Fleet release.
-func ValidateJSONAgentOptions(rawJSON json.RawMessage) error {
+func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.RawMessage, isPremium bool) error {
 	var opts AgentOptions
 	if err := JSONStrictDecode(bytes.NewReader(rawJSON), &opts); err != nil {
 		return err
@@ -55,6 +56,7 @@ func ValidateJSONAgentOptions(rawJSON json.RawMessage) error {
 			return fmt.Errorf("common config: %w", err)
 		}
 	}
+
 	for platform, platformOpts := range opts.Overrides.Platforms {
 		if len(platformOpts) > 0 {
 			if err := validateJSONAgentOptionsSet(platformOpts); err != nil {
@@ -62,6 +64,32 @@ func ValidateJSONAgentOptions(rawJSON json.RawMessage) error {
 			}
 		}
 	}
+
+	// Validate the extensions configuration.
+	if len(opts.Extensions) > 0 {
+		var extensions map[string]ExtensionInfo
+		if err := json.Unmarshal(opts.Extensions, &extensions); err != nil {
+			return fmt.Errorf("unmarshal extensions: %w", err)
+		}
+		for _, extensionInfo := range extensions {
+			if !isPremium && len(extensionInfo.Labels) != 0 {
+				// Setting labels settings in the extensions config is premium only.
+				return ErrMissingLicense
+			}
+			for _, labelName := range extensionInfo.Labels {
+				switch _, err := ds.GetLabelSpec(ctx, labelName); {
+				case err == nil:
+					// OK
+				case IsNotFound(err):
+					// Label does not exist, fail the request.
+					return fmt.Errorf("Label %q does not exist", labelName)
+				default:
+					return fmt.Errorf("get label by name: %w", err)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

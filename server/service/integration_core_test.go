@@ -7611,3 +7611,119 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	})
 	require.NotZero(t, wiresharkSoftware.ID)
 }
+
+func (s *integrationTestSuite) TestOrbitConfigExtensions() {
+	t := s.T()
+	ctx := context.Background()
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	defer func() {
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
+
+	// Orbit client gets no extensions if extensions are not configured.
+	orbitLinuxClient := createOrbitEnrolledHost(t, "linux", "foobar1", s.ds)
+	resp := orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.Extensions)
+
+	// Attempt to add extensions (should succeed).
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+	"agent_options": {
+		"config": {
+			"options": {
+				"pack_delimiter": "/",
+				"logger_tls_period": 10,
+				"distributed_plugin": "tls",
+				"disable_distributed": false,
+				"logger_tls_endpoint": "/api/osquery/log",
+				"distributed_interval": 10,
+				"distributed_tls_max_attempts": 3
+			}
+		},
+		"extensions": {
+			"hello_world_linux": {
+				"channel": "stable",
+				"platform": "linux"
+			},
+			"hello_mars_linux": {
+				"channel": "stable",
+				"platform": "linux"
+			},
+			"hello_world_macos": {
+				"channel": "stable",
+				"platform": "macos"
+			}
+		}
+	}
+}`), http.StatusOK)
+
+	// Attempt to add labels to extensions (only available on premium).
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+  "agent_options": {
+	"config": {
+		"options": {
+		"pack_delimiter": "/",
+		"logger_tls_period": 10,
+		"distributed_plugin": "tls",
+		"disable_distributed": false,
+		"logger_tls_endpoint": "/api/osquery/log",
+		"distributed_interval": 10,
+		"distributed_tls_max_attempts": 3
+		}
+	},
+	"extensions": {
+		"hello_world_linux": {
+			"channel": "stable",
+			"platform": "linux"
+		},
+		"hello_world_macos": {
+			"labels": [
+				"All hosts",
+				"Some label"
+			],
+			"channel": "stable",
+			"platform": "macos"
+		},
+		"hello_world_windows": {
+			"channel": "stable",
+			"platform": "windows"
+		}
+	}
+  }
+}`), http.StatusBadRequest)
+
+	// Orbit client gets extensions configured for its platform.
+	orbitDarwinClient := createOrbitEnrolledHost(t, "darwin", "foobar2", s.ds)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+    "hello_world_macos": {
+      "platform": "macos",
+      "channel": "stable"
+    }
+  }`, string(resp.Extensions))
+
+	orbitWindowsClient := createOrbitEnrolledHost(t, "windows", "foobar3", s.ds)
+
+	// Orbit client gets no extensions if none of the platforms target it.
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitWindowsClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.Extensions)
+
+	// Orbit client gets the two extensions configured for its platform.
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_world_linux": {
+		"channel": "stable",
+		"platform": "linux"
+	},
+	"hello_mars_linux": {
+		"channel": "stable",
+		"platform": "linux"
+	}
+  }`, string(resp.Extensions))
+}

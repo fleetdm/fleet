@@ -928,3 +928,31 @@ func (ds *Datastore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, 
 	}
 	return labelsSummary, nil
 }
+
+// HostMemberOfAllLabels returns whether the given host is a member of all the provided labels.
+// If the labels do not exist, then the host is considered not a member of the provided labels.
+// A host will always be a member of an empty label set, so this method returns (true, nil)
+// if labelNames is empty.
+func (ds *Datastore) HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error) {
+	if len(labelNames) == 0 {
+		return true, nil
+	}
+
+	sqlStatement := `
+		SELECT COUNT(*) = ? FROM labels l
+		LEFT JOIN (SELECT label_id FROM label_membership WHERE host_id = ?) lm
+		ON l.id = lm.label_id
+		WHERE l.name IN (?) AND lm.label_id IS NOT NULL;
+	`
+	sql, args, err := sqlx.In(sqlStatement, len(labelNames), hostID, labelNames)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "building query to get label IDs")
+	}
+
+	var ok bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &ok, sql, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get label IDs")
+	}
+
+	return ok, nil
+}

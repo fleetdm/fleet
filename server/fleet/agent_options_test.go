@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -140,7 +141,7 @@ func TestValidateAgentOptions(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			err := ValidateJSONAgentOptions([]byte(c.in))
+			err := ValidateJSONAgentOptions(context.Background(), nil, []byte(c.in), true)
 			t.Logf("%T", errors.Unwrap(err))
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
