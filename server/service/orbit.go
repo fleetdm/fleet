@@ -506,7 +506,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	)
 
 	// only set the encryption key if there was no client error
-	if clientError == "" {
+	if clientError == "" && encryptionKey != "" {
 		wstepCert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
 		if err != nil {
 			// should never return an error because the WSTEP is first parsed and
