@@ -18,7 +18,8 @@ import (
 
 const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
-	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical
+	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
+	p.passing_host_count, p.failing_host_count
 `
 
 var policySearchColumns = []string{"name"}
@@ -62,8 +63,6 @@ func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Poli
 		fmt.Sprint(`SELECT `+policyCols+`,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
-		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE p.name=?`), name)
@@ -89,9 +88,7 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		fmt.Sprintf(`
 		SELECT `+policyCols+`,
 		    COALESCE(u.name, '<deleted>') AS author_name,
-			COALESCE(u.email, '') AS author_email,
-			(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-			(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+			COALESCE(u.email, '') AS author_email
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE p.id=? AND %s`, teamWhere),
@@ -1110,4 +1107,26 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 	}
 
 	return int(counts.FailingHostCount), int(counts.TotalHostCount), nil
+}
+
+func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
+	updateStmt := `
+	UPDATE policies p
+	JOIN (
+		SELECT
+			policy_id,
+			COUNT(IF(passes = 1, 1, NULL)) AS passed_policies,
+			COUNT(IF(passes = 0, 1, NULL)) AS failed_policies
+		FROM policy_membership
+		GROUP BY policy_id
+	) AS pm ON p.id = pm.policy_id
+	SET 
+		p.passing_host_count = pm.passed_policies,
+		p.failing_host_count = pm.failed_policies;
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, updateStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host policy counts")
+	}
+	return nil
 }
