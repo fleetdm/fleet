@@ -1,94 +1,10 @@
 /* Config interface is a flattened version of the fleet/config API response */
-
 import {
   IWebhookHostStatus,
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
 } from "interfaces/webhook";
-import PropTypes from "prop-types";
 import { IIntegrations } from "./integration";
-
-export default PropTypes.shape({
-  org_name: PropTypes.string,
-  org_logo_url: PropTypes.string,
-  contact_url: PropTypes.string,
-  server_url: PropTypes.string,
-  live_query_disabled: PropTypes.bool,
-  enable_analytics: PropTypes.bool,
-  enable_smtp: PropTypes.bool,
-  configured: PropTypes.bool,
-  sender_address: PropTypes.string,
-  server: PropTypes.string,
-  port: PropTypes.number,
-  authentication_type: PropTypes.string,
-  user_name: PropTypes.string,
-  password: PropTypes.string,
-  enable_ssl_tls: PropTypes.bool,
-  authentication_method: PropTypes.string,
-  domain: PropTypes.string,
-  verify_sll_certs: PropTypes.bool,
-  enable_start_tls: PropTypes.bool,
-  entity_id: PropTypes.string,
-  idp_image_url: PropTypes.string,
-  metadata: PropTypes.string,
-  metadata_url: PropTypes.string,
-  idp_name: PropTypes.string,
-  enable_sso: PropTypes.bool,
-  enable_sso_idp_login: PropTypes.bool,
-  enable_jit_provisioning: PropTypes.bool,
-  host_expiry_enabled: PropTypes.bool,
-  host_expiry_window: PropTypes.number,
-  agent_options: PropTypes.string,
-  tier: PropTypes.string,
-  organization: PropTypes.string,
-  device_count: PropTypes.number,
-  expiration: PropTypes.string,
-  mdm: PropTypes.shape({
-    enabled_and_configured: PropTypes.bool,
-    apple_bm_terms_expired: PropTypes.bool,
-    apple_bm_enabled_and_configured: PropTypes.bool,
-    windows_enabled_and_configured: PropTypes.bool,
-    macos_updates: PropTypes.shape({
-      minimum_version: PropTypes.string,
-      deadline: PropTypes.string,
-    }),
-  }),
-  note: PropTypes.string,
-  // vulnerability_settings: PropTypes.any, TODO
-  enable_host_status_webhook: PropTypes.bool,
-  destination_url: PropTypes.string,
-  host_percentage: PropTypes.number,
-  days_count: PropTypes.number,
-  logging: PropTypes.shape({
-    debug: PropTypes.bool,
-    json: PropTypes.bool,
-    result: PropTypes.shape({
-      plugin: PropTypes.string,
-      config: PropTypes.shape({
-        status_log_file: PropTypes.string,
-        result_log_file: PropTypes.string,
-        enable_log_rotation: PropTypes.bool,
-        enable_log_compression: PropTypes.bool,
-      }),
-    }),
-    status: PropTypes.shape({
-      plugin: PropTypes.string,
-      config: PropTypes.shape({
-        status_log_file: PropTypes.string,
-        result_log_file: PropTypes.string,
-        enable_log_rotation: PropTypes.bool,
-        enable_log_compression: PropTypes.bool,
-      }),
-    }),
-  }),
-  email: PropTypes.shape({
-    backend: PropTypes.string,
-    config: PropTypes.shape({
-      region: PropTypes.string,
-      source_arn: PropTypes.string,
-    }),
-  }),
-});
 
 export interface ILicense {
   tier: string;
