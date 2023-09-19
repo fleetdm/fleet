@@ -34,7 +34,7 @@ graph LR;
         tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
         datadog[DataDog metrics]
         heroku[Usage Analytics<br>Heroku]
-        log[Optional Log Location<br>Store logs here]
+        log[Send logs to optional<br> external location]
     end
 
     subgraph Customer Admin
