@@ -6608,6 +6608,19 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 		PrimaryMac:      "30-65-EC-6F-C4-59",
 	})
 	require.NoError(t, err)
+	host3, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("3"),
+		UUID:            "3",
+		OsqueryHostID:   ptr.String("3"),
+		Hostname:        "foo.local3",
+		PrimaryIP:       "192.168.1.3",
+		PrimaryMac:      "30-65-EC-6F-C4-60",
+	})
+	require.NoError(t, err)
 
 	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "AAA", "", nil)
 	require.NoError(t, err)
@@ -6645,6 +6658,31 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "XZY", "", nil)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, "XZY", nil)
+
+	// set the key with an initial decrypted status of true
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "abc", "", ptr.Bool(true))
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "abc", ptr.Bool(true))
+
+	// same key, provided decrypted status is ignored (stored one is kept)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "abc", "", ptr.Bool(false))
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "abc", ptr.Bool(true))
+
+	// client error, key is removed and decrypted status is nulled
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "", "fail", nil)
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "", nil)
+
+	// new key, provided decrypted status is applied
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "def", "", ptr.Bool(true))
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "def", ptr.Bool(true))
+
+	// different key, provided decrypted status is applied
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "ghi", "", ptr.Bool(false))
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "ghi", ptr.Bool(false))
 }
 
 func testHostsSetDiskEncryptionKeyStatus(t *testing.T, ds *Datastore) {

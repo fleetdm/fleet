@@ -13,6 +13,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -495,8 +496,39 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		return newOsqueryError("internal error: missing host from request context")
 	}
 
-	// TODO(mna): encrypt the key using WSTEP certificate
-	encryptedEncryptionKey := encryptionKey
+	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
+		// if there is no WSTEP config, fail with a 404
+		return newNotFoundError()
+	}
 
-	return svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError, nil)
+	var (
+		encryptedEncryptionKey string
+		decryptable            *bool
+	)
+
+	// only set the encryption key if there was no client error
+	if clientError == "" {
+		wstepCert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
+		if err != nil {
+			// should never return an error because the WSTEP is first parsed and
+			// cached at the start of the fleet serve process.
+			return ctxerr.Wrap(ctx, err, "get WSTEP certificate")
+		}
+		enc, err := microsoft_mdm.Encrypt(encryptionKey, wstepCert.Leaf)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "encrypt the key with WSTEP certificate")
+		}
+		encryptedEncryptionKey = enc
+		decryptable = ptr.Bool(true)
+	}
+
+	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError, decryptable); err != nil {
+		return ctxerr.Wrap(ctx, err, "set or update disk encryption key")
+	}
+	if encryptedEncryptionKey != "" {
+		if err := svc.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "set or update host disks encryption")
+		}
+	}
+	return nil
 }

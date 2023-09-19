@@ -2976,7 +2976,7 @@ INSERT INTO host_disk_encryption_keys
 VALUES
   (?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
-  /* if the key has changed, NULLify this value so it can be calculated again */
+  /* if the key has changed, set decrypted to its initial value so it can be calculated again if necessary (if null) */
   decryptable = IF(base64_encrypted = VALUES(base64_encrypted), decryptable, VALUES(decryptable)),
   base64_encrypted = VALUES(base64_encrypted),
   client_error = VALUES(client_error)
