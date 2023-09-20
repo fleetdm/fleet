@@ -27,7 +27,8 @@ export type IDiskEncryptionSummaryResponse = Record<
 // to generate the aggregate profile status summary. We are doing this as a temporary
 // solution until we have the API that will return the aggregate profile status summary
 // from one call.
-// TODO: API INTEGRATION: remove when API is implemented
+// TODO: API INTEGRATION: remove when API is implemented that returns windows
+// data in the aggregate profile status summary.
 const generateCombinedProfileStatusSummary = (
   profileStatuses: ProfileStatusSummaryResponse,
   diskEncryptionSummary: IDiskEncryptionSummaryResponse
@@ -164,21 +165,11 @@ const mdmService = {
     if (teamId) {
       path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
     }
-
-    // TODO: API INTEGRATION: change when API is implemented
-    return new Promise<IDiskEncryptionSummaryResponse>((resolve) => {
-      resolve({
-        verified: { macos: 0, windows: 5 },
-        verifying: { macos: 1, windows: 4 },
-        action_required: { macos: 2, windows: 3 },
-        enforcing: { macos: 3, windows: 2 },
-        failed: { macos: 4, windows: 1 },
-        removing_enforcement: { macos: 5, windows: 0 },
-      });
-    });
-    // return sendRequest("GET", path);
+    return sendRequest("GET", path);
   },
 
+  // TODO: API INTEGRATION: change when API is implemented that works for windows
+  // disk encryption too.
   updateAppleMdmSettings: (enableDiskEncryption: boolean, teamId?: number) => {
     const {
       MDM_UPDATE_APPLE_SETTINGS: teamsEndpoint,
@@ -187,7 +178,9 @@ const mdmService = {
     if (teamId === 0) {
       return sendRequest("PATCH", noTeamsEndpoint, {
         mdm: {
+          // TODO: API INTEGRATION: remove macos_settings when API change is merged in.
           macos_settings: { enable_disk_encryption: enableDiskEncryption },
+          // enable_disk_encryption: enableDiskEncryption,
         },
       });
     }
