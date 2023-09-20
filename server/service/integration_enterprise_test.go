@@ -2562,35 +2562,6 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
 }
 
-func (s *integrationEnterpriseTestSuite) TestWindowsMDMNotConfigured() {
-	t := s.T()
-
-	// create a host with device token to test device authenticated routes
-	tkn := "D3V1C370K3N"
-	createHostAndDeviceToken(t, s.ds, tkn)
-
-	for _, route := range mdmWindowsConfigurationRequiredEndpoints() {
-		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
-		path := route.path
-		if route.deviceAuthenticated {
-			path = fmt.Sprintf(route.path, tkn)
-		}
-
-		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
-		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, expectedErr.Error())
-	}
-
-	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
-	t.Cleanup(fleetdmSrv.Close)
-
-	// Always accessible
-	// TODO: add any windows specific routes here
-}
-
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical"}
 
