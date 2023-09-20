@@ -1,9 +1,5 @@
 # MDM setup
 
-## Supported macOS versions
-
-macOS 12 (Monterey) and higher.
-
 ## Overview
 
 MDM features require Apple's Push Notification service (APNs) to control and secure Apple devices. This guide will walk you through how to generate and upload a valid APNs certificate to Fleet in order to use Fleet's MDM features.
