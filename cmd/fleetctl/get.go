@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"gopkg.in/guregu/null.v3"
@@ -193,9 +194,7 @@ func (eacp enrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
 
 	// we need to marshal and combine both groups separately because
 	// enrichedAppConfig has a custom marshaler.
-	combinedJSON := append(enrichedJSON[:len(enrichedJSON)-1], ',')
-	combinedJSON = append(combinedJSON, extraFieldsJSON[1:]...)
-	return combinedJSON, nil
+	return rawjson.CombineRoots(enrichedJSON, extraFieldsJSON)
 }
 
 func printConfig(c *cli.Context, config interface{}) error {

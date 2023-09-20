@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -525,10 +526,9 @@ func (e *EnrichedAppConfig) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	// combine the two byte arrays
-	combinedJSON := append(enrichedData[:len(enrichedData)-1], ',')
-	combinedJSON = append(combinedJSON, appConfigData[1:]...)
-	return combinedJSON, nil
+	// we need to marshal and combine both groups separately because
+	// AppConfig has a custom marshaler.
+	return rawjson.CombineRoots(enrichedData, appConfigData)
 }
 
 type Duration struct {

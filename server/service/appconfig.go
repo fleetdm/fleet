@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -98,10 +99,9 @@ func (r appConfigResponse) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	// combine the two byte arrays
-	combinedJSON := append(responseData[:len(responseData)-1], ',')
-	combinedJSON = append(combinedJSON, appConfigData[1:]...)
-	return combinedJSON, nil
+	// we need to marshal and combine both groups separately because
+	// AppConfig has a custom marshaler.
+	return rawjson.CombineRoots(responseData, appConfigData)
 }
 
 func (r appConfigResponse) error() error { return r.Err }
