@@ -446,7 +446,7 @@ var extraDetailQueries = map[string]DetailQuery{
 			)
 			UNION ALL
 			SELECT * FROM (
-				SELECT "is_federated" AS "key", data as "value" FROM registry 
+				SELECT "is_federated" AS "key", data as "value" FROM registry
 				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
 				LIMIT 1
 			)
@@ -609,7 +609,7 @@ var mdmQueries = map[string]DetailQuery{
 	// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
 	"mdm_disk_encryption_key_file_lines_darwin": {
 		Query: fmt.Sprintf(`
-	WITH 
+	WITH
 		de AS (SELECT IFNULL((%s), 0) as encrypted),
 		fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
 	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;`, usesMacOSDiskEncryptionQuery),
@@ -1460,7 +1460,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"], "", nil)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -1511,7 +1511,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b))
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b), "", nil)
 }
 
 func directIngestMacOSProfiles(

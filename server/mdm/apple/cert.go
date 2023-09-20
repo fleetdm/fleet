@@ -2,12 +2,10 @@ package apple_mdm
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -17,7 +15,6 @@ import (
 
 	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/micromdm/scep/v2/depot"
-	"go.mozilla.org/pkcs7"
 )
 
 const (
@@ -159,18 +156,4 @@ func NewDEPKeyPairPEM() ([]byte, []byte, error) {
 	privateKeyPEM := tokenpki.PEMRSAPrivateKey(key)
 
 	return publicKeyPEM, privateKeyPEM, nil
-}
-
-func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.PrivateKey) ([]byte, error) {
-	p7Bytes, err := base64.StdEncoding.DecodeString(p7Base64)
-	if err != nil {
-		return nil, err
-	}
-
-	p7, err := pkcs7.Parse(p7Bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return p7.Decrypt(cert, key)
 }

@@ -1,0 +1,1 @@
+* Added the `POST /api/fleet/orbit/disk_encryption_key` endpoint for Windows hosts to report the bitlocker encryption key.

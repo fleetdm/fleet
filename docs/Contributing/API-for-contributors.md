@@ -2289,7 +2289,9 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 {
   "failing_policies_count": 3,
   "notifications": {
-    "needs_mdm_migration": true
+    "needs_mdm_migration": true,
+    "renew_enrollment_profile": false,
+    "enforce_bitlocker_encryption": false,
   },
   "config": {
     "org_info": {
@@ -2310,6 +2312,7 @@ In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
+- `enforce_bitlocker_encryption` applies only to Windows devices and means that it should encrypt the disk and report the encryption key back to Fleet.
 
 
 #### Get device's policies

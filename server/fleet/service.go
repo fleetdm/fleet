@@ -711,6 +711,11 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
 
+	// VerifyMDMAppleOrWindowsConfigured verifies that the server is configured
+	// for either Apple or Windows MDM. If an error is returned, authorization is
+	// skipped so the error can be raised to the user.
+	VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error
+
 	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
@@ -789,6 +794,9 @@ type Service interface {
 
 	// GetMDMWindowsTOSContent returns TOS content
 	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
+
+	// Set or update the disk encryption key for a host.
+	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM

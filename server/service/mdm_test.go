@@ -113,6 +113,12 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 	ds.AppConfigFuncInvoked = false
 	require.True(t, authzCtx.Checked())
 
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
+	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
 	// error retrieving app config
 	authzCtx = &authz_ctx.AuthorizationContext{}
 	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
@@ -121,6 +127,12 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 		return nil, testErr
 	}
 	err = svc.VerifyMDMAppleConfigured(ctx)
+	require.ErrorIs(t, err, testErr)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
 	require.ErrorIs(t, err, testErr)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
@@ -137,9 +149,14 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
 	require.False(t, authzCtx.Checked())
+
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
 }
 
-// TODO: update this test with the correct config option
 func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
@@ -150,10 +167,16 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	authzCtx := &authz_ctx.AuthorizationContext{}
 	ctx := authz_ctx.NewContext(baseCtx, authzCtx)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: false}}, nil
+		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: false}}, nil
 	}
 
 	err := svc.VerifyMDMWindowsConfigured(ctx)
+	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
 	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
@@ -173,6 +196,12 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	ds.AppConfigFuncInvoked = false
 	require.True(t, authzCtx.Checked())
 
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
+	require.ErrorIs(t, err, testErr)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
 	// mdm configured
 	authzCtx = &authz_ctx.AuthorizationContext{}
 	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
@@ -181,6 +210,12 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	}
 
 	err = svc.VerifyMDMWindowsConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
+
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
 	require.NoError(t, err)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
