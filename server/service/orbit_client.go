@@ -338,3 +338,23 @@ func OrbitRetryInterval() time.Duration {
 	}
 	return constant.OrbitEnrollRetrySleep
 }
+
+type HostScriptResultPayload struct {
+	HostID      uint   `json:"host_id"`
+	ExecutionID string `json:"execution_id"`
+	Output      string `json:"output"`
+	Runtime     int    `json:"runtime"`
+	ExitCode    int    `json:"exit_code"`
+}
+
+// SetOrUpdateDiskEncryptionKey sends a request to the server to set or update the disk
+// encryption keys and result of the encryption process
+func (oc *OrbitClient) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
+	verb, path := "POST", "/api/fleet/orbit/disk_encryption_key"
+
+	var resp orbitPostDiskEncryptionKeyResponse
+	if err := oc.authenticatedRequest(verb, path, &diskEncryptionStatus, &resp); err != nil {
+		return err
+	}
+	return nil
+}
