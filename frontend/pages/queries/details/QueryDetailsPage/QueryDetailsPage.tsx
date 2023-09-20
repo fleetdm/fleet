@@ -2,9 +2,6 @@ import React, { useContext, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
-import differenceInSeconds from "date-fns/differenceInSeconds";
-import formatDistance from "date-fns/formatDistance";
-import add from "date-fns/add";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -27,6 +24,8 @@ import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/com
 import EmptyTable from "components/EmptyTable/EmptyTable";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 import CachedDetails from "../components/CachedDetails/CachedDetails";
+import NoResults from "../components/NoResults/NoResults";
+import DataError from "components/DataError/DataError";
 
 interface IQueryDetailsPageProps {
   router: InjectedRouter; // v3
@@ -71,7 +70,6 @@ const QueryDetailsPage = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryObserverCanRun,
-    lastEditedQueryFrequency,
     setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -83,11 +81,8 @@ const QueryDetailsPage = ({
     setLastEditedQueryPlatforms,
   } = useContext(QueryContext);
 
-  // Updates title that shows up on browser tabs
-  useEffect(() => {
-    // e.g., Run live query | Discover TLS certificates | Fleet for osquery
-    document.title = `Query details | ${lastEditedQueryName} | Fleet for osquery`;
-  }, [location.pathname, lastEditedQueryName]);
+  // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
+  document.title = `Query details | ${lastEditedQueryName} | Fleet for osquery`;
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -117,24 +112,24 @@ const QueryDetailsPage = ({
     }
   );
 
-  const errorsOnly = true; // TODO
-
-  const canEditQuery =
-    isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
-
-  // Function instead of constant eliminates race condition with filteredQueriesPath
-  const backToQueriesPath = () => {
-    return filteredQueriesPath || PATHS.MANAGE_QUERIES;
-  };
+  const isLoading = isStoredQueryLoading; // TODO: Add || isCachedResultsLoading for new API response
+  const isApiError = storedQueryError || true; // TODO: Add || isCachedResultsError for new API response
 
   const renderHeader = () => {
+    const canEditQuery =
+      isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
+
+    // Function instead of constant eliminates race condition with filteredQueriesPath
+    const backToQueriesPath = () => {
+      return filteredQueriesPath || PATHS.MANAGE_QUERIES;
+    };
+
     return (
       <>
-        {" "}
         <div className={`${baseClass}__header-links`}>
           <BackLink text="Back to queries" path={backToQueriesPath()} />
         </div>
-        {!isStoredQueryLoading && (
+        {!isLoading && !isApiError && (
           <div className={`${baseClass}__title-bar`}>
             <div className="name-description">
               <h1 className={`${baseClass}__query-name`}>
@@ -175,7 +170,7 @@ const QueryDetailsPage = ({
             </div>
           </div>
         )}
-        {!isStoredQueryLoading && (
+        {!isLoading && !isApiError && (
           <div className={`${baseClass}__settings`}>
             <div className={`${baseClass}__automations`}>
               <TooltipWrapper tipContent="Query automations let you send data to your log destination on a schedule. When automations are on, data is sent according to a query’s frequency.">
@@ -199,101 +194,35 @@ const QueryDetailsPage = ({
   };
 
   const renderReport = () => {
-    const disabledSavingGlobally = true; // TODO: Update accordingly to config?.server_settings.query_reports_disabled
+    const disabledCachingGlobally = true; // TODO: Update accordingly to config?.server_settings.query_reports_disabled
     const discardDataEnabled = true; // TODO: Update accordingly to storedQuery?.discard_data
     const loggingSnapshot = storedQuery?.logging === "snapshot";
-    const disabledSaving =
-      disabledSavingGlobally || discardDataEnabled || loggingSnapshot;
-
-    // Returns how many seconds it takes to expect a cached update
-    const secondsCheckbackTime = () => {
-      const secondsSinceUpdate = storedQuery?.updated_at
-        ? differenceInSeconds(new Date(), new Date(storedQuery?.updated_at))
-        : 0;
-      const secondsUpdateWaittime = lastEditedQueryFrequency + 60;
-      return secondsUpdateWaittime - secondsSinceUpdate;
-    };
-
-    // Update status of collecting cached results
-    const collectingResults = secondsCheckbackTime() > 0;
-    const noResults = secondsCheckbackTime() <= 0;
-
-    // Converts seconds takes to update to human readable format
-    const readableCheckbackTime = formatDistance(
-      add(new Date(), { seconds: secondsCheckbackTime() }),
-      new Date()
-    );
+    const disabledCaching =
+      disabledCachingGlobally || discardDataEnabled || !loggingSnapshot;
+    const emptyCache = true; // TODO: Update with API response
+    const errorsOnly = true; // TODO: Update with API response
 
     // Loading state
-    if (isStoredQueryLoading) {
+    if (isLoading) {
       return <Spinner />;
     }
 
-    // Collecting results state
-    if (collectingResults) {
-      const collectingResultsInfo = () =>
-        `Fleet is collecting query results. Check back in about ${readableCheckbackTime}.`;
-
-      return (
-        <EmptyTable
-          iconName="collecting-results"
-          header={"Collecting results..."}
-          info={collectingResultsInfo()}
-        />
-      );
+    // Error state
+    if (isApiError) {
+      return <DataError />;
     }
 
-    // No results state with varying messages explaining why there's no results
-    if (noResults) {
-      const noResultsInfo = () => {
-        if (!storedQuery?.interval) {
-          return (
-            <>
-              This query does not collect data on a schedule. Add a{" "}
-              <strong>frequency</strong> or run this as a live query to see
-              results.
-            </>
-          );
-        }
-        if (disabledSaving) {
-          const tipContent = () => {
-            if (disabledSavingGlobally) {
-              return "The following setting prevents saving this query's results in Fleet:<ul><li>Query reports are globally disabled in organization settings.</li></ul>";
-            }
-            if (discardDataEnabled) {
-              return "The following setting prevents saving this query's results in Fleet:<ul><li>This query has Discard data enabled.</li></ul>";
-            }
-            if (!loggingSnapshot) {
-              return "The following setting prevents saving this query's results in Fleet:<ul><li>The logging setting for this query is not Snapshot.</li></ul>";
-            }
-            return "Unknown";
-          };
-          return (
-            <>
-              Results from this query are{" "}
-              <TooltipWrapper tipContent={tipContent()}>
-                not reported in Fleet
-              </TooltipWrapper>
-              .
-            </>
-          );
-        }
-        if (errorsOnly) {
-          return (
-            <>
-              This query had trouble collecting data on some hosts. Check out
-              the <strong>Errors</strong> tab to see why.
-            </>
-          );
-        }
-        return "This query has returned no data so far.";
-      };
-
+    // Empty state with varying messages explaining why there's no results
+    if (emptyCache) {
       return (
-        <EmptyTable
-          iconName="empty-software"
-          header={"Nothing to report yet"}
-          info={noResultsInfo()}
+        <NoResults
+          queryInterval={storedQuery?.interval}
+          queryUpdatedAt={storedQuery?.updated_at}
+          disabledCaching={disabledCaching}
+          disabledCachingGlobally={disabledCachingGlobally}
+          discardDataEnabled={discardDataEnabled}
+          loggingSnapshot={loggingSnapshot}
+          errorsOnly={errorsOnly}
         />
       );
     }
