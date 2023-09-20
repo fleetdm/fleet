@@ -184,7 +184,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "local-wix-dir",
-				Usage:       "Use locally installed binaries of WiX tools in the provided directory instead of those from a prepared Docker Hub container. Available on Windows only.)",
+				Usage:       "Use local install of WiX instead of Docker Hub (only available on Windows w/ WiX v3)",
 				EnvVars:     []string{"FLEETCTL_LOCAL_WIX_DIR"},
 				Destination: &opt.LocalWixDir,
 			},
