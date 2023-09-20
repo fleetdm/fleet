@@ -18,8 +18,7 @@ import (
 
 const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
-	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
-	p.passing_host_count, p.failing_host_count
+	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical
 `
 
 var policySearchColumns = []string{"name"}
@@ -60,12 +59,16 @@ func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error)
 func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Policy, error) {
 	var policy fleet.Policy
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy,
-		fmt.Sprint(`SELECT `+policyCols+`,
-		COALESCE(u.name, '<deleted>') AS author_name,
-		COALESCE(u.email, '') AS author_email
+		fmt.Sprint(`
+		SELECT `+policyCols+`,
+			COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
+			p.passing_host_count, 
+			p.failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
-		WHERE p.name=?`), name)
+		WHERE p.name=?
+		`), name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithName(name))
@@ -88,7 +91,9 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		fmt.Sprintf(`
 		SELECT `+policyCols+`,
 		    COALESCE(u.name, '<deleted>') AS author_name,
-			COALESCE(u.email, '') AS author_email
+			COALESCE(u.email, '') AS author_email,
+			p.passing_host_count,
+			p.failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE p.id=? AND %s`, teamWhere),
@@ -300,9 +305,8 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 
 	// Sorting by failing host counts requires an expensive join with the
 	// policy membership table and may result in long response times
-	if opts.OrderKey == "failing_host_count" {
-		if countsForTeamID != nil {
-			initialQuery = `
+	if opts.OrderKey == "failing_host_count" && countsForTeamID != nil {
+		initialQuery = `
 				SELECT p.id
 				FROM policies p
 				LEFT JOIN (
@@ -313,20 +317,8 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 					GROUP BY pm.policy_id
 				) AS subq ON p.id = subq.policy_id
 			`
-			args = append(args, *countsForTeamID)
-		} else {
-			initialQuery = `
-				SELECT p.id
-				FROM policies p
-				LEFT JOIN (
-					SELECT pm.policy_id,
-						COUNT(*) AS failing_host_count
-					FROM policy_membership pm
-					WHERE pm.passes = false
-					GROUP BY pm.policy_id
-				) AS subq ON p.id = subq.policy_id
-			`
-		}
+		args = append(args, *countsForTeamID)
+
 	} else {
 		initialQuery = "SELECT id FROM policies"
 	}
@@ -354,9 +346,10 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 	args = []interface{}{} // reset args
 
 	counts := `
-	(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-	(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-`
+	p.passing_host_count,
+	p.failing_host_count
+	`
+
 	if countsForTeamID != nil {
 		counts = `
 		(select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=true and h.team_id = ?) as passing_host_count,
@@ -425,8 +418,8 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	sql := `SELECT ` + policyCols + `,
 	  COALESCE(u.name, '<deleted>') AS author_name,
 	  COALESCE(u.email, '') AS author_email,
-	  (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-	  (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+	  p.passing_host_count,
+	  p.failing_host_count
 	  FROM policies p
 	  LEFT JOIN users u ON p.author_id = u.id
 	  WHERE p.id IN (?)`
@@ -1112,7 +1105,7 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 	updateStmt := `
 	UPDATE policies p
-	JOIN (
+	LEFT JOIN (
 		SELECT
 			policy_id,
 			COUNT(IF(passes = 1, 1, NULL)) AS passed_policies,
@@ -1121,8 +1114,8 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 		GROUP BY policy_id
 	) AS pm ON p.id = pm.policy_id
 	SET 
-		p.passing_host_count = pm.passed_policies,
-		p.failing_host_count = pm.failed_policies;
+		p.passing_host_count = COALESCE(pm.passed_policies, 0),
+		p.failing_host_count = COALESCE(pm.failed_policies, 0);
 	`
 	_, err := ds.writer(ctx).ExecContext(ctx, updateStmt)
 	if err != nil {

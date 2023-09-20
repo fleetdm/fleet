@@ -380,6 +380,8 @@ type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, err
 
 type CountPoliciesFunc func(ctx context.Context, teamID *uint, matchQuery string) (int, error)
 
+type UpdateHostPolicyCountsFunc func(ctx context.Context) error
+
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
@@ -1221,6 +1223,9 @@ type DataStore struct {
 
 	CountPoliciesFunc        CountPoliciesFunc
 	CountPoliciesFuncInvoked bool
+
+	UpdateHostPolicyCountsFunc        UpdateHostPolicyCountsFunc
+	UpdateHostPolicyCountsFuncInvoked bool
 
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
@@ -2937,6 +2942,13 @@ func (s *DataStore) CountPolicies(ctx context.Context, teamID *uint, matchQuery 
 	s.CountPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CountPoliciesFunc(ctx, teamID, matchQuery)
+}
+
+func (s *DataStore) UpdateHostPolicyCounts(ctx context.Context) error {
+	s.mu.Lock()
+	s.UpdateHostPolicyCountsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostPolicyCountsFunc(ctx)
 }
 
 func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
