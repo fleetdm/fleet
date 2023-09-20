@@ -6831,7 +6831,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	// configure disk encryption for the global team
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "macos_settings": { "enable_disk_encryption": true } } }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	// host still doesn't get the notification because we don't have disk
 	// encryption information yet.
@@ -6877,7 +6877,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: tm.Name,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": true},
+			EnableDiskEncryption: optjson.SetBool(true),
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
