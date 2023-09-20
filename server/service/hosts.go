@@ -1565,6 +1565,10 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "getting host encryption key")
 	}
 
+	// TODO(mna): I don't think this is part of #13954, but this will need to be
+	// updated to support Windows encryption keys to use the WSTEP certificate
+	// instead of Apple SCEP.
+
 	cert, _, _, err := svc.config.MDM.AppleSCEP()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")

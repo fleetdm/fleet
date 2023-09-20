@@ -2531,14 +2531,14 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.Nil(t, summaryResp.LowDiskSpaceCount)
 }
 
-func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
+func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	t := s.T()
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
 	createHostAndDeviceToken(t, s.ds, tkn)
 
-	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		path := route.path
 		if route.deviceAuthenticated {
@@ -2560,35 +2560,6 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 	var reqCSRResp requestMDMAppleCSRResponse
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
-}
-
-func (s *integrationEnterpriseTestSuite) TestWindowsMDMNotConfigured() {
-	t := s.T()
-
-	// create a host with device token to test device authenticated routes
-	tkn := "D3V1C370K3N"
-	createHostAndDeviceToken(t, s.ds, tkn)
-
-	for _, route := range mdmWindowsConfigurationRequiredEndpoints() {
-		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
-		path := route.path
-		if route.deviceAuthenticated {
-			path = fmt.Sprintf(route.path, tkn)
-		}
-
-		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
-		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, expectedErr.Error())
-	}
-
-	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
-	t.Cleanup(fleetdmSrv.Close)
-
-	// Always accessible
-	// TODO: add any windows specific routes here
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {

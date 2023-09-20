@@ -790,6 +790,9 @@ type Service interface {
 	// GetMDMWindowsTOSContent returns TOS content
 	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
 
+	// Set or update the disk encryption key for a host.
+	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 

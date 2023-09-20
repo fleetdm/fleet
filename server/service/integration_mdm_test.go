@@ -2213,7 +2213,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	require.NoError(t, err)
 	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
 
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64EncryptedKey)
+	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64EncryptedKey, "", nil)
 	require.NoError(t, err)
 
 	// get that host - it has an encryption key with unknown decryptability, so
@@ -2823,7 +2823,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 			})
 			require.NoError(t, err)
 			oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
-			err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "test-key")
+			err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "test-key", "", nil)
 			require.NoError(t, err)
 			err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, decryptable, oneMinuteAfterThreshold)
 			require.NoError(t, err)
@@ -6692,6 +6692,70 @@ func (s *integrationMDMTestSuite) TestValidSyncMLRequestNoAuth() {
 	require.True(t, s.isXMLTagPresent("SyncBody", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("Exec", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("Add", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
+	t := s.T()
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
+
+	// try to call the endpoint while the host is not MDM-enrolled
+	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey:  *host.OrbitNodeKey,
+		EncryptionKey: []byte("WILL-FAIL"),
+	}, http.StatusBadRequest)
+	msg := extractServerErrorText(res.Body)
+	require.Contains(t, msg, "host is not enrolled with fleet")
+
+	// mark it as enrolled in Fleet
+	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	// set its encryption key
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey:  *host.OrbitNodeKey,
+		EncryptionKey: []byte("ABC"),
+	}, http.StatusNoContent)
+
+	hdek, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, hdek.Decryptable)
+	require.True(t, *hdek.Decryptable)
+
+	// the key is encrypted the same way as the macOS keys (except with the WSTEP
+	// certificate), so it can be decrypted using the same decryption function.
+	wstepCert, _, _, err := s.fleetCfg.MDM.MicrosoftWSTEP()
+	require.NoError(t, err)
+	decrypted, err := apple_mdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+	require.NoError(t, err)
+	require.Equal(t, "ABC", string(decrypted))
+
+	// set it with a client error
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey: *host.OrbitNodeKey,
+		ClientError:  "fail",
+	}, http.StatusNoContent)
+
+	hdek, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, hdek.Decryptable)
+	require.Empty(t, hdek.Base64Encrypted)
+
+	// set a different key
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey:  *host.OrbitNodeKey,
+		EncryptionKey: []byte("DEF"),
+	}, http.StatusNoContent)
+
+	hdek, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, hdek.Decryptable)
+	require.True(t, *hdek.Decryptable)
+
+	decrypted, err = apple_mdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+	require.NoError(t, err)
+	require.Equal(t, "DEF", string(decrypted))
 }
 
 // ///////////////////////////////////////////////////////////////////////////
