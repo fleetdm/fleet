@@ -454,36 +454,49 @@ func (w *windowsMDMBitlockerConfigFetcher) GetConfig() (*fleet.OrbitConfig, erro
 func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fleet.OrbitConfigNotifications) {
 	// do not trigger Bitlocker encryption if running on a Windwos server
 	isWindowsServer, err := IsRunningOnWindowsServer()
-	if err != nil || isWindowsServer {
-		log.Error().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
+	if err != nil {
+		log.Error().Err(err).Msg("checking if the host is a Windows server")
+		return
+	}
+
+	if isWindowsServer {
+		log.Debug().Msg("device is a Windows Server, encryption is not going to be performed")
 		return
 	}
 
 	if time.Since(w.lastEnrollRun) <= w.Frequency {
-		log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, last run was too recent")
+		log.Debug().Msg("skipped encryption process, last run was too recent")
 		return
 	}
 
-	// Performing Bitlocker encryption operation against C: volum
+	// Performing Bitlocker encryption operation against C: volume
 
 	// We are supporting only C: volume for now
 	targetVolume := "C:"
 
 	// Setting up encryption result
 	recoveryKey, err := bitlocker.EncryptVolume(targetVolume)
+
+	// Getting Bitlocker encryption operation error message if any
+	bitlockerError := ""
 	if err != nil {
-		log.Error().Err(err).Msgf("failed to encrypt the volume - Error %v", err)
-		return
+		bitlockerError = err.Error()
 	}
 
+	// Update Fleet Server with encryption result
 	payload := fleet.OrbitHostDiskEncryptionKeyPayload{
 		EncryptionKey: []byte(recoveryKey),
-		ClientError:   err.Error(),
+		ClientError:   bitlockerError,
+	}
+
+	if err != nil {
+		log.Error().Err(err).Msg("failed to encrypt the volume")
+		return
 	}
 
 	err = w.EncryptionResult.SetOrUpdateDiskEncryptionKey(payload)
 	if err != nil {
-		log.Error().Err(err).Msgf("failed to get send encryption result to Fleet Server - Error %v", err)
+		log.Error().Err(err).Msg("failed to send encryption result to Fleet Server")
 		return
 	}
 
