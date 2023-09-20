@@ -102,9 +102,11 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
    ```
 
 
-
-
 ## Responsibilities
+
+### Manage g-ceo intake
+The Apprentice to the CEO is the DRI for the [#g-ceo kanban board](https://app.zenhub.com/workspaces/g-ceo-645b0eab68a4d40c0795ff61/board?sprints=none) and responsible for [managing all intake](https://fleetdm.com/handbook/company/communications#manage-intake) including issues and PRs.
+
 
 ### Schedule CEO interview
 From time to time, you will need to schedule an interview between a candidate and the CEO:

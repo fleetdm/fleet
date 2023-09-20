@@ -19,6 +19,13 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#process-the-ceos-email"
   dri: "sampfluger88"
 -
+  task: "Manage g-ceo intake"
+  startedOn: "2023-07-29"
+  frequency: "Daily ⏰"
+  description: "Process the CEO's inbox"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/communications#manage-intake"
+  dri: "sampfluger88"
+-
   task: "Process the CEO's calendar"
   startedOn: "2023-07-29"
   frequency: "Daily ⏰"
