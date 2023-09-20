@@ -407,11 +407,10 @@ type windowsMDMBitlockerConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
 	Fetcher OrbitConfigFetcher
+
 	// Frequency is the minimum amount of time that must pass between two
 	// executions of the windows MDM enrollment attempt.
 	Frequency time.Duration
-	// HostUUID is the current host's UUID.
-	HostUUID string
 
 	// Bitlocker Operation Results
 	EncryptionResult DiskEncryptionKeySetter

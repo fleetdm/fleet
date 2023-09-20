@@ -1,5 +1,4 @@
 //go:build windows
-// +build windows
 
 package bitlocker
 
@@ -199,7 +198,7 @@ func (v *Volume) protectWithNumericalPassword() (string, error) {
 
 // protectWithPassphrase adds a passphrase key protector
 // https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithpassphrase-win32-encryptablevolume
-func (v *Volume) protectWithPassphrase(passphrase string) error {
+func (v *Volume) protectWithPassphrase(passphrase string) (string, error) {
 	var volumeKeyProtectorID ole.VARIANT
 	ole.VariantInit(&volumeKeyProtectorID)
 
@@ -210,9 +209,7 @@ func (v *Volume) protectWithPassphrase(passphrase string) error {
 		return fmt.Errorf("protectWithPassphrase(%s): %w", v.letter, encryptErrHandler(val))
 	}
 
-	volumeKeyProtectorID.ToString()
-
-	return nil
+	return volumeKeyProtectorID.ToString(), nil
 }
 
 // protectWithTPM adds the TPM key protector
@@ -240,13 +237,15 @@ func (v *Volume) protectWithTPM(platformValidationProfile *[]uint8) error {
 // getBitlockerStatus returns the current status of the volume
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
 func (v *Volume) getBitlockerStatus() (*EncryptionStatus, error) {
-	var conversionStatus int32 = 0
-	var encryptionPercentage int32 = 0
-	var encryptionFlags int32 = 0
-	var wipingStatus int32 = 0
-	var wipingPercentage int32 = 0
-	var precisionFactor int32 = 4
-	var protectionStatus int32 = 0
+	var (
+		conversionStatus     int32
+		encryptionPercentage int32
+		encryptionFlags      int32
+		wipingStatus         int32
+		wipingPercentage     int32
+		precisionFactor      int32 = 4
+		protectionStatus     int32
+	)
 
 	resultRaw, err := oleutil.CallMethod(v.handle, "GetConversionStatus", &conversionStatus, &encryptionPercentage, &encryptionFlags, &wipingStatus, &wipingPercentage, precisionFactor)
 	if err != nil {
