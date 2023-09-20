@@ -59,7 +59,7 @@ module "saml_auth_proxy_alb" {
   ]
 }
 
-resource "aws_ecs_task_definition" "osquery_perf" {
+resource "aws_ecs_task_definition" "saml_auth_proxy" {
   family                   = "${var.customer_prefix}-saml-auth-proxy"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
@@ -144,11 +144,11 @@ resource "aws_ecs_task_definition" "osquery_perf" {
   }
 }
 
-resource "aws_ecs_service" "osquery_perf" {
-  name                               = "osquery_perf"
+resource "aws_ecs_service" "saml_auth_proxy" {
+  name                               = "saml_auth_proxy"
   launch_type                        = "FARGATE"
   cluster                            = var.ecs_cluster
-  task_definition                    = aws_ecs_task_definition.osquery_perf.arn
+  task_definition                    = aws_ecs_task_definition.saml_auth_proxy.arn
   desired_count                      = var.loadtest_containers
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
