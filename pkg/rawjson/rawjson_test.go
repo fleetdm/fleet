@@ -22,6 +22,30 @@ func TestCombineRoots(t *testing.T) {
 			want: []byte("{}"),
 		},
 		{
+			name:    "first incomplete",
+			a:       []byte("{"),
+			b:       []byte("{}"),
+			wantErr: "incomplete json object",
+		},
+		{
+			name:    "second incomplete",
+			a:       []byte("{}"),
+			b:       []byte("{"),
+			wantErr: "incomplete json object",
+		},
+		{
+			name:    "first empty array",
+			a:       []byte{},
+			b:       []byte("{}"),
+			wantErr: "incomplete json object",
+		},
+		{
+			name:    "second empty array",
+			a:       []byte("{}"),
+			b:       []byte{},
+			wantErr: "incomplete json object",
+		},
+		{
 			name: "first empty",
 			a:    []byte("{}"),
 			b:    []byte(`{"key":"value"}`),

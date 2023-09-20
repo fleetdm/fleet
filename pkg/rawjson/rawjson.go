@@ -39,6 +39,10 @@ func CombineRoots(a, b json.RawMessage) (json.RawMessage, error) {
 }
 
 func validate(j json.RawMessage) error {
+	if len(j) < 2 {
+		return errors.New("incomplete json object")
+	}
+
 	if j[0] != '{' || j[len(j)-1] != '}' {
 		return errors.New("json object must be surrounded by '{' and '}'")
 	}
