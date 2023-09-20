@@ -164,6 +164,7 @@
           .name__cell {
             .policy-name-cell {
               display: flex; // required for inline icon
+              gap: $pad-xsmall;
 
               .tooltip-base {
                 display: inline-flex;
