@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -1556,29 +1557,48 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, err
 	}
 
+	// The middleware checks that either Apple or Windows MDM are configured and
+	// enabled, but here we must check if the specific one is enabled for that
+	// particular host's platform.
+	var decryptCert *tls.Certificate
+	switch host.FleetPlatform() {
+	case "windows":
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			return nil, err
+		}
+
+		// use Microsoft's WSTEP certificate for decrypting
+		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+		}
+		decryptCert = cert
+
+	default:
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return nil, err
+		}
+
+		// use Apple's SCEP certificate for decrypting
+		cert, _, _, err := svc.config.MDM.AppleSCEP()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Apple SCEP certificate to decrypt key")
+		}
+		decryptCert = cert
+	}
+
 	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
-
 	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "getting host encryption key")
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
 	}
 
-	// TODO(mna): I don't think this is part of #13954, but this will need to be
-	// updated to support Windows encryption keys to use the WSTEP certificate
-	// instead of Apple SCEP.
-
-	cert, _, _, err := svc.config.MDM.AppleSCEP()
+	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+		return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
 	}
-
-	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
-	}
-
 	key.DecryptedValue = string(decryptedKey)
 
 	err = svc.ds.NewActivity(
