@@ -577,12 +577,12 @@ func (h *Host) IsEligibleForWindowsMDMUnenrollment() bool {
 		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
 }
 
-// NeedsBitLockerEnforcement checks if the host needs to enforce disk
+// IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
 // encryption using Fleet MDM features.
 //
 // Note: the *Host structs needs disk encryption data and MDM data filled in to
 // perform the check.
-func (h *Host) NeedsBitLockerEnforcement() bool {
+func (h *Host) IsEligibleForBitLockerEncryption() bool {
 	isServer := h.MDMInfo != nil && h.MDMInfo.IsServer
 	isWindows := h.FleetPlatform() == "windows"
 	needsEncryption := h.DiskEncryptionEnabled != nil && !*h.DiskEncryptionEnabled

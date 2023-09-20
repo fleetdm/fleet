@@ -267,7 +267,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 		if config.IsMDMFeatureFlagEnabled() &&
 			mdmConfig.MacOSSettings.EnableDiskEncryption &&
-			host.NeedsBitLockerEnforcement() {
+			host.IsEligibleForBitLockerEncryption() {
 			notifs.EnforceBitLockerEncryption = true
 		}
 
@@ -299,7 +299,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		config.IsMDMFeatureFlagEnabled() &&
 		appConfig.MDM.MacOSSettings.EnableDiskEncryption &&
-		host.NeedsBitLockerEnforcement() {
+		host.IsEligibleForBitLockerEncryption() {
 		notifs.EnforceBitLockerEncryption = true
 	}
 
