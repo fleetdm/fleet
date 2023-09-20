@@ -21,11 +21,10 @@ import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
-import EmptyTable from "components/EmptyTable/EmptyTable";
+import DataError from "components/DataError/DataError";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 import CachedDetails from "../components/CachedDetails/CachedDetails";
 import NoResults from "../components/NoResults/NoResults";
-import DataError from "components/DataError/DataError";
 
 interface IQueryDetailsPageProps {
   router: InjectedRouter; // v3
@@ -113,7 +112,7 @@ const QueryDetailsPage = ({
   );
 
   const isLoading = isStoredQueryLoading; // TODO: Add || isCachedResultsLoading for new API response
-  const isApiError = storedQueryError; // TODO: Add || isCachedResultsError for new API response
+  const isApiError = storedQueryError || true; // TODO: Add || isCachedResultsError for new API response
 
   const renderHeader = () => {
     const canEditQuery =
