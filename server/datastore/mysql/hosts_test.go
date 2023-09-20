@@ -6608,7 +6608,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 
 	// fill in disk encryption information
 	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true))
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hFleet.ID, "test-key")
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hFleet.ID, "test-key", "", nil)
 	require.NoError(t, err)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hFleet.ID}, true, time.Now())
 	require.NoError(t, err)
