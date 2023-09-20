@@ -199,11 +199,13 @@ const QueryDetailsPage = ({
   };
 
   const renderReport = () => {
-    const disabledSaving = true; // TODO: Update accordingly
-    const disabledSavingGlobally = true; // TODO: Update accordingly
-    const discardDataEnabled = true; // TODO: Update accordingly
+    const disabledSavingGlobally = true; // TODO: Update accordingly to config?.server_settings.query_reports_disabled
+    const discardDataEnabled = true; // TODO: Update accordingly to storedQuery?.discard_data
     const loggingSnapshot = storedQuery?.logging === "snapshot";
+    const disabledSaving =
+      disabledSavingGlobally || discardDataEnabled || loggingSnapshot;
 
+    // Returns how many seconds it takes to expect a cached update
     const secondsCheckbackTime = () => {
       const secondsSinceUpdate = storedQuery?.updated_at
         ? differenceInSeconds(new Date(), new Date(storedQuery?.updated_at))
@@ -212,67 +214,26 @@ const QueryDetailsPage = ({
       return secondsUpdateWaittime - secondsSinceUpdate;
     };
 
+    // Update status of collecting cached results
     const collectingResults = secondsCheckbackTime() > 0;
     const noResults = secondsCheckbackTime() <= 0;
 
+    // Converts seconds takes to update to human readable format
     const readableCheckbackTime = formatDistance(
       add(new Date(), { seconds: secondsCheckbackTime() }),
       new Date()
     );
 
-    const collectingResultsInfo = () =>
-      `Fleet is collecting query results. Check back in about ${readableCheckbackTime}.`;
-
-    const noResultsInfo = () => {
-      if (!storedQuery?.interval) {
-        return (
-          <>
-            This query does not collect data on a schedule. Add a{" "}
-            <strong>frequency</strong> or run this as a live query to see
-            results.
-          </>
-        );
-      }
-      if (disabledSaving) {
-        // TODO: Where's the tooltip underline?
-        const tipContent = () => {
-          if (disabledSavingGlobally) {
-            return "The following setting prevents saving this query's results in Fleet:<ul><li>Query reports are globally disabled in organization settings.</li></ul>";
-          }
-          if (discardDataEnabled) {
-            return "The following setting prevents saving this query's results in Fleet:<ul><li>This query has Discard data enabled.</li></ul>";
-          }
-          if (!loggingSnapshot) {
-            return "The following setting prevents saving this query's results in Fleet:<ul><li>The logging setting for this query is not Snapshot.</li></ul>";
-          }
-          return "Unknown";
-        };
-        return (
-          <>
-            Results from this query are{" "}
-            <TooltipWrapper tipContent={tipContent()}>
-              not reported in Fleet
-            </TooltipWrapper>
-            .
-          </>
-        );
-      }
-      if (errorsOnly) {
-        return (
-          <>
-            This query had trouble collecting data on some hosts. Check out the{" "}
-            <strong>Errors</strong> tab to see why.
-          </>
-        );
-      }
-      return "This query has returned no data so far.";
-    };
-
+    // Loading state
     if (isStoredQueryLoading) {
       return <Spinner />;
     }
 
+    // Collecting results state
     if (collectingResults) {
+      const collectingResultsInfo = () =>
+        `Fleet is collecting query results. Check back in about ${readableCheckbackTime}.`;
+
       return (
         <EmptyTable
           iconName="collecting-results"
@@ -282,7 +243,52 @@ const QueryDetailsPage = ({
       );
     }
 
+    // No results state with varying messages explaining why there's no results
     if (noResults) {
+      const noResultsInfo = () => {
+        if (!storedQuery?.interval) {
+          return (
+            <>
+              This query does not collect data on a schedule. Add a{" "}
+              <strong>frequency</strong> or run this as a live query to see
+              results.
+            </>
+          );
+        }
+        if (disabledSaving) {
+          const tipContent = () => {
+            if (disabledSavingGlobally) {
+              return "The following setting prevents saving this query's results in Fleet:<ul><li>Query reports are globally disabled in organization settings.</li></ul>";
+            }
+            if (discardDataEnabled) {
+              return "The following setting prevents saving this query's results in Fleet:<ul><li>This query has Discard data enabled.</li></ul>";
+            }
+            if (!loggingSnapshot) {
+              return "The following setting prevents saving this query's results in Fleet:<ul><li>The logging setting for this query is not Snapshot.</li></ul>";
+            }
+            return "Unknown";
+          };
+          return (
+            <>
+              Results from this query are{" "}
+              <TooltipWrapper tipContent={tipContent()}>
+                not reported in Fleet
+              </TooltipWrapper>
+              .
+            </>
+          );
+        }
+        if (errorsOnly) {
+          return (
+            <>
+              This query had trouble collecting data on some hosts. Check out
+              the <strong>Errors</strong> tab to see why.
+            </>
+          );
+        }
+        return "This query has returned no data so far.";
+      };
+
       return (
         <EmptyTable
           iconName="empty-software"

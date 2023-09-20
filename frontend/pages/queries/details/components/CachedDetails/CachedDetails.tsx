@@ -1,6 +1,6 @@
 import React from "react";
 
-// TODO
+// TODO: This whole section
 // interface ICachedDetailsProps {
 //
 // }
