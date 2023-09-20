@@ -60,4 +60,5 @@ module.exports.policies = {
   'view-vulnerability-management': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,
+  'view-integrations': true,
 };

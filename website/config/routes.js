@@ -309,6 +309,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /integrations': {
+    action: 'view-integrations',
+    locals: {
+      pageTitleForMeta: 'Integrations | Fleet for osquery',
+      pageDescriptionForMeta: 'TODO',
+      currentSection: 'product'
+    }
+  },
+
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
