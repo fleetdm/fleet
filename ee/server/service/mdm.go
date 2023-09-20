@@ -964,3 +964,51 @@ func teamNameFromPreassignGroups(groups []string) string {
 
 	return strings.Join(groups, " - ")
 }
+
+func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*fleet.MDMDiskEncryptionSummary, error) {
+	// TODO: Consider adding a new generic OSSetting type or Windows-specific type for authz checks
+	// like this.
+	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	var macOS fleet.MDMAppleFileVaultSummary
+	if m, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting filevault summary")
+	} else if m != nil {
+		macOS = *m
+	}
+
+	var windows fleet.MDMWindowsBitLockerSummary
+	if w, err := svc.ds.GetMDMWindowsBitLockerSummary(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting bitlocker summary")
+	} else if w != nil {
+		windows = *w
+	}
+
+	return &fleet.MDMDiskEncryptionSummary{
+		Verified: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Verified,
+			Windows: windows.Verified,
+		},
+		Verifying: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Verifying,
+			Windows: windows.Verifying,
+		},
+		ActionRequired: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.ActionRequired,
+			Windows: windows.ActionRequired,
+		},
+		Enforcing: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Enforcing,
+			Windows: windows.Enforcing,
+		},
+		Failed: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Failed,
+			Windows: windows.Failed,
+		},
+		RemovingEnforcement: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.RemovingEnforcement,
+			Windows: windows.RemovingEnforcement,
+		},
+	}, nil
+}

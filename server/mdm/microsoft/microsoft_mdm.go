@@ -1,7 +1,11 @@
 package microsoft_mdm
 
 import (
+	"crypto/x509"
+	"encoding/base64"
+
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
+	"go.mozilla.org/pkcs7"
 )
 
 const (
@@ -274,4 +278,15 @@ func ResolveWindowsMDMAuth(serverURL string) (string, error) {
 
 func ResolveWindowsMDMManagement(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2ManagementPath, false)
+}
+
+// Encrypt uses pkcs7 to encrypt a raw value using the provided certificate.
+// The returned encrypted value is base64-encoded.
+func Encrypt(rawValue string, cert *x509.Certificate) (string, error) {
+	encrypted, err := pkcs7.Encrypt([]byte(rawValue), []*x509.Certificate{cert})
+	if err != nil {
+		return "", err
+	}
+	b64Enc := base64.StdEncoding.EncodeToString(encrypted)
+	return b64Enc, nil
 }

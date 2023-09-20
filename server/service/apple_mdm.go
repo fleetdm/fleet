@@ -610,7 +610,6 @@ func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{
 	}, nil
 }
 
-// QUESTION: workflow for developing new APIs? whats your setup quickly test code working?
 func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
 	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)

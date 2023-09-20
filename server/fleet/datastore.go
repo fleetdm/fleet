@@ -688,12 +688,12 @@ type Datastore interface {
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
-	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error
+	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:
 	// we're able to decrypt the key using a private key in the server)
 	GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]HostDiskEncryptionKey, error)
-	// SetHostDiskEncryptionKeyStatus sets the encryptable status for the set
+	// SetHostsDiskEncryptionKeyStatus sets the encryptable status for the set
 	// of encription keys provided
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
@@ -1020,6 +1020,11 @@ type Datastore interface {
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
 	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+
+	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
+	// each Windows host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*MDMWindowsBitLockerSummary, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results

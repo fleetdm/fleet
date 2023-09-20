@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -89,4 +90,51 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevi
 	}
 
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+}
+
+const (
+	whereBitLockerVerified = `hmdm.is_server = 0 AND hdek.decryptable = 1`
+	whereBitLockerPending  = `hmdm.is_server = 0 AND (hdek.host_id IS NULL OR (hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = ''))`
+	whereBitLockerFailed   = `hmdm.is_server = 0 AND hdek.host_id IS NOT NULL AND hdek.client_error != ''`
+)
+
+func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
+	enabled, err := ds.getConfigEnableDiskEncryption(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return &fleet.MDMWindowsBitLockerSummary{}, nil
+	}
+
+	// Note verifying, action_required, and removing_enforcement are not applicable to Windows hosts
+	sqlFmt := `
+SELECT
+    COUNT(if(%s, 1, NULL)) AS verified,
+    0 AS verifying,
+    0 AS action_required,
+    COUNT(if(%s, 1, NULL)) AS enforcing,
+    COUNT(if(%s, 1, NULL)) AS failed,
+    0 AS removing_enforcement
+FROM
+    hosts h
+    LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
+	LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
+WHERE
+    h.platform = 'windows' AND hmdm.is_server = 0 AND %s`
+
+	var args []interface{}
+	teamFilter := "h.team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = "h.team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	var res fleet.MDMWindowsBitLockerSummary
+	stmt := fmt.Sprintf(sqlFmt, whereBitLockerVerified, whereBitLockerPending, whereBitLockerFailed, teamFilter)
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+		return nil, err
+	}
+
+	return &res, nil
 }
