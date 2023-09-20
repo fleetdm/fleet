@@ -220,11 +220,11 @@ func (ds *Datastore) getConfigEnableDiskEncryption(ctx context.Context, teamID *
 		if err != nil {
 			return false, err
 		}
-		return tc.MacOSSettings.EnableDiskEncryption, nil
+		return tc.EnableDiskEncryption, nil
 	}
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return false, err
 	}
-	return ac.MDM.MacOSSettings.EnableDiskEncryption, nil
+	return ac.MDM.EnableDiskEncryption.Value, nil
 }
