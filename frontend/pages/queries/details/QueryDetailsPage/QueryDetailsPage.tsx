@@ -113,7 +113,7 @@ const QueryDetailsPage = ({
   );
 
   const isLoading = isStoredQueryLoading; // TODO: Add || isCachedResultsLoading for new API response
-  const isApiError = storedQueryError || true; // TODO: Add || isCachedResultsError for new API response
+  const isApiError = storedQueryError; // TODO: Add || isCachedResultsError for new API response
 
   const renderHeader = () => {
     const canEditQuery =
