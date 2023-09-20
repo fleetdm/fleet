@@ -2562,6 +2562,35 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
 }
 
+func (s *integrationEnterpriseTestSuite) TestWindowsMDMNotConfigured() {
+	t := s.T()
+
+	// create a host with device token to test device authenticated routes
+	tkn := "D3V1C370K3N"
+	createHostAndDeviceToken(t, s.ds, tkn)
+
+	for _, route := range mdmWindowsConfigurationRequiredEndpoints() {
+		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
+		path := route.path
+		if route.deviceAuthenticated {
+			path = fmt.Sprintf(route.path, tkn)
+		}
+
+		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, expectedErr.Error())
+	}
+
+	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+	t.Cleanup(fleetdmSrv.Close)
+
+	// Always accessible
+	// TODO: add any windows specific routes here
+}
+
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical"}
 
@@ -2912,8 +2941,9 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(
 		ctx, fleet.SoftwareVulnerability{
-			SoftwareID: bar.ID,
-			CVE:        "cve-123",
+			SoftwareID:        bar.ID,
+			CVE:               "cve-123",
+			ResolvedInVersion: "1.2.3",
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
@@ -2955,6 +2985,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, ptr.BoolPtr(true))
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, ptr.StringPtr("a long description of the cve"))
+	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
 }
 
 // TestGitOpsUserActions tests the permissions listed in ../../docs/Using-Fleet/Permissions.md.
