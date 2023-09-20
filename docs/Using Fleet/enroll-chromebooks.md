@@ -13,34 +13,8 @@ To see the available tables for ChromeOS, visit [here](https://fleetdm.com/table
 ## Setting the hostname
 By default, the hostname for a Chromebook host will be blank. The hostname can be customized in Google Admin under Devices > Chrome > Settings > Device > Device Settings > Other Settings > [Device network hostname template](https://support.google.com/chrome/a/answer/1375678#zippy=%2Cdevice-network-hostname-template%2Creport-device-os-information).
 
-## Current limitations in ChromeOS
-- Scheduled queries are currently not available in ChromeOS
-- The Fleetd Chrome extension must be force-installed by enterprise policy in order to have full access to the host's data.
-- More tables that could be added:
-  - `disk_events`: https://github.com/fleetdm/fleet/issues/12405
-  - `client_certificates`: https://github.com/fleetdm/fleet/issues/12465
-  - `usb_devices`: https://github.com/fleetdm/fleet/issues/12780
-
 ## Debugging ChromeOS
 To learn how to debug the Fleetd Chrome extension, visit [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#fleetd-chrome-extension).
-
-## Potential issues and troubleshooting: 
-- 1 The extension does not install on our Chromebooks.
-- 2 Chrome web browsers on other OSs (Mac/Linux/Windows) get this extension (where it's not needed).
-
-Google Admin is arranged in a hierarchy of Organizational Units (OUs) tree. Each of the OUs can hold a combination of USERs and/or DEVICEs.
-Chrome extensions can be set for a specific OU (force-installed, allow-install or block). However, extensions can only be set at USERs level (not DEVICES).
-If a Chrome extension is deployed to an OU that only has DEVICES, it will not be installed. 
-On the other hand, if you deploy an extension to an OU that hold USERS with both ChromeBooks and
-managed Chrome web browsers (e.g. Chrome browser on a MacBook), it will deploy the extension to these Chrome web browsers.
-
-### Our recommendation: 
-- Create an OU that will hold all USERs with Chromebooks. Deploy our extension to that OU (Force-Install).
-- Create an OU that will hold all managed Chrome web browsers of the USERS above (Do not put the USERS in this OU, Just the managed Chrome web browsers). Make sure our extension is blocked on this OU. 
-
-> Note: When deployed on OSs other than ChromeOS, our Chrome extension will detect it and not perform any operation.  
-
-
 <meta name="title" value="Enroll Chromebooks">
 <meta name="pageOrderInSection" value="2000">
 <meta name="navSection" value="Dig deeper">
