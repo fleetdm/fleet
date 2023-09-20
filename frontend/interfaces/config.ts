@@ -29,6 +29,7 @@ export interface IMacOsMigrationSettings {
 }
 
 export interface IMdmConfig {
+  enable_disk_encryption: boolean;
   enabled_and_configured: boolean;
   apple_bm_default_team?: string;
   apple_bm_terms_expired: boolean;
@@ -202,7 +203,7 @@ export interface IConfig {
   };
   mdm: IMdmConfig;
   /** This is the flag that determines if the windwos mdm feature flag is enabled.
-      TODO: remove when windows MDM is released. Only used for windows MDM dev currently.
+      TODO: WINDOWS FEATURE FLAG: remove when windows MDM is released. Only used for windows MDM dev currently.
   */
   mdm_enabled?: boolean;
 }

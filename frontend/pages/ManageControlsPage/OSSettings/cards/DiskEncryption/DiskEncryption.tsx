@@ -31,7 +31,7 @@ const DiskEncryption = ({
 
   const defaultShowDiskEncryption = currentTeamId
     ? false
-    : config?.mdm.macos_settings.enable_disk_encryption ?? false;
+    : config?.mdm.enable_disk_encryption ?? false;
 
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
 
@@ -67,8 +67,7 @@ const DiskEncryption = ({
       enabled: currentTeamId !== 0,
       select: (res) => res.team,
       onSuccess: (res) => {
-        const enableDiskEncryption =
-          res.mdm?.macos_settings.enable_disk_encryption ?? false;
+        const enableDiskEncryption = res.mdm?.enable_disk_encryption ?? false;
         setDiskEncryptionEnabled(enableDiskEncryption);
         setShowAggregate(enableDiskEncryption);
         setIsLoadingTeam(false);
