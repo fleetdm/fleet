@@ -4,6 +4,8 @@
     max-width: 1200px;
     padding-top: 80px;
     padding-bottom: 20px;
+    padding-left: 0px;
+    padding-right: 0px;
   }
   [purpose='page-heading'] {
     margin-bottom: 32px;
@@ -31,6 +33,11 @@
     margin-left: -12px;
     margin-right: -12px;
     margin-bottom: 36px;
+  }
+  [purpose='integration-card'].invisible {
+    max-width: none;
+    height: 0px;
+    padding: 0;
   }
   [purpose='integration-card'] {
     padding: 40px;
@@ -115,7 +122,60 @@
       margin-top: 16px;
       margin-bottom: 16px;
     }
-
   }
 
+  @media (max-width: 1400px) {
+    [purpose='page-container'] {
+      max-width: 1200px;
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+    [purpose='integration-card'] {
+      padding: 40px;
+      max-width: 384px;
+      min-width: auto;
+      height: 232px;
+      border-radius: 16px;
+      flex: 1 1 357px;
+      margin-bottom: 24px;
+      margin-left: 12px;
+      margin-right: 12px;
+    }
+  }
+  @media (max-width: 1200px) {
+    [purpose='integration-card'] {
+      max-width: none;
+      min-width: 384px;
+    }
+  }
+  @media (max-width: 991px) {
+    [purpose='integration-card'] {
+      padding: 40px;
+      max-width: none;
+      min-width: auto;
+      height: 232px;
+      border-radius: 16px;
+      flex: 1 1 332px;
+    }
+  }
+  @media (max-width: 768px) {
+    [purpose='page-container'] {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+  }
+  @media (max-width: 576px) {
+    [purpose='page-container'] {
+      padding-top: 40px;
+    }
+    [purpose='integration-card'] {
+      padding: 40px;
+      min-width: auto;
+      height: auto;
+      border-radius: 16px;
+      flex: 1 1 auto;
+      margin-left: 12px;
+      margin-right: 12px;
+    }
+  }
 }

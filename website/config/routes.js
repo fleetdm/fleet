@@ -314,7 +314,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Integrations | Fleet for osquery',
       pageDescriptionForMeta: 'TODO',
-      currentSection: 'product'
+      currentSection: 'platform'
     }
   },
 
