@@ -307,7 +307,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 ## Intake
 
 - [Making a request](#making-a-request)
-- [How features are evaluated](#how-features-are-evaluated)
+- [How feature requests are evaluated](#how-feature-requests-are-evaluated)
 - [After the feature is accepted](#after-the-feature-is-accepted)
 - [Why this way?](#why-this-way)
 
@@ -315,7 +315,7 @@ To stay in-sync with our customers' needs, Fleet accepts feature requests from c
 
 ### Making a request
 
-To make a feature request or advocate for a feature request from a customer or community member, add your request to the list in the [🎁🗣 Feature Fest agenda](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q) and attend the next scheduled 🎁🗣 Feature Fest meeting. 
+To make a feature request or advocate for a feature request from a customer or community member, [create an issue] (https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~customer+request&projects=&template=feature-request.md&title=) and attend the next scheduled 🎁🗣 Feature Fest meeting. 
 
 Requests are weighed from top to bottom while prioritizing attendee requests. This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
@@ -323,6 +323,7 @@ To be acceptable for consideration, a request must:
 - Have a clear proposed change
 - Have a well-articulated underlying user need
 - Specify the requestor (either internal stakeholder or customer or community user)
+- Include the Feature Fest and customer labels (if applicable) 
 
 To help the product team, other pieces of information can be optionally included:
 - How would they solve the problem without any changes if pressed?
@@ -334,11 +335,11 @@ To maximize your chances of having a feature accepted, requesters can visit the 
 ### How feature requests are evaluated
 Digestion of these new product ideas (requests) happens at the **🎁🗣 Feature Fest** meeting.
 
-At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all requests in the agenda. When the team weighs a request, it is immediately prioritized or put to the side.
+At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all requests on the board. When the team weighs a request, it is immediately prioritized or put to the side.
 - A _request is prioritized_ when the DRI decides it is a priority. When this happens, the team sets the request to be estimated within five business days.
 - A _request is put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
 
-If a feature is not prioritized, it only means that the feature has been rejected _at that time_. It is up to the requestor to bring the request back again at another 🎁🗣 Feature Fest meeting.
+If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Head of Product, and they can resubmit their request at a future meeting.
 
 Requests are weighed by:
 - The completeness of the request (see [making a request](#making-a-request))
@@ -347,11 +348,16 @@ Requests are weighed by:
 - How well the request fits within Fleet's product vision and roadmap
 - Whether the feature seems like it can be designed, estimated, and developed in 6 weeks, given its individual complexity and when combined with other work already accepted
 
+### Customer Feature Requests 
+The product team's goal is to prioritize 16 customer feature requests at Feature Fest, then take them from settled to shipped. The customer success team is responsible for providing the Head of Prouct a live count during the Feature Fest meeting. Product Operations is responsible for monitoring this KPI and raising alarms throughout the design and engineering sprints. 
+> Customer stories should be estimated at 1-3 points each to count as 1 request. If a feature request spans across multiple customers, it will be counted as the number of customers invovled. 
+
 ### After the feature is accepted
-- After the 🎁🗣 Feature Fest meeting, the Head of Product resets the agenda to blank by doing the following:
-  - Create issues for accepted items
-  - Notify absent requesters of decisions
-  - Move that week's feature requests to the backup journal document
+After the 🎁🗣 Feature Fest meeting, Product Operations will clear the Feature Fest board as follows:
+**Prioritized features:** Remove `feature fest` label, add `:product` label, and assign the group Product Manager. 
+**Put to the side features:** Remove `feature fest` label and close the issue.
+
+Group Product Managers will then develop user stories for the prioritized features. 
 
 > The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature. 
 
