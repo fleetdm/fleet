@@ -37,7 +37,7 @@ Internal meetings can sometimes be moved to make room. External meetings, blocke
 - **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](#why-not-mention-the-ceo-in-slack-threads).
 
 ### Request equipment from Fleet IT
-The Apprentice fulfills equipment requests once per week.  [Submit an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&projects=&template=custom-request.md&title=Ship%20equipment%3A+_______________________), including precisely which item you need and where you need it shipped.  The Apprentice will get back to you within one business day.
+The Apprentice fulfills equipment requests once per week.  Follow the process for [buying new equipment](https://fleetdm.com/handbook/company/communications#buying-other-new-equipment) and submit an [equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request). 
 
 
 ## Why not mention the CEO in Slack threads?
