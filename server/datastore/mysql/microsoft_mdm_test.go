@@ -101,36 +101,43 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		}
 	}
 
-	type hostIDsByStatus struct {
-		Verified            []uint
-		Verifying           []uint
-		Failed              []uint
-		Enforcing           []uint
-		RemovingEnforcement []uint
-		ActionRequired      []uint
+	checkHostBitLockerStatus := func(t *testing.T, expected fleet.DiskEncryptionStatus, hostIDs []uint) {
+		for _, id := range hostIDs {
+			h, err := ds.Host(ctx, id)
+			require.NoError(t, err)
+			require.NotNil(t, h)
+			bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
+			require.NoError(t, err)
+			require.NotNil(t, bls)
+			require.Equal(t, expected, *bls)
+		}
 	}
 
-	checkExpectedByStatus := func(t *testing.T, teamID *uint, expected hostIDsByStatus) {
+	type hostIDsByStatus map[fleet.DiskEncryptionStatus][]uint
+
+	checkExpected := func(t *testing.T, teamID *uint, expected hostIDsByStatus) {
+		for status, hostIDs := range expected {
+			checkListHostsFilterDiskEncryption(t, teamID, status, hostIDs)
+			checkHostBitLockerStatus(t, status, hostIDs)
+		}
+
 		checkBitLockerSummary(t, teamID, fleet.MDMWindowsBitLockerSummary{
-			Verified:            uint(len(expected.Verified)),
-			Verifying:           uint(len(expected.Verifying)),
-			Failed:              uint(len(expected.Failed)),
-			Enforcing:           uint(len(expected.Enforcing)),
-			RemovingEnforcement: uint(len(expected.RemovingEnforcement)),
-			ActionRequired:      uint(len(expected.ActionRequired)),
+			Verified:            uint(len(expected[fleet.DiskEncryptionVerified])),
+			Verifying:           uint(len(expected[fleet.DiskEncryptionVerifying])),
+			Failed:              uint(len(expected[fleet.DiskEncryptionFailed])),
+			Enforcing:           uint(len(expected[fleet.DiskEncryptionEnforcing])),
+			RemovingEnforcement: uint(len(expected[fleet.DiskEncryptionRemovingEnforcement])),
+			ActionRequired:      uint(len(expected[fleet.DiskEncryptionActionRequired])),
 		})
 
-		checkListHostsFilterDiskEncryption(t, teamID, fleet.DiskEncryptionVerified, expected.Verified)
-		checkListHostsFilterDiskEncryption(t, teamID, fleet.DiskEncryptionVerifying, expected.Verifying)
-		checkListHostsFilterDiskEncryption(t, teamID, fleet.DiskEncryptionFailed, expected.Failed)
-		checkListHostsFilterDiskEncryption(t, teamID, fleet.DiskEncryptionEnforcing, expected.Enforcing)
-		checkListHostsFilterDiskEncryption(t, teamID, fleet.DiskEncryptionRemovingEnforcement, expected.RemovingEnforcement)
-		checkListHostsFilterDiskEncryption(t, teamID, fleet.DiskEncryptionActionRequired, expected.ActionRequired)
-
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerified, expected.Verified)
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerifying, expected.Verifying)
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsFailed, expected.Failed)
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsPending, expected.Enforcing)
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerified, expected[fleet.DiskEncryptionVerified])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerifying, expected[fleet.DiskEncryptionVerifying])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsFailed, expected[fleet.DiskEncryptionFailed])
+		var expectedPending []uint
+		expectedPending = append(expectedPending, expected[fleet.DiskEncryptionEnforcing]...)
+		expectedPending = append(expectedPending, expected[fleet.DiskEncryptionRemovingEnforcement]...)
+		expectedPending = append(expectedPending, expected[fleet.DiskEncryptionActionRequired]...)
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsPending, expectedPending)
 	}
 
 	// Create some hosts
@@ -164,7 +171,7 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		// TODO: Update test to rely on MDM.EnableDiskEncryption when it is implemented
 		require.False(t, ac.MDM.MacOSSettings.EnableDiskEncryption)
 
-		checkExpectedByStatus(t, nil, hostIDsByStatus{}) // no hosts are counted because disk encryption is not enabled
+		checkExpected(t, nil, hostIDsByStatus{}) // no hosts are counted because disk encryption is not enabled
 	})
 
 	t.Run("Disk encryption enabled", func(t *testing.T) {
@@ -176,8 +183,8 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ac.MDM.MacOSSettings.EnableDiskEncryption)
 
-		checkExpectedByStatus(t, nil, hostIDsByStatus{
-			Enforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID}, // all windows hosts are counted
+		checkExpected(t, nil, hostIDsByStatus{
+			fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID}, // all windows hosts are counted
 		})
 	})
 
@@ -191,9 +198,9 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 				"")
 			return err
 		})
-		checkExpectedByStatus(t, nil, hostIDsByStatus{
-			Verified:  []uint{hosts[0].ID},
-			Enforcing: []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+		checkExpected(t, nil, hostIDsByStatus{
+			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+			fleet.DiskEncryptionEnforcing: []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 		})
 	})
 
@@ -208,10 +215,10 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 			return err
 		})
 
-		checkExpectedByStatus(t, nil, hostIDsByStatus{
-			Verified:  []uint{hosts[0].ID},
-			Failed:    []uint{hosts[1].ID},
-			Enforcing: []uint{hosts[2].ID, hosts[3].ID, hosts[4].ID},
+		checkExpected(t, nil, hostIDsByStatus{
+			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+			fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+			fleet.DiskEncryptionEnforcing: []uint{hosts[2].ID, hosts[3].ID, hosts[4].ID},
 		})
 	})
 
@@ -229,13 +236,13 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		require.NoError(t, ds.AddHostsToTeam(ctx, &team.ID, []uint{hosts[2].ID}))
 
 		// Check the summary for the team
-		checkExpectedByStatus(t, &team.ID, hostIDsByStatus{}) // disk encryption is not enabled for team so hosts[2] is not counted
+		checkExpected(t, &team.ID, hostIDsByStatus{}) // disk encryption is not enabled for team so hosts[2] is not counted
 
 		// Check the summary for no team
-		checkExpectedByStatus(t, nil, hostIDsByStatus{
-			Verified:  []uint{hosts[0].ID},
-			Failed:    []uint{hosts[1].ID},
-			Enforcing: []uint{hosts[3].ID, hosts[4].ID}, // hosts[2] is no longer included in the no team summary
+		checkExpected(t, nil, hostIDsByStatus{
+			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+			fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+			fleet.DiskEncryptionEnforcing: []uint{hosts[3].ID, hosts[4].ID}, // hosts[2] is no longer included in the no team summary
 		})
 
 		// Enable disk encryption for the team
@@ -246,15 +253,15 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		require.True(t, tm.Config.MDM.MacOSSettings.EnableDiskEncryption)
 
 		// Check the summary for the team
-		checkExpectedByStatus(t, &team.ID, hostIDsByStatus{
-			Enforcing: []uint{hosts[2].ID}, // disk encryption is enabled for team so hosts[2] is counted
+		checkExpected(t, &team.ID, hostIDsByStatus{
+			fleet.DiskEncryptionEnforcing: []uint{hosts[2].ID}, // disk encryption is enabled for team so hosts[2] is counted
 		})
 
 		// Check the summary for no team (should be unchanged)
-		checkExpectedByStatus(t, nil, hostIDsByStatus{
-			Verified:  []uint{hosts[0].ID},
-			Failed:    []uint{hosts[1].ID},
-			Enforcing: []uint{hosts[3].ID, hosts[4].ID},
+		checkExpected(t, nil, hostIDsByStatus{
+			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+			fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+			fleet.DiskEncryptionEnforcing: []uint{hosts[3].ID, hosts[4].ID},
 		})
 	})
 
@@ -265,10 +272,10 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 			true, "https://example.com", false, fleet.WellKnownMDMFleet))
 
 		// Check Windows servers not counted
-		checkExpectedByStatus(t, nil, hostIDsByStatus{
-			Verified:  []uint{hosts[0].ID},
-			Failed:    []uint{hosts[1].ID},
-			Enforcing: []uint{hosts[4].ID}, // hosts[3] is not counted
+		checkExpected(t, nil, hostIDsByStatus{
+			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+			fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+			fleet.DiskEncryptionEnforcing: []uint{hosts[4].ID}, // hosts[3] is not counted
 		})
 	})
 

@@ -146,7 +146,6 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 	}
 
 	if host.MDMInfo != nil && host.MDMInfo.IsServer {
-		// TODO: confirm this is what we want to do
 		return nil, nil
 	}
 
@@ -155,7 +154,6 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, err
 	}
 	if !enabled {
-		// TODO: confirm this is what we want to do
 		return nil, nil
 	}
 

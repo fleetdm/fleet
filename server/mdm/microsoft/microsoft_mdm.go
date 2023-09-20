@@ -1,8 +1,6 @@
 package microsoft_mdm
 
-import (
-	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
-)
+import "github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 
 const (
 	// MDMPath is Fleet's HTTP path for the core Windows MDM service.

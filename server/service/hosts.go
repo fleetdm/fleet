@@ -917,7 +917,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
 				}
-				host.MDM.OSSettings = &fleet.HostMDMOSSettings{
+				host.MDM.OSSettings = fleet.HostMDMOSSettings{
 					DiskEncryption: fleet.HostMDMDiskEncryption{
 						Status: bls,
 					},
@@ -932,7 +932,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			// determine disk encryption and action required here based on profiles and
 			// raw decryptable key status.
 			host.MDM.DetermineMacOSDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
-			host.MDM.OSSettings = &fleet.HostMDMOSSettings{
+			host.MDM.OSSettings = fleet.HostMDMOSSettings{
 				DiskEncryption: fleet.HostMDMDiskEncryption{
 					Status: host.MDM.MacOSSettings.DiskEncryption,
 				},
