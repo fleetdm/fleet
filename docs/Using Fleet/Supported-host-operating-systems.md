@@ -6,7 +6,7 @@ Fleet supports the following operating system versions on hosts.
 
 | OS      | Supported version(s)                    |
 | :------ | :-------------------------------------  |
-| MacOS   | 10.12+                                  |
+| MacOS   | 12+                                  |
 | Windows | 10+                                     |
 | Linux   | CentOS 7.1+,  Ubuntu 16.04+             |
 | ChromeOS | 112.0.5615.134+                        |
