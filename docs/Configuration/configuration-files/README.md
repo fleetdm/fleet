@@ -128,6 +128,8 @@ Currently enrolled hosts do not necessarily need enroll secrets updated, as the 
 
 Deploying a new enroll secret cannot be done centrally from Fleet.
 
+> Enroll secrets must be alphanumeric and should not contain special characters. 
+
 ### Multiple enroll secrets
 
 Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
