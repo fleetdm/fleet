@@ -213,8 +213,7 @@ const QueryResults = ({
     // TODO - clean up these conditions
     const hasNoResultsYet =
       !isQueryFinished && (!queryResults?.length || tableHeaders === null);
-    const finishedWithNoResults =
-      isQueryFinished && (!queryResults?.length || !hostsCount.successful);
+    const finishedWithNoResults = isQueryFinished && !queryResults?.length;
 
     if (hasNoResultsYet) {
       return <AwaitingResults />;

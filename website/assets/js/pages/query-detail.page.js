@@ -13,6 +13,9 @@ parasails.registerPage('query-detail', {
     //…
   },
   mounted: async function () {
+    $('pre code').each((i, block) => {
+      window.hljs.highlightElement(block);
+    });
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

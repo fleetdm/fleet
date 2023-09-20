@@ -478,7 +478,7 @@ type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAv
 
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
-type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, encryptedBase64Key string) error
+type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, encryptedBase64Key string, clientError string, decryptable *bool) error
 
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
@@ -669,6 +669,8 @@ type MDMWindowsGetEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID strin
 type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error
 
 type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) error
+
+type GetMDMWindowsBitLockerSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -1656,6 +1658,9 @@ type DataStore struct {
 
 	MDMWindowsDeleteEnrolledDeviceFunc        MDMWindowsDeleteEnrolledDeviceFunc
 	MDMWindowsDeleteEnrolledDeviceFuncInvoked bool
+
+	GetMDMWindowsBitLockerSummaryFunc        GetMDMWindowsBitLockerSummaryFunc
+	GetMDMWindowsBitLockerSummaryFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -3282,11 +3287,11 @@ func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID u
 	return s.SetOrUpdateHostDisksEncryptionFunc(ctx, hostID, encrypted)
 }
 
-func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string, clientError string, decryptable *bool) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, hostID, encryptedBase64Key)
+	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, hostID, encryptedBase64Key, clientError, decryptable)
 }
 
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
@@ -3952,6 +3957,13 @@ func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevic
 	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsBitLockerSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsBitLockerSummaryFunc(ctx, teamID)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

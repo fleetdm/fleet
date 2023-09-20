@@ -790,6 +790,17 @@ type Service interface {
 	// GetMDMWindowsTOSContent returns TOS content
 	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
 
+	// Set or update the disk encryption key for a host.
+	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Common MDM
+
+	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS and
+	// Windows hosts in the specified team (or, if no team is specified, each host that is not
+	// assigned to any team).
+	GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*MDMDiskEncryptionSummary, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution
 
