@@ -266,6 +266,12 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 		}
 
+		if config.IsMDMFeatureFlagEnabled() &&
+			mdmConfig.MacOSSettings.EnableDiskEncryption &&
+			host.IsEligibleForBitLockerEncryption() {
+			notifs.EnforceBitLockerEncryption = true
+		}
+
 		return fleet.OrbitConfig{
 			Flags:         opts.CommandLineStartUpFlags,
 			Extensions:    opts.Extensions,
@@ -289,6 +295,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if err != nil {
 			return fleet.OrbitConfig{Notifications: notifs}, err
 		}
+	}
+
+	if appConfig.MDM.WindowsEnabledAndConfigured &&
+		config.IsMDMFeatureFlagEnabled() &&
+		appConfig.MDM.MacOSSettings.EnableDiskEncryption &&
+		host.IsEligibleForBitLockerEncryption() {
+		notifs.EnforceBitLockerEncryption = true
 	}
 
 	return fleet.OrbitConfig{
