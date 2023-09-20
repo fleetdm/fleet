@@ -15,7 +15,11 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
-import { addGravatarUrlToResource, secondsToDhms } from "utilities/helpers";
+import {
+  addGravatarUrlToResource,
+  secondsToDhms,
+  TAGGED_TEMPLATES,
+} from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
@@ -68,6 +72,7 @@ interface IQueryFormProps {
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
+  hostId?: number;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -114,6 +119,7 @@ const QueryForm = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
   backendValidators,
+  hostId,
 }: IQueryFormProps): JSX.Element => {
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -587,7 +593,11 @@ const QueryForm = ({
             className={`${baseClass}__run`}
             variant="blue-green"
             onClick={() => {
-              queryIdForEdit && router.push(PATHS.RUN_QUERY(queryIdForEdit));
+              queryIdForEdit &&
+                router.push(
+                  PATHS.RUN_QUERY(queryIdForEdit) +
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                );
             }}
           >
             Live query
@@ -763,7 +773,11 @@ const QueryForm = ({
               className={`${baseClass}__run`}
               variant="blue-green"
               onClick={() => {
-                queryIdForEdit && router.push(PATHS.RUN_QUERY(queryIdForEdit));
+                queryIdForEdit &&
+                  router.push(
+                    PATHS.RUN_QUERY(queryIdForEdit) +
+                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                  );
               }}
             >
               Live query

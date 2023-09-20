@@ -39,7 +39,11 @@ import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  normalizeEmptyValues,
+  wrapFleetHelper,
+  TAGGED_TEMPLATES,
+} from "utilities/helpers";
 import permissions from "utilities/permissions";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -98,12 +102,6 @@ interface IHostDetailsSubNavItem {
   title: string;
   pathname: string;
 }
-
-const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId: number | undefined | null) => {
-    return `${hostId ? `?host_ids=${hostId}` : ""}`;
-  },
-};
 
 const HostDetailsPage = ({
   route,

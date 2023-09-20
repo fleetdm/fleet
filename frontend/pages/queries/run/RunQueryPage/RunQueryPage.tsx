@@ -135,8 +135,6 @@ const RunQueryPage = ({
     }
   );
 
-  console.log("RunQueryPage.tsx selectedQueryTargets", selectedQueryTargets);
-
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
@@ -197,8 +195,6 @@ const RunQueryPage = ({
       targetsTotalCount,
     };
 
-    console.log("step2Props", step2Props);
-    console.log("step1Props", step1Props);
     switch (step) {
       case RUN_QUERY_STEPS[2]:
         return <RunQuery {...step2Props} />;

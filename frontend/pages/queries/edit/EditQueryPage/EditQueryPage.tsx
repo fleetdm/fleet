@@ -129,32 +129,6 @@ const EditQueryPage = ({
     }
   );
 
-  // useQuery<IHostResponse, Error, IHost>(
-  //   "hostFromURL",
-  //   () =>
-  //     hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
-  //   {
-  //     enabled: !!location.query.host_ids && !queryParamHostsAdded,
-  //     select: (data: IHostResponse) => data.host,
-  //     onSuccess: (host) => {
-  //       setTargetedHosts((prevHosts) =>
-  //         prevHosts.filter((h) => h.id !== host.id).concat(host)
-  //       );
-  //       console.log("selectedQueryTargets", selectedQueryTargets);
-  //       const targets = selectedQueryTargets;
-  //       host.target_type = "hosts";
-  //       targets.push(host);
-  //       console.log("targets", targets);
-  //       setSelectedQueryTargets([...targets]);
-  //       if (!queryParamHostsAdded) {
-  //         setQueryParamHostsAdded(true);
-  //       }
-  //       router.replace(location.pathname);
-  //     },
-  //   }
-  // );
-
-  console.log("selectedQueryTargets", selectedQueryTargets);
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
@@ -329,6 +303,7 @@ const EditQueryPage = ({
               backendValidators={backendValidators}
               isQuerySaving={isQuerySaving}
               isQueryUpdating={isQueryUpdating}
+              hostId={parseInt(location.query.host_ids as string, 10)}
             />
           </div>
         </div>

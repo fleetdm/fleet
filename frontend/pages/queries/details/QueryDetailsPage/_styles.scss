@@ -1,11 +1,8 @@
 .query-details-page {
-  &__header-links {
-    margin-bottom: $pad-xlarge;
-  }
-
   &__title-bar {
     display: flex;
     justify-content: space-between;
+    margin-top: $pad-large;
 
     .name-description {
       display: flex;
