@@ -6800,6 +6800,115 @@ func (s *integrationMDMTestSuite) TestValidSyncMLRequestNoAuth() {
 	require.True(t, s.isXMLTagContentPresent("Add", resSoapMsg))
 }
 
+func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
+	t := s.T()
+	ctx := context.Background()
+	windowsHost := createOrbitEnrolledHost(t, "windows", t.Name(), s.ds)
+
+	checkNotification := func(want bool) {
+		resp := orbitGetConfigResponse{}
+		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *windowsHost.OrbitNodeKey)), http.StatusOK, &resp)
+		require.Equal(t, want, resp.Notifications.EnforceBitLockerEncryption)
+	}
+
+	// notification is false by default
+	checkNotification(false)
+
+	// enroll the host into Fleet MDM
+	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
+	require.NoError(t, err)
+	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
+	require.NoError(t, err)
+	s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
+
+	// simulate osquery checking in and updating this info
+	// TODO: should we automatically fill these fields on MDM enrollment?
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), windowsHost.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet))
+
+	// notification is still false
+	checkNotification(false)
+
+	// configure disk encryption for the global team
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "macos_settings": { "enable_disk_encryption": true } } }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// host still doesn't get the notification because we don't have disk
+	// encryption information yet.
+	checkNotification(false)
+
+	// host has disk encryption off, gets the notification
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, false))
+	checkNotification(true)
+
+	// host has disk encryption on, we don't have disk encryption info. Gets the notification
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, true))
+	checkNotification(true)
+
+	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
+	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost.ID, "test-key", "", nil)
+	require.NoError(t, err)
+	checkNotification(true)
+
+	// host has disk encryption on, the key is not decryptable by fleet. Gets the notification
+	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, false, time.Now())
+	require.NoError(t, err)
+	checkNotification(true)
+
+	// host has disk encryption on, the disk was encrypted by fleet. Doesn't get the notification
+	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, true, time.Now())
+	require.NoError(t, err)
+	checkNotification(false)
+
+	// create a new team
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+	// add the host to the team
+	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{windowsHost.ID})
+	require.NoError(t, err)
+
+	// notification is false now since the team doesn't have disk encryption enabled
+	checkNotification(false)
+
+	// enable disk encryption on the team
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: tm.Name,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"enable_disk_encryption": true},
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// host gets the notification
+	checkNotification(true)
+
+	// host has disk encryption off, gets the notification
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, false))
+	checkNotification(true)
+
+	// host has disk encryption on, we don't have disk encryption info. Gets the notification
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, true))
+	checkNotification(true)
+
+	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
+	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost.ID, "test-key", "", nil)
+	require.NoError(t, err)
+	checkNotification(true)
+
+	// host has disk encryption on, the key is not decryptable by fleet. Gets the notification
+	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, false, time.Now())
+	require.NoError(t, err)
+	checkNotification(true)
+
+	// host has disk encryption on, the disk was encrypted by fleet. Doesn't get the notification
+	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, true, time.Now())
+	require.NoError(t, err)
+	checkNotification(false)
+}
+
 func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	t := s.T()
 	ctx := context.Background()
