@@ -204,9 +204,9 @@ func (v *Volume) protectWithPassphrase(passphrase string) (string, error) {
 
 	resultRaw, err := oleutil.CallMethod(v.handle, "ProtectKeyWithPassphrase", nil, passphrase, &volumeKeyProtectorID)
 	if err != nil {
-		return fmt.Errorf("protectWithPassphrase(%s): %w", v.letter, err)
+		return "", fmt.Errorf("protectWithPassphrase(%s): %w", v.letter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("protectWithPassphrase(%s): %w", v.letter, encryptErrHandler(val))
+		return "", fmt.Errorf("protectWithPassphrase(%s): %w", v.letter, encryptErrHandler(val))
 	}
 
 	return volumeKeyProtectorID.ToString(), nil
