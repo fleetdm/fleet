@@ -33,6 +33,10 @@ type OrbitConfigNotifications struct {
 	// execution on that host. The scripts pending execution are those that
 	// haven't received a result yet.
 	PendingScriptExecutionIDs []string `json:"pending_script_execution_ids,omitempty"`
+
+	// EnforceBitLockerEncryption is sent as true if Windows MDM is
+	// enabled and the device should encrypt its disk volumes with BitLocker.
+	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
 }
 
 type OrbitConfig struct {
@@ -53,4 +57,10 @@ type OrbitHostInfo struct {
 	Hostname string
 	// Platform is the device's platform as defined by osquery.
 	Platform string
+}
+
+// OrbitHostDiskEncryptionKeyPayload contains the disk encryption key for a host.
+type OrbitHostDiskEncryptionKeyPayload struct {
+	EncryptionKey []byte `json:"encryption_key"`
+	ClientError   string `json:"client_error"`
 }
