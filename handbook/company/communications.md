@@ -582,7 +582,9 @@ For example, someone in sales, marketing, or business operations might like to u
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 
 ### Buying other new equipment
-At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), the reason for the request, and a timeline for when the device is needed. 
+At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, [create an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request) with the #g-business-operations tag. 
+
+Once a request is received, the Head of Business Operations  will assess its necessity and check the Fleet Warehouse for available devices. The request is then sent to the CEO for final approval and [shipping](https://fleetdm.com/handbook/ceo#request-equipment-from-fleet-it).
 
 ### Tracking equipment
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
