@@ -586,6 +586,24 @@ func (h *Host) IsEligibleForWindowsMDMUnenrollment() bool {
 		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
 }
 
+// IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
+// encryption using Fleet MDM features.
+//
+// Note: the *Host structs needs disk encryption data and MDM data filled in to
+// perform the check.
+func (h *Host) IsEligibleForBitLockerEncryption() bool {
+	isServer := h.MDMInfo != nil && h.MDMInfo.IsServer
+	isWindows := h.FleetPlatform() == "windows"
+	needsEncryption := h.DiskEncryptionEnabled != nil && !*h.DiskEncryptionEnabled
+	encryptedWithoutKey := h.DiskEncryptionEnabled != nil && *h.DiskEncryptionEnabled && !h.MDM.EncryptionKeyAvailable
+
+	return isWindows &&
+		h.IsOsqueryEnrolled() &&
+		h.MDMInfo.IsFleetEnrolled() &&
+		!isServer &&
+		(needsEncryption || encryptedWithoutKey)
+}
+
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
@@ -838,6 +856,9 @@ func (h *HostMDM) IsManualFleetEnrolled() bool {
 // it is in enrolled state for Fleet MDM, regardless of automatic or manual
 // enrollment method.
 func (h *HostMDM) IsFleetEnrolled() bool {
+	if h == nil {
+		return false
+	}
 	return h.IsDEPFleetEnrolled() || h.IsManualFleetEnrolled()
 }
 
