@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -161,8 +162,7 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 	t.Run("Disk encryption disabled", func(t *testing.T) {
 		ac, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
-		// TODO: Update test to rely on MDM.EnableDiskEncryption when it is implemented
-		require.False(t, ac.MDM.MacOSSettings.EnableDiskEncryption)
+		require.False(t, ac.MDM.EnableDiskEncryption.Value)
 
 		checkExpectedByStatus(t, nil, hostIDsByStatus{}) // no hosts are counted because disk encryption is not enabled
 	})
@@ -170,11 +170,11 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 	t.Run("Disk encryption enabled", func(t *testing.T) {
 		ac, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
-		ac.MDM.MacOSSettings.EnableDiskEncryption = true
+		ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
 		require.NoError(t, ds.SaveAppConfig(ctx, ac))
 		ac, err = ds.AppConfig(ctx)
 		require.NoError(t, err)
-		require.True(t, ac.MDM.MacOSSettings.EnableDiskEncryption)
+		require.True(t, ac.MDM.EnableDiskEncryption.Value)
 
 		checkExpectedByStatus(t, nil, hostIDsByStatus{
 			Enforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID}, // all windows hosts are counted
@@ -223,7 +223,7 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		tm, err := ds.Team(ctx, team.ID)
 		require.NoError(t, err)
 		require.NotNil(t, tm)
-		require.False(t, tm.Config.MDM.MacOSSettings.EnableDiskEncryption) // disk encryption is not enabled for team
+		require.False(t, tm.Config.MDM.EnableDiskEncryption) // disk encryption is not enabled for team
 
 		// Transfer hosts[2] to the team
 		require.NoError(t, ds.AddHostsToTeam(ctx, &team.ID, []uint{hosts[2].ID}))
@@ -239,11 +239,11 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		})
 
 		// Enable disk encryption for the team
-		tm.Config.MDM.MacOSSettings.EnableDiskEncryption = true
+		tm.Config.MDM.EnableDiskEncryption = true
 		tm, err = ds.SaveTeam(ctx, tm)
 		require.NoError(t, err)
 		require.NotNil(t, tm)
-		require.True(t, tm.Config.MDM.MacOSSettings.EnableDiskEncryption)
+		require.True(t, tm.Config.MDM.EnableDiskEncryption)
 
 		// Check the summary for the team
 		checkExpectedByStatus(t, &team.ID, hostIDsByStatus{
