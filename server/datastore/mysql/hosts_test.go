@@ -153,6 +153,7 @@ func TestHosts(t *testing.T) {
 		{"GetMatchingHostSerials", testGetMatchingHostSerials},
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
 		{"HostScriptResult", testHostScriptResult},
+		{"ListHostsWithPagination", testListHostsWithPagination},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -7430,4 +7431,77 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
 	require.NoError(t, err)
 	require.Equal(t, expectedOutput, script.Output)
+}
+
+func testListHostsWithPagination(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	newHostFunc := func(name string) *fleet.Host {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(name),
+			UUID:            name,
+			Hostname:        "foo.local." + name,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		return host
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hostCount := int(float64(HostFailingPoliciesCountOptimPageSizeThreshold) * 1.5)
+	hosts := make([]*fleet.Host, 0, hostCount)
+	for i := 0; i < hostCount; i++ {
+		hosts = append(hosts, newHostFunc(fmt.Sprintf("h%d", i)))
+	}
+
+	// List all hosts with PerPage=0 which should not use the failing policies optimization.
+	perPage0 := 0
+	hosts0, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			PerPage: uint(perPage0),
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, hosts0, hostCount)
+	for i, host := range hosts0 {
+		require.Equal(t, host.ID, hosts[i].ID)
+	}
+
+	// List hosts with number of hosts per page equal to the failing policies optimization threshold, to
+	// (thus using the optimization).
+	perPage1 := HostFailingPoliciesCountOptimPageSizeThreshold
+	hosts1, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			PerPage: uint(perPage1),
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, hosts1, perPage1)
+	for i, host := range hosts1 {
+		require.Equal(t, host.ID, hosts[i].ID)
+	}
+
+	// List hosts with number of hosts per page higher to the failing policies optimization threshold
+	// (thus not using the optimization)
+	perPage2 := int(float64(HostFailingPoliciesCountOptimPageSizeThreshold) * 1.2)
+	hosts2, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			PerPage: uint(perPage2),
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, hosts2, perPage2)
+	for i, host := range hosts2 {
+		require.Equal(t, host.ID, hosts[i].ID)
+	}
+
+	/*
+		count, err := ds.CountHosts(context.Background(), fleet.TeamFilter{}, fleet.HostListOptions{})
+		require.NoError(t, err)
+	*/
 }
