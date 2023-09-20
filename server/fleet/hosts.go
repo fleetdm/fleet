@@ -53,20 +53,20 @@ const (
 	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
 )
 
-// MacOSSettingsStatus defines the possible statuses of the host's macOS settings, which is derived from the
-// status of MDM configuration profiles applied to the host.
-type MacOSSettingsStatus string
+// OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
+// status of MDM configuration profiles and non-profile settings applied the host.
+type OSSettingsStatus string
 
 const (
-	MacOSSettingsVerified  MacOSSettingsStatus = "verified"
-	MacOSSettingsVerifying MacOSSettingsStatus = "verifying"
-	MacOSSettingsPending   MacOSSettingsStatus = "pending"
-	MacOSSettingsFailed    MacOSSettingsStatus = "failed"
+	OSSettingsVerified  OSSettingsStatus = "verified"
+	OSSettingsVerifying OSSettingsStatus = "verifying"
+	OSSettingsPending   OSSettingsStatus = "pending"
+	OSSettingsFailed    OSSettingsStatus = "failed"
 )
 
-func (s MacOSSettingsStatus) IsValid() bool {
+func (s OSSettingsStatus) IsValid() bool {
 	switch s {
-	case MacOSSettingsFailed, MacOSSettingsPending, MacOSSettingsVerifying, MacOSSettingsVerified:
+	case OSSettingsFailed, OSSettingsPending, OSSettingsVerifying, OSSettingsVerified:
 		return true
 	default:
 		return false
@@ -139,11 +139,18 @@ type HostListOptions struct {
 
 	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
 	// applied to the hosts.
-	MacOSSettingsFilter MacOSSettingsStatus
+	MacOSSettingsFilter OSSettingsStatus
 
 	// MacOSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
 	// MDM profile.
 	MacOSSettingsDiskEncryptionFilter DiskEncryptionStatus
+
+	// OSSettingsFilter filters the hosts by the status of MDM configuration profiles and
+	// non-profile settings applied to the hosts.
+	OSSettingsFilter OSSettingsStatus
+	// OSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
+	// OS setting.
+	OSSettingsDiskEncryptionFilter DiskEncryptionStatus
 
 	// MDMBootstrapPackageFilter filters the hosts by the status of the MDM bootstrap package.
 	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus
@@ -186,7 +193,9 @@ func (h HostListOptions) Empty() bool {
 		h.MDMNameFilter == nil &&
 		h.MDMEnrollmentStatusFilter == "" &&
 		h.MunkiIssueIDFilter == nil &&
-		h.LowDiskSpaceFilter == nil
+		h.LowDiskSpaceFilter == nil &&
+		h.OSSettingsFilter == "" &&
+		h.OSSettingsDiskEncryptionFilter == ""
 }
 
 type HostUser struct {
