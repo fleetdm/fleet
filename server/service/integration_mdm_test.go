@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -6727,7 +6728,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	// certificate), so it can be decrypted using the same decryption function.
 	wstepCert, _, _, err := s.fleetCfg.MDM.MicrosoftWSTEP()
 	require.NoError(t, err)
-	decrypted, err := apple_mdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+	decrypted, err := servermdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
 	require.NoError(t, err)
 	require.Equal(t, "ABC", string(decrypted))
 
@@ -6753,7 +6754,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NotNil(t, hdek.Decryptable)
 	require.True(t, *hdek.Decryptable)
 
-	decrypted, err = apple_mdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+	decrypted, err = servermdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
 	require.NoError(t, err)
 	require.Equal(t, "DEF", string(decrypted))
 }

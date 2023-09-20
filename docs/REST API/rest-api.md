@@ -3290,7 +3290,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 
 ### Get host's disk encryption key
 
-Requires the [macadmins osquery extension](https://github.com/macadmins/osquery-extension) which comes bundled
+For macOS, requires the [macadmins osquery extension](https://github.com/macadmins/osquery-extension) which comes bundled
 in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).

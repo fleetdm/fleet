@@ -20,7 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/gocarina/gocsv"
@@ -1595,7 +1595,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
 	}
 
-	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
+	decryptedKey, err := mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
 	}
