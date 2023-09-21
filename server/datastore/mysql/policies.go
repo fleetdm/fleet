@@ -1087,29 +1087,29 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 	// Update Counts for Inherited Global Policies for each Team
 	_, err := ds.writer(ctx).ExecContext(ctx, `
-    INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
-SELECT
-    p.id,
-    t.id AS inherited_team_id,
-    (
-        SELECT COUNT(*) 
-        FROM policy_membership pm 
-        INNER JOIN hosts h ON pm.host_id = h.id 
-        WHERE pm.policy_id = p.id AND pm.passes = true AND h.team_id = t.id
-    ) AS passing_host_count,
-    (
-        SELECT COUNT(*) 
-        FROM policy_membership pm 
-        INNER JOIN hosts h ON pm.host_id = h.id 
-        WHERE pm.policy_id = p.id AND pm.passes = false AND h.team_id = t.id
-    ) AS failing_host_count
-FROM policies p
-CROSS JOIN teams t
-WHERE p.team_id IS NULL
-GROUP BY p.id, t.id
-ON DUPLICATE KEY UPDATE 
-    passing_host_count = VALUES(passing_host_count),
-    failing_host_count = VALUES(failing_host_count);
+		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+		SELECT
+			p.id,
+			t.id AS inherited_team_id,
+			(
+				SELECT COUNT(*) 
+				FROM policy_membership pm 
+				INNER JOIN hosts h ON pm.host_id = h.id 
+				WHERE pm.policy_id = p.id AND pm.passes = true AND h.team_id = t.id
+			) AS passing_host_count,
+			(
+				SELECT COUNT(*) 
+				FROM policy_membership pm 
+				INNER JOIN hosts h ON pm.host_id = h.id 
+				WHERE pm.policy_id = p.id AND pm.passes = false AND h.team_id = t.id
+			) AS failing_host_count
+		FROM policies p
+		CROSS JOIN teams t
+		WHERE p.team_id IS NULL
+		GROUP BY p.id, t.id
+		ON DUPLICATE KEY UPDATE 
+			passing_host_count = VALUES(passing_host_count),
+			failing_host_count = VALUES(failing_host_count);
     `)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host policy counts for inherited global policies")
@@ -1117,18 +1117,18 @@ ON DUPLICATE KEY UPDATE
 
 	// Update Counts for Global and Team Policies
 	_, err = ds.writer(ctx).ExecContext(ctx, `
-        INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
-SELECT
-    p.id,
-    0 AS inherited_team_id, -- using 0 to represent global scope
-    COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0), 
-    COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0)
-FROM policies p
-LEFT JOIN policy_membership pm ON p.id = pm.policy_id
-GROUP BY p.id
-ON DUPLICATE KEY UPDATE 
-    passing_host_count = VALUES(passing_host_count),
-    failing_host_count = VALUES(failing_host_count);
+		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+		SELECT
+			p.id,
+			0 AS inherited_team_id, -- using 0 to represent global scope
+			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0), 
+			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0)
+		FROM policies p
+		LEFT JOIN policy_membership pm ON p.id = pm.policy_id
+		GROUP BY p.id
+		ON DUPLICATE KEY UPDATE 
+			passing_host_count = VALUES(passing_host_count),
+			failing_host_count = VALUES(failing_host_count);
     `)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host policy counts for global and team policies")

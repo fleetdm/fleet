@@ -21,8 +21,6 @@ func TestUp_20230920091442(t *testing.T) {
 
 		deletePolicyStmt = `DELETE FROM policies WHERE id = ?`
 
-		deleteTeamStmt = `DELETE FROM teams WHERE id = ?`
-
 		loadPolicyStatsStmt = `SELECT
 			id, policy_id, inherited_team_id, passing_host_count, failing_host_count
 		FROM policy_stats WHERE id = ?`
