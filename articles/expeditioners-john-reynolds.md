@@ -1,7 +1,7 @@
 # ExpedITioners Podcast
 ## John Reynolds: Rehumanizing interactions between IT and end users
 
-<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;border-radius:10px;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/us/podcast/john-reynolds-rehumanizing-interactions-between-it/id1641183838?i=1000628749885"></iframe>"></iframe>
+<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/us/podcast/john-reynolds-rehumanizing-interactions-between-it/id1641183838?i=1000628749885"></iframe>
 
 Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/john-reynolds-rehumanizing-interactions-between-it/id1641183838?i=1000628749885), [Spotify](https://open.spotify.com/episode/7AHJinyvizmoHdfVTINu9y?si=sYhKqJXzQhetv8KyNMTxdA), or [PodBean](https://expeditioners.podbean.com/e/john-reynolds-rehumanizing-interactions-between-it-and-end-users/).
 
