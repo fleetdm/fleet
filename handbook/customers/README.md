@@ -216,6 +216,15 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 
 ## Responsibilities
 
+### Send a quote
+During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
+
+All quotes and purchase orders must be approved by CRO before being sent to the prospect or customer. Often, the CRO will request Fleet business operations/legal of any unique terms required.
+
+The Fleet owner of the opportunity (usually AE or CSM) will prepare a quote and/or a Purchase Order when requested.
+- Because the champion may need to socialize "what is Fleet" or "what are we getting when buying Fleet," it is most often best to send the quote in [slide form](https://docs.google.com/presentation/d/15kbqm0OYPf1OmmTZvDp4F7VvMERnX4K6TMYqCYNr-wI/edit?usp=sharing).
+- Docusign can be used to create a [standard Purchase Order](https://www.loom.com/share/Loom-Message-16-January-2023-2ba8cf195ec645ebabac267d7df59823?sid=214f8c6b-beb3-427a-a3a8-e8c20b5dc350) if no special terms or pricing are needed.
+
 ### Review rep activity
 Following up with people interested in Fleet is an important part of finding out whether or not they'd like to continue the process of buying the product.  It is also very important not to be annoying.  At Fleet, team members follow up with people, but not too often.
 
@@ -314,7 +323,8 @@ This workflow outlines the process that sales and customer success can follow wh
 2. The Customer and Fleet sign the order form.
     - (AE) The AE adds the fully executed contract to the opportunity record.
     - (AE) The AE marks the opportunity 'Closed Won' and includes the 'Closing Date'.
-    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive 
+    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive
+    - (AE) Help BizOps secure a PO from the new customer to be referenced on invoice.
 3. (AE) The AE creates a 'New Sale Issue'
     - They complete the AE tasks listed at the top of the issue.
     - Then they assign the issue to BizOps and the Head of Customer Success (CS).

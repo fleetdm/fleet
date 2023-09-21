@@ -23,10 +23,7 @@ interface IStatusIndicatorWithIconProps {
     tooltipText: string | JSX.Element;
     position?: "top" | "bottom";
   };
-  layout?: "horizontal" | "vertical";
   className?: string;
-  /** Classname to add to the value text */
-  valueClassName?: string;
 }
 
 const statusIconNameMapping: Record<IndicatorStatus, IconNames> = {
@@ -41,18 +38,13 @@ const StatusIndicatorWithIcon = ({
   status,
   value,
   tooltip,
-  layout = "horizontal",
   className,
-  valueClassName,
 }: IStatusIndicatorWithIconProps) => {
   const classNames = classnames(baseClass, className);
   const id = `status-${uniqueId()}`;
 
-  const valueClasses = classnames(`${baseClass}__value`, valueClassName, {
-    [`${baseClass}__value-vertical`]: layout === "vertical",
-  });
   const valueContent = (
-    <span className={valueClasses}>
+    <span className={`${baseClass}__value`}>
       <Icon name={statusIconNameMapping[status]} />
       <span>{value}</span>
     </span>

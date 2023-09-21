@@ -4,7 +4,7 @@ import { IHost } from "./host";
 export default PropTypes.shape({
   hosts_count: PropTypes.shape({
     total: PropTypes.number,
-    successful: PropTypes.number,
+    successful: PropTypes.number, // Does not include ChromeOS results that are partially successful
     failed: PropTypes.number,
   }),
   id: PropTypes.number,
@@ -26,7 +26,7 @@ export interface ICampaign {
   hosts: IHost[];
   hosts_count: {
     total: number;
-    successful: number;
+    successful: number; // Does not include ChromeOS results that are partially successful
     failed: number;
   };
   id: number;
