@@ -556,9 +556,14 @@ Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#owner
 
 
 ## Equipment
+At Fleet, we don't *Just* [spend company money](https://fleetdm.com/handbook/business-operations#spending-company-money), we invest in [results](https://fleetdm.com/handbook/company#results). Equipment issues hinder results and are always addressed quickly. To request new equipment or address hardware issues [create an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request). 
 
-### Purchasing a company-issued device
-Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their laptop purchased and shipped to them on time.
+Once a request is received, the Head of Business Operations  will assess its necessity and check the Fleet Warehouse for available devices. The request is then sent to the CEO for final approval and [shipping](https://fleetdm.com/handbook/ceo#request-equipment-from-fleet-it).
+
+- Always [Check the Fleet IT warehouse](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).   
+
+### Purchase company-issued equipment
+Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time.
 
 Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
 
@@ -582,9 +587,6 @@ For example, someone in sales, marketing, or business operations might like to u
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 
 ### Buying other new equipment
-At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, [create an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request) with the #g-business-operations tag. 
-
-Once a request is received, the Head of Business Operations  will assess its necessity and check the Fleet Warehouse for available devices. The request is then sent to the CEO for final approval and [shipping](https://fleetdm.com/handbook/ceo#request-equipment-from-fleet-it).
 
 ### Tracking equipment
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
@@ -601,8 +603,6 @@ Apple computers with remaining AppleCare Protection Plans should be reprovisione
 Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
 > If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
-
-
 
 
 ## Writing
@@ -1401,6 +1401,8 @@ This glossary provides definitions to commonly used terms within our space.
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
+##### Purchasing a company-issued device
+Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#travel).
 ##### Company travel
 Please see 📖[handbook/company/communications#travel](https://fleetdm.com/handbook/company/communications#travel).
 
