@@ -308,8 +308,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}, nil
 }
 
-// filterExtensionsByPlatform filters a extensions configuration depending on the host platform.
-// (to not send extensions targeted to other operating systems).
+// filterExtensionsForHost filters a extensions configuration depending on the host platform and label membership.
 //
 // If all extensions are filtered, then it returns (nil, nil) (Orbit expects empty extensions if there
 // are no extensions for the host.)
