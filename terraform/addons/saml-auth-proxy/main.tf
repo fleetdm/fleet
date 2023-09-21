@@ -1,20 +1,31 @@
-resource "aws_kms_key" "enroll_secret" {
-  deletion_window_in_days = 10
-  enable_key_rotation     = true
+data "aws_kms_secrets" "saml_auth_proxy_cert" {
+  secret {
+    name    = "cert"
+    key_id  = var.kms_key_id
+    payload = file(var.saml_auth_proxy_cert_path)
+  }
 }
 
-resource "aws_kms_alias" "enroll_secret" {
-  name_prefix   = "alias/${var.customer_prefix}-enroll-secret-key"
-  target_key_id = aws_kms_key.enroll_secret.key_id
+data "aws_kms_secrets" "saml_auth_proxy_key" {
+  secret {
+    name    = "key"
+    key_id  = var.kms_key_id
+    payload = file(var.saml_auth_proxy_key_path)
+  }
 }
 
-resource "aws_secretsmanager_secret" "enroll_secret" {
-  name_prefix = "${var.customer_prefix}-enroll-secret"
-  kms_key_id  = aws_kms_key.enroll_secret.arn
+resource "aws_secretsmanager_secret" "saml_auth_proxy_cert" {
+  name_prefix = "${var.customer_prefix}-saml-auth-proxy-cert"
 }
 
-data "aws_secretsmanager_secret_version" "enroll_secret" {
-  secret_id = aws_secretsmanager_secret.enroll_secret.id
+resource "aws_secretsmanager_secret_version" "saml_auth_proxy_cert" {
+  secret_id = aws_secretsmanager_secret.saml_auth_proxy_cert.id
+  secret_string = jsonencode(
+    {
+      cert      = data.aws_kms_secrets.saml_auth_proxy_cert.plaintext["cert"]
+      key       = data.aws_kms_secrets.saml_auth_proxy_key.plaintext["key"]
+    }
+  )
 }
 
 module "saml_auth_proxy_alb" {
