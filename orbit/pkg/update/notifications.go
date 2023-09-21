@@ -403,6 +403,8 @@ type DiskEncryptionKeySetter interface {
 	SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error
 }
 
+type execEncryptVolumeFunc func(string) (string, error)
+
 type windowsMDMBitlockerConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
@@ -420,6 +422,10 @@ type windowsMDMBitlockerConfigFetcher struct {
 
 	// ensures only one script execution runs at a time
 	mu sync.Mutex
+
+	// for tests, to be able to mock API commands. If nil, will use
+	// EncryptVolume
+	execEncryptVolumeFn execEncryptVolumeFunc
 }
 
 func ApplyWindowsMDMBitlockerFetcherMiddleware(
@@ -473,8 +479,15 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 	// We are supporting only C: volume for now
 	targetVolume := "C:"
 
-	// Setting up encryption result
-	recoveryKey, err := bitlocker.EncryptVolume(targetVolume)
+	// Performing actual encryption
+
+	// Getting Bitlocker encryption mock operation function if any
+	fn := w.execEncryptVolumeFn
+	if fn == nil {
+		// Otherwise, using the real one
+		fn = bitlocker.EncryptVolume
+	}
+	recoveryKey, err := fn(targetVolume)
 
 	// Getting Bitlocker encryption operation error message if any
 	bitlockerError := ""
