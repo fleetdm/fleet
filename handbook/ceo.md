@@ -19,7 +19,8 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 - **Do not add events to the CEO's calendar.** events added directly to the CEO's calendar will be declined and removed. Even if the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).
 - **For personal or extremely urgent requests** that cannot wait one business day, send a Slack direct message (DM) to `@mikermcneil` right away.
   - If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
-- **If you are in Business Operations**, you can [request warehoused equipment be shipped from Fleet IT](#request-equipment-from-fleet-it).
+- **If you're a hiring manager**, you can [schedule a CEO interview](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=schedule-a-ceo-interview.md&title=%F0%9F%97%93%EF%B8%8F+Schedule+a+CEO+interview+for%3A+%7BCANDIDATE-NAME%7D+%7BOPEN-POSITION%7D)
+- **If you're in Business Operations**, you can [request warehoused equipment be shipped from Fleet IT](#request-equipment-from-fleet-it).
 - If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) Slack channel.
 
 ### Schedule time with the CEO
