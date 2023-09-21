@@ -609,7 +609,15 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	return svc.ds.DeleteHost(ctx, id)
+	if err := svc.ds.DeleteHost(ctx, id); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host")
+	}
+
+	if host.Platform == "darwin" {
+		return svc.maybeRestorePendingDEPHost(ctx, host)
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

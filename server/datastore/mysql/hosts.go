@@ -464,7 +464,7 @@ var hostRefs = []string{
 	"host_updates",
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
-	"host_dep_assignments",
+	// "host_dep_assignments",
 	"host_script_results",
 }
 
