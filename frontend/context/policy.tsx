@@ -57,7 +57,7 @@ type InitialStateType = {
   lastEditedQueryCritical: boolean;
   lastEditedQueryPlatform: SelectedPlatformString | null;
   defaultPolicy: boolean;
-  setLastEditedQueryId: (value: number) => void;
+  setLastEditedQueryId: (value: number | null) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
