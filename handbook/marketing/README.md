@@ -62,7 +62,13 @@ Here are some topics for social media posts:
 TODO
 
 ### Ads
-TODO
+
+#### Proposing new ads
+
+Any changes to current running ads will need to be approved in 🦢🗣 Design review (#g-website).
+- Add any requests for review to the Design review agenda
+- Existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
+- If changes are approved, make changes and create a calendar reminder to check performance two weeks from the date changes were made. 
 
 ### Video
 TODO
