@@ -165,7 +165,7 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
         environmnet = [
           {
             name  = "SAML_PROXY_SP_CERT_PATH"
-            value = "/tmp/saml-auth-proxy/cert.pem
+            value = "/tmp/saml-auth-proxy/cert.pem"
           },
           {
             name   = "SAML_PROXY_SP_KEY_PATH"
