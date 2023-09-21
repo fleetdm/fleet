@@ -26,7 +26,7 @@
   },
 
   "parserOptions": {
-    "ecmaVersion": 2018
+    "ecmaVersion": 2019
     //^ If you are not using a transpiler like Babel, change this to `5`.
   },
 
