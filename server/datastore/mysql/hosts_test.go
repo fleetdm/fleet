@@ -7500,8 +7500,8 @@ func testListHostsWithPagination(t *testing.T, ds *Datastore) {
 		require.Equal(t, host.ID, hosts[i].ID)
 	}
 
-	/*
-		count, err := ds.CountHosts(context.Background(), fleet.TeamFilter{}, fleet.HostListOptions{})
-		require.NoError(t, err)
-	*/
+	// Count hosts doesn't do failing policies count or pagination.
+	count, err := ds.CountHosts(ctx, filter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Equal(t, hostCount, count)
 }
