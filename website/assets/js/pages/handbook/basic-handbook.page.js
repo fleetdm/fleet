@@ -26,6 +26,7 @@ parasails.registerPage('basic-handbook', {
     if(bowser !== undefined && bowser.windows) {
       this.hideEmojisOnPage = true;
       if(!this.isHandbookLandingPage){
+        this.thisPage.title = this.thisPage.title.replace(/\p{Extended_Pictographic}/gu, '');
         this._removeEmojiFromThisPage();
       }
     }
