@@ -65,31 +65,37 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		}
 	}
 
-	// Validate the extensions configuration.
 	if len(opts.Extensions) > 0 {
-		var extensions map[string]ExtensionInfo
-		if err := json.Unmarshal(opts.Extensions, &extensions); err != nil {
-			return fmt.Errorf("unmarshal extensions: %w", err)
-		}
-		for _, extensionInfo := range extensions {
-			if !isPremium && len(extensionInfo.Labels) != 0 {
-				// Setting labels settings in the extensions config is premium only.
-				return ErrMissingLicense
-			}
-			for _, labelName := range extensionInfo.Labels {
-				switch _, err := ds.GetLabelSpec(ctx, labelName); {
-				case err == nil:
-					// OK
-				case IsNotFound(err):
-					// Label does not exist, fail the request.
-					return fmt.Errorf("Label %q does not exist", labelName)
-				default:
-					return fmt.Errorf("get label by name: %w", err)
-				}
-			}
+		if err := validateJSONAgentOptionsExtensions(ctx, ds, opts.Extensions, isPremium); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsExtensions json.RawMessage, isPremium bool) error {
+	var extensions map[string]ExtensionInfo
+	if err := json.Unmarshal(optsExtensions, &extensions); err != nil {
+		return fmt.Errorf("unmarshal extensions: %w", err)
+	}
+	for _, extensionInfo := range extensions {
+		if !isPremium && len(extensionInfo.Labels) != 0 {
+			// Setting labels settings in the extensions config is premium only.
+			return ErrMissingLicense
+		}
+		for _, labelName := range extensionInfo.Labels {
+			switch _, err := ds.GetLabelSpec(ctx, labelName); {
+			case err == nil:
+				// OK
+			case IsNotFound(err):
+				// Label does not exist, fail the request.
+				return fmt.Errorf("Label %q does not exist", labelName)
+			default:
+				return fmt.Errorf("get label by name: %w", err)
+			}
+		}
+	}
 	return nil
 }
 
