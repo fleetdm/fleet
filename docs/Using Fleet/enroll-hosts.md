@@ -3,11 +3,12 @@
 
 - [Enroll hosts](#enroll-hosts)
   - [Introduction](#introduction)
-  - [Add hosts with Fleetd](#add-hosts-with-fleetd)
+  - [Enroll hosts with Fleetd](#enroll-hosts-with-fleetd)
     - [Signing installers](#signing-installers)
     - [Including Fleet Desktop](#including-fleet-desktop)
-    - [Enrolling multiple hosts](#adding-multiple-hosts)
+    - [Adding multiple hosts](#adding-multiple-hosts)
     - [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
+    - [Generating Windows installers using local WiX toolset v3 binaries on Windows](#generating-windows-installers-using-local-wix-toolset-v3-binaries-on-windows)
     - [Configuration options](#configuration-options)
   - [Add hosts with plain osquery](#add-hosts-with-plain-osquery)
     - [Set up your Fleet enroll secret](#set-up-your-fleet-enroll-secret)
@@ -114,9 +115,28 @@ To generate an osquery installer for a team:
 3. Next, select **Add hosts** and copy the `fleetctl package` command for the platform (macOS, Windows, Linux) of the hosts you'd like to add to a team in Fleet.
 4. Run the copied `fleetctl package` command and [distribute your installer](#adding-multiple-hosts) to add your hosts to a team in Fleet.
 
+### Generating Windows installers using local WiX toolset v3 binaries on Windows
+
+When creating a Fleetd installer for Windows hosts (**.msi**) on a Windows machine, you can tell `fleetctl package` to
+use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
+`light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
+so:
+  0. If you need to install the WiX v3 binaries, you can download them
+     [here](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip).
+     Unzip the downloaded file.
+  1. Find the absolute filepath of the directory containing your local WiX v3 binaries. If you just
+     downloaded them in step 0 above, this will be wherever you saved the unzipped package contents.
+  2. Run `fleetctl package`, and pass the absolute path above as the string argument to the
+     `--local-wix-dir` flag. For example:
+     ```
+      fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
+     ```
+     If the provided path doesn't contain all 3 binaries, the command will fail.
+
+
 ### Configuration options
 
-The following command-line flags allow you to configure an osquery installer further to communicate with a specific Fleet instance.
+The following command-line flags to `fleetctl package` allow you to configure an osquery installer further to communicate with a specific Fleet instance.
 
 | Flag                       | Options                                                                                                                                 |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -141,6 +161,8 @@ The following command-line flags allow you to configure an osquery installer fur
 | --enable-scripts           | Enable script execution (default: `false`)                                                                                              |
 | --debug                    | Enable debug logging (default: `false`)                                                                                                 |
 | --verbose                  | Log detailed information when building the package (default: false)                                                                     |
+| --local-wix-dir            | Use local installatios of the 3 WiX v3 binaries this command uses (`heat.exe`, `candle.exe`, and
+`light.exe`) instead of installations in a pre-configered Docker Hub (only available on Windows w/ WiX v3)                                                    |
 | --help, -h                 | show help (default: `false`)                                                                                                            |
 
 
