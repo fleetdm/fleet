@@ -780,6 +780,12 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"policy_aggregated_stats",
+			func(ctx context.Context) error {
+				return ds.UpdateHostPolicyCounts(ctx)
+			},
+		),
+		schedule.WithJob(
 			"aggregated_munki_and_mdm",
 			func(ctx context.Context) error {
 				return ds.GenerateAggregatedMunkiAndMDM(ctx)
