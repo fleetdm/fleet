@@ -73,10 +73,9 @@ Openness is one of [Fleet's values](https://fleetdm.com/handbook/company#values)
 - I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
 - I can be quick to criticize, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
 - I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
+- I can be inconsistent about how much certainty I communicate in my voice, even when I am certain, because I don't always remember why I am certain about every topic, and I tend to question blind certainty.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"
 
-<!--
-- When ideas differ I start at "what I would do", then talk myself backward toward the original idea
--->
+
 <!--
 [![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
 
