@@ -158,15 +158,17 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
-	FailingHostCount uint `json:"failing_host_count" db:"failing_host_count"`
-	PassingHostCount uint `json:"passing_host_count" db:"passing_host_count"`
-
 	UpdateCreateTimestamps
 }
 
 // Policy is a fleet's policy query.
 type Policy struct {
 	PolicyData
+
+	// PassingHostCount is the number of hosts this policy passes on.
+	PassingHostCount uint `json:"passing_host_count" db:"passing_host_count"`
+	// FailingHostCount is the number of hosts this policy fails on.
+	FailingHostCount uint `json:"failing_host_count" db:"failing_host_count"`
 }
 
 func (p Policy) AuthzType() string {

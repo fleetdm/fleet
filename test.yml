@@ -1,0 +1,3329 @@
+---
+apiVersion: v1
+kind: host
+spec:
+  build: 18G3020
+  code_name: ""
+  computer_name: b.7IABHa3mmT
+  config_tls_refresh: 0
+  cpu_brand: Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz
+  cpu_logical_cores: 8
+  cpu_physical_cores: 4
+  cpu_subtype: Intel x86-64h Haswell
+  cpu_type: x86_64h
+  created_at: "2023-09-16T21:31:24Z"
+  detail_updated_at: "1970-01-02T00:00:00Z"
+  display_name: b.7IABHa3mmT
+  display_text: b.7IABHa3mmT
+  distributed_interval: 0
+  gigs_disk_space_available: 0
+  hardware_model: MacBookPro11,4
+  hardware_serial: U0R9EPA0E2E8
+  hardware_vendor: Apple Inc.
+  hardware_version: "1.0"
+  hostname: b.7IABHa3mmT
+  id: 1288
+  issues:
+    failing_policies_count: 0
+    total_issues_count: 0
+  label_updated_at: "1970-01-02T00:00:00Z"
+  labels:
+  - created_at: "2023-09-15T19:32:24Z"
+    description: All hosts which have enrolled in Fleet
+    id: 6
+    label_membership_type: dynamic
+    label_type: builtin
+    name: All Hosts
+    platform: ""
+    query: select 1;
+    updated_at: "2023-09-15T19:32:24Z"
+  last_enrolled_at: "2023-09-16T21:34:19Z"
+  logger_tls_period: 0
+  mdm:
+    encryption_key_available: false
+    enrollment_status: null
+    name: ""
+    server_url: null
+  memory: 17179869184
+  os_version: Mac OS X 10.14.6
+  osquery_version: 4.6.0
+  pack_stats: null
+  packs: []
+  percent_disk_space_available: 0
+  platform: darwin
+  platform_like: darwin
+  policies:
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Software vendors release security patches and software updates for their products when security vulnerabilities are discovered. There is no simple way to complete this action without a network connection to an Apple software repository. Please ensure appropriate access for this control. This check is only for what Apple provides through software update.
+      Note: This query may be longer than the avg query and may take more than 10 seconds to run.
+    failing_host_count: 2484
+    id: 1
+    name: CIS - Ensure All Apple-provided Software Is Current (Fleetd Required)
+    passing_host_count: 2516
+    platform: darwin
+    query: SELECT 1 FROM software_update WHERE software_update_required = '0';
+    resolution: "Graphical Method:\nPerform the following to install all available
+      software updates:\n  1. Open System Settings \n  2. Select General\n  3. Select
+      Software Update\n  4. Select Update All\n"
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks that the system is configured via MDM to automatically install
+      updates.
+    failing_host_count: 2504
+    id: 2
+    name: CIS - Ensure Auto Update Is Enabled (MDM Required)
+    passing_host_count: 2496
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.SoftwareUpdate' AND \n        name='AutomaticCheckEnabled'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.SoftwareUpdate'
+      AND \n        name='AutomaticCheckEnabled' AND \n        (value != 1 AND value
+      != 'true')\n    );  \n"
+    resolution: Ask your system administrator to deploy an MDM profile that enables
+      automatic updates.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks that the system is configured via MDM to automatically download
+      updates.
+    failing_host_count: 2481
+    id: 3
+    name: CIS - Ensure Download New Updates When Available Is Enabled (MDM Required)
+    passing_host_count: 2519
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.SoftwareUpdate' AND \n        name='AutomaticDownload'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.SoftwareUpdate'
+      AND \n        name='AutomaticDownload' AND \n        (value != 1 AND value !=
+      'true')\n    );  \n"
+    resolution: Ask your system administrator to deploy an MDM profile that enables
+      automatic update downloads.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Ensure that macOS updates are installed after they are available
+      from Apple.
+    failing_host_count: 2534
+    id: 4
+    name: CIS - Ensure Install of macOS Updates Is Enabled (MDM Required)
+    passing_host_count: 2466
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.SoftwareUpdate' AND \n        name='AutomaticallyInstallMacOSUpdates'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.SoftwareUpdate'
+      AND \n        name='AutomaticallyInstallMacOSUpdates' AND \n        (value !=
+      1 AND value != 'true')\n    );  \n"
+    resolution: Ask your system administrator to deploy an MDM profile that enables
+      automatic install of macOS updates.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Ensure that application updates are installed after they are available
+      from Apple.
+    failing_host_count: 2470
+    id: 5
+    name: CIS - Ensure Install Application Updates from the App Store Is Enabled (MDM
+      Required)
+    passing_host_count: 2530
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.SoftwareUpdate' AND \n        name='AutomaticallyInstallAppUpdates'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.SoftwareUpdate'
+      AND \n        name='AutomaticallyInstallAppUpdates' AND \n        (value !=
+      1 AND value != 'true')\n    );  \n"
+    resolution: Ask your system administrator to deploy an MDM profile that enables
+      automatic updates of Apple apps.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Ensure that system and security updates are installed after they are available from
+      Apple. This setting enables definition updates for XProtect and Gatekeeper. With this
+      setting in place, new malware and adware that Apple has added to the list of malware or
+      untrusted software will not execute.
+    failing_host_count: 2491
+    id: 6
+    name: CIS - Ensure Install Security Responses and System Files Is Enabled (MDM
+      Required)
+    passing_host_count: 2509
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.SoftwareUpdate' AND \n        name='CriticalUpdateInstall'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.SoftwareUpdate'
+      AND \n        name='CriticalUpdateInstall' AND \n        (value != 1 AND value
+      != 'true')\n    );  \n"
+    resolution: Ask your system administrator to deploy an MDM profile that enables
+      automatic critical system and security updates.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Apple provides the capability to manage software updates on Apple devices through
+      mobile device management. Part of those capabilities permit organizations to defer
+      software updates and allow for testing. Many organizations have specialized software
+      and configurations that may be negatively impacted by Apple updates. If software
+      updates are deferred, they should not be deferred for more than 30 days.
+      This control only verifies that deferred software updates are not deferred for more than 30 days.
+    failing_host_count: 2475
+    id: 7
+    name: CIS - Ensure Software Update Deferment Is Less Than or Equal to 30 Days
+      (MDM Required)
+    passing_host_count: 2525
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='enforcedSoftwareUpdateDelay'
+      AND \n        value <= 30 AND \n        username = ''\n    )\n  AND NOT EXISTS
+      (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='enforcedSoftwareUpdateDelay' AND \n        value > 30\n
+      \   );  \n"
+    resolution: Ask your system administrator to deploy an MDM profile configures
+      update deferment to a value of 30 days or less.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      iCloud Drive is Apple's storage solution for applications on both macOS and iOS to use the same files that are resident in Apple's cloud storage. The iCloud Drive folder is available much like Dropbox, Microsoft OneDrive, or Google Drive.
+      One of the concerns in public cloud storage is that proprietary data may be inappropriately stored in an end user's personal repository. Organizations that need specific controls on information should ensure that this service is turned off or the user knows what information must be stored on services that are approved for storage of controlled information.
+      This query will check for the existance of the policy not its value (That should be set per organization's decision)
+    failing_host_count: 2526
+    id: 8
+    name: CIS - Ensure iCloud Drive storage solution is disabled (MDM Required)
+    passing_host_count: 2474
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowCloudDocumentSync'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowCloudDocumentSync' AND \n        (value != 0 AND value
+      != 'false')\n    );  \n/*CIS does not make a hard recommendation for this policy.
+      Fleet has provided two policies (one failing, one succeeding). \n  Depending
+      on your organization's decision, you can delete this policy or its counterpart.*/\n"
+    resolution: |
+      The administrator should configure this via MDM profile.
+      Create or edit a configuration profile with the following information:
+        1. The PayloadType string is com.apple.applicationaccess.
+        2. The key to include is allowCloudDocumentSync.
+        3. The key must be set to <false/>.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      iCloud Drive is Apple's storage solution for applications on both macOS and iOS to use the same files that are resident in Apple's cloud storage. The iCloud Drive folder is available much like Dropbox, Microsoft OneDrive, or Google Drive.
+      One of the concerns in public cloud storage is that proprietary data may be inappropriately stored in an end user's personal repository. Organizations that need specific controls on information should ensure that this service is turned off or the user knows what information must be stored on services that are approved for storage of controlled information.
+      This query will check for the existance of the policy not its value (That should be set per organization's decision)
+    failing_host_count: 2522
+    id: 9
+    name: CIS - Ensure iCloud Drive storage solution is enabled (MDM Required)
+    passing_host_count: 2478
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowCloudDocumentSync'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowCloudDocumentSync' AND \n        (value != 1 AND value
+      != 'true')\n    );  \n/*CIS does not make a hard recommendation for this policy.
+      Fleet has provided two policies (one failing, one succeeding). \n  Depending
+      on your organization's decision, you can delete this policy or its counterpart.*/\n"
+    resolution: |
+      The administrator should configure this via MDM profile.
+      Create or edit a configuration profile with the following information:
+        1. The PayloadType string is com.apple.applicationaccess.
+        2. The key to include is allowCloudDocumentSync.
+        3. The key must be set to <true/>.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      The iCloud keychain is Apple's password manager that works with macOS and iOS. The capability allows users to store passwords in either iOS or macOS for use in Safari on both platforms and other iOS-integrated applications. The most pervasive use is driven by iOS use rather than macOS. The passwords stored in a macOS keychain on an Enterprise-managed computer could be stored in Apple's cloud and then be available on a personal computer using the same account. The stored passwords could be for organizational as well as for personal accounts.
+      If passwords are no longer being used as organizational tokens, they are not in scope for iCloud keychain storage.
+      Rationale:
+      Ensure that the iCloud keychain is used consistently with organizational requirements.
+    failing_host_count: 2483
+    id: 10
+    name: CIS - Ensure iCloud Keychain is disabled (if your org policy is to disable
+      it) (MDM Required)
+    passing_host_count: 2517
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowCloudKeychainSync'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowCloudKeychainSync' AND \n        (value != 0 AND value
+      != 'false')\n    );  \n/*CIS does not make a hard recommendation for this policy.
+      Fleet has provided two policies (one failing, one succeeding). \n  Depending
+      on your organization's decision, you can delete this policy or its counterpart.*/\n"
+    resolution: |
+      The administrator should configure this via MDM profile.
+      Create or edit a configuration profile with the following information:
+        1. The PayloadType string is com.apple.applicationaccess.
+        2. The key to include is allowCloudKeychainSync.
+        3. The key must be set to <false/>.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      The iCloud keychain is Apple's password manager that works with macOS and iOS. The capability allows users to store passwords in either iOS or macOS for use in Safari on both platforms and other iOS-integrated applications. The most pervasive use is driven by iOS use rather than macOS. The passwords stored in a macOS keychain on an Enterprise-managed computer could be stored in Apple's cloud and then be available on a personal computer using the same account. The stored passwords could be for organizational as well as for personal accounts.
+      If passwords are no longer being used as organizational tokens, they are not in scope for iCloud keychain storage.
+      Rationale:
+      Ensure that the iCloud keychain is used consistently with organizational requirements.
+    failing_host_count: 2490
+    id: 11
+    name: CIS - Ensure iCloud Keychain is enabled (if your org policy is to enable
+      it) (MDM Required)
+    passing_host_count: 2510
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowCloudKeychainSync'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowCloudKeychainSync' AND \n        (value != 1 AND value
+      != 'true')\n    );  \n/*CIS does not make a hard recommendation for this policy.
+      Fleet has provided two policies (one failing, one succeeding). \n  Depending
+      on your organization's decision, you can delete this policy or its counterpart.*/\n"
+    resolution: |
+      The administrator should configure this via MDM profile.
+      Create or edit a configuration profile with the following information:
+        1. The PayloadType string is com.apple.applicationaccess.
+        2. The key to include is allowCloudKeychainSync.
+        3. The key must be set to <true/>.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Automated Document synchronization should be planned and controlled
+      to approved storage.
+    failing_host_count: 2489
+    id: 12
+    name: CIS - Ensure iCloud Drive Document and Desktop Sync Is Disabled (MDM Required)
+    passing_host_count: 2511
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowCloudDesktopAndDocuments'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowCloudDesktopAndDocuments' AND \n        (value != 0
+      AND value != 'false')\n    );  \n"
+    resolution: |
+      The administrator should configure this via MDM profile.
+      Create or edit a configuration profile with the following information:
+        1. The PayloadType string is com.apple.applicationaccess.
+        2. The key to include is allowCloudDesktopAndDocuments.
+        3. The key must be set to <false/>.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: A firewall minimizes the threat of unauthorized users gaining access
+      to your system while connected to a network or the Internet.
+    failing_host_count: 2514
+    id: 13
+    name: CIS - Ensure Firewall Is Enabled
+    passing_host_count: 2486
+    platform: darwin
+    query: SELECT 1 FROM alf WHERE global_state >= 1;
+    resolution: Go to the Network pane in System Settings and ensure Firewall is active.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      While in Stealth mode, the computer will not respond to unsolicited probes, dropping that traffic.
+      Stealth mode on the firewall minimizes the threat of system discovery tools while connected to a network or the Internet.
+    failing_host_count: 2487
+    id: 14
+    name: CIS - Ensure Firewall Stealth Mode Is Enabled
+    passing_host_count: 2513
+    platform: darwin
+    query: SELECT 1 FROM alf WHERE global_state >= 1 AND stealth_enabled = 1;
+    resolution: |
+      Perform the following steps to enable firewall stealth mode:
+        1. Open System Settings
+        2. Select Network
+        3. Select Firewall
+        4. Select Options...
+        5. Set Enabled stealth mode to enabled
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      AirDrop can allow malicious files to be downloaded from unknown sources.
+      Contacts Only limits may expose personal information to devices in the same area.
+    failing_host_count: 2462
+    id: 15
+    name: CIS - Ensure AirDrop Is Disabled (MDM Required)
+    passing_host_count: 2538
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowAirDrop'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowAirDrop' AND \n        (value != 0 AND value != 'false')\n
+      \   );  \n"
+    resolution: |
+      Ask your system administrator to deploy an MDM profile that disables AirDrop.
+      Create or edit a configuration profile with the following information:
+        1. The PayloadType string is com.apple.applicationaccess
+        2. The key to include is allowAirDrop
+        3. The key must be set to <false/>
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      In macOS Monterey (12.0), Apple has added the capability to share content from
+      another Apple device to the screen of a host Mac. While there are many valuable uses
+      of this capability, such sharing on a standard Mac user workstation should be enabled
+      ad hoc as required rather than allowing a continuous sharing service. The feature can
+      be restricted by Apple ID or network and is configured to use by accepting the
+      connection on the Mac. Part of the concern is frequent connection requests may
+      function as a denial-of-service and access control limits may provide too much
+      information to an attacker.
+    failing_host_count: 2497
+    id: 16
+    name: CIS - Ensure AirPlay Receiver Is Disabled (MDM Required)
+    passing_host_count: 2503
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowAirPlayIncomingRequests'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowAirPlayIncomingRequests' AND \n        (value != 0
+      AND value != 'false')\n    );  \n"
+    resolution: |
+      The administrator should configure this via MDM profile.
+      Create or edit a configuration profile with the following information:
+        1. The PayloadType string is com.apple.applicationaccess
+        2. The key to include is allowAirPlayIncomingRequests
+        3. The key must be set to <false/>
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: ""
+    failing_host_count: 2517
+    id: 17
+    name: CIS - Ensure Set Time and Date Automatically Is Enabled (MDM Required)
+    passing_host_count: 2483
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='forceAutomaticDateAndTime'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='forceAutomaticDateAndTime' AND \n        (value != 1 AND
+      value != 'true')\n    );  \n"
+    resolution: |
+      The administrator should configure this via MDM profile.
+      Create or edit a configuration profile with the following information:
+        1. The PayloadType string is com.apple.applicationaccess.
+        2. The key to include is forceAutomaticDateAndTime.
+        3. The key must be set to <true/>.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Correct date and time settings are required for authentication protocols, file creation, modification dates and log entries.
+      The time offset compared to time.apple.com must be between -270.x and 270.x seconds.
+    failing_host_count: 2465
+    id: 18
+    name: CIS - Ensure Time Is Set Within Appropriate Limits (Fleetd Required)
+    passing_host_count: 2535
+    platform: darwin
+    query: SELECT * FROM sntp_request WHERE server = 'time.apple.com' AND clock_offset_ms
+      <= 270000 AND clock_offset_ms >= -270000;
+    resolution: Make sure the device can connect to time.apple.com to synchronize
+      time.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      DVD or CD Sharing allows users to remotely access the system's optical drive.
+      Disabling DVD or CD Sharing minimizes the risk of an attacker using the optical drive as
+      a vector for attack and exposure of sensitive data.
+    failing_host_count: 2488
+    id: 19
+    name: CIS - Ensure DVD or CD Sharing Is Disabled
+    passing_host_count: 2512
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT * FROM plist WHERE
+          path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+          key = 'com.apple.ODSAgent' AND
+          value = '0'
+      );
+    resolution: |
+      Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set CD/DVD Sharing to disabled
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Screen Sharing allows a computer to connect to another computer on a network and
+      display the computer’s screen. While sharing the computer’s screen, the user can
+      control what happens on that computer, such as opening documents or applications,
+      opening, moving, or closing windows, and even shutting down the computer.
+      Disabling Screen Sharing mitigates the risk of remote connections being made without
+      the user of the console knowing that they are sharing the computer.
+    failing_host_count: 2467
+    id: 20
+    name: CIS - Ensure Screen Sharing Is Disabled
+    passing_host_count: 2533
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT * FROM plist WHERE
+          path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+          key = 'com.apple.screensharing' AND
+          value = '0'
+      );
+    resolution: |
+      Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Screen Sharing to disabled
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      File sharing from a user workstation creates additional risks by
+      increasing complexity and making security more difficult. Hardened
+      file servers should be used instead of workstations
+    failing_host_count: 2478
+    id: 21
+    name: CIS - Ensure File Sharing Is Disabled
+    passing_host_count: 2522
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT * FROM plist WHERE
+          path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+          key = 'com.apple.smbd' AND
+          value = '0'
+      );
+    resolution: |
+      Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set File Sharing to disabled
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      By enabling Printer Sharing, the computer is set up as a
+      print server to accept print jobs from other computers.
+      Dedicated print servers or direct IP printing should be used instead.
+      Disabling Printer Sharing mitigates the risk of attackers
+      attempting to exploit the print server to gain access to the system.
+    failing_host_count: 2506
+    id: 22
+    name: CIS - Ensure Printer Sharing is Disabled
+    passing_host_count: 2494
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT * FROM file_lines WHERE
+          path = '/etc/cups/cupsd.conf' AND
+          line LIKE '%Allow @LOCAL%'
+        );
+    resolution: |
+      Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Printer Sharing to disabled
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Remote Login allows an interactive terminal session to a computer.
+      The SSH server built into macOS should not be enabled on a standard user computer,
+      particularly one that changes locations and IP addresses.
+      A standard user that runs local applications, including email, web browser,
+      and productivity tools, should not use the same device as a server
+    failing_host_count: 2476
+    id: 23
+    name: CIS - Ensure Remote Login Is Disabled
+    passing_host_count: 2524
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT * FROM plist WHERE
+          path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+          key = 'com.openssh.sshd' AND
+          value = '0'
+      );
+    resolution: |
+      Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Remote Login to disabled
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Remote Management is the client portion of Apple Remote Desktop (ARD).
+      Remote Management can be used by remote administrators to view the current screen,
+      install software, report on, and generally manage client Macs.
+      Remote Management should only be enabled on trusted networks with strong
+      user controls present in a Directory system.
+      Mobile devices without strict controls are vulnerable to exploit and monitoring.
+    failing_host_count: 2484
+    id: 24
+    name: CIS - Ensure Remote Management is Disabled
+    passing_host_count: 2516
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT * FROM processes WHERE
+          path = '/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/MacOS/ARDAgent'
+      );
+    resolution: |
+      Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Remote Management to disabled
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Apple Events is a technology that allows one program to communicate with other programs.
+      Remote Apple Events allows a program on one computer to communicate with a program on a
+      different computer. Disabling Remote Apple Events mitigates the risk of an unauthorized
+      program gaining access to the system.
+    failing_host_count: 2464
+    id: 25
+    name: CIS - Ensure Remote Apple Events is Disabled
+    passing_host_count: 2536
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT * FROM plist WHERE
+          path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+          key = 'com.apple.AEServer' AND
+          value = '0'
+      );
+    resolution: |
+      Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Remote Apple Events to disabled
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Internet Sharing uses the open source natd process to share an internet connection with other
+      computers and devices on a local network. This allows the Mac to function as a router and share
+      the connection to other, possibly unauthorized, devices.
+    failing_host_count: 2529
+    id: 26
+    name: CIS - Ensure Internet Sharing Is Disabled
+    passing_host_count: 2471
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM plist WHERE
+          path = '/Library/Preferences/SystemConfiguration/com.apple.nat.plist' AND
+          key = 'NAT' AND
+          subkey = 'Enabled' AND
+          value = '1'
+      );
+    resolution: |
+      Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Internet Sharing to disabled
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Starting with 10.13 (macOS High Sierra), Apple introduced a service to make it easier to deploy data from Apple, including software updates, where there are bandwidth constraints to the Internet and fewer constraints or greater bandwidth exist on the local subnet. This capability can be very valuable for organizations that have throttled and possibly metered Internet connections. In heterogeneous enterprise networks with multiple subnets, the effectiveness of this capability would be determined by how many Macs were on each subnet at the time new, large updates were made available upstream. This capability requires the use of mac OS clients as P2P nodes for updated Apple content. Unless there is a business requirement to manage operational Internet connectivity and bandwidth user endpoints should not store content and act as a cluster to provision data.
+    failing_host_count: 2485
+    id: 27
+    name: CIS - Ensure Content Caching Is Disabled (MDM Required)
+    passing_host_count: 2515
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowContentCaching'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowContentCaching' AND \n        (value != 0 AND value
+      != 'false')\n    );  \n"
+    resolution: "Graphical Method:\n  Perform the following steps to disable Content
+      Caching:\n    1. Open System Settings\n    2. SelectGeneral\n    3. SelectSharing\n
+      \   4. Set Content Caching to disabled\nProfile Method:\nCreate or edit a configuration
+      profile with the following information:\n  1. The PayloadType string is com.apple.applicationaccess
+      \n  2. The key to include is allowContentCaching\n  3. The key must be set to
+      <false/>\n"
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Bluetooth Sharing allows files to be exchanged with Bluetooth-enabled devices.
+      Disabling Bluetooth Sharing minimizes the risk of an attacker using Bluetooth
+      to remotely attack the system.
+    failing_host_count: 2524
+    id: 28
+    name: CIS - Ensure Bluetooth Sharing Is Disabled
+    passing_host_count: 2476
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/ByHost/com.apple.Bluetooth.%.plist' AND
+          key = 'PrefKeyServicesEnabled' AND
+          value = '1'
+      );
+    resolution: |
+      Graphical Method:
+      1. Open System Settings
+      2. Select General
+      3. Select Sharing
+      4. Set Bluetooth Sharing to disabled
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Starting with macOS 10.15, Apple has provided a control which permits a user to share
+      Apple downloaded content on all Apple devices that are signed in with the same Apple ID.
+      This allows users to share downloaded Movies, Music, or TV shows with other
+      controlled macOS, iOS and iPadOS devices, as well as photos with Apple TVs.
+      Disabling Media Sharing reduces the remote attack surface of the system
+    failing_host_count: 2513
+    id: 29
+    name: CIS - Ensure Media Sharing Is Disabled (MDM Required)
+    passing_host_count: 2487
+    platform: darwin
+    query: "SELECT 1 WHERE EXISTS(\n  SELECT 1 FROM managed_policies WHERE\n    domain
+      = 'com.apple.preferences.sharing.SharingPrefsExtension' AND\n    name = 'homeSharingUIStatus'
+      AND\n    value = '0' AND \n    username = ''\n) AND EXISTS (\n  SELECT 1 FROM
+      managed_policies WHERE\n    domain = 'com.apple.preferences.sharing.SharingPrefsExtension'
+      AND\n    name = 'legacySharingUIStatus' AND\n    value = '0' AND \n    username
+      = ''\n) AND EXISTS (\n  SELECT 1 FROM managed_policies WHERE\n    domain = 'com.apple.preferences.sharing.SharingPrefsExtension'
+      AND\n    name = 'mediaSharingUIStatus' AND\n    value = '0' AND \n    username
+      = ''\n) AND NOT EXISTS (\n  SELECT 1 FROM managed_policies WHERE\n    domain
+      = 'com.apple.preferences.sharing.SharingPrefsExtension' AND\n    name = 'homeSharingUIStatus'
+      AND\n    value != '0'\n) AND NOT EXISTS (\n  SELECT 1 FROM managed_policies
+      WHERE\n    domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND\n
+      \   name = 'legacySharingUIStatus' AND\n    value != '0'\n) AND NOT EXISTS (\n
+      \ SELECT 1 FROM managed_policies WHERE\n    domain = 'com.apple.preferences.sharing.SharingPrefsExtension'
+      AND\n    name = 'mediaSharingUIStatus' AND\n    value != '0'\n);\n"
+    resolution: |
+      Profile Method:
+      Ask your administrator to deploy a profile that sets
+      homeSharingUIStatus, legacySharingUIStatus, and mediaSharingUIStatus to 0
+      for com.apple.preferences.sharing.SharingPrefsExtension
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Backup solutions are only effective if the backups run on a regular basis.
+      The time to check for backups is before the hard drive fails or the computer goes missing.
+      In order to simplify the user experience so that backups are more likely to occur,
+      Time Machine should be on and set to Back Up Automatically whenever the target volume is available.
+
+      FDA (Full Disk Access) is required to read the /Library/Preferences/com.apple.TimeMachine.plist
+      file that contains the Time Machine configuration and backup destinations.
+    failing_host_count: 2542
+    id: 30
+    name: CIS - Ensure Backup Automatically is Enabled If Time Machine Is Enabled
+      (FDA Required)
+    passing_host_count: 2458
+    platform: darwin
+    query: |
+      SELECT 'no time machine backups' as output
+      FROM (SELECT COUNT(*) as c FROM time_machine_backups) t1 WHERE t1.c = 0
+      UNION
+      SELECT 'time machine automatic backup set to true' as output
+      FROM plist WHERE path='/Library/Preferences/com.apple.TimeMachine.plist'
+      AND key='AutoBackup' AND (value = 1 OR value = 'true');
+    resolution: |
+      Ask your system administrator to deploy an MDM profile that enables automatic backup if Time Machine is enabled.
+      The system administrator can do one of:
+      A. Disable Time Machine on the device.
+      B. Run the following command to enable automatic backup on Time Machine destinations:
+        /usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.TimeMachine.plist AutoBackup -bool true
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Backup solutions are only effective if the backups run on a regular basis.
+      The time to check for backups is before the hard drive fails or the computer goes missing.
+      In order to simplify the user experience so that backups are more likely to occur,
+      Time Machine should be on and set to Back Up Automatically whenever the target volume is available.
+
+      FDA (Full Disk Access) is required to read the /Library/Preferences/com.apple.TimeMachine.plist
+      file that contains the Time Machine configuration and backup destinations.
+    failing_host_count: 2463
+    id: 31
+    name: CIS - Ensure Time Machine Volumes Are Encrypted If Time Machine Is Enabled
+      (FDA Required)
+    passing_host_count: 2537
+    platform: darwin
+    query: |
+      SELECT 'no time machine destinations configured' as output
+      FROM (SELECT COUNT(*) as c FROM time_machine_destinations) t1 WHERE t1.c = 0
+      UNION
+      SELECT 'time machines destinations with encryption with automatic backup' as output
+      FROM (SELECT COUNT(*) as c FROM time_machine_destinations WHERE encryption <> 'Encrypted') t2 WHERE t2.c = 0;
+    resolution: |
+      Graphical Method:
+      Perform the following steps to enable encryption on the Time Machine drive:
+        1. Open `System Settings`.
+        2. Select `General`.
+        3. Select `Time Machine`.
+        4. Select the unencrypted drive.
+        5. Select `-` to forget that drive as a destination.
+        6. Select `+` to add a different drive as the destination.
+        7. Select `Set Up Disk...`.
+        8. Set Encrypt Backup to enabled.
+        9. Enter a password in the `New Password` and the same password in the `Re-enter Password` fields.
+        10. A password hint is required, but it is recommended that you do not use any identifying information for the password
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      The Wi-Fi status in the menu bar indicates if the system's wireless internet capabilities are enabled.
+      If so, the system will scan for available wireless networks in order to connect.
+      Enabling "Show Wi-Fi status in menu bar" is a security awareness method that helps mitigate public area
+      wireless exploits by making the user aware of their wireless connectivity status.
+    failing_host_count: 2475
+    id: 32
+    name: CIS - Ensure Show Wi-Fi status in Menu Bar Is Enabled (MDM Required)
+    passing_host_count: 2525
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.controlcenter' AND \n        name='WiFi' AND \n
+      \       value = 18 AND \n        username = ''\n    )\n  AND NOT EXISTS (\n
+      \   SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.controlcenter'
+      AND \n        name='WiFi' AND \n        value != 18\n    );  \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that enables the Wi-Fi status in the menu bar.
+      Create or edit a configuration profile with the following information:
+      1. The `PayloadType` string is `com.apple.controlcenter`.
+      2. The key to include is `WiFi`.
+      3. The key must be set to `<integer>18</integer>`.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Enabling "Show Bluetooth status in menu bar" is a security awareness method that
+      helps understand the current state of Bluetooth, including whether it is enabled,
+      discoverable, what paired devices exist, and what paired devices are currently active.
+    failing_host_count: 2498
+    id: 33
+    name: CIS - Ensure Show Bluetooth Status in Menu Bar Is Enabled (MDM Required)
+    passing_host_count: 2502
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.controlcenter' AND \n        name='Bluetooth' AND
+      \n        value = 18 AND \n        username = ''\n    )\n  AND NOT EXISTS (\n
+      \   SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.controlcenter'
+      AND \n        name='Bluetooth' AND \n        value != 18\n    );  \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+      Create or edit a configuration profile with the following information:
+      1. The `PayloadType` string is `com.apple.controlcenter`.
+      2. The key to include is `Bluetooth`.
+      3. The key must be set to `<integer>18</integer>`.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While there are data spillage concerns with the use of data-gathering personal assistant software, the risk here does not seem greater in sending queries to Apple through Siri than in sending search terms in a browser to Google or Microsoft. While it is possible that Siri will be used for local actions rather than Internet searches, Siri could, in theory, tell Apple about confidential Programs and Projects that should not be revealed. This appears be a usage edge case.
+      In cases where sensitive or protected data is processed and Siri could expose that information through assisting a user in navigating their machine, it should be disabled. Siri does need to phone home to Apple, so it should not be available from air-gapped networks as part of its requirements.
+      Most of the use case data published has shown that Siri is a tremendous time saver on iOS where multiple screens and menus need to be navigated through. Information like sports scores, weather, movie times, and simple to-do items on existing calendars can be easily found with Siri. None of the standard use cases should be more risky than already approved activity.
+    failing_host_count: 2451
+    id: 34
+    name: CIS - Ensure Siri is enabled (Based on organization's policy) (MDM Required)
+    passing_host_count: 2549
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowAssistant'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowAssistant' AND \n        (value != 1 AND value != 'true')\n
+      \   );  \n /*CIS does not make a hard recommendation for this policy. Fleet
+      has provided two policies (one failing, one succeeding). \n  Depending on your
+      organization's decision, you can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+      Create or edit a configuration profile with the following information:
+      1. The `PayloadType` string is com.apple.applicationaccess.
+      2. The key to include is allowAssistant.
+      3. The key must be set to <true/>.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While there are data spillage concerns with the use of data-gathering personal assistant software, the risk here does not seem greater in sending queries to Apple through Siri than in sending search terms in a browser to Google or Microsoft. While it is possible that Siri will be used for local actions rather than Internet searches, Siri could, in theory, tell Apple about confidential Programs and Projects that should not be revealed. This appears be a usage edge case.
+      In cases where sensitive or protected data is processed and Siri could expose that information through assisting a user in navigating their machine, it should be disabled. Siri does need to phone home to Apple, so it should not be available from air-gapped networks as part of its requirements.
+      Most of the use case data published has shown that Siri is a tremendous time saver on iOS where multiple screens and menus need to be navigated through. Information like sports scores, weather, movie times, and simple to-do items on existing calendars can be easily found with Siri. None of the standard use cases should be more risky than already approved activity.
+    failing_host_count: 2471
+    id: 35
+    name: CIS - Ensure Siri is disabled (Based on organization's policy) (MDM Required)
+    passing_host_count: 2529
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowAssistant'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowAssistant' AND \n        (value != 0 AND value != 'false')\n
+      \   );  \n/*CIS does not make a hard recommendation for this policy. Fleet has
+      provided two policies (one failing, one succeeding). \n  Depending on your organization's
+      decision, you can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+      Create or edit a configuration profile with the following information:
+      1. The `PayloadType` string is com.apple.applicationaccess.
+      2. The key to include is allowAssistant.
+      3. The key must be set to <false/>.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Extention of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is true.
+    failing_host_count: 2428
+    id: 36
+    name: CIS - Ensure Siri field TypeToSiriEnabled is true (Based on organization's
+      policy)
+    passing_host_count: 2572
+    platform: darwin
+    query: "SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM users AS u\n  LEFT JOIN (\n
+      \   SELECT * FROM plist WHERE\n      path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist'
+      AND\n      key = 'TypeToSiriEnabled' AND\n      value = '1') AS p\n  ON p.path
+      = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')\n  WHERE
+      u.directory LIKE '/Users/%' AND\n  p.value IS NULL\n);\n/*CIS does not make
+      a hard recommendation for this policy. Fleet has provided two policies (one
+      failing, one succeeding). \n  Depending on your organization's decision, you
+      can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Ask your system administrator to deploy a script that will configure
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist TypeToSiriEnabled -bool true
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Extention of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is false.
+    failing_host_count: 2515
+    id: 37
+    name: CIS - Ensure Siri field TypeToSiriEnabled is false (Based on organization's
+      policy)
+    passing_host_count: 2485
+    platform: darwin
+    query: "SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM users AS u\n  LEFT JOIN (\n
+      \   SELECT * FROM plist WHERE\n      path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist'
+      AND\n      key = 'TypeToSiriEnabled' AND\n      value = '0') AS p\n  ON p.path
+      = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')\n  WHERE
+      u.directory LIKE '/Users/%' AND\n  p.value IS NULL\n);\n/*CIS does not make
+      a hard recommendation for this policy. Fleet has provided two policies (one
+      failing, one succeeding). \n  Depending on your organization's decision, you
+      can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Ask your system administrator to deploy a script that will configure
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist TypeToSiriEnabled -bool false
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Extention of CIS-2.5.1. This will check that Siri StatusMenuVisible field is true.
+    failing_host_count: 2462
+    id: 38
+    name: CIS - Ensure Siri field StatusMenuVisible is true (Based on organization's
+      policy)
+    passing_host_count: 2538
+    platform: darwin
+    query: "SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM users AS u\n  LEFT JOIN (\n
+      \   SELECT * FROM plist WHERE\n      path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist'
+      AND\n      key = 'StatusMenuVisible' AND\n      value = '1') AS p\n  ON p.path
+      = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')\n  WHERE
+      u.directory LIKE '/Users/%' AND\n  p.value IS NULL\n);\n/*CIS does not make
+      a hard recommendation for this policy. Fleet has provided two policies (one
+      failing, one succeeding). \n  Depending on your organization's decision, you
+      can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Ask your system administrator to deploy a script that will configure
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist StatusMenuVisible -bool true
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Extention of CIS-2.5.1. This will check that Siri StatusMenuVisible field is false.
+    failing_host_count: 2587
+    id: 39
+    name: CIS - Ensure Siri field StatusMenuVisible is false (Based on organization's
+      policy)
+    passing_host_count: 2413
+    platform: darwin
+    query: "SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM users AS u\n  LEFT JOIN (\n
+      \   SELECT * FROM plist WHERE\n      path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist'
+      AND\n      key = 'StatusMenuVisible' AND\n      value = '0') AS p\n  ON p.path
+      = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')\n  WHERE
+      u.directory LIKE '/Users/%' AND\n  p.value IS NULL\n);\n/*CIS does not make
+      a hard recommendation for this policy. Fleet has provided two policies (one
+      failing, one succeeding). \n  Depending on your organization's decision, you
+      can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Ask your system administrator to deploy a script that will configure
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist StatusMenuVisible -bool false
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Extention of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is true.
+    failing_host_count: 2577
+    id: 40
+    name: CIS - Ensure Siri field VoiceTriggerUserEnabled is true (Based on organization's
+      policy)
+    passing_host_count: 2423
+    platform: darwin
+    query: "SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM users AS u\n  LEFT JOIN (\n
+      \   SELECT * FROM plist WHERE\n      path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist'
+      AND\n      key = 'VoiceTriggerUserEnabled' AND\n      value = '1') AS p\n  ON
+      p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')\n
+      \ WHERE u.directory LIKE '/Users/%' AND\n  p.value IS NULL\n);\n/*CIS does not
+      make a hard recommendation for this policy. Fleet has provided two policies
+      (one failing, one succeeding). \n  Depending on your organization's decision,
+      you can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Ask your system administrator to deploy a script that will configure
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist VoiceTriggerUserEnabled -bool true
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Extention of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is false.
+    failing_host_count: 2537
+    id: 41
+    name: CIS - Ensure Siri field VoiceTriggerUserEnabled is false (Based on organization's
+      policy)
+    passing_host_count: 2463
+    platform: darwin
+    query: "SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM users AS u\n  LEFT JOIN (\n
+      \   SELECT * FROM plist WHERE\n      path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist'
+      AND\n      key = 'VoiceTriggerUserEnabled' AND\n      value = '0') AS p\n  ON
+      p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')\n
+      \ WHERE u.directory LIKE '/Users/%' AND\n  p.value IS NULL\n);\n/*CIS does not
+      make a hard recommendation for this policy. Fleet has provided two policies
+      (one failing, one succeeding). \n  Depending on your organization's decision,
+      you can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Ask your system administrator to deploy a script that will configure
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist VoiceTriggerUserEnabled -bool false
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Extention of CIS-2.5.1. This will check that Siri LockscreenEnabled field is true.
+    failing_host_count: 2483
+    id: 42
+    name: CIS - Ensure Siri field LockscreenEnabled is true (Based on organization's
+      policy)
+    passing_host_count: 2517
+    platform: darwin
+    query: "SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM users AS u\n  LEFT JOIN (\n
+      \   SELECT * FROM plist WHERE\n      path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist'
+      AND\n      key = 'LockscreenEnabled' AND\n      value = '1') AS p\n  ON p.path
+      = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')\n  WHERE
+      u.directory LIKE '/Users/%' AND\n  p.value IS NULL\n);\n/*CIS does not make
+      a hard recommendation for this policy. Fleet has provided two policies (one
+      failing, one succeeding). \n  Depending on your organization's decision, you
+      can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Ask your system administrator to deploy a script that will configure
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist LockscreenEnabled -bool true
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Extention of CIS-2.5.1. This will check that Siri LockscreenEnabled field is false.
+    failing_host_count: 2518
+    id: 43
+    name: CIS - Ensure Siri field LockscreenEnabled is false (Based on organization's
+      policy)
+    passing_host_count: 2482
+    platform: darwin
+    query: "SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM users AS u\n  LEFT JOIN (\n
+      \   SELECT * FROM plist WHERE\n      path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist'
+      AND\n      key = 'LockscreenEnabled' AND\n      value = '0') AS p\n  ON p.path
+      = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')\n  WHERE
+      u.directory LIKE '/Users/%' AND\n  p.value IS NULL\n);\n/*CIS does not make
+      a hard recommendation for this policy. Fleet has provided two policies (one
+      failing, one succeeding). \n  Depending on your organization's decision, you
+      can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Ask your system administrator to deploy a script that will configure
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist LockscreenEnabled -bool false
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks that Location Services option is enabled.
+    failing_host_count: 2532
+    id: 44
+    name: CIS - Ensure Location Services Is Enabled
+    passing_host_count: 2468
+    platform: darwin
+    query: SELECT 1 FROM location_services where enabled=1;
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that enables automatic updates of Apple apps.
+      Graphical method:
+        Perform the following steps to enable Location Services:
+          1. Open System Settings
+          2. Select Privacy & Security
+          3. Select Location Services
+          4. Verify Location Services is enabled
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks that Location Services option is presented in the Menu Bar.
+    failing_host_count: 2449
+    id: 45
+    name: CIS - Ensure Location Services Is in the Menu Bar
+    passing_host_count: 2551
+    platform: darwin
+    query: SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.locationmenu.plist'
+      AND key='ShowSystemServices' AND value=1;
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that enables the "location services" icon in menu bar when System Services request your location.
+      Graphical method:
+        Perform the following steps to enable Location Services:
+          1. Open System Settings
+          2. Select Privacy & Security
+          3. Select Location Services
+          4. Select Details...
+          5. Verify Show location icon in menu bar when System Services request your
+          location is set to your organization's parameters
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: "macOS uses location information gathered through local Wi-Fi networks
+      to enable applications to supply relevant information to users. While Location
+      Services may be very useful, it may not be desirable to allow all applications
+      that can use Location Services to use your location for Internet queries in
+      order to provide tailored content based on your current location.\nEnsure applications
+      that can use Location Services are authorized and provide that information where
+      the application interacts with external systems. Apple offers feedback within
+      System Preferences and may be enabled to supply information on the menu bar
+      when Location Services are used.\nSafari can deny access from websites or prompt
+      for access.\nApplications that support Location Services can be individually
+      controlled in the Privacy tab in Security & Privacy under System Preferences.\nAccess
+      should be evaluated to ensure that privacy controls are as expected.\nThis query
+      verifies that location services is disabled for all apps.    \n"
+    failing_host_count: 2562
+    id: 46
+    name: CIS - Ensure Location Services Is Disabled to all applications (Based on
+      organization's policy)
+    passing_host_count: 2438
+    platform: darwin
+    query: SELECT 1 FROM location_services WHERE enabled = 0;
+    resolution: |
+      Graphical Method:
+          Perform the following steps to disable unnecessary applications from accessing Location Services:
+          1. Open System Settings
+          2. Select Privacy & Security
+          3. Select Location Services
+          4. Set Location Services to disabled.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      macOS uses location information gathered through local Wi-Fi networks to enable applications to supply relevant information to users. While Location Services may be very useful, it may not be desirable to allow all applications that can use Location Services to use your location for Internet queries in order to provide tailored content based on your current location.
+      Ensure applications that can use Location Services are authorized and provide that information where the application interacts with external systems. Apple offers feedback within System Preferences and may be enabled to supply information on the menu bar when Location Services are used.
+      Safari can deny access from websites or prompt for access.
+      Applications that support Location Services can be individually controlled in the Privacy tab in Security & Privacy under System Preferences.
+      Access should be evaluated to ensure that privacy controls are as expected.
+      This query verifies that location services is enabled and a specific list of application can use it.
+    failing_host_count: 2464
+    id: 47
+    name: CIS - Ensure Location Services Is Enabled for a specific list of applications
+      (Based on organization's policy)
+    passing_host_count: 2536
+    platform: darwin
+    query: "-----------------------------------------------------------------------------------------------------------\n--
+      Instructions for running and modifying this query:\n-- Put the list of allowed
+      applications in the designated area below.\n-- To see what apps are currently
+      allowed (and get the exact name format of the app name), use this query:\n--
+      \   SELECT * FROM plist WHERE \n--    path='/var/db/locationd/clients.plist'
+      \ \n--    AND subkey = \"Authorized\"  \n--    AND value = '1'; \n-----------------------------------------------------------------------------------------------------------\nSELECT
+      1 WHERE \n    -- If location_services is not allowed at all, we are good. \n
+      \   EXISTS(\n      SELECT 1 FROM location_services WHERE enabled = 0\n    )\n
+      \   OR \n    -- If location_services is allowed, make sure allowed apps are
+      approved. \n    NOT EXISTS(\n      SELECT 1 FROM plist WHERE \n        path='/var/db/locationd/clients.plist'
+      \ \n        AND subkey = \"Authorized\"  \n        AND value = '1'  \n        AND
+      NOT(\n            ------------------------------------------------------------------------------------\n
+      \           -- Designated area to add applications allowed to use location-services\n
+      \           ------------------------------------------------------------------------------------\n
+      \           -- Typical app name\n            key LIKE \"%:com.apple.TV\"\n            OR
+      \n            -- Typical system service name\n            key LIKE \"%com.apple.locationd.bundle-/System/Library/PrivateFrameworks/CoreParsec.framework\"\n
+      \           OR \n            key LIKE \"%:com.apple.locationd.bundle-/System/Library/LocationBundles/DoNotDisturb.bundle\"\n
+      \           ------------------------------------------------------------------------------------\n
+      \       )\n    );\n"
+    resolution: |
+      Graphical Method:
+          Perform the following steps to disable unnecessary applications from accessing Location Services:
+          1. Open System Settings
+          2. Select Privacy & Security
+          3. Select Location Services
+          4. Set any applications listed to your organization's requirements
+          5. Select System Services
+          6. Set any System Services listed to your organization's requirements
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks that Ensure Limit Ad Tracking Is Enabled.
+    failing_host_count: 2508
+    id: 48
+    name: CIS - Ensure Limit Ad Tracking Is Enabled (MDM Required)
+    passing_host_count: 2492
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.applicationaccess' AND \n        name='allowApplePersonalizedAdvertising'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowApplePersonalizedAdvertising' AND \n        (value
+      != 0 AND value != 'false')\n    );  \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that disables apple personalized advertising.
+      Graphical method:
+        Perform the following steps to ensure Limit Ad Tracking Is Enabled:
+          1. Open Privacy & Security
+          2. Select Apple Advertising
+          3. Verify that Personalized Ads is not enabled
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks that an Administrator Password Is Required to Access System-Wide
+      Preferences
+    failing_host_count: 2462
+    id: 49
+    name: CIS - Ensure an Administrator Password Is Required to Access System-Wide
+      Preferences (Fleetd required)
+    passing_host_count: 2538
+    platform: darwin
+    query: SELECT 1 FROM authdb WHERE right_name = 'system.preferences' AND json_extract(json_result,
+      '$.shared') == 0;
+    resolution: |
+      Graphical method:
+        Perform the following steps to ensure an administrator password is required to access system-wide preferences:
+          1. Open System Settings
+          2. Open Privacy & Security
+          3. Select Advanced
+          4. Set Require an administrator password to access system-wide settings to enabled
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Setting a hot corner to disable the screen saver poses a potential security risk since an
+      unauthorized person could use this to bypass the login screen and gain access to the system.
+
+      FDA (Full Disk Access) is required to read the configuration of all the users in the device
+      ('/Users/*/Library/Preferences/com.apple.dock.plist')
+    failing_host_count: 2491
+    id: 50
+    name: CIS - Ensure Screen Saver Corners Are Secure (FDA Required)
+    passing_host_count: 2509
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS(
+        SELECT 1 FROM plist
+        WHERE path LIKE '/Users/%/Library/Preferences/com.apple.dock.plist' AND (
+          key = 'wvous-br-corner' OR
+          key = 'wvous-bl-corner' OR
+          key = 'wvous-tr-corner' OR
+          key = 'wvous-tl-corner'
+      ) AND value = 6);
+    resolution: |
+      Ask your system administrator to deploy a script that will configure
+      `wvous-tl-corner`, `wvous-bl-corner`, `wvous-tr-corner`, and `wvous-br-corner` in
+      domain `com.apple.dock` to a value that is not 6 (for all users of the device).
+
+      Graphical Method:
+        Perform the following steps to ensure that a Hot Corner is not set to Disable Screen Saver:
+          1. Open System Settings
+          2. Select Desktop & Dock
+          3. Select`Hot Corners...`
+          4. Verify that `Disable Screen Saver` is not set to any of the corners.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Universal Control is an Apple feature that allows Mac users to control multiple other Macs and iPads with the same keyboard, mouse, and trackpad using the same Apple ID. The technology relies on already available iCloud services, particularly Handoff.
+      Universal Control simplifies the use of iCloud connectivity of multiple computers using the same Apple ID. This may simplify data transfer from organizationally-managed and personal devices. The use of the same iCloud account and Handoff is the underlying concern that should be evaluated. The use of the same keyboard or mouse across multiple devices does not by itself decrease organizational security.
+    failing_host_count: 2513
+    id: 51
+    name: CIS - Ensure Universal Control is enabled (Based on organization's policy)
+      (MDM Required)
+    passing_host_count: 2487
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.universalcontrol' AND \n        name='Disable' AND
+      \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.universalcontrol'
+      AND \n        name='Disable' AND \n        (value != 0 AND value != 'false')\n
+      \   );  \n/*CIS does not make a hard recommendation for this policy. Fleet has
+      provided two policies (one failing, one succeeding). \n  Depending on your organization's
+      decision, you can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+      Create or edit a configuration profile with the following information:
+      1. The `PayloadType` string is com.apple.universalcontrol.
+      2. The key to include is 'Disable'.
+      3. The key must be set to <false/>.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Universal Control is an Apple feature that allows Mac users to control multiple other Macs and iPads with the same keyboard, mouse, and trackpad using the same Apple ID. The technology relies on already available iCloud services, particularly Handoff.
+      Universal Control simplifies the use of iCloud connectivity of multiple computers using the same Apple ID. This may simplify data transfer from organizationally-managed and personal devices. The use of the same iCloud account and Handoff is the underlying concern that should be evaluated. The use of the same keyboard or mouse across multiple devices does not by itself decrease organizational security.
+    failing_host_count: 2532
+    id: 52
+    name: CIS - Ensure Universal Control is disabled (Based on organization's policy)
+      (MDM Required)
+    passing_host_count: 2468
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.universalcontrol' AND \n        name='Disable' AND
+      \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.universalcontrol'
+      AND \n        name='Disable' AND \n        (value != 1 AND value != 'true')\n
+      \   );  \n/*CIS does not make a hard recommendation for this policy. Fleet has
+      provided two policies (one failing, one succeeding). \n  Depending on your organization's
+      decision, you can delete this policy or its counterpart.*/\n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+      Create or edit a configuration profile with the following information:
+      1. The `PayloadType` string is com.apple.universalcontrol.
+      2. The key to include is 'Disable'.
+      3. The key must be set to <true/>.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Power Nap allows the system to stay in low power mode, especially while on battery power, and periodically
+      connect to previously known networks with stored credentials for user applications to phone home and get updates.
+      This capability requires FileVault to remain unlocked and the use of previously joined networks to be risk accepted
+      based on the SSID without user input.
+      Disabling this feature mitigates the risk of an attacker remotely waking the system and gaining access.
+    failing_host_count: 2483
+    id: 53
+    name: CIS - Ensure Power Nap Is Disabled for Intel Macs (Fleetd Required)
+    passing_host_count: 2517
+    platform: darwin
+    query: |
+      SELECT 1 FROM (SELECT
+        COALESCE(JSON_EXTRACT(
+            JSON_EXTRACT(json_result, '$.AC Power:'),
+            '$.powernap'
+        ), '') AS powernap_ac,
+        COALESCE(JSON_EXTRACT(
+            JSON_EXTRACT(json_result, '$.Battery Power:'),
+            '$.powernap'
+        ), '') AS powernap_battery
+      FROM pmset WHERE getting = 'custom' AND powernap_battery != '1' AND powernap_ac != '1');
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy a script that runs the following command to turn off
+      Power Nap on the device:
+      /usr/bin/sudo /usr/bin/pmset -a powernap 0
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Wake for Network Access allows the computer to take action when the user is not present and the computer
+      is in energy saving mode. These tools require FileVault to remain unlocked and fully rejoin known networks.
+
+      Disabling this feature mitigates the risk of an attacker remotely waking the system and gaining access.
+    failing_host_count: 2523
+    id: 54
+    name: CIS - Ensure Wake for Network Access Is Disabled (Fleetd Required)
+    passing_host_count: 2477
+    platform: darwin
+    query: |
+      SELECT 1 FROM (SELECT
+        COALESCE(JSON_EXTRACT(
+            JSON_EXTRACT(json_result, '$.AC Power:'),
+            '$.womp'
+        ), '') AS womp_ac,
+        COALESCE(JSON_EXTRACT(
+            JSON_EXTRACT(json_result, '$.Battery Power:'),
+            '$.womp'
+        ), '') AS womp_battery
+      FROM pmset WHERE getting = 'custom' AND womp_battery != '1' AND womp_ac != '1');
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy a script that runs the following command to turn off
+      Wake on  on the device:
+      /usr/bin/sudo /usr/bin/pmset -a womp 0
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      In order to use a computer with Full Disk Encryption (FDE), macOS must keep encryption keys in memory to allow
+      the use of the disk that has been FileVault protected. When the system is not in use, the volume is protected
+      through encryption. When the system is sleeping and available to quickly resume, the encryption keys remain in memory.
+      If an unauthorized party has possession of the computer and the computer is only slept, there are known attack vectors
+      that can be attempted against the RAM that has the encryption keys or the running operating system protected
+      by a login screen.
+
+      Mac systems should be set to hibernate after sleeping for a risk-acceptable time period.
+      MacBooks should be set so that the `standbydelay` is 15 minutes (900 seconds) or less.
+    failing_host_count: 2475
+    id: 55
+    name: CIS - Ensure the OS is not Activate When Resuming from Sleep (Fleetd, FDA
+      Required)
+    passing_host_count: 2525
+    platform: darwin
+    query: |
+      SELECT 1 WHERE EXISTS(
+        SELECT 1 FROM system_info WHERE
+        regex_match(hardware_model, '^Mac[0-9,]+$', 0) != '' OR regex_match(hardware_model, '^MacBook', 0) != 0
+      )
+      AND EXISTS(
+        SELECT JSON_EXTRACT(system_wide_power_settings, '$.DestroyFVKeyOnStandby') AS destroy_fv_key_on_standby
+        FROM (
+          SELECT JSON_EXTRACT(json_result, '$.System-wide power settings:') AS system_wide_power_settings FROM pmset
+        )
+        WHERE destroy_fv_key_on_standby = '1'
+      )
+      AND EXISTS(
+          SELECT 1 WHERE EXISTS(
+            SELECT 1 WHERE EXISTS(
+              SELECT 1 FROM system_info WHERE cpu_type = 'x86_64h' OR cpu_type = 'x86_64'
+            ) AND EXISTS(
+              SELECT
+                  CAST(JSON_EXTRACT(battery, '$.standbydelaylow') AS INTEGER) AS standbydelaylow,
+                  CAST(JSON_EXTRACT(battery, '$.standbydelayhigh') AS INTEGER) AS standbydelayhigh,
+                  CAST(JSON_EXTRACT(battery, '$.highstandbythreshold') AS INTEGER) AS highstandbythreshold,
+                  CAST(JSON_EXTRACT(battery, '$.hibernatemode') AS INTEGER) AS hibernatemode
+              FROM (
+                  SELECT JSON_EXTRACT(json_result, '$.Battery Power:') as battery FROM pmset WHERE getting = 'custom'
+              )
+              WHERE standbydelaylow <= 900 AND standbydelayhigh <= 900 AND highstandbythreshold >= 90 AND hibernatemode = 25
+            )
+          ) OR EXISTS(
+            SELECT 1 WHERE EXISTS(
+              SELECT 1 FROM system_info WHERE cpu_type = 'arm64e'
+            ) AND EXISTS (
+              SELECT
+                  CAST(JSON_EXTRACT(battery, '$.standby') AS INTEGER) AS standby,
+                  CAST(JSON_EXTRACT(battery, '$.hibernatemode') AS INTEGER) AS hibernatemode
+              FROM (
+                  SELECT JSON_EXTRACT(json_result, '$.Battery Power:') AS battery FROM pmset WHERE getting = 'custom'
+              )
+              WHERE standby <= 900 AND hibernatemode = 25
+            )
+          )
+      );
+    resolution: |
+      Ask your system administrator to deploy the following script to Macbook devices:
+      if [[ $(uname -m) == 'arm64' ]]; then
+              # Apple silicon
+              /usr/bin/sudo /usr/bin/pmset -a standby 900
+              /usr/bin/sudo /usr/bin/pmset -a destroyfvkeyonstandby 1
+              /usr/bin/sudo /usr/bin/pmset -a hibernatemode 25
+      else
+              # Intel
+              /usr/bin/sudo /usr/bin/pmset -a standbydelaylow 900
+              /usr/bin/sudo /usr/bin/pmset -a standbydelayhigh 900
+              /usr/bin/sudo /usr/bin/pmset -a highstandbythreshold 90
+              /usr/bin/sudo /usr/bin/pmset -a destroyfvkeyonstandby 1
+              /usr/bin/sudo /usr/bin/pmset -a hibernatemode 25
+      fi
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks that Password is Required to Wake the Computer From Sleep
+      or Screen Saver Is Enabled.
+    failing_host_count: 2511
+    id: 56
+    name: CIS - Ensure a Password is Required to Wake the Computer From Sleep or Screen
+      Saver Is Enabled (MDM Required)
+    passing_host_count: 2489
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.screensaver' AND \n        name='askForPassword'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.screensaver'
+      AND \n        name='askForPasswordDelay' AND \n        value <= 5 AND \n        username
+      = ''\n    )\n  AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n
+      \       domain='com.apple.screensaver' AND \n        name='askForPassword' AND
+      \n        (value != 1 AND value != 'true')\n    )\n  AND NOT EXISTS (\n    SELECT
+      1 FROM managed_policies WHERE \n        domain='com.apple.screensaver' AND \n
+      \       name='askForPasswordDelay' AND \n        value > 5\n    );  \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled.
+      Graphical method:
+        Perform the following steps to ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled:
+          1. Open System Settings
+          2. Select Lock Screen
+          3. Verify that Require password after screensaver begins or display is turned
+          off is set with After 0 seconds or After 5 seconds
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Checks that Gatekeeper Is Enabled. Gatekeeper is Apple’s application that utilizes allowlisting to restrict downloaded applications from launching. It functions as a control to limit applications from unverified sources from running without authorization. In an update to Gatekeeper in macOS 13 Ventura, Gatekeeper checks every application on every launch, not just quarantined apps.
+    failing_host_count: 2501
+    id: 57
+    name: CIS - Ensure Gatekeeper Is Enabled
+    passing_host_count: 2499
+    platform: darwin
+    query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1 AND dev_id_enabled
+      = 1;
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that Ensure Gatekeeper Is Enabled
+      Graphical method:
+        Perform the following steps to ensure Gatekeeper Is Enabled:
+          1. Open System Settings
+          2. Select Privacy & Security
+          3. Verify that 'Allow apps downloaded from' is set to' App Store and identified developers'
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks that Sending Diagnostic and Usage Data to Apple Is Disabled.
+    failing_host_count: 2469
+    id: 58
+    name: CIS - Ensure Sending Diagnostic and Usage Data to Apple Is Disabled (MDM
+      Required)
+    passing_host_count: 2531
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.SubmitDiagInfo' AND \n        name='AutoSubmit'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='allowDiagnosticSubmission' AND \n        (value = 0 OR value
+      = 'false') AND \n        username = ''\n    )\n  AND EXISTS (\n    SELECT 1
+      FROM managed_policies WHERE \n        domain='com.apple.applicationaccess' AND
+      \n        name='Siri Data Sharing Opt-In Status' AND \n        value = 2 AND
+      \n        username = ''\n    )\n  AND NOT EXISTS (\n    SELECT 1 FROM managed_policies
+      WHERE \n        domain='com.apple.SubmitDiagInfo' AND \n        name='Disable'
+      AND \n        (value != 0 AND value != 'false')\n    )\n  AND NOT EXISTS (\n
+      \   SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='Disable' AND \n        (value != 0 AND value != 'false')\n
+      \   )\n  AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.applicationaccess'
+      AND \n        name='Disable' AND \n        value != 2\n    );  \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that disables Sending Diagnostic and Usage Data to Apple.
+      Graphical method:
+        Perform the following steps to ensure Sending Diagnostic and Usage Data to Apple Is Disabled:
+          1. Open System Settings
+          2. Select Privacy & Security
+          3. Select Analytics & Improvements
+          4. Verify that Share Mac Analytics is not enabled
+          5. Verify that Share with App Developers is not enabled
+          6. Verify that Improve Siri & Dictation is not enabled
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: A locking screen saver is one of the standard security controls to
+      limit access to a computer and the current user's session when the computer
+      is temporarily unused or unattended. In macOS, the screen saver starts after
+      a value is selected in the drop- down menu. 20 minutes or less is an acceptable
+      value. Any value can be selected through the command line or script, but a number
+      that is not reflected in the GUI can be problematic. 20 minutes is the default
+      for new accounts.
+    failing_host_count: 2469
+    id: 59
+    name: CIS - Ensure an Inactivity Interval of 20 Minutes Or Less for the Screen
+      Saver Is Enabled (MDM Required)
+    passing_host_count: 2531
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.screensaver' AND \n        name='idleTime' AND \n
+      \       value <= 1200 AND \n        username = ''\n    )\n  AND NOT EXISTS (\n
+      \   SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.screensaver'
+      AND \n        name='idleTime' AND \n        value > 1200\n    );  \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver to be Enabled.
+      Graphical method:
+        Perform the following steps to ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled:
+          1. Open System Settings
+          2. Select Lock Screen
+          3. Verify that Start Screen Saver when inactive is set for 20 minutes or less (≤1200 seconds)
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: An access warning informs the user that the system is reserved for
+      authorized use only, and that the use of the system may be monitored
+    failing_host_count: 2539
+    id: 60
+    name: CIS - Ensure a Custom Message for the Login Screen Is Enabled
+    passing_host_count: 2461
+    platform: darwin
+    query: SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.loginwindow.plist'
+      AND key='LoginwindowText' AND value != "";
+    resolution: |
+      Graphical method:
+        Perform the following steps to ensure a Custom Message for the Login Screen Is Enabled:
+          1. Open System Settings
+          2. Select Lock Screen
+          3. Verify Show message when locked is enabled
+          4. Select Set
+          5. Verify that the message displayed is configured to your organization's required text
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks that FileVault Is Enabled. FileVault secures a system's data
+      by automatically encrypting its boot volume and requiring a password or recovery
+      key to access it. This policy checks that filevault is enabled on the device
+      and that the user is not allowed to disable it.
+    failing_host_count: 2499
+    id: 61
+    name: CIS - Ensure FileVault Is Enabled (MDM Required)
+    passing_host_count: 2501
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.MCX' AND \n        name='dontAllowFDEDisable' AND
+      \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.MCX'
+      AND \n        name='dontAllowFDEDisable' AND \n        (value != 1 AND value
+      != 'true')\n    )\n  AND EXISTS (\n    SELECT 1 FROM disk_encryption WHERE \n
+      \       user_uuid IS NOT \"\" AND \n        filevault_status = 'on' \n    );
+      \ \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that enables FileVault and disables turning it off.
+      Graphical method:
+        Perform the following steps to ensure FileVault Is Enabled:
+          1. Open System Settings
+          2. Select Privacy & Privacy
+          3. Verify that FileVault states FileVault is turned on for the disk "<disk name>"
+          4. Select Privacy & Security
+          5. Select Profile
+          6. Verify that an installed profile has FileVault Can't Disable set to True
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks Login Window Displays as Name and Password Is Enabled.
+    failing_host_count: 2528
+    id: 62
+    name: CIS - Ensure Login Window Displays as Name and Password Is Enabled (MDM
+      Required)
+    passing_host_count: 2472
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.loginwindow' AND \n        name='SHOWFULLNAME' AND
+      \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.loginwindow'
+      AND \n        name='SHOWFULLNAME' AND \n        (value != 1 AND value != 'true')\n
+      \   );  \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that Ensure Login Window Displays as Name and Password Is Enabled.
+      Graphical method:
+        Perform the following steps to ensure Login Window Displays as Name and Password Is Enabled:
+          1. Open System Settings
+          2. Select Lock Screen
+          3. Verify that Login window shows is set to Name and Password
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks Show Password Hints Is Disabled.
+    failing_host_count: 2445
+    id: 63
+    name: CIS - Ensure Show Password Hints Is Disabled (MDM Required)
+    passing_host_count: 2555
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.loginwindow' AND \n        name='RetriesUntilHint'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.loginwindow'
+      AND \n        name='RetriesUntilHint' AND \n        (value != 0 AND value !=
+      'false')\n    );  \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that Ensures Show Password Hints Is Disabled.
+      Graphical method:
+        Perform the following steps to ensure Show Password Hints Is Disabled:
+          1. OpenSystemSettings
+          2. Select Lock Screen
+          3. Verify that Show password hints is disabled
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Password hints help the user recall their passwords for various systems and/or accounts. In most cases, password hints are simple and closely related to the user's password.
+    failing_host_count: 2437
+    id: 64
+    name: CIS - Ensure Users' Accounts Do Not Have a Password Hint (Fleetd Required)
+    passing_host_count: 2563
+    platform: darwin
+    query: SELECT 1 FROM user_login_settings WHERE password_hint_enabled = 0;
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that disables apple personalized advertising.
+      Graphical method:
+        Perform the following steps to ensure Users' Accounts Do Not Have a Password Hint:
+          1. Open System Settings
+          2. Select Touch ID & Passwords (or Login Password on non-Touch ID Macs)
+          3. Select Change...
+          4. Change the password and ensure that no text is entered in the Password hint box
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Checks that Guest Account Is Disabled.
+    failing_host_count: 2518
+    id: 65
+    name: CIS - Ensure Guest Account Is Disabled
+    passing_host_count: 2482
+    platform: darwin
+    query: |
+      SELECT 1 WHERE
+      EXISTS(SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.loginwindow.plist' AND key='GuestEnabled' AND value = 0)
+      OR
+      EXISTS(select 1 FROM plist WHERE path='/Library/Preferences/com.apple.MCX.plist' AND key='DisableGuestAccount' AND value = 1);
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that disables Guest Account.
+      Graphical method:
+        Perform the following steps to ensure Guest Account Is Disabled:
+          1. Open System Settings
+          2. Select Users & Groups
+          3. Select the i next to the Guest User
+          4. Verify that Allow guests to log in to this computer is disable
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: Allowing guests to connect to shared folders enables users to access
+      selected shared folders and their contents from different computers on a network
+    failing_host_count: 2510
+    id: 66
+    name: CIS - Ensure Guest Access to Shared Folders Is Disabled
+    passing_host_count: 2490
+    platform: darwin
+    query: SELECT 1 from plist where path = '/Library/Preferences/SystemConfiguration/com.apple.smb.server.plist'
+      AND key = 'AllowGuestAccess' AND value = 0;
+    resolution: |
+      Automated method:
+        Ask your system administrator to deploy the following script which will disable guest users from access to shared folders:
+        /usr/bin/sudo /usr/sbin/sysadminctl -smbGuestAccess off
+      Graphical Method:
+        Perform the following steps to no longer allow guest user access to shared folders:
+          1. Open System Settings
+          2. Select Users & Groups
+          3. Select the i next to the Guest User
+          4. Set Allow guests to connect to shared folders to disabled
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      The automatic login feature saves a user's system access credentials and bypasses the login screen. Instead, the system automatically loads to the user's desktop screen
+    failing_host_count: 2545
+    id: 67
+    name: CIS - Ensure Automatic Login Is Disabled (MDM Required)
+    passing_host_count: 2455
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.login.mcx.DisableAutoLoginClient' AND \n        name='Disable'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.login.mcx.DisableAutoLoginClient'
+      AND \n        name='Disable' AND \n        (value != 1 AND value != 'true')\n
+      \   );  \n"
+    resolution: "Automated method:\nAsk your system administrator to deploy an MDM
+      profile that Ensure Automatic Login Is Disabled\nGraphical method:\n  Perform
+      the following steps to ensure Automatic Login Is Disabled:\n    1. Open System
+      Settings\n    2. Select Users & Groups\n    3. Set Automatic login in as...
+      to Off\nProfile Method:\n    Create or edit a configuration profile with the
+      following information:\n    1. The Payload Type string is com.apple.loginwindow\n
+      \   2. The key to include is com.apple.login.mcx.DisableAutoLoginClient \n    3.
+      The key must be set to <true/>\n"
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      macOS's audit facility, auditd, receives notifications from the kernel when certain system calls, such as open, fork, and exit, are made. These notifications are captured and written to an audit log.
+    failing_host_count: 2514
+    id: 68
+    name: CIS - Ensure Security Auditing Is Enabled
+    passing_host_count: 2486
+    platform: darwin
+    query: |
+      SELECT 1 WHERE EXISTS (
+        SELECT
+          l.program, l.label, l.program_arguments,
+          p.path, p.name , p.cmdline
+        FROM
+          launchd AS l
+          INNER JOIN processes AS p
+        ON (l.program = p.path)
+        WHERE
+        (l.label = "com.apple.auditd")
+        AND
+        (l.program_arguments = p.cmdline)
+      );
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script which will enable security auditing:
+      /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.auditd.plist
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Auditing is the capture and maintenance of information about security-related events. Auditable events often depend on differing organizational requirements.
+    failing_host_count: 2512
+    id: 69
+    name: CIS - Ensure Security Auditing Flags For User-Attributable Events Are Configured
+      Per Local Organizational Requirements
+    passing_host_count: 2488
+    platform: darwin
+    query: "SELECT 1 WHERE EXISTS (    \n  SELECT line\n  FROM file_lines WHERE path
+      = '/etc/security/audit_control' \n  AND \n  (\n        (\n          line LIKE
+      'flags:%' \n          AND \n          line LIKE \"%-fm%\"\n          AND \n
+      \         line LIKE \"%ad%\"\n          AND \n          line LIKE \"%-ex%\"\n
+      \         AND \n          line LIKE \"%aa%\"\n          AND \n          line
+      LIKE \"%-fr%\"\n          AND \n          line LIKE \"%lo%\"\n          AND
+      \n          line LIKE \"%-fw%\" \n        ) \n        OR \n        (\n          line
+      LIKE 'flags:%' \n          AND \n          line LIKE \"%-all%\" \n          AND
+      \n          line LIKE \"%ad%\"\n          AND \n          line LIKE \"%aa%\"\n
+      \         AND \n          line LIKE \"%lo%\"\n        )\n  )\n);\n"
+    resolution: "Automated method:\nAsk your system administrator to deploy an MDM
+      profile that disables Bonjour advertising service.\nTerminal Method: \n  Perform
+      the following to set the required Security Auditing Flags:\n  Edit the /etc/security/audit_control
+      file and add -fm, ad, -ex, aa, -fr, lo, and -fw to flags. You can also substitute
+      -all for -fm, -ex, -fr, and -fw.\n"
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      macOS writes information pertaining to system-related events to the file /var/log/install.log and has a configurable retention policy for this file. The default logging setting limits the file size of the logs and the maximum size for all logs. The default allows for an errant application to fill the log files and does not enforce sufficient log retention. The Benchmark recommends a value based on standard use cases. The value should align with local requirements within the organization.
+    failing_host_count: 2504
+    id: 70
+    name: CIS - Ensure install.log Is Retained for 365 or More Days and No Maximum
+      Size
+    passing_host_count: 2496
+    platform: darwin
+    query: "SELECT 1 WHERE\nEXISTS ( SELECT line, \n         CAST ( regex_match(line,
+      'ttl=(\\d+)', 1) AS INTEGER ) AS val \n         FROM file_lines \n         WHERE
+      path = '/etc/asl/com.apple.install' \n         AND val >=365 )\nAND\nNOT EXISTS
+      ( SELECT line  \n         FROM file_lines \n         WHERE path = '/etc/asl/com.apple.install'
+      \ \n         AND  line  LIKE \"%all_max=%\" );\n"
+    resolution: |
+      Automated method:
+        Ask your system administrator to deploy a script which will ensure proper retention for install.log.
+      Terminal Method:
+        Perform the following to ensure that install logs are retained for at least 365 days:
+        Edit the /etc/asl/com.apple.install file and add or modify the ttl value to 365 or greater on the file line. Also, remove the all_max= setting and value from the file line.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      The macOS audit capability contains important information to investigate security or operational issues. This resource is only completely useful if it is retained long enough to allow technical staff to find the root cause of anomalies in the records.
+      Retention can be set to respect both size and longevity. To retain as much as possible under a certain size, the recommendation is to use the following:
+      expire-after:60d OR 5G
+      This recomendation is based on minimum storage for review and investigation. When a third party tool is in use to allow remote logging or the store and forwarding of logs, this local storage requirement is not required.
+    failing_host_count: 2433
+    id: 71
+    name: CIS - Ensure Security Auditing Retention Is Enabled
+    passing_host_count: 2567
+    platform: darwin
+    query: |
+      SELECT 1 WHERE EXISTS (
+        SELECT line,
+        CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 1) AS INTEGER) AS days,
+        CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 2) AS INTEGER) AS size
+        FROM file_lines
+        WHERE path = '/etc/security/audit_control'
+        AND days >=60
+        AND size >=5
+      );
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:
+      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed "s/${origExpire}/expire-after:60d OR 5G/" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      The audit system on macOS writes important operational and security information that can be both useful for an attacker and a place for an attacker to attempt to obfuscate unwanted changes that were recorded. As part of defense-in-depth the /etc/security/audit_control configuration and the files in /var/audit should be owned only by root with group wheel with read-only rights and no other access allowed. macOS ACLs should not be used for these files.
+    failing_host_count: 2500
+    id: 72
+    name: CIS - Ensure Access to Audit Records Is Controlled
+    passing_host_count: 2500
+    platform: darwin
+    query: "SELECT 1 WHERE \n  -- For all files in /var/audit:\n  -- UID, GID should
+      be owned by root.\n  -- MODE should be 0440 (\"-r--r-----\")\n  NOT EXISTS (
+      SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND (uid !=0 OR gid !=0 OR
+      mode != \"0440\") )\n  AND \n  NOT EXISTS ( select 1 from file \n                    where
+      path LIKE \n                    ( \n                        SELECT dir FROM
+      \n                        ( \n                          -- The path we are looking
+      for is written inside /etc/security/audit_control in a line that starts with
+      \"dir:\"\n                          -- Looking immediately at this and REGEX-ing
+      the path after it (and concatenating \"/%\")\n                          -- Same
+      explanation for queries below.\n                          select line, CONCAT(regex_match(line,
+      '^dir:(.+)',1 ), '/%') AS dir \n                          FROM file_lines \n
+      \                         WHERE path = '/etc/security/audit_control' \n                          AND
+      line LIKE \"dir:%\"\n                        )\n                    ) \n                    AND
+      ( uid !=0 OR gid !=0 OR mode != \"0440\" )\n              ) \n  AND \n  -- For
+      /etc/security/audit_control the MODE should be 0400 (\"-r--------\")\n  NOT
+      EXISTS ( select 1 from file where path = \"/etc/security/audit_control\" AND
+      mode != \"0400\" );\n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script which will Ensure Access to Audit Records Is Controlled:
+        /usr/bin/sudo /usr/sbin/chown -R root:wheel /etc/security/audit_control
+        /usr/bin/sudo /bin/chmod -R o-rw /etc/security/audit_control
+        /usr/bin/sudo /usr/sbin/chown -R root:wheel /var/audit/
+        /usr/bin/sudo /bin/chmod -R o-rw /var/audit/
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      The socketfilter Firewall is what is used when the Firewall is turned on in the Security & Privacy Preference Pane. In order to appropriately monitor what access is allowed and denied, logging must be enabled. The logging level must be set to "detailed" to be useful in monitoring connection attempts that the firewall detects. Throttled login is not sufficient for examine Firewall connection attempts.
+    failing_host_count: 2577
+    id: 73
+    name: CIS - Ensure Firewall Logging Is Enabled and Configured (MDM Required)
+    passing_host_count: 2423
+    platform: darwin
+    query: "SELECT 1 WHERE\n(\n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.security.firewall' AND \n        name='EnableLogging'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.security.firewall'
+      AND \n        name='LoggingOption' AND \n        value = \"detail\" AND \n        username
+      = ''\n    )\n  AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n
+      \       domain='com.apple.security.firewall' AND \n        name='EnableLogging'
+      AND \n        (value != 1 AND value != 'true')\n    )\n  AND NOT EXISTS (\n
+      \   SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.security.firewall'
+      AND \n        name='LoggingOption' AND \n        value != \"detail\"\n    )\n)\nOR\n(\n
+      \ EXISTS ( \n    SELECT 1 FROM plist WHERE \n        path='/Library/Preferences/com.apple.alf.plist'
+      AND \n        key='loggingenabled' AND \n        value = 1 \n    )\n  AND EXISTS
+      ( \n    SELECT 1 FROM plist WHERE \n    path='/Library/Preferences/com.apple.alf.plist'
+      AND \n    key='loggingoption' AND \n    value = 2 \n    )\n);\n"
+    resolution: "Profile Method:\nCreate or edit a configuration profile with the
+      following information:\n1. The Payload Type string is com.apple.security.firewall
+      \n2. The key to include is EnableFirewall\n3. The key must be set to<true/>\n4.
+      The key to also include is EnableLogging\n5. The key must be set to<true/>\n6.
+      The key to also include is LoggingOption\n7. The key must be set to <string>detail</string>\n"
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Bonjour is an auto-discovery mechanism for TCP/IP devices which enumerate devices and services within a local subnet.
+      DNS on macOS is integrated with Bonjour and should not be turned off, but the Bonjour advertising service can be disabled.
+    failing_host_count: 2500
+    id: 74
+    name: CIS - Ensure Bonjour Advertising Services Is Disabled (MDM Required)
+    passing_host_count: 2500
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.mDNSResponder' AND \n        name='NoMulticastAdvertisements'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.mDNSResponder'
+      AND \n        name='NoMulticastAdvertisements' AND \n        (value != 1 AND
+      value != 'true')\n    );  \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy an MDM profile that disables Bonjour advertising service.
+      Profile Method:
+          Create or edit a configuration profile with the following information:
+          1. The Payload Type string is `com.apple.mDNSResponder`.
+          2. The key to include is `NoMulticastAdvertisements`.
+          3. The key must be set to `<true/>`.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Personal web sharing could be enabled to allow someone on another computer to download files or information from the user's computer.
+      Apache is still part of the Operating System and can be easily turned on to share files and provide remote connectivity
+      to an end-user computer. Web serving should not be done from a user desktop. Open ports make it easier to exploit the computer.
+    failing_host_count: 2434
+    id: 75
+    name: CIS - Ensure HTTP Server Is Disabled
+    passing_host_count: 2566
+    platform: darwin
+    query: SELECT 1 WHERE NOT EXISTS(SELECT * FROM processes WHERE path = '/usr/sbin/httpd');
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script which will disable the Apache service:
+      /usr/bin/sudo /bin/launchctl unload -w /System/Library/LaunchDaemons/org.apache.httpd.plist
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      MacOS can act as an NFS fileserver. NFS sharing could be enabled to allow someone on another computer to mount
+      shares and gain access to information from the user's computer.
+    failing_host_count: 2479
+    id: 76
+    name: CIS - Ensure NFS Server Is Disabled
+    passing_host_count: 2521
+    platform: darwin
+    query: |
+      SELECT 1 WHERE
+      NOT EXISTS(SELECT 1 FROM processes WHERE path = '/sbin/nfsd')
+      AND
+      NOT EXISTS(SELECT 1 FROM file WHERE path = '/etc/exports');
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script which will disable the NFS service
+      and its directory listing:
+      /usr/bin/sudo /bin/launchctl disable system/com.apple.nfsd
+      /usr/bin/sudo /bin/rm /etc/exports
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      By default, macOS allows all valid users into the top level of every other user's home folder and restricts access to the Apple default folders within. Another user on the same system can see you have a "Documents" folder but cannot see inside it. This configuration does work for personal file sharing but can expose user files to standard accounts on the system.
+      The best parallel for Enterprise environments is that everyone who has a Dropbox account can see everything that is at the top level but can't see your pictures. Similarly with macOS, users can see into every new Directory that is created because of the default permissions.
+      Home folders should be restricted to access only by the user. Sharing should be used on dedicated servers or cloud instances that are managing access controls. Some environments may encounter problems if execute rights are removed as well as read and write. Either no access or execute only for group or others is acceptable.
+    failing_host_count: 2540
+    id: 77
+    name: CIS - Ensure Home Folders Are Secure
+    passing_host_count: 2460
+    platform: darwin
+    query: SELECT 1 WHERE NOT EXISTS ( SELECT 1 FROM file WHERE ( path LIKE '/Users/%'
+      AND path != '/Users/Shared/' AND mode != "0700" AND mode !="0701" AND mode !="0710"
+      AND mode !="0711" ));
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy a script that will go over all users and set the mode for all of them either like this:
+      /usr/bin/sudo /bin/chmod -R og-rwx /Users/<username>
+      Or like this if there is a need for excutable access:
+      /usr/bin/sudo /bin/chmod -R og-rw /Users/<username>
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      System Integrity Protection is a security feature introduced in OS X 10.11 El Capitan. System Integrity Protection restricts access to System domain locations and restricts runtime attachment to system processes. Any attempt to inspect or attach to a system process will fail. Kernel Extensions are now restricted to /Library/Extensions and are required to be signed with a Developer ID.
+    failing_host_count: 2517
+    id: 78
+    name: CIS - Ensure System Integrity Protection Status (SIP) Is Enabled
+    passing_host_count: 2483
+    platform: darwin
+    query: SELECT 1 FROM sip_config WHERE config_flag="sip" and enabled=1;
+    resolution: |
+      Terminal Method:
+      Perform the following steps to enable System Integrity Protection:
+        1. Reboot into the Recovery Partition (reboot and hold down Command (⌘) + R)
+        2. Select Utilities
+        3. Select Terminal
+        4. Run the following command:
+            /usr/bin/sudo /usr/bin/csrutil enable
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses launchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.
+      Note: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.
+    failing_host_count: 2496
+    id: 79
+    name: CIS - Ensure Apple Mobile File Integrity (AMFI) Is Enabled (fleetd required)
+    passing_host_count: 2504
+    platform: darwin
+    query: SELECT 1 FROM nvram_info WHERE amfi_enabled="1";
+    resolution: |
+      Automated method:
+        Ask your system administrator to deploy the following script which will Ensure Apple Mobile File Integrity (AMFI) Is Enabled:
+        /usr/bin/sudo /usr/sbin/nvram boot-args=""
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Sealed System Volume is a security feature introduced in macOS 11.0 Big Sur.
+      During system installation, a SHA-256 cryptographic hash is calculated for all immutable system files and stored in a Merkle tree which itself is hashed as the Seal. Both are stored in the metadata of the snapshot created of the System volume.
+      The seal is verified by the boot loader at startup. macOS will not boot if system files have been tampered with. If validation fails, the user will be instructed to reinstall the operating system.
+      During read operations for files located in the Sealed System Volume, a hash is calculated and compared to the value stored in the Merkle tree.
+    failing_host_count: 2483
+    id: 80
+    name: CIS - Ensure Sealed System Volume (SSV) Is Enabled (fleetd required)
+    passing_host_count: 2517
+    platform: darwin
+    query: SELECT 1 FROM csrutil_info WHERE ssv_enabled="1";
+    resolution: |
+      If SSV has been disabled, assume that the operating system has been compromised. Back up any files, and do a clean install to a known good Operating System.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Applications in the System Applications Directory (/Applications) should be world- executable since that is their reason to be on the system. They should not be world- writable and allow any process or user to alter them for other processes or users to then execute modified versions.
+    failing_host_count: 2430
+    id: 81
+    name: CIS - Ensure Appropriate Permissions Are Enabled for System Wide Applications
+    passing_host_count: 2570
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT apps.path FROM apps
+        LEFT JOIN file on file.path = apps.path
+        WHERE apps.path LIKE '/Applications/%' AND
+        -- file.mode's last character are the permissions for 'other',
+        -- bitwise && with '0x2' selects the write permission,
+        -- which we do not want here.
+        CAST(SUBSTRING(file.mode, -1) AS INTEGER) & 0x2 != 0
+      );
+    resolution: "Ask your system administrator to deploy a script that will configure
+      all *.app under /Applications folders to have no write permissions for 'others'.
+      \n$ /usr/bin/sudo IFS=$'\\n'\n  for apps in $( /usr/bin/find /Applications -iname
+      \"*\\.app\" -type d -perm -2 ); \n  do\n    /bin/chmod -R o-w \"$apps\"\n  done\n"
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Software sometimes insists on being installed in the /System/Volumes/Data/System Directory and has inappropriate world-writable permissions.
+      Macs with writable files in System should be investigated forensically. A file with open writable permissions is a sign of at best a rogue application.
+      It could also be a sign of a computer compromise and a persistent presence on the system.
+      The audit check excludes the "Drop Box" folder that is part of Apple's default user template.
+    failing_host_count: 2466
+    id: 82
+    name: CIS - Ensure No World Writable Files Exist in the System Folder
+    passing_host_count: 2534
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM find_cmd WHERE
+          directory = '/System/Volumes/Data/System'
+          AND type = 'd'
+          AND perm = '-2'
+          AND path NOT LIKE '%Drop Box%'
+      );
+    resolution: "Ask your system administrator to deploy a script that will ensure
+      folders are not world-writable in the /System folder. \n/usr/bin/sudo IFS=$'\\n'\nfor
+      sysPermissions in $( /usr/bin/find /System/Volumes/Data/System -type d -perm
+      -2 | /usr/bin/grep -v \"Drop Box\" ); \ndo\n  /bin/chmod -R o-w \"$sysPermissions\"\ndone\n"
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: "Software sometimes insists on being installed in the /System/Volumes/Data/Library
+      Directory and has inappropriate world-writable permissions.  \nFolders in /System/Volumes/Data/Library
+      should not be world-writable. The audit check excludes the /System/Volumes/Data/Library/Caches
+      and /System/Volumes/Data/Library/Preferences/Audio/Data folders where the sticky
+      bit is set.\n"
+    failing_host_count: 2492
+    id: 83
+    name: CIS - Ensure No World Writable Files Exist in the Library Folder
+    passing_host_count: 2508
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM find_cmd WHERE
+          directory = '/System/Volumes/Data/Library'
+          AND type = 'd'
+          AND perm = '-2'
+          AND path NOT LIKE '%Caches%'
+          AND path NOT LIKE '%/Preferences/Audio/Data%'
+      );
+    resolution: "Ask your system administrator to deploy a script that will ensure
+      folders are not world-writable in the /System folder. \n/usr/bin/sudo IFS=$'\\n'\nfor
+      libPermissions in $( /usr/bin/find /System/Volumes/Data/Library -type d -perm
+      -2 | /usr/bin/grep -v Caches | /usr/bin/grep -v /Preferences/Audio/Data); \ndo\n
+      \ /bin/chmod -R o-w \"$libPermissions\"\ndone\n"
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur.
+    failing_host_count: 2455
+    id: 84
+    name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
+    passing_host_count: 2545
+    platform: darwin
+    query: SELECT 1 FROM  pwd_policy where max_failed_attempts <= 5;
+    resolution: "Automated method:\nAsk your system administrator to deploy an MDM
+      profile that Ensure Password Account Lockout Threshold.\nProfile Method:\nCreate
+      or edit a configuration profile with the following information:\n  1. The PayloadType
+      string is com.apple.mobiledevice.passwordpolicy \n  2. The key to include is
+      maxFailedAttempts\n  3. The key must be set to <integer><value≤5></integer>\n"
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      A minimum password length is the fewest number of characters a password can contain to meet a system's requirements. Ensure that a minimum of a 15-character password is part of the password policy on the computer. Where the confidentiality of encrypted information in FileVault is more of a concern, requiring a longer password or passphrase may be sufficient rather than imposing additional complexity requirements that may be self-defeating.
+    failing_host_count: 2519
+    id: 85
+    name: CIS - Ensure Password Minimum Length Is Configured
+    passing_host_count: 2481
+    platform: darwin
+    query: "SELECT 1 \nFROM (\nSELECT cast(lengthtxt as integer(2)) minlength \nFROM
+      (\nSELECT SUBSTRING(length, 1, 2) AS lengthtxt \nFROM (\nSELECT policy_description,
+      policy_identifier, split(policy_content, '{', 1) AS length \nFROM password_policy
+      \nWHERE policy_identifier LIKE '%minLength')) \nWHERE minlength >= 15);\n"
+    resolution: "Automated method:\nAsk your system administrator to deploy an MDM
+      profile that disables Guest Account.\nProfile Method:\nCreate or edit a configuration
+      profile with the following information:\n  1. The PayloadType string is com.apple.mobiledevice.passwordpolicy
+      \n  2. The key to include is minLength\n  3. The key must be set to <integer><value≥15></integer>\n"
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      CIS - 5.2.3 - Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters.
+      Ensure that an Alphabetic character is part of the password policy on the computer.
+      CIS - 5.2.4 - Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters.
+      Ensure that a number or numeric value is part of the password policy on the computer.
+    failing_host_count: 2583
+    id: 86
+    name: CIS - Ensure Complex Password Must Contain Alphabetic Characters AND Numeric
+      Characters Is Configured (MDM Required)
+    passing_host_count: 2417
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.mobiledevice.passwordpolicy' AND \n        name='requireAlphanumeric'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.mobiledevice.passwordpolicy'
+      AND \n        name='requireAlphanumeric' AND \n        (value != 1 AND value
+      != 'true')\n    );  \n"
+    resolution: |
+      Ask your system administrator to deploy an MDM profile that ensures Complex Password Must Contain Alphabetic Characters
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters. Ensure that a special character is part of the password policy on the computer.
+    failing_host_count: 2589
+    id: 87
+    name: CIS - Ensure Complex Password Must Contain Special Character Is Configured
+      (MDM Required)
+    passing_host_count: 2411
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.mobiledevice.passwordpolicy' AND \n        name='minComplexChars'
+      AND \n        value >= 1 AND \n        username = ''\n    )\n  AND NOT EXISTS
+      (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.mobiledevice.passwordpolicy'
+      AND \n        name='minComplexChars' AND \n        value < 1\n    );  \n"
+    resolution: |
+      Ask your system administrator to deploy an MDM profile that ensures Complex Password Must Contain Special Characters
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters.
+      Ensure that both uppercase and lowercase letters are part of the password policy on the computer.
+    failing_host_count: 2511
+    id: 88
+    name: CIS - Ensure Complex Password Must Contain Uppercase and Lowercase Characters
+      Is Configured (Fleetd required)
+    passing_host_count: 2489
+    platform: darwin
+    query: SELECT 1 FROM  pwd_policy where min_mixed_case_characters >= 1;
+    resolution: |
+      Ask your system administrator to deploy the following script:
+      /usr/bin/sudo /usr/bin/pwpolicy -n /Local/Default -setglobalpolicy "requiresMixedCase=<value>=1>"
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users should reset passwords periodically. This control uses 365 days as the acceptable value. Some organizations may be more or less restrictive. This control mainly exists to mitigate against password reuse of the macOS account password in other realms that may be more prone to compromise. Attackers take advantage of exposed information to attack other accounts.
+    failing_host_count: 2484
+    id: 89
+    name: CIS - Ensure Password Age Is Configured (Fleetd Required)
+    passing_host_count: 2516
+    platform: darwin
+    query: |
+      SELECT 1 WHERE
+      EXISTS(SELECT 1 FROM pwd_policy WHERE expires_every_n_days <= 365)
+      OR
+      EXISTS(SELECT 1 FROM pwd_policy WHERE days_to_expiration <= 365);
+    resolution: "Automated method:\nAsk your system administrator to deploy an MDM
+      profile that disables Guest Account.\nProfile Method:\nCreate or edit a configuration
+      profile with the following information:\n  1. The Payload Type string is com.apple.mobiledevice.passwordpolicy
+      \n  2. The key to include is maxPINAgeInDays\n  3. The key must be set to <integer><value<=365></integer>\n"
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users must reset passwords periodically. This control ensures that previous passwords are not reused immediately by keeping a history of previous password hashes. Ensure that password history checks are part of the password policy on the computer. This control checks whether a new password is different than the previous 15. The latest NIST guidance based on exploit research referenced in this section details how one of the greatest risks is password exposure rather than password cracking. Passwords should be changed to a new unique value whenever a password might have been exposed to anyone other than the account holder. Attackers have maintained persistent control based on predictable password change patterns and substantially different patterns should be used in case of a leak.
+    failing_host_count: 2457
+    id: 90
+    name: CIS - Ensure Password History Is Configured (Fleetd Required)
+    passing_host_count: 2543
+    platform: darwin
+    query: SELECT 1 FROM  pwd_policy where history_depth >= 15;
+    resolution: "Automated method:\nAsk your system administrator to deploy an MDM
+      profile with the following information:\n  1. The Payload Type string is com.apple.mobiledevice.passwordpolicy
+      \n  2. The key to include is pinHistory\n  3. The key must be set to <integer><value≥15></integer>\n"
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Apple developed a new file system which was first made available in 10.12 and then became the
+      default in 10.13. The file system is optimized for Flash and Solid-State storage and encryption.
+      https://en.wikipedia.org/wiki/Apple_File_System macOS computers generally have several volumes
+      created as part of APFS formatting, including Preboot, Recovery and Virtual Memory (VM), as well
+      as traditional user disks.
+      All APFS volumes that do not have specific roles and do not require encryption should be
+      encrypted. "Role" disks include Preboot, Recovery and VM. User disks are labelled with "(No
+      specific role)" by default.
+    failing_host_count: 2455
+    id: 91
+    name: CIS - Ensure all user storage APFS volumes are encrypted (Fleetd Required)
+    passing_host_count: 2545
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM apfs_volumes WHERE
+          role != "VM" AND
+          role != "Update" AND
+          role != "Recovery" AND
+          role != "Preboot" AND
+          role != "xART" AND
+          role != "Hardware" AND
+          filevault != 1
+      );
+    resolution: |
+      Manual method:
+      Use Disk Utility to erase a user disk and format as APFS (Encrypted).
+      Note: APFS Encrypted disks will be described as "FileVault" whether they are the boot volume or not in the ap list.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Apple introduced CoreStorage with 10.7. It is used as the default for formatting on macOS volumes prior to 10.13.
+      While FileVault protects the boot volume, data may be copied to other attached storage and reduce the protection afforded by FileVault.
+      Ensure all user volumes are encrypted to protect data.
+    failing_host_count: 2443
+    id: 92
+    name: CIS - Ensure all user storage CoreStorage volumes are encrypted (Fleetd
+      Required)
+    passing_host_count: 2557
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM corestorage_logical_volume_families WHERE EncryptionType != "AES-XTS"
+      );
+    resolution: |
+      Manual method:
+        Use Disk Utility to convert volumes to APFS or delete them.
+        It is no longer possible to encrypt CoreStorage volumes without converting them.
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      The sudo command stays logged in as the root user for five minutes before timing out and re-requesting a password.
+      This five-minute window should be eliminated since it leaves the system extremely vulnerable.
+    failing_host_count: 2472
+    id: 93
+    name: CIS - Ensure the Sudo Timeout Period Is Set to Zero (Fleetd Required)
+    passing_host_count: 2528
+    platform: darwin
+    query: |
+      SELECT 1 WHERE EXISTS(
+        SELECT * FROM file WHERE path = '/etc/sudoers.d' AND uid = 0 AND gid = 0
+      ) AND EXISTS(
+        SELECT
+          COALESCE(JSON_EXTRACT(
+            json_result, '$.Authentication timestamp timeout'
+          ), '') AS authentication_timestamp_timeout
+        FROM sudo_info WHERE authentication_timestamp_timeout = '0.0 minutes'
+      );
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script:
+      echo 'Defaults timestamp_timeout=0' | sudo tee -a /etc/sudoers.d/CIS_54_sudoconfiguration
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel /etc/sudoers.d/
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Using tty tickets ensures that a user must enter the sudo password in each Terminal session.
+      With sudo versions 1.8 and higher, introduced in 10.12, the default value is to have tty tickets
+      for each interface so that root access is limited to a specific terminal.
+      The default configuration can be overwritten or not configured correctly on earlier versions of macOS.
+    failing_host_count: 2552
+    id: 94
+    name: CIS - Ensure a Separate Timestamp Is Enabled for Each User/tty (Fleetd Required)
+    passing_host_count: 2448
+    platform: darwin
+    query: |
+      SELECT 1 WHERE EXISTS(
+        SELECT
+          COALESCE(JSON_EXTRACT(
+            json_result, '$.Type of authentication timestamp record'
+          ), '') AS type_of_auth_timestamp_record
+        FROM sudo_info WHERE type_of_auth_timestamp_record = 'tty'
+      );
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script:
+      echo 'Defaults timestamp_type=tty' | sudo tee /etc/sudoers.d/CIS_55_sudoconfiguration
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Enabling and using the root account puts the system at risk since any successful exploit or mistake
+      while the root account is in use could have unlimited access privileges within the system.
+      Using the sudo command allows users to perform functions as a root user while limiting and password
+      protecting the access privileges. By default the root account is not enabled on a macOS computer.
+      An administrator can escalate privileges using the sudo command (use -s or -i to get a root shell).
+    failing_host_count: 2479
+    id: 95
+    name: CIS - Ensure the "root" Account Is Disabled (Fleetd Required)
+    passing_host_count: 2521
+    platform: darwin
+    query: |
+      SELECT 1 from dscl WHERE command = 'read' AND path = '/Users/root' AND key = 'AuthenticationAuthority' AND value = '';
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script:
+        /usr/bin/sudo /usr/sbin/dsenableroot -d
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Disabling the administrator's and/or user's ability to log into another user's active and locked session prevents
+      unauthorized persons from viewing potentially sensitive and/or personal information.
+    failing_host_count: 2518
+    id: 96
+    name: CIS - Ensure an Administrator Account Cannot Login to Another User's Active
+      and Locked Session (Fleetd Required)
+    passing_host_count: 2482
+    platform: darwin
+    query: "SELECT 1 WHERE EXISTS (\n  SELECT JSON_EXTRACT(json_result, '$.rule')
+      AS rule\n  FROM authdb\n  WHERE right_name = 'system.login.screensaver' AND
+      \n  rule LIKE '%use-login-window-ui%'\n);\n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy a script that runs the following:
+        /usr/bin/sudo /usr/bin/security authorizationdb write system.login.screensaver use-login-window-ui
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      An access warning may reduce a casual attacker's tendency to target the system. Access warnings may also aid
+      in the prosecution of an attacker by evincing the attacker's knowledge of the system's private status,
+      acceptable use policy, and authorization requirements.
+    failing_host_count: 2500
+    id: 97
+    name: CIS - Ensure a Login Window Banner Exists
+    passing_host_count: 2500
+    platform: darwin
+    query: |
+      SELECT 1 FROM file
+      WHERE (path = '/Library/Security/PolicyBanner.txt' OR
+      path = '/Library/Security/PolicyBanner.rtf') AND mode = '0644'
+      AND uid = 0 AND gid = 0;
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script:
+        echo "Content of the banner" | sudo tee /Library/Security/PolicyBanner.txt
+        /usr/bin/sudo /usr/sbin/chown root:wheel /Library/Security/PolicyBanner.txt
+        /usr/bin/sudo /bin/chmod o+r /Library/Security/PolicyBanner.txt
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      In order to mitigate firmware attacks, Apple has created an automated Firmware check to ensure that the EFI version
+      running is a known good version from Apple. There is also an automated process to check it every seven days.
+      This check is only valid on T1 chips and prior. Neither T2 chips nor Apple silicon require this control check
+      If the Firmware of a computer has been compromised, the Operating System that the Firmware loads cannot be trusted, either.
+    failing_host_count: 2514
+    id: 98
+    name: CIS - Ensure Legacy EFI Is Valid and Updating (Fleetd Required)
+    passing_host_count: 2486
+    platform: darwin
+    query: |
+      SELECT 1 FROM firmware_eficheck_integrity_check
+      WHERE chip != 'intel-t1' OR (
+        chip = 'intel-t1' AND
+        output LIKE '%Primary allowlist version match found. No changes detected in primary hashes%' AND
+        NOT EXISTS (
+            SELECT * FROM plist WHERE
+            path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+            key = 'com.apple.driver.eficheck' AND
+            value = '0'
+        )
+      );
+    resolution: |
+      If EFI does not pass the integrity check, you may send a report to Apple. Backing up files and clean installing a
+      known good Operating System and Firmware is recommended.
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      The Guest home folders are unneeded after the Guest account is disabled and could be used inappropriately.
+    failing_host_count: 2512
+    id: 99
+    name: CIS - Ensure the Guest Home Folder Does Not Exist
+    passing_host_count: 2488
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (SELECT * FROM file WHERE path = '/Users/Guest');
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script:
+        /usr/bin/sudo /bin/rm -R /Users/Guest
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      A filename extension is a suffix added to a base filename that indicates the base filename's
+      file format. Visible filename extensions allow the user to identify the file type and the
+      application it is associated with which leads to quick identification of misrepresented malicious files.
+    failing_host_count: 2538
+    id: 100
+    name: CIS - Ensure Show All Filename Extensions Setting is Enabled
+    passing_host_count: 2462
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM users AS u
+        LEFT JOIN (
+          SELECT * FROM plist WHERE
+            path LIKE '/Users/%/Library/Preferences/.GlobalPreferences.plist' AND
+            key = 'AppleShowAllExtensions' AND
+            value = '1') AS p
+        ON p.path = CONCAT(u.directory, '/Library/Preferences/.GlobalPreferences.plist')
+          WHERE u.directory LIKE '/Users/%' AND
+          p.value IS NULL
+      );
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy a script that will ensure Show All Filename Extensions Setting is Enabled
+          For each user run:
+          /usr/bin/sudo -u <username> /usr/bin/defaults write /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Safari will automatically run or execute what it considers safe files. This can include
+      installers and other files that execute on the operating system. Safari evaluates file safety by
+      using a list of filetypes maintained by Apple. The list of files include text, image, video and
+      archive formats that would be run in the context of the OS rather than the browser.
+      Hackers have taken advantage of this setting via drive-by attacks. These attacks occur when a
+      user visits a legitimate website that has been corrupted. The user unknowingly downloads a
+      malicious file either by closing an infected pop-up or hovering over a malicious banner. An
+      attacker can create a malicious file that will fall within Safari's safe file list that will
+      download and execute without user input.
+    failing_host_count: 2481
+    id: 101
+    name: CIS - Ensure Automatic Opening of Safe Files in Safari Is Disabled (MDM
+      Required)
+    passing_host_count: 2519
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.Safari' AND \n        name='AutoOpenSafeDownloads'
+      AND \n        (value = 0 OR value = 'false') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.Safari'
+      AND \n        name='AutoOpenSafeDownloads' AND \n        (value != 0 AND value
+      != 'false')\n    );  \n"
+    resolution: |
+      Payload Method:
+      Ask your administrator to deploy a profile which disables AutoOpenSafeDownloads in Safari
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Organizational management of user web browsing history is a challenge effected by multiple facets. Organizations should decide whether to manage browser history and how much history should be maintained.
+      Rationale:
+      There are conflicting concerns in the retention of browser history. Unlimited retention:
+      - Consumes disk space
+      - Preferred by on disk forensics teams
+      - User searchable for old visited pages
+      - User privacy concerns
+      - Security concerns to retain old links that may be stale or lead to compromised
+      pages or pages with changes or inappropriate content
+      Old browser history becomes stale and the use or misuse of the data can lead to unwanted outcomes. Search engine results are maintained and often provide much more relevant current information than old website visit information.
+    failing_host_count: 2459
+    id: 102
+    name: CIS - Audit Safari Web Browser History and Remove History Items (organization
+      decision needed)(MDM Required)
+    passing_host_count: 2541
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.Safari' AND \n        name='HistoryAgeInDaysLimit'
+      AND \n          /*\n          Please replace the checked value bellow to match
+      the one decided by your organization.\n          1 - After one day\n          7
+      - After one week\n          14 - After two weeks\n          31 - After one month\n
+      \         365 - After one year\n          36500 - Set Manually\n          */\n
+      \       value = 1 AND \n        username = ''\n    )\n  AND NOT EXISTS (\n    SELECT
+      1 FROM managed_policies WHERE \n        domain='com.apple.Safari' AND \n        name='HistoryAgeInDaysLimit'
+      AND \n        value != 1\n    );  \n"
+    resolution: |
+      Ask your system administrator to deploy an MDM profile that set the history per organization decision
+      Profile Method:
+        Create or edit a configuration profile with the following information:
+        1. The PayloadType string is com.apple.Safari
+        2. The key to include is HistoryAgeInDaysLimit
+        3. The key must be set to: <integer><1,7,14,31,365,36500></integer>
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Apple uses the Google Safe Browsing API to check for fraudulent websites and report them to the
+      user attempting visit one. Attackers use crafted web pages to social engineer users to load
+      unwanted content. Warning users prior to loading the content enables better security.
+    failing_host_count: 2467
+    id: 103
+    name: CIS - Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled
+      (MDM Required)
+    passing_host_count: 2533
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.Safari' AND \n        name='WarnAboutFraudulentWebsites'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.loginwindow'
+      AND \n        name='WarnAboutFraudulentWebsites' AND \n        (value != 1 AND
+      value != 'true')\n    );  \n"
+    resolution: |
+      Payload Method:
+      Ask your administrator to deploy a profile which enableds WarnAboutFraudulentWebsites in Safari
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Cross-tracking allows data-brokers to follow you across the Internet to enable their business model of
+      selling personal data. Users should protect their data and not volunteer it to marketing companies.
+    failing_host_count: 2480
+    id: 104
+    name: CIS - Ensure Prevent Cross-site Tracking in Safari Is Enabled (MDM Required)
+    passing_host_count: 2520
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.Safari' AND \n        name='BlockStoragePolicy'
+      AND \n        value = '2' AND \n        username = ''\n    )\n  AND EXISTS (\n
+      \   SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.Safari'
+      AND \n        name='WebKitPreferences.storageBlockingPolicy' AND \n        value
+      = '1' AND \n        username = ''\n    )\n  AND EXISTS (\n    SELECT 1 FROM
+      managed_policies WHERE \n        domain='com.apple.Safari' AND \n        name='WebKitStorageBlockingPolicy'
+      AND \n        value = '1' AND \n        username = ''\n    )\n  AND NOT EXISTS
+      (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.Safari'
+      AND \n        name='BlockStoragePolicy' AND \n        value != '2' \n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.Safari'
+      AND \n        name='WebKitPreferences.storageBlockingPolicy' AND \n        value
+      != '1' \n    )\n  AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.Safari' AND \n        name='WebKitStorageBlockingPolicy'
+      AND \n        value != '1' \n    );  \n"
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy a profile via MDM with the following information:
+        1. The PayloadType string is com.apple.Safari.
+        2. The key to include is BlockStoragePolicy.
+        3. The key must be set to: 2
+        4. The key to also include is WebKitPreferences.storageBlockingPolicy
+        5. The key must be set to: 1
+        6. The key to also include is WebKitStorageBlockingPolicy
+        7. The key must be set to: 1
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Public (Routable) IP addresses can be used to track people to their current location, including
+      home and business addresses. While a valid IP addess is necessary to load the site the valid
+      address does not need to be provided to known trackers and should be hidden.
+    failing_host_count: 2516
+    id: 105
+    name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organization's
+      policy)
+    passing_host_count: 2484
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM users AS u
+        LEFT JOIN (
+          SELECT * FROM plist WHERE
+            path LIKE '/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist' AND
+            key = 'WBSPrivacyProxyAvailabilityTraffic' AND
+             ((value >> 2) & 1) = 1) AS p
+        ON p.path = CONCAT(u.directory, '/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist')
+        WHERE u.directory LIKE '/Users/%' AND
+        p.value IS NULL
+      );
+    resolution: |
+      Ask your system administrator to deploy a script that will configure "Hide IP Address in Safari" to Enabled
+        $ /usr/bin/sudo -u <username> /usr/bin/defaults write
+        /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
+        /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130276
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:30Z"
+    critical: false
+    description: |
+      Public (Routable) IP addresses can be used to track people to their current location, including
+      home and business addresses. While a valid IP addess is necessary to load the site the valid
+      address does not need to be provided to known trackers and should be hidden.
+      However, enabling this setting will proxy web information through a 3rd party service, which may
+      not be allowed by your organization's policy.
+    failing_host_count: 2488
+    id: 106
+    name: CIS - Ensure the Hide IP Address in Safari is Disabled (Based on organization's
+      policy)
+    passing_host_count: 2512
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM users AS u
+        LEFT JOIN (
+          SELECT * FROM plist WHERE
+            path LIKE '/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist' AND
+            key = 'WBSPrivacyProxyAvailabilityTraffic' AND
+             ((value >> 2) & 1) = 0) AS p
+        ON p.path = CONCAT(u.directory, '/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist')
+        WHERE u.directory LIKE '/Users/%' AND
+        p.value IS NULL
+      );
+    resolution: |
+      Ask your system administrator to deploy a script that will configure "Hide IP Address in Safari" to Enabled
+        $ /usr/bin/sudo -u <username> /usr/bin/defaults write
+        /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
+        /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130272
+    response: fail
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:31Z"
+    critical: false
+    description: |
+      Apple provides a framework that allows advertisers to target Apple users and end-users with advertisements.
+      While many people prefer that when they see advertising it is relevant to them and their interests, the detailed
+      information that is data mining collected, correlated, and available to advertisers in repositories is often disconcerting.
+      This information is valuable to both advertisers and attackers and has been used with other metadata to reveal users' identities.
+    failing_host_count: 2461
+    id: 107
+    name: CIS - Ensure Advertising Privacy Protection in Safari Is Enabled (FDA Required)
+    passing_host_count: 2539
+    platform: darwin
+    query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM users AS u
+        LEFT JOIN (
+          SELECT * FROM plist WHERE
+            path LIKE '/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist' AND
+            key = 'WebKitPreferences.privateClickMeasurementEnabled' AND
+            value = '1') AS p
+        ON p.path = CONCAT(u.directory, '/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist')
+        WHERE u.directory LIKE '/Users/%' AND
+        p.value IS NULL
+      );
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script:
+        # For each user run:
+        /usr/bin/sudo -u <username> /usr/bin/defaults write \
+          /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari \
+          WebKitPreferences.privateClickMeasurementEnabled -bool true
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:31Z"
+    critical: false
+    description: |
+      Attackers use websites with malicious or unwanted content to exploit the user or the computer. Part of the attack chain is to lure someone to load their content rather than the desired content. In order to reduce the risk in interacting with unwanted content the full website address should always be displayed in Safari.
+    failing_host_count: 2481
+    id: 108
+    name: CIS - Ensure Show Full Website Address in Safari Is Enabled (MDM Required)
+    passing_host_count: 2519
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.Safari' AND \n        name='ShowFullURLInSmartSearchField'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.Safari'
+      AND \n        name='ShowFullURLInSmartSearchField' AND \n        (value != 1
+      AND value != 'true')\n    );  \n"
+    resolution: "Graphical Method:\nPerform the following steps to set Safari to show
+      full website addresses:\n  1. Open Safari\n  2. Select Safari from the menu
+      bar\n  3. Select Settings\n  4. Select Security\n  5. Set Show full website
+      address to enabled\nAutomated method:\nProfile Method:\nCreate or edit a configuration
+      profile with the following information:\n  1. The PayloadType string is com.apple.Safari\n
+      \ 2. The key to include is ShowFullURLInSmartSearchField \n  3. The key must
+      be set to: <true/>\n"
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-17T15:54:31Z"
+    critical: false
+    description: |
+      Secure Keyboard Entry prevents other applications on the system and/or network from detecting and recording what is typed into Terminal. Unauthorized applications and malicious code could intercept keystrokes entered in the Terminal.
+      Enabling Secure Keyboard Entry minimizes the risk of a key logger from detecting what is entered in Terminal.
+    failing_host_count: 2538
+    id: 109
+    name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (MDM Required)
+    passing_host_count: 2462
+    platform: darwin
+    query: "SELECT 1 WHERE \n  EXISTS (\n    SELECT 1 FROM managed_policies WHERE
+      \n        domain='com.apple.Terminal' AND \n        name='SecureKeyboardEntry'
+      AND \n        (value = 1 OR value = 'true') AND \n        username = ''\n    )\n
+      \ AND NOT EXISTS (\n    SELECT 1 FROM managed_policies WHERE \n        domain='com.apple.Terminal'
+      AND \n        name='SecureKeyboardEntry' AND \n        (value != 1 AND value
+      != 'true')\n    );  \n"
+    resolution: "Profile Method:\nCreate or edit a configuration profile with the
+      following information:\n  1. The PayloadType string is com.apple.Terminal \n
+      \ 2. The key to include is SecureKeyboardEntry\n  3. The key must be set to\n
+      \ <true/>\n"
+    response: pass
+    team_id: null
+    updated_at: "2023-09-19T18:24:50Z"
+  - author_email: timlee@fleetdm.com
+    author_id: 1
+    author_name: tim
+    created_at: "2023-09-21T02:35:21Z"
+    critical: false
+    description: ""
+    failing_host_count: 0
+    id: 1105
+    name: Foo
+    passing_host_count: 0
+    platform: darwin,windows,linux,chrome
+    query: SELECT 1 FROM osquery_info WHERE start_time > 1;
+    resolution: ""
+    response: fail
+    team_id: null
+    updated_at: "2023-09-21T02:35:21Z"
+  policy_updated_at: "1970-01-02T00:00:00Z"
+  primary_ip: ""
+  primary_mac: ""
+  public_ip: ""
+  refetch_critical_queries_until: null
+  refetch_requested: true
+  seen_time: "2023-09-16T21:34:19Z"
+  software_updated_at: "2023-09-16T21:31:24Z"
+  status: offline
+  team_id: 1
+  team_name: null
+  updated_at: "2023-09-20T04:45:02Z"
+  uptime: 0
+  uuid: 446B592C-35B6-4BE9-97E9-72240770B616
