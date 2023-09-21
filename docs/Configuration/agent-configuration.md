@@ -212,42 +212,6 @@ If you are using a self-hosted TUF server, you must also manage all of Fleetd's 
 
 Fleet recommends deploying extensions created with osquery-go or natively with C++, instead of Python. Extensions written in Python require the user to compile it into a single packaged binary along with all the dependencies.
 
-### Targeting extensions with labels
-
-_Available in Fleet Premium v4.38.0_
-
-Fleet allows to target extensions to hosts that belong to specific labels. To set the labels you need to define a `labels` list under the extension name. 
-The label names in the list:
-- Must exist (otherwise the `/api/latest/fleet/config` request will fail).
-- Are case insensitive.
-- Extensions are deployed to hosts that are member of **all** the defined labels.
-
-Example:
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  agent_options:
-    extensions: # requires Fleet's osquery installer
-      hello_world_macos:
-        channel: 'stable'
-        platform: 'macos'
-        labels:
-          - Zoom installed
-      hello_world_linux:
-        channel: 'stable'
-        platform: 'linux'
-        labels:
-          - Ubuntu Linux
-          - Zoom installed
-      hello_world_windows:
-        channel: 'stable'
-        platform: 'windows'
-```
-In the above example:
-- The `hello_world_macos` extension is deployed to macOS hosts that are member of the 'Zoom installed' label.
-- The `hello_world_linux` extension is deployed to Linux hosts that are member of the 'Ubuntu Linux' **and** 'Zoom insalled' labels.
-
 ## Config
 
 The config key sets the osqueryd configuration options for your agents. In a plain osquery deployment, these would typically be set in `osquery.conf`. Each key below represents a corresponding key in the osquery documentation.
