@@ -1,3 +1,11 @@
+variable "saml_auth_proxy_cert_path" {
+  type = string
+}
+
+variable "saml_auth_proxy_key_path" {
+  type = string
+}
+
 variable "kms_key_id" {
   type = string
 }
