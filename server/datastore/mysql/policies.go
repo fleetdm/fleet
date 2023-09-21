@@ -63,10 +63,11 @@ func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Poli
 		SELECT `+policyCols+`,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
-			p.passing_host_count, 
-			p.failing_host_count
+			COALESCE(ps.passing_host_count, 0) AS passing_host_count,
+			COALESCE(ps.failing_host_count, 0) AS failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
+		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
 		WHERE p.name=?
 		`), name)
 	if err != nil {
@@ -82,21 +83,22 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 	teamWhere := "TRUE"
 	args := []interface{}{id}
 	if teamID != nil {
-		teamWhere = "team_id = ?"
+		teamWhere = "p.team_id = ?"
 		args = append(args, *teamID)
 	}
 
 	var policy fleet.Policy
 	err := sqlx.GetContext(ctx, q, &policy,
 		fmt.Sprintf(`
-		SELECT `+policyCols+`,
+		SELECT %s,
 		    COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
-			p.passing_host_count,
-			p.failing_host_count
+			COALESCE(ps.passing_host_count, 0) AS passing_host_count,
+			COALESCE(ps.failing_host_count, 0) AS failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
-		WHERE p.id=? AND %s`, teamWhere),
+		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
+		WHERE p.id=? AND %s`, policyCols, teamWhere),
 		args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -295,9 +297,7 @@ func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOpti
 }
 
 // returns the list of policies associated with the provided teamID, or the
-// global policies if teamID is nil. The pass/fail host counts are the totals
-// regardless of hosts' team if countsForTeamID is nil, or the totals just for
-// hosts that belong to the provided countsForTeamID if it is not nil.
+// global policies if teamID is nil
 func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	var args []interface{}
 
@@ -305,17 +305,22 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 		SELECT ` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
-			p.passing_host_count,
-			p.failing_host_count
+			COALESCE(ps.passing_host_count, 0) AS passing_host_count,
+			COALESCE(ps.failing_host_count, 0) AS failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
+		LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id = 0
 	`
 
 	if teamID != nil {
-		query += " WHERE team_id = ?"
+		query += `
+			WHERE p.team_id = ?
+			`
 		args = append(args, *teamID)
 	} else {
-		query += " WHERE team_id IS NULL"
+		query += `
+			WHERE p.team_id IS NULL
+		`
 	}
 
 	query, args = searchLike(query, args, opts.MatchQuery, policySearchColumns...)
@@ -329,30 +334,33 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 	return policies, nil
 }
 
+// getInheritedPoliciesForTeam returns the list of global policies with the
+// passing and failing host counts for the provided teamID
 func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, TeamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	var args []interface{}
 
-	args = append(args, TeamID, TeamID)
-
-	initialQuery := `
+	query := `
         SELECT 
             ` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
-            (select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=true and h.team_id = ?) as passing_host_count,
-            (select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=false and h.team_id = ?) as failing_host_count
+            COALESCE(ps.passing_host_count, 0) as passing_host_count,
+            COALESCE(ps.failing_host_count, 0) as failing_host_count
         FROM policies p
         LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id = ?
         WHERE p.team_id IS NULL
     `
 
-	initialQuery, args = searchLike(initialQuery, args, opts.MatchQuery, policySearchColumns...)
-	initialQuery = appendListOptionsToSQL(initialQuery, &opts)
+	args = append(args, TeamID)
+
+	query, args = searchLike(query, args, opts.MatchQuery, policySearchColumns...)
+	query = appendListOptionsToSQL(query, &opts)
 
 	var policies []*fleet.Policy
-	err := sqlx.SelectContext(ctx, q, &policies, initialQuery, args...)
+	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing policies")
+		return nil, ctxerr.Wrap(ctx, err, "listing inherited policies")
 	}
 
 	return policies, nil
@@ -385,14 +393,18 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 }
 
 func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
-	sql := `SELECT ` + policyCols + `,
-	  COALESCE(u.name, '<deleted>') AS author_name,
-	  COALESCE(u.email, '') AS author_email,
-	  p.passing_host_count,
-	  p.failing_host_count
-	  FROM policies p
-	  LEFT JOIN users u ON p.author_id = u.id
-	  WHERE p.id IN (?)`
+	sql := `
+		SELECT ` + policyCols + `,
+		  COALESCE(u.name, '<deleted>') AS author_name,
+		  COALESCE(u.email, '') AS author_email,
+		  COALESCE(ps.passing_host_count, 0) AS passing_host_count,
+		  COALESCE(ps.failing_host_count, 0) AS failing_host_count
+		  FROM policies p
+		  LEFT JOIN users u ON p.author_id = u.id
+		  LEFT JOIN policy_stats ps ON p.id = ps.policy_id
+		  WHERE p.id IN (?)
+		  `
+
 	query, args, err := sqlx.In(sql, ids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by ID")
@@ -1073,23 +1085,54 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 }
 
 func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
-	updateStmt := `
-	UPDATE policies p
-	LEFT JOIN (
-		SELECT
-			policy_id,
-			COUNT(IF(passes = 1, 1, NULL)) AS passed_policies,
-			COUNT(IF(passes = 0, 1, NULL)) AS failed_policies
-		FROM policy_membership
-		GROUP BY policy_id
-	) AS pm ON p.id = pm.policy_id
-	SET 
-		p.passing_host_count = COALESCE(pm.passed_policies, 0),
-		p.failing_host_count = COALESCE(pm.failed_policies, 0);
-	`
-	_, err := ds.writer(ctx).ExecContext(ctx, updateStmt)
+	// Update Counts for Inherited Global Policies for each Team
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+    INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+SELECT
+    p.id,
+    t.id AS inherited_team_id,
+    (
+        SELECT COUNT(*) 
+        FROM policy_membership pm 
+        INNER JOIN hosts h ON pm.host_id = h.id 
+        WHERE pm.policy_id = p.id AND pm.passes = true AND h.team_id = t.id
+    ) AS passing_host_count,
+    (
+        SELECT COUNT(*) 
+        FROM policy_membership pm 
+        INNER JOIN hosts h ON pm.host_id = h.id 
+        WHERE pm.policy_id = p.id AND pm.passes = false AND h.team_id = t.id
+    ) AS failing_host_count
+FROM policies p
+CROSS JOIN teams t
+WHERE p.team_id IS NULL
+GROUP BY p.id, t.id
+ON DUPLICATE KEY UPDATE 
+    passing_host_count = VALUES(passing_host_count),
+    failing_host_count = VALUES(failing_host_count);
+    `)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update host policy counts")
+		return ctxerr.Wrap(ctx, err, "update host policy counts for inherited global policies")
 	}
+
+	// Update Counts for Global and Team Policies
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+SELECT
+    p.id,
+    0 AS inherited_team_id, -- using 0 to represent global scope
+    COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0), 
+    COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0)
+FROM policies p
+LEFT JOIN policy_membership pm ON p.id = pm.policy_id
+GROUP BY p.id
+ON DUPLICATE KEY UPDATE 
+    passing_host_count = VALUES(passing_host_count),
+    failing_host_count = VALUES(failing_host_count);
+    `)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host policy counts for global and team policies")
+	}
+
 	return nil
 }

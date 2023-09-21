@@ -46,39 +46,31 @@ func TestUp_20230920091442(t *testing.T) {
 	globalPolicyStatID, _ := res.LastInsertId()
 
 	// Insert a policy_stats entry for the global policy (globally)
-	_, err = db.Exec(`INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count) VALUES (?, NULL, ?, ?)`, globalPolicyStatID, 100, 10)
+	_, err = db.Exec(`INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count) VALUES (?, 0, ?, ?)`, globalPolicyStatID, 100, 10)
 	require.NoError(t, err)
 
 	// Insert a policy_stats entry for the team inheriting the global policy
-	res, err = db.Exec(`INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count) VALUES (?, ?, ?, ?)`, globalPolicyStatID, teamID, 50, 5)
+	_, err = db.Exec(`INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count) VALUES (?, ?, ?, ?)`, globalPolicyStatID, teamID, 50, 5)
 	require.NoError(t, err)
-	inheritedPolicyStatID, _ := res.LastInsertId()
+	// inheritedPolicyStatID, _ := res.LastInsertId()
 
 	// Verify the entries in the policy_stats table
-	var id int64
-	var policyID, inheritedTeamID sql.NullInt64
+	var id int
+	var policyID int64
+	var inheritedTeamID int64
 	var passingCount, failingCount int
 
 	// Verify global policy stats (global level)
 	err = db.QueryRow(loadPolicyStatsStmt, 1).Scan(&id, &policyID, &inheritedTeamID, &passingCount, &failingCount)
 	require.NoError(t, err)
-	require.Equal(t, globalPolicyStatID, policyID.Int64)
-	require.False(t, inheritedTeamID.Valid)
+	require.Equal(t, globalPolicyStatID, policyID)
+	require.Equal(t, int64(0), inheritedTeamID)
 
 	// Verify global policy stats (team level)
 	err = db.QueryRow(loadPolicyStatsStmt, 2).Scan(&id, &policyID, &inheritedTeamID, &passingCount, &failingCount)
 	require.NoError(t, err)
-	require.Equal(t, globalPolicyStatID, policyID.Int64)
-	require.True(t, inheritedTeamID.Valid)
-	require.Equal(t, teamID, inheritedTeamID.Int64)
-
-	// Delete the team and check that its policy_stats entry is also deleted
-	_, err = db.Exec(deleteTeamStmt, teamID)
-	require.NoError(t, err)
-
-	err = db.QueryRow(loadPolicyStatsStmt, inheritedPolicyStatID).Scan(&id, &policyID, &inheritedTeamID, &passingCount, &failingCount)
-	require.Error(t, err)
-	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.Equal(t, globalPolicyStatID, policyID)
+	require.Equal(t, teamID, inheritedTeamID)
 
 	// Verify global policy stats still exist (global level)
 	err = db.QueryRow(loadPolicyStatsStmt, globalPolicyStatID).Scan(&id, &policyID, &inheritedTeamID, &passingCount, &failingCount)
