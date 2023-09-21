@@ -36,6 +36,6 @@ export default class TableChromeExtensions extends Table {
       });
     }
 
-    return rows;
+    return { data: rows };
   }
 }

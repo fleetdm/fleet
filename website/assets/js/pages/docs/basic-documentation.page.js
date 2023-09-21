@@ -264,7 +264,7 @@ parasails.registerPage('basic-documentation', {
         .chain(url.split(/\//))
         .last()
         .split(/-/)
-        .map((str) => str === 'fleet' ? 'Fleet' : str)
+        .map((str) => str === 'fleet' ? 'Fleet' : str === 'rest' ? 'REST' : str === 'api' ? 'API' : str)
         .join(' ')
         .capitalize()
         .value();

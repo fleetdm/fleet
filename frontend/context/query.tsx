@@ -22,7 +22,7 @@ type InitialStateType = {
   lastEditedQueryPlatforms: SelectedPlatformString;
   lastEditedQueryMinOsqueryVersion: string;
   lastEditedQueryLoggingType: QueryLoggingOption;
-  setLastEditedQueryId: (value: number) => void;
+  setLastEditedQueryId: (value: number | null) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
@@ -135,7 +135,7 @@ const QueryProvider = ({ children }: Props) => {
     lastEditedQueryPlatforms: state.lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion: state.lastEditedQueryMinOsqueryVersion,
     lastEditedQueryLoggingType: state.lastEditedQueryLoggingType,
-    setLastEditedQueryId: (lastEditedQueryId: number) => {
+    setLastEditedQueryId: (lastEditedQueryId: number | null) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryId,

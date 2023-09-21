@@ -50,9 +50,9 @@ import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
-import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
-import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
-import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
+import OSUpdates from "pages/ManageControlsPage/OSUpdates";
+import OSSettings from "pages/ManageControlsPage/OSSettings";
+import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
@@ -186,13 +186,16 @@ const routes = (
 
           <Route component={ExcludeInSandboxRoutes}>
             <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
-              <IndexRedirect to="mac-os-updates" />
+              <IndexRedirect to="os-updates" />
               <Route component={ManageControlsPage}>
-                <Route path="mac-os-updates" component={MacOSUpdates} />
-                <Route path="mac-settings" component={MacOSSettings} />
-                <Route path="mac-settings/:section" component={MacOSSettings} />
-                <Route path="mac-setup" component={MacOSSetup} />
-                <Route path="mac-setup/:section" component={MacOSSetup} />
+                <Route path="os-updates" component={OSUpdates} />
+                <Route path="os-settings" component={OSSettings} />
+                <Route path="os-settings/:section" component={OSSettings} />
+                <Route path="setup-experience" component={SetupExperience} />
+                <Route
+                  path="setup-experience/:section"
+                  component={SetupExperience}
+                />
               </Route>
             </Route>
           </Route>
