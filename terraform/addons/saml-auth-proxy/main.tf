@@ -28,6 +28,57 @@ resource "aws_secretsmanager_secret_version" "saml_auth_proxy_cert" {
   )
 }
 
+resource "aws_security_group" "saml_auth_proxy_alb" {
+  #checkov:skip=CKV2_AWS_5:False positive
+  vpc_id      = var.vpc_id
+  description = "Fleet ALB Security Group"
+
+  ingress {
+    description      = "Internal HTTP back to Fleet"
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp"
+    cidr_blocks      = var.alb_config.allowed_cidrs
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  # This can probably be limited in some way
+  egress {
+    description      = "Egress to all"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
+resource "aws_security_group" "saml_auth_proxy_service" {
+  #checkov:skip=CKV2_AWS_5:False positive
+  vpc_id      = var.vpc_id
+  description = "Fleet ALB Security Group"
+
+  ingress {
+    description      = "Internal HTTP back to Fleet"
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp"
+    cidr_blocks      = var.alb_config.allowed_cidrs
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  # This can probably be limited in some way
+  egress {
+    description      = "Egress to all"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
+
 module "saml_auth_proxy_alb" {
   source  = "terraform-aws-modules/alb/aws"
   version = "8.2.1"
@@ -38,7 +89,7 @@ module "saml_auth_proxy_alb" {
 
   vpc_id          = var.vpc_id
   subnets         = var.alb_config.subnets
-  security_groups = concat(var.alb_config.security_groups, [aws_security_group.alb.id])
+  security_groups = [aws_security_group.saml_auth_proxy_alb]
   access_logs     = var.alb_config.access_logs
 
   internal        = true
@@ -166,6 +217,6 @@ resource "aws_ecs_service" "saml_auth_proxy" {
 
   network_configuration {
     subnets         = var.subnets
-    security_groups = var.security_groups
+    security_groups = [aws_security_group.saml_auth_proxy_service]
   }
 }
