@@ -315,7 +315,7 @@ To stay in-sync with our customers' needs, Fleet accepts feature requests from c
 
 ### Making a request
 
-To make a feature request or advocate for a feature request from a customer or community member, [create an issue] (https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~customer+request&projects=&template=feature-request.md&title=) and attend the next scheduled 🎁🗣 Feature Fest meeting. 
+To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~customer+request&projects=&template=feature-request.md&title=) and attend the next scheduled 🎁🗣 Feature Fest meeting. 
 
 Requests are weighed from top to bottom while prioritizing attendee requests. This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
@@ -323,7 +323,7 @@ To be acceptable for consideration, a request must:
 - Have a clear proposed change
 - Have a well-articulated underlying user need
 - Specify the requestor (either internal stakeholder or customer or community user)
-- Include the Feature Fest and customer labels (if applicable) 
+- Include the `feature fest` and customer labels (if applicable) 
 
 To help the product team, other pieces of information can be optionally included:
 - How would they solve the problem without any changes if pressed?
