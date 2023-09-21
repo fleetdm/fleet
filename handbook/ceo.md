@@ -102,9 +102,11 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
    ```
 
 
-
-
 ## Responsibilities
+
+### Manage g-ceo intake
+The Apprentice to the CEO is the DRI for the [#g-ceo kanban board](https://app.zenhub.com/workspaces/g-ceo-645b0eab68a4d40c0795ff61/board?sprints=none) and responsible for [managing all intake](https://fleetdm.com/handbook/company/communications#manage-intake) including issues and PRs.
+
 
 ### Schedule CEO interview
 From time to time, you will need to schedule an interview between a candidate and the CEO:
@@ -154,7 +156,9 @@ The Apprentice will reduce the scope of Mike's inbox to only include necessary a
 
 ### Send the weekly update
 We like to be open about milestones and announcements.
-  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
+  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. Central Time Zone. 
+    - When KPIs are not reported on time, the BizOps Engineer will notify the Apprentice to the CEO and the DRI.
+    - The Apprentice will update the "performance management" section of the appropriate individual's 1:1 doc so that the CEO can address during the next 1:1 meeting with the DRI.
   - Friday nights, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
     - A link to view KPIs
     - Who was on-call that week
