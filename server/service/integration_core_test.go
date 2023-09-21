@@ -7610,7 +7610,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	require.NotZero(t, wiresharkSoftware.ID)
 }
 
-func (s *integrationTestSuite) TestHostsReport() {
+func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -7713,5 +7713,68 @@ func (s *integrationTestSuite) TestHostsReport() {
 		require.Equal(t, row[issuesIdx], "0")
 		row1 := rows1[i]
 		require.Equal(t, row[idIdx], row1[idIdx])
+	}
+
+	for _, tc := range []struct {
+		name      string
+		args      []string
+		checkRows func(t *testing.T, rows [][]string)
+	}{
+		{
+			name: "get hosts that fail globalPolicy0",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy0.ID), "policy_response", "failure"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, 1) // just header row, all hosts pass such policy.
+			},
+		},
+		{
+			name: "get hosts that pass globalPolicy0",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy0.ID), "policy_response", "passing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)+1) // all hosts + header row, all hosts pass such policy.
+			},
+		},
+		{
+			name: "get hosts that fail globalPolicy1",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy1.ID), "policy_response", "failing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+		{
+			name: "get hosts that pass globalPolicy1",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy1.ID), "policy_response", "passing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+		{
+			name: "get hosts that fail globalPolicy2",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy2.ID), "policy_response", "failing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+		{
+			name: "get hosts that pass globalPolicy2",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy2.ID), "policy_response", "passing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv")...)
+			rows, err := csv.NewReader(res.Body).ReadAll()
+			res.Body.Close()
+			require.NoError(t, err)
+			tc.checkRows(t, rows)
+			// Test the same with "disable_failing_policies=true" which should not change the result.
+			res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv", "disable_failing_policies", "true")...)
+			rows, err = csv.NewReader(res.Body).ReadAll()
+			res.Body.Close()
+			require.NoError(t, err)
+			tc.checkRows(t, rows)
+		})
 	}
 }
