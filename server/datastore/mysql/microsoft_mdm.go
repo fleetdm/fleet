@@ -3,10 +3,12 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -137,4 +139,67 @@ WHERE
 	}
 
 	return &res, nil
+}
+
+func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error) {
+	if host == nil {
+		return nil, errors.New("host cannot be nil")
+	}
+
+	if host.Platform != "windows" {
+		// Generally, the caller should have already checked this, but just in case we log and
+		// return nil
+		level.Debug(ds.logger).Log("msg", "cannot get bitlocker status for non-windows host", "host_id", host.ID)
+		return nil, nil
+	}
+
+	if host.MDMInfo != nil && host.MDMInfo.IsServer {
+		// It is currently expected that server hosts do not have a bitlocker status so we can skip
+		// the query and return nil. We log for potential debugging in case this changes in the future.
+		level.Debug(ds.logger).Log("msg", "no bitlocker status for server host", "host_id", host.ID)
+		return nil, nil
+	}
+
+	enabled, err := ds.getConfigEnableDiskEncryption(ctx, host.TeamID)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return nil, nil
+	}
+
+	// Note verifying, action_required, and removing_enforcement are not applicable to Windows hosts
+	stmt := fmt.Sprintf(`
+SELECT
+	CASE
+		WHEN %s THEN '%s'
+		WHEN %s THEN '%s'
+		WHEN %s THEN '%s'
+	END AS status
+FROM
+	host_mdm hmdm
+	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
+WHERE
+	hmdm.host_id = ?`,
+		whereBitLockerVerified,
+		fleet.DiskEncryptionVerified,
+		whereBitLockerPending,
+		fleet.DiskEncryptionEnforcing,
+		whereBitLockerFailed,
+		fleet.DiskEncryptionFailed,
+	)
+
+	var des fleet.DiskEncryptionStatus
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &des, stmt, host.ID); err != nil {
+		if err == sql.ErrNoRows {
+			// At this point we know disk encryption is enabled so if we don't have a record for the
+			// host then we treat it as enforcing and log for potential debugging
+			level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
+			des = fleet.DiskEncryptionEnforcing
+			return &des, nil
+		}
+		return nil, err
+	}
+
+	return &des, nil
 }

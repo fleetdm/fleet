@@ -345,6 +345,12 @@ type MDMHostData struct {
 	// gets filled.
 	rawDecryptable *int
 
+	// OSSettings contains information related to operating systems settings that are managed for
+	// MDM-enrolled hosts.
+	//
+	// Note: Additional information for macOS hosts is currently stored in MacOSSettings.
+	OSSettings *HostMDMOSSettings `json:"os_settings,omitempty" db:"-" csv:"-"`
+
 	// Profiles is a list of HostMDMProfiles for the host. Note that as for many
 	// other host fields, it is not filled in by all host-returning datastore methods.
 	//
@@ -365,6 +371,14 @@ type MDMHostData struct {
 	//
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
+}
+
+type HostMDMOSSettings struct {
+	DiskEncryption HostMDMDiskEncryption `json:"disk_encryption" db:"-" csv:"-"`
+}
+
+type HostMDMDiskEncryption struct {
+	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 }
 
 type DiskEncryptionStatus string
@@ -420,11 +434,11 @@ type HostMDMMacOSSetup struct {
 	BootstrapPackageName   string                    `db:"bootstrap_package_name" json:"bootstrap_package_name" csv:"-"`
 }
 
-// DetermineDiskEncryptionStatus determines the disk encryption status for the
+// DetermineMacOSDiskEncryptionStatus determines the disk encryption status for the
 // host based on the file-vault profile in its list of profiles and whether its
 // disk encryption key is available and decryptable. The file-vault profile
 // identifier is received as argument to avoid a circular dependency.
-func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
+func (d *MDMHostData) DetermineMacOSDiskEncryptionStatus(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
 	var settings MDMHostMacOSSettings
 
 	var fvprof *HostMDMAppleProfile
