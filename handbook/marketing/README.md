@@ -27,6 +27,7 @@ The Marketing department is directly responsible for growing awareness of Fleet 
 ## Programs
 Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](#events), [community support](#community-support), [social media](#social-media), [conversation-starting](#conversation-starting), [ads](#ads), [video](#video), [articles](#articles), [product-marketing](#product-marketing), [brand](#brand), [swag requests](#swag-request) and [press](#press).
 
+## Responsibilities
 
 ### Events
 TODO
@@ -78,9 +79,6 @@ Fleet's CEO is the directly responsible individual (DRI) for [Fleet's product ma
 Fleet's CEO is the directly responsible individual (DRI) for [Fleet's brand marketing and strategy](https://fleetdm.com/handbook/company/communications#strategy).
 
 - **Brand resources:** To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
-
-## Rituals
-<rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
 ### Swag requests
 We deliver Fleet swag for those who request it through [Fleet documentation](https://fleetdm.com/docs) and may occasionally have upstanding community members and customers who are in need of some cool Fleet swag as well.
@@ -155,6 +153,8 @@ Create and send branded email blast to multiple recipients in small or large gro
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
+## Rituals
+<rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
 <!-- TODO: Explore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 <!-- TODO: Slightly later, in another PR, finish processing this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
