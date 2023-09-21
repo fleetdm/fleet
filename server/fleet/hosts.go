@@ -349,7 +349,7 @@ type MDMHostData struct {
 	// MDM-enrolled hosts.
 	//
 	// Note: Additional information for macOS hosts is currently stored in MacOSSettings.
-	OSSettings HostMDMOSSettings `json:"os_settings,omitempty" db:"-" csv:"-"`
+	OSSettings *HostMDMOSSettings `json:"os_settings,omitempty" db:"-" csv:"-"`
 
 	// Profiles is a list of HostMDMProfiles for the host. Note that as for many
 	// other host fields, it is not filled in by all host-returning datastore methods.

@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -145,7 +146,17 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, errors.New("host cannot be nil")
 	}
 
+	if host.Platform != "windows" {
+		// Generally, the caller should have already checked this, but just in case we log and
+		// return nil
+		level.Debug(ds.logger).Log("msg", "cannot get bitlocker status for non-windows host", "host_id", host.ID)
+		return nil, nil
+	}
+
 	if host.MDMInfo != nil && host.MDMInfo.IsServer {
+		// It is currently expected that server hosts do not have a bitlocker status so we can skip
+		// the query and return nil. We log for potential debugging in case this changes in the future.
+		level.Debug(ds.logger).Log("msg", "no bitlocker status for server host", "host_id", host.ID)
 		return nil, nil
 	}
 
@@ -166,11 +177,10 @@ SELECT
 		WHEN %s THEN '%s'
 	END AS status
 FROM
-	hosts h
-	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
-	LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
+	host_mdm hmdm
+	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
 WHERE
-	h.id = ? AND h.platform = 'windows'`,
+	hmdm.host_id = ?`,
 		whereBitLockerVerified,
 		fleet.DiskEncryptionVerified,
 		whereBitLockerPending,
@@ -181,6 +191,13 @@ WHERE
 
 	var des fleet.DiskEncryptionStatus
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &des, stmt, host.ID); err != nil {
+		if err == sql.ErrNoRows {
+			// At this point we know disk encryption is enabled so if we don't have a record for the
+			// host then we treat it as enforcing and log for potential debugging
+			level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
+			des = fleet.DiskEncryptionEnforcing
+			return &des, nil
+		}
 		return nil, err
 	}
 
