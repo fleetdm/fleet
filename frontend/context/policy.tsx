@@ -165,12 +165,15 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
     dispatch({ type: ACTIONS.SET_POLICY_TEAM_ID, id });
   }, []);
 
-  const setLastEditedQueryId = useCallback((lastEditedQueryId: number) => {
-    dispatch({
-      type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
-      lastEditedQueryId,
-    });
-  }, []);
+  const setLastEditedQueryId = useCallback(
+    (lastEditedQueryId: number | null) => {
+      dispatch({
+        type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryId,
+      });
+    },
+    []
+  );
 
   const setLastEditedQueryName = useCallback((lastEditedQueryName: string) => {
     dispatch({
