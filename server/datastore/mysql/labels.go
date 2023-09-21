@@ -458,7 +458,7 @@ func (ds *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.
 }
 
 // ListHostsInLabel returns a list of fleet.Host that are associated
-// with fleet.Label referened by Label ID
+// with fleet.Label referenced by Label ID
 func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	queryFmt := `
     SELECT
@@ -508,6 +508,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
       %s
+			%s
     FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
@@ -515,6 +516,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
     %s
     %s
+		%s
 `
 	failingPoliciesSelect := `,
 		COALESCE(failing_policies.count, 0) AS failing_policies_count,
@@ -530,7 +532,26 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		failingPoliciesJoin = ""
 	}
 
-	query := fmt.Sprintf(queryFmt, hostMDMSelect, failingPoliciesSelect, hostMDMJoin, failingPoliciesJoin)
+	deviceMappingJoin := `LEFT JOIN (
+	SELECT
+		host_id,
+		CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', source)), ']') AS device_mapping
+	FROM
+		host_emails
+	GROUP BY
+		host_id) dm ON dm.host_id = h.id`
+	if !opt.DeviceMapping {
+		deviceMappingJoin = ""
+	}
+
+	var deviceMappingSelect string
+	if opt.DeviceMapping {
+	deviceMappingSelect = `,
+	COALESCE(dm.device_mapping, 'null') as device_mapping
+	`
+	}
+	
+	query := fmt.Sprintf(queryFmt, hostMDMSelect, failingPoliciesSelect, deviceMappingSelect, hostMDMJoin, failingPoliciesJoin, deviceMappingJoin)
 
 	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
 
