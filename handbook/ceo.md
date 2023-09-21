@@ -37,7 +37,7 @@ Internal meetings can sometimes be moved to make room. External meetings, blocke
 - **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](#why-not-mention-the-ceo-in-slack-threads).
 
 ### Request equipment from Fleet IT
-The Apprentice fulfills equipment requests once per week.  [Submit an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&projects=&template=custom-request.md&title=Ship%20equipment%3A+_______________________), including precisely which item you need and where you need it shipped.  The Apprentice will get back to you within one business day.
+The Apprentice fulfills equipment requests once per week.  Follow the process for [buying new equipment](https://fleetdm.com/handbook/company/communications#buying-other-new-equipment) and submit an [equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request+for+%7BGithub+%20username%7D). 
 
 
 ## Why not mention the CEO in Slack threads?
@@ -73,10 +73,9 @@ Openness is one of [Fleet's values](https://fleetdm.com/handbook/company#values)
 - I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
 - I can be quick to criticize, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
 - I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
+- I can be inconsistent about how much certainty I communicate in my voice, even when I am certain, because I don't always remember why I am certain about every topic, and I tend to question blind certainty.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"
 
-<!--
-- When ideas differ I start at "what I would do", then talk myself backward toward the original idea
--->
+
 <!--
 [![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
 
@@ -102,9 +101,11 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
    ```
 
 
-
-
 ## Responsibilities
+
+### Manage g-ceo intake
+The Apprentice to the CEO is the DRI for the [#g-ceo kanban board](https://app.zenhub.com/workspaces/g-ceo-645b0eab68a4d40c0795ff61/board?sprints=none) and responsible for [managing all intake](https://fleetdm.com/handbook/company/communications#manage-intake) including issues and PRs.
+
 
 ### Schedule CEO interview
 From time to time, you will need to schedule an interview between a candidate and the CEO:
