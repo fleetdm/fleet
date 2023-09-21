@@ -784,6 +784,14 @@ func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byO
 //
 // IMPORTANT: The UI currently always uses PerPage=50 to list hosts. For better performance,
 // HostFailingPoliciesCountOptimPageSizeThreshold should always be higher than what the UI uses.
+//
+// The optimization consists on calculating the failing policy count (which involves querying a large table, `policy_membership`)
+// differently depending on the page size:
+//   - When the page size is short (lower than or equal to this value) then hosts are queried and filtered first, and
+//     then the failure policy count is calculated on such hosts only (with an IN clause).
+//   - When the page size is large (higher than this value) or ALL hosts are being retrieved then the hosts are
+//     filtered and their failing policy count are calculated on the same query (the IN clause performs worse
+//     than a LEFT JOIN when the number of rows is high).
 var HostFailingPoliciesCountOptimPageSizeThreshold = 100
 
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -843,6 +851,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`
 	}
 
+	// See definition of HostFailingPoliciesCountOptimPageSizeThreshold for more details.
 	useHostPaginationOptim := opt.PerPage != 0 && opt.PerPage <= uint(HostFailingPoliciesCountOptimPageSizeThreshold)
 
 	if !opt.DisableFailingPolicies && !useHostPaginationOptim {
