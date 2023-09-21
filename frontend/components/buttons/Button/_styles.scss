@@ -244,6 +244,16 @@ $base-class: "button";
           fill: $core-vibrant-blue-over;
         }
       }
+
+      // Copy button uses stroke color instead of fill color to darken
+      &.input-field__copy-value-button {
+        svg {
+          path {
+            fill: none;
+            stroke: $core-vibrant-blue-over;
+          }
+        }
+      }
     }
 
     // globally styled gap between text and icon
