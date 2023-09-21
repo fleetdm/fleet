@@ -79,6 +79,9 @@ Fleet's CEO is the directly responsible individual (DRI) for [Fleet's brand mark
 
 - **Brand resources:** To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
 
+## Rituals
+<rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
+
 ### Swag requests
 We deliver Fleet swag for those who request it through [Fleet documentation](https://fleetdm.com/docs) and may occasionally have upstanding community members and customers who are in need of some cool Fleet swag as well.
 
@@ -152,9 +155,6 @@ Create and send branded email blast to multiple recipients in small or large gro
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
-
-## Rituals
-<rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
 <!-- TODO: Explore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 <!-- TODO: Slightly later, in another PR, finish processing this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
