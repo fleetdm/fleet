@@ -1,12 +1,4 @@
-variable "saml_auth_proxy_cert_path" {
-  type = string
-}
-
-variable "saml_auth_proxy_key_path" {
-  type = string
-}
-
-variable "kms_key_id" {
+variable "public_alb_security_group_id" {
   type = string
 }
 
@@ -45,7 +37,7 @@ variable "logging_options" {
   })
 }
 
-variable "saml-auth-proxy-image" {
+variable "saml_auth_proxy_image" {
   type    = string
   default = "itzg/saml-auth-proxy:1.12.0@sha256:ddff17caa00c1aad64d6c7b2e1d5eb93d97321c34d8ad12a25cfd8ce203db723" 
 }
@@ -53,6 +45,10 @@ variable "saml-auth-proxy-image" {
 variable "security_groups" {
   type     = list(string)
   nullable = false
+}
+
+variable "base_url" {
+ type      = string
 }
 
 variable "server_url" {

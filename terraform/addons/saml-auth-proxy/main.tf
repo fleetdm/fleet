@@ -1,31 +1,6 @@
-data "aws_kms_secrets" "saml_auth_proxy_cert" {
-  secret {
-    name    = "cert"
-    key_id  = var.kms_key_id
-    payload = file(var.saml_auth_proxy_cert_path)
-  }
-}
-
-data "aws_kms_secrets" "saml_auth_proxy_key" {
-  secret {
-    name    = "key"
-    key_id  = var.kms_key_id
-    payload = file(var.saml_auth_proxy_key_path)
-  }
-}
 
 resource "aws_secretsmanager_secret" "saml_auth_proxy_cert" {
   name_prefix = "${var.customer_prefix}-saml-auth-proxy-cert"
-}
-
-resource "aws_secretsmanager_secret_version" "saml_auth_proxy_cert" {
-  secret_id = aws_secretsmanager_secret.saml_auth_proxy_cert.id
-  secret_string = jsonencode(
-    {
-      cert      = data.aws_kms_secrets.saml_auth_proxy_cert.plaintext["cert"]
-      key       = data.aws_kms_secrets.saml_auth_proxy_key.plaintext["key"]
-    }
-  )
 }
 
 resource "aws_security_group" "saml_auth_proxy_alb" {
@@ -38,18 +13,16 @@ resource "aws_security_group" "saml_auth_proxy_alb" {
     from_port        = 80
     to_port          = 80
     protocol         = "tcp"
-    cidr_blocks      = var.alb_config.allowed_cidrs
-    ipv6_cidr_blocks = ["::/0"]
+    security_groups  = [aws_security_group.saml_auth_proxy_service]
   }
 
-  # This can probably be limited in some way
   egress {
     description      = "Egress to all"
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
     cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
+    ipv6_cidr_blocks = []
   }
 }
 
@@ -63,18 +36,16 @@ resource "aws_security_group" "saml_auth_proxy_service" {
     from_port        = 80
     to_port          = 80
     protocol         = "tcp"
-    cidr_blocks      = var.alb_config.allowed_cidrs
-    ipv6_cidr_blocks = ["::/0"]
+    security_groups  = [var.public_alb_security_group_id]
   }
 
-  # This can probably be limited in some way
   egress {
     description      = "Egress to all"
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
     cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
+    ipv6_cidr_blocks = []
   }
 }
 
@@ -83,19 +54,20 @@ module "saml_auth_proxy_alb" {
   source  = "terraform-aws-modules/alb/aws"
   version = "8.2.1"
 
-  name = var.alb_config.name
+  name = "${var.customer_prefix}-saml-auth-proxy"
 
   load_balancer_type = "application"
 
   vpc_id          = var.vpc_id
-  subnets         = var.alb_config.subnets
+  subnets         = var.subnets
   security_groups = [aws_security_group.saml_auth_proxy_alb]
-  access_logs     = var.alb_config.access_logs
+  # FIXME: Get this working eventually.
+  # access_logs     = var.alb_config.access_logs
 
   internal        = true
   target_groups = [
     {
-      name             = var.alb_config.name
+      name             = "${var.customer_prefix}-saml-to-fleet"
       backend_protocol = "HTTP"
       backend_port     = 80
       target_type      = "ip"
@@ -109,8 +81,6 @@ module "saml_auth_proxy_alb" {
       }
     }
   ]
-
-  # Require TLS 1.2 as earlier versions are insecure
 
   http_tcp_listeners = [
     {
@@ -189,16 +159,7 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
           },
         ]
         entryPoint = "/bin/sh",
-        command = ["-c",
-        # In case the SP_CERT_PATH and SP_KEY_PATH are differnt directories
-        <<-EOT
-          mkdir -p $(dirname ${SAML_PROXY_SP_CERT_PATH})
-          mkdir -p $(dirname ${SAML_PROXY_SP_KEY_PATH})
-          echo "${SAML_PROXY_SP_CERT_BYTES}" > "${SP_CERT_PATH}"
-          echo "${SAML_PROXY_SP_KEY_BYTES}" > "${SP_KEY_PATH}"
-          /usr/bin/saml-auth-proxy
-        EOT
-        ] 
+        command = ["-c", file("${path.module}/files/saml-auth-proxy.sh")] 
       }
   ])
   lifecycle {
@@ -211,7 +172,7 @@ resource "aws_ecs_service" "saml_auth_proxy" {
   launch_type                        = "FARGATE"
   cluster                            = var.ecs_cluster
   task_definition                    = aws_ecs_task_definition.saml_auth_proxy.arn
-  desired_count                      = var.loadtest_containers
+  desired_count                      = var.proxy_containers
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 
