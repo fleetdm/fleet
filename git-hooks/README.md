@@ -50,4 +50,3 @@ By reducing the number of failed builds, you free up CI resources for other task
 - Update/Add a script to the `hooks` directory and promote it in Slack!
 - Add `./git-hooks/frontend/`
 - ??????
-

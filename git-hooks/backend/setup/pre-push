@@ -18,7 +18,7 @@ for SCRIPT in "$HOOK_DIRECTORY"/*; do
     FILENAME=$(basename "$SCRIPT")
 
     # Check if the filename is in the list
-    for TARGET in "${SCRIPT_LIST[@]}"; do
+    for TARGET in "${USED_HOOKS[@]}"; do
         if [[ "$FILENAME" == "$TARGET" ]]; then
             # Execute the script, even if it doesn't have execute permissions
             bash "$SCRIPT"
