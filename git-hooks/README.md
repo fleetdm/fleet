@@ -47,11 +47,17 @@ By reducing the number of failed builds, you free up CI resources for other task
 
 ## Contributing
 
+All related code is located in the `./git-hooks` directory
+
 Scripts in the `hooks/` directory need to exit a non-zero code in order to fail properly.  These
-scripts do not need to be executable because we are calling it from the `pre-push` script as `bash $SCRIPT_NAME`
+scripts do not need to be executable because we are calling it from the `pre-push` script as `bash
+$SCRIPT_NAME`
+
+Make sure you promote your changes in Slack!
+
 
 ## Contributing Ideas
 
-- Update/Add a script to the `hooks` directory and promote it in Slack!
-- Add `./git-hooks/frontend/`
+- Update/Add a script to the `hooks` directory
+- Build out `./git-hooks/frontend/`
 - ??????
