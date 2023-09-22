@@ -35,7 +35,7 @@ By reducing the number of failed builds, you free up CI resources for other task
     ```
 
 2. Edit the `pre-push` file and specify the scripts you want to run.  Filenames must match scripts in the
-`./git-hooks/backend/hooks/` directory
+`./git-hooks/backend/hooks/` directory.  This also specifies the order they run.
 
     ```bash
     declare -a USED_HOOKS=(
