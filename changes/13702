@@ -1,1 +1,2 @@
 * Ensure post-enrollment commands are sent to devices assigned to Fleet in ABM.
+* Ensure hosts assigned to Fleet in ABM come back to pending to the right team after they're deleted.
