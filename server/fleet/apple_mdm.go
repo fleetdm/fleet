@@ -582,7 +582,7 @@ type MDMAppleSetupAssistant struct {
 	TeamID      *uint           `json:"team_id" db:"team_id"`
 	Name        string          `json:"name" db:"name"`
 	Profile     json.RawMessage `json:"enrollment_profile" db:"profile"`
-	ProfileUUID string          `json:"profile_uuid" db:"profile_uuid"`
+	ProfileUUID string          `json:"-" db:"profile_uuid"`
 	UploadedAt  time.Time       `json:"uploaded_at" db:"uploaded_at"`
 }
 
