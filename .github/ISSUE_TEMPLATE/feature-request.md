@@ -10,7 +10,7 @@ assignees: ''
 ## Goal
 
 TODO
-<!-- Describe the desired outcome -->
+<!-- Describe the core problem you're trying to solve. -->
 
 ## Context
 
