@@ -2,7 +2,10 @@
   display: flex;
   align-items: center;
   color: $core-fleet-blue;
-  text-transform: capitalize;
+
+  ::first-letter {
+    text-transform: capitalize;
+  }
 
   &:before {
     border-radius: 100%;
