@@ -73,7 +73,7 @@ Fleet UI:
 
 Example output:
 
-```
+```sh
 $ fleetctl get mdm-command-results -id 333af7f8-b9a4-4f62-bfb2-f7488fbade21
 +--------------------------------------+----------------------+----------------+--------------+---------------------+---------------------------------------------------------+
 |                  ID                  |         TIME         |      TYPE      |    STATUS    |      HOSTNAME       |                         RESULTS                         |
@@ -99,7 +99,7 @@ You can view the list of the 1,000 latest commands using "fleetctl":
 
 Example output:
 
-```
+```sh
 $ fleetctl get mdm-commands
 +--------------------------------------+----------------------+--------------------------+--------------+------------------------+
 |                  ID                  |         TIME         |           TYPE           |    STATUS    |        HOSTNAME        |
