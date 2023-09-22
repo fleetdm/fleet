@@ -14,6 +14,7 @@ TODO
 
 ## Context
 
+## Potential Solutions
 TODO
 <!--
 Please provide as much context as you can about your use case and motivations.
