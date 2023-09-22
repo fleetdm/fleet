@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
@@ -168,8 +169,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
-	var notifs fleet.OrbitConfigNotifications
-
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return fleet.OrbitConfig{}, fleet.OrbitError{Message: "internal error: missing host from request context"}
@@ -181,6 +180,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// set the host's orbit notifications for macOS MDM
+	var notifs fleet.OrbitConfigNotifications
 	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
 		// TODO(mna): all those notifications implied a macos hosts, but none of
 		// the checks enforce that (only indirectly in some cases, like
@@ -250,7 +250,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 		}
 
-		extensionsFiltered, err := filterExtensionsByPlatform(opts.Extensions, host.Platform)
+		extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
 		if err != nil {
 			return fleet.OrbitConfig{}, err
 		}
@@ -286,7 +286,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	extensionsFiltered, err := filterExtensionsByPlatform(opts.Extensions, host.Platform)
+	extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
 	if err != nil {
 		return fleet.OrbitConfig{}, err
 	}
@@ -308,20 +308,45 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}, nil
 }
 
-// filterExtensionsByPlatform filters a extensions configuration depending on the host platform.
-// (to not send extensions targeted to other operating systems).
-func filterExtensionsByPlatform(extensions json.RawMessage, hostPlatform string) (json.RawMessage, error) {
+// filterExtensionsForHost filters a extensions configuration depending on the host platform and label membership.
+//
+// If all extensions are filtered, then it returns (nil, nil) (Orbit expects empty extensions if there
+// are no extensions for the host.)
+func (svc *Service) filterExtensionsForHost(ctx context.Context, extensions json.RawMessage, host *fleet.Host) (json.RawMessage, error) {
 	if len(extensions) == 0 {
-		return extensions, nil
+		return nil, nil
 	}
 	var extensionsInfo fleet.Extensions
 	if err := json.Unmarshal(extensions, &extensionsInfo); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal extensions config")
 	}
-	extensionsInfo.FilterByHostPlatform(hostPlatform)
+
+	// Filter the extensions by platform.
+	extensionsInfo.FilterByHostPlatform(host.Platform)
+
+	// Filter the extensions by labels (premium only feature).
+	if license, _ := license.FromContext(ctx); license != nil && license.IsPremium() {
+		for extensionName, extensionInfo := range extensionsInfo {
+			hostIsMemberOfAllLabels, err := svc.ds.HostMemberOfAllLabels(ctx, host.ID, extensionInfo.Labels)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check host labels")
+			}
+			if hostIsMemberOfAllLabels {
+				// Do not filter out, but there's no need to send the label names to the devices.
+				extensionInfo.Labels = nil
+				extensionsInfo[extensionName] = extensionInfo
+			} else {
+				delete(extensionsInfo, extensionName)
+			}
+		}
+	}
+	// Orbit expects empty message if no extensions apply.
+	if len(extensionsInfo) == 0 {
+		return nil, nil
+	}
 	extensionsFiltered, err := json.Marshal(extensionsInfo)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "marshal extensions config")
 	}
 	return extensionsFiltered, nil
 }

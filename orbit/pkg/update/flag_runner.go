@@ -233,6 +233,8 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		}
 	}
 
+	log.Debug().Str("extensions", string(config.Extensions)).Msg("received extensions configuration")
+
 	var extensions fleet.Extensions
 	err = json.Unmarshal(config.Extensions, &extensions)
 	if err != nil {
