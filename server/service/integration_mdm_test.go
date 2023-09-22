@@ -1859,7 +1859,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.Equal(t, mdmDevice.SerialNumber, profileAssignmentReqs[0].Devices[0])
 
 	// it should get the post-enrollment commands
-	mdmDevice.Enroll()
+	require.NoError(t, mdmDevice.Enroll())
 	checkPostEnrollmentCommands(mdmDevice, true)
 }
 
