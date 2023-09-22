@@ -3,7 +3,7 @@
 # Move this file to the .git/hooks directory of the project
 
 # Define the directory containing the hooks
-HOOK_DIRECTORY="../../git-hooks/backend/hooks"
+HOOK_DIRECTORY="./git-hooks/backend/hooks"
 
 # Define the list of hooks you want to execute
 declare -a USED_HOOKS=(
