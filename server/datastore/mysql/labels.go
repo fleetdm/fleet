@@ -546,7 +546,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 
 	var deviceMappingSelect string
 	if opt.DeviceMapping {
-	deviceMappingSelect = `,
+		deviceMappingSelect = `,
 	COALESCE(dm.device_mapping, 'null') as device_mapping
 	`
 	}
