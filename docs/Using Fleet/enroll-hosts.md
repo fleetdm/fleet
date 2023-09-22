@@ -320,11 +320,19 @@ Under "Installation Policy", select "Force install". Under "Update URL", select 
 > For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
 
 ### Step 2: OU to block non-Chromebook devices
-Create an [organization unit](https://support.google.com/a/answer/182537?hl=en) to house devices where the extension should not be installed. [Add all the relevant devices](TODO) to this OU.
+Create an [organization unit](https://support.google.com/a/answer/182537?hl=en) to house devices where the extension should not be installed. [Add all the relevant devices](https://support.google.com/chrome/a/answer/2978876?hl=en) to this OU.
 
 In the Google Admin console, in the navigation menu, visit Devices > Chrome > Managed Browsers.
 
-Select the relevant OU where you want the fleetd Chrome extension to be blocked. TODO
+Select the relevant OU where you want the fleetd Chrome extension to be blocked.
+
+In the bottom right, click the yellow "+" button and select "Add Chrome app or extension by ID."
+
+Visit your Fleet instance and select Hosts > Add Hosts and select ChromeOS in the popup modal.
+
+Enter the "Extension ID" and "Installation URL" using the data provided in the modal.
+
+Under "Installation Policy", select "Block".
 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which
