@@ -45,7 +45,7 @@ Use either of the following methods to generate the necessary files:
 
 Run the following command to download three files and send an email to you with an attached CSR file.
 
-```
+```sh
 fleetctl generate mdm-apple --email <email> --org <org> 
 ```
 
@@ -80,7 +80,7 @@ Navigate to the **Settings > Integrations > Mobile device management (MDM)** pag
 
 #### Fleetctl CLI
 
-```
+```sh
 fleetctl get mdm-apple
 ```
 
@@ -104,7 +104,7 @@ Navigate to the **Settings > Integrations > Mobile device management (MDM)** pag
 
 #### Fleetctl CLI
 
-```
+```sh
 fleetctl get mdm-apple
 ``` 
 
@@ -114,7 +114,7 @@ fleetctl get mdm-apple
 
 Run the following command in `fleetctl`. This will download three files and send an email to you with an attached CSR file. You may ignore the SCEP certificate and SCEP key as you do not need these to renew APNs.
 
-```
+```sh
 fleetctl generate mdm-apple --email <email> --org <org>
 ```
 
@@ -146,7 +146,7 @@ Use either of the following methods to confirm that Fleet is set up:
 
 Run the following command. You should see information about the new APNs certificate such as serial number and renewal date. 
 
-```
+```sh
 fleetctl get mdm-apple
 ```
 
@@ -178,7 +178,7 @@ User either of the following methods to generate a certificate and private key p
 
 #### Fleetctl CLI:
 
-```
+```sh
 fleetctl generate mdm-apple-bm
 ```
 
@@ -217,7 +217,7 @@ Use either of the following methods to confirm that Fleet is set up correctly. Y
 
 #### Fleetctl CLI:
 
-```
+```sh
 fleetctl get mdm-apple
 ```
 
@@ -271,7 +271,7 @@ Use either of the following methods to see your ABM renewal date and other impor
 
 #### Fleetctl CLI
 
-```
+```sh
 fleetctl get mdm-apple
 ```
 
