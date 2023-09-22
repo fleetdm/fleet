@@ -556,7 +556,11 @@ Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#owner
 
 
 ## Equipment
-At Fleet, we don't *Just* [spend company money](https://fleetdm.com/handbook/business-operations#spending-company-money), we invest in [results](https://fleetdm.com/handbook/company#results). Equipment issues hinder results and are always addressed quickly. To request new equipment or address hardware issues [create an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request). 
+At Fleet, we don't *Just* [spend company money](https://fleetdm.com/handbook/business-operations#spending-company-money), we invest in [results](https://fleetdm.com/handbook/company#results); providing our team members with the right tools for the job keeps us moving quickly.
+- Do you need to purchase equipment as part of the onboarding process that is ≥ $500?
+- Are you in need of additional equipment for any reason?
+
+[Create an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=jostableford&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request) to get help geting the tools you need.
 
 Once a request is received, the Head of Business Operations  will assess its necessity and check the Fleet Warehouse for available devices. The request is then sent to the CEO for final approval and [shipping](https://fleetdm.com/handbook/ceo#request-equipment-from-fleet-it).
 
