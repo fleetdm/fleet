@@ -776,6 +776,24 @@ func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byO
 	return byOS, totalCount, nil
 }
 
+// HostFailingPoliciesCountOptimPageSizeThreshold is the value of the page size that determines whether
+// to run an optimized version of the hosts queries when pagination is used.
+//
+// If the page size is under this value then the queries will be optimized assuming a low number of hosts.
+// If the page size is 0 or higher than this value then the queries will be optimized assuming a high number of hosts.
+//
+// IMPORTANT: The UI currently always uses PerPage=50 to list hosts. For better performance,
+// HostFailingPoliciesCountOptimPageSizeThreshold should always be higher than what the UI uses.
+//
+// The optimization consists on calculating the failing policy count (which involves querying a large table, `policy_membership`)
+// differently depending on the page size:
+//   - When the page size is short (lower than or equal to this value) then hosts are queried and filtered first, and
+//     then the failure policy count is calculated on such hosts only (with an IN clause).
+//   - When the page size is large (higher than this value) or ALL hosts are being retrieved then the hosts are
+//     filtered and their failing policy count are calculated on the same query (the IN clause performs worse
+//     than a LEFT JOIN when the number of rows is high).
+var HostFailingPoliciesCountOptimPageSizeThreshold = 100
+
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
     h.id,
@@ -833,6 +851,16 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`
 	}
 
+	// See definition of HostFailingPoliciesCountOptimPageSizeThreshold for more details.
+	useHostPaginationOptim := opt.PerPage != 0 && opt.PerPage <= uint(HostFailingPoliciesCountOptimPageSizeThreshold)
+
+	if !opt.DisableFailingPolicies && !useHostPaginationOptim {
+		sql += `,
+		COALESCE(failing_policies.count, 0) AS failing_policies_count,
+		COALESCE(failing_policies.count, 0) AS total_issues_count
+		`
+	}
+
 	var params []interface{}
 
 	// Only include "additional" if filter provided.
@@ -855,14 +883,15 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		    `
 	}
 
-	sql, params = ds.applyHostFilters(opt, sql, filter, params)
+	leftJoinFailingPolicies := !useHostPaginationOptim
+	sql, params = ds.applyHostFilters(opt, sql, filter, params, leftJoinFailingPolicies)
 
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
 
-	if !opt.DisableFailingPolicies {
+	if !opt.DisableFailingPolicies && useHostPaginationOptim {
 		var err error
 		hosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, hosts)
 		if err != nil {
@@ -874,7 +903,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
-func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
+func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}, leftJoinFailingPolicies bool) (string, []interface{}) {
 	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
 
 	deviceMappingJoin := `LEFT JOIN (
@@ -900,6 +929,14 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	if opt.SoftwareIDFilter != nil {
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
 		params = append(params, opt.SoftwareIDFilter)
+	}
+
+	failingPoliciesJoin := ""
+	if !opt.DisableFailingPolicies && leftJoinFailingPolicies {
+		failingPoliciesJoin = `LEFT JOIN (
+		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
+		    GROUP BY host_id
+		) as failing_policies ON (h.id=failing_policies.host_id)`
 	}
 
 	operatingSystemJoin := ""
@@ -937,6 +974,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     %s
     %s
     %s
+    %s
 		WHERE TRUE AND %s AND %s AND %s AND %s
     `,
 
@@ -944,6 +982,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		hostMDMJoin,
 		deviceMappingJoin,
 		policyMembershipJoin,
+		failingPoliciesJoin,
 		operatingSystemJoin,
 		munkiJoin,
 		displayNameJoin,
@@ -1161,12 +1200,14 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
 	sql := `SELECT count(*) `
 
-	// ignore pagination in count
+	// Ignore pagination in count.
 	opt.Page = 0
 	opt.PerPage = 0
+	// We don't need the failing policy counts of each host for counting hosts.
+	leftJoinFailingPolicies := false
 
 	var params []interface{}
-	sql, params = ds.applyHostFilters(opt, sql, filter, params)
+	sql, params = ds.applyHostFilters(opt, sql, filter, params, leftJoinFailingPolicies)
 
 	var count int
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, sql, params...); err != nil {
