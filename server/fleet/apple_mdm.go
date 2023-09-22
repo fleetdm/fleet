@@ -505,10 +505,15 @@ func (p MDMAppleSetupPayload) AuthzType() string {
 	return "mdm_apple_settings"
 }
 
-// HostDEPAssignment represents a row in the host_dep_assignments table
+// HostDEPAssignment represents a row in the host_dep_assignments table.
 type HostDEPAssignment struct {
-	HostID    uint       `db:"host_id"`
-	AddedAt   time.Time  `db:"added_at"`
+	// HostID is the id of the host in Fleet.
+	HostID uint `db:"host_id"`
+	// AddedAt is the timestamp when Fleet was notified that device was added to the Fleet MDM
+	// server in Apple Busines Manager (ABM).
+	AddedAt time.Time `db:"added_at"`
+	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
+	// MDM server in Apple Busines Manager (ABM).
 	DeletedAt *time.Time `db:"deleted_at"`
 }
 

@@ -872,6 +872,9 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
+	// RestoreMDMApplePendingDEPHost restores a host that was previously deleted from Fleet.
+	RestoreMDMApplePendingDEPHost(ctx context.Context, host *Host) error
+
 	// ResetMDMAppleEnrollment resets all tables with enrollment-related
 	// information if a matching row for the host exists.
 	ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error

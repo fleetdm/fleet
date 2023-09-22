@@ -464,12 +464,15 @@ var hostRefs = []string{
 	"host_updates",
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
-	"host_dep_assignments",
 	"host_script_results",
 }
 
-// those host refs cannot be deleted using the host.id like the hostRefs above,
-// they use the host.uuid instead. Additionally, the column name that refers to
+// NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
+// deleted from when a host is deleted in Fleet:
+// - host_dep_assignments
+
+// additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
+// above. They use the host.uuid instead. Additionally, the column name that refers to
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
