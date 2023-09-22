@@ -627,7 +627,7 @@ The URL of a logo of the organization that can be used with light backgrounds.
 
 ##### org_info.contact_url
 
-An URL that can be used by ends user to contact the organization.
+A URL that can be used by end users to contact the organization.
 
 - Optional setting (string)
 - Default value: https://fleetdm.com/company/contact
