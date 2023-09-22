@@ -6559,7 +6559,8 @@ Deletes the session specified by ID. When the user associated with the session n
             "cvss_score": 7.5,
             "epss_probability": 0.01537,
             "cisa_known_exploit": false,
-            "cve_published": "2022-01-01 12:32:00"
+            "cve_published": "2022-01-01 12:32:00",
+            "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match."
           }
         ],
         "hosts_count": 1
