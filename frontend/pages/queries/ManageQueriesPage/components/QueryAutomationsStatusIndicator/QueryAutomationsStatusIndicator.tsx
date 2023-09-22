@@ -6,12 +6,6 @@ interface IQueryAutomationsStatusIndicator {
   interval: number;
 }
 
-enum QueryAutomationsStatus {
-  ON = "On",
-  OFF = "Off",
-  PAUSED = "Paused",
-}
-
 const QueryAutomationsStatusIndicator = ({
   automationsEnabled,
   interval,
@@ -19,16 +13,16 @@ const QueryAutomationsStatusIndicator = ({
   let status;
   if (automationsEnabled) {
     if (interval === 0) {
-      status = QueryAutomationsStatus.PAUSED;
+      status = "paused";
     } else {
-      status = QueryAutomationsStatus.ON;
+      status = "on";
     }
   } else {
-    status = QueryAutomationsStatus.OFF;
+    status = "off";
   }
 
   const tooltip =
-    status === QueryAutomationsStatus.PAUSED
+    status === "paused"
       ? {
           tooltipText: (
             <>
