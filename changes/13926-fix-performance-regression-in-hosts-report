@@ -1,0 +1,4 @@
+* Fix v4.37.0 performance regressions in the following API endpoints:
+  * `/api/v1/fleet/hosts/report`
+  * `/api/v1/fleet/hosts` when using `per_page=0` or a large number for `per_page` (in the thousands)
+* Allow specifying `disable_failing_policies` on the `/api/v1/fleet/hosts/report` API endpoint for increased performance. This is useful if the user is not interested on counting failed policies (`issues` column).

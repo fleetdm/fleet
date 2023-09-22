@@ -6103,7 +6103,6 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
 	require.Len(t, rows[0], 48)        // total number of cols
-	t.Log(rows[0])
 
 	const (
 		idCol       = 3
@@ -6198,7 +6197,6 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local1"}, rows[2][:2])
 	require.Len(t, rows[3], 3)
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
-	t.Log(rows)
 }
 
 func (s *integrationTestSuite) TestSSODisabled() {
@@ -7610,4 +7608,173 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit")
 	})
 	require.NotZero(t, wiresharkSoftware.ID)
+}
+
+func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
+	t := s.T()
+	ctx := context.Background()
+
+	newHostFunc := func(name string) *fleet.Host {
+		host, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(name),
+			UUID:            name,
+			Hostname:        "foo.local." + name,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		return host
+	}
+
+	hostCount := 10
+	hosts := make([]*fleet.Host, 0, hostCount)
+	for i := 0; i < hostCount; i++ {
+		hosts = append(hosts, newHostFunc(fmt.Sprintf("h%d", i)))
+	}
+
+	globalPolicy0, err := s.ds.NewGlobalPolicy(ctx, &test.UserAdmin.ID, fleet.PolicyPayload{
+		Name:  "foobar0",
+		Query: "SELECT 0;",
+	})
+	require.NoError(t, err)
+	globalPolicy1, err := s.ds.NewGlobalPolicy(ctx, &test.UserAdmin.ID, fleet.PolicyPayload{
+		Name:  "foobar1",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	globalPolicy2, err := s.ds.NewGlobalPolicy(ctx, &test.UserAdmin.ID, fleet.PolicyPayload{
+		Name:  "foobar2",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+
+	for i, host := range hosts {
+		// All hosts pass the globalPolicy0
+		err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy0.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+
+		if i%2 == 0 {
+			// Half of the hosts pass the globalPolicy1 and fail the globalPolicy2
+			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: ptr.Bool(true)}, time.Now(), false)
+			require.NoError(t, err)
+			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: ptr.Bool(false)}, time.Now(), false)
+			require.NoError(t, err)
+		} else {
+			// Half of the hosts pass the globalPolicy2 and fail the globalPolicy1
+			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: ptr.Bool(false)}, time.Now(), false)
+			require.NoError(t, err)
+			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: ptr.Bool(true)}, time.Now(), false)
+			require.NoError(t, err)
+		}
+	}
+
+	// The hosts/report endpoint uses svc.ds.ListHosts with page=0, per_page=0, thus we are
+	// testing the non optimized for pagination queries for failing policies calculation.
+	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv")
+	rows1, err := csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
+	require.Len(t, rows1[0], 48)        // total number of cols
+
+	var (
+		idIdx     int
+		issuesIdx int
+	)
+	for colIdx, column := range rows1[0] {
+		switch column {
+		case "issues":
+			issuesIdx = colIdx
+		case "id":
+			idIdx = colIdx
+		}
+	}
+
+	for i := 1; i < len(hosts)+1; i++ {
+		row := rows1[i]
+		require.Equal(t, row[issuesIdx], "1")
+	}
+
+	// Running with disable_failing_policies=true disable the counting of failed policies for a host.
+	// Thus, all "issues" values should be 0.
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "disable_failing_policies", "true")
+	rows2, err := csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
+	require.Len(t, rows2[0], 48)        // total number of cols
+
+	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
+	for i := 1; i < len(hosts)+1; i++ {
+		row := rows2[i]
+		require.Equal(t, row[issuesIdx], "0")
+		row1 := rows1[i]
+		require.Equal(t, row[idIdx], row1[idIdx])
+	}
+
+	for _, tc := range []struct {
+		name      string
+		args      []string
+		checkRows func(t *testing.T, rows [][]string)
+	}{
+		{
+			name: "get hosts that fail globalPolicy0",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy0.ID), "policy_response", "failure"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, 1) // just header row, all hosts pass such policy.
+			},
+		},
+		{
+			name: "get hosts that pass globalPolicy0",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy0.ID), "policy_response", "passing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)+1) // all hosts + header row, all hosts pass such policy.
+			},
+		},
+		{
+			name: "get hosts that fail globalPolicy1",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy1.ID), "policy_response", "failing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+		{
+			name: "get hosts that pass globalPolicy1",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy1.ID), "policy_response", "passing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+		{
+			name: "get hosts that fail globalPolicy2",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy2.ID), "policy_response", "failing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+		{
+			name: "get hosts that pass globalPolicy2",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy2.ID), "policy_response", "passing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv")...)
+			rows, err := csv.NewReader(res.Body).ReadAll()
+			res.Body.Close()
+			require.NoError(t, err)
+			tc.checkRows(t, rows)
+			// Test the same with "disable_failing_policies=true" which should not change the result.
+			res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv", "disable_failing_policies", "true")...)
+			rows, err = csv.NewReader(res.Body).ReadAll()
+			res.Body.Close()
+			require.NoError(t, err)
+			tc.checkRows(t, rows)
+		})
+	}
 }
