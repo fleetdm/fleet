@@ -6475,19 +6475,19 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, host.HardwareSerial, info.HardwareSerial)
 	require.Equal(t, true, info.InstalledFromDEP)
 	require.EqualValues(t, tm.ID, info.TeamID)
-	require.False(t, info.AssignedInABM)
+	require.False(t, info.DEPAssignedToFleet)
 
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
-	require.True(t, info.AssignedInABM)
+	require.True(t, info.DEPAssignedToFleet)
 
 	err = ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
-	require.False(t, info.AssignedInABM)
+	require.False(t, info.DEPAssignedToFleet)
 }
 
 func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
