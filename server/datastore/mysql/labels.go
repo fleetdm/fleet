@@ -549,7 +549,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		deviceMappingSelect = `,
 		COALESCE(dm.device_mapping, 'null') as device_mapping`
 	}
-	
+
 	query := fmt.Sprintf(queryFmt, hostMDMSelect, failingPoliciesSelect, deviceMappingSelect, hostMDMJoin, failingPoliciesJoin, deviceMappingJoin)
 
 	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
