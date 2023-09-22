@@ -100,7 +100,7 @@ parasails.registerPage('basic-handbook', {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
         let kebabCaseFriendlyTitle = title.replace(/[\’\']/g, '');
         return {
-          title: title.replace(/\p{Extended_Pictographic}/gu, ''), // take out any emojis (they look weird in the menu)
+          title: title.replace(this.regexToMatchEmoji, ''), // take out any emojis (they look weird in the menu)
           url: '#' + _.kebabCase(kebabCaseFriendlyTitle.toLowerCase()),
         };
       });
