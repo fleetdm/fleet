@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-## Goal
+## Problem
 
 TODO
 <!-- Describe the core problem you're trying to solve. -->
