@@ -22,6 +22,10 @@ for SCRIPT in "$HOOK_DIRECTORY"/*; do
         if [[ "$FILENAME" == "$TARGET" ]]; then
             # Execute the script, even if it doesn't have execute permissions
             bash "$SCRIPT"
+            if [[ $? -ne 0 ]]; then
+                # Exit if script fails
+                exit 1
+            fi
             break # Break inner loop since script was found and executed
         fi
     done
