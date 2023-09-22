@@ -2276,7 +2276,10 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if err != nil {
 			return err
 		}
-		if info.InstalledFromDEP {
+
+		// TODO: improve this to not enqueue the job if a host that is
+		// assigned in ABM is manually enrolling for some reason.
+		if info.AssignedInABM || info.InstalledFromDEP {
 			svc.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", r.ID)
 
 			var tmID *uint

@@ -1861,6 +1861,16 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// it should get the post-enrollment commands
 	require.NoError(t, mdmDevice.Enroll())
 	checkPostEnrollmentCommands(mdmDevice, true)
+
+	// delete all MDM info
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm WHERE host_id = ?`, listHostsRes.Hosts[0].ID)
+		return err
+	})
+
+	// it should still get the post-enrollment commands
+	require.NoError(t, mdmDevice.Enroll())
+	checkPostEnrollmentCommands(mdmDevice, true)
 }
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {

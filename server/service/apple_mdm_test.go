@@ -1024,6 +1024,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 			DisplayName:      model,
 			InstalledFromDEP: true,
 			TeamID:           wantTeamID,
+			AssignedInABM:    true,
 		}, nil
 	}
 
