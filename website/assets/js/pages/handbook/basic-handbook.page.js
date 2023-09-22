@@ -9,6 +9,7 @@ parasails.registerPage('basic-handbook', {
     subtopics: [],
     handbookIndexLinks: [],
     hideEmojisOnPage: false,
+    regexToMatchEmoji: /(?:[\u00A9\u00AE\u203C\u2049\u2122\u2139\u2194-\u21AA\u2300-\u23FF\u2460-\u24FF\u25AA-\u25FE\u2600-\u26FF\u2700-\u27BF\u2900-\u297F\u2934-\u2935\u2B05-\u2B07\u2B1B-\u2B1C\u2B50\u2B55\u3030\u303D\u3297\u3299]|\uD83C[\uDC04\uDCCF\uDD70-\uDD71\uDD7E-\uDD7F\uDE00-\uDE02\uDE1A\uDE2F\uDE30-\uDE39\uDE3A-\uDE3F\uDE50-\uDE51\uDF00-\uDF21\uDF24-\uDF93\uDF96-\uDF97\uDF99-\uDFF0\uDFF3-\uDFF5\uDFF7-\uDFFF]|\uD83D[\uDC00-\uDDFF\uDE00-\uDE4F\uDE80-\uDEF6\uDFE0-\uDFFF]|\uD83E[\uDD0D-\uDDFF\uDE00-\uDEFF])\s{0,1}/g
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -23,10 +24,10 @@ parasails.registerPage('basic-handbook', {
 
   mounted: async function() {
     // If the user is on a windows device, hide emojis in the handbook.
-    if(bowser !== undefined && bowser.windows) {
+    if(typeof bowser !== 'undefined' && bowser.windows) {
       this.hideEmojisOnPage = true;
       if(!this.isHandbookLandingPage){
-        this.thisPage.title = this.thisPage.title.replace(/\p{Extended_Pictographic}/gu, '');
+        this.thisPage.title = this.thisPage.title.replace(this.regexToMatchEmoji, '');
         this._removeEmojiFromThisPage();
       }
     }
@@ -66,7 +67,7 @@ parasails.registerPage('basic-handbook', {
         if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i) && page.sectionRelativeRepoPath.match(/readme\.md$/i)) {
           let pageTitle = page.title;
           if(this.hideEmojisOnPage){
-            pageTitle = pageTitle.replace(/\p{Extended_Pictographic}\s*/gu, '');
+            pageTitle = pageTitle.replace(this.regexToMatchEmoji, '');
           }
           let handbookPage = {
             pageTitle: pageTitle,
@@ -145,7 +146,7 @@ parasails.registerPage('basic-handbook', {
         $('#body-content').html()
         .replace(/✅/g, '&#x2713;')// Replace green checkmarks with unicode checkmarks
         .replace(/❌/g, '&#x2717;')// Replace red crosses with unicode crosses
-        .replace(/\p{Extended_Pictographic}/gu, '')// Remove all other emoji
+        .replace(this.regexToMatchEmoji, '')// Remove all other emoji
       );
     },
     clickScrollToTop: function() {
