@@ -1399,7 +1399,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 				hostInfo.HardwareUUID,
 				hostInfo.HardwareSerial,
 				teamID,
-				hostI,
+				host,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
