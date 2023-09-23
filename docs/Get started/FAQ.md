@@ -152,13 +152,13 @@ Yes, fleetd can be run alongside an existing, separately-installed osqueryd. If 
 
 Yes, auto-updates can be disabled entirely by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
-```
+```sh
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
 ```
 
 You can also indicate the [channels you would like Fleetd to watch for updates](https://fleetdm.com/docs/using-fleet/fleetd#update-channels) using the `--orbit-channel`, `--desktop-channel` , and `--osqueryd-channel` flags:
 
-```
+```sh
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osqueryd-channel=4
 ```
 
@@ -188,7 +188,7 @@ Any extension table available in a host enrolled to Fleet can be queried by Flee
 
 If you are using a self-signed certificate on `localhost`, add the  `--insecure` flag when building your installation packages:
 
-```
+```sh
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --insecure
 ```
 
@@ -231,7 +231,7 @@ By default, Fleet will query hosts for software inventory hourly. If you'd like 
 
 There are a few ways you can go about getting counts of hosts that meet specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts) or the [`fleetctl` CLI](https://fleetdm.com/docs/using-fleet/fleetctl-cli#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retrieve all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
 
-```
+```sh
 $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
    1 "CentOS Stream 8.0.0"
@@ -328,7 +328,7 @@ Changes were introduced in Fleet v4.20.0 that caused the `features.additional_qu
 
 There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validation in some versions of Fleet when using the `created_at` and `updated_at` columns as `order_key` along with an `after` filter. Adding `h.` to the column in `order_key` will return your results.
 
-```
+```text
 {host}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
 
 ```
@@ -435,7 +435,7 @@ To get your proxy server's HTTP client to work with a local Fleet when using a s
 
 The exact solution to this depends on the request client you are using. For example, when using Node.js ± Sails.js, you can work around this in the requests you're sending with `await sails.helpers.http.get()` by lifting your app with the `NODE_TLS_REJECT_UNAUTHORIZED` environment variable set to `0`:
 
-```
+```sh
 NODE_TLS_REJECT_UNAUTHORIZED=0 sails console
 ```
 
@@ -495,7 +495,7 @@ The next step is to make sure the credentials for the database match what is exp
 
 If you're successful connecting to the database and still receive a database connection error, you may need to specify your database credentials when running `fleet prepare db`. It's encouraged to put your database credentials in environment variables or a config file.
 
-```
+```sh
 fleet prepare db \
     --mysql_address=<database_address> \
     --mysql_database=<database_name> \

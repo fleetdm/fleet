@@ -10,7 +10,7 @@ permissions to execute the binary, open the configuration files, and write the l
 used. It is also possible to run as `root`, though as with any other web server it is discouraged
 to run Fleet as `root`.
 
-```
+```systemd
 
 [Unit]
 Description=Fleet
@@ -36,7 +36,7 @@ WantedBy=multi-user.target
 
 Once you created the file, you need to move it to `/etc/systemd/system/fleet.service` and start the service.
 
-```
+```sh
 sudo mv fleet.service /etc/systemd/system/fleet.service
 sudo systemctl start fleet.service
 sudo systemctl status fleet.service
@@ -50,7 +50,7 @@ Sometimes you'll need to update the systemd unit file defining the service. To d
 
 Then, run
 
-```
+```sh
 sudo systemctl daemon-reload
 sudo systemctl restart fleet.service
 ```
