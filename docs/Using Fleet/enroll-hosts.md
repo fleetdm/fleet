@@ -115,18 +115,16 @@ To generate an osquery installer for a team:
 3. Next, select **Add hosts** and copy the `fleetctl package` command for the platform (macOS, Windows, Linux) of the hosts you'd like to add to a team in Fleet.
 4. Run the copied `fleetctl package` command and [distribute your installer](#adding-multiple-hosts) to add your hosts to a team in Fleet.
 
-### Generating Windows installers using local WiX toolset v3 binaries on Windows
+### Generating Windows installers using local WiX toolset
 
 When creating a Fleetd installer for Windows hosts (**.msi**) on a Windows machine, you can tell `fleetctl package` to
 use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
 `light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
 so:
-  0. If you need to install the WiX v3 binaries, you can download them
-     [here](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip).
-     Unzip the downloaded file.
-  1. Find the absolute filepath of the directory containing your local WiX v3 binaries. If you just
-     downloaded them in step 0 above, this will be wherever you saved the unzipped package contents.
-  2. Run `fleetctl package`, and pass the absolute path above as the string argument to the
+  1. Install the WiX v3 binaries. To install, you can download them
+     [here](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip), then unzip the downloaded file.
+  2. Find the absolute filepath of the directory containing your local WiX v3 binaries. This will be wherever you saved the unzipped package contents.
+  3. Run `fleetctl package`, and pass the absolute path above as the string argument to the
      `--local-wix-dir` flag. For example:
      ```
       fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
@@ -161,7 +159,7 @@ The following command-line flags to `fleetctl package` allow you to configure an
 | --enable-scripts           | Enable script execution (default: `false`)                                                                                              |
 | --debug                    | Enable debug logging (default: `false`)                                                                                                 |
 | --verbose                  | Log detailed information when building the package (default: false)                                                                     |
-| --local-wix-dir            | Use local installatios of the 3 WiX v3 binaries this command uses (`heat.exe`, `candle.exe`, and
+| --local-wix-dir            | Use local installations of the 3 WiX v3 binaries this command uses (`heat.exe`, `candle.exe`, and
 `light.exe`) instead of installations in a pre-configered Docker Hub (only available on Windows w/ WiX v3)                                                    |
 | --help, -h                 | show help (default: `false`)                                                                                                            |
 
