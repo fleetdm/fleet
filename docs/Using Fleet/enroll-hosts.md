@@ -8,7 +8,7 @@
     - [Including Fleet Desktop](#including-fleet-desktop)
     - [Adding multiple hosts](#adding-multiple-hosts)
     - [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
-    - [Generating Windows installers using local WiX toolset v3 binaries on Windows](#generating-windows-installers-using-local-wix-toolset-v3-binaries-on-windows)
+    - [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
     - [Configuration options](#configuration-options)
   - [Add hosts with plain osquery](#add-hosts-with-plain-osquery)
     - [Set up your Fleet enroll secret](#set-up-your-fleet-enroll-secret)
@@ -116,6 +116,8 @@ To generate an osquery installer for a team:
 4. Run the copied `fleetctl package` command and [distribute your installer](#adding-multiple-hosts) to add your hosts to a team in Fleet.
 
 ### Generating Windows installers using local WiX toolset
+
+`Applies only to Fleet Premium`
 
 When creating a Fleetd installer for Windows hosts (**.msi**) on a Windows machine, you can tell `fleetctl package` to
 use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
