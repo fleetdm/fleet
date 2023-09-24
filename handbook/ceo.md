@@ -70,11 +70,11 @@ Thank you so much!" 🙇
 ## CEO flaws
 [Openness](https://fleetdm.com/handbook/company#values) is important to us fleeties 🧑‍🚀☁️, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is _not just them_, but actually _my fault_. The second one is so I can improve, I hope that listing them here lets people know I appreciate when you speak up to me about them.
 
-- I often need to talk to think.
+- I often need to talk to think.  If you get lost, you can interrupt me or send a Zoom chat: "Hold up, could you go over that again?"
 - I can speak quickly.  It is ok to say “Mike, hold on a second.” (Noah is good at this.)
 - I can be quick to criticize before I appreciate, especially if something looks almost done.  I appreciate it when fleeties ask “What do you think of my work?” It reminds me I'm speaking in front of the sculptor, not just alone with the statue.
 - I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
-- I can be inconsistent about how certain I sound about the same topics at different times.  Evem when I am certain. I don't always remember why I first became certain about every topic, and tend to question blind certainty.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we make a decision on that?  I'll make a public GitHub issue."
+- I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." (Luke is good at this.)
 - I get grumpy when I am tired and I worry that I'll forget to follow up about things.  You can say: "Would it help if I made a confidential issue about this for you and Sam to go over tonight?"
 
 <!--
