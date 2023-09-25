@@ -2276,7 +2276,10 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if err != nil {
 			return err
 		}
-		if info.InstalledFromDEP {
+
+		// TODO: improve this to not enqueue the job if a host that is
+		// assigned in ABM is manually enrolling for some reason.
+		if info.DEPAssignedToFleet || info.InstalledFromDEP {
 			svc.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", r.ID)
 
 			var tmID *uint
@@ -2727,4 +2730,81 @@ func ReconcileProfiles(
 	}
 
 	return nil
+}
+
+func (svc *Service) maybeRestorePendingDEPHost(ctx context.Context, host *fleet.Host) error {
+	if host.Platform != "darwin" {
+		return nil
+	}
+
+	license, ok := license.FromContext(ctx)
+	if !ok {
+		return ctxerr.New(ctx, "maybe restore pending DEP host: missing license")
+	} else if license.Tier != fleet.TierPremium {
+		// only premium tier supports DEP so nothing more to do
+		return nil
+	}
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "maybe restore pending DEP host: get app config")
+	} else if !ac.MDM.AppleBMEnabledAndConfigured {
+		// if ABM is not enabled and configured, nothing more to do
+		return nil
+	}
+
+	dep, err := svc.ds.GetHostDEPAssignment(ctx, host.ID)
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		return ctxerr.Wrap(ctx, err, "maybe restore pending DEP host: get host dep assignment")
+	case dep != nil && dep.DeletedAt == nil:
+		return svc.restorePendingDEPHost(ctx, host, ac)
+	default:
+		// no DEP assignment was found or the DEP assignment was deleted in ABM
+		// so nothing more to do
+	}
+
+	return nil
+}
+
+func (svc *Service) restorePendingDEPHost(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) error {
+	tmID, err := svc.getConfigAppleBMDefaultTeamID(ctx, appCfg)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host")
+	}
+	host.TeamID = tmID
+
+	if err := svc.ds.RestoreMDMApplePendingDEPHost(ctx, host); err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host")
+	}
+
+	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger,
+		worker.MacosSetupAssistantHostsTransferred, tmID, host.HardwareSerial); err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host")
+	}
+
+	return nil
+}
+
+func (svc *Service) getConfigAppleBMDefaultTeamID(ctx context.Context, appCfg *fleet.AppConfig) (*uint, error) {
+	var tmID *uint
+	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
+		team, err := svc.ds.TeamByName(ctx, name)
+		switch {
+		case fleet.IsNotFound(err):
+			level.Debug(svc.logger).Log(
+				"msg",
+				"unable to find default team assigned in config, mdm devices won't be assigned to a team",
+				"team_name",
+				name,
+			)
+			return nil, nil
+		case err != nil:
+			return nil, ctxerr.Wrap(ctx, err, "get default team for mdm devices")
+		case team != nil:
+			tmID = &team.ID
+		}
+	}
+
+	return tmID, nil
 }

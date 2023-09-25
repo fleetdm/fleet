@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - patch-*
+      - prepare-*
   pull_request:
     paths:
       - '**.go'

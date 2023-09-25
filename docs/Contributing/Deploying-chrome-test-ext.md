@@ -12,7 +12,7 @@ Update the version in [`updates.xml`](https://github.com/fleetdm/fleet/blob/main
 
 ### Build the distribution folder
 
-```
+```sh
 cd ee/fleetd-chrome
 yarn run build
 ```
@@ -41,13 +41,13 @@ Open `ee/fleetd-chrome/update.xml` in your text editor and modify:
 
 ### Create the server
 
-```
+```sh
 cd ee/fleetd-chrome
 python3 -m http.server
 ```
 - Verify that it works by going to http://localhost:8000 to see the files.
 
-```
+```sh
 cd ee/fleetd-chrome
 npm install -g localtunnel
 lt --port 8000 --subdomain test-new-tables

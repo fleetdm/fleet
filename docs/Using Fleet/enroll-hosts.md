@@ -3,11 +3,14 @@
 
 - [Enroll hosts](#enroll-hosts)
   - [Introduction](#introduction)
+  - [Supported osquery versions](#supported-osquery-versions)
   - [Add hosts with Fleetd](#add-hosts-with-fleetd)
+
     - [Signing installers](#signing-installers)
     - [Including Fleet Desktop](#including-fleet-desktop)
-    - [Enrolling multiple hosts](#adding-multiple-hosts)
+    - [Adding multiple hosts](#adding-multiple-hosts)
     - [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
+    - [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
     - [Configuration options](#configuration-options)
   - [Add hosts with plain osquery](#add-hosts-with-plain-osquery)
     - [Set up your Fleet enroll secret](#set-up-your-fleet-enroll-secret)
@@ -33,6 +36,9 @@ You can also install plain osquery on your hosts and connect to Fleet using osqu
 
 > For ChromeOS hosts, the [fleetd Chrome extension](#add-chromebooks-with-the-fleetd-chrome-extension) is installed instead of osquery.
 
+## Supported osquery versions
+
+Fleet supports the [latest version of osquery](https://github.com/osquery/osquery/tags). 
 
 ## Enroll hosts with Fleetd
 
@@ -114,9 +120,28 @@ To generate an osquery installer for a team:
 3. Next, select **Add hosts** and copy the `fleetctl package` command for the platform (macOS, Windows, Linux) of the hosts you'd like to add to a team in Fleet.
 4. Run the copied `fleetctl package` command and [distribute your installer](#adding-multiple-hosts) to add your hosts to a team in Fleet.
 
+### Generating Windows installers using local WiX toolset
+
+`Applies only to Fleet Premium`
+
+When creating a Fleetd installer for Windows hosts (**.msi**) on a Windows machine, you can tell `fleetctl package` to
+use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
+`light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
+so:
+  1. Install the WiX v3 binaries. To install, you can download them
+     [here](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip), then unzip the downloaded file.
+  2. Find the absolute filepath of the directory containing your local WiX v3 binaries. This will be wherever you saved the unzipped package contents.
+  3. Run `fleetctl package`, and pass the absolute path above as the string argument to the
+     `--local-wix-dir` flag. For example:
+     ```
+      fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
+     ```
+     If the provided path doesn't contain all 3 binaries, the command will fail.
+
+
 ### Configuration options
 
-The following command-line flags allow you to configure an osquery installer further to communicate with a specific Fleet instance.
+The following command-line flags to `fleetctl package` allow you to configure an osquery installer further to communicate with a specific Fleet instance.
 
 | Flag                       | Options                                                                                                                                 |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -141,6 +166,8 @@ The following command-line flags allow you to configure an osquery installer fur
 | --enable-scripts           | Enable script execution (default: `false`)                                                                                              |
 | --debug                    | Enable debug logging (default: `false`)                                                                                                 |
 | --verbose                  | Log detailed information when building the package (default: false)                                                                     |
+| --local-wix-dir            | Use local installations of the 3 WiX v3 binaries this command uses (`heat.exe`, `candle.exe`, and
+`light.exe`) instead of installations in a pre-configered Docker Hub (only available on Windows w/ WiX v3)                                                    |
 | --help, -h                 | show help (default: `false`)                                                                                                            |
 
 
@@ -184,7 +211,7 @@ Specify the path to this certificate with the `--tls_server_certs` flag when you
 
 In order for osquery to connect to the fleet server, there are some flags that need to be set:
 
-```
+```sh
  --enroll_secret_path=/etc/osquery/enroll_secret 
  --tls_server_certs=/etc/osquery/fleet.crt
  --tls_hostname=fleet.example.com 
@@ -209,7 +236,7 @@ These can be specified directly in the command line or saved to a flag file.
 
 Assuming that you are deploying your enroll secret in the file `/etc/osquery/enroll_secret` and your osquery server certificate is at `/etc/osquery/fleet.crt`, you could copy and paste the following command with the following flags (be sure to replace `fleet.acme.net` with the hostname or IP of your Fleet installation):
 
-```
+```sh
 sudo osqueryd \
  --enroll_secret_path=/etc/osquery/enroll_secret \
  --tls_server_certs=/etc/osquery/fleet.crt \
@@ -238,13 +265,13 @@ If your enroll secret is defined in a local file, specify the file's path with t
 
 For your convenience, osqueryd supports putting all your flags into a single file. We suggest deploying this file to `/etc/osquery/fleet.flags`. If you've deployed the appropriate osquery flags to that path, you could simply launch osquery via:
 
-```
+```sh
 osqueryd --flagfile=/etc/osquery/fleet.flags
 ```
 
 When using a flag file on Windows, make sure that file paths in the flag file are absolute and not quoted. For example, in `C:\Program Files\osquery\osquery.flags`:
 
-```
+```sh
 --tls_server_certs=C:\Program Files\osquery\fleet.pem
 --enroll_secret_path=C:\Program Files\osquery\secret.txt
 ```
@@ -257,7 +284,7 @@ deploy a new package for every new osquery release.
 
 #### Generate installer
 
-```
+```sh
 fleetctl package --type [pkg|msi|deb|rpm] --fleet-url [fleet-hostname:port] --enroll-secret [secret]
 ```
 
@@ -318,13 +345,13 @@ If you use plain osquery, instructions are [available here](https://osquery.read
 On a system with osquery installed via the Fleet osquery installer (Fleetd), obtain the
 `CodeRequirement` of Fleetd by running:
 
-```
+```sh
 codesign -dr - /opt/orbit/bin/orbit/macos/stable/orbit
 ```
 
 The output should be similar or identical to:
 
-```
+```sh
 Executable=/opt/orbit/bin/orbit/macos/edge/orbit
 designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"
 ```

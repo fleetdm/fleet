@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
@@ -168,19 +169,18 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
-	var notifs fleet.OrbitConfigNotifications
-
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return fleet.OrbitConfig{Notifications: notifs}, fleet.OrbitError{Message: "internal error: missing host from request context"}
+		return fleet.OrbitConfig{}, fleet.OrbitError{Message: "internal error: missing host from request context"}
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return fleet.OrbitConfig{Notifications: notifs}, err
+		return fleet.OrbitConfig{}, err
 	}
 
 	// set the host's orbit notifications for macOS MDM
+	var notifs fleet.OrbitConfigNotifications
 	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
 		// TODO(mna): all those notifications implied a macos hosts, but none of
 		// the checks enforce that (only indirectly in some cases, like
@@ -201,7 +201,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			// Since this is an user initiated action, we disable
 			// the flag when we deliver the notification to Orbit
 			if err := svc.ds.SetDiskEncryptionResetStatus(ctx, host.ID, false); err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
 		}
 	}
@@ -211,7 +211,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if host.IsEligibleForWindowsMDMEnrollment() {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
 			notifs.WindowsMDMDiscoveryEndpoint = discoURL
 			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
@@ -226,7 +226,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	// load the pending script executions for that host
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
 	if err != nil {
-		return fleet.OrbitConfig{Notifications: notifs}, err
+		return fleet.OrbitConfig{}, err
 	}
 	if len(pending) > 0 {
 		execIDs := make([]string, 0, len(pending))
@@ -240,19 +240,24 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
 		if err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
 
 		var opts fleet.AgentOptions
 		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
 			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
+		}
+
+		extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
+		if err != nil {
+			return fleet.OrbitConfig{}, err
 		}
 
 		mdmConfig, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 		if err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
 
 		var nudgeConfig *fleet.NudgeConfig
@@ -261,13 +266,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			mdmConfig.MacOSUpdates.EnabledForHost(host) {
 			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
 			if err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
 		}
 
 		return fleet.OrbitConfig{
 			Flags:         opts.CommandLineStartUpFlags,
-			Extensions:    opts.Extensions,
+			Extensions:    extensionsFiltered,
 			Notifications: notifs,
 			NudgeConfig:   nudgeConfig,
 		}, nil
@@ -277,8 +282,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	var opts fleet.AgentOptions
 	if appConfig.AgentOptions != nil {
 		if err := json.Unmarshal(*appConfig.AgentOptions, &opts); err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
+	}
+
+	extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
 	}
 
 	var nudgeConfig *fleet.NudgeConfig
@@ -286,16 +296,59 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
 		nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
 		if err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
 	}
 
 	return fleet.OrbitConfig{
 		Flags:         opts.CommandLineStartUpFlags,
-		Extensions:    opts.Extensions,
+		Extensions:    extensionsFiltered,
 		Notifications: notifs,
 		NudgeConfig:   nudgeConfig,
 	}, nil
+}
+
+// filterExtensionsForHost filters a extensions configuration depending on the host platform and label membership.
+//
+// If all extensions are filtered, then it returns (nil, nil) (Orbit expects empty extensions if there
+// are no extensions for the host.)
+func (svc *Service) filterExtensionsForHost(ctx context.Context, extensions json.RawMessage, host *fleet.Host) (json.RawMessage, error) {
+	if len(extensions) == 0 {
+		return nil, nil
+	}
+	var extensionsInfo fleet.Extensions
+	if err := json.Unmarshal(extensions, &extensionsInfo); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal extensions config")
+	}
+
+	// Filter the extensions by platform.
+	extensionsInfo.FilterByHostPlatform(host.Platform)
+
+	// Filter the extensions by labels (premium only feature).
+	if license, _ := license.FromContext(ctx); license != nil && license.IsPremium() {
+		for extensionName, extensionInfo := range extensionsInfo {
+			hostIsMemberOfAllLabels, err := svc.ds.HostMemberOfAllLabels(ctx, host.ID, extensionInfo.Labels)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check host labels")
+			}
+			if hostIsMemberOfAllLabels {
+				// Do not filter out, but there's no need to send the label names to the devices.
+				extensionInfo.Labels = nil
+				extensionsInfo[extensionName] = extensionInfo
+			} else {
+				delete(extensionsInfo, extensionName)
+			}
+		}
+	}
+	// Orbit expects empty message if no extensions apply.
+	if len(extensionsInfo) == 0 {
+		return nil, nil
+	}
+	extensionsFiltered, err := json.Marshal(extensionsInfo)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshal extensions config")
+	}
+	return extensionsFiltered, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
