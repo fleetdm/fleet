@@ -297,3 +297,17 @@ module "waf" {
   name   = local.customer
   lb_arn = module.main.byo-vpc.byo-db.alb.lb_arn
 }
+
+module "saml_auth_proxy" {
+  source                       = "github.com/fleetdm/fleet//terraform/addons/ses?ref=dogfood-saml-auth-proxy"
+  public_alb_security_group_id = module.main.byo-vpc.byo-db.alb.security_group_id
+  idp_metadata_url             = "https://dev-99185346.okta.com/app/exkbcrjeqmahXWvW45d7/sso/saml/metadata"
+  customer_prefix              = local.customer
+  ecs_cluster                  = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
+  ecs_execution_iam_role_arn   = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
+  ecs_iam_role_arn             = module.main.byo-vpc.byo-db.byo-ecs.iam_role_arn
+  security_groups              = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
+  base_url                     = "https://dogfood.fleetdm.com"
+  subnets                      = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
+  vpc_id                       = module.main.vpc.vpc_id
+}
