@@ -238,11 +238,11 @@ Fleet recommends deploying extensions created with osquery-go or natively with C
 
 _Available in Fleet Premium v4.38.0_
 
-Fleet allows to target extensions to hosts that belong to specific labels. To set the labels you need to define a `labels` list under the extension name. 
+Fleet allows you to target extensions to hosts that belong to specific labels. To set these labels, you'll need to define a `labels` list under the extension name.
 The label names in the list:
-- Must exist (otherwise the `/api/latest/fleet/config` request will fail).
-- Are case insensitive.
-- Extensions are deployed to hosts that are member of **all** the defined labels.
+- must already exist (otherwise the `/api/latest/fleet/config` request will fail).
+- are case insensitive.
+- must **all** apply to a host in order to deploy the extension to that host.
 
 Example:
 ```yaml
