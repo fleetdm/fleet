@@ -3,6 +3,7 @@
 
 - [Enroll hosts](#enroll-hosts)
   - [Introduction](#introduction)
+  - [Supported osquery versions](#supported-osquery-versions)
   - [Add hosts with Fleetd](#add-hosts-with-fleetd)
     - [Signing installers](#signing-installers)
     - [Including Fleet Desktop](#including-fleet-desktop)
@@ -33,6 +34,9 @@ You can also install plain osquery on your hosts and connect to Fleet using osqu
 
 > For ChromeOS hosts, the [fleetd Chrome extension](#add-chromebooks-with-the-fleetd-chrome-extension) is installed instead of osquery.
 
+## Supported osquery versions
+
+Fleet supports the [latest version of osquery](https://github.com/osquery/osquery/tags). 
 
 ## Enroll hosts with Fleetd
 
