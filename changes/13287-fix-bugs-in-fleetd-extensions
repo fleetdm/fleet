@@ -1,2 +1,0 @@
-* Change fleetd Windows extensions file extension from `.ext` to `.ext.exe` to allow their execution on Windows devices (executables on Windows must end with `.exe`).
-* Fixed delivery of fleetd extensions to devices to only send extensions for the host's platform.
