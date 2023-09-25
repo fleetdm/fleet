@@ -215,7 +215,7 @@ The current release cadence is once every three weeks and is concentrated around
 
 ### Release freeze period
 
-To ensure release quality, Fleet has a freeze period for testing beginning the Thursday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
+To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
 
 Bugs are exempt from the release freeze period.
 
@@ -264,6 +264,10 @@ It is sometimes necessary to delay the release to allow time to complete partial
 2. The Engineering Manager notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). 
 3. The Engineering Manager, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is unfrozen and merged.
 
+### Release readiness
+
+After each product group finishes their QA process during the freeze period, the EM @ mentions the release ritual DRI in the #help-qa Slack channel. When all EMs have certified that they are ready for release, the release ritual DRI begins the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md). 
+
 ### Release day
 
 Documentation on completing the release process can be found [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md).
@@ -283,6 +287,36 @@ How to deploy a new release to dogfood:
 > Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 >
 > Note that "fleetdm/fleet:main" is not a image name, instead use the commit hash in place of "main".
+
+## Milestone release ritual 
+
+Immediately after publishing a new release, we close out the associated GitHub issues and milestones. 
+
+### Update milestone in GitHub
+
+1. **Rename current milestone**: In GitHub, [change the current milestone name](https://github.com/fleetdm/fleet/milestones) from `4.x.x-tentative` to `4.x.x`. `4.37.0-tentative` becomes `4.37.0`.
+
+### ZenHub housekeeping
+
+2. **Update product group boards**: In ZenHub, go to each product group board tracking the current release. Usually, these are [#g-cx](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board) and [#g-mdm](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board).
+
+3. **Remove milestone from unfinished items**: If you see any items in columns other than "Ready for release" tagged with the current milestone, remove that milestone tag. These items didn't make it into the release.
+
+4. **Prep release items**: Make sure all items in the "Ready for release" column have the current milestone and sprint tags. If not, select all items in the column and apply the appropriate tags.
+
+5. **Move user stories to drafting board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label and remove the `:release` label. These items will move back to the product drafting board.
+
+6. **Confirm and close**: Make sure that all items with the `story` label have left the "Ready for release" column. Select all remaining items in the "Ready for release" column and move them to the "Closed" column. This will close the related GitHub issues.
+
+8. **Confirm and celebrate**: Now, head to the [Drafting](https://app.zenhub.com/workspaces/-drafting-ships-in-6-weeks-6192dd66ea2562000faea25c/board) board. Find all `story` issues with the current milestone (these are the ones you just moved). Move them to the "Confirm and celebrate" column. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals).
+
+9. **Close GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the current milestone.
+
+10. **Create next milestone**: Create a new milestone for the next versioned release, `4.x.x-tentative`.
+
+11. **Remove the freeze**: [Open the repo in Merge Freeze](https://app.mergefreeze.com/installations/3704/branches/6847) and click the "Unfreeze" button. 
+
+12. Announce that `main` is unfrozen and the milestone has been closed in #help-engineering.
 
 ## Oncall rotation
 

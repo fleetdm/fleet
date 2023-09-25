@@ -12,7 +12,7 @@ Agent options are validated using the latest version of osquery.
 
 When updating agent options, you may see an error similar to this:
 
-```
+```sh
 [...] unsupported key provided: "logger_plugin"
 If you’re not using the latest osquery, use the fleetctl apply --force command to override validation.
 ```
@@ -21,7 +21,9 @@ This error indicates that you're providing a config option that isn't valid in t
 
 If you are not using the latest version of osquery, you can create a config YAML file and apply it with `fleetctl` using the `--force` flag to override the validation:
 
-```fleetctl apply --force -f config.yaml```
+```sh
+fleetctl apply --force -f config.yaml
+```
 
 You can verify that your agent options are valid by using [the fleetctl apply command](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
@@ -160,7 +162,7 @@ If you prefer to deploy a new package with the updated enroll secret:
 
 > In order for these options to be applied to your hosts, the `osquery` agent must be configured to use the `tls` config plugin and pointed to the correct endpoint. If you are using Fleetd to enroll your hosts, this is done automatically.
 
-```
+```go
 "--config_plugin=tls",
 "--config_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/config")
 ```

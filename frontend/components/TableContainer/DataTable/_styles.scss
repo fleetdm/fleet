@@ -215,6 +215,7 @@ $shadow-transition-width: 10px;
         }
         .link-cell,
         .text-cell {
+          display: block; // inline-block is not vertically centered
           overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
@@ -223,11 +224,7 @@ $shadow-transition-width: 10px;
             white-space: normal;
           }
         }
-        .text-cell {
-          display: inline-block;
-        }
         .link-cell {
-          display: block;
           padding: $pad-small 0; // larger clickable area
 
           &:hover {
