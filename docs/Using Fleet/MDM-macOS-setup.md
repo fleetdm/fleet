@@ -32,7 +32,7 @@ Fleet UI:
 
 2. Under **End user authentication**, enter your IdP credentials and select **Save**.
 
-  > If you've already configured [single sign-on (SSO) for logging in to Fleet](https://fleetdm.com/docs/configuration/fleet-server-configuration#okta-idp-configuration), you'll need to create a separate app in your IdP so your end users can't log in to Fleet. In this separate app, use "https://fleetserver.com/api/v1/fleet/mdm/sso/callback" for the SSO URL.
+    > If you've already configured [single sign-on (SSO) for logging in to Fleet](https://fleetdm.com/docs/configuration/fleet-server-configuration#okta-idp-configuration), you'll need to create a separate app in your IdP so your end users can't log in to Fleet. In this separate app, use "https://fleetserver.com/api/v1/fleet/mdm/sso/callback" for the SSO URL.
 
 fleetctl CLI:
 
@@ -63,7 +63,7 @@ fleetctl CLI:
 
 2. Under **End user license agreement (EULA)**, select **Upload** and choose your EULA.
 
-  > Uploading a EULA is optional. If you don't upload a EULA, the end user will skip this step and continue to the next step of the new Mac setup experience after they authenticate with your IdP.
+    > Uploading a EULA is optional. If you don't upload a EULA, the end user will skip this step and continue to the next step of the new Mac setup experience after they authenticate with your IdP.
 
 ### Step 3: enable end user authentication
 
