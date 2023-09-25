@@ -1,2 +1,0 @@
-* Add the option to use locally-installed WiX v3 binaries when generating the Fleetd installer for
-Windows on a Windows machine.
