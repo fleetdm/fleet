@@ -51,6 +51,13 @@ Recurring monthly or annual expenses are tracked as recurring, non-personnel exp
 
 > Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
 
+To update The Numbers every month:
+- Login to Quickbooks
+- Run the report for "Expenses by Vendor" and set the range date for the previous month.
+- Export the spreadsheet and copy + paste it as a new tab in The Numbers spreadsheet. Name this new tab "[Month name] expenses by vendor". Add any notes as necessary for changes or abnormal fluxuations to the expenses.
+- In the "Historical expenses" tab, populate the appropriate columns for Brex, bill.com, and SVB (if any) expenses. Note any large expenses in the "Bigs spends" column following the format of previous entries.
+- Last step is to calculate the average expenses per month in column F using the new total monthly expense data.
+
 ## Payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
  - Salaried fleeties are automated in Gusto and Plane.
@@ -205,7 +212,7 @@ The following table lists this department's rituals, frequency, and Directly Res
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Key review | every three weeks | Every release cycle, a key review deck is prepared and presented. | Head of Business Operations |
-| Informing managers about hours worked | Weekly |  See [Informing managers about hours worked"](https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked). | Head of Business Operations |
+| Informing managers about hours worked | Weekly |  See [Informing managers about hours worked"](https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked). | Nathanael Holliday |
 | Payroll | Monthly before payroll runs | Every month, Mike McNeil audits the payroll platforms for accuracy. | Head of Business Operations |
 | US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Head of Business Operations |
 | Commission payroll | Monthly | Use the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit#gid=0) to determine the commission payroll to be run in Gusto. | Taylor Hughes |
@@ -217,6 +224,7 @@ The following table lists this department's rituals, frequency, and Directly Res
 | Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
 | Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
 | Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
+| The Numbers | Monthly | Every month, a spreadsheet is updated with Fleet's historical expenses for the previous month. | Joanne Stableford |
 
 
 <!--
