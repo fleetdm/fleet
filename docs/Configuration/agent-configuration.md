@@ -267,8 +267,8 @@ spec:
         platform: 'windows'
 ```
 In the above example:
-- The `hello_world_macos` extension is deployed to macOS hosts that are member of the 'Zoom installed' label.
-- The `hello_world_linux` extension is deployed to Linux hosts that are member of the 'Ubuntu Linux' **and** 'Zoom insalled' labels.
+- the `hello_world_macos` extension is deployed to macOS hosts that are members of the 'Zoom installed' label.
+- the `hello_world_linux` extension is deployed to Linux hosts that are members of the 'Ubuntu Linux' **and** 'Zoom installed' labels.
 
 ## Config
 
