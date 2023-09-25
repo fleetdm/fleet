@@ -323,7 +323,9 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 3)
 
-	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(35), ListOptions: fleet.ListOptions{OrderKey: "id", After: "2"}}, 1)
+	hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(35), ListOptions: fleet.ListOptions{OrderKey: "id", After: "1"}}, 2)
+	require.Equal(t, h2.ID, hosts[0].ID)
+	require.Equal(t, h3.ID, hosts[1].ID)
 
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(35)}, 3)
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(25)}, 2)

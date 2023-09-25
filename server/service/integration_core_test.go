@@ -3091,6 +3091,8 @@ func (s *integrationTestSuite) TestLabels() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts?order_key=%s&after=%d", lbl2.ID, "id", 1), nil, http.StatusOK, &listHostsResp)
 	assert.Len(t, listHostsResp.Hosts, 2)
+	assert.Equal(t, hosts[1].ID, listHostsResp.Hosts[0].ID)
+	assert.Equal(t, hosts[2].ID, listHostsResp.Hosts[1].ID)
 
 	// list hosts in label searching by display_name
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "display_name", "order_direction", "desc")
