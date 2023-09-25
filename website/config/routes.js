@@ -15,7 +15,11 @@ module.exports.routes = {
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
   'GET /': {
     action: 'view-homepage-or-redirect',
-    locals: { isHomepage: true }
+    locals: {
+      isHomepage: true,
+      pageTitleForMeta: 'Fleet | Open-source device management',
+      pageDescriptionForMeta: 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)'
+    }
   },
 
   'GET /company/contact': {

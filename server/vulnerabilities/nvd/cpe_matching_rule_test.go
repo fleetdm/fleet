@@ -255,4 +255,10 @@ func TestGetKnownNVDBugRules(t *testing.T) {
 	require.True(t, ok)
 	ok = rule.CPEMatches(cpeMeta)
 	require.False(t, ok)
+
+	// Test that CVE-2013-0340 never matches (i.e. is ignored).
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2013-0340")
+	require.True(t, ok)
+	ok = rule.CPEMatches(cpeMeta)
+	require.False(t, ok)
 }

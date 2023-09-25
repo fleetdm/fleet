@@ -4,10 +4,27 @@
 
 import * as SQLite from "wa-sqlite";
 
+/** Creates a single UI friendly string out of chrome tables that return multiple warnings */
+const CONCAT_CHROME_WARNINGS = (warnings: ChromeWarning[]): string => {
+  const warningStrings = warnings.map(
+    (warning) => `Column: ${warning.column} - ${warning.error_message}`
+  );
+  return warningStrings.join("\n");
+};
 class cursorState {
   rowIndex: number;
   rows: Record<string, string>[];
   error: any;
+}
+
+interface ChromeWarning {
+  column: string;
+  error_message: string;
+}
+interface ChromeResponse {
+  data: Record<string, string>[];
+  /** Manually add errors in catch response if table requires requests to multiple APIs */
+  warnings?: ChromeWarning[];
 }
 
 export default abstract class Table implements SQLiteModule {
@@ -16,17 +33,19 @@ export default abstract class Table implements SQLiteModule {
   name: string;
   columns: string[];
   cursorStates: Map<number, cursorState>;
+  warnings?: ChromeWarning[];
 
   abstract generate(
     idxNum: number,
     idxString: string,
     values: Array<number>
-  ): Promise<Record<string, string>[]>;
+  ): Promise<ChromeResponse>;
 
-  constructor(sqlite3: SQLiteAPI, db: number) {
+  constructor(sqlite3: SQLiteAPI, db: number, warnings?: ChromeWarning[]) {
     this.sqlite3 = sqlite3;
     this.db = db;
     this.cursorStates = new Map();
+    this.warnings = warnings;
   }
 
   // This is replaced by wa-sqlite when SQLite is loaded up, but missing from the SQLiteModule
@@ -91,10 +110,19 @@ export default abstract class Table implements SQLiteModule {
       const cursorState = this.cursorStates.get(pCursor);
       cursorState.rowIndex = 0;
       try {
-        cursorState.rows = await this.generate(idxNum, idxStr, values);
+        const tableDataReturned = await this.generate(idxNum, idxStr, values);
+
+        // Set warnings to this.warnings for database to surface in UI
+        if (tableDataReturned.warnings) {
+          globalThis.DB.warnings = []; // Reset warnings
+          globalThis.DB.warnings = CONCAT_CHROME_WARNINGS(
+            tableDataReturned.warnings
+          );
+        }
+        cursorState.rows = tableDataReturned.data;
       } catch (err) {
         // Throwing here doesn't seem to work as expected in testing (the error doesn't seem to be
-        // thrown in away that it can be caught appropriately), so instead we save the error and
+        // thrown in a way that it can be caught appropriately), so instead we save the error and
         // throw in xEof.
         cursorState.error = err;
       }
