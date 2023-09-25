@@ -719,6 +719,9 @@ func main() {
 				return fmt.Errorf("writing token: %w", err)
 			}
 
+			// Note that the deviceClient used by orbit must not define a retry on
+			// invalid token, because its goal is to detect invalid tokens when
+			// making requests with this client.
 			deviceClient, err := service.NewDeviceClient(
 				fleetURL,
 				c.Bool("insecure"),
