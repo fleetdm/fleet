@@ -1049,7 +1049,7 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
     enable_async_host_processing: true
   ```
 
-  Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
+ > Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
 
 ##### osquery_async_host_collect_interval
 
