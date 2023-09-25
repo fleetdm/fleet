@@ -51,10 +51,6 @@ variable "base_url" {
  type      = string
 }
 
-variable "server_url" {
-  type     = string
-}
-
 variable "subnets" {
   type     = list(string)
   nullable = false

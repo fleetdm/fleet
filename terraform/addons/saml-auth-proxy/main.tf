@@ -147,7 +147,7 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
           },
           {
             name   = "SAML_PROXY_BACKEND_URL"
-            value = "http://${module.saml_auth_proxy_alb.lb_dns_name}:8080/"
+            value = "http://${module.saml_auth_proxy_alb.lb_dns_name}:80/"
           },
           {
             name   = "SAML_PROXY_IDP_METADATA_URL"
