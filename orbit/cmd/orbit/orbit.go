@@ -761,18 +761,30 @@ func main() {
 				for {
 					select {
 					case <-rotationTicker.C:
+						rotationTicker.Reset(rotationDuration)
+
 						log.Debug().Msgf("checking if token has changed or expired, cached mtime: %s", trw.GetMtime())
 						hasChanged, err := trw.HasChanged()
 						if err != nil {
 							log.Error().Err(err).Msg("error checking if token has changed")
 						}
-						if hasChanged || trw.HasExpired() {
+
+						exp, remain := trw.HasExpired()
+
+						// rotate if the token file has been modified, if the token is
+						// expired or if it is very close to expire.
+						if hasChanged || exp || remain <= time.Second {
 							log.Info().Msg("token TTL expired, rotating token")
 
 							if err := trw.Rotate(); err != nil {
 								log.Error().Err(err).Msg("error rotating token")
 							}
+						} else if remain > 0 && remain < rotationDuration {
+							// check again when the token will expire, which will happen
+							// before the next rotation check
+							rotationTicker.Reset(remain)
 						}
+
 					case <-remoteCheckTicker.C:
 						log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
 						if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
@@ -914,7 +926,7 @@ type desktopRunner struct {
 	// fleetURL is the URL of the Fleet server.
 	fleetURL string
 	// trw is the Fleet Desktop token reader and writer (implements token rotation).
-	trw *token.ReadWriter
+	trw *token.ReadWriter // TODO(mna): why isn't that a token.Reader? Doesn't seem to use writer at all.
 	// fleetRootCA is the path to a certificate to use for server TLS verification.
 	fleetRootCA string
 	// insecure disables all TLS verification.
