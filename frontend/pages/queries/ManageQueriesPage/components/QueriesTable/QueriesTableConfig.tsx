@@ -199,10 +199,8 @@ const generateTableHeaders = ({
           <div>
             <TooltipWrapper
               tipContent={`
-                This is the average <br />
-                performance impact <br />
-                across all hosts where this <br />
-                query was scheduled.`}
+                This is the average performance impact across <br />
+                all hosts where this query was scheduled.`}
             >
               Performance impact
             </TooltipWrapper>

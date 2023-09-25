@@ -204,7 +204,7 @@
               tr {
                 th {
                   .last-col-header-with-tip {
-                    min-width: 90px;
+                    min-width: 155px;
                     .component__tooltip-wrapper__tip-text {
                       left: -126px;
                     }
@@ -298,6 +298,16 @@
       margin-left: 8px;
       position: relative;
       top: -2px;
+    }
+  }
+
+  .mdm_enrollment_status__header,
+  .mdm_server_url__header {
+    .last-col-header-with-tip {
+      width: 170px;
+    }
+    .component__tooltip-wrapper__tip-text {
+      left: -156px; // Wide tooltip needs to be shifted left (edge case example when it's second to last column)
     }
   }
 }
