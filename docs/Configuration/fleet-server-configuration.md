@@ -2898,6 +2898,38 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
   mdm:
     apple_dep_sync_periodicity: 10m
   ```
+##### mdm.windows_wstep_identity_cert_bytes
+> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
+
+The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
+- Default value: ""
+- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES`
+- Config file format: 
+  ```
+  mdm:
+   windows_wstep_identity_cert_bytes: |
+      -----BEGIN CERTIFICATE-----
+      ... PEM-encoded content ...
+      -----END CERTIFICATE-----
+  ```
+
+
+
+##### mdm.windows_wstep_identity_key_bytes
+> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
+
+The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
+- Default value: ""
+- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES` 
+- Config file format:  
+  ```
+  mdm:
+    windows_wstep_identity_key_bytes: |
+      -----BEGIN RSA PRIVATE KEY-----
+      ... PEM-encoded content ...
+      -----END RSA PRIVATE KEY-----
+  ```
+
 
 ## Managing osquery configurations
 
