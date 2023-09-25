@@ -584,6 +584,8 @@ type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []go
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
 
+type RestoreMDMApplePendingDEPHostFunc func(ctx context.Context, host *fleet.Host) error
+
 type ResetMDMAppleEnrollmentFunc func(ctx context.Context, hostUUID string) error
 
 type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
@@ -1529,6 +1531,9 @@ type DataStore struct {
 
 	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
 	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
+
+	RestoreMDMApplePendingDEPHostFunc        RestoreMDMApplePendingDEPHostFunc
+	RestoreMDMApplePendingDEPHostFuncInvoked bool
 
 	ResetMDMAppleEnrollmentFunc        ResetMDMAppleEnrollmentFunc
 	ResetMDMAppleEnrollmentFuncInvoked bool
@@ -3656,6 +3661,13 @@ func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost
 	s.IngestMDMAppleDeviceFromCheckinFuncInvoked = true
 	s.mu.Unlock()
 	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
+}
+
+func (s *DataStore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.RestoreMDMApplePendingDEPHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.RestoreMDMApplePendingDEPHostFunc(ctx, host)
 }
 
 func (s *DataStore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error {

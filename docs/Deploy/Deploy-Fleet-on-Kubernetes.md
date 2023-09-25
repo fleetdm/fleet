@@ -89,7 +89,7 @@ Let's tell Kubernetes to create the cluster by running the below command.
 
 If you have not used Helm before, you must run the following to initialize your cluster prior to installing Fleet:
 
-```
+```sh
 helm init
 ```
 
@@ -101,7 +101,7 @@ Please note you will need all dependencies configured prior to installing the Fl
 
 Once you have those configured, run the following:
 
-```
+```sh
 helm upgrade --install fleet fleet \
   --repo https://fleetdm.github.io/fleet/charts \
   --values values.yaml
@@ -122,7 +122,7 @@ To install MySQL from Helm, run the following command. Note that there are some 
 - There should be a `fleet` database created
 - The default user's username should be `fleet`
 
-```
+```sh
 helm install \
   --name fleet-database \
   --set mysqlUser=fleet,mysqlDatabase=fleet \
@@ -143,20 +143,20 @@ Note: this step is not neccessary when using the Fleet Helm Chart as it handles 
 
 The last step is to run the Fleet database migrations on your new MySQL server. To do this, run the following:
 
-```
+```sh
 kubectl create -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
 ```
 
 In Kubernetes, you can only run a job once. If you'd like to run it again (i.e.: you'd like to run the migrations again using the same file), you must delete the job before re-creating it. To delete the job and re-run it, you can run the following commands:
 
-```
+```sh
 kubectl delete -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
 kubectl create -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
 ```
 
 #### Redis
 
-```
+```sh
 helm install \
   --name fleet-cache \
   --set persistence.enabled=false \
@@ -185,7 +185,7 @@ It should be noted that by default Kubernetes stores secret data in plaintext in
 
 Consider using Lets Encrypt to easily generate your TLS certificate. For examples on using `lego`, the command-line Let's Encrypt client, see the [documentation](https://github.com/xenolf/lego#cli-example). Consider the following example, which may be useful if you're a GCP user:
 
-```
+```sh
 GCE_PROJECT="acme-gcp-project" GCE_DOMAIN="acme-co" \
   lego --email="username@acme.co" \
     -x "http-01" \
@@ -196,13 +196,13 @@ GCE_PROJECT="acme-gcp-project" GCE_DOMAIN="acme-co" \
 
 If you're going the route of a more traditional CA-signed certificate, you'll have to generate a TLS key and a CSR (certificate signing request):
 
-```
+```sh
 openssl req -new -newkey rsa:2048 -nodes -keyout tls.key -out tls.csr
 ```
 
 Now you'll have to give this CSR to a Certificate Authority, and they will give you a file called `tls.crt`. We will then have to add the key and certificate as Kubernetes secrets.
 
-```
+```sh
 kubectl create secret tls fleet-tls --key=./tls.key --cert=./tls.crt
 ```
 
@@ -210,13 +210,13 @@ kubectl create secret tls fleet-tls --key=./tls.key --cert=./tls.crt
 
 First we must deploy the instances of the Fleet webserver. The Fleet webserver is described using a Kubernetes deployment object. To create this deployment, run the following:
 
-```
+```sh
 kubectl apply -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-deployment.yml
 ```
 
 You should be able to get an instance of the webserver running via `kubectl get pods` and you should see the following logs:
 
-```
+```sh
 kubectl logs fleet-webserver-9bb45dd66-zxnbq
 ts=2017-11-16T02:48:38.440578433Z component=service method=ListUsers user=none err=null took=2.350435ms
 ts=2017-11-16T02:48:38.441148166Z transport=https address=0.0.0.0:443 msg=listening
@@ -226,7 +226,7 @@ ts=2017-11-16T02:48:38.441148166Z transport=https address=0.0.0.0:443 msg=listen
 
 Now that the Fleet server is running on our cluster, we have to expose the Fleet webservers to the internet via a load balancer. To create a Kubernetes `Service` of type `LoadBalancer`, run the following:
 
-```
+```sh
 kubectl apply -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-service.yml
 ```
 
@@ -234,7 +234,7 @@ kubectl apply -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-service
 
 Finally, we must configure a DNS address for the external IP address that we now have for the Fleet load balancer. Run the following to show some high-level information about the service:
 
-```
+```sh
 kubectl get services fleet-loadbalancer
 ```
 

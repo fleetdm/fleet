@@ -464,12 +464,15 @@ var hostRefs = []string{
 	"host_updates",
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
-	"host_dep_assignments",
 	"host_script_results",
 }
 
-// those host refs cannot be deleted using the host.id like the hostRefs above,
-// they use the host.uuid instead. Additionally, the column name that refers to
+// NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
+// deleted from when a host is deleted in Fleet:
+// - host_dep_assignments
+
+// additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
+// above. They use the host.uuid instead. Additionally, the column name that refers to
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
@@ -3131,16 +3134,6 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 }
 
 func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
-	// TODO: consider using host_dep_assignments instead of host_mdm because installed_from_dep can
-	// be set to false for DEP-assigned host (e.g., ds.UpdateHostTablesOnMDMUnenroll), which may
-	// lead to unexpected results in certain edge cases where HostMDMCheckinInfo is used to
-	// determine like bootstrap package installation
-	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
-	// manually enroll or re-enroll are included in the results so long as they are not unassigned
-	// in Apple Business Manager. The problem with using host_dep_assignments is that a host can be
-	// assigned to Fleet in ABM but still manually enroll. We should probably keep using host_mdm,
-	// but be better at updating the table with the right values when a host enrolls (perhaps adding
-	// a query param to the enroll endpoint).
 	var hmdm fleet.HostMDMCheckinInfo
 
 	// use writer as it is used just after creation in some cases
@@ -3149,7 +3142,8 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
 			hd.display_name,
-			COALESCE(h.team_id, 0) as team_id
+			COALESCE(h.team_id, 0) as team_id,
+			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet
 		FROM
 			hosts h
 		LEFT JOIN
@@ -3158,6 +3152,9 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		LEFT JOIN
 			host_display_names hd
 		ON h.id = hd.host_id
+		LEFT JOIN
+			host_dep_assignments hda
+		ON h.id = hda.host_id
 		WHERE h.uuid = ? LIMIT 1`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
