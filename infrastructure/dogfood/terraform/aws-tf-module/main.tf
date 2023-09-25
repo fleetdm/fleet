@@ -299,7 +299,7 @@ module "waf" {
 }
 
 module "saml_auth_proxy" {
-  source                       = "github.com/fleetdm/fleet//terraform/addons/ses?ref=dogfood-saml-auth-proxy"
+  source                       = "github.com/fleetdm/fleet//terraform/addons/saml-auth-proxy?ref=dogfood-saml-auth-proxy"
   public_alb_security_group_id = module.main.byo-vpc.byo-db.alb.security_group_id
   idp_metadata_url             = "https://dev-99185346.okta.com/app/exkbcrjeqmahXWvW45d7/sso/saml/metadata"
   customer_prefix              = local.customer
