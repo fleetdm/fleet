@@ -3,7 +3,9 @@
 
 - [Enroll hosts](#enroll-hosts)
   - [Introduction](#introduction)
-  - [Enroll hosts with Fleetd](#enroll-hosts-with-fleetd)
+  - [Supported osquery versions](#supported-osquery-versions)
+  - [Add hosts with Fleetd](#add-hosts-with-fleetd)
+
     - [Signing installers](#signing-installers)
     - [Including Fleet Desktop](#including-fleet-desktop)
     - [Adding multiple hosts](#adding-multiple-hosts)
@@ -34,6 +36,9 @@ You can also install plain osquery on your hosts and connect to Fleet using osqu
 
 > For ChromeOS hosts, the [fleetd Chrome extension](#add-chromebooks-with-the-fleetd-chrome-extension) is installed instead of osquery.
 
+## Supported osquery versions
+
+Fleet supports the [latest version of osquery](https://github.com/osquery/osquery/tags). 
 
 ## Enroll hosts with Fleetd
 
@@ -206,7 +211,7 @@ Specify the path to this certificate with the `--tls_server_certs` flag when you
 
 In order for osquery to connect to the fleet server, there are some flags that need to be set:
 
-```
+```sh
  --enroll_secret_path=/etc/osquery/enroll_secret 
  --tls_server_certs=/etc/osquery/fleet.crt
  --tls_hostname=fleet.example.com 
@@ -231,7 +236,7 @@ These can be specified directly in the command line or saved to a flag file.
 
 Assuming that you are deploying your enroll secret in the file `/etc/osquery/enroll_secret` and your osquery server certificate is at `/etc/osquery/fleet.crt`, you could copy and paste the following command with the following flags (be sure to replace `fleet.acme.net` with the hostname or IP of your Fleet installation):
 
-```
+```sh
 sudo osqueryd \
  --enroll_secret_path=/etc/osquery/enroll_secret \
  --tls_server_certs=/etc/osquery/fleet.crt \
@@ -260,13 +265,13 @@ If your enroll secret is defined in a local file, specify the file's path with t
 
 For your convenience, osqueryd supports putting all your flags into a single file. We suggest deploying this file to `/etc/osquery/fleet.flags`. If you've deployed the appropriate osquery flags to that path, you could simply launch osquery via:
 
-```
+```sh
 osqueryd --flagfile=/etc/osquery/fleet.flags
 ```
 
 When using a flag file on Windows, make sure that file paths in the flag file are absolute and not quoted. For example, in `C:\Program Files\osquery\osquery.flags`:
 
-```
+```sh
 --tls_server_certs=C:\Program Files\osquery\fleet.pem
 --enroll_secret_path=C:\Program Files\osquery\secret.txt
 ```
@@ -279,7 +284,7 @@ deploy a new package for every new osquery release.
 
 #### Generate installer
 
-```
+```sh
 fleetctl package --type [pkg|msi|deb|rpm] --fleet-url [fleet-hostname:port] --enroll-secret [secret]
 ```
 
@@ -340,13 +345,13 @@ If you use plain osquery, instructions are [available here](https://osquery.read
 On a system with osquery installed via the Fleet osquery installer (Fleetd), obtain the
 `CodeRequirement` of Fleetd by running:
 
-```
+```sh
 codesign -dr - /opt/orbit/bin/orbit/macos/stable/orbit
 ```
 
 The output should be similar or identical to:
 
-```
+```sh
 Executable=/opt/orbit/bin/orbit/macos/edge/orbit
 designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"
 ```

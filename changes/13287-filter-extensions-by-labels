@@ -1,0 +1,1 @@
+* Add `labels` to the fleetd extensions feature to allow deploying extensions to hosts that belong to certain labels.

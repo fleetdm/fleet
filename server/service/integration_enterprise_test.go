@@ -3924,3 +3924,185 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
 }
+
+func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
+	t := s.T()
+	ctx := context.Background()
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	defer func() {
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
+
+	foobarLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  "Foobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	zoobarLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  "Zoobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	allHostsLabel, err := s.ds.GetLabelSpec(ctx, "All hosts")
+	require.NoError(t, err)
+
+	orbitDarwinClient := createOrbitEnrolledHost(t, "darwin", "foobar1", s.ds)
+	orbitLinuxClient := createOrbitEnrolledHost(t, "linux", "foobar2", s.ds)
+	orbitWindowsClient := createOrbitEnrolledHost(t, "windows", "foobar3", s.ds)
+
+	// orbitDarwinClient is member of 'All hosts' and 'Zoobar' labels.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitDarwinClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+		zoobarLabel.ID:   ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	// orbitLinuxClient is member of 'All hosts' and 'Foobar' labels.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+		foobarLabel.ID:   ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	// orbitWindowsClient is member of the 'All hosts' label only.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitWindowsClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Attempt to add labels to extensions.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+  "agent_options": {
+	"config": {
+		"options": {
+		"pack_delimiter": "/",
+		"logger_tls_period": 10,
+		"distributed_plugin": "tls",
+		"disable_distributed": false,
+		"logger_tls_endpoint": "/api/osquery/log",
+		"distributed_interval": 10,
+		"distributed_tls_max_attempts": 3
+		}
+	},
+	"extensions": {
+		"hello_world_linux": {
+			"labels": [
+				"All hosts",
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "linux"
+		},
+		"hello_world_macos": {
+			"labels": [
+				"All hosts",
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "macos"
+		},
+		"hello_mars_macos": {
+			"labels": [
+				"All hosts",
+				"Zoobar"
+			],
+			"channel": "stable",
+			"platform": "macos"
+		},
+		"hello_world_windows": {
+			"labels": [
+				"Zoobar"
+			],
+			"channel": "stable",
+			"platform": "windows"
+		},
+		"hello_mars_windows": {
+			"labels": [
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "windows"
+		}
+	}
+  }
+}`), http.StatusOK)
+
+	resp := orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_mars_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	}
+  }`, string(resp.Extensions))
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_world_linux": {
+		"channel": "stable",
+		"platform": "linux"
+	}
+  }`, string(resp.Extensions))
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitWindowsClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, string(resp.Extensions))
+
+	// orbitDarwinClient is now also a member of the 'Foobar' label.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitDarwinClient, map[uint]*bool{
+		foobarLabel.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_world_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	},
+	"hello_mars_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	}
+  }`, string(resp.Extensions))
+
+	// orbitLinuxClient is no longer a member of the 'Foobar' label.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
+		foobarLabel.ID: nil,
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, string(resp.Extensions))
+
+	// Attempt to set non-existent labels in the config.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+  "agent_options": {
+	"config": {
+		"options": {
+		"pack_delimiter": "/",
+		"logger_tls_period": 10,
+		"distributed_plugin": "tls",
+		"disable_distributed": false,
+		"logger_tls_endpoint": "/api/osquery/log",
+		"distributed_interval": 10,
+		"distributed_tls_max_attempts": 3
+		}
+	},
+	"extensions": {
+		"hello_world_linux": {
+			"labels": [
+				"All hosts",
+				"Doesn't exist"
+			],
+			"channel": "stable",
+			"platform": "linux"
+		}
+	}
+  }
+}`), http.StatusBadRequest)
+}
