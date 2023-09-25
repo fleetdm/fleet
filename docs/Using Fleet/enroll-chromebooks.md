@@ -24,12 +24,6 @@ By default, the hostname for a Chromebook host will be blank. The hostname can b
 ## Debugging ChromeOS
 To learn how to debug the Fleetd Chrome extension, visit [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#fleetd-chrome-extension).
 
-## Performance testing
-In August 2023, we completed scale testing on 10k Windows hosts and 70k macOS hosts. Ultimately, we validated both server and host performance at that scale.
-
-Detailed results are [here](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing).
-
-
 <meta name="title" value="Enroll Chromebooks">
 <meta name="pageOrderInSection" value="2000">
 <meta name="navSection" value="Dig deeper">
