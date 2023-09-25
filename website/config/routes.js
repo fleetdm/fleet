@@ -457,6 +457,9 @@ module.exports.routes = {
   'GET /deploy/deploying-fleet-on-aws-with-terraform': '/docs/deploy/deploy-on-aws-with-terraform',
   'GET /docs/deploy/server-installation': '/docs/deploy/introduction',
   'GET /handbook/company/ceo': '/handbook/ceo',
+  'GET /handbook/communications': '/handbook/company/communications',
+  'GET /handbook/leadership': '/handbook/company/leadership',
+  'GET /handbook/product-groups': '/handbook/company/product-groups',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
