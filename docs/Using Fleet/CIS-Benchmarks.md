@@ -258,6 +258,11 @@ Requires this GPO in place: 'Computer Configuration\Policies\Administrative Temp
 Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
 ```
 
+## Performance testing
+In August 2023, we completed scale testing on 10k Windows hosts and 70k macOS hosts. Ultimately, we validated both server and host performance at that scale.
+
+Detailed results are [here](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing).
+
 <meta name="pageOrderInSection" value="1700">
 <meta name="title" value="CIS Benchmarks">
 <meta name="description" value="Read about how Fleet's implementation of CIS Benchmarks offers consensus-based cybersecurity guidance, covering macOS 13.0 Ventura & Windows 10 Enterprise.">
