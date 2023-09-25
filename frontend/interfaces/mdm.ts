@@ -72,11 +72,10 @@ export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
 
 export type MacMdmProfileOperationType = "remove" | "install";
 
-export interface IHostMacMdmProfile {
+export interface IHostMdmProfile {
   profile_id: number;
   name: string;
-  // identifier?: string; // TODO: add when API is updated to return this
-  operation_type: MacMdmProfileOperationType;
+  operation_type: MacMdmProfileOperationType | null;
   status: MdmProfileStatus;
   detail: string;
 }
@@ -88,6 +87,19 @@ export type DiskEncryptionStatus =
   | "enforcing"
   | "failed"
   | "removing_enforcement";
+
+/** Currently windows disk enxryption status will only be one of these three
+values. In the future we may add more. */
+export type IWindowsDiskEncryptionStatus = Extract<
+  DiskEncryptionStatus,
+  "verified" | "verifying" | "enforcing" | "failed"
+>;
+
+export const isWindowsDiskEncryptionStatus = (
+  status: DiskEncryptionStatus
+): status is IWindowsDiskEncryptionStatus => {
+  return !["action_required", "removing_enforcement"].includes(status);
+};
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
 

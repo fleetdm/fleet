@@ -721,6 +721,7 @@ const HostDetailsPage = ({
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
+          osSettings={host?.mdm.os_settings}
         />
         <TabsWrapper>
           <Tabs
@@ -846,6 +847,7 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
+            platform={host?.platform}
             hostMDMData={host?.mdm}
             onClose={toggleMacSettingsModal}
           />

@@ -489,6 +489,7 @@ const DeviceUserPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
+            platform={host?.platform}
             hostMDMData={host?.mdm}
             onClose={toggleMacSettingsModal}
           />

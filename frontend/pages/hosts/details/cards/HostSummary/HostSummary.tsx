@@ -1,7 +1,12 @@
 import React from "react";
-
 import ReactTooltip from "react-tooltip";
-import { IHostMacMdmProfile, BootstrapPackageStatus } from "interfaces/mdm";
+
+import {
+  IHostMdmProfile,
+  BootstrapPackageStatus,
+  isWindowsDiskEncryptionStatus,
+} from "interfaces/mdm";
+import { IOSSettings } from "interfaces/host";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -9,6 +14,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import {
   getHostDiskEncryptionTooltipMessage,
   humanHostMemory,
@@ -16,10 +22,11 @@ import {
 } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+
 import MacSettingsIndicator from "./MacSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
+import { generateWinDiskEncryptionProfile } from "../../helpers";
 
 const baseClass = "host-summary";
 
@@ -38,7 +45,7 @@ interface IHostSummaryProps {
   toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
-  hostMdmProfiles?: IHostMacMdmProfile[];
+  hostMdmProfiles?: IHostMdmProfile[];
   mdmName?: string;
   showRefetchSpinner: boolean;
   onRefetchHost: (
@@ -46,6 +53,7 @@ interface IHostSummaryProps {
   ) => void;
   renderActionButtons: () => JSX.Element | null;
   deviceUser?: boolean;
+  osSettings?: IOSSettings;
 }
 
 const HostSummary = ({
@@ -64,11 +72,9 @@ const HostSummary = ({
   onRefetchHost,
   renderActionButtons,
   deviceUser,
+  osSettings,
 }: IHostSummaryProps): JSX.Element => {
   const { status, platform } = titleData;
-
-  // TODO: remove test data
-  hostMdmProfiles = [];
 
   const renderRefetch = () => {
     const isOnline = titleData.status === "online";
@@ -182,6 +188,22 @@ const HostSummary = ({
   };
 
   const renderSummary = () => {
+    // for windows hosts we have to manually add a profile for disk encryption
+    // as this is not currently included in the `profiles` value from the API
+    // response for windows hosts.
+    if (
+      platform === "windows" &&
+      osSettings?.disk_encryption?.status &&
+      isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
+    ) {
+      const winDiskEncryptionProfile: IHostMdmProfile = generateWinDiskEncryptionProfile(
+        osSettings.disk_encryption.status
+      );
+      hostMdmProfiles = hostMdmProfiles
+        ? [...hostMdmProfiles, winDiskEncryptionProfile]
+        : [winDiskEncryptionProfile];
+    }
+
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
@@ -204,7 +226,9 @@ const HostSummary = ({
         {/* Rendering of OS Settings data */}
         {(platform === "darwin" || platform === "windows") &&
           isPremiumTier &&
-          mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
+          // TODO: API INTEGRATION: change this when we figure out why the API is
+          // returning "Fleet" or "FleetDM" for the MDM name.
+          mdmName?.includes("Fleet") && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <HostSummaryIndicator title="OS settings">

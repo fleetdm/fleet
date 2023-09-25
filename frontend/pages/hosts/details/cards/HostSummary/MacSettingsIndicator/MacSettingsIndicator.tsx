@@ -1,7 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 
-import { IHostMacMdmProfile } from "interfaces/mdm";
+import { IHostMdmProfile } from "interfaces/mdm";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -52,7 +52,7 @@ const STATUS_DISPLAY_OPTIONS: StatusDisplayOptions = {
  * Finally if all profiles have a status of "verified", the status will be displayed as "Verified".
  */
 const getMacProfileStatus = (
-  hostMacSettings: IHostMacMdmProfile[]
+  hostMacSettings: IHostMdmProfile[]
 ): MacProfileStatus => {
   const statuses = hostMacSettings.map((setting) => setting.status);
   if (statuses.includes("failed")) {
@@ -68,7 +68,7 @@ const getMacProfileStatus = (
 };
 
 interface IMacSettingsIndicatorProps {
-  profiles: IHostMacMdmProfile[];
+  profiles: IHostMdmProfile[];
   onClick?: () => void;
 }
 const MacSettingsIndicator = ({
