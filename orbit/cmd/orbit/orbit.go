@@ -929,7 +929,7 @@ type desktopRunner struct {
 	// fleetURL is the URL of the Fleet server.
 	fleetURL string
 	// trw is the Fleet Desktop token reader and writer (implements token rotation).
-	trw *token.ReadWriter // TODO(mna): why isn't that a token.Reader? Doesn't seem to use writer at all.
+	trw *token.ReadWriter
 	// fleetRootCA is the path to a certificate to use for server TLS verification.
 	fleetRootCA string
 	// insecure disables all TLS verification.

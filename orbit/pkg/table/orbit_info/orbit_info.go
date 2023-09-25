@@ -17,7 +17,7 @@ type Extension struct {
 	orbitChannel    string
 	osquerydChannel string
 	desktopChannel  string
-	trw             *token.ReadWriter // TODO(mna): why isn't this token.Reader? Doesn't seem to use writer at all.
+	trw             *token.ReadWriter
 }
 
 var _ orbit_table.Extension = (*Extension)(nil)
