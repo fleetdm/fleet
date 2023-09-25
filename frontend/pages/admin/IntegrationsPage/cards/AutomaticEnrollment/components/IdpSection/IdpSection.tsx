@@ -79,7 +79,7 @@ const IdpSection = () => {
         Connect Fleet to your identity provider to require end users to
         authenticate when they first setup their new macOS hosts.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication"
+          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience##end-user-authentication-and-eula"
           text="Learn more"
           newTab
         />
