@@ -313,7 +313,7 @@ module.exports.routes = {
     action: 'view-integrations',
     locals: {
       pageTitleForMeta: 'Integrations | Fleet for osquery',
-      pageDescriptionForMeta: 'Explore a wide range of Fleet integrations to boost functionality and streamline workflows.',
+      pageDescriptionForMeta: 'Explore and learn how Fleet can integrate with your favorite tools.',
       currentSection: 'platform'
     }
   },
