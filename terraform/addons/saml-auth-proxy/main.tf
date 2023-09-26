@@ -1,3 +1,4 @@
+data aws_region "current" {}
 
 resource "aws_secretsmanager_secret" "saml_auth_proxy_cert" {
   name_prefix = "${var.customer_prefix}-saml-auth-proxy-cert"
@@ -101,7 +102,7 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
   memory                   = 1024
   container_definitions = jsonencode(
     [
-     {
+      {
         name        = "saml-auth-proxy"
         image       = var.saml_auth_proxy_image
         cpu         = 256
@@ -119,7 +120,11 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
         networkMode = "awsvpc"
         logConfiguration = {
           logDriver = "awslogs"
-          options = var.logging_options
+          options = var.logging_options != null ? var.logging_options : {
+            awslogs-group         = "${var.customer_prefix}-saml-auth-proxy"
+            awslogs-region        = data.aws_region.current.name
+            awslogs-stream-prefix = "saml-auth-proxy"
+          }
         }
         workingDirectory = "/go",
         secrets = [
@@ -158,10 +163,11 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
             value = var.base_url
           },
         ]
-        entryPoint = "/bin/sh",
+        entryPoint = ["/bin/sh"],
         command = ["-c", file("${path.module}/files/saml-auth-proxy.sh")] 
       }
-  ])
+    ]
+  )
   lifecycle {
     create_before_destroy = true
   }
