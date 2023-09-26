@@ -101,6 +101,42 @@ Authenticates the user with the specified credentials. Use the token returned fr
 }
 ```
 
+##### Authentication failed
+
+`Status: 401 Unauthorized`
+
+```json
+{
+  "message": "Authentication failed",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Authentication failed"
+    }
+  ],
+  "uuid": "1272014b-902b-4b36-bcdb-75fde5eac1fc"
+}
+```
+
+##### Too many requests / Rate limiting
+
+`Status: 429 Too Many Requests`
+`Header: retry-after: N`
+
+> This response includes a header `retry-after` that indicates how many more seconds you are blocked before you can try again.
+
+```json
+{
+  "message": "limit exceeded, retry after: Ns",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "limit exceeded, retry after: Ns"
+    }
+  ]
+}
+```
+
 ---
 
 ### Log out
@@ -3273,6 +3309,7 @@ requested by a web browser.
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
+| disable_failing_policies | boolean | query | If `true`, hosts will return failing policies as 0 (returned as the `issues` column) regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 
 If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
