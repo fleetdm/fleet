@@ -5419,6 +5419,7 @@ Either `query` or `query_id` must be provided.
 ## Queries
 
 - [Get query](#get-query)
+- [Get query report](#get-query-report)
 - [List queries](#list-queries)
 - [Create query](#create-query)
 - [Modify query](#modify-query)
@@ -5487,6 +5488,62 @@ Returns the query specified by ID.
     }
   }
 }
+```
+
+### Get query report
+
+Returns the query report specified by ID.
+
+`GET /api/v1/fleet/queries/{id}/report`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                |
+| ---- | ------- | ---- | ------------------------------------------ |
+| id   | integer | path | **Required**. The id of the desired query. |
+| order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+#### Example
+
+`GET /api/v1/fleet/queries/31/report`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query_id": 31,
+  "query_report": [
+    {
+      "host_id": 1,
+      "model": "USB 2.0 Hub",
+      "vendor": "VIA Labs, Inc."
+    },
+    {
+      "host_id": 1,
+      "model": "USB Keyboard",
+      "vendor": "VIA Labs, Inc."
+    },
+    {
+      "host_id": 2,
+      "model": "USB Reciever",
+      "vendor": "Logitech"
+    },
+    {
+      "host_id": 2,
+      "model": "USB Reciever",
+      "vendor": "Logitech"
+    },
+    {
+      "host_id": 2,
+      "model": "Display Audio",
+      "vendor": "Apple Inc."
+    }
+  ]
+}
+
 ```
 
 ### List queries
