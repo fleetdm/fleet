@@ -195,3 +195,22 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 	}
 	return savedScript, nil
 }
+
+func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
+	script, err := svc.ds.Script(ctx, scriptID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// couldn't get the script to have its team, authorize with a no-team script
+			if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionWrite); err != nil {
+				return err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "get script")
+	}
+
+	if err := svc.authz.Authorize(ctx, script, fleet.ActionWrite); err != nil {
+		return err
+	}
+	return ctxerr.Wrap(ctx, svc.ds.DeleteScript(ctx, scriptID), "delete script")
+}

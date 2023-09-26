@@ -233,3 +233,35 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 
 	return nil, fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete a (saved) script
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteScriptRequest struct {
+	ScriptID uint `url:"script_id"`
+}
+
+type deleteScriptResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteScriptResponse) error() error { return r.Err }
+func (r deleteScriptResponse) Status() int  { return http.StatusNoContent }
+
+func deleteScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteScriptRequest)
+	err := svc.DeleteScript(ctx, req.ScriptID)
+	if err != nil {
+		return deleteScriptResponse{Err: err}, nil
+	}
+	return deleteScriptResponse{}, nil
+}
+
+func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}

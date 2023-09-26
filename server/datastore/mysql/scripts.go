@@ -148,6 +148,10 @@ VALUES
 	return d.getScriptDB(ctx, d.writer(ctx), uint(id))
 }
 
+func (d *Datastore) Script(ctx context.Context, id uint) (*fleet.Script, error) {
+	return d.getScriptDB(ctx, d.reader(ctx), id)
+}
+
 func (d *Datastore) getScriptDB(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.Script, error) {
 	const getStmt = `
 SELECT
@@ -169,4 +173,12 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get script")
 	}
 	return &script, nil
+}
+
+func (d *Datastore) DeleteScript(ctx context.Context, id uint) error {
+	_, err := d.writer(ctx).ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete script")
+	}
+	return nil
 }

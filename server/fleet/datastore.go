@@ -1051,6 +1051,12 @@ type Datastore interface {
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
+
+	// Script returns the saved script corresponding to id.
+	Script(ctx context.Context, id uint) (*Script, error)
+
+	// DeleteScript deletes the script identified by its id.
+	DeleteScript(ctx context.Context, id uint) error
 }
 
 const (
