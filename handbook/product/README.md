@@ -350,7 +350,7 @@ Requests are weighed by:
 
 ### Customer feature requests 
 The product team's goal is to prioritize 16 customer feature requests at Feature Fest, then take them from settled to shipped. The customer success team is responsible for providing the Head of Prouct a live count during the Feature Fest meeting. Product Operations is responsible for monitoring this KPI and raising alarms throughout the design and engineering sprints. 
-> Customer stories should be estimated at 1-3 points each to count as 1 request. If a feature request spans across multiple customers, it will be counted as the number of customers invovled. 
+> Customer stories should be estimated at 1-3 points each to count as 1 request. If a feature request spans across multiple customers, it will be counted as the number of customers involved. 
 
 ### After the feature is accepted
 After the 🎁🗣 Feature Fest meeting, Product Operations will clear the Feature Fest board as follows:
