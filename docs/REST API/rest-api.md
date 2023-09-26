@@ -6470,7 +6470,7 @@ Uploads a script, making it available to run on hosts of the specified team (or 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | script          | file    | form | **Required**. The file containing the script.    |
-| team_Id         | integer | form | The team id for the script. If specified, the script is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied only to hosts not assigned to any team. |
+| team_id         | integer | form | The team id for the script. If specified, the script is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied only to hosts not assigned to any team. |
 
 #### Example
 
