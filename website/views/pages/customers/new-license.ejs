@@ -23,7 +23,7 @@
 
         </div>
         <cloud-error purpose="cloud-error" v-if="cloudError && !showBillingForm"></cloud-error>
-        <div class="mt-2 pt-3 pb-3 border-top d-flex flex-column" v-if="showQuotedPrice && formData.numberOfHosts">
+        <div class="mt-2 pt-3 pb-3 border-top d-flex flex-column" v-if="showQuotedPrice && formData.numberOfHosts && numberOfHostsQuoted">
           <div class="pb-2">
             <strong>Order total</strong>
           </div>
