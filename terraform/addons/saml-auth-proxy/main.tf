@@ -1,4 +1,19 @@
-data aws_region "current" {}
+data "aws_region" "current" {}
+
+data "aws_iam_policy_document" "saml_auth_proxy" {
+  // allow saml_auth_proxy to obtain certs from secrets manager
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.saml_auth_proxy_cert.arn]
+  }
+}
+
+resource "aws_iam_policy" "saml_auth_proxy" {
+  name        = "${var.customer_prefix}-saml-auth-proxy"
+  description = "IAM Policy to provide saml_auth_proxy access to secrets"
+  policy      = data.aws_iam_policy_document.saml_auth_proxy.json
+}
 
 resource "aws_secretsmanager_secret" "saml_auth_proxy_cert" {
   name_prefix = "${var.customer_prefix}-saml-auth-proxy-cert"
@@ -10,11 +25,11 @@ resource "aws_security_group" "saml_auth_proxy_alb" {
   description = "Fleet ALB Security Group"
 
   ingress {
-    description      = "Internal HTTP back to Fleet"
-    from_port        = 80
-    to_port          = 80
-    protocol         = "tcp"
-    security_groups  = [aws_security_group.saml_auth_proxy_service.id]
+    description     = "Internal HTTP back to Fleet"
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.saml_auth_proxy_service.id]
   }
 
   egress {
@@ -33,11 +48,11 @@ resource "aws_security_group" "saml_auth_proxy_service" {
   description = "Fleet ALB Security Group"
 
   ingress {
-    description      = "Internal HTTP back to Fleet"
-    from_port        = 80
-    to_port          = 80
-    protocol         = "tcp"
-    cidr_blocks      = ["10.0.0.0/8"]
+    description = "Internal HTTP back to Fleet"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/8"]
   }
 
   egress {
@@ -65,12 +80,12 @@ module "saml_auth_proxy_alb" {
   # FIXME: Get this working eventually.
   # access_logs     = var.alb_config.access_logs
 
-  internal        = true
+  internal = true
   target_groups = [
     {
       name             = "${var.customer_prefix}-saml-to-fleet"
       backend_protocol = "HTTP"
-      backend_port     = 80
+      backend_port     = 8080
       target_type      = "ip"
       health_check = {
         path                = "/healthz"
@@ -85,8 +100,8 @@ module "saml_auth_proxy_alb" {
 
   http_tcp_listeners = [
     {
-      port        = 80
-      protocol    = "HTTP"
+      port               = 8080
+      protocol           = "HTTP"
       target_group_index = 0
     }
   ]
@@ -103,7 +118,7 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
   container_definitions = jsonencode(
     [
       {
-        name        = "saml-auth-proxy"
+        name        = "${var.customer_prefix}-saml-auth-proxy"
         image       = var.saml_auth_proxy_image
         cpu         = 256
         memory      = 512
@@ -115,6 +130,13 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
             softLimit = 9999,
             hardLimit = 9999,
             name      = "nofile"
+          }
+        ]
+        portMappings = [
+          {
+            # This port is the same that the contained application also uses
+            containerPort = 8080
+            protocol      = "tcp"
           }
         ]
         networkMode = "awsvpc"
@@ -130,11 +152,11 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
         secrets = [
           {
             name      = "SAML_PROXY_SP_CERT_BYTES"
-            valueFrom = "${aws_secretsmanager_secret.saml_auth_proxy_cert.arn}:cert"
+            valueFrom = "${aws_secretsmanager_secret.saml_auth_proxy_cert.arn}:cert::"
           },
           {
             name      = "SAML_PROXY_SP_KEY_BYTES"
-            valueFrom = "${aws_secretsmanager_secret.saml_auth_proxy_cert.arn}:key"
+            valueFrom = "${aws_secretsmanager_secret.saml_auth_proxy_cert.arn}:key::"
           },
         ]
         environmnet = [
@@ -143,28 +165,28 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
             value = "/tmp/saml-auth-proxy/cert.pem"
           },
           {
-            name   = "SAML_PROXY_SP_KEY_PATH"
+            name  = "SAML_PROXY_SP_KEY_PATH"
             value = "/tmp/saml-auth-proxy/key.pem"
           },
           {
-            name   = "SAML_PROXY_SP_KEY_PATH"
+            name  = "SAML_PROXY_SP_KEY_PATH"
             value = "/tmp/saml-auth-proxy/key.pem"
           },
           {
-            name   = "SAML_PROXY_BACKEND_URL"
-            value = "http://${module.saml_auth_proxy_alb.lb_dns_name}:80/"
+            name  = "SAML_PROXY_BACKEND_URL"
+            value = "http://${module.saml_auth_proxy_alb.lb_dns_name}:8080/"
           },
           {
-            name   = "SAML_PROXY_IDP_METADATA_URL"
+            name  = "SAML_PROXY_IDP_METADATA_URL"
             value = var.idp_metadata_url
           },
           {
-            name   = "SAML_PROXY_BASE_URL"
+            name  = "SAML_PROXY_BASE_URL"
             value = var.base_url
           },
         ]
         entryPoint = ["/bin/sh"],
-        command = ["-c", file("${path.module}/files/saml-auth-proxy.sh")] 
+        command    = ["-c", file("${path.module}/files/saml-auth-proxy.sh")]
       }
     ]
   )
@@ -190,10 +212,6 @@ resource "aws_ecs_service" "saml_auth_proxy" {
   load_balancer {
     target_group_arn = var.alb_target_group_arn
     container_name   = "${var.customer_prefix}-saml-auth-proxy"
-    container_port   = 80
+    container_port   = 8080
   }
 }
-
-output "name" {
-  value = "${var.customer_prefix}-saml-auth-proxy"
-} 

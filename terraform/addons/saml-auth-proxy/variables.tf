@@ -17,20 +17,20 @@ variable "customer_prefix" {
 }
 
 variable "ecs_cluster" {
-  type     = string
+  type = string
 }
 
 variable "ecs_execution_iam_role_arn" {
-  type     = string
+  type = string
 }
 
 variable "ecs_iam_role_arn" {
-  type     = string
+  type = string
 }
 
 variable "proxy_containers" {
-  type     = number
-  default  = 1
+  type    = number
+  default = 1
 }
 
 variable "logging_options" {
@@ -43,7 +43,7 @@ variable "logging_options" {
 
 variable "saml_auth_proxy_image" {
   type    = string
-  default = "itzg/saml-auth-proxy:1.12.0@sha256:ddff17caa00c1aad64d6c7b2e1d5eb93d97321c34d8ad12a25cfd8ce203db723" 
+  default = "itzg/saml-auth-proxy:1.12.0@sha256:ddff17caa00c1aad64d6c7b2e1d5eb93d97321c34d8ad12a25cfd8ce203db723"
 }
 
 variable "security_groups" {
@@ -52,7 +52,7 @@ variable "security_groups" {
 }
 
 variable "base_url" {
- type      = string
+  type = string
 }
 
 variable "subnets" {
