@@ -129,14 +129,14 @@ Helm v2
 helm install \
   --name fleet-database \
   --set mysqlUser=fleet,mysqlDatabase=fleet \
-  stable/mysql
+  oci://registry-1.docker.io/bitnamicharts/mysql
 ```
 
 Helm v3
 ```sh
 helm install fleet-database \
   --set mysqlUser=fleet,mysqlDatabase=fleet \
-  stable/mysql
+  oci://registry-1.docker.io/bitnamicharts/mysql 
 ```
 
 This helm package will create a Kubernetes `Service` which exposes the MySQL server to the rest of the cluster on the following DNS address:
