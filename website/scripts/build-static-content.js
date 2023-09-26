@@ -256,6 +256,7 @@ module.exports = {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/\{\{([^}]+)\}\}/gi)[0]}) that will cause client-side javascript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
               }
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
+              // [?] Looking for code that used to be here related to syntax highlighting?  Please see https://github.com/fleetdm/fleet/pull/14124/files  -mikermcneil, 2023-09-25
               let htmlString = await sails.helpers.strings.toHtml(mdString);
               // Throw an error if the compiled Markdown contains nested codeblocks (nested codeblocks meaning 3 backtick codeblocks nested inside a 4 backtick codeblock, or vice versa). Note: We're checking this after the markdown has been compiled because backticks (`) within codeblocks will be replaced with HTML entities (&#96;) and nested triple backticks can be easy to overmatch.
               if(htmlString.match(/(&#96;){3,4}[\s\S]+(&#96;){3}/g)){
