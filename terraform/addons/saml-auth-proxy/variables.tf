@@ -1,6 +1,10 @@
-variable "public_alb_security_group_id" {
+variable "alb_target_group_arn" {
   type = string
 }
+
+# variable "public_alb_security_group_id" {
+#   type = string
+# }
 
 variable "idp_metadata_url" {
   type = string

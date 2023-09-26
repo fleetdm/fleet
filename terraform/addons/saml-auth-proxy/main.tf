@@ -13,7 +13,7 @@ resource "aws_security_group" "saml_auth_proxy_alb" {
     from_port        = 80
     to_port          = 80
     protocol         = "tcp"
-    security_groups  = [aws_security_group.saml_auth_proxy_service]
+    security_groups  = [aws_security_group.saml_auth_proxy_service.id]
   }
 
   egress {
@@ -36,7 +36,7 @@ resource "aws_security_group" "saml_auth_proxy_service" {
     from_port        = 80
     to_port          = 80
     protocol         = "tcp"
-    security_groups  = [var.public_alb_security_group_id]
+    cidr_blocks      = ["10.0.0.0/8"]
   }
 
   egress {
@@ -60,7 +60,7 @@ module "saml_auth_proxy_alb" {
 
   vpc_id          = var.vpc_id
   subnets         = var.subnets
-  security_groups = [aws_security_group.saml_auth_proxy_alb]
+  security_groups = [aws_security_group.saml_auth_proxy_alb.id]
   # FIXME: Get this working eventually.
   # access_logs     = var.alb_config.access_logs
 
@@ -168,7 +168,7 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
 }
 
 resource "aws_ecs_service" "saml_auth_proxy" {
-  name                               = "saml_auth_proxy"
+  name                               = "${var.customer_prefix}_saml_auth_proxy"
   launch_type                        = "FARGATE"
   cluster                            = var.ecs_cluster
   task_definition                    = aws_ecs_task_definition.saml_auth_proxy.arn
@@ -178,6 +178,16 @@ resource "aws_ecs_service" "saml_auth_proxy" {
 
   network_configuration {
     subnets         = var.subnets
-    security_groups = [aws_security_group.saml_auth_proxy_service]
+    security_groups = [aws_security_group.saml_auth_proxy_service.id]
+  }
+
+  load_balancer {
+    target_group_arn = var.alb_target_group_arn
+    container_name   = "${var.customer_prefix}-saml-auth-proxy"
+    container_port   = 80
   }
 }
+
+output "name" {
+  value = "${var.customer_prefix}-saml-auth-proxy"
+} 

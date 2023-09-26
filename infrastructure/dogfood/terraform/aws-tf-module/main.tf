@@ -56,7 +56,8 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.1.0"
+  source          = "../../../../terraform"
+  # source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.1.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -112,6 +113,63 @@ module "main" {
       prefix  = local.customer
       enabled = true
     }
+    extra_target_groups = [
+      {
+        name             = module.saml_auth_proxy.name
+        backend_protocol = "HTTP"
+        backend_port     = 80
+        target_type      = "ip"
+        health_check = {
+          path                = "/_health"
+          matcher             = "200"
+          timeout             = 10
+          interval            = 15
+          healthy_threshold   = 5
+          unhealthy_threshold = 5
+        }
+      }
+    ]
+    https_listener_rules = [{
+      https_listener_index = 0
+      priority             = 9000
+      actions = [{
+        type               = "forward"
+        target_group_index = 1
+      }]
+      conditions = [{
+        path_patterns = ["/device/*", "/api/*/fleet/device/*", "/saml/*"]
+      }]
+      }, {
+      https_listener_index = 0
+      priority             = 1
+      actions = [{
+        type               = "forward"
+        target_group_index = 0
+      }]
+      conditions = [{
+        path_patterns = ["/api/*/fleet/device/*/migrate_mdm", "/api/*/fleet/device/*/rotate_encryption_key"]
+      }]
+      }, {
+      https_listener_index = 0
+      priority             = 2
+      actions = [{
+        type               = "forward"
+        target_group_index = 0
+      }]
+      conditions = [{
+        path_patterns = ["/api/*/fleet/device/*/debug/errors", "/api/*/fleet/device/*/desktop"]
+      }]
+      }, {
+      https_listener_index = 0
+      priority             = 3
+      actions = [{
+        type               = "forward"
+        target_group_index = 0
+      }]
+      conditions = [{
+        path_patterns = ["/api/*/fleet/device/*/refetch", "/api/*/fleet/device/*/transparency"]
+      }]
+    }]
   }
 }
 
@@ -299,8 +357,9 @@ module "waf" {
 }
 
 module "saml_auth_proxy" {
-  source                       = "github.com/fleetdm/fleet//terraform/addons/saml-auth-proxy?ref=dogfood-saml-auth-proxy"
-  public_alb_security_group_id = module.main.byo-vpc.byo-db.alb.security_group_id
+  source                       = "../../../../terraform/addons/saml-auth-proxy"
+  # source                       = "github.com/fleetdm/fleet//terraform/addons/saml-auth-proxy?ref=dogfood-saml-auth-proxy"
+  # public_alb_security_group_id = module.main.byo-vpc.byo-db.alb.security_group_id
   idp_metadata_url             = "https://dev-99185346.okta.com/app/exkbcrjeqmahXWvW45d7/sso/saml/metadata"
   customer_prefix              = local.customer
   ecs_cluster                  = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
@@ -310,4 +369,6 @@ module "saml_auth_proxy" {
   base_url                     = "https://dogfood.fleetdm.com"
   subnets                      = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
   vpc_id                       = module.main.vpc.vpc_id
+  logging_options              = null # Figure it out later
+  alb_target_group_arn         = module.main.byo-vpc.byo-db.alb.target_group_arns[1]
 }
