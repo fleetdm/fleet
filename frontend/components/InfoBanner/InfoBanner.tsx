@@ -11,6 +11,8 @@ export interface IInfoBannerProps {
   className?: string;
   /** default light purple */
   color?: "yellow" | "grey";
+  /** default 4px  */
+  borderRadius?: "large" | "xlarge";
   pageLevel?: boolean;
   /** cta and link are mutually exclusive */
   cta?: JSX.Element;
@@ -23,6 +25,7 @@ const InfoBanner = ({
   children,
   className,
   color,
+  borderRadius,
   pageLevel,
   cta,
   closable,
@@ -32,6 +35,7 @@ const InfoBanner = ({
     baseClass,
     {
       [`${baseClass}__${color}`]: !!color,
+      [`${baseClass}__border-${borderRadius}`]: !!borderRadius,
       [`${baseClass}__page-banner`]: !!pageLevel,
     },
     className
