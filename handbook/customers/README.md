@@ -7,20 +7,17 @@ The Sales department is directly responsible for attaining the revenue goals of 
 
 
 ## Team
-| Role                                | Contributor(s)           |
-|:------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief Revenue Officer               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| VP of Customer Success              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Director of Solutions Consulting    | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
-| Solutions Consultant                | [Will Mayhone](https://www.linkedin.com/in/william-mayhone-671977b6/) _([@willmayhone88](https://github.com/willmayhone88))_
-| Head of Public Sector               | [Keith Barnes](https://www.linkedin.com/in/keith-barnes-8b666/) _([@KAB703](https://github.com/KAB703))_
-| Business Expansion Lead             | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_
-| Sales Development Rep               | [Tom "Ringo" Ringhofer](https://www.linkedin.com/in/tom-ringhofer/) _([@ringoshere](https://github.com/ringoshere))_
-| Account Executives                  | [Carlos Sanz](https://www.linkedin.com/in/carlos-sanz-53b28b/) _([@CarlosFleetDM](https://github.com/CarlosFleetDM))_,[Jin Yi](https://www.linkedin.com/in/jin-yi-743986196/) _([@jinny321](https://github.com/jinny321))_, [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_,[Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@AnthonySnyder8](https://github.com/AnthonySnyder8))_
-| Sr. Customer Success Manager        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_
-| Senior Support Engineer             | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_
-| Software Engineer                   | Ben Edwards _([@edwardsb](https://github.com/edwardsb))_
-| Customer Support Engineer           | [Grant Bilstad](https://www.linkedin.com/in/grantbilstad/) _([@Pacamaster](https://github.com/Pacamaster))_
+| Role                                  | Contributor(s)           |
+|:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
+| Chief Revenue Officer (CRO)           | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| VP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
+| Customer Success Manager (CSM)        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_, [Grant Bilstad](https://www.linkedin.com/in/grantbilstad/) _([@Pacamaster](https://github.com/Pacamaster))_, Ben Edwards _([@edwardsb](https://github.com/edwardsb))_
+| Director of Solutions Consulting      | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
+| Solutions Consultant (SC)             | [Will Mayhone](https://www.linkedin.com/in/william-mayhone-671977b6/) _([@willmayhone88](https://github.com/willmayhone88))_
+| Head of Public Sector                 | [Keith Barnes](https://www.linkedin.com/in/keith-barnes-8b666/) _([@KAB703](https://github.com/KAB703))_
+| Account Executive (AE)                | [Carlos Sanz](https://www.linkedin.com/in/carlos-sanz-53b28b/) _([@CarlosFleetDM](https://github.com/CarlosFleetDM))_, [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_, [Jin Yi](https://www.linkedin.com/in/jin-yi-743986196/) _([@jinny321](https://github.com/jinny321))_, [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_,[Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@AnthonySnyder8](https://github.com/AnthonySnyder8))_
+| Sales Development Rep (SDR)           | [Ringo Ringhofer](https://www.linkedin.com/in/tom-ringhofer/) _([@ringoshere](https://github.com/ringoshere))_, [Brad Macdowall](https://www.linkedin.com/in/bradmacdowall/) _([@bradmacd](https://github.com/bradmacd))_
 
 ## Contact us
 - To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
@@ -498,6 +495,9 @@ No further action is needed if the crawler successfully reindexes the Fleet webs
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
+
+### Extend sandbox trial
+If a Fleet user would like an extension on the 5 day sandbox trial, this can be accomplished by creating a new confidential issue with labels `g-infra` and `:release`. It is important to include the projected expiration date of the sandbox trial, as sandbox instances cannot be extended after they expire. Please note the user email address that is requesting the sandbox extension in the confidential issue.
 
 
 ## Rituals

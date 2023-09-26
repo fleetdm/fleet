@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
@@ -182,12 +183,7 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_NATIVE_TOOLING"},
 				Destination: &opt.NativeTooling,
 			},
-			&cli.StringFlag{
-				Name:        "local-wix-dir",
-				Usage:       "Use local install of WiX instead of Docker Hub (only available on Windows w/ WiX v3)",
-				EnvVars:     []string{"FLEETCTL_LOCAL_WIX_DIR"},
-				Destination: &opt.LocalWixDir,
-			},
+			eefleetctl.LocalWixDirFlag(&opt.LocalWixDir),
 			&cli.StringFlag{
 				Name:        "macos-devid-pem-content",
 				Usage:       "Dev ID certificate keypair content in PEM format",
