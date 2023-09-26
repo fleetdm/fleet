@@ -52,7 +52,7 @@ var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Pa
 ## Migrate to Fleet
 
 Select **Start** and look for this notification in your notification center:` +
-	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-notification-344x68.png)\n\n" +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
 	"After you start, this window will popup every 15 minutes until you finish.",
 ))
 
@@ -239,6 +239,7 @@ func (m *swiftDialogMDMMigrator) renderLoadingSpinner() (chan swiftDialogExitCod
 		"--button1text", "Start",
 		"--button1disabled",
 		"--quitkey", "x",
+		"--height", "220",
 	)
 }
 
@@ -254,7 +255,7 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 		return codeChan, errChan
 	}
 
-	return m.render(errorMessage.String(), "--button1text", "Close")
+	return m.render(errorMessage.String(), "--button1text", "Close", "--height", "220")
 }
 
 // waitForUnenrollment waits 90 seconds (value determined by product) for the
@@ -303,7 +304,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		"--button1text", "Start",
 		// secondary button
 		"--button2text", "Later",
-		"--height", "500",
+		"--height", "440",
 	}
 
 	if m.props.OrgInfo.ContactURL != "" {
