@@ -14,3 +14,10 @@
   description: "TODO"
   moreInfoUrl: "https://fleetdm.com/handbook/community#do-some-responsibility"
   dri: "sampfluger88"
+-
+  task: "Optimize ads"
+  startedOn: "2023-09-25"
+  frequency: "Biweekly"
+  description: "Apply an ad variation to each ad every two weeks."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#optimize-ads-through-experimentation"
+  dri: "DrewBakerfdm"
