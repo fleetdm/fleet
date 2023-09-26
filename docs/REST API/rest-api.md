@@ -6351,7 +6351,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script asynchronously](#run-script-asynchronously)
 - [Run script synchronously](#run-script-synchronously)
-
+- [Get script result](#get-script-result)
+- [Upload a script](#upload-a-script)
 
 ### Run script asynchronously
 
@@ -6454,6 +6455,58 @@ Gets the result of a script that was executed.
 ```
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
+
+### Upload a script
+
+_Available in Fleet Premium_
+
+Uploads a script, making it available to run on hosts of the specified team (or no team).
+
+`POST /api/v1/fleet/scripts`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| script          | file    | form | **Required**. The file containing the script.    |
+| team_Id         | integer | form | The team id for the script. If specified, the script is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied only to hosts not assigned to any team. |
+
+#### Example
+
+`POST /api/v1/fleet/scripts`
+
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+
+echo "hello"
+--------------------------f02md47480und42y--
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "script_id": 1227
+}
+```
 
 ---
 
