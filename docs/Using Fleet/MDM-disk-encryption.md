@@ -64,6 +64,8 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 
 4. Run the `fleetctl apply -f workstations-canary-config.yml` command.
 
+> Fleet auto-configures `DeferForceAtUserLoginMaxBypassAttempts` to `1`, ensuring mandatory disk encryption during new Mac setup.
+
 ### Step 2: share migration instructions with your end users
 
 In order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must take action. If the host already had disk encryption turned on, the user will need to input their password. If the host did not already have disk encryption turned on, the user will need to log out or restart their computer.
