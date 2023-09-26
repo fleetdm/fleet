@@ -132,7 +132,12 @@ spec:
 
 2. Fill in the above keys under the `mdm.macos_migration` key. 
 
-To learn about each option, in the Fleet UI, select the avatar on the right side of the top navigation, select **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
+In configuring the end-user migration workflow, administrators have the option to set one of two migration modes:
+
+- `"voluntary"`: In this mode, end users will encounter a prompt within the Fleet Desktop menu where they can opt to initiate the migration by selecting "Migrate to Fleet." If a user is unenrolled from the previous MDM, they will receive this prompt at intervals of approximately 15-20 minutes.
+- `"forced"`: With this setting, end users will receive a prompt to begin the migration process at regular intervals of 15-20 minutes, ensuring persistent reminders to complete the migration.
+
+To find this option in the Fleet UI, select the avatar on the right side of the top navigation, select **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
 
 3. During the end user migration workflow, the window will show the Fleet logo on top of a dark and light background (appearance configured by end user).
 
