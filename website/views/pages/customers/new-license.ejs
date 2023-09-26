@@ -28,7 +28,7 @@
             <strong>Order total</strong>
           </div>
           <div class="d-flex flex-row justify-content-between">
-            <p class="mb-0">Fleet Premium <br purpose="order-form-line-break">(self-hosted)</p>
+            <p class="mb-0">Fleet Premium <br purpose="order-form-line-break"><span purpose="over-1000-linebreak"><br :class="[numberOfHostsQuoted >= 1000 ? 'd-block' : 'd-none']"></span>(self-hosted<span v-if="numberOfHostsQuoted >= 1000" > or managed cloud</span>)</p>
           <div class="ml-auto text-right">
             <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 7.00 * 12)) ? quotedPrice : formData.numberOfHosts * 7.00 * 12}}.00 <br purpose="order-form-line-break">/year</strong>
           </div>
