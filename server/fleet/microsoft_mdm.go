@@ -5,8 +5,10 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -260,12 +262,13 @@ func (req *SoapRequest) GetRequestSecurityTokenMessage() (*RequestSecurityToken,
 	return req.Body.RequestSecurityToken, nil
 }
 
-// MS-MDE2 Message request types
+// MS-MDE2 and MS-MDM Message types
 const (
 	MDEDiscovery = iota
 	MDEPolicy
 	MDEEnrollment
 	MDEFault
+	MSMDM
 )
 
 ///////////////////////////////////////////////////////////////
@@ -820,77 +823,373 @@ func (e MDMWindowsEnrolledDevice) AuthzType() string {
 }
 
 ///////////////////////////////////////////////////////////////
-/// Microsoft MS-MDM message
+// Microsoft MS-MDM message
+// MS-MDM is a client-to-server protocol that consists of a SOAP-based Web service.
+// MDM is based on the OMA-DM protocol. Messages are issued by a requester and results and status are returned by a responder as a SynCML message.
+// A SyncML message is a well-formed XML document that adheres to the document type definition (DTD), but which does not require validation.
+// The XML document is identified by a SyncML document element type that serves as a parent container for the SyncML message.
+// The SyncML message consists of a header specified by the SyncHdr  element type and a body specified by the SyncBody element type.
+// The SyncML header identifies the routing and versioning information about the SyncML message.
+// The SyncML body functions as a container for one or more SyncML commands.
+// A SyncML command is specified by individual element types that provide specific details about the command, including any data or meta-information.
+// MS-MDM uses a subset of the SyncML message definition specified in OMA-SyncMLRP spec. MDM-specific SyncML xml message format is defined in OMA-DMRP.
 
-type SyncMLMessage struct {
-	XMLinfo string       `xml:"xmlns,attr"`
-	Header  SyncMLHeader `xml:"SyncHdr"`
-	Body    SyncMLBody   `xml:"SyncBody"`
+type SyncML struct {
+	XMLName  xml.Name `xml:"SyncML"`
+	Xmlns    string   `xml:"xmlns,attr"`
+	SyncHdr  SyncHdr  `xml:"SyncHdr"`
+	SyncBody SyncBody `xml:"SyncBody"`
 }
 
-// SyncML XML Parsing Types - This needs to be improved
-type SyncMLHeader struct {
-	DTD        string `xml:"VerDTD"`
-	Version    string `xml:"VerProto"`
-	SessionID  int    `xml:"SessionID"`
-	MsgID      int    `xml:"MsgID"`
-	Target     string `xml:"Target>LocURI"`
-	Source     string `xml:"Source>LocURI"`
-	MaxMsgSize int    `xml:"Meta>A:MaxMsgSize"`
+type SyncHdr struct {
+	VerDTD    string   `xml:"VerDTD"`
+	VerProto  string   `xml:"VerProto"`
+	SessionID string   `xml:"SessionID"`
+	MsgID     string   `xml:"MsgID"`
+	Target    *LocURI  `xml:"Target,omitempty"`
+	Source    *LocURI  `xml:"Source,omitempty"`
+	Meta      *MetaHdr `xml:"Meta,omitempty"`
 }
 
-type SyncMLCommandMeta struct {
-	XMLinfo string `xml:"xmlns,attr"`
-	Type    string `xml:"Type"`
+type MetaHdr struct {
+	MaxMsgSize *string `xml:"MaxMsgSize,omitempty"`
 }
 
-type SyncMLCommandItem struct {
-	Meta   SyncMLCommandMeta `xml:"Meta"`
-	Source string            `xml:"Source>LocURI"`
-	Data   string            `xml:"Data"`
+// ProtoCmds contains a slice of SyncML protocol commands
+type ProtoCmds *[]SyncMLCmd
+
+// See supported Commands in section 2.2.7.1
+type SyncBody struct {
+	Final *string `xml:"Final,omitempty"`
+
+	// Request Protocol Commands
+	Add     ProtoCmds `xml:"Add,omitempty"`
+	Alert   ProtoCmds `xml:"Alert,omitempty"`
+	Atomic  ProtoCmds `xml:"Atomic,omitempty"`
+	Delete  ProtoCmds `xml:"Delete,omitempty"`
+	Exec    ProtoCmds `xml:"Exec,omitempty"`
+	Get     ProtoCmds `xml:"Get,omitempty"`
+	Replace ProtoCmds `xml:"Replace,omitempty"`
+
+	// Response Protocol Commands
+	Results ProtoCmds `xml:"Results,omitempty"`
+	Status  ProtoCmds `xml:"Status,omitempty"`
+
+	// Raw container
+	Raw ProtoCmds `xml:",omitempty"`
 }
 
-type SyncMLCommand struct {
-	XMLName xml.Name
-	CmdID   int                 `xml:",omitempty"`
-	MsgRef  string              `xml:",omitempty"`
-	CmdRef  string              `xml:",omitempty"`
-	Cmd     string              `xml:",omitempty"`
-	Target  string              `xml:"Target>LocURI"`
-	Source  string              `xml:"Source>LocURI"`
-	Data    string              `xml:",omitempty"`
-	Item    []SyncMLCommandItem `xml:",any"`
+// ProtoCmdState is the state of the SyncML protocol commands
+type ProtoCmdState int
+
+const (
+	Received           ProtoCmdState = iota // Protocol Command was received
+	Pending                                 // Protocol Command is on the pending queue and has not been sent yet
+	Sent                                    // Protocol Command has been sent
+	ResponseProcessing                      // Protocol Command was acknowledged and is being processed
+	ResponseAck                             // Protocol Command was acknowledged and processed
+)
+
+// Supported protocol command verbs
+const (
+	CmdAdd     = "Add"     // Protocol Command verb Add
+	CmdAlert   = "Alert"   // Protocol Command verb Alert
+	CmdAtomic  = "Atomic"  // Protocol Command verb Atomic
+	CmdDelete  = "Delete"  // Protocol Command verb Delete
+	CmdExec    = "Exec"    // Protocol Command verb Exec
+	CmdGet     = "Get"     // Protocol Command verb Get
+	CmdReplace = "Replace" // Protocol Command verb Replace
+	CmdResults = "Results" // Protocol Command verb Results
+	CmdStatus  = "Status"  // Protocol Command verb Status
+)
+
+// ProtoCmdOperation is the abstraction to represent a SyncML Protocol Command
+type ProtoCmdOperation struct {
+	Verb string    `db:"verb"`
+	Cmd  SyncMLCmd `db:"cmd"`
 }
 
-type SyncMLBody struct {
-	Item []SyncMLCommand `xml:",any"`
+// Protocol Command
+type SyncMLCmd struct {
+	XMLName xml.Name   `xml:",omitempty"`
+	CmdID   string     `xml:"CmdID"`
+	MsgRef  *string    `xml:"MsgRef,omitempty"`
+	CmdRef  *string    `xml:"CmdRef,omitempty"`
+	Cmd     *string    `xml:"Cmd,omitempty"`
+	Data    *string    `xml:"Data,omitempty"`
+	Items   *[]CmdItem `xml:"Item,omitempty"`
 }
 
-// IsValidSyncMLMsg checks for required fields in the SyncML message
-func (req *SyncMLMessage) IsValidSyncMLMsg() error {
-	if req == nil {
-		return errors.New("invalid SyncML message: nil")
+type CmdItem struct {
+	Source *string `xml:"Source>LocURI,omitempty"`
+	Target *string `xml:"Target>LocURI,omitempty"`
+	Meta   *Meta   `xml:"Meta,omitempty"`
+	Data   *string `xml:"Data"`
+}
+
+type Meta struct {
+	Type   *MetaAttr `xml:"Type,omitempty"`
+	Format *MetaAttr `xml:"Format,omitempty"`
+}
+
+type MetaAttr struct {
+	XMLNS   string  `xml:"xmlns,attr"`
+	Content *string `xml:",chardata"`
+}
+
+type LocURI struct {
+	LocURI *string `xml:",omitempty"`
+}
+
+func (msg *SyncML) IsValidHeader() error {
+	if strings.TrimSpace(msg.Xmlns) == "" {
+		return errors.New("msg namespace")
 	}
 
-	if len(req.Header.Version) == 0 {
-		return errors.New("invalid SyncML message: Version")
+	// SyncML DTD version check
+	if msg.SyncHdr.VerDTD != mdm.SyncMLSupportedVersion {
+		return errors.New("unsupported DTD version")
 	}
 
-	if len(req.Header.Target) == 0 {
-		return errors.New("invalid SyncML message: Target")
+	// SyncML Proto version check
+	if msg.SyncHdr.VerProto != mdm.SyncMLVerProto {
+		return errors.New("unsupported proto version")
 	}
 
-	if req.Header.SessionID == 0 {
-		return errors.New("invalid SyncML message: SessionID")
+	// SyncML SessionID check
+	if utf8.RuneCountInString(msg.SyncHdr.SessionID) < 1 {
+		return errors.New("sessionID")
 	}
 
-	if req.Header.MsgID == 0 {
-		return errors.New("invalid SyncML message: SessionID")
+	// SyncML MsgID check
+	if utf8.RuneCountInString(msg.SyncHdr.MsgID) < 1 {
+		return errors.New("MsgID")
 	}
 
-	if len(req.Body.Item) == 0 {
-		return errors.New("invalid SyncML message: Item")
+	// Target LocURI check
+	if strings.TrimSpace(*msg.SyncHdr.Target.LocURI) == "" {
+		return errors.New("Target.LocURI")
+	}
+
+	// Device ID check
+	if strings.TrimSpace(*msg.SyncHdr.Source.LocURI) == "" {
+		return errors.New("Source.LocURI")
 	}
 
 	return nil
+}
+
+func (msg *SyncML) IsValidBody() error {
+	nonNilCount := 0
+
+	if msg.SyncBody.Add != nil {
+		nonNilCount++
+	}
+
+	if msg.SyncBody.Alert != nil {
+		nonNilCount++
+	}
+
+	if msg.SyncBody.Atomic != nil {
+		nonNilCount++
+	}
+
+	if msg.SyncBody.Delete != nil {
+		nonNilCount++
+	}
+
+	if msg.SyncBody.Exec != nil {
+		nonNilCount++
+	}
+
+	if msg.SyncBody.Get != nil {
+		nonNilCount++
+	}
+
+	if msg.SyncBody.Replace != nil {
+		nonNilCount++
+	}
+
+	if msg.SyncBody.Status != nil {
+		nonNilCount++
+	}
+
+	if msg.SyncBody.Results != nil {
+		nonNilCount++
+	}
+
+	if msg.SyncBody.Raw != nil {
+		nonNilCount++
+	}
+
+	if nonNilCount == 0 {
+		return errors.New("no SyncML protocol commands")
+	}
+
+	return nil
+}
+
+// IsValidMsg checks for required fields in the SyncML message
+func (msg *SyncML) IsValidMsg() error {
+	if err := msg.IsValidHeader(); err != nil {
+		return fmt.Errorf("invalid SyncML header: %s", err)
+	}
+
+	if err := msg.IsValidBody(); err != nil {
+		return fmt.Errorf("invalid SyncML body: %s", err)
+	}
+
+	return nil
+}
+
+func (msg *SyncML) IsFinal() bool {
+	if (msg.SyncBody.Final != nil) && strings.TrimSpace(*msg.SyncBody.Final) != "" {
+		return true
+	}
+
+	return false
+}
+
+func (msg *SyncML) GetMessageID() (string, error) {
+	if strings.TrimSpace(msg.SyncHdr.MsgID) != "" {
+		return msg.SyncHdr.MsgID, nil
+	}
+
+	return "", errors.New("message id is empty")
+}
+
+func (msg *SyncML) GetSessionID() (string, error) {
+	if strings.TrimSpace(msg.SyncHdr.SessionID) != "" {
+		return msg.SyncHdr.SessionID, nil
+	}
+
+	return "", errors.New("session id is empty")
+}
+
+func (msg *SyncML) GetSource() (string, error) {
+	if (msg.SyncHdr.Source != nil) &&
+		(msg.SyncHdr.Source.LocURI != nil) &&
+		strings.TrimSpace(*msg.SyncHdr.Source.LocURI) != "" {
+
+		return *msg.SyncHdr.Source.LocURI, nil
+	}
+
+	return "", errors.New("message source is empty")
+}
+
+func (msg *SyncML) GetTarget() (string, error) {
+	if (msg.SyncHdr.Target != nil) &&
+		(msg.SyncHdr.Target.LocURI != nil) &&
+		strings.TrimSpace(*msg.SyncHdr.Target.LocURI) != "" {
+
+		return *msg.SyncHdr.Target.LocURI, nil
+	}
+
+	return "", errors.New("message target is empty")
+}
+
+// AppendAddCommand appends a SyncML command to the Raw command list
+func (msg *SyncML) AppendCommand(cmd *SyncMLCmd) {
+	if msg.SyncBody.Raw == nil {
+		msg.SyncBody.Raw = &[]SyncMLCmd{}
+	}
+
+	if cmd != nil {
+		*msg.SyncBody.Raw = append(*msg.SyncBody.Raw, *cmd)
+	}
+}
+
+// AppendAddCommand appends a SyncML command to the Add command list
+func (msg *SyncML) AppendAddCommand(cmd SyncMLCmd) {
+	if msg.SyncBody.Add == nil {
+		msg.SyncBody.Add = &[]SyncMLCmd{}
+	}
+
+	*msg.SyncBody.Add = append(*msg.SyncBody.Add, cmd)
+}
+
+// AppendAlertCommand appends a SyncML command to the Alert command list
+func (msg *SyncML) AppendAlertCommand(cmd SyncMLCmd) {
+	if msg.SyncBody.Alert == nil {
+		msg.SyncBody.Alert = &[]SyncMLCmd{}
+	}
+
+	*msg.SyncBody.Alert = append(*msg.SyncBody.Alert, cmd)
+}
+
+// AppendAtomicCommand appends a SyncML command to the Atomic command list
+func (msg *SyncML) AppendAtomicCommand(cmd SyncMLCmd) {
+	if msg.SyncBody.Atomic == nil {
+		msg.SyncBody.Atomic = &[]SyncMLCmd{}
+	}
+
+	*msg.SyncBody.Atomic = append(*msg.SyncBody.Atomic, cmd)
+}
+
+// AppendDeleteCommand appends a SyncML command to the Delete command list
+func (msg *SyncML) AppendDeleteCommand(cmd SyncMLCmd) {
+	if msg.SyncBody.Delete == nil {
+		msg.SyncBody.Delete = &[]SyncMLCmd{}
+	}
+
+	*msg.SyncBody.Delete = append(*msg.SyncBody.Delete, cmd)
+}
+
+// AppendExecCommand appends a SyncML command to the Exec command list
+func (msg *SyncML) AppendExecCommand(cmd SyncMLCmd) {
+	if msg.SyncBody.Exec == nil {
+		msg.SyncBody.Exec = &[]SyncMLCmd{}
+	}
+
+	*msg.SyncBody.Exec = append(*msg.SyncBody.Exec, cmd)
+}
+
+// AppendGetCommand appends a SyncML command to the Get command list
+func (msg *SyncML) AppendGetCommand(cmd SyncMLCmd) {
+	if msg.SyncBody.Get == nil {
+		msg.SyncBody.Get = &[]SyncMLCmd{}
+	}
+
+	*msg.SyncBody.Get = append(*msg.SyncBody.Get, cmd)
+}
+
+// AppendReplaceCommand appends a SyncML command to the Replace command list
+func (msg *SyncML) AppendReplaceCommand(cmd SyncMLCmd) {
+	if msg.SyncBody.Replace == nil {
+		msg.SyncBody.Replace = &[]SyncMLCmd{}
+	}
+
+	*msg.SyncBody.Replace = append(*msg.SyncBody.Replace, cmd)
+}
+
+// AppendResultsCommand appends a SyncML command to the Results command list
+func (msg *SyncML) AppendResultsCommand(cmd SyncMLCmd) {
+	if msg.SyncBody.Results == nil {
+		msg.SyncBody.Results = &[]SyncMLCmd{}
+	}
+
+	*msg.SyncBody.Results = append(*msg.SyncBody.Results, cmd)
+}
+
+// AppendStatusCommand appends a SyncML command to the Status command list
+func (msg *SyncML) AppendStatusCommand(cmd SyncMLCmd) {
+	if msg.SyncBody.Status == nil {
+		msg.SyncBody.Status = &[]SyncMLCmd{}
+	}
+
+	*msg.SyncBody.Status = append(*msg.SyncBody.Status, cmd)
+}
+
+// SetID sets the MsgID field in the SyncML header
+func (msg *SyncML) SetID(cmdID int) {
+	msg.SyncHdr.MsgID = strconv.Itoa(cmdID)
+}
+
+// IsValid checks for required fields in the SyncML command
+func (cmd *SyncMLCmd) IsValid() bool {
+	if ((cmd.Items == nil) || (len(*cmd.Items) == 0)) && cmd.Data == nil {
+		return false
+	}
+
+	return true
 }

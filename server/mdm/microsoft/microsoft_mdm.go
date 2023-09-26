@@ -256,6 +256,27 @@ const (
 	HostInitMessageID    = "1201"
 )
 
+// MS-MDM Message constants
+const (
+	// SyncML Message Content Type
+	SyncMLMsgContentType = "application/vnd.syncml.dm+xml"
+
+	// SyncML Message Meta Namespace
+	SyncMLMetaNamespace = "syncml:metinf"
+
+	// SyncML Cmd Namespace
+	SyncCmdNamespace = "SYNCML:SYNCML1.2"
+
+	// SyncML Message Header Name
+	SyncMLHdrName = "SyncHdr"
+
+	// Supported SyncML version
+	SyncMLSupportedVersion = "1.2"
+
+	// SyncML ver protocol version
+	SyncMLVerProto = "DM/" + SyncMLSupportedVersion
+)
+
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2DiscoveryPath, false)
 }
