@@ -53,7 +53,7 @@ To do this:
 6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
 
 ### Send one-off swag
-There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. We use [Postal](https://www.postal.com/) to fulfill these swag requests. Postal warehouses Fleet swag that is available to send directly. There are two main ways to send swag through Printful. Direct sends and Magic Links.
+There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. We use [Postal](https://www.postal.com/) to fulfill these swag requests. Postal warehouses Fleet swag that is available to send directly. There are two main ways to send swag through Postal: Direct sends and "Magic links".
 
 **Magic Link**
 This is a great option to send when we only know the item we'd like to send and want the recipient to fill out their own contact information and shipping details. These links can be used by anyone who has access to the link, so only send to the desired recipient.
