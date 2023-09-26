@@ -1,2 +1,0 @@
-* Fixed wrong version numbers for Microsoft Teams in macOS (from invalid format of the form `1.00.XYYYYY` to correct format `1.X.00.YYYYY`).
-* Fixed false positive CVE-2020-10146 found on Microsoft Teams.

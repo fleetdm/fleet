@@ -609,7 +609,15 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	return svc.ds.DeleteHost(ctx, id)
+	if err := svc.ds.DeleteHost(ctx, id); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host")
+	}
+
+	if host.Platform == "darwin" {
+		return svc.maybeRestorePendingDEPHost(ctx, host)
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1410,7 +1418,6 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return hostsReportResponse{Err: err}, nil
 	}
 
-	req.Opts.DisableFailingPolicies = false
 	req.Opts.AdditionalFilters = nil
 	req.Opts.Page = 0
 	req.Opts.PerPage = 0 // explicitly disable any limit, we want all matching hosts

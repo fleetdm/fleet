@@ -29,7 +29,7 @@ sudo cp fleet/linux/fleet* /usr/bin/
 
 Pull the latest Fleet docker image:
 
-```
+```sh
 docker pull fleetdm/fleet
 ```
 
@@ -45,7 +45,7 @@ First, take the existing servers offline.
 
 Run database migrations:
 
-```
+```sh
 fleet prepare db
 ```
 
@@ -53,7 +53,7 @@ fleet prepare db
 
 Once Fleet has been replaced with the newest version and the database migrations have completed, serve the newly upgraded Fleet instance:
 
-```
+```sh
 fleet serve
 ```
 

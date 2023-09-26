@@ -113,6 +113,9 @@ type Options struct {
 	UseSystemConfiguration bool
 	// EnableScripts enables script execution on the agent.
 	EnableScripts bool
+	// LocalWixDir uses a Windows machine's local WiX installation instead of a containerized
+	// emulation to build an MSI fleetd installer
+	LocalWixDir string
 }
 
 func initializeTempDir() (string, error) {

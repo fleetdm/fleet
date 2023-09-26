@@ -88,10 +88,12 @@ export default class TablePrivacyPreferences extends Table {
     const columns = await Promise.all(results);
     errors.length > 0 &&
       console.log("Caught errors in chrome API calls: ", errors);
-    return [
-      columns.reduce((resultRow, column) => {
-        return { ...resultRow, ...column };
-      }, {}),
-    ];
+    return {
+      data: [
+        columns.reduce((resultRow, column) => {
+          return { ...resultRow, ...column };
+        }, {}),
+      ],
+    };
   }
 }

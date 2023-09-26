@@ -1,2 +1,0 @@
- - Updated MDM profile verification so that an install profile command will be retried once if the command
- resulted in an error or if osquery cannot confirm that the expected profile is installed. 

@@ -1,19 +1,21 @@
 import VirtualDatabase from "../db";
 
-const DISK_INFO_MOCK = [
-  {
-    capacity: 1234,
-    id: 123,
-    name: "Cell phone (internal storage",
-    type: "Removable",
-  },
-  {
-    capacity: 0,
-    id: 12,
-    name: "Thumbdrive",
-    type: "Removable",
-  },
-];
+const DISK_INFO_MOCK = {
+  data: [
+    {
+      capacity: 1234,
+      id: 123,
+      name: "Cell phone (internal storage",
+      type: "Removable",
+    },
+    {
+      capacity: 0,
+      id: 12,
+      name: "Thumbdrive",
+      type: "Removable",
+    },
+  ],
+};
 
 describe("disk_info", () => {
   test("success", async () => {
