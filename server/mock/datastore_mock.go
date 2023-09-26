@@ -682,6 +682,12 @@ type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (
 
 type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error)
 
+type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
+
+type ScriptFunc func(ctx context.Context, id uint) (*fleet.Script, error)
+
+type DeleteScriptFunc func(ctx context.Context, id uint) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1678,6 +1684,15 @@ type DataStore struct {
 
 	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
 	ListPendingHostScriptExecutionsFuncInvoked bool
+
+	NewScriptFunc        NewScriptFunc
+	NewScriptFuncInvoked bool
+
+	ScriptFunc        ScriptFunc
+	ScriptFuncInvoked bool
+
+	DeleteScriptFunc        DeleteScriptFunc
+	DeleteScriptFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4004,4 +4019,25 @@ func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID 
 	s.ListPendingHostScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, ignoreOlder)
+}
+
+func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.NewScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewScriptFunc(ctx, script)
+}
+
+func (s *DataStore) Script(ctx context.Context, id uint) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.ScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScriptFunc(ctx, id)
+}
+
+func (s *DataStore) DeleteScript(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteScriptFunc(ctx, id)
 }

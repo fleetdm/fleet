@@ -850,3 +850,37 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
+
+##
+# Scripts (saved script)
+##
+
+# Global admins and maintainers can write (upload) saved scripts.
+allow {
+  object.type == "script"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Global admins, maintainers, observer_plus and observers can read scripts.
+allow {
+  object.type == "script"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admin and maintainers can write (upload) saved scripts for their teams.
+allow {
+  object.type == "script"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
+# Team admins, maintainers, observer_plus and observers can read scripts for their teams.
+allow {
+  object.type == "script"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
+  action == read
+}
