@@ -2,7 +2,7 @@
 
 ![Fleet 4.38.0](../website/assets/images/articles/fleet-4.38.0-1600x900@2x.png)
 
-Fleet 4.38.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.33.0) or continue reading to get the highlights.
+Fleet 4.38.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.38.0) or continue reading to get the highlights.
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 
