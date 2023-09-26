@@ -64,9 +64,8 @@
     text-align: right;
   }
 
-  #link-arrow {
-    height: 10px;
-    width: 18px;
+  .icon {
     margin-left: $pad-small;
+    vertical-align: sub;
   }
 }

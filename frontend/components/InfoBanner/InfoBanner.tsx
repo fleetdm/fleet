@@ -48,7 +48,7 @@ const InfoBanner = ({
           {closable && (
             <Button variant="unstyled" onClick={() => setHideBanner(true)}>
               <Icon
-                name="ex"
+                name="close"
                 color="core-fleet-black"
                 size="small"
                 className={`${baseClass}__close`}

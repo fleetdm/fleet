@@ -7,7 +7,7 @@ interface IExProps {
   size?: IconSizes;
 }
 
-const Ex = ({ size = "small", color = "core-fleet-blue" }: IExProps) => {
+const Close = ({ size = "small", color = "core-fleet-blue" }: IExProps) => {
   return (
     <svg
       width={ICON_SIZES[size]}
@@ -17,7 +17,7 @@ const Ex = ({ size = "small", color = "core-fleet-blue" }: IExProps) => {
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        d="m3 3 10 10M3 13 13 3"
+        d="M3 3L13 13M3 13L13 3"
         stroke={COLORS[color]}
         strokeWidth="2"
         strokeLinecap="round"
@@ -26,4 +26,4 @@ const Ex = ({ size = "small", color = "core-fleet-blue" }: IExProps) => {
   );
 };
 
-export default Ex;
+export default Close;

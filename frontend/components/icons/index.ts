@@ -1,4 +1,3 @@
-import Alert from "./Alert";
 import Arrow from "./Arrow";
 import ArrowInternalLink from "./ArrowInternalLink";
 import CalendarCheck from "./CalendarCheck";
@@ -8,8 +7,8 @@ import Columns from "./Columns";
 import CriticalPolicy from "./CriticalPolicy";
 import Disable from "./Disable";
 import DownCaret from "./DownCaret";
-import Ex from "./Ex";
-import ExCircled from "./ExCircled";
+import Close from "./Close";
+import CloseFilled from "./CloseFilled";
 import EmptyHosts from "./EmptyHosts";
 import EmptyIntegrations from "./EmptyIntegrations";
 import EmptyMembers from "./EmptyMembers";
@@ -78,7 +77,6 @@ import FilePdf from "./FilePdf";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
-  alert: Alert,
   arrow: Arrow,
   "arrow-internal-link": ArrowInternalLink,
   "calendar-check": CalendarCheck,
@@ -88,8 +86,8 @@ export const ICON_MAP = {
   "critical-policy": CriticalPolicy,
   disable: Disable,
   "down-caret": DownCaret,
-  ex: Ex,
-  "ex-circled": ExCircled,
+  close: Close,
+  "close-filled": CloseFilled,
   "empty-hosts": EmptyHosts,
   "empty-integrations": EmptyIntegrations,
   "empty-members": EmptyMembers,
@@ -129,11 +127,14 @@ export const ICON_MAP = {
   darwin: Apple,
   macOS: Apple,
   windows: Windows,
+  Windows,
   linux: Linux,
+  Linux,
   m1: M1,
   centos: Centos,
   ubuntu: Ubuntu,
   chrome: Chrome,
+  ChromeOS: Chrome,
   "premium-feature": PremiumFeature,
   "apple-circled": AppleCircled,
   "windows-circled": WindowsCircled,
