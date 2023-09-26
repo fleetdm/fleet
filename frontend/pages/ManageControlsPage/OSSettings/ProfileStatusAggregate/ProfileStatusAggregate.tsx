@@ -63,9 +63,17 @@ const ProfileStatusAggregate = ({
   teamId,
   aggregateProfileStatusData,
 }: ProfileStatusAggregateProps) => {
-  const indicators = AGGREGATE_STATUS_DISPLAY_OPTIONS.map((status) => {
-    if (!aggregateProfileStatusData) return null;
+  if (!aggregateProfileStatusData) return null;
 
+  if (isLoading) {
+    return (
+      <div className={baseClass}>
+        <Spinner className={`${baseClass}__loading-spinner`} centered={false} />
+      </div>
+    );
+  }
+
+  const indicators = AGGREGATE_STATUS_DISPLAY_OPTIONS.map((status) => {
     const { value, text, iconName, tooltipText } = status;
     const count = aggregateProfileStatusData[value];
 
@@ -80,14 +88,6 @@ const ProfileStatusAggregate = ({
       />
     );
   });
-
-  if (isLoading) {
-    return (
-      <div className={baseClass}>
-        <Spinner className={`${baseClass}__loading-spinner`} centered={false} />
-      </div>
-    );
-  }
 
   return <div className={baseClass}>{indicators}</div>;
 };

@@ -5,8 +5,7 @@ import {
   IDiskEncryptionStatusAggregate,
   IDiskEncryptionSummaryResponse,
 } from "services/entities/mdm";
-
-import { DISK_ENCRYPTION_QUERY_PARAM_NAME } from "pages/hosts/ManageHostsPage/HostsPageConfig";
+import { DISK_ENCRYPTION_QUERY_PARAM_NAME } from "services/entities/hosts";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -206,14 +205,14 @@ const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
 type StatusEntry = [DiskEncryptionStatus, IDiskEncryptionStatusAggregate];
 
 // Order of the status column. We want the order to always be the same.
-const statusOrder: DiskEncryptionStatus[] = [
+const STATUS_ORDER = [
   "verified",
   "verifying",
   "failed",
   "action_required",
   "enforcing",
   "removing_enforcement",
-];
+] as const;
 
 export const generateTableData = (
   // TODO: WINDOWS FEATURE FLAG: remove includeWindows when windows feature flag is removed.
@@ -224,19 +223,16 @@ export const generateTableData = (
 ) => {
   if (!data) return [];
 
-  // type cast here gives a little more typing information than Object.entries alone.
-  const entries = Object.entries(data) as StatusEntry[];
-
-  // ensure the order of the status column is always the same.
-  entries.sort(([statusA], [statusB]) => {
-    return statusOrder.indexOf(statusA) - statusOrder.indexOf(statusB);
-  });
-
-  return entries.map(([status, statusAggregate]) => ({
+  const rowFromStatusEntry = (
+    status: DiskEncryptionStatus,
+    statusAggregate: IDiskEncryptionStatusAggregate
+  ) => ({
     includeWindows,
     status: STATUS_CELL_VALUES[status],
     macosHosts: statusAggregate.macos,
     windowsHosts: statusAggregate.windows,
     teamId: currentTeamId,
-  }));
+  });
+
+  return STATUS_ORDER.map((status) => rowFromStatusEntry(status, data[status]));
 };

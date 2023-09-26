@@ -129,27 +129,16 @@ const mdmService = {
     }
 
     // otherwise we have to make two calls and combine the results.
-    const [
-      profileStatuses,
-      diskEncryptionSummary,
-    ] = await mdmService.getAggregateProfileStatusesWithWindows(teamId);
-
-    return new Promise<ProfileStatusSummaryResponse>((resolve) => {
-      resolve(
-        generateCombinedProfileStatusSummary(
-          profileStatuses,
-          diskEncryptionSummary
-        )
-      );
-    });
+    return mdmService
+      .getAggregateProfileStatusesWithWindows(teamId)
+      .then((res) => generateCombinedProfileStatusSummary(...res));
   },
 
   getAggregateProfileStatusesWithWindows: async (teamId: number) => {
-    const [profileStatuses, diskEncryptionSummary] = await Promise.all([
+    return Promise.all([
       mdmService.getProfileStatusSummary(teamId),
       mdmService.getDiskEncryptionSummary(teamId),
     ]);
-    return [profileStatuses, diskEncryptionSummary];
   },
 
   getProfileStatusSummary: (teamId = APP_CONTEXT_NO_TEAM_ID) => {

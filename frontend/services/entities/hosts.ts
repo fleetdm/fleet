@@ -29,6 +29,11 @@ export interface ILoadHostsResponse {
   mobile_device_management_solution: IMdmSolution;
 }
 
+// the source of truth for the filter option names.
+// there are used on many other pages but we define them here.
+// TODO: add other filter options here.
+export const DISK_ENCRYPTION_QUERY_PARAM_NAME = "os_settings_disk_encryption";
+
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
   scope: "hosts";
 }

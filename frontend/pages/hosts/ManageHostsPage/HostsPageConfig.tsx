@@ -1,12 +1,7 @@
 import React from "react";
 
 import Icon from "components/Icon";
-
-// the source of truth for the filter option names.
-// there are used on many other pages but we define them here.
-// TODO: add other filter options here. Also look to define this in
-// the host entities file later.
-export const DISK_ENCRYPTION_QUERY_PARAM_NAME = "os_settings_disk_encryption";
+import { DISK_ENCRYPTION_QUERY_PARAM_NAME } from "services/entities/hosts";
 
 export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "query",

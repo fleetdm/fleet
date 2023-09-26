@@ -6,7 +6,7 @@ import Button from "components/buttons/Button";
 
 const baseClass = "profile-status-indicator";
 
-export interface ProfileStatusIndicator {
+export interface IProfileStatusIndicatorProps {
   indicatorText: string;
   iconName: IconNames;
   onClick?: () => void;
@@ -21,7 +21,7 @@ const ProfileStatusIndicator = ({
   iconName,
   onClick,
   tooltip,
-}: ProfileStatusIndicator): JSX.Element => {
+}: IProfileStatusIndicatorProps) => {
   const getIndicatorTextWrapped = () => {
     if (onClick && tooltip?.tooltipText) {
       return (

@@ -1,8 +1,10 @@
 import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
 
-import { DISK_ENCRYPTION_QUERY_PARAM_NAME } from "pages/hosts/ManageHostsPage/HostsPageConfig";
 import { DiskEncryptionStatus, BootstrapPackageStatus } from "interfaces/mdm";
-import { MacSettingsStatusQueryParam } from "services/entities/hosts";
+import {
+  DISK_ENCRYPTION_QUERY_PARAM_NAME,
+  MacSettingsStatusQueryParam,
+} from "services/entities/hosts";
 
 type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;

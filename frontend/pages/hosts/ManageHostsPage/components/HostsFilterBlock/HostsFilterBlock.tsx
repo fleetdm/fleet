@@ -15,7 +15,10 @@ import {
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { ISoftware } from "interfaces/software";
 import { IPolicy } from "interfaces/policy";
-import { MacSettingsStatusQueryParam } from "services/entities/hosts";
+import {
+  DISK_ENCRYPTION_QUERY_PARAM_NAME,
+  MacSettingsStatusQueryParam,
+} from "services/entities/hosts";
 
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
@@ -29,10 +32,7 @@ import Icon from "components/Icon/Icon";
 
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
-import {
-  DISK_ENCRYPTION_QUERY_PARAM_NAME,
-  MAC_SETTINGS_FILTER_OPTIONS,
-} from "../../HostsPageConfig";
+import { MAC_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
 import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 

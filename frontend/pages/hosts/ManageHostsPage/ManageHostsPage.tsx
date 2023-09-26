@@ -18,6 +18,7 @@ import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import hostsAPI, {
+  DISK_ENCRYPTION_QUERY_PARAM_NAME,
   ILoadHostsQueryKey,
   ILoadHostsResponse,
   ISortOption,
@@ -85,7 +86,6 @@ import {
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
-  DISK_ENCRYPTION_QUERY_PARAM_NAME,
 } from "./HostsPageConfig";
 import { isAcceptableStatus } from "./helpers";
 
