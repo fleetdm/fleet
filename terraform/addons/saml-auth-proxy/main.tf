@@ -159,14 +159,10 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
             valueFrom = "${aws_secretsmanager_secret.saml_auth_proxy_cert.arn}:key::"
           },
         ]
-        environmnet = [
+        environment = [
           {
             name  = "SAML_PROXY_SP_CERT_PATH"
             value = "/tmp/saml-auth-proxy/cert.pem"
-          },
-          {
-            name  = "SAML_PROXY_SP_KEY_PATH"
-            value = "/tmp/saml-auth-proxy/key.pem"
           },
           {
             name  = "SAML_PROXY_SP_KEY_PATH"

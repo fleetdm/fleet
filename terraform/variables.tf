@@ -270,6 +270,7 @@ variable "fleet_config" {
       }), {
       arn = null
     })
+    extra_load_balancers = optional(list(any), [])
     networking = optional(object({
       subnets         = list(string)
       security_groups = optional(list(string), null)
@@ -347,6 +348,7 @@ variable "fleet_config" {
     loadbalancer = {
       arn = null
     }
+    extra_load_balancers = []
     networking = {
       subnets         = null
       security_groups = null

@@ -101,10 +101,15 @@ module "main" {
         policy_name = "${local.customer}-iam-policy-execution"
       }
     }
-    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies, module.saml_auth_proxy.fleet_extra_iam_policies)
-    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn])
+    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
+    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn], module.saml_auth_proxy.fleet_extra_execution_policies)
     extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, module.ses.fleet_extra_environment_variables, local.extra_environment_variables)
     extra_secrets                = merge(module.mdm.extra_secrets, local.sentry_secrets)
+    extra_load_balancers         = [{
+      target_group_arn = module.saml_auth_proxy.lb_target_group_arn
+      container_name   = "fleet"
+      container_port   = 8080
+    }]
   }
   alb_config = {
     name = local.customer
@@ -366,7 +371,7 @@ module "saml_auth_proxy" {
   ecs_execution_iam_role_arn   = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
   ecs_iam_role_arn             = module.main.byo-vpc.byo-db.byo-ecs.iam_role_arn
   security_groups              = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
-  base_url                     = "https://dogfood.fleetdm.com"
+  base_url                     = "https://dogfood.fleetdm.com/"
   subnets                      = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
   vpc_id                       = module.main.vpc.vpc_id
   logging_options              = null # Figure it out later
