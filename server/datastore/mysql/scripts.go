@@ -119,7 +119,7 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
 	return &result, nil
 }
 
-func (d *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
+func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
 	const insertStmt = `
 INSERT INTO
   scripts (
@@ -132,7 +132,7 @@ VALUES
 	if script.TeamID != nil {
 		globalOrTeamID = *script.TeamID
 	}
-	res, err := d.writer(ctx).ExecContext(ctx, insertStmt,
+	res, err := ds.writer(ctx).ExecContext(ctx, insertStmt,
 		script.TeamID, globalOrTeamID, script.Name, script.ScriptContents)
 	if err != nil {
 		if isDuplicate(err) {
@@ -145,14 +145,14 @@ VALUES
 		return nil, ctxerr.Wrap(ctx, err, "insert script")
 	}
 	id, _ := res.LastInsertId()
-	return d.getScriptDB(ctx, d.writer(ctx), uint(id))
+	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id))
 }
 
-func (d *Datastore) Script(ctx context.Context, id uint) (*fleet.Script, error) {
-	return d.getScriptDB(ctx, d.reader(ctx), id)
+func (ds *Datastore) Script(ctx context.Context, id uint) (*fleet.Script, error) {
+	return ds.getScriptDB(ctx, ds.reader(ctx), id)
 }
 
-func (d *Datastore) getScriptDB(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.Script, error) {
+func (ds *Datastore) getScriptDB(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.Script, error) {
 	const getStmt = `
 SELECT
   id,
@@ -175,8 +175,8 @@ WHERE
 	return &script, nil
 }
 
-func (d *Datastore) DeleteScript(ctx context.Context, id uint) error {
-	_, err := d.writer(ctx).ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
+func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete script")
 	}
