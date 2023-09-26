@@ -19,7 +19,7 @@ func TestScripts(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"HostScriptResult", testHostScriptResult},
-		{"NewScript", testNewScript},
+		{"Scripts", testScripts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -145,13 +145,11 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedOutput, script.Output)
 }
 
-func testNewScript(t *testing.T, ds *Datastore) {
+func testScripts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// TODO(mna): refactor to use exported version of GetScript when it's implemented.
-
 	// get unknown script
-	_, err := ds.getScriptDB(ctx, ds.writer(ctx), 123)
+	_, err := ds.Script(ctx, 123)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 
@@ -206,4 +204,23 @@ func testNewScript(t *testing.T, ds *Datastore) {
 	})
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
+
+	// create a script with a different name for the team works
+	_, err = ds.NewScript(ctx, &fleet.Script{
+		Name:           "b",
+		TeamID:         &tm.ID,
+		ScriptContents: "echo",
+	})
+	require.NoError(t, err)
+
+	// deleting script "a for the team, then we can re-create it
+	err = ds.DeleteScript(ctx, scriptTeam.ID)
+	require.NoError(t, err)
+	scriptTeam2, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "a",
+		TeamID:         &tm.ID,
+		ScriptContents: "echo",
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, scriptTeam.ID, scriptTeam2.ID)
 }

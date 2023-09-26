@@ -364,7 +364,7 @@ func TestGetScriptResult(t *testing.T) {
 	}
 }
 
-func TestNewScript(t *testing.T) {
+func TestSavedScripts(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
@@ -376,6 +376,21 @@ func TestNewScript(t *testing.T) {
 		newScript := *script
 		newScript.ID = 1
 		return &newScript, nil
+	}
+	const (
+		team1ScriptID  = 1
+		noTeamScriptID = 2
+	)
+	ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+		switch id {
+		case team1ScriptID:
+			return &fleet.Script{ID: id, TeamID: ptr.Uint(1)}, nil
+		default:
+			return &fleet.Script{ID: id}, nil
+		}
+	}
+	ds.DeleteScriptFunc = func(ctx context.Context, id uint) error {
+		return nil
 	}
 
 	testCases := []struct {
@@ -481,7 +496,11 @@ func TestNewScript(t *testing.T) {
 
 			_, err := svc.NewScript(ctx, nil, "test.sh", strings.NewReader("echo"))
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			err = svc.DeleteScript(ctx, noTeamScriptID)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 			_, err = svc.NewScript(ctx, ptr.Uint(1), "test.sh", strings.NewReader("echo"))
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			err = svc.DeleteScript(ctx, team1ScriptID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 		})
 	}
