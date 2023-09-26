@@ -180,6 +180,14 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
             name  = "SAML_PROXY_BASE_URL"
             value = var.base_url
           },
+          {
+            name  = "SAML_PROXY_COOKIE_MAX_AGE"
+            value = "15m"
+          },
+          {
+            name  = "SAML_PROXY_COOKIE_NAME"
+            value = "saml_auth_proxy_token"
+          },
         ]
         entryPoint = ["/bin/sh"],
         command    = ["-c", file("${path.module}/files/saml-auth-proxy.sh")]
