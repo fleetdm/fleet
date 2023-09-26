@@ -15,7 +15,11 @@ module.exports.routes = {
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
   'GET /': {
     action: 'view-homepage-or-redirect',
-    locals: { isHomepage: true }
+    locals: {
+      isHomepage: true,
+      pageTitleForMeta: 'Fleet | Open-source device management',
+      pageDescriptionForMeta: 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)'
+    }
   },
 
   'GET /company/contact': {
@@ -454,6 +458,9 @@ module.exports.routes = {
   'GET /deploy/deploying-fleet-on-aws-with-terraform': '/docs/deploy/deploy-on-aws-with-terraform',
   'GET /docs/deploy/server-installation': '/docs/deploy/introduction',
   'GET /handbook/company/ceo': '/handbook/ceo',
+  'GET /handbook/communications': '/handbook/company/communications',
+  'GET /handbook/leadership': '/handbook/company/leadership',
+  'GET /handbook/product-groups': '/handbook/company/product-groups',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗

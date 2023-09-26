@@ -4,7 +4,7 @@ If you are in an enterprise environment where Fleet is behind a proxy and you wo
 
 For example, to configure the proxy in a systemd service file:
 
-```
+```systemd
 [Service]
 Environment="HTTP_PROXY=http(s)://PROXY_URL:PORT/"
 Environment="HTTPS_PROXY=http(s)://PROXY_URL:PORT/"
