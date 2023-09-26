@@ -5540,7 +5540,12 @@ Returns the query report specified by ID.
       "host_id": 2,
       "model": "Display Audio",
       "vendor": "Apple Inc."
-    }
+    },
+    {
+      "host_id": 3,
+      "osquery_version": "5.5.1",
+      "error": "no such table: foo"
+    } 
   ]
 }
 
