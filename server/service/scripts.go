@@ -265,3 +265,40 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 
 	return fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// List (saved) scripts (paginated)
+////////////////////////////////////////////////////////////////////////////////
+
+type listScriptsRequest struct {
+	TeamID      *uint             `query:"team_id,optional"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+type listScriptsResponse struct {
+	Meta    *fleet.PaginationMetadata `json:"meta"`
+	Scripts []*fleet.Script           `json:"scripts"`
+	Err     error                     `json:"error,omitempty"`
+}
+
+func (r listScriptsResponse) error() error { return r.Err }
+
+func listScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*listScriptsRequest)
+	scripts, meta, err := svc.ListScripts(ctx, req.TeamID, req.ListOptions)
+	if err != nil {
+		return listScriptsResponse{Err: err}, nil
+	}
+	return listScriptsResponse{
+		Meta:    meta,
+		Scripts: scripts,
+	}, nil
+}
+
+func (svc *Service) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, nil, fleet.ErrMissingLicense
+}

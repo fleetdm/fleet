@@ -813,4 +813,7 @@ type Service interface {
 
 	// DeleteScript deletes an existing (saved) script.
 	DeleteScript(ctx context.Context, scriptID uint) error
+
+	// ListScripts returns a list of paginated saved scripts.
+	ListScripts(ctx context.Context, teamID *uint, opt ListOptions) ([]*Script, *PaginationMetadata, error)
 }

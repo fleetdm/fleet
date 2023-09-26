@@ -214,3 +214,7 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 	}
 	return ctxerr.Wrap(ctx, svc.ds.DeleteScript(ctx, scriptID), "delete script")
 }
+
+func (svc *Service) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
+	panic("unimplemented")
+}
