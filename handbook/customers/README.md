@@ -496,6 +496,9 @@ No further action is needed if the crawler successfully reindexes the Fleet webs
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
 
+### Extend sandbox trial
+If a Fleet user would like an extension on the 5 day sandbox trial, this can be accomplished by creating a new confidential issue with labels `g-infra` and `:release`. It is important to include the projected expiration date of the sandbox trial, as sandbox instances cannot be extended after they expire. Please note the user email address that is requesting the sandbox extension in the confidential issue.
+
 
 ## Rituals
 
