@@ -40,10 +40,31 @@ Here are some topics for social media posts:
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
-
-
+### Ads
+Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
 
 ## Responsibilities
+
+### Optimize ads through experimentation
+Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
+
+[**Google Ads**:](https://ads.google.com/home/) Ad experimentation on Google Ads for better click-through rate (CTR)
+- Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
+- Test one headline change for two weeks
+- Pause the ad with the lower CTR
+- Duplicate best-performing ad
+- Test one description change for two weeks
+- Pause the ad with the lower CTR
+- Repeat this process
+
+[**LinkedIn**:](https://www.linkedin.com/campaignmanager/) Ad experimentation on LinkedIn Campaign Manager for better click-through rate (CTR)
+- Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
+- Test one intro text change for two weeks
+- Pause the ad with the lower CTR
+- Duplicate best-performing ad
+- Test headline change for two weeks
+- Pause the ad with the lower CTR
+- Repeat this process
 
 ### Process pending swag requests from the website
 TODO
