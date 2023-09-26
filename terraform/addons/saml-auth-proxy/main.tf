@@ -188,6 +188,10 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
             name  = "SAML_PROXY_COOKIE_NAME"
             value = "saml_auth_proxy_token"
           },
+          {
+            name  = "SAML_PROXY_ALLOW_IDP_INITIATED"
+            value = "true"
+          },
         ]
         entryPoint = ["/bin/sh"],
         command    = ["-c", file("${path.module}/files/saml-auth-proxy.sh")]
