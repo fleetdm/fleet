@@ -4660,6 +4660,11 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// get script result
 	var scriptResultResp getScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/test-id", nil, http.StatusPaymentRequired, &scriptResultResp)
+
+	// create a saved script
+	body, headers := generateNewScriptMultipartRequest(t, nil,
+		"myscript.sh", []byte(`echo "hello"`), s.token)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusPaymentRequired, headers)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
