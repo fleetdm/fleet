@@ -40,26 +40,11 @@ Here are some topics for social media posts:
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
-
-
-
 ## Responsibilities
 
 ### Process pending swag requests from the website
-TODO
-
-### Send one-off swag
-TODO
-
-<!--
-### Swag requests
-We deliver Fleet swag for those who request it through [Fleet documentation](https://fleetdm.com/docs) and may occasionally have upstanding community members and customers who are in need of some cool Fleet swag as well.
-
-#### Fulfilling Printful orders
 On a weekly basis, Marketing must log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
-
 To do this:
-
 1. Go to the ["Orders"](https://www.printful.com/ca/dashboard/default/orders) page in Printful
 2. Look for an order status of "Draft" and click that order.
 3. Copy the address displayed in the draft order. Close the modal.
@@ -67,12 +52,10 @@ To do this:
 5. The results should only display one order. Any additional could be duplicate orders or those made in error.
 6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
 
-#### Fulfilling Postal orders
+### Send one-off swag
+There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. We use [Postal](https://www.postal.com/) to fulfill these swag requests. Postal warehouses Fleet swag that is available to send directly. There are two main ways to send swag through Postal: Direct sends and "Magic links".
 
-There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. We use [Postal](https://www.postal.com/) to fulfill these swag requests. Postal warehouses Fleet swag that is available to send directly. There are two main ways to send swag through Printful. Direct sends and Magic Links.
-
-##### Magic Link
-This is a great option to send when we only know the item we'd like to send and want the recipient to fill out their own contact information and shipping details. These links can be used by anyone who has access to the link, so only send to the desired recipient.
+**Magic links**: This is a great option to send when we only know the item we'd like to send and want the recipient to fill out their own contact information and shipping details. These links can be used by anyone who has access to the link, so only send to the desired recipient.
 
 - Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
 - For approved items, hover over the item that you would like to send and click the chain icon.
@@ -80,8 +63,7 @@ This is a great option to send when we only know the item we'd like to send and 
 - Personalize your magic link page with a customized header or message if you'd like.
 - Continue on to "Review" and "Create MagicLink"
 
-##### Direct send
-This is a great option to send when we already have the name, address, and email address of the person we are sending an item to.
+**Direct send**: This is a great option to send when we already have the name, address, and email address of the person we are sending an item to.
 
 - Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
 - For approved items, hover over the item that you would like to send and click the paper airplane icon.
@@ -89,13 +71,11 @@ This is a great option to send when we already have the name, address, and email
 - To create a new contact click the plus sign and fill out the name, email, and shipping address.
 - Select "Configure your item", continue on to "Review", and "Confirm and Send"
 
-##### Send swag for community contributions to Fleet
+### Send swag for community contributions to Fleet
 - Reach out to the contributor to thank them for their contribution
 - Consider sharing the contribution on social media
 - Ask if we could send the contributor any swag
 - If yes, follow the steps of creating a magic link in Postal to send.
--->
-
 
 ## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
