@@ -119,7 +119,7 @@ For the sake of this tutorial, we will again use Helm, this time to install MySQ
 
 The MySQL that we will use for this tutorial is not replicated and it is not Highly Available. If you're deploying Fleet on a Kubernetes managed by a cloud provider (GCP, Azure, AWS, etc), I suggest using their MySQL product if possible as running HA MySQL in Kubernetes can be difficult. To make this tutorial cloud provider agnostic however, we will use a non-replicated instance of MySQL.
 
-To install MySQL from Helm, run the following command.  that there are some options that are specified. These options basically just enumerate that:
+To install MySQL from Helm, run the following command. Note that there are some options that need to be defined:
 
 - There should be a `fleet` database created
 - The default user's username should be `fleet`
