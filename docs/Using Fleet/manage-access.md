@@ -88,6 +88,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit/upload MDM macOS bootstrap packages\*                                                                                                 |          |            | ✅         | ✅    | ✅      |
 | Enable/disable MDM macOS setup end user authentication\*                                                                                   |          |            | ✅         | ✅    | ✅      |
 | Run scripts on hosts\*                                                                                                                     |          |            | ✅         | ✅    |         |
+| View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
+| Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
@@ -150,6 +152,8 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Edit/upload MDM macOS bootstrap packages                                                                                         |               |                | ✅              | ✅         | ✅          |
 | Enable/disable MDM macOS setup end user authentication                                                                           |               |                | ✅              | ✅         | ✅          |
 | Run scripts on hosts                                                                                                             |               |                | ✅              | ✅         |             |
+| View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
+| Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
