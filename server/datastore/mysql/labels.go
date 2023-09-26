@@ -532,10 +532,13 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 
 	query := fmt.Sprintf(queryFmt, hostMDMSelect, failingPoliciesSelect, hostMDMJoin, failingPoliciesJoin)
 
-	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
+	query, params, err := ds.applyHostLabelFilters(ctx, filter, lid, query, opt)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "applying label query filters")
+	}
 
 	hosts := []*fleet.Host{}
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, params...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, params...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label query executions")
 	}
@@ -543,7 +546,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 }
 
 // NOTE: the hosts table must be aliased to `h` in the query passed to this function.
-func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, query string, opt fleet.HostListOptions) (string, []interface{}) {
+func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.TeamFilter, lid uint, query string, opt fleet.HostListOptions) (string, []interface{}, error) {
 	params := []interface{}{lid}
 
 	if opt.ListOptions.OrderKey == "display_name" {
@@ -562,10 +565,17 @@ func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, qu
 	query, params = filterHostsByMacOSSettingsStatus(query, opt, params)
 	query, params = filterHostsByMacOSDiskEncryptionStatus(query, opt, params)
 	query, params = filterHostsByMDMBootstrapPackageStatus(query, opt, params)
+	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
+		return "", nil, err
+	} else if opt.OSSettingsFilter.IsValid() {
+		query, params = filterHostsByOSSettingsStatus(query, opt, params, enableDiskEncryption)
+	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
+		query, params = filterHostsByOSSettingsDiskEncryptionStatus(query, opt, params, enableDiskEncryption)
+	}
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
 	query = appendListOptionsToSQL(query, &opt.ListOptions)
-	return query, params
+	return query, params, nil
 }
 
 func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
@@ -580,7 +590,10 @@ func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFil
 		query += ` LEFT JOIN host_disks hd ON (h.id=hd.host_id) `
 	}
 
-	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
+	query, params, err := ds.applyHostLabelFilters(ctx, filter, lid, query, opt)
+	if err != nil {
+		return 0, err
+	}
 
 	var count int
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, params...); err != nil {
