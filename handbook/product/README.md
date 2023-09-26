@@ -348,7 +348,7 @@ Requests are weighed by:
 - How well the request fits within Fleet's product vision and roadmap
 - Whether the feature seems like it can be designed, estimated, and developed in 6 weeks, given its individual complexity and when combined with other work already accepted
 
-### Customer Feature Requests 
+### Customer feature requests 
 The product team's goal is to prioritize 16 customer feature requests at Feature Fest, then take them from settled to shipped. The customer success team is responsible for providing the Head of Prouct a live count during the Feature Fest meeting. Product Operations is responsible for monitoring this KPI and raising alarms throughout the design and engineering sprints. 
 > Customer stories should be estimated at 1-3 points each to count as 1 request. If a feature request spans across multiple customers, it will be counted as the number of customers invovled. 
 
