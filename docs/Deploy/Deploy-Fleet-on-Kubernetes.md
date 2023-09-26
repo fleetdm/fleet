@@ -93,6 +93,8 @@ If you have not used Helm before, you must run the following to initialize your 
 helm init
 ```
 
+Note: The helm init command has been removed in Helm v3. It performed two primary functions. First, it installed Tiller which is no longer needed. Second, it setup directories and repositories where Helm configuration lived. This is now automated in Helm v3; if the directory is not present it will be created.
+
 ### Deploying Fleet with Helm
 
 To configure preferences for Fleet for use in Helm, including secret names, MySQL and Redis hostnames, and TLS certificates, download the [values.yaml](https://raw.githubusercontent.com/fleetdm/fleet/main/charts/fleet/values.yaml) and change the settings to match your configuration.
@@ -117,14 +119,22 @@ For the sake of this tutorial, we will again use Helm, this time to install MySQ
 
 The MySQL that we will use for this tutorial is not replicated and it is not Highly Available. If you're deploying Fleet on a Kubernetes managed by a cloud provider (GCP, Azure, AWS, etc), I suggest using their MySQL product if possible as running HA MySQL in Kubernetes can be difficult. To make this tutorial cloud provider agnostic however, we will use a non-replicated instance of MySQL.
 
-To install MySQL from Helm, run the following command. Note that there are some options that are specified. These options basically just enumerate that:
+To install MySQL from Helm, run the following command.  that there are some options that are specified. These options basically just enumerate that:
 
 - There should be a `fleet` database created
 - The default user's username should be `fleet`
 
+Helm v2
 ```sh
 helm install \
   --name fleet-database \
+  --set mysqlUser=fleet,mysqlDatabase=fleet \
+  stable/mysql
+```
+
+Helm v3
+```sh
+helm install fleet-database \
   --set mysqlUser=fleet,mysqlDatabase=fleet \
   stable/mysql
 ```
@@ -156,9 +166,17 @@ kubectl create -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrat
 
 #### Redis
 
+Helm v2
 ```sh
 helm install \
   --name fleet-cache \
+  --set persistence.enabled=false \
+  stable/redis
+```
+
+Helm v3
+```sh
+helm install fleet-cache \
   --set persistence.enabled=false \
   stable/redis
 ```
