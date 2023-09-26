@@ -5515,7 +5515,7 @@ Returns the query report specified by ID.
 ```json
 {
   "query_id": 31,
-  "query_report": [
+  "results": [
     {
       "host_id": 1,
       "model": "USB 2.0 Hub",
