@@ -14,14 +14,14 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
     text: "Verified",
     iconName: "success",
     tooltipText:
-      "The host applied all OS settings. Fleet verified with osquery.",
+      "These hosts applied all OS settings. Fleet verified with osquery.",
   },
   {
     value: "verifying",
     text: "Verifying",
     iconName: "successPartial",
     tooltipText:
-      "The hosts acknowledged all MDM commands to apply OS settings. " +
+      "These hosts acknowledged all MDM commands to apply OS settings. " +
       "Fleet is verifying the OS settings are applied with osquery.",
   },
   {
@@ -29,14 +29,14 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
     text: "Pending",
     iconName: "pendingPartial",
     tooltipText:
-      "Host will receive MDM command to apply OS settings when the host come online.",
+      "These hosts will receive MDM command to apply OS settings when the host come online.",
   },
   {
     value: "failed",
     text: "Failed",
     iconName: "error",
     tooltipText:
-      "Host failed to apply the latest OS settings. Click to view error(s).",
+      "These host failed to apply the latest OS settings. Click on a host to view error(s).",
   },
 ];
 
