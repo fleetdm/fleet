@@ -171,14 +171,14 @@ Helm v2
 helm install \
   --name fleet-cache \
   --set persistence.enabled=false \
-  stable/redis
+  oci://registry-1.docker.io/bitnamicharts/redis
 ```
 
 Helm v3
 ```sh
 helm install fleet-cache \
   --set persistence.enabled=false \
-  stable/redis
+  oci://registry-1.docker.io/bitnamicharts/redis
 ```
 
 This helm package will create a Kubernetes `Service` which exposes the Redis server to the rest of the cluster on the following DNS address:
