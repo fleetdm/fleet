@@ -140,6 +140,9 @@
               <div class="divider"></div>
             </div>
           </div>
+          <div purpose="query-list-empty-state" v-if="queriesList.length === 0">
+            <p class="mb-0">There are no results that match your filters. <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml">Everyone can contribute<a>.</p>
+          </div>
         </div>
       </div>
     </div>
