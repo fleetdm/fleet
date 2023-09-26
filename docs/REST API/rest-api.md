@@ -6353,6 +6353,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Run script synchronously](#run-script-synchronously)
 - [Get script result](#get-script-result)
 - [Upload a script](#upload-a-script)
+- [Delete a script](#delete-a-script)
 
 ### Run script asynchronously
 
@@ -6507,6 +6508,28 @@ echo "hello"
   "script_id": 1227
 }
 ```
+
+### Delete a script
+
+_Available in Fleet Premium_
+
+Deletes an existing script.
+
+`DELETE /api/v1/fleet/scripts/{id}`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                           |
+| ----            | ------- | ---- | --------------------------------------------          |
+| id              | integer | path | **Required**. The identifier of the script to delete. |
+
+#### Example
+
+`DELETE /api/v1/fleet/scripts/1`
+
+##### Default response
+
+`Status: 204`
 
 ---
 
