@@ -389,6 +389,9 @@ func TestSavedScripts(t *testing.T) {
 			return &fleet.Script{ID: id}, nil
 		}
 	}
+	ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+		return []byte("echo"), nil
+	}
 	ds.DeleteScriptFunc = func(ctx context.Context, id uint) error {
 		return nil
 	}
@@ -535,12 +538,20 @@ func TestSavedScripts(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 			_, _, err = svc.ListScripts(ctx, nil, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+			_, _, err = svc.GetScript(ctx, noTeamScriptID, false)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+			_, _, err = svc.GetScript(ctx, noTeamScriptID, true)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			_, err = svc.NewScript(ctx, ptr.Uint(1), "test.sh", strings.NewReader("echo"))
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 			err = svc.DeleteScript(ctx, team1ScriptID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 			_, _, err = svc.ListScripts(ctx, ptr.Uint(1), fleet.ListOptions{})
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+			_, _, err = svc.GetScript(ctx, team1ScriptID, false)
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+			_, _, err = svc.GetScript(ctx, team1ScriptID, true)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 		})
 	}

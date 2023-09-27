@@ -354,7 +354,7 @@ func getScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if downloadRequested {
 		return downloadScriptResponse{
 			content:  content,
-			filename: fmt.Sprintf("%s-%s", "zzzz", script.Name),
+			filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
 		}, nil
 	}
 	return getScriptResponse{Script: script}, nil

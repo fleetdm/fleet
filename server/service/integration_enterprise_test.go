@@ -4122,6 +4122,29 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NotZero(t, newScriptResp.ScriptID)
 	noTeamScriptID := newScriptResp.ScriptID
 
+	// get the script
+	var getScriptResp getScriptResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusOK, &getScriptResp)
+	require.Equal(t, noTeamScriptID, getScriptResp.ID)
+	require.Nil(t, getScriptResp.TeamID)
+	require.Equal(t, "script1.sh", getScriptResp.Name)
+	require.NotZero(t, getScriptResp.CreatedAt)
+	require.NotZero(t, getScriptResp.UpdatedAt)
+	require.Empty(t, getScriptResp.ScriptContents)
+
+	// download the script's content
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusOK, "alt", "media")
+	b, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, `echo "hello"`, string(b))
+	require.Equal(t, int64(len(`echo "hello"`)), res.ContentLength)
+	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script1.sh"), res.Header.Get("Content-Disposition"))
+
+	// get a non-existing script
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID+999), nil, http.StatusNotFound, &getScriptResp)
+	// download a non-existing script
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID+999), nil, http.StatusNotFound, &getScriptResp, "alt", "media")
+
 	// file name is empty
 	body, headers = generateNewScriptMultipartRequest(t, nil,
 		"", []byte(`echo "hello"`), s.token)
@@ -4177,13 +4200,32 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create with existing name for this time for a team
 	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
-		"script1.sh", []byte(`echo "hello"`), s.token)
+		"script1.sh", []byte(`echo "team"`), s.token)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 	require.NotZero(t, newScriptResp.ScriptID)
 	require.NotEqual(t, noTeamScriptID, newScriptResp.ScriptID)
 	tmScriptID := newScriptResp.ScriptID
+
+	// get team's script
+	getScriptResp = getScriptResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusOK, &getScriptResp)
+	require.Equal(t, tmScriptID, getScriptResp.ID)
+	require.NotNil(t, getScriptResp.TeamID)
+	require.Equal(t, tm.ID, *getScriptResp.TeamID)
+	require.Equal(t, "script1.sh", getScriptResp.Name)
+	require.NotZero(t, getScriptResp.CreatedAt)
+	require.NotZero(t, getScriptResp.UpdatedAt)
+	require.Empty(t, getScriptResp.ScriptContents)
+
+	// download the team's script's content
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusOK, "alt", "media")
+	b, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, `echo "team"`, string(b))
+	require.Equal(t, int64(len(`echo "team"`)), res.ContentLength)
+	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script1.sh"), res.Header.Get("Content-Disposition"))
 
 	// script already exists with this name for this team
 	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,

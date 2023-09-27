@@ -4678,6 +4678,10 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// list saved scripts
 	var listScriptsResp listScriptsResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusPaymentRequired, &listScriptsResp, "per_page", "10")
+
+	// get a saved script
+	var getScriptResp getScriptResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/123", nil, http.StatusPaymentRequired, &getScriptResp)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
