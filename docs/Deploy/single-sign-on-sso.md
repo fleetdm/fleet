@@ -18,7 +18,7 @@ Setting up the service provider (Fleet) with an identity provider generally requ
 
 - _Assertion Consumer Service_ - This is the call-back URL that the identity provider
   will use to send security assertions to Fleet. In Okta, this field is called _single sign-on URL_. On Google, it is "ACS URL." The value you supply will be a fully qualified URL consisting of your Fleet web address and the call-back path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
-  ```
+  ```text
   https://fleet.example.com/api/v1/fleet/sso/callback
   ```
 

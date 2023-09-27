@@ -34,10 +34,10 @@
           </div>
           </div>
         </div>
-        <div  :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
+        <div :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
           <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="!numberOfHostsQuoted">Continue</ajax-button>
-          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" @click="clickScheduleDemo" v-if=" showQuotedPrice && numberOfHostsQuoted > 1000">Talk to an expert</ajax-button>
-          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted <= 1000">Continue</ajax-button>
+          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" @click="clickScheduleDemo" v-if="showQuotedPrice && numberOfHostsQuoted >= 1000">Talk to an expert</ajax-button>
+          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted <= 999">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>

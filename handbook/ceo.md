@@ -19,7 +19,8 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 - **Do not add events to the CEO's calendar.** events added directly to the CEO's calendar will be declined and removed. Even if the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).
 - **For personal or extremely urgent requests** that cannot wait one business day, send a Slack direct message (DM) to `@mikermcneil` right away.
   - If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
-- **If you are in Business Operations**, you can [request warehoused equipment be shipped from Fleet IT](#request-equipment-from-fleet-it).
+- **If you're a hiring manager**, you can [schedule a CEO interview](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=&title=CEO%20interview%3a%20%7BCANDIDATE_NAME%7D&body=-%20[%20]%20I%20followed%20all%20the%20steps%20in%20https%3A%2F%2Ffleetdm.com%2Fhandbook%2Fcompany%2Fleadership%23hiring-a-new-team-member%20before%20submitting%20this%20issue.)
+- **If you're in Business Operations**, you can [request warehoused equipment be shipped from Fleet IT](#request-equipment-from-fleet-it).
 - If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) Slack channel.
 
 ### Schedule time with the CEO
@@ -37,7 +38,7 @@ Internal meetings can sometimes be moved to make room. External meetings, blocke
 - **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](#why-not-mention-the-ceo-in-slack-threads).
 
 ### Request equipment from Fleet IT
-The Apprentice fulfills equipment requests once per week.  [Submit an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-ceo&projects=&template=custom-request.md&title=Ship%20equipment%3A+_______________________), including precisely which item you need and where you need it shipped.  The Apprentice will get back to you within one business day.
+The Apprentice fulfills equipment requests once per week.  Follow the process for [buying new equipment](https://fleetdm.com/handbook/company/communications#buying-other-new-equipment) and submit an [equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request+for+%7BGithub+%20username%7D). 
 
 
 ## Why not mention the CEO in Slack threads?
@@ -67,16 +68,17 @@ Thank you so much!" 🙇
 
 
 ## CEO flaws
-Openness is one of [Fleet's values](https://fleetdm.com/handbook/company#values) and I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is not them but my fault. The second one is so I can improve, I hope that listing them lets people know I appreciate when people speak up about them.
+[Openness](https://fleetdm.com/handbook/company#values) is important to us fleeties 🧑‍🚀☁️, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is _not just them_, but actually _my fault_. The second one is so I can improve, I hope that listing them here lets people know I appreciate when you speak up to me about them.
 
-- I often need to talk to think.
-- I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
-- I can be quick to criticize, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
+- I often need to talk to think.  If you get lost, you can interrupt me or send a Zoom chat: "Hold up, could you go over that again?"
+- I can speak quickly.  It is ok to say “Mike, hold on a second.” (Noah is good at this.)
+- I can be quick to criticize before I appreciate, especially if something looks almost done.  I appreciate it when fleeties ask “What do you think of my work?” It reminds me I'm speaking in front of the sculptor, not just alone with the statue.
 - I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
+- I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." (Luke is good at this.)
+- I get grumpy when I am tired and I worry that I'll forget to follow up about things.  You can say: "Would it help if I made a confidential issue about this for you and Sam to go over tonight?"
+- I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. 
+  - When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t in the agenda, its ok to interruptively share your screen and show me the sprawl visually in the notes you’ve been taking, select the text of the tangent, and say: “I’m taking notes, and I noticed that we’ve veered onto a tangent. Want me to tag you in a google doc comment on this you can follow up later?
 
-<!--
-- When ideas differ I start at "what I would do", then talk myself backward toward the original idea
--->
 <!--
 [![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
 
