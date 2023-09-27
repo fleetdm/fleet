@@ -73,6 +73,8 @@ Openness is one of [Fleet's values](https://fleetdm.com/handbook/company#values)
 - I can speak quickly.  It is ok to say “Whoa, hold on a second.  Let me take some notes.”
 - I can be quick to criticize, especially if something looks almost done.  It is ok to ask “What do you see?” If helpful, you can add “What are three bright spots?”
 - I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
+- I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. 
+  - When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t in the agenda, its ok to interruptively share your screen and show me the sprawl visually in then notes you’ve been taking, select the text of the tangent, and say: “I’m taking notes, and I noticed that we’ve veered onto a tangent. Want me to tag you in a google doc comment on this you can follow up later?
 
 <!--
 - When ideas differ I start at "what I would do", then talk myself backward toward the original idea
