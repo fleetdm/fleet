@@ -93,7 +93,7 @@ If you have not used Helm before, you must run the following to initialize your 
 helm init
 ```
 
-Note: The helm init command has been removed in Helm v3. It performed two primary functions. First, it installed Tiller which is no longer needed. Second, it setup directories and repositories where Helm configuration lived. This is now automated in Helm v3; if the directory is not present it will be created.
+Note: The helm init command has been removed in Helm v3. It performed two primary functions. First, it installed Tiller which is no longer needed. Second, it set up directories and repositories where Helm configuration lived. This is now automated in Helm v3; if the directory is not present it will be created.
 
 ### Deploying Fleet with Helm
 
