@@ -53,26 +53,7 @@ const ScriptListItem = ({
           </span>
         </div>
       </div>
-      <div
-        className={`${baseClass}__value-group ${baseClass}__script-statuses`}
-      >
-        <span className={getStatusClassName(script.ran)}>{script.ran}</span>
-        <span className={getStatusClassName(script.pending)}>
-          {script.pending}
-        </span>
-        <span className={getStatusClassName(script.errors)}>
-          {script.errors}
-        </span>
-      </div>
-
       <div className={`${baseClass}__value-group ${baseClass}__script-actions`}>
-        <Button
-          className={`${baseClass}__refresh-button`}
-          variant="text-icon"
-          onClick={() => onRerun(script)}
-        >
-          <Icon name="refresh" />
-        </Button>
         <Button
           className={`${baseClass}__download-button`}
           variant="text-icon"

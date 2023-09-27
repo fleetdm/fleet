@@ -28,6 +28,10 @@ const controlsSubNav: IControlsSubNavItem[] = [
     name: "Setup experience",
     pathname: PATHS.CONTROLS_SETUP_EXPERIENCE,
   },
+  {
+    name: "Scripts",
+    pathname: PATHS.CONTROLS_SCRIPTS,
+  },
 ];
 
 interface IManageControlsPageProps {

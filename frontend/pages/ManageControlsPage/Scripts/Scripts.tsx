@@ -1,15 +1,17 @@
-import React, { useRef, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 
 import { IMdmScript } from "interfaces/mdm";
+import { AppContext } from "context/app";
 
 import CustomLink from "components/CustomLink";
 
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
 import DeleteScriptModal from "./components/DeleteScriptModal";
+import RerunScriptModal from "./components/RerunScriptModal";
 import FileUploader from "../components/FileUploader";
 import UploadList from "../components/UploadList";
-import RerunScriptModal from "./components/RerunScriptModal";
 
 // TODO: remove when get integrate with API.
 const scripts = [
@@ -23,13 +25,23 @@ const scripts = [
   },
 ];
 
-const baseClass = "mac-os-scripts";
+const baseClass = "scripts";
 
-const MacOSScripts = () => {
+const Scripts = () => {
+  const { isPremiumTier } = useContext(AppContext);
   const [showRerunScriptModal, setShowRerunScriptModal] = useState(false);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
   const selectedScript = useRef<IMdmScript | null>(null);
+
+  // The user is not a premium tier, so show the premium feature message.
+  if (!isPremiumTier) {
+    return (
+      <PremiumFeatureMessage
+        className={`${baseClass}__premium-feature-message`}
+      />
+    );
+  }
 
   const onClickRerun = (script: IMdmScript) => {
     selectedScript.current = script;
@@ -67,8 +79,12 @@ const MacOSScripts = () => {
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
         Upload scripts to change configuration and remediate issues on macOS
-        hosts. Each script runs once per host. All scripts can be rerun on end
-        users’ My device page. <CustomLink text="Learn more" url="#" newTab />
+        hosts. You can run scripts on individual hosts.{" "}
+        <CustomLink
+          text="Learn more"
+          url="https://fleetdm.com/docs/using-fleet/scripts"
+          newTab
+        />
       </p>
       <UploadList
         listItems={scripts}
@@ -108,4 +124,4 @@ const MacOSScripts = () => {
   );
 };
 
-export default MacOSScripts;
+export default Scripts;
