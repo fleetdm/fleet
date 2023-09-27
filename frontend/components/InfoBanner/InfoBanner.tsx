@@ -35,7 +35,7 @@ const InfoBanner = ({
     baseClass,
     {
       [`${baseClass}__${color}`]: !!color,
-      [`${baseClass}__border-${borderRadius}`]: !!borderRadius,
+      [`${baseClass}__border-radius-${borderRadius}`]: !!borderRadius,
       [`${baseClass}__page-banner`]: !!pageLevel,
     },
     className
