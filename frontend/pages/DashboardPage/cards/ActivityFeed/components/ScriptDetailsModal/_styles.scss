@@ -52,5 +52,7 @@
 
   &__output-textarea {
     font-family: "SourceCodePro";
+    max-height: 150px;
+    overflow: auto;
   }
 }
