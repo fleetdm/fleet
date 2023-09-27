@@ -123,6 +123,7 @@ type getScriptResultRequest struct {
 
 type getScriptResultResponse struct {
 	ScriptContents string `json:"script_contents"`
+	ScriptID       *uint  `json:"script_id"`
 	ExitCode       *int64 `json:"exit_code"`
 	Output         string `json:"output"`
 	Message        string `json:"message"`
@@ -150,6 +151,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 
 	return &getScriptResultResponse{
 		ScriptContents: scriptResult.ScriptContents,
+		ScriptID:       scriptResult.ScriptID,
 		ExitCode:       scriptResult.ExitCode,
 		Output:         scriptResult.Output,
 		Message:        scriptResult.Message,

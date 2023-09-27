@@ -40,10 +40,30 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("script_id", `Only one of "script_id" or "script_contents" can be provided.`)
 	}
 	if request.ScriptID != nil {
+		script, err := svc.ds.Script(ctx, *request.ScriptID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				return nil, fleet.NewInvalidArgumentError("script_id", `No script exists for the provided "script_id".`).
+					WithStatus(http.StatusNotFound)
+			}
+			return nil, err
+		}
+		var scriptTmID, hostTmID uint
+		if script.TeamID != nil {
+			scriptTmID = *script.TeamID
+		}
+		if host.TeamID != nil {
+			hostTmID = *host.TeamID
+		}
+		if scriptTmID != hostTmID {
+			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same team (or no team) as the host.`)
+		}
+
 		contents, err := svc.ds.GetScriptContents(ctx, *request.ScriptID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				return nil, fleet.NewInvalidArgumentError("script_id", `No script exists for the provided "script_id".`)
+				return nil, fleet.NewInvalidArgumentError("script_id", `No script exists for the provided "script_id".`).
+					WithStatus(http.StatusNotFound)
 			}
 			return nil, err
 		}

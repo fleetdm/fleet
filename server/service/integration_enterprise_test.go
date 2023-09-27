@@ -3926,6 +3926,133 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
 }
 
+func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
+	t := s.T()
+
+	testRunScriptWaitForResult = 2 * time.Second
+	defer func() { testRunScriptWaitForResult = 0 }()
+
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	savedNoTmScript, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "no_team_script.sh",
+		ScriptContents: "echo 'no team'",
+	})
+	require.NoError(t, err)
+	savedTmScript, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         &tm.ID,
+		Name:           "team_script.sh",
+		ScriptContents: "echo 'team'",
+	})
+	require.NoError(t, err)
+
+	// attempt to run a script on a non-existing host
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID + 100, ScriptID: &savedNoTmScript.ID}, http.StatusNotFound, &runResp)
+
+	// attempt to run with both script contents and id
+	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of "script_id" or "script_contents" can be provided.`)
+
+	// attempt to run with unknown script id
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusNotFound)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `No script exists for the provided "script_id".`)
+
+	// make sure the host is still seen as "online"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	// attempt to run a team script on a non-team host
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedTmScript.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The script does not belong to the same team`)
+
+	// make sure the host is still seen as "online"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	// create a valid script execution request
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedNoTmScript.ID}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	// an activity was created for the async script execution
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), runResp.ExecutionID,
+		),
+		0,
+	)
+
+	var scriptResultResp getScriptResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo 'no team'", scriptResultResp.ScriptContents)
+	require.Nil(t, scriptResultResp.ExitCode)
+	require.False(t, scriptResultResp.HostTimeout)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
+	require.NotNil(t, scriptResultResp.ScriptID)
+	require.Equal(t, savedNoTmScript.ID, *scriptResultResp.ScriptID)
+
+	// verify that orbit would get the notification that it has a script to run
+	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Equal(t, []string{scriptResultResp.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// the orbit endpoint to get a pending script to execute returns it
+	var orbitGetScriptResp orbitGetScriptResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
+		http.StatusOK, &orbitGetScriptResp)
+	require.Equal(t, host.ID, orbitGetScriptResp.HostID)
+	require.Equal(t, scriptResultResp.ExecutionID, orbitGetScriptResp.ExecutionID)
+	require.Equal(t, "echo 'no team'", orbitGetScriptResp.ScriptContents)
+
+	// make sure the host is still seen as "online"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	// attempt to create a valid sync script execution request, fails because the
+	// host has a pending script execution
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedNoTmScript.ID}, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.RunScriptAlreadyRunningErrMsg)
+
+	// save a result via the orbit endpoint
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// verify that orbit does not receive any pending script anymore
+	orbitResp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// create a valid sync script execution request, fails because the
+	// request will time-out waiting for a result.
+	var runSyncResp runScriptSyncResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedNoTmScript.ID}, http.StatusGatewayTimeout, &runSyncResp)
+	require.Equal(t, host.ID, runSyncResp.HostID)
+	require.NotEmpty(t, runSyncResp.ExecutionID)
+	require.NotNil(t, runSyncResp.ScriptID)
+	require.Equal(t, savedNoTmScript.ID, *runSyncResp.ScriptID)
+	require.True(t, runSyncResp.HostTimeout)
+	require.Contains(t, runSyncResp.Message, fleet.RunScriptHostTimeoutErrMsg)
+}
+
 func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 	t := s.T()
 	ctx := context.Background()
