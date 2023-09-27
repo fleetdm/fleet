@@ -1565,6 +1565,15 @@ func NewSyncMLMessage(sessionID string, msgID string, deviceID string, source st
 	return &msg, nil
 }
 
+// newSyncMLCmdWithNoItem creates a new SyncML command
+func newSyncMLCmdWithNoItem(cmdVerb *string, cmdData *string) *mdm_types.SyncMLCmd {
+	return &mdm_types.SyncMLCmd{
+		XMLName: xml.Name{Local: *cmdVerb},
+		Data:    cmdData,
+		Items:   nil,
+	}
+}
+
 // newSyncMLCmdWithItem creates a new SyncML command
 func newSyncMLCmdWithItem(cmdVerb *string, cmdData *string, cmdItem *mdm_types.CmdItem) *mdm_types.SyncMLCmd {
 	return &mdm_types.SyncMLCmd{
@@ -1609,11 +1618,6 @@ func newSyncMLItem(cmdSource *string, cmdTarget *string, cmdDataType *string, cm
 	}
 }
 
-// NewSyncMLCmdAlert creates a new SyncML Alert command
-func NewSyncMLCmdAlert(cmdVerb string, cmdData string) *mdm_types.SyncMLCmd {
-	return newSyncMLCmdWithItem(&cmdVerb, &cmdData, nil)
-}
-
 // NewSyncMLCmd creates a new SyncML command
 func NewSyncMLCmd(cmdVerb string, cmdSource string, cmdTarget string, cmdDataType string, cmdDataFormat string, cmdDataValue string) *mdm_types.SyncMLCmd {
 	var workCmdVerb *string
@@ -1649,6 +1653,12 @@ func NewSyncMLCmd(cmdVerb string, cmdSource string, cmdTarget string, cmdDataTyp
 
 	item := newSyncMLItem(workCmdSource, workCmdTarget, workCmdDataType, workCmdDataFormat, workCmdDataValue)
 	return newSyncMLCmdWithItem(workCmdVerb, nil, item)
+}
+
+// NewSyncMLCmdAlert creates a new SyncML Alert command
+func NewSyncMLCmdAlert(cmdData string) *mdm_types.SyncMLCmd {
+	cmdVerb := mdm_types.CmdAlert
+	return newSyncMLCmdWithNoItem(&cmdVerb, &cmdData)
 }
 
 // NewSyncMLCmdText creates a new SyncML command with text data
@@ -1692,7 +1702,7 @@ func NewSyncMLCmdBool(cmdVerb string, cmdTarget string, cmdDataValue string) *md
 }
 
 // NewSyncMLCmdGet creates a new SyncML command with text data
-func NewSyncMLCmdGet(cmdTarget string) *mdm_types.SyncMLCmd {
+func NewNewSyncMLCmdGet(cmdTarget string) *mdm_types.SyncMLCmd {
 	cmdVerb := mdm_types.CmdGet
 	item := newSyncMLItem(nil, &cmdTarget, nil, nil, nil)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
