@@ -376,4 +376,5 @@ module "saml_auth_proxy" {
   vpc_id                       = module.main.vpc.vpc_id
   logging_options              = null # Figure it out later
   alb_target_group_arn         = module.main.byo-vpc.byo-db.alb.target_group_arns[1]
+  cookie_max_age               = "15m"
 }

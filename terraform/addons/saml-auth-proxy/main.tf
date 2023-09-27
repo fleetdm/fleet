@@ -182,7 +182,7 @@ resource "aws_ecs_task_definition" "saml_auth_proxy" {
           },
           {
             name  = "SAML_PROXY_COOKIE_MAX_AGE"
-            value = "15m"
+            value = var.cookie_max_age
           },
           {
             name  = "SAML_PROXY_COOKIE_NAME"

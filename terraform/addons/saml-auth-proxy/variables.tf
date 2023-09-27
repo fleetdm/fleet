@@ -1,3 +1,8 @@
+variable "cookie_max_age" {
+  type    = string
+  default = "1h"
+}
+
 variable "alb_target_group_arn" {
   type = string
 }
