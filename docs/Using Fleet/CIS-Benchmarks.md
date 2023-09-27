@@ -84,6 +84,8 @@ Fleet only implements automated audit checks. Manual checks require administrato
 ## Levels 1 and 2
 CIS designates various benchmarks as Level 1 or Level 2 to describe the level of thoroughness and burden that each benchmark represents.
 
+Each benchmark is tagged as `CIS_Level1` or `CIS_Level2`. 
+
 ### Level 1
 
 Items in this profile intend to:
