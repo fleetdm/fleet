@@ -1,1 +1,2 @@
 * Added API endpoints for script management.
+* Updated the `POST /scripts/run` and `POST /scripts/run/sync` endpoints to accept an optional saved script ID instead of the script contents.
