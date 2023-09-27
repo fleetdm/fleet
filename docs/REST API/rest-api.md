@@ -6391,6 +6391,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Get script result](#get-script-result)
 - [Upload a script](#upload-a-script)
 - [Delete a script](#delete-a-script)
+- [List scripts](#list-scripts)
+- [Get or download a script](#get-or-download-a-script)
 
 ### Run script asynchronously
 
@@ -6567,6 +6569,105 @@ Deletes an existing script.
 ##### Default response
 
 `Status: 204`
+
+### List scripts
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/scripts`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| page            | integer | query | Page number of the results to fetch.                                                                                          |
+| per_page        | integer | query | Results per page.                                                                                                             |
+
+#### Example
+
+`GET /api/v1/fleet/scripts`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scripts": [
+    {
+      "id": 1,
+      "team_id": null,
+      "name": "script_1.sh",
+      "created_at": "2023-07-30T13:41:07Z",
+      "updated_at": "2023-07-30T13:41:07Z"
+    },
+    {
+      "id": 2,
+      "team_id": null,
+      "name": "script_2.sh",
+      "created_at": "2023-08-30T13:41:07Z",
+      "updated_at": "2023-08-30T13:41:07Z"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+
+```
+
+### Get or download a script
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/scripts/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                                                       |
+| ---- | ------- | ----  | -------------------------------------                             |
+| id   | integer | path  | **Required.** The desired script's ID.                            |
+| alt  | string  | query | If specified and set to "media", downloads the script's contents. |
+
+#### Example (get a script)
+
+`GET /api/v1/fleet/scripts/123`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 123,
+  "team_id": null,
+  "name": "script_1.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
+
+```
+
+#### Example (download a script's contents)
+
+`GET /api/v1/fleet/scripts/123?alt=media`
+
+##### Example response headers
+
+```http
+Content-Length: 13
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
+```
+
+###### Example response body
+
+`Status: 200`
+
+```
+echo "hello"
+```
 
 ---
 

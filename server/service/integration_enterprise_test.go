@@ -4122,6 +4122,29 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NotZero(t, newScriptResp.ScriptID)
 	noTeamScriptID := newScriptResp.ScriptID
 
+	// get the script
+	var getScriptResp getScriptResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusOK, &getScriptResp)
+	require.Equal(t, noTeamScriptID, getScriptResp.ID)
+	require.Nil(t, getScriptResp.TeamID)
+	require.Equal(t, "script1.sh", getScriptResp.Name)
+	require.NotZero(t, getScriptResp.CreatedAt)
+	require.NotZero(t, getScriptResp.UpdatedAt)
+	require.Empty(t, getScriptResp.ScriptContents)
+
+	// download the script's content
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusOK, "alt", "media")
+	b, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, `echo "hello"`, string(b))
+	require.Equal(t, int64(len(`echo "hello"`)), res.ContentLength)
+	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script1.sh"), res.Header.Get("Content-Disposition"))
+
+	// get a non-existing script
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID+999), nil, http.StatusNotFound, &getScriptResp)
+	// download a non-existing script
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID+999), nil, http.StatusNotFound, &getScriptResp, "alt", "media")
+
 	// file name is empty
 	body, headers = generateNewScriptMultipartRequest(t, nil,
 		"", []byte(`echo "hello"`), s.token)
@@ -4177,13 +4200,32 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create with existing name for this time for a team
 	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
-		"script1.sh", []byte(`echo "hello"`), s.token)
+		"script1.sh", []byte(`echo "team"`), s.token)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 	require.NotZero(t, newScriptResp.ScriptID)
 	require.NotEqual(t, noTeamScriptID, newScriptResp.ScriptID)
 	tmScriptID := newScriptResp.ScriptID
+
+	// get team's script
+	getScriptResp = getScriptResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusOK, &getScriptResp)
+	require.Equal(t, tmScriptID, getScriptResp.ID)
+	require.NotNil(t, getScriptResp.TeamID)
+	require.Equal(t, tm.ID, *getScriptResp.TeamID)
+	require.Equal(t, "script1.sh", getScriptResp.Name)
+	require.NotZero(t, getScriptResp.CreatedAt)
+	require.NotZero(t, getScriptResp.UpdatedAt)
+	require.Empty(t, getScriptResp.ScriptContents)
+
+	// download the team's script's content
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusOK, "alt", "media")
+	b, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, `echo "team"`, string(b))
+	require.Equal(t, int64(len(`echo "team"`)), res.ContentLength)
+	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script1.sh"), res.Header.Get("Content-Disposition"))
 
 	// script already exists with this name for this team
 	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
@@ -4208,6 +4250,119 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusNoContent)
 	// delete a non-existing script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusNotFound)
+}
+
+func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create some teams
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	tm3, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+
+	// create 5 scripts for no team and team 1
+	for i := 0; i < 5; i++ {
+		_, err = s.ds.NewScript(ctx, &fleet.Script{
+			Name:           string('a' + byte(i)), // i.e. "a", "b", "c", ...
+			ScriptContents: "echo",
+		})
+		require.NoError(t, err)
+		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: string('a' + byte(i)), TeamID: &tm1.ID, ScriptContents: "echo"})
+		require.NoError(t, err)
+	}
+
+	// create a single script for team 2
+	_, err = s.ds.NewScript(ctx, &fleet.Script{Name: "a", TeamID: &tm2.ID, ScriptContents: "echo"})
+	require.NoError(t, err)
+
+	cases := []struct {
+		queries   []string // alternate query name and value
+		teamID    *uint
+		wantNames []string
+		wantMeta  *fleet.PaginationMetadata
+	}{
+		{
+			wantNames: []string{"a", "b", "c", "d", "e"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2"},
+			wantNames: []string{"a", "b"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2", "page", "1"},
+			wantNames: []string{"c", "d"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "2", "page", "2"},
+			wantNames: []string{"e"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3"},
+			teamID:    &tm1.ID,
+			wantNames: []string{"a", "b", "c"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "3", "page", "1"},
+			teamID:    &tm1.ID,
+			wantNames: []string{"d", "e"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3", "page", "2"},
+			teamID:    &tm1.ID,
+			wantNames: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3"},
+			teamID:    &tm2.ID,
+			wantNames: []string{"a"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2"},
+			teamID:    &tm3.ID,
+			wantNames: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%v: %#v", c.teamID, c.queries), func(t *testing.T) {
+			var listResp listScriptsResponse
+			queryArgs := c.queries
+			if c.teamID != nil {
+				queryArgs = append(queryArgs, "team_id", fmt.Sprint(*c.teamID))
+			}
+			s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, queryArgs...)
+
+			require.Equal(t, len(c.wantNames), len(listResp.Scripts))
+			require.Equal(t, c.wantMeta, listResp.Meta)
+
+			var gotNames []string
+			if len(listResp.Scripts) > 0 {
+				gotNames = make([]string, len(listResp.Scripts))
+				for i, s := range listResp.Scripts {
+					gotNames[i] = s.Name
+					if c.teamID == nil {
+						require.Nil(t, s.TeamID)
+					} else {
+						require.NotNil(t, s.TeamID)
+						require.Equal(t, *c.teamID, *s.TeamID)
+					}
+				}
+			}
+			require.Equal(t, c.wantNames, gotNames)
+		})
+	}
 }
 
 // generates the body and headers part of a multipart request ready to be
