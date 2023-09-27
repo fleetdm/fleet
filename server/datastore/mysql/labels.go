@@ -584,7 +584,7 @@ func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, qu
 	query, params = filterHostsByMDMBootstrapPackageStatus(query, opt, params)
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
-	query = appendListOptionsToSQL(query, &opt.ListOptions)
+	query, params = appendListOptionsWithCursorToSQL(query, params, &opt.ListOptions)
 	return query, params
 }
 
