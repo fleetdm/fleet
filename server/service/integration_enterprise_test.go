@@ -4210,6 +4210,119 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusNotFound)
 }
 
+func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create some teams
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	tm3, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+
+	// create 5 scripts for no team and team 1
+	for i := 0; i < 5; i++ {
+		_, err = s.ds.NewScript(ctx, &fleet.Script{
+			Name:           string('a' + byte(i)), // i.e. "a", "b", "c", ...
+			ScriptContents: "echo",
+		})
+		require.NoError(t, err)
+		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: string('a' + byte(i)), TeamID: &tm1.ID, ScriptContents: "echo"})
+		require.NoError(t, err)
+	}
+
+	// create a single script for team 2
+	_, err = s.ds.NewScript(ctx, &fleet.Script{Name: "a", TeamID: &tm2.ID, ScriptContents: "echo"})
+	require.NoError(t, err)
+
+	cases := []struct {
+		queries   []string // alternate query name and value
+		teamID    *uint
+		wantNames []string
+		wantMeta  *fleet.PaginationMetadata
+	}{
+		{
+			wantNames: []string{"a", "b", "c", "d", "e"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2"},
+			wantNames: []string{"a", "b"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2", "page", "1"},
+			wantNames: []string{"c", "d"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "2", "page", "2"},
+			wantNames: []string{"e"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3"},
+			teamID:    &tm1.ID,
+			wantNames: []string{"a", "b", "c"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "3", "page", "1"},
+			teamID:    &tm1.ID,
+			wantNames: []string{"d", "e"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3", "page", "2"},
+			teamID:    &tm1.ID,
+			wantNames: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3"},
+			teamID:    &tm2.ID,
+			wantNames: []string{"a"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2"},
+			teamID:    &tm3.ID,
+			wantNames: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%v: %#v", c.teamID, c.queries), func(t *testing.T) {
+			var listResp listScriptsResponse
+			queryArgs := c.queries
+			if c.teamID != nil {
+				queryArgs = append(queryArgs, "team_id", fmt.Sprint(*c.teamID))
+			}
+			s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, queryArgs...)
+
+			require.Equal(t, len(c.wantNames), len(listResp.Scripts))
+			require.Equal(t, c.wantMeta, listResp.Meta)
+
+			var gotNames []string
+			if len(listResp.Scripts) > 0 {
+				gotNames = make([]string, len(listResp.Scripts))
+				for i, s := range listResp.Scripts {
+					gotNames[i] = s.Name
+					if c.teamID == nil {
+						require.Nil(t, s.TeamID)
+					} else {
+						require.NotNil(t, s.TeamID)
+						require.Equal(t, *c.teamID, *s.TeamID)
+					}
+				}
+			}
+			require.Equal(t, c.wantNames, gotNames)
+		})
+	}
+}
+
 // generates the body and headers part of a multipart request ready to be
 // used via s.DoRawWithHeaders to POST /api/_version_/fleet/scripts.
 func generateNewScriptMultipartRequest(t *testing.T, tmID *uint,

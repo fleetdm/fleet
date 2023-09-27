@@ -320,11 +320,15 @@ func testListScripts(t *testing.T, ds *Datastore) {
 			require.Equal(t, len(c.wantNames), len(scripts))
 			require.Equal(t, c.wantMeta, meta)
 
-			gotNames := make([]string, len(scripts))
-			for i, s := range scripts {
-				gotNames[i] = s.Name
-				require.Equal(t, c.teamID, s.TeamID)
+			var gotNames []string
+			if len(scripts) > 0 {
+				gotNames = make([]string, len(scripts))
+				for i, s := range scripts {
+					gotNames[i] = s.Name
+					require.Equal(t, c.teamID, s.TeamID)
+				}
 			}
+			require.Equal(t, c.wantNames, gotNames)
 		})
 	}
 }
