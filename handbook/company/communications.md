@@ -85,7 +85,7 @@ maintaining an expressive labeling system. For example, instead of a label calle
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 
 ### Process new requests
-Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily; prioritizing all new intake including issues and PRs within 24hrs from when it was submitted. 
+Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily; prioritizing all new intake including issues and PRs within 24hrs.
 
 To process intake team members will:
 - Inspect each item in the "📨 New requests" column and understand the next steps needed to complete the task.
