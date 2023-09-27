@@ -31,6 +31,7 @@ func (s Script) AuthzType() string {
 
 type HostScriptRequestPayload struct {
 	HostID         uint   `json:"host_id"`
+	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 }
 
