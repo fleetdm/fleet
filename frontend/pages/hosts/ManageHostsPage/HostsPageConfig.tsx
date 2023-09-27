@@ -1,6 +1,7 @@
 import React from "react";
 
 import Icon from "components/Icon";
+import { DISK_ENCRYPTION_QUERY_PARAM_NAME } from "services/entities/hosts";
 
 export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "query",
@@ -17,7 +18,7 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "os_version",
   "munki_issue_id",
   "low_disk_space",
-  "macos_settings_disk_encryption",
+  DISK_ENCRYPTION_QUERY_PARAM_NAME,
   "bootstrap_package",
 ] as const;
 
