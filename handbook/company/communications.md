@@ -219,7 +219,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 ### External meeting scheduling
 When scheduling external meetings, provide external participants with a
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
-need a Calendly account, reach out to `mikermcneil` via Slack.
+need a Calendly account, reach out to `#g-business-operations` via Slack.
 
 ### Internal meeting scheduling
 Fleet uses the Zoom add-on for Google Calendar to schedule meetings (exceptions are customers that are non-negotiably required to use a different tool) when we [create calendar events](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar). 
