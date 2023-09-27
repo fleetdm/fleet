@@ -392,102 +392,137 @@ func TestSavedScripts(t *testing.T) {
 	ds.DeleteScriptFunc = func(ctx context.Context, id uint) error {
 		return nil
 	}
+	ds.ListScriptsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
+		return nil, &fleet.PaginationMetadata{}, nil
+	}
 
 	testCases := []struct {
 		name                  string
 		user                  *fleet.User
 		shouldFailTeamWrite   bool
 		shouldFailGlobalWrite bool
+		shouldFailTeamRead    bool
+		shouldFailGlobalRead  bool
 	}{
 		{
 			name:                  "global admin",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			shouldFailTeamWrite:   false,
 			shouldFailGlobalWrite: false,
+			shouldFailTeamRead:    false,
+			shouldFailGlobalRead:  false,
 		},
 		{
 			name:                  "global maintainer",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
 			shouldFailTeamWrite:   false,
 			shouldFailGlobalWrite: false,
+			shouldFailTeamRead:    false,
+			shouldFailGlobalRead:  false,
 		},
 		{
 			name:                  "global observer",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    false,
+			shouldFailGlobalRead:  false,
 		},
 		{
 			name:                  "global observer+",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    false,
+			shouldFailGlobalRead:  false,
 		},
 		{
 			name:                  "global gitops",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    true,
+			shouldFailGlobalRead:  true,
 		},
 		{
 			name:                  "team admin, belongs to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
 			shouldFailTeamWrite:   false,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    false,
+			shouldFailGlobalRead:  true,
 		},
 		{
 			name:                  "team maintainer, belongs to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			shouldFailTeamWrite:   false,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    false,
+			shouldFailGlobalRead:  true,
 		},
 		{
 			name:                  "team observer, belongs to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    false,
+			shouldFailGlobalRead:  true,
 		},
 		{
 			name:                  "team observer+, belongs to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    false,
+			shouldFailGlobalRead:  true,
 		},
 		{
 			name:                  "team gitops, belongs to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    true,
+			shouldFailGlobalRead:  true,
 		},
 		{
 			name:                  "team admin, DOES NOT belong to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    true,
+			shouldFailGlobalRead:  true,
 		},
 		{
 			name:                  "team maintainer, DOES NOT belong to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    true,
+			shouldFailGlobalRead:  true,
 		},
 		{
 			name:                  "team observer, DOES NOT belong to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    true,
+			shouldFailGlobalRead:  true,
 		},
 		{
 			name:                  "team observer+, DOES NOT belong to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserverPlus}}},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    true,
+			shouldFailGlobalRead:  true,
 		},
 		{
 			name:                  "team gitops, DOES NOT belong to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}}},
 			shouldFailTeamWrite:   true,
 			shouldFailGlobalWrite: true,
+			shouldFailTeamRead:    true,
+			shouldFailGlobalRead:  true,
 		},
 	}
 	for _, tt := range testCases {
@@ -498,10 +533,15 @@ func TestSavedScripts(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 			err = svc.DeleteScript(ctx, noTeamScriptID)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			_, _, err = svc.ListScripts(ctx, nil, fleet.ListOptions{})
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
 			_, err = svc.NewScript(ctx, ptr.Uint(1), "test.sh", strings.NewReader("echo"))
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 			err = svc.DeleteScript(ctx, team1ScriptID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			_, _, err = svc.ListScripts(ctx, ptr.Uint(1), fleet.ListOptions{})
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
 		})
 	}
 }
