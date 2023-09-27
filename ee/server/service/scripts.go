@@ -232,3 +232,7 @@ func (svc *Service) ListScripts(ctx context.Context, teamID *uint, opt fleet.Lis
 
 	return svc.ds.ListScripts(ctx, teamID, opt)
 }
+
+func (svc *Service) GetScript(ctx context.Context, scriptID uint, withContent bool) (*fleet.Script, []byte, error) {
+	panic("unimplemented")
+}

@@ -175,6 +175,25 @@ WHERE
 	return &script, nil
 }
 
+func (ds *Datastore) GetScriptContents(ctx context.Context, id uint) ([]byte, error) {
+	const getStmt = `
+SELECT
+  script_contents
+FROM
+  scripts
+WHERE
+  id = ?
+`
+	var contents []byte
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &contents, getStmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFound("Script").WithID(id)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get script contents")
+	}
+	return contents, nil
+}
+
 func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
 	if err != nil {

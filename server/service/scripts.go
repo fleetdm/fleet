@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -296,6 +297,70 @@ func listScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get/download a (saved) script
+////////////////////////////////////////////////////////////////////////////////
+
+type getScriptRequest struct {
+	ScriptID uint   `url:"script_id"`
+	Alt      string `query:"alt,optional"`
+}
+
+type getScriptResponse struct {
+	*fleet.Script
+	Err error `json:"error,omitempty"`
+}
+
+func (r getScriptResponse) error() error { return r.Err }
+
+type downloadScriptResponse struct {
+	Err      error `json:"error,omitempty"`
+	filename string
+	content  []byte
+}
+
+func (r downloadScriptResponse) error() error { return r.Err }
+
+func (r downloadScriptResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(len(r.content)))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.filename))
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := w.Write(r.content); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
+}
+
+func getScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getScriptRequest)
+
+	downloadRequested := req.Alt == "media"
+	script, content, err := svc.GetScript(ctx, req.ScriptID, downloadRequested)
+	if err != nil {
+		return getScriptResponse{Err: err}, nil
+	}
+
+	if downloadRequested {
+		return downloadScriptResponse{
+			content:  content,
+			filename: fmt.Sprintf("%s-%s", "zzzz", script.Name),
+		}, nil
+	}
+	return getScriptResponse{Script: script}, nil
+}
+
+func (svc *Service) GetScript(ctx context.Context, scriptID uint, withContent bool) (*fleet.Script, []byte, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

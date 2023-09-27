@@ -155,6 +155,10 @@ func testScripts(t *testing.T, ds *Datastore) {
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 
+	// get unknown script contents
+	_, err = ds.GetScriptContents(ctx, 123)
+	require.ErrorAs(t, err, &nfe)
+
 	// create global scriptGlobal
 	scriptGlobal, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "a",
@@ -165,6 +169,16 @@ func testScripts(t *testing.T, ds *Datastore) {
 	require.Nil(t, scriptGlobal.TeamID)
 	require.Equal(t, "a", scriptGlobal.Name)
 	require.Empty(t, scriptGlobal.ScriptContents) // we don't return the contents
+
+	// get the global script
+	script, err := ds.Script(ctx, scriptGlobal.ID)
+	require.NoError(t, err)
+	require.Equal(t, scriptGlobal, script)
+
+	// get the global script contents
+	contents, err := ds.GetScriptContents(ctx, scriptGlobal.ID)
+	require.NoError(t, err)
+	require.Equal(t, "echo", string(contents))
 
 	// create team script but team does not exist
 	_, err = ds.NewScript(ctx, &fleet.Script{
@@ -182,12 +196,22 @@ func testScripts(t *testing.T, ds *Datastore) {
 	scriptTeam, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "a",
 		TeamID:         &tm.ID,
-		ScriptContents: "echo",
+		ScriptContents: "echo 'team'",
 	})
 	require.NoError(t, err)
 	require.NotEqual(t, scriptGlobal.ID, scriptTeam.ID)
 	require.NotNil(t, scriptTeam.TeamID)
 	require.Equal(t, tm.ID, *scriptTeam.TeamID)
+
+	// get the team script
+	script, err = ds.Script(ctx, scriptTeam.ID)
+	require.NoError(t, err)
+	require.Equal(t, scriptTeam, script)
+
+	// get the team script contents
+	contents, err = ds.GetScriptContents(ctx, scriptTeam.ID)
+	require.NoError(t, err)
+	require.Equal(t, "echo 'team'", string(contents))
 
 	// try to create another team script with the same name
 	_, err = ds.NewScript(ctx, &fleet.Script{

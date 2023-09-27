@@ -686,6 +686,8 @@ type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Scrip
 
 type ScriptFunc func(ctx context.Context, id uint) (*fleet.Script, error)
 
+type GetScriptContentsFunc func(ctx context.Context, id uint) ([]byte, error)
+
 type DeleteScriptFunc func(ctx context.Context, id uint) error
 
 type ListScriptsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error)
@@ -1692,6 +1694,9 @@ type DataStore struct {
 
 	ScriptFunc        ScriptFunc
 	ScriptFuncInvoked bool
+
+	GetScriptContentsFunc        GetScriptContentsFunc
+	GetScriptContentsFuncInvoked bool
 
 	DeleteScriptFunc        DeleteScriptFunc
 	DeleteScriptFuncInvoked bool
@@ -4038,6 +4043,13 @@ func (s *DataStore) Script(ctx context.Context, id uint) (*fleet.Script, error) 
 	s.ScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.ScriptFunc(ctx, id)
+}
+
+func (s *DataStore) GetScriptContents(ctx context.Context, id uint) ([]byte, error) {
+	s.mu.Lock()
+	s.GetScriptContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetScriptContentsFunc(ctx, id)
 }
 
 func (s *DataStore) DeleteScript(ctx context.Context, id uint) error {

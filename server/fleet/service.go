@@ -816,4 +816,8 @@ type Service interface {
 
 	// ListScripts returns a list of paginated saved scripts.
 	ListScripts(ctx context.Context, teamID *uint, opt ListOptions) ([]*Script, *PaginationMetadata, error)
+
+	// GetScript returns the script corresponding to the provided id. If the
+	// download is requested, it also returns the script's contents.
+	GetScript(ctx context.Context, scriptID uint, downloadRequested bool) (*Script, []byte, error)
 }
