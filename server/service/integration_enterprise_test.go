@@ -4049,8 +4049,22 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.NotNil(t, runSyncResp.ScriptID)
 	require.Equal(t, savedNoTmScript.ID, *runSyncResp.ScriptID)
+	require.Equal(t, "echo 'no team'", runSyncResp.ScriptContents)
 	require.True(t, runSyncResp.HostTimeout)
 	require.Contains(t, runSyncResp.Message, fleet.RunScriptHostTimeoutErrMsg)
+
+	// deleting the saved script does not impact the pending script
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", savedNoTmScript.ID), nil, http.StatusNoContent)
+
+	// script id is now nil, but otherwise execution request is the same
+	scriptResultResp = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo 'no team'", scriptResultResp.ScriptContents)
+	require.Nil(t, scriptResultResp.ExitCode)
+	require.False(t, scriptResultResp.HostTimeout)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
+	require.Nil(t, scriptResultResp.ScriptID)
 }
 
 func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
