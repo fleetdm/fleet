@@ -201,7 +201,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **Classified:**  _Share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring_
 
 
-### Google doc titles
+### Document titles
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company. 
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
@@ -212,9 +212,19 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 
 ## Meetings
 - **Plan to join meetings on time.** At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
-- **Turning on your camera** allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
-- **If you would prefer not to be on YouTube** when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
+- **Turn on your camera.** This allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
+  - **If you would prefer not to be on YouTube** when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
 - **Be warm.**  It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
+- **Take Notes** Every meeting should have a [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to ensure: 
+  - The agenda creation and/or prep beforehand. 
+  - Their is a designated note taker during the meeting. 
+  - All action items are tracked and assigned to the correct individuals. 
+
+### Meeting Agendas
+["**No agenda, no attenda**."](https://about.gitlab.com/company/culture/all-remote/live-doc-meetings/#gitlab-meeting-best-practices) Every work-related meeting should have an editable agenda (e.g. edit access shared with all attendees) attached to the calendar invite. 
+- To create a meeting agenda please make a copy of [Fleet's meeting template](https://docs.google.com/document/d/1TaZ654gTwadWGDYhP3zuAzWe0eiY0s9NhaU9KLCokgw/copy)
+
+>Please do not use Google Calendar's automatic agenda/notes creation function, as it does not adhere to Fleet's preferred agenda format. If the automatic agenda doc has been created in error, edit the calendar invite to delete it from the meeting to avoid confusion.
 
 ### External meeting scheduling
 When scheduling external meetings, provide external participants with a
@@ -234,7 +244,7 @@ It is important to [set your workinghours](https://support.google.com/calendar/a
 - Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
 It is also common practice to block out time for focused work.
 
-<blockquote puropse="large-quote">In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.</blockquote>
+In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.
 
 ### Modifying an event organized by someone else
 To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
@@ -245,7 +255,7 @@ Team calendars are the primary source for sprint rituals; they facilitate the ex
 
 Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/ceo#contact-us) and the appropriate DRI will reply with feedback.
 
-### All hands
+## All hands
 Every month, Fleet holds a company-wide meeting called the "All hands".
 
 All team members should attend the "All hands" every month.  Team members who cannot attend are expected to watch the [recording](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) within a few days.
