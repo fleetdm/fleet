@@ -20,19 +20,17 @@ const PolicyFailingCount = ({
 
   return failCount ? (
     <InfoBanner className={baseClass} color="grey" borderRadius="xlarge">
-      <>
-        <div className={`${baseClass}__count`}>
-          <Icon name="issue" />
-          This device is failing
-          {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
-        </div>
-        <p>
-          Click a policy below to see if there are steps you can take to resolve
-          the issue
-          {failCount > 1 ? "s" : ""}.
-          {deviceUser && " Once resolved, click “Refetch” above to confirm."}
-        </p>
-      </>
+      <div className={`${baseClass}__count`}>
+        <Icon name="issue" />
+        This device is failing
+        {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
+      </div>
+      <p>
+        Click a policy below to see if there are steps you can take to resolve
+        the issue
+        {failCount > 1 ? "s" : ""}.
+        {deviceUser && " Once resolved, click “Refetch” above to confirm."}
+      </p>
     </InfoBanner>
   ) : null;
 };
