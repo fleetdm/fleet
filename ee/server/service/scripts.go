@@ -36,6 +36,20 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, err
 	}
 
+	if request.ScriptID != nil && request.ScriptContents != "" {
+		return nil, fleet.NewInvalidArgumentError("script_id", `Only one of "script_id" or "script_contents" can be provided.`)
+	}
+	if request.ScriptID != nil {
+		contents, err := svc.ds.GetScriptContents(ctx, *request.ScriptID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				return nil, fleet.NewInvalidArgumentError("script_id", `No script exists for the provided "script_id".`)
+			}
+			return nil, err
+		}
+		request.ScriptContents = string(contents)
+	}
+
 	if err := fleet.ValidateHostScriptContents(request.ScriptContents); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script_contents", err.Error())
 	}

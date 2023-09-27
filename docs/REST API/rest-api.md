@@ -6404,10 +6404,11 @@ Creates a script execution request and returns the execution identifier to retri
 
 #### Parameters
 
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_contents | string  | body | **Required**. The contents of the script to run. |
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| host_id         | integer | body | **Required**. The host id to run the script on.                                                |
+| script_id       | integer | body | The script to run. The current contents of this saved script will be executed on the host. Only one of script_id and script_contents must be provided.  |
+| script_contents | string  | body | The contents of the script to run. Only one of script_id and script_contents must be provided. |
 
 #### Example
 
@@ -6437,7 +6438,8 @@ Creates a script execution request and waits for a result to return (up to a 1 m
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_contents | string  | body | **Required**. The contents of the script to run. |
+| script_id       | integer | body | The script to run. The current contents of this saved script will be executed on the host. Only one of script_id and script_contents must be provided.  |
+| script_contents | string  | body | The contents of the script to run. Only one of script_id and script_contents must be provided. |
 
 #### Example
 

@@ -68,6 +68,9 @@ type HostScriptResult struct {
 	// not returned as part of the payloads, but is used to determine if the script
 	// is too old to still expect a response from the host.
 	CreatedAt time.Time `json:"-" db:"created_at"`
+	// ScriptID is the id of the saved script to execute, or nil if this was an
+	// anonymous script execution.
+	ScriptID *uint `json:"script_id" db:"script_id"`
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
