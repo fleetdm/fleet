@@ -16,7 +16,8 @@
 
   &__script-content-textarea {
     box-sizing: border-box;
-    min-height: 300px;
+    height: 300px;
+    overflow-y: auto;
     font-family: "SourceCodePro";
   }
 
