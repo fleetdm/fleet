@@ -6392,6 +6392,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Upload a script](#upload-a-script)
 - [Delete a script](#delete-a-script)
 - [List scripts](#list-scripts)
+- [Get or download a script](#get-or-download-a-script)
 
 ### Run script asynchronously
 
@@ -6614,6 +6615,58 @@ _Available in Fleet Premium_
   }
 }
 
+```
+
+### Get or download a script
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/scripts/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                                                       |
+| ---- | ------- | ----  | -------------------------------------                             |
+| id   | integer | path  | **Required.** The desired script's ID.                            |
+| alt  | string  | query | If specified and set to "media", downloads the script's contents. |
+
+#### Example (get a script)
+
+`GET /api/v1/fleet/scripts/123`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 123,
+  "team_id": null,
+  "name": "script_1.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
+
+```
+
+#### Example (download a script's contents)
+
+`GET /api/v1/fleet/scripts/123?alt=media`
+
+##### Example response headers
+
+```http
+Content-Length: 13
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
+```
+
+###### Example response body
+
+`Status: 200`
+
+```
+echo "hello"
 ```
 
 ---
