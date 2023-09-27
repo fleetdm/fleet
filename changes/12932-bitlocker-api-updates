@@ -1,3 +1,4 @@
 - Added `GET /mdm/disk_encryption/summary` endpoint to get the disk encryption summary for macOS and
   Windows devices.
-- Added `os_settings` and `os_settings_disk_encryption` filters to `GET /hosts` endpoint to filter hosts by OS settings.
+- Added `os_settings` and `os_settings_disk_encryption` filters to `GET /hosts`, `GET /hosts/count`,
+  `GET /api/v1/fleet/labels/{id}/hosts` endpoints to filter hosts by OS settings.
