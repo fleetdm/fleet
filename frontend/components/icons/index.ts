@@ -2,11 +2,12 @@ import Arrow from "./Arrow";
 import ArrowInternalLink from "./ArrowInternalLink";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
-import Chevron from "./Chevron";
+import ChevronLeft from "./ChevronLeft";
+import ChevronRight from "./ChevronRight";
+import ChevronUp from "./ChevronUp";
+import ChevronDown from "./ChevronDown";
 import Columns from "./Columns";
-import CriticalPolicy from "./CriticalPolicy";
 import Disable from "./Disable";
-import DownCaret from "./DownCaret";
 import Close from "./Close";
 import CloseFilled from "./CloseFilled";
 import EmptyHosts from "./EmptyHosts";
@@ -23,7 +24,6 @@ import Filter from "./Filter";
 import FilterAlt from "./FilterAlt";
 import FilterFunnel from "./FilterFunnel";
 import Info from "./Info";
-import Issue from "./Issue";
 import More from "./More";
 import Plus from "./Plus";
 import PremiumFeature from "./PremiumFeature";
@@ -43,17 +43,11 @@ import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
 import Chrome from "./Chrome";
 
-// Encircled
-import AppleCircled from "./AppleCircled";
-import LinuxCircled from "./LinuxCircled";
-import WindowsCircled from "./WindowsCircled";
-import ChromeCircled from "./ChromeCircled";
-
 // Status Icons
 import Success from "./Success";
-import SuccessPartial from "./SuccessPartial";
+import SuccessOutline from "./SuccessOutline";
 import Pending from "./Pending";
-import PendingPartial from "./PendingPartial";
+import PendingOutline from "./PendingOutline";
 import ErrorOutline from "./ErrorOutline";
 import Error from "./Error";
 import Warning from "./Warning";
@@ -80,12 +74,13 @@ export const ICON_MAP = {
   arrow: Arrow,
   "arrow-internal-link": ArrowInternalLink,
   "calendar-check": CalendarCheck,
-  chevron: Chevron,
+  "chevron-left": ChevronLeft,
+  "chevron-right": ChevronRight,
+  "chevron-up": ChevronUp,
+  "chevron-down": ChevronDown,
   check: Check,
   columns: Columns,
-  "critical-policy": CriticalPolicy,
   disable: Disable,
-  "down-caret": DownCaret,
   close: Close,
   "close-filled": CloseFilled,
   "empty-hosts": EmptyHosts,
@@ -105,7 +100,6 @@ export const ICON_MAP = {
   "missing-hosts": MissingHosts,
   lightbulb: Lightbulb,
   info: Info,
-  issue: Issue,
   more: More,
   plus: Plus,
   policy: Policy,
@@ -117,9 +111,9 @@ export const ICON_MAP = {
   transfer: Transfer,
   trash: TrashCan,
   success: Success,
-  "success-partial": SuccessPartial,
+  "success-outline": SuccessOutline,
   pending: Pending,
-  "pending-partial": PendingPartial,
+  "pending-outline": PendingOutline,
   error: Error,
   "error-outline": ErrorOutline,
   warning: Warning,
@@ -136,10 +130,6 @@ export const ICON_MAP = {
   chrome: Chrome,
   ChromeOS: Chrome,
   "premium-feature": PremiumFeature,
-  "apple-circled": AppleCircled,
-  "windows-circled": WindowsCircled,
-  "linux-circled": LinuxCircled,
-  "chrome-circled": ChromeCircled,
   profile: Profile,
   download: Download,
   files: Files,

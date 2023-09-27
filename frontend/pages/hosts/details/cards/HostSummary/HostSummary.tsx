@@ -120,7 +120,7 @@ const HostSummary = ({
           data-for="host-issue-count"
           data-tip-disable={false}
         >
-          <Icon name="issue" color="ui-fleet-black-50" />
+          <Icon name="error-outline" color="ui-fleet-black-50" />
         </span>
         <ReactTooltip
           place="bottom"

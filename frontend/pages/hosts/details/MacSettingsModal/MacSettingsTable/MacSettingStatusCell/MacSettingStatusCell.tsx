@@ -38,7 +38,7 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   install: {
     pending: {
       statusText: "Enforcing (pending)",
-      iconName: "pending-partial",
+      iconName: "pending-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
           ? "The host will receive the MDM command to install the disk encryption profile when the " +
@@ -48,7 +48,7 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     },
     action_required: {
       statusText: "Action required (pending)",
-      iconName: "pending-partial",
+      iconName: "pending-outline",
       tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
     },
     verified: {
@@ -62,7 +62,7 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     },
     verifying: {
       statusText: "Verifying",
-      iconName: "success-partial",
+      iconName: "success-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
           ? "The host acknowledged the MDM command to install disk encryption profile. Fleet is " +
@@ -79,7 +79,7 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   remove: {
     pending: {
       statusText: "Removing enforcement (pending)",
-      iconName: "pending-partial",
+      iconName: "pending-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
           ? "The host will receive the MDM command to remove the disk encryption profile when the " +

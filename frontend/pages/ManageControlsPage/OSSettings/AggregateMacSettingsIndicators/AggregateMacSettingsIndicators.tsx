@@ -28,7 +28,7 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
   {
     value: "verifying",
     text: "Verifying",
-    iconName: "success-partial",
+    iconName: "success-outline",
     tooltipText:
       "These hosts acknowledged all MDM commands to install configuration profiles. " +
       "Fleet is verifying the profiles are installed with osquery.",
@@ -36,7 +36,7 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
   {
     value: "pending",
     text: "Pending",
-    iconName: "pending-partial",
+    iconName: "pending-outline",
     tooltipText:
       "These hosts will receive MDM commands to install configuration profiles when the hosts come online.",
   },

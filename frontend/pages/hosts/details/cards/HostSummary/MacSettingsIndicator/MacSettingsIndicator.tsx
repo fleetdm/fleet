@@ -14,7 +14,7 @@ type MacProfileStatus = "Failed" | "Verifying" | "Pending" | "Verified";
 interface IStatusDisplayOption {
   iconName: Extract<
     IconNames,
-    "success" | "success-partial" | "pending" | "pending-partial" | "error"
+    "success" | "success-outline" | "pending" | "pending-outline" | "error"
   >;
   tooltipText: string;
 }
@@ -27,13 +27,13 @@ const STATUS_DISPLAY_OPTIONS: StatusDisplayOptions = {
       "The host installed all configuration profiles. Fleet verified with osquery.",
   },
   Verifying: {
-    iconName: "success-partial",
+    iconName: "success-outline",
     tooltipText:
       "The hosts acknowledged all MDM commands to install configuration profiles. Fleet is verifying " +
       "the profiles are installed with osquery.",
   },
   Pending: {
-    iconName: "pending-partial",
+    iconName: "pending-outline",
     tooltipText:
       "The host will receive MDM commands to install configuration profiles when the host comes online.",
   },

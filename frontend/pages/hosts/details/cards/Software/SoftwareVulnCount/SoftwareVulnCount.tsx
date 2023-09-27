@@ -20,7 +20,7 @@ const SoftwareVulnCount = ({
   return vulnCount ? (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__count`}>
-        <Icon name="issue" />
+        <Icon name="error-outline" color="ui-fleet-black-50" />
         {vulnCount === 1
           ? "1 software item with vulnerabilities detected"
           : `${vulnCount} software items with vulnerabilities detected`}
