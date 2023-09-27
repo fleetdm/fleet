@@ -2,14 +2,16 @@
 
 # Supported host operating systems
 
-The following operating system versions are supported by the osquery agent. 
+Fleet supports the following operating system versions on hosts. 
 
 | OS      | Supported version(s)                    |
 | :------ | :-------------------------------------  |
-| MacOS   | 10.12+                                  |
+| MacOS   | 12 (Monterey) and higher                                  |
 | Windows | 10+                                     |
 | Linux   | CentOS 7.1+,  Ubuntu 16.04+             |
+| ChromeOS | 112.0.5615.134+                        |
 
+While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them. 
 
 ## Some notes on compatibility
 

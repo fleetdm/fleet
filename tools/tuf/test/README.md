@@ -38,6 +38,20 @@ USE_FLEET_SERVER_CERTIFICATE=1 \
 
 > Separate `*_FLEET_URL` and `*_TUF_URL` variables are defined for each package type to support different setups.
 
+To publish test extensions you can set comma-separated executable paths in the `{MACOS|WINDOWS|LINUX}_TEST_EXTENSIONS` environment variables:
+Here's a sample to use the `hello_world` and `hello_mars` test extensions:
+```sh
+# Build `hello_word` and `hello_mars` test extensions.
+./tools/test_extensions/hello_world/build.sh
+
+[...]
+MACOS_TEST_EXTENSIONS="./tools/test_extensions/hello_world/macos/hello_world_macos.ext,./tools/test_extensions/hello_world/macos/hello_mars_macos.ext" \
+WINDOWS_TEST_EXTENSIONS="./tools/test_extensions/hello_world/windows/hello_world_windows.ext.exe,./tools/test_extensions/hello_world/windows/hello_mars_windows.ext.exe" \
+LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_linux.ext,./tools/test_extensions/hello_world/linux/hello_mars_linux.ext" \
+[...]
+./tools/tuf/test/main.sh
+```
+
 # Add new updates
 
 To add new updates (osqueryd or orbit), use `push_target.sh`.

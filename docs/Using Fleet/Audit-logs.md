@@ -1,7 +1,7 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
 # Audit logs
 
-Fleet logs the following information for administrative actions (in JSON):
+Fleet logs the following information for administrative activities (in JSON):
 
 - `created_at`: Timestamp of the event.
 - `id`: Unique ID of the generated event in Fleet.
@@ -28,8 +28,12 @@ Example:
 	}
 }
 ```
+
+You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
+
+To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
 	
-## List of activities and their specific details
+## Activity types
 
 ### Type `created_pack`
 

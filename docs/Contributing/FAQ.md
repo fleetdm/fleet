@@ -16,7 +16,7 @@ Enrolling your device with more than one Fleet server is not currently possible.
 
 ### `dep: command not found`
 
-```
+```sh
 /bin/bash: dep: command not found
 make: *** [.deps] Error 127
 ```
@@ -26,7 +26,7 @@ See the Go language documentation for [workspaces](https://golang.org/doc/code.h
 
 ### `undefined: Asset`
 
-```
+```sh
 server/fleet/emails.go:90:23: undefined: Asset
 make: *** [fleet] Error 2
 ```
@@ -39,7 +39,7 @@ The `osquery` directory contains a docker-compose.yml and additional configurati
 
 To start osquery, first retrieve the "Enroll secret" from Fleet (by clicking the "Add New Host") button in the Fleet dashboard, or with `fleetctl get enroll-secret`).
 
-```
+```sh
 cd tools/osquery
 ENROLL_SECRET=<copy from fleet> docker-compose up
 ```
@@ -62,7 +62,7 @@ Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage
 
 If you tried running `fleetctl preview` and you get the following error:
 
-```
+```sh
 fleetctl preview
 Downloading dependencies into /root/.fleet/preview...
 Pulling Docker dependencies...

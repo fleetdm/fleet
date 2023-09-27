@@ -73,7 +73,7 @@ module "vulnprocessing" {
   ecs_cluster     = module.main.byo-vpc.byo-db.byo-ecs.cluster.cluster_arn
   vpc_id          = module.main.vpc.vpc_id
   fleet_config = {
-    image = "fleetdm/fleet:v4.36.0"
+    image = "fleetdm/fleet:v4.38.0"
     database = {
       password_secret_arn = module.main.byo-vpc.secrets.secret_arns["${var.rds_config.name}-database-password"]
       user                = module.main.byo-vpc.rds.db_instance_username

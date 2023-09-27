@@ -18,10 +18,10 @@ const (
 // The Heat command creates XML fragments allowing WiX to include the entire
 // directory. See
 // https://wixtoolset.org/documentation/manual/v3/overview/heat.html.
-func Heat(path string, native bool) error {
+func Heat(path string, native bool, localWixDir string) error {
 	var args []string
 
-	if !native {
+	if !native && localWixDir == "" {
 		args = append(
 			args,
 			"docker", "run", "--rm", "--platform", "linux/amd64",
@@ -30,8 +30,13 @@ func Heat(path string, native bool) error {
 		)
 	}
 
+	heatPath := `heat`
+	if localWixDir != "" {
+		heatPath = localWixDir + `\heat.exe`
+	}
+
 	args = append(args,
-		"heat", "dir", "root", // command
+		heatPath, "dir", "root", // command
 		"-out", "heat.wxs",
 		"-gg", "-g1", // generate UUIDs (required by wix)
 		"-cg", "OrbitFiles", // set ComponentGroup name
@@ -43,7 +48,7 @@ func Heat(path string, native bool) error {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 
-	if native {
+	if native || localWixDir != "" {
 		cmd.Dir = path
 	}
 
@@ -58,10 +63,10 @@ func Heat(path string, native bool) error {
 //
 // See
 // https://wixtoolset.org/documentation/manual/v3/overview/candle.html.
-func Candle(path string, native bool) error {
+func Candle(path string, native bool, localWixDir string) error {
 	var args []string
 
-	if !native {
+	if !native && localWixDir == "" {
 		args = append(
 			args,
 			"docker", "run", "--rm", "--platform", "linux/amd64",
@@ -70,8 +75,12 @@ func Candle(path string, native bool) error {
 		)
 	}
 
+	candlePath := `candle`
+	if localWixDir != "" {
+		candlePath = localWixDir + `\candle.exe`
+	}
 	args = append(args,
-		"candle", "heat.wxs", "main.wxs", // command
+		candlePath, "heat.wxs", "main.wxs", // command
 		"-ext", "WixUtilExtension",
 		"-arch", "x64",
 	)
@@ -79,7 +88,7 @@ func Candle(path string, native bool) error {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 
-	if native {
+	if native || localWixDir != "" {
 		cmd.Dir = path
 	}
 
@@ -94,10 +103,10 @@ func Candle(path string, native bool) error {
 //
 // See
 // https://wixtoolset.org/documentation/manual/v3/overview/light.html.
-func Light(path string, native bool) error {
+func Light(path string, native bool, localWixDir string) error {
 	var args []string
 
-	if !native {
+	if !native && localWixDir == "" {
 		args = append(
 			args,
 			"docker", "run", "--rm", "--platform", "linux/amd64",
@@ -106,8 +115,12 @@ func Light(path string, native bool) error {
 		)
 	}
 
+	lightPath := `light`
+	if localWixDir != "" {
+		lightPath = localWixDir + `\light.exe`
+	}
 	args = append(args,
-		"light", "heat.wixobj", "main.wixobj", // command
+		lightPath, "heat.wixobj", "main.wixobj", // command
 		"-ext", "WixUtilExtension",
 		"-b", "root", // Set directory for finding heat files
 		"-out", "orbit.msi",
@@ -117,7 +130,7 @@ func Light(path string, native bool) error {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 
-	if native {
+	if native || localWixDir != "" {
 		cmd.Dir = path
 	}
 

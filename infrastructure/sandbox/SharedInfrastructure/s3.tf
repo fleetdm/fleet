@@ -23,3 +23,12 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "installers" {
 output "installer_bucket" {
   value = aws_s3_bucket.installers
 }
+
+resource "aws_kms_key" "installers" {
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
+}
+
+output "installer_kms_key" {
+  value = aws_kms_key.installers
+}

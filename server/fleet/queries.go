@@ -142,6 +142,7 @@ func (q *Query) GetRemoved() *bool {
 }
 
 // Verify verifies the query payload is valid.
+// Called when creating or modifying a query
 func (q *QueryPayload) Verify() error {
 	if q.Name != nil {
 		if err := verifyQueryName(*q.Name); err != nil {
@@ -158,10 +159,16 @@ func (q *QueryPayload) Verify() error {
 			return err
 		}
 	}
+	if q.Platform != nil {
+		if err := verifyQueryPlatforms(*q.Platform); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // Verify verifies the query fields are valid.
+// Called when creating queries by spec
 func (q *Query) Verify() error {
 	if err := verifyQueryName(q.Name); err != nil {
 		return err
@@ -170,6 +177,9 @@ func (q *Query) Verify() error {
 		return err
 	}
 	if err := verifyLogging(q.Logging); err != nil {
+		return err
+	}
+	if err := verifyQueryPlatforms(q.Platform); err != nil {
 		return err
 	}
 	return nil
@@ -196,9 +206,10 @@ func (tq *TargetedQuery) AuthzType() string {
 }
 
 var (
-	errQueryEmptyName  = errors.New("query name cannot be empty")
-	errQueryEmptyQuery = errors.New("query's SQL query cannot be empty")
-	errInvalidLogging  = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
+	errQueryEmptyName       = errors.New("query name cannot be empty")
+	errQueryEmptyQuery      = errors.New("query's SQL query cannot be empty")
+	ErrQueryInvalidPlatform = errors.New("query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string")
+	errInvalidLogging       = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
 )
 
 func verifyQueryName(name string) error {
@@ -219,6 +230,23 @@ func verifyLogging(logging string) error {
 	// Empty string means snapshot.
 	if logging != "" && logging != LoggingSnapshot && logging != LoggingDifferential && logging != LoggingDifferentialIgnoreRemovals {
 		return errInvalidLogging
+	}
+	return nil
+}
+
+func verifyQueryPlatforms(platforms string) error {
+	if emptyString(platforms) {
+		return nil
+	}
+	platformsList := strings.Split(platforms, ",")
+	for _, platform := range platformsList {
+		// TODO(jacob) – should we accept these strings with spaces? If not, remove `TrimSpace`
+		switch strings.TrimSpace(platform) {
+		case "windows", "linux", "darwin", "chrome":
+			// OK
+		default:
+			return ErrQueryInvalidPlatform
+		}
 	}
 	return nil
 }
