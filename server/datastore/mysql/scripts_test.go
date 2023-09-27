@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,7 @@ func TestScripts(t *testing.T) {
 	}{
 		{"HostScriptResult", testHostScriptResult},
 		{"Scripts", testScripts},
+		{"ListScripts", testListScripts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -223,4 +225,106 @@ func testScripts(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotEqual(t, scriptTeam.ID, scriptTeam2.ID)
+}
+
+func testListScripts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create three teams
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	tm3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+
+	// create 5 scripts for no team and team 1
+	for i := 0; i < 5; i++ {
+		_, err = ds.NewScript(ctx, &fleet.Script{
+			Name:           string('a' + byte(i)), // i.e. "a", "b", "c", ...
+			ScriptContents: "echo",
+		})
+		require.NoError(t, err)
+		_, err = ds.NewScript(ctx, &fleet.Script{Name: string('a' + byte(i)), TeamID: &tm1.ID, ScriptContents: "echo"})
+		require.NoError(t, err)
+	}
+
+	// create a single script for team 2
+	_, err = ds.NewScript(ctx, &fleet.Script{Name: "a", TeamID: &tm2.ID, ScriptContents: "echo"})
+	require.NoError(t, err)
+
+	cases := []struct {
+		opts      fleet.ListOptions
+		teamID    *uint
+		wantNames []string
+		wantMeta  *fleet.PaginationMetadata
+	}{
+		{
+			opts:      fleet.ListOptions{},
+			wantNames: []string{"a", "b", "c", "d", "e"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			opts:      fleet.ListOptions{PerPage: 2},
+			wantNames: []string{"a", "b"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 1, PerPage: 2},
+			wantNames: []string{"c", "d"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 2, PerPage: 2},
+			wantNames: []string{"e"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			opts:      fleet.ListOptions{PerPage: 3},
+			teamID:    &tm1.ID,
+			wantNames: []string{"a", "b", "c"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 1, PerPage: 3},
+			teamID:    &tm1.ID,
+			wantNames: []string{"d", "e"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 2, PerPage: 3},
+			teamID:    &tm1.ID,
+			wantNames: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			opts:      fleet.ListOptions{PerPage: 3},
+			teamID:    &tm2.ID,
+			wantNames: []string{"a"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 0, PerPage: 2},
+			teamID:    &tm3.ID,
+			wantNames: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%v: %#v", c.teamID, c.opts), func(t *testing.T) {
+			// always include metadata
+			c.opts.IncludeMetadata = true
+			scripts, meta, err := ds.ListScripts(ctx, c.teamID, c.opts)
+			require.NoError(t, err)
+
+			require.Equal(t, len(c.wantNames), len(scripts))
+			require.Equal(t, c.wantMeta, meta)
+
+			gotNames := make([]string, len(scripts))
+			for i, s := range scripts {
+				gotNames[i] = s.Name
+				require.Equal(t, c.teamID, s.TeamID)
+			}
+		})
+	}
 }

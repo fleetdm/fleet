@@ -216,5 +216,19 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 }
 
 func (svc *Service) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
-	panic("unimplemented")
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	// cursor-based pagination is not supported for scripts
+	opt.After = ""
+	// custom ordering is not supported, always by name
+	opt.OrderKey = "name"
+	opt.OrderDirection = fleet.OrderAscending
+	// no matching query support
+	opt.MatchQuery = ""
+	// always include metadata for scripts
+	opt.IncludeMetadata = true
+
+	return svc.ds.ListScripts(ctx, teamID, opt)
 }

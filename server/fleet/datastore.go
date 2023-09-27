@@ -1057,6 +1057,10 @@ type Datastore interface {
 
 	// DeleteScript deletes the script identified by its id.
 	DeleteScript(ctx context.Context, id uint) error
+
+	// ListScripts returns a paginated list of scripts corresponding to the
+	// criteria.
+	ListScripts(ctx context.Context, teamID *uint, opt ListOptions) ([]*Script, *PaginationMetadata, error)
 }
 
 const (

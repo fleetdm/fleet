@@ -182,3 +182,41 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	}
 	return nil
 }
+
+func (ds *Datastore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
+	var scripts []*fleet.Script
+
+	const selectStmt = `
+SELECT
+  s.id,
+  s.team_id,
+  s.name,
+  s.created_at,
+  s.updated_at
+FROM
+  scripts s
+WHERE
+  s.global_or_team_id = ?
+`
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	args := []any{globalOrTeamID}
+	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &scripts, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select scripts")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(scripts) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			scripts = scripts[:len(scripts)-1]
+		}
+	}
+	return scripts, metaData, nil
+}
