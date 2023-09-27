@@ -120,10 +120,6 @@ For example, let's say you want to retrieve a host's OS version, installed softw
 
 Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts).
 
-The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](https://fleetdm.com/docs/deploying/configuration#feature-flags).
-
-Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](https://fleetdm.com/docs/using-fleet/rest-api#get-host).
-
 It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleet-configuration-options).
 
 ### Why is my host not updating a policy's response?
