@@ -1419,90 +1419,6 @@ func (svc *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject strin
 	return cert, fpHex, nil
 }
 
-func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *int) string {
-	// Getting the management URL
-	appCfg, _ := svc.ds.AppConfig(ctx)
-	fleetEnrollUrl := appCfg.ServerSettings.ServerURL
-
-	// Getting the global enrollment secret
-	var globalEnrollSecret string
-	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
-	if err != nil {
-		return ""
-	}
-
-	for _, secret := range secrets {
-		if secret.TeamID == nil {
-			globalEnrollSecret = secret.Secret
-			break
-		}
-	}
-
-	// keeping the same GUID will prevent the MSI to be installed multiple times - it will be
-	// installed only the first time the message is issued.
-	// FleetURL and FleetSecret properties are passed to the Fleet MSI
-	// See here for more information: https://learn.microsoft.com/en-us/windows/win32/msi/command-line-options
-	installCommandPayload := `<MsiInstallJob id="{A427C0AA-E2D5-40DF-ACE8-0D726A6BE096}">
-					<Product Version="1.0.0.0">
-						<Download>
-							<ContentURLList>
-								<ContentURL>https://download.fleetdm.com/fleetd-base.msi</ContentURL>
-							</ContentURLList>
-						</Download>
-						<Validation>
-							<FileHash>9F89C57D1B34800480B38BD96186106EB6418A82B137A0D56694BF6FFA4DDF1A</FileHash>
-						</Validation>
-						<Enforcement>
-							<CommandLine>/quiet FLEET_URL="` + fleetEnrollUrl + `" FLEET_SECRET="` + globalEnrollSecret + `"</CommandLine>
-							<TimeOut>10</TimeOut>
-							<RetryCount>1</RetryCount>
-							<RetryInterval>5</RetryInterval>
-						</Enforcement>
-					</Product>
-				</MsiInstallJob>`
-
-	newCmds := `<Add>
-				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
-				<Item>
-					<Target>
-					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
-					</Target>
-				</Item>
-				</Add>
-				<Exec>
-				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
-				<Item>
-					<Target>
-					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
-					</Target>
-					<Data>` + html.EscapeString(installCommandPayload) + `</Data>
-					<Meta>
-					<Type xmlns="syncml:metinf">text/plain</Type>
-					<Format xmlns="syncml:metinf">xml</Format>
-					</Meta>
-				</Item>
-				</Exec>`
-
-	return newCmds
-}
-
-// getNextCmdID returns the next command ID
-func getNextCmdID(i *int) string {
-	*i++
-	return strconv.Itoa(*i)
-}
-
-// Checks if body contains a DM device unrollment SyncML message
-func isDeviceUnenrollmentMessage(body fleet.SyncBody) bool {
-	for _, element := range *body.Alert {
-		if *element.Data == mdm.DeviceUnenrollmentID {
-			return true
-		}
-	}
-
-	return false
-}
-
 // MS-MDM Commands helpers
 // NewSyncMLMessage takes input data and returns a SyncML struct
 func NewSyncMLMessage(sessionID string, msgID string, deviceID string, source string, protoCommands []*mdm_types.SyncMLCmd) (*mdm_types.SyncML, error) {
@@ -1524,7 +1440,7 @@ func NewSyncMLMessage(sessionID string, msgID string, deviceID string, source st
 	}
 
 	// Setting source LocURI
-	var sourceLocURI *mdm_types.LocURI = nil
+	var sourceLocURI *mdm_types.LocURI
 
 	if len(source) > 0 {
 		sourceLocURI = &mdm_types.LocURI{

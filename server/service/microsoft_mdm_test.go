@@ -354,7 +354,7 @@ func CheckWrappedSyncMLCmd(tag string, data string) error {
 	openTag := fmt.Sprintf("<%s>", tag)
 	closeTag := fmt.Sprintf("</%s>", tag)
 	if !strings.HasPrefix(trimmedData, openTag) || !strings.HasSuffix(trimmedData, closeTag) {
-		return errors.New(fmt.Sprintf("payload is not wrapped in %s%s", openTag, closeTag))
+		return fmt.Errorf("payload is not wrapped in %s%s", openTag, closeTag)
 	}
 	return nil
 }
