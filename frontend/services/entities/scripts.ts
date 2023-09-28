@@ -58,6 +58,19 @@ export default {
     return sendRequest("GET", SCRIPT(id));
   },
 
+  uploadScript(file: File, teamId?: number) {
+    const { SCRIPTS } = endpoints;
+
+    const formData = new FormData();
+    formData.append("script", file);
+
+    if (teamId) {
+      formData.append("team_id", teamId.toString());
+    }
+
+    return sendRequest("POST", SCRIPTS, formData);
+  },
+
   downloadScript(id: number) {
     const { SCRIPT } = endpoints;
     const path = `${SCRIPT(id)}?${buildQueryStringFromParams({
