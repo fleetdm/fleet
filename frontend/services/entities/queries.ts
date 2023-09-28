@@ -54,10 +54,10 @@ export default {
     queryId: number | null;
     selected: ISelectedTargets;
   }) => {
-    const { RUN_QUERY } = endpoints;
+    const { LIVE_QUERY } = endpoints;
 
     try {
-      const { campaign } = await sendRequest("POST", RUN_QUERY, {
+      const { campaign } = await sendRequest("POST", LIVE_QUERY, {
         query,
         query_id: queryId,
         selected,

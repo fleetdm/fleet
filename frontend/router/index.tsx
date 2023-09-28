@@ -37,7 +37,7 @@ import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PolicyPage from "pages/policies/PolicyPage";
 import QueryDetailsPage from "pages/queries/details/QueryDetailsPage";
-import RunQueryPage from "pages/queries/run/RunQueryPage";
+import LiveQueryPage from "pages/queries/live/LiveQueryPage";
 import EditQueryPage from "pages/queries/edit/EditQueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
@@ -227,7 +227,7 @@ const routes = (
             <Route path=":id">
               <IndexRoute component={QueryDetailsPage} />
               <Route path="edit" component={EditQueryPage} />
-              <Route path="run" component={RunQueryPage} />
+              <Route path="run" component={LiveQueryPage} />
             </Route>
           </Route>
           <Route path="policies">

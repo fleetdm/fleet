@@ -159,7 +159,7 @@ const QueryDetailsPage = ({
                     className={`${baseClass}__run`}
                     variant="blue-green"
                     onClick={() => {
-                      queryId && router.push(PATHS.RUN_QUERY(queryId));
+                      queryId && router.push(PATHS.LIVE_QUERY(queryId));
                     }}
                   >
                     Live query

@@ -595,7 +595,7 @@ const QueryForm = ({
             onClick={() => {
               queryIdForEdit &&
                 router.push(
-                  PATHS.RUN_QUERY(queryIdForEdit) +
+                  PATHS.LIVE_QUERY(queryIdForEdit) +
                     TAGGED_TEMPLATES.queryByHostRoute(hostId)
                 );
             }}
@@ -775,7 +775,7 @@ const QueryForm = ({
               onClick={() => {
                 queryIdForEdit &&
                   router.push(
-                    PATHS.RUN_QUERY(queryIdForEdit) +
+                    PATHS.LIVE_QUERY(queryIdForEdit) +
                       TAGGED_TEMPLATES.queryByHostRoute(hostId)
                   );
               }}

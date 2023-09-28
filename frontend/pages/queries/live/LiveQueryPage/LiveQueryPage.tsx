@@ -6,7 +6,7 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { RUN_QUERY_STEPS, DEFAULT_QUERY } from "utilities/constants";
+import { LIVE_QUERY_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
@@ -21,7 +21,7 @@ import {
 import MainContent from "components/MainContent";
 import SelectTargets from "components/LiveQuery/SelectTargets";
 
-import RunQuery from "pages/queries/run/screens/RunQuery";
+import RunQuery from "pages/queries/live/screens/RunQuery";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 interface IRunQueryPageProps {
@@ -75,7 +75,7 @@ const RunQueryPage = ({
   } = useContext(QueryContext);
 
   const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
-  const [step, setStep] = useState(RUN_QUERY_STEPS[1]);
+  const [step, setStep] = useState(LIVE_QUERY_STEPS[1]);
   const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
   const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
@@ -178,7 +178,7 @@ const RunQueryPage = ({
       targetedTeams,
       targetsTotalCount,
       goToQueryEditor,
-      goToRunQuery: () => setStep(RUN_QUERY_STEPS[2]),
+      goToRunQuery: () => setStep(LIVE_QUERY_STEPS[2]),
       setSelectedTargets: setSelectedQueryTargets,
       setTargetedHosts,
       setTargetedLabels,
@@ -196,7 +196,7 @@ const RunQueryPage = ({
     };
 
     switch (step) {
-      case RUN_QUERY_STEPS[2]:
+      case LIVE_QUERY_STEPS[2]:
         return <RunQuery {...step2Props} />;
       default:
         return <SelectTargets {...step1Props} />;
