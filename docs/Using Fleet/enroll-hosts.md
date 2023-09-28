@@ -315,7 +315,7 @@ expiration setting. To configure this setting, in the Fleet UI, head to **Settin
 > The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
 
 ### Overview
-Google Admin uses *Organizational Units (OUs)* to organize *devices* and *users*.
+Google Admin uses organizational units (OUs) to organize devices and users.
 
 One limitation in Google Admin is that extensions can only be configured at the user level, meaning that a user with a MacBook running Chrome, for example, will also get the fleetd Chrome extension.
 
