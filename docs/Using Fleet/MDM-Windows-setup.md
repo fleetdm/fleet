@@ -104,7 +104,7 @@ Testing automatic enrollment requires creating a test user in Azure AD and a fre
 
 5. On the **Users** page, refresh the page to confirm that your test user was created.
 
-6. Open your Windows laptop and follow the setup steps. When you see the screen below, select **Set up for work or school**.
+6. Open your Windows laptop and follow the setup steps. When you reach the **How would you like to set up?** screen, select **Set up for an organization**. If your workstations has Windows 11, select **Set up for work or school**.
 
 7. Sign in with your test user's credentials and finish the setup steps.
 
