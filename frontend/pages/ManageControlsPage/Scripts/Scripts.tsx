@@ -14,16 +14,7 @@ import FileUploader from "../components/FileUploader";
 import UploadList from "../components/UploadList";
 
 // TODO: remove when get integrate with API.
-const scripts = [
-  {
-    id: 1,
-    name: "Test.py",
-    ran: 57,
-    pending: 2304,
-    errors: 0,
-    created_at: new Date().toString(),
-  },
-];
+const scripts: any[] = [];
 
 const baseClass = "scripts";
 
@@ -86,17 +77,19 @@ const Scripts = () => {
           newTab
         />
       </p>
-      <UploadList
-        listItems={scripts}
-        HeadingComponent={ScriptListHeading}
-        ListItemComponent={({ listItem }) => (
-          <ScriptListItem
-            script={listItem}
-            onRerun={onClickRerun}
-            onDelete={onClickDelete}
-          />
-        )}
-      />
+      {scripts.length !== 0 && (
+        <UploadList
+          listItems={scripts}
+          HeadingComponent={ScriptListHeading}
+          ListItemComponent={({ listItem }) => (
+            <ScriptListItem
+              script={listItem}
+              onRerun={onClickRerun}
+              onDelete={onClickDelete}
+            />
+          )}
+        />
+      )}
       <FileUploader
         icon="file-bash"
         message="Script (.sh)"
