@@ -5518,34 +5518,49 @@ Returns the query report specified by ID.
   "results": [
     {
       "host_id": 1,
-      "model": "USB 2.0 Hub",
-      "vendor": "VIA Labs, Inc."
+      "host_name": "foo",
+      "columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc.",
+        "last_fetched": "2021-01-19T17:08:31Z"
+      }
     },
     {
       "host_id": 1,
-      "model": "USB Keyboard",
-      "vendor": "VIA Labs, Inc."
+      "host_name": "foo",
+      "columns": {
+        "model": "USB Keyboard",
+        "vendor": "VIA Labs, Inc.",
+        "last_fetched": "2021-01-19T17:08:31Z"
+      }
     },
     {
       "host_id": 2,
-      "model": "USB Reciever",
-      "vendor": "Logitech"
+      "host_name": "bar",
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech",
+        "last_fetched": "2021-01-19T17:20:00Z"
+      }
     },
     {
       "host_id": 2,
-      "model": "USB Reciever",
-      "vendor": "Logitech"
+      "host_name": "bar",
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech",
+        "last_fetched": "2021-01-19T17:20:00Z"
+      }
     },
     {
       "host_id": 2,
-      "model": "Display Audio",
-      "vendor": "Apple Inc."
-    },
-    {
-      "host_id": 3,
-      "osquery_version": "5.5.1",
-      "error": "no such table: foo"
-    } 
+      "host_name": "bar",
+      "columns": {
+        "model": "Display Audio",
+        "vendor": "Apple Inc.",
+        "last_fetched": "2021-01-19T17:20:00Z"
+      }
+    }
   ]
 }
 
