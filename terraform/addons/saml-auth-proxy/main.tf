@@ -1,5 +1,9 @@
 data "aws_region" "current" {}
 
+resource "aws_cloudwatch_log_group" "saml_auth_proxy" {
+  name = "${var.customer_prefix}-saml-auth-proxy"
+}
+
 data "aws_iam_policy_document" "saml_auth_proxy" {
   // allow saml_auth_proxy to obtain certs from secrets manager
   statement {
