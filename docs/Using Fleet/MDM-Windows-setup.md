@@ -80,7 +80,37 @@ spec:
 
 By connecting Fleet to Azure AD, Windows workstations can automatically enroll to Fleet when they’re first unboxed and set up by your end user.
 
-This section will guide you through how to
+This section will guide you through how to:
+
+1. Connect Fleet to Azure AD
+
+2. Test automatic enrollment
+
+### Step 1: connect Fleet to Azure AD
+
+For instructions on how to connect Fleet to Azure AD, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
+
+### Step 2: test automatic enrollment
+
+Testing automatic enrollment requires creating a test user in Azure AD and a freshly wiped or new Windows laptop.
+
+1. Sign in to your [Azure Portal](https://portal.azure.com).
+
+2. Type "Microsoft Entra ID" in the search bar and select **Microsoft Entra ID**.
+
+3. In the left-side bar, select **Users**.
+
+4. Select **+ New user > Create new user**, fill out the details for your test user, and select **Review + Create > Create**
+
+5. On the **Users** page, refresh the page to confirm that your test user was created.
+
+6. Open your Windows laptop and follow the setup steps. When you see the screen below, select **Set up for work or school**.
+
+7. Sign in with your test user's credentials and finish the setup steps.
+
+8. When you reach the desktop on your Windows workstation, confirm that your workstation was automatically enrolled to Fleet by selecting the carrot (^) in your taskbar and then selecting the Fleet icon. This will navigate you to this workstation's **My device** page.
+
+9. On the **My device** page, below **My device** confirm that your laptop has a **Status** of "Online."
 
 <meta name="pageOrderInSection" value="1501">
 <meta name="title" value="Windows setup">
