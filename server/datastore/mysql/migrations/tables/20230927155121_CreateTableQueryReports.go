@@ -16,7 +16,7 @@ func Up_20230927155121(tx *sql.Tx) error {
 			query_id INT(10) UNSIGNED NOT NULL,
 			host_id INT(10) UNSIGNED NOT NULL,
 			osquery_version VARCHAR(50),
-			error TEXT,
+			error TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 			last_fetched TIMESTAMP NOT NULL,
 			data JSON,
 			FOREIGN KEY (query_id) REFERENCES queries(id) ON DELETE CASCADE,
