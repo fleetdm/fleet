@@ -39,6 +39,14 @@ export interface IScriptResultResponse {
 export default {
   getScripts() {
     const { SCRIPTS } = endpoints;
+
+    // TODO: API INTIGRATION: remove when API is ready
+    return new Promise<IScriptsResponse>((resolve, reject) => {
+      resolve({
+        scripts: [createMockScript(), createMockScript({ id: 2 })],
+      });
+    });
+
     return sendRequest("GET", SCRIPTS);
   },
 

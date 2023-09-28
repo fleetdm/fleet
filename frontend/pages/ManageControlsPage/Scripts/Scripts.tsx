@@ -1,8 +1,13 @@
 import React, { useContext, useRef, useState } from "react";
+import { useQuery } from "react-query";
+import { AxiosError } from "axios";
 
-import { createMockScript } from "__mocks__/scriptMock";
 import { AppContext } from "context/app";
-import { IScript } from "services/entities/scripts";
+import { NotificationContext } from "context/notification";
+import scriptAPI, {
+  IScript,
+  IScriptsResponse,
+} from "services/entities/scripts";
 
 import CustomLink from "components/CustomLink";
 
@@ -10,21 +15,27 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
 import DeleteScriptModal from "./components/DeleteScriptModal";
-import RerunScriptModal from "./components/RerunScriptModal";
 import FileUploader from "../components/FileUploader";
 import UploadList from "../components/UploadList";
-
-// TODO: remove when get integrate with API.
-const scripts: IScript[] = [createMockScript()];
 
 const baseClass = "scripts";
 
 const Scripts = () => {
   const { isPremiumTier } = useContext(AppContext);
-  const [showRerunScriptModal, setShowRerunScriptModal] = useState(false);
+  const { renderFlash } = useContext(NotificationContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
   const selectedScript = useRef<IScript | null>(null);
+
+  const { data: scripts, isLoading, isError } = useQuery<
+    IScriptsResponse,
+    AxiosError,
+    IScript[]
+  >(["scripts"], () => scriptAPI.getScripts(), {
+    retry: false,
+    refetchOnWindowFocus: false,
+    select: (data) => data.scripts,
+  });
 
   // The user is not a premium tier, so show the premium feature message.
   if (!isPremiumTier) {
@@ -40,25 +51,20 @@ const Scripts = () => {
     setShowDeleteScriptModal(true);
   };
 
-  const onCancelRerun = () => {
-    selectedScript.current = null;
-    setShowRerunScriptModal(false);
-  };
-
   const onCancelDelete = () => {
     selectedScript.current = null;
     setShowDeleteScriptModal(false);
   };
 
   // TODO: change when integrating with API
-  const onRerunScript = (scriptId: number) => {
-    console.log("rerun", scriptId);
-    setShowRerunScriptModal(false);
-  };
-
-  // TODO: change when integrating with API
-  const onDeleteScript = (scriptId: number) => {
-    console.log("delete", scriptId);
+  const onDeleteScript = async (scriptId: number) => {
+    try {
+      await scriptAPI.deleteScript(scriptId);
+      renderFlash("success", "Successfully deleted!");
+    } catch {
+      renderFlash("error", "Couldn’t delete. Please try again.");
+    }
+    selectedScript.current = null;
     setShowDeleteScriptModal(false);
   };
 
@@ -73,7 +79,7 @@ const Scripts = () => {
           newTab
         />
       </p>
-      {scripts.length !== 0 && (
+      {scripts && scripts.length !== 0 && (
         <UploadList
           listItems={scripts}
           HeadingComponent={ScriptListHeading}
@@ -92,14 +98,6 @@ const Scripts = () => {
           return null;
         }}
       />
-      {showRerunScriptModal && selectedScript.current && (
-        <RerunScriptModal
-          scriptName={selectedScript.current?.name}
-          scriptId={selectedScript.current?.id}
-          onCancel={onCancelRerun}
-          onRerun={onRerunScript}
-        />
-      )}
       {showDeleteScriptModal && selectedScript.current && (
         <DeleteScriptModal
           scriptName={selectedScript.current?.name}
