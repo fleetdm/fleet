@@ -149,6 +149,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			WebhookSettings: appConfig.WebhookSettings,
 			Integrations:    appConfig.Integrations,
 			MDM:             appConfig.MDM,
+			Scripts:         appConfig.Scripts,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
