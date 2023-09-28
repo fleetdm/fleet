@@ -98,8 +98,9 @@ const Scripts = () => {
         )}
       />
       <FileUploader
-        icon="files"
-        message="Any type of script supported by macOS. If you If you don’t specify a shell or interpreter (e.g. #!/bin/sh), the script will run in /bin/sh."
+        icon="file-bash"
+        message="Script (.sh)"
+        additionalInfo="Script will run with “#!/bin/sh”."
         onFileUpload={() => {
           return null;
         }}

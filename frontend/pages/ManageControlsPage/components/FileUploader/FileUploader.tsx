@@ -4,12 +4,14 @@ import classnames from "classnames";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import Card from "components/Card";
 
 const baseClass = "file-uploader";
 
 interface IFileUploaderProps {
   icon: IconNames;
   message: string;
+  additionalInfo?: string;
   isLoading?: boolean;
   accept?: string;
   className?: string;
@@ -19,6 +21,7 @@ interface IFileUploaderProps {
 const FileUploader = ({
   icon,
   message,
+  additionalInfo,
   isLoading = false,
   accept,
   className,
@@ -27,10 +30,15 @@ const FileUploader = ({
   const classes = classnames(baseClass, className);
 
   return (
-    <div className={classes}>
+    <Card color="gray" className={classes}>
       <Icon name={icon} />
-      <p>{message}</p>
-      <Button variant="brand" isLoading={isLoading}>
+      <p className={`${baseClass}__message`}>{message}</p>
+      <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
+      <Button
+        className={`${baseClass}__upload-button`}
+        variant="brand"
+        isLoading={isLoading}
+      >
         <label htmlFor="upload-profile">Upload</label>
       </Button>
       <input
@@ -42,7 +50,7 @@ const FileUploader = ({
           e.target.value = "";
         }}
       />
-    </div>
+    </Card>
   );
 };
 
