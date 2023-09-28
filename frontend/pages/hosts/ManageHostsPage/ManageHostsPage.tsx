@@ -1329,13 +1329,13 @@ const ManageHostsPage = ({
     if (maybeEmptyHosts) {
       const emptyState = () => {
         const emptyHosts: IEmptyTableProps = {
-          iconName: "empty-hosts",
+          graphicName: "empty-hosts",
           header: "Devices will show up here once they’re added to Fleet.",
           info:
             "Expecting to see devices? Try again in a few seconds as the system catches up.",
         };
         if (includesFilterQueryParam) {
-          delete emptyHosts.iconName;
+          delete emptyHosts.graphicName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
@@ -1354,7 +1354,7 @@ const ManageHostsPage = ({
       return (
         <>
           {EmptyTable({
-            iconName: emptyState().iconName,
+            graphicName: emptyState().graphicName,
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,

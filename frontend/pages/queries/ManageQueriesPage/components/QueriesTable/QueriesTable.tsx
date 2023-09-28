@@ -176,12 +176,12 @@ const QueriesTable = ({
 
   const emptyState = () => {
     const emptyQueries: IEmptyTableProps = {
-      iconName: "empty-queries",
+      graphicName: "empty-queries",
       header: "You don't have any queries",
       info: "A query is a specific question you can ask about your devices.",
     };
     if (searchQuery) {
-      delete emptyQueries.iconName;
+      delete emptyQueries.graphicName;
       emptyQueries.header = "No queries match the current search criteria.";
       emptyQueries.info =
         "Expecting to see queries? Try again in a few seconds as the system catches up.";
@@ -262,7 +262,7 @@ const QueriesTable = ({
         onQueryChange={onQueryChange}
         emptyComponent={() =>
           EmptyTable({
-            iconName: emptyState().iconName,
+            graphicName: emptyState().graphicName,
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,
