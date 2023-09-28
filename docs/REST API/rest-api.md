@@ -5519,46 +5519,46 @@ Returns the query report specified by ID.
     {
       "host_id": 1,
       "host_name": "foo",
+      "last_fetched": "2021-01-19T17:08:31Z",
       "columns": {
         "model": "USB 2.0 Hub",
-        "vendor": "VIA Labs, Inc.",
-        "last_fetched": "2021-01-19T17:08:31Z"
+        "vendor": "VIA Labs, Inc."
       }
     },
     {
       "host_id": 1,
       "host_name": "foo",
+      "last_fetched": "2021-01-19T17:08:31Z",
       "columns": {
         "model": "USB Keyboard",
-        "vendor": "VIA Labs, Inc.",
-        "last_fetched": "2021-01-19T17:08:31Z"
+        "vendor": "VIA Labs, Inc."
       }
     },
     {
       "host_id": 2,
       "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
       "columns": {
         "model": "USB Reciever",
-        "vendor": "Logitech",
-        "last_fetched": "2021-01-19T17:20:00Z"
+        "vendor": "Logitech"
       }
     },
     {
       "host_id": 2,
       "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
       "columns": {
         "model": "USB Reciever",
-        "vendor": "Logitech",
-        "last_fetched": "2021-01-19T17:20:00Z"
+        "vendor": "Logitech"
       }
     },
     {
       "host_id": 2,
       "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
       "columns": {
         "model": "Display Audio",
-        "vendor": "Apple Inc.",
-        "last_fetched": "2021-01-19T17:20:00Z"
+        "vendor": "Apple Inc."
       }
     }
   ]
