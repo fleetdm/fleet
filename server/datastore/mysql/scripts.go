@@ -239,3 +239,74 @@ WHERE
 	}
 	return scripts, metaData, nil
 }
+
+func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, globalOrTeamID uint, opt fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+	type row struct {
+		ScriptID    uint       `db:"script_id"`
+		Name        string     `db:"name"`
+		HSRID       *uint      `db:"hsr_id"`
+		ExecutionID *string    `db:"execution_id"`
+		ExecutedAt  *time.Time `db:"executed_at"`
+		ExitCode    *int64     `db:"exit_code"`
+	}
+
+	sql := `
+SELECT
+	s.id AS script_id,
+	s.name,
+	hsr.id AS hsr_id,
+	hsr.created_at AS executed_at,
+	hsr.execution_id,
+	hsr.exit_code
+FROM
+	scripts s
+	LEFT JOIN (
+		SELECT
+			id,			
+			script_id,
+			execution_id,
+			created_at,
+			exit_code
+		FROM
+			host_script_results r
+		WHERE
+			host_id = ?
+			AND NOT EXISTS (
+				SELECT
+					1
+				FROM
+					host_script_results
+				WHERE
+					host_id = r.host_id
+					AND script_id = r.script_id
+					AND(created_at > r.created_at
+						OR(created_at = r.created_at
+							AND id > r.id)))) hsr
+	ON s.id = hsr.script_id
+WHERE
+	s.global_or_team_id = ?`
+
+	args := []any{hostID, globalOrTeamID}
+	stmt, args := appendListOptionsWithCursorToSQL(sql, args, &opt)
+
+	var rows []*row
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host script details")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(rows) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			rows = rows[:len(rows)-1]
+		}
+	}
+
+	results := []*fleet.HostScriptDetail{}
+	for _, r := range rows {
+		results = append(results, fleet.NewHostScriptDetail(hostID, r.ScriptID, r.Name, r.ExecutionID, r.ExecutedAt, r.ExitCode, r.HSRID))
+	}
+
+	return results, metaData, nil
+}

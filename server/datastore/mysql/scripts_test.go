@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -355,4 +356,164 @@ func testListScripts(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantNames, gotNames)
 		})
 	}
+}
+
+func TestHostScripts(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := context.Background()
+
+	names := []string{"script-1", "script-2", "script-3", "script-4", "script-5"}
+	for _, r := range append(names[1:], names[0]) {
+		_, err := ds.NewScript(ctx, &fleet.Script{
+			Name:           r,
+			ScriptContents: "echo " + r,
+		})
+		require.NoError(t, err)
+	}
+
+	scripts, _, err := ds.ListScripts(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, scripts, 5)
+
+	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
+		stmt := `
+INSERT INTO 
+	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output) 
+VALUES 
+	(%s ?,?,?,?,?,?)`
+
+		args := []interface{}{}
+		if script.ID == 0 {
+			stmt = fmt.Sprintf(stmt, "", "")
+		} else {
+			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
+			args = append(args, script.ID)
+		}
+		args = append(args, hostID, createdAt, execID, exitCode, script.ScriptContents, "")
+
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// add some results for script-1
+	insertResults(t, 42, scripts[0], now.Add(-3*time.Minute), "execution-1-1", nil)
+	insertResults(t, 42, scripts[0], now.Add(-1*time.Minute), "execution-1-2", nil) // last execution for script-1, status "pending"
+	insertResults(t, 42, scripts[0], now.Add(-2*time.Minute), "execution-1-3", nil)
+
+	// add some results for script-2
+	insertResults(t, 42, scripts[1], now.Add(-3*time.Minute), "execution-2-1", ptr.Int64(0))
+	insertResults(t, 42, scripts[1], now.Add(-1*time.Minute), "execution-2-2", ptr.Int64(1)) // last execution for script-2, status "error"
+
+	// add some results for script-3
+	insertResults(t, 42, scripts[2], now.Add(-1*time.Minute), "execution-3-1", ptr.Int64(0))
+	insertResults(t, 42, scripts[2], now.Add(-1*time.Minute), "execution-3-2", ptr.Int64(0)) // last execution for script-3, status "ran"
+	insertResults(t, 42, scripts[2], now.Add(-2*time.Minute), "execution-3-3", ptr.Int64(0))
+
+	// add some results for script-4
+	insertResults(t, 42, scripts[3], now.Add(-1*time.Minute), "execution-4-1", ptr.Int64(-2)) // last execution for script-4, status "error"
+
+	// add some results for an ad-hoc, non-saved script, should not be included in results
+	insertResults(t, 42, &fleet.Script{Name: "script-6", ScriptContents: "echo script-6"}, now.Add(-1*time.Minute), "execution-6-1", ptr.Int64(0))
+
+	t.Run("results match expected formatting and filtering", func(t *testing.T) {
+		res, _, err := ds.GetHostScriptDetails(ctx, 42, 0, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, res, 5)
+		for _, r := range res {
+			switch r.ScriptID {
+			case scripts[0].ID:
+				require.Equal(t, scripts[0].Name, r.Name)
+				require.NotNil(t, r.LastExecution)
+				require.Equal(t, now.Add(-1*time.Minute), r.LastExecution.ExecutedAt)
+				require.Equal(t, "execution-1-2", r.LastExecution.ExecutionID)
+				require.Equal(t, "pending", r.LastExecution.Status)
+			case scripts[1].ID:
+				require.Equal(t, scripts[1].Name, r.Name)
+				require.NotNil(t, r.LastExecution)
+				require.Equal(t, now.Add(-1*time.Minute), r.LastExecution.ExecutedAt)
+				require.Equal(t, "execution-2-2", r.LastExecution.ExecutionID)
+				require.Equal(t, "error", r.LastExecution.Status)
+			case scripts[2].ID:
+				require.Equal(t, scripts[2].Name, r.Name)
+				require.NotNil(t, r.LastExecution)
+				require.Equal(t, now.Add(-1*time.Minute), r.LastExecution.ExecutedAt)
+				require.Equal(t, "execution-3-2", r.LastExecution.ExecutionID)
+				require.Equal(t, "ran", r.LastExecution.Status)
+			case scripts[3].ID:
+				require.Equal(t, scripts[3].Name, r.Name)
+				require.NotNil(t, r.LastExecution)
+				require.Equal(t, now.Add(-1*time.Minute), r.LastExecution.ExecutedAt)
+				require.Equal(t, "execution-4-1", r.LastExecution.ExecutionID)
+				require.Equal(t, "error", r.LastExecution.Status)
+			case scripts[4].ID:
+				require.Equal(t, scripts[4].Name, r.Name)
+				require.Nil(t, r.LastExecution)
+			default:
+				t.Errorf("unexpected script id: %d", r.ScriptID)
+			}
+		}
+	})
+
+	t.Run("empty slice returned if no scripts", func(t *testing.T) {
+		res, _, err := ds.GetHostScriptDetails(ctx, 42, 1, fleet.ListOptions{}) // team 1 has no scripts
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Len(t, res, 0)
+	})
+
+	t.Run("list options are supported", func(t *testing.T) {
+		cases := []struct {
+			opts      fleet.ListOptions
+			teamID    *uint
+			wantNames []string
+			wantMeta  *fleet.PaginationMetadata
+		}{
+			{
+				opts:      fleet.ListOptions{},
+				wantNames: names,
+				wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+			},
+			{
+				opts:      fleet.ListOptions{PerPage: 2},
+				wantNames: names[:2],
+				wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+			},
+			{
+				opts:      fleet.ListOptions{Page: 1, PerPage: 2},
+				wantNames: names[2:4],
+				wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+			},
+			{
+				opts:      fleet.ListOptions{Page: 2, PerPage: 2},
+				wantNames: names[4:],
+				wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+			},
+		}
+		for _, c := range cases {
+			t.Run(fmt.Sprintf("%#v", c.opts), func(t *testing.T) {
+				// always include metadata
+				c.opts.IncludeMetadata = true
+				// custom ordering is not supported, always by name
+				c.opts.OrderKey = "name"
+				results, meta, err := ds.GetHostScriptDetails(ctx, 42, 0, c.opts)
+				require.NoError(t, err)
+
+				require.Equal(t, len(c.wantNames), len(results))
+				require.Equal(t, c.wantMeta, meta)
+
+				var gotNames []string
+				if len(results) > 0 {
+					gotNames = make([]string, len(results))
+					for i, r := range results {
+						gotNames[i] = r.Name
+					}
+				}
+				require.Equal(t, c.wantNames, gotNames)
+			})
+		}
+	})
 }

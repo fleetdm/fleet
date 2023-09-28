@@ -692,6 +692,8 @@ type DeleteScriptFunc func(ctx context.Context, id uint) error
 
 type ListScriptsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error)
 
+type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, globalOrTeamID uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1703,6 +1705,9 @@ type DataStore struct {
 
 	ListScriptsFunc        ListScriptsFunc
 	ListScriptsFuncInvoked bool
+
+	GetHostScriptDetailsFunc        GetHostScriptDetailsFunc
+	GetHostScriptDetailsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4064,4 +4069,11 @@ func (s *DataStore) ListScripts(ctx context.Context, teamID *uint, opt fleet.Lis
 	s.ListScriptsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListScriptsFunc(ctx, teamID, opt)
+}
+
+func (s *DataStore) GetHostScriptDetails(ctx context.Context, hostID uint, globalOrTeamID uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.GetHostScriptDetailsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostScriptDetailsFunc(ctx, hostID, globalOrTeamID, opts)
 }

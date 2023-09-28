@@ -261,3 +261,38 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 	}
 	return script, nil
 }
+
+func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+	h, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// if error is because the host does not exist, check first if the user
+			// had global access (to prevent leaking valid host ids).
+			if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
+				return nil, nil, err
+			}
+		}
+		return nil, nil, err
+	}
+
+	// cursor-based pagination is not supported for scripts
+	opt.After = ""
+	// custom ordering is not supported, always by name
+	opt.OrderKey = "name"
+	opt.OrderDirection = fleet.OrderAscending
+	// no matching query support
+	opt.MatchQuery = ""
+	// always include metadata for scripts
+	opt.IncludeMetadata = true
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: h.TeamID}, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	var globalOrTeamID uint
+	if h.TeamID != nil {
+		globalOrTeamID = *h.TeamID
+	}
+
+	return svc.ds.GetHostScriptDetails(ctx, h.ID, globalOrTeamID, opt)
+}
