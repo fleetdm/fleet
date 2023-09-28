@@ -20,3 +20,9 @@ variable "public_domain_name" {
   nullable = false
   type     = string
 }
+
+variable "enable_windows_mdm" {
+  default  = false
+  nullable = false
+  type     = bool
+}

@@ -61,6 +61,7 @@ type MDMIdPAccount struct {
 	UUID     string
 	Username string
 	Fullname string
+	Email    string
 }
 
 type MDMAppleBootstrapPackage struct {
@@ -97,4 +98,40 @@ type MDMAppleEULA struct {
 
 func (e MDMAppleEULA) AuthzType() string {
 	return "mdm_apple"
+}
+
+// ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
+type ExpectedMDMProfile struct {
+	Identifier string `db:"identifier"`
+	// EarliestInstallDate is the earliest updated_at of all team profiles with the same checksum.
+	// It is used to assess the case where a host has installed a profile with the identifier
+	// expected by the host's current team, but the host's install_date is earlier than the
+	// updated_at expected by the host's current. This can happen, for example, if a host is
+	// transferred to a team created after the host installed the profile. To avoid treating this as
+	// a missing profile, we use the earliest_updated_at of all profiles with the same checksum.
+	// Ideally, we would simply compare the checksums of the installed and expected profiles, but
+	// the checksums are not available in the osquery profiles table.
+	EarliestInstallDate time.Time `db:"earliest_install_date"`
+}
+
+// IsWithinGracePeriod returns true if the host is within the grace period for the profile.
+//
+// The grace period is defined as 1 hour after the profile was updated. It is checked against the
+// host's detail_updated_at timestamp to allow for the host to check in at least once before the
+// profile is considered failed. If the host is online, it should report detail queries hourly by
+// default. If the host is offline, it should report detail queries shortly after it comes back
+// online.
+//
+// Note: The host detail timestamp is updated after the current set is ingested
+// see https://github.com/fleetdm/fleet/blob/e9fd28717d474668ca626efbacdd0615d42b2e0a/server/service/osquery.go#L950
+func (ep ExpectedMDMProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) bool {
+	gracePeriod := 1 * time.Hour
+	return hostDetailUpdatedAt.Before(ep.EarliestInstallDate.Add(gracePeriod))
+}
+
+// HostMDMProfileRetryCount represents the number of times Fleet has attempted to install
+// the identified profile on a host.
+type HostMDMProfileRetryCount struct {
+	ProfileIdentifier string `db:"profile_identifier"`
+	Retries           uint   `db:"retries"`
 }

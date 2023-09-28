@@ -24,7 +24,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint) (tpol, ipol []*fleet.Policy, err error) {
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (tpol, ipol []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
@@ -149,7 +149,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, _, err = svc.ListTeamPolicies(ctx, 1)
+			_, _, err = svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetTeamPolicyByIDQueries(ctx, 1, 1)
@@ -176,7 +176,8 @@ func TestTeamPoliciesAuth(t *testing.T) {
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	if shouldFail {
 		require.Error(t, err)
-		require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+		var forbiddenError *authz.Forbidden
+		require.ErrorAs(t, err, &forbiddenError)
 	} else {
 		require.NoError(t, err)
 	}

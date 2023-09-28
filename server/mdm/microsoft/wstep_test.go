@@ -75,12 +75,28 @@ func TestNewCertManager(t *testing.T) {
 	require.Equal(t, wantIdentityFingerprint, m.identityFingerprint)
 }
 
-func TestSignClientCSR(t *testing.T) {
-	// TODO
-}
+func TestSTSTokenSigningAndVerification(t *testing.T) {
+	var store CertStore
 
-func TestGetClientCSR(t *testing.T) {
-	// TODO
+	cm, err := NewCertManager(store, testCert, testKey)
+	require.NoError(t, err)
+	require.NotNil(t, cm)
+
+	// Get a New STS Auth token
+	upnEmail := "test@email.com"
+	stsToken, err := cm.NewSTSAuthToken(upnEmail)
+	require.NoError(t, err)
+	require.NotEmpty(t, stsToken)
+
+	// Verify the STS Auth token
+	upnToken, err := cm.GetSTSAuthTokenUPNClaim(stsToken)
+	require.NoError(t, err)
+	require.NotEmpty(t, upnToken)
+	require.Equal(t, upnEmail, upnToken)
+
+	// New invalid STS Auth token
+	_, err = cm.NewSTSAuthToken("")
+	require.ErrorContains(t, err, "invalid upn field")
 }
 
 func TestCertFingerprintHexStr(t *testing.T) {

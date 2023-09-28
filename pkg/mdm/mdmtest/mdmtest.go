@@ -432,6 +432,42 @@ func (c *TestMDMClient) Acknowledge(cmdUUID string) (*micromdm.CommandPayload, e
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+func (c *TestMDMClient) GetBootstrapToken() ([]byte, error) {
+	payload := map[string]any{
+		"MessageType":  "GetBootstrapToken",
+		"Topic":        "com.apple.mgmt.External." + c.UUID,
+		"UDID":         c.UUID,
+		"EnrollmentID": "testenrollmentid-" + c.UUID,
+	}
+	res, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
+	if err != nil {
+		return nil, fmt.Errorf("request error: %w", err)
+	}
+	if res.ContentLength == 0 {
+		if c.debug {
+			fmt.Printf("response: no bootstrap token returned\n")
+		}
+		return nil, nil
+	}
+	raw, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+	if c.debug {
+		fmt.Printf("response: %s\n", raw)
+	}
+	if err = res.Body.Close(); err != nil {
+		return nil, fmt.Errorf("close response body: %w", err)
+	}
+	var p mdm.BootstrapToken
+	err = plist.Unmarshal(raw, &p)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal bootstrap token payload: %w", err)
+	}
+
+	return p.BootstrapToken, nil
+}
+
 // Err sends an Error message to the MDM server.
 // The cmdUUID is the UUID of the command to reference.
 //

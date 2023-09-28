@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
@@ -19,10 +21,6 @@ import (
 
 type setOrbitNodeKeyer interface {
 	setOrbitNodeKey(nodeKey string)
-}
-
-type orbitError struct {
-	message string
 }
 
 // EnrollOrbitRequest is the request Orbit instances use to enroll to Fleet.
@@ -63,17 +61,13 @@ type orbitGetConfigResponse struct {
 
 func (r orbitGetConfigResponse) error() error { return r.Err }
 
-func (e orbitError) Error() string {
-	return e.message
-}
-
 func (r EnrollOrbitResponse) error() error { return r.Err }
 
 // hijackRender so we can add a header with the server capabilities in the
 // response, allowing Orbit to know what features are available without the
 // need to enroll.
 func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
+	writeCapabilitiesHeader(w, fleet.GetServerOrbitCapabilities())
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
@@ -140,22 +134,22 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			// 	3. Orbit tries to re-enroll using old secret.
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}
-		return "", orbitError{message: err.Error()}
+		return "", fleet.OrbitError{Message: err.Error()}
 	}
 
 	orbitNodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
-		return "", orbitError{message: "failed to generate orbit node key: " + err.Error()}
+		return "", fleet.OrbitError{Message: "failed to generate orbit node key: " + err.Error()}
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", orbitError{message: "app config load failed: " + err.Error()}
+		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
 	}
 
 	_, err = svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
 	if err != nil {
-		return "", orbitError{message: "failed to enroll " + err.Error()}
+		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
 	}
 
 	return orbitNodeKey, nil
@@ -170,22 +164,23 @@ func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
+	const pendingScriptMaxAge = time.Minute
+
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
-	var notifs fleet.OrbitConfigNotifications
-
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return fleet.OrbitConfig{Notifications: notifs}, orbitError{message: "internal error: missing host from request context"}
+		return fleet.OrbitConfig{}, fleet.OrbitError{Message: "internal error: missing host from request context"}
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return fleet.OrbitConfig{Notifications: notifs}, err
+		return fleet.OrbitConfig{}, err
 	}
 
 	// set the host's orbit notifications for macOS MDM
+	var notifs fleet.OrbitConfigNotifications
 	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
 		// TODO(mna): all those notifications implied a macos hosts, but none of
 		// the checks enforce that (only indirectly in some cases, like
@@ -206,7 +201,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			// Since this is an user initiated action, we disable
 			// the flag when we deliver the notification to Orbit
 			if err := svc.ds.SetDiskEncryptionResetStatus(ctx, host.ID, false); err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
 		}
 	}
@@ -216,7 +211,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if host.IsEligibleForWindowsMDMEnrollment() {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
 			notifs.WindowsMDMDiscoveryEndpoint = discoURL
 			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
@@ -228,23 +223,41 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
+	// load the pending script executions for that host
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+	if len(pending) > 0 {
+		execIDs := make([]string, 0, len(pending))
+		for _, p := range pending {
+			execIDs = append(execIDs, p.ExecutionID)
+		}
+		notifs.PendingScriptExecutionIDs = execIDs
+	}
+
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
 		if err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
 
 		var opts fleet.AgentOptions
 		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
 			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
+		}
+
+		extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
+		if err != nil {
+			return fleet.OrbitConfig{}, err
 		}
 
 		mdmConfig, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 		if err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
 
 		var nudgeConfig *fleet.NudgeConfig
@@ -253,13 +266,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			mdmConfig.MacOSUpdates.EnabledForHost(host) {
 			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
 			if err != nil {
-				return fleet.OrbitConfig{Notifications: notifs}, err
+				return fleet.OrbitConfig{}, err
 			}
 		}
 
 		return fleet.OrbitConfig{
 			Flags:         opts.CommandLineStartUpFlags,
-			Extensions:    opts.Extensions,
+			Extensions:    extensionsFiltered,
 			Notifications: notifs,
 			NudgeConfig:   nudgeConfig,
 		}, nil
@@ -269,8 +282,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	var opts fleet.AgentOptions
 	if appConfig.AgentOptions != nil {
 		if err := json.Unmarshal(*appConfig.AgentOptions, &opts); err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
+	}
+
+	extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
 	}
 
 	var nudgeConfig *fleet.NudgeConfig
@@ -278,16 +296,59 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
 		nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
 		if err != nil {
-			return fleet.OrbitConfig{Notifications: notifs}, err
+			return fleet.OrbitConfig{}, err
 		}
 	}
 
 	return fleet.OrbitConfig{
 		Flags:         opts.CommandLineStartUpFlags,
-		Extensions:    opts.Extensions,
+		Extensions:    extensionsFiltered,
 		Notifications: notifs,
 		NudgeConfig:   nudgeConfig,
 	}, nil
+}
+
+// filterExtensionsForHost filters a extensions configuration depending on the host platform and label membership.
+//
+// If all extensions are filtered, then it returns (nil, nil) (Orbit expects empty extensions if there
+// are no extensions for the host.)
+func (svc *Service) filterExtensionsForHost(ctx context.Context, extensions json.RawMessage, host *fleet.Host) (json.RawMessage, error) {
+	if len(extensions) == 0 {
+		return nil, nil
+	}
+	var extensionsInfo fleet.Extensions
+	if err := json.Unmarshal(extensions, &extensionsInfo); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal extensions config")
+	}
+
+	// Filter the extensions by platform.
+	extensionsInfo.FilterByHostPlatform(host.Platform)
+
+	// Filter the extensions by labels (premium only feature).
+	if license, _ := license.FromContext(ctx); license != nil && license.IsPremium() {
+		for extensionName, extensionInfo := range extensionsInfo {
+			hostIsMemberOfAllLabels, err := svc.ds.HostMemberOfAllLabels(ctx, host.ID, extensionInfo.Labels)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check host labels")
+			}
+			if hostIsMemberOfAllLabels {
+				// Do not filter out, but there's no need to send the label names to the devices.
+				extensionInfo.Labels = nil
+				extensionsInfo[extensionName] = extensionInfo
+			} else {
+				delete(extensionsInfo, extensionName)
+			}
+		}
+	}
+	// Orbit expects empty message if no extensions apply.
+	if len(extensionsInfo) == 0 {
+		return nil, nil
+	}
+	extensionsFiltered, err := json.Marshal(extensionsInfo)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshal extensions config")
+	}
+	return extensionsFiltered, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -299,7 +360,7 @@ type orbitPingRequest struct{}
 type orbitPingResponse struct{}
 
 func (r orbitPingResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
+	writeCapabilitiesHeader(w, fleet.GetServerOrbitCapabilities())
 }
 
 func (r orbitPingResponse) error() error { return nil }
@@ -357,4 +418,88 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 	}
 
 	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Orbit pending script execution request
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitGetScriptRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	ExecutionID  string `json:"execution_id"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitGetScriptRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitGetScriptRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitGetScriptResponse struct {
+	Err error `json:"error,omitempty"`
+	*fleet.HostScriptResult
+}
+
+func (r orbitGetScriptResponse) error() error { return r.Err }
+
+func getOrbitScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitGetScriptRequest)
+	script, err := svc.GetHostScript(ctx, req.ExecutionID)
+	if err != nil {
+		return orbitGetScriptResponse{Err: err}, nil
+	}
+	return orbitGetScriptResponse{HostScriptResult: script}, nil
+}
+
+func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit script execution result
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostScriptResultRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	*fleet.HostScriptResultPayload
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostScriptResultRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPostScriptResultRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostScriptResultResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostScriptResultResponse) error() error { return r.Err }
+
+func postOrbitScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPostScriptResultRequest)
+	if err := svc.SaveHostScriptResult(ctx, req.HostScriptResultPayload); err != nil {
+		return orbitPostScriptResultResponse{Err: err}, nil
+	}
+	return orbitPostScriptResultResponse{}, nil
+}
+
+func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }

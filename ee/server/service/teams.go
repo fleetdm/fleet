@@ -259,7 +259,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 	}
 
 	if teamOptions != nil {
-		if err := fleet.ValidateJSONAgentOptions(teamOptions); err != nil {
+		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, teamOptions, true); err != nil {
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
@@ -449,7 +449,13 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-	hosts, err := svc.ds.ListHosts(ctx, filter, fleet.HostListOptions{TeamFilter: &teamID})
+
+	opts := fleet.HostListOptions{
+		TeamFilter:             &teamID,
+		DisableFailingPolicies: true, // don't need to check policies for hosts that are being deleted
+	}
+
+	hosts, err := svc.ds.ListHosts(ctx, filter, opts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list hosts for reconcile profiles on team change")
 	}
@@ -688,7 +694,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
-			if err := fleet.ValidateJSONAgentOptions(spec.AgentOptions); err != nil {
+			if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, spec.AgentOptions, true); err != nil {
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
 					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
@@ -706,6 +712,18 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		if create {
+
+			// create a new team enroll secret if none is provided for a new team.
+			if len(secrets) == 0 {
+				secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
+				}
+				secrets = append(secrets, &fleet.EnrollSecret{
+					Secret: secret,
+				})
+			}
+
 			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts.DryRun)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating team from spec")

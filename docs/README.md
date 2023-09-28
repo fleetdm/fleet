@@ -1,6 +1,6 @@
 # Fleet documentation
 
-Welcome to the documentation for Fleet, the lightweight telemetry platform for servers and workstations.
+Welcome to the documentation for Fleet, the lightweight management platform for laptops and servers.
 
 > You can also read the Fleet docs over at https://fleetdm.com/docs.
 

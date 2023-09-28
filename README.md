@@ -4,7 +4,7 @@
 
 Open-source platform for IT and security teams with thousands of computers.  Designed for APIs, GitOps, webhooks, YAML, and humans.
 
-<a href="https://fleetdm.com/logos"><img alt="Wallpaper featuring a futuristic cloud city with the Fleet logo" src="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101"/></a>
+<a href="https://fleetdm.com/logos"><img src="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101" alt="A glass city in the clouds"/></a>
 
 
 ## What's it for?
@@ -90,4 +90,4 @@ Complete documentation for Fleet can be found at [https://fleetdm.com/docs](http
 ## License
 The free version of Fleet is available under the MIT license.  The commercial license is also designed to allow contributions to paid features for users whose employment agreements allow them to contribute to open source projects.  (See LICENSE.md for details.)
 
-> Fleet is built on osquery, nanoMDM, and Nudge.
+> Fleet is built on [osquery](https://github.com/osquery/osquery), [nanoMDM](https://github.com/micromdm/nanomdm), [Nudge](https://github.com/macadmins/nudge), and [swiftDialog](https://github.com/swiftDialog/swiftDialog).

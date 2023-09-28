@@ -1,4 +1,4 @@
-FROM rust:latest@sha256:02a53e734724bef4a58d856c694f826aa9e7ea84353516b76d9a6d241e9da60e AS builder
+FROM rust:latest@sha256:56418f03475cf7b107f87d7fabe99ce9a4a9f9904daafa99be7c50d9e7b8f84d AS builder
 
 ARG transporter_url=https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/resources/download/public/Transporter__Linux/bin
 
@@ -13,6 +13,7 @@ ARG binpath=build/binary-bundle/linux/fleetctl
 RUN apt-get update \
   && dpkg --add-architecture i386 \
   && apt update \
+  && apt upgrade -y \
   && apt install -y --no-install-recommends ca-certificates cpio libxml2 wine wine32 libgtk-3-0 \
   && rm -rf /var/lib/apt/lists/* 
 

@@ -1,0 +1,27 @@
+<div id="sandbox-waitlist" v-cloak>
+  <div class="container pt-4">
+    <h3>Sandbox waitlist</h3>
+    <div purpose="table-container" v-if="usersWaitingForSandboxInstance.length > 0">
+      <table class="table" purpose="waitlist-table">
+        <thead><tr>
+          <td>Email</td>
+          <td>Date signed up</td>
+          <td></td>
+        </tr></thead>
+        <tbody>
+          <tr v-for="user in usersWaitingForSandboxInstance">
+            <td>{{user.emailAddress}}</td>
+            <td><js-timestamp format="calendar" :at="user.createdAt"></js-timestamp></td>
+            <td><ajax-button purpose="approve-button" :syncing="syncing" class="btn btn-sm btn-success ml-auto" @click="clickApproveWaitlistUser(user.id)">Approve</ajax-button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div purpose="table-container"  v-else>
+      <h4> There are no users currently on the Fleet Sandbox waitlist.</h4>
+    </div>
+
+  </div>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

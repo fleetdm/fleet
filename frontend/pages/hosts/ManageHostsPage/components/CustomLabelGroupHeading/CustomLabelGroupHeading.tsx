@@ -76,6 +76,7 @@ const CustomLabelGroupHeading = (
           onClick={handleInputClick}
           onBlur={onBlurLabelSearchInput}
         />
+        <Icon name="search" />
       </div>
     </components.GroupHeading>
   );

@@ -31,7 +31,6 @@ func TestTeams(t *testing.T) {
 		{"Search", testTeamsSearch},
 		{"EnrollSecrets", testTeamsEnrollSecrets},
 		{"TeamAgentOptions", testTeamsAgentOptions},
-		{"TeamsDeleteRename", testTeamsDeleteRename},
 		{"DeleteIntegrationsFromTeams", testTeamsDeleteIntegrationsFromTeams},
 		{"TeamsFeatures", testTeamsFeatures},
 		{"TeamsMDMConfig", testTeamsMDMConfig},
@@ -104,35 +103,6 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 		})
 	}
-}
-
-func testTeamsDeleteRename(t *testing.T, ds *Datastore) {
-	team, err := ds.NewTeam(context.Background(), &fleet.Team{
-		Name:        t.Name(),
-		Description: t.Name() + "desc",
-	})
-	require.NoError(t, err)
-	assert.NotZero(t, team.ID)
-
-	team2, err := ds.NewTeam(context.Background(), &fleet.Team{
-		Name:        t.Name() + "2",
-		Description: t.Name() + "desc 2",
-	})
-	require.NoError(t, err)
-	assert.NotZero(t, team2.ID)
-
-	_, err = ds.EnsureTeamPack(context.Background(), team.ID)
-	require.NoError(t, err)
-
-	err = ds.DeleteTeam(context.Background(), team.ID)
-	require.NoError(t, err)
-
-	team2.Name = t.Name()
-	_, err = ds.SaveTeam(context.Background(), team2)
-	require.NoError(t, err)
-
-	_, err = ds.EnsureTeamPack(context.Background(), team2.ID)
-	require.NoError(t, err)
 }
 
 func testTeamsUsers(t *testing.T, ds *Datastore) {

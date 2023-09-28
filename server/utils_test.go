@@ -1,6 +1,8 @@
 package server
 
 import (
+	"encoding/base64"
+	"errors"
 	"net/url"
 	"testing"
 
@@ -60,7 +62,7 @@ func TestMaskSecretURLParams(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			masked := maskSecretURLParams(c.rawURL)
+			masked := MaskSecretURLParams(c.rawURL)
 			got, err := url.Parse(masked)
 			require.NoError(t, err)
 			want, err := url.Parse(c.expected)
@@ -71,5 +73,53 @@ func TestMaskSecretURLParams(t *testing.T) {
 			require.Equal(t, got.Path, want.Path)
 			require.Equal(t, got.Scheme, want.Scheme)
 		})
+	}
+}
+
+func TestMaskURLError(t *testing.T) {
+	t.Run("not url error", func(t *testing.T) {
+		e := errors.New("not url.Error")
+		errStr := e.Error()
+		masked := MaskURLError(e)
+		require.Equal(t, e, masked)
+		require.EqualError(t, masked, errStr)
+	})
+
+	t.Run("no secret in URL", func(t *testing.T) {
+		e := &url.Error{Op: "GET", URL: "https://example.com?foo=bar", Err: errors.New("not found")}
+		errStr := e.Error()
+		masked := MaskURLError(e)
+		require.Equal(t, e, masked)
+		require.EqualError(t, masked, errStr)
+		require.Contains(t, masked.Error(), "?foo=bar")
+	})
+
+	t.Run("masked secret in URL", func(t *testing.T) {
+		e := &url.Error{Op: "GET", URL: "https://example.com?the_secret=42", Err: errors.New("not found")}
+		masked := MaskURLError(e)
+		require.Equal(t, e, masked)
+		require.EqualError(t, masked, "GET \"https://example.com?the_secret=MASKED\": not found")
+		require.NotContains(t, masked.Error(), "42")
+	})
+}
+
+func TestBase64DecodePaddingAgnostic(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []byte
+		err  error
+	}{
+		{"", []byte{}, nil},
+		{"==", []byte{}, nil},
+		{"==", []byte{}, nil},
+		{"dGVzdA==", []byte("test"), nil},
+		{"dGVzdA", []byte("test"), nil},
+		{"dGVzdA==ABC", []byte("tes"), base64.CorruptInputError(6)},
+	}
+
+	for _, c := range cases {
+		got, err := Base64DecodePaddingAgnostic(c.in)
+		require.Equal(t, c.err, err)
+		require.Equal(t, got, c.want)
 	}
 }

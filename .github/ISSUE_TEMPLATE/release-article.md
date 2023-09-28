@@ -1,7 +1,7 @@
 ---
-name: 📰 Release Article
+name: 📰 Release article
 about: Propose a new feature or enhancement in Fleet.
-title: 'Release Article: vXXX.YYY.ZZZ'
+title: 'Release article: vXXX.YYY.ZZZ'
 labels: ':improve documentation'
 assignees: 'spokanemac'
 
@@ -13,10 +13,10 @@ Fleet vXXX.YYY.ZZZ is scheduled for release on YYYY-MM-DD (afternoon PST)
 Prepare and publish the release article so that folks in the Fleet/osquery community can understand the latest features.
 
 ## Features
-**Tier 1**
+**Echelon 1**
 - FILL IN HERE, if any
 
-**Tier 2**
+**Echelon 2**
 - FILL IN HERE
 
 ## TODO

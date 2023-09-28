@@ -3,12 +3,15 @@ package main
 import (
 	"bytes"
 	"compress/bzip2"
+	cryptorand "crypto/rand"
 	"crypto/tls"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -16,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"text/template"
 	"time"
 
@@ -283,6 +287,11 @@ type agent struct {
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
 	isEnrolledToMDMMu sync.Mutex
 
+	disableScriptExec bool
+	// atomic boolean is set to true when executing scripts, so that only a
+	// single goroutine at a time can execute scripts.
+	scriptExecRunning atomic.Bool
+
 	//
 	// The following are exported to be used by the templates.
 	//
@@ -327,6 +336,7 @@ func newAgent(
 	mdmSCEPChallenge string,
 	liveQueryFailProb float64,
 	liveQueryNoResultsProb float64,
+	disableScriptExec bool,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -377,7 +387,8 @@ func newAgent(
 		UUID:               uuid,
 		SerialNumber:       serialNumber,
 
-		mdmClient: mdmClient,
+		mdmClient:         mdmClient,
+		disableScriptExec: disableScriptExec,
 	}
 }
 
@@ -519,7 +530,7 @@ func (a *agent) runOrbitLoop() {
 	// fleet desktop performs a burst of check token requests when it's initialized
 	checkToken()
 
-	// orbit makes a call to check the config and update the CLI flags every 5
+	// orbit makes a call to check the config and update the CLI flags every 30
 	// seconds
 	orbitConfigTicker := time.Tick(30 * time.Second)
 	// orbit makes a call every 5 minutes to check the validity of the device
@@ -536,9 +547,15 @@ func (a *agent) runOrbitLoop() {
 	for {
 		select {
 		case <-orbitConfigTicker:
-			if _, err := orbitClient.GetConfig(); err != nil {
+			cfg, err := orbitClient.GetConfig()
+			if err != nil {
 				a.stats.IncrementOrbitErrors()
 				log.Println("orbitClient.GetConfig: ", err)
+			}
+			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
+				// there are pending scripts to execute on this host, start a goroutine
+				// that will simulate executing them.
+				go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
 			}
 		case <-orbitTokenRemoteCheckTicker:
 			if tokenRotationEnabled {
@@ -592,6 +609,58 @@ func (a *agent) runMDMLoop() {
 				break INNER_FOR_LOOP
 			}
 		}
+	}
+}
+
+func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) {
+	if a.scriptExecRunning.Swap(true) {
+		// if Swap returns true, the goroutine was already running, exit
+		return
+	}
+	defer a.scriptExecRunning.Store(false)
+
+	log.Printf("running scripts: %v\n", execIDs)
+	for _, execID := range execIDs {
+		if a.disableScriptExec {
+			// send a no-op result without executing if script exec is disabled
+			if err := orbitClient.SaveHostScriptResult(&fleet.HostScriptResultPayload{
+				ExecutionID: execID,
+				Output:      "Scripts are disabled",
+				Runtime:     0,
+				ExitCode:    -2,
+			}); err != nil {
+				log.Println("save disabled host script result:", err)
+				return
+			}
+			log.Printf("did save disabled host script result: id=%s\n", execID)
+			continue
+		}
+
+		script, err := orbitClient.GetHostScript(execID)
+		if err != nil {
+			log.Println("get host script:", err)
+			return
+		}
+
+		// simulate script execution
+		outputLen := rand.Intn(11000) // base64 encoding will make the actual output a bit bigger
+		buf := make([]byte, outputLen)
+		n, _ := io.ReadFull(cryptorand.Reader, buf)
+		exitCode := rand.Intn(2)
+		runtime := rand.Intn(5)
+		time.Sleep(time.Duration(runtime) * time.Second)
+
+		if err := orbitClient.SaveHostScriptResult(&fleet.HostScriptResultPayload{
+			HostID:      script.HostID,
+			ExecutionID: script.ExecutionID,
+			Output:      base64.StdEncoding.EncodeToString(buf[:n]),
+			Runtime:     runtime,
+			ExitCode:    exitCode,
+		}); err != nil {
+			log.Println("save host script result:", err)
+			return
+		}
+		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d\n", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
 	}
 }
 
@@ -1337,14 +1406,18 @@ func main() {
 		orbitProb                   = flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
-		osTemplates                 = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
-		emptySerialProb             = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
+		// E.g. when running with `-host_count=10`, you can set host count for each template the following way:
+		// `-os_templates=windows_11.tmpl:3,mac10.14.6.tmpl:4,ubuntu_22.04.tmpl:3`
+		osTemplates     = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		emptySerialProb = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
 
 		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via MDM (for macOS) [0, 1]")
 		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running MDM enroll")
 
 		liveQueryFailProb      = flag.Float64("live_query_fail_prob", 0.0, "Probability of a live query failing execution in the host")
 		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
+
+		disableScriptExec = flag.Bool("disable_script_exec", false, "Disable script execution support")
 	)
 
 	flag.Parse()
@@ -1363,9 +1436,20 @@ func main() {
 		log.Fatalf("Argument unique_software_uninstall_count cannot be bigger than unique_software_count")
 	}
 
-	var tmpls []*template.Template
+	tmplsm := make(map[*template.Template]int)
 	requestedTemplates := strings.Split(*osTemplates, ",")
+	tmplsTotalHostCount := 0
 	for _, nm := range requestedTemplates {
+		numberOfHosts := 0
+		if strings.Contains(nm, ":") {
+			parts := strings.Split(nm, ":")
+			nm = parts[0]
+			hc, err := strconv.ParseInt(parts[1], 10, 64)
+			if err != nil {
+				log.Fatalf("Invalid template host count: %s", parts[1])
+			}
+			numberOfHosts = int(hc)
+		}
 		if !strings.HasSuffix(nm, ".tmpl") {
 			nm += ".tmpl"
 		}
@@ -1377,7 +1461,11 @@ func main() {
 		if err != nil {
 			log.Fatal("parse templates: ", err)
 		}
-		tmpls = append(tmpls, tmpl)
+		tmplsm[tmpl] = numberOfHosts
+		tmplsTotalHostCount += numberOfHosts
+	}
+	if tmplsTotalHostCount != 0 && tmplsTotalHostCount != *hostCount {
+		log.Fatalf("Invalid host count in templates: total=%d vs host_count=%d", tmplsTotalHostCount, *hostCount)
 	}
 
 	// Spread starts over the interval to prevent thundering herd
@@ -1392,8 +1480,28 @@ func main() {
 		nodeKeyManager.LoadKeys()
 	}
 
+	var tmplss []*template.Template
+	for tmpl := range tmplsm {
+		tmplss = append(tmplss, tmpl)
+	}
+
 	for i := 0; i < *hostCount; i++ {
-		tmpl := tmpls[i%len(tmpls)]
+		var tmpl *template.Template
+		if tmplsTotalHostCount > 0 {
+			for tmpl_, hostCount := range tmplsm {
+				if hostCount > 0 {
+					tmpl = tmpl_
+					tmplsm[tmpl_] = tmplsm[tmpl_] - 1
+					break
+				}
+			}
+			if tmpl == nil {
+				log.Fatalf("Failed to determine template for host: %d", i)
+			}
+		} else {
+			tmpl = tmplss[i%len(tmplss)]
+		}
+
 		a := newAgent(i+1,
 			*serverURL,
 			*enrollSecret,
@@ -1426,6 +1534,7 @@ func main() {
 			*mdmSCEPChallenge,
 			*liveQueryFailProb,
 			*liveQueryNoResultsProb,
+			*disableScriptExec,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

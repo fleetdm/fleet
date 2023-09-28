@@ -1,16 +1,13 @@
 <div id="register" v-cloak>
   <div style="max-width:  800px; padding-top: 80px; padding-bottom: 80px;" class="container d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto px-4 px-md-3">
     <div>
-      <img purpose="sandbox-image" style="width: 300px; height: auto;" src="/images/fleet-sandbox-300x244@2x.png" alt="Play in Fleet sandbox">
+      <img purpose="sandbox-image" style="width: 300px; height: auto;" src="/images/fleet-sandbox-300x244@2x.png" alt="Try Fleet">
     </div>
     <div style="max-width: 400px;" class="flex-column d-flex">
-      <h2>Play in Fleet Sandbox</h2>
+      <h2>Try Fleet</h2>
       <p class="pt-3">
         The fastest way to test Fleet. Get up and running in minutes. Ready for production deployments? <a href="https://fleetdm.com/docs/deploying">Learn how to deploy Fleet</a>.
       </p>
-      <div purpose="sandbox-mdm-note" class="d-flex flex-column">
-        <p class="mb-0">Interested in testing Fleet’s MDM capabilities? <a target="_blank" href="https://fleetdm.com/docs/using-fleet/mdm-setup">Deploy your own Fleet</a></p>
-      </div>
       <div class="pt-3">
         <ajax-form :handle-submitting="handleSubmittingRegisterForm" class="sandbox-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
           <div class="form-group mb-3">
@@ -46,7 +43,7 @@
             <a class="mx-auto font-weight-bold d-flex align-items-center py-3" href="/try-fleet/login">Sign in with existing account <img alt="A blue arrow pointing right" style="height: 10px; margin-left: 6px;" src="/images/arrow-right-blue-18x10@2x.png"></a>
             <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info">Try again</ajax-button>
           </div>
-          <cloud-error purpose="cloud-error" v-else-if="cloudError === 'requestToSandboxTimedOut'">
+          <cloud-error purpose="cloud-error" v-else-if="cloudError === 'requestToProvisionerTimedOut'">
             <p purpose="error-message">Fleet Sandbox is experiencing unusually high activity. Please refresh the page in 13 seconds and try signing up again.</p>
           </cloud-error>
           <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>

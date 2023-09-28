@@ -18,7 +18,7 @@ const mockRouter = {
 };
 
 describe("Integrations Page", () => {
-  it("renders the MDM section in the side nav if MDM feature is enabled", () => {
+  it("renders the MDM sidenav and content if MDM feature is enabled", () => {
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
@@ -30,8 +30,8 @@ describe("Integrations Page", () => {
       <IntegrationsPage router={mockRouter} params={{ section: "mdm" }} />
     );
 
-    expect(
-      screen.getByText("Mobile device management (MDM)")
-    ).toBeInTheDocument();
+    expect(screen.getAllByText("Mobile device management (MDM)")).toHaveLength(
+      2
+    );
   });
 });

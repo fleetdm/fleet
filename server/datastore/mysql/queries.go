@@ -36,15 +36,29 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			query,
 			author_id,
 			saved,
-			observer_can_run
-		) VALUES ( ?, ?, ?, ?, true, ? )
+			observer_can_run,
+			team_id,
+			team_id_char,
+			platform,
+			min_osquery_version,
+			schedule_interval,
+			automations_enabled,
+			logging_type 
+		) VALUES ( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
 			query = VALUES(query),
 			author_id = VALUES(author_id),
 			saved = VALUES(saved),
-			observer_can_run = VALUES(observer_can_run)
+			observer_can_run = VALUES(observer_can_run),
+			team_id = VALUES(team_id),
+			team_id_char = VALUES(team_id_char),
+			platform = VALUES(platform),
+			min_osquery_version = VALUES(min_osquery_version),
+			schedule_interval = VALUES(schedule_interval),
+			automations_enabled = VALUES(automations_enabled),
+			logging_type = VALUES(logging_type)
 	`
 	stmt, err := tx.PrepareContext(ctx, sql)
 	if err != nil {
@@ -53,10 +67,24 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 	defer stmt.Close()
 
 	for _, q := range queries {
-		if q.Name == "" {
-			return ctxerr.New(ctx, "query name must not be empty")
+		if err := q.Verify(); err != nil {
+			return ctxerr.Wrap(ctx, err)
 		}
-		_, err := stmt.ExecContext(ctx, q.Name, q.Description, q.Query, authorID, q.ObserverCanRun)
+		_, err := stmt.ExecContext(
+			ctx,
+			q.Name,
+			q.Description,
+			q.Query,
+			authorID,
+			q.ObserverCanRun,
+			q.TeamID,
+			q.TeamIDStr(),
+			q.Platform,
+			q.MinOsqueryVersion,
+			q.Interval,
+			q.AutomationsEnabled,
+			q.Logging,
+		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec ApplyQueries insert")
 		}
@@ -66,14 +94,42 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 	return ctxerr.Wrap(ctx, err, "commit ApplyQueries transaction")
 }
 
-func (ds *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-	sqlStatement := `
-		SELECT *
-			FROM queries
-			WHERE name = ?
+func (ds *Datastore) QueryByName(
+	ctx context.Context,
+	teamID *uint,
+	name string,
+	opts ...fleet.OptionalArg,
+) (*fleet.Query, error) {
+	stmt := `
+		SELECT 
+			id,
+			team_id,
+			name,
+			description,
+			query,
+			author_id,
+			saved,
+			observer_can_run,
+			schedule_interval,
+			platform,
+			min_osquery_version,
+			automations_enabled,
+			logging_type,
+			created_at,
+			updated_at
+		FROM queries
+		WHERE name = ?
 	`
+	args := []interface{}{name}
+	whereClause := " AND team_id_char = ''"
+	if teamID != nil {
+		args = append(args, fmt.Sprint(*teamID))
+		whereClause = " AND team_id_char = ?"
+	}
+
+	stmt += whereClause
 	var query fleet.Query
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &query, sqlStatement, name)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &query, stmt, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithName(name))
@@ -89,7 +145,11 @@ func (ds *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet
 }
 
 // NewQuery creates a New Query.
-func (ds *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+func (ds *Datastore) NewQuery(
+	ctx context.Context,
+	query *fleet.Query,
+	opts ...fleet.OptionalArg,
+) (*fleet.Query, error) {
 	sqlStatement := `
 		INSERT INTO queries (
 			name,
@@ -97,10 +157,33 @@ func (ds *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...f
 			query,
 			saved,
 			author_id,
-			observer_can_run
-		) VALUES ( ?, ?, ?, ?, ?, ? )
+			observer_can_run,
+			team_id,
+			team_id_char,
+			platform,
+			min_osquery_version,
+			schedule_interval,
+			automations_enabled,
+			logging_type 
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
-	result, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
+	result, err := ds.writer(ctx).ExecContext(
+		ctx,
+		sqlStatement,
+		query.Name,
+		query.Description,
+		query.Query,
+		query.Saved,
+		query.AuthorID,
+		query.ObserverCanRun,
+		query.TeamID,
+		query.TeamIDStr(),
+		query.Platform,
+		query.MinOsqueryVersion,
+		query.Interval,
+		query.AutomationsEnabled,
+		query.Logging,
+	)
 
 	if err != nil && isDuplicate(err) {
 		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", query.Name))
@@ -118,10 +201,38 @@ func (ds *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...f
 func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 	sql := `
 		UPDATE queries
-			SET name = ?, description = ?, query = ?, author_id = ?, saved = ?, observer_can_run = ?
-			WHERE id = ?
+		SET name                = ?,
+			description         = ?,
+			query               = ?,
+			author_id           = ?,
+			saved               = ?,
+			observer_can_run    = ?,
+			team_id             = ?,
+			team_id_char        = ?,
+			platform            = ?,
+			min_osquery_version = ?,
+			schedule_interval   = ?,
+			automations_enabled = ?,
+			logging_type        = ?
+		WHERE id = ?
 	`
-	result, err := ds.writer(ctx).ExecContext(ctx, sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ObserverCanRun, q.ID)
+	result, err := ds.writer(ctx).ExecContext(
+		ctx,
+		sql,
+		q.Name,
+		q.Description,
+		q.Query,
+		q.AuthorID,
+		q.Saved,
+		q.ObserverCanRun,
+		q.TeamID,
+		q.TeamIDStr(),
+		q.Platform,
+		q.MinOsqueryVersion,
+		q.Interval,
+		q.AutomationsEnabled,
+		q.Logging,
+		q.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating query")
 	}
@@ -136,9 +247,33 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 	return nil
 }
 
-// DeleteQuery deletes Query identified by Query.ID.
-func (ds *Datastore) DeleteQuery(ctx context.Context, name string) error {
-	return ds.deleteEntityByName(ctx, queriesTable, name)
+func (ds *Datastore) DeleteQuery(
+	ctx context.Context,
+	teamID *uint,
+	name string,
+) error {
+	stmt := "DELETE FROM queries WHERE name = ?"
+
+	args := []interface{}{name}
+	whereClause := " AND team_id_char = ''"
+	if teamID != nil {
+		args = append(args, fmt.Sprint(*teamID))
+		whereClause = " AND team_id_char = ?"
+	}
+	stmt += whereClause
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		if isMySQLForeignKey(err) {
+			return ctxerr.Wrap(ctx, foreignKey("queries", name))
+		}
+		return ctxerr.Wrap(ctx, err, "delete queries")
+	}
+	rows, _ := result.RowsAffected()
+	if rows != 1 {
+		return ctxerr.Wrap(ctx, notFound("queries").WithName(name))
+	}
+	return nil
 }
 
 // DeleteQueries deletes the existing query objects with the provided IDs. The
@@ -150,14 +285,38 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 // Query returns a single Query identified by id, if such exists.
 func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	sqlQuery := `
-		SELECT q.*, COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, COALESCE(u.email, '') AS author_email
+		SELECT 
+			q.id,
+			q.team_id,
+			q.name,
+			q.description,
+			q.query,
+			q.author_id,
+			q.saved,
+			q.observer_can_run,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type,
+			q.created_at,
+			q.updated_at,
+			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, 
+			COALESCE(u.email, '') AS author_email,
+			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
+			JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
+			JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
+			JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
+			JSON_EXTRACT(json_value, '$.total_executions') as total_executions
 		FROM queries q
 		LEFT JOIN users u
 			ON q.author_id = u.id
+		LEFT JOIN aggregated_stats ag
+			ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
 		WHERE q.id = ?
 	`
 	query := &fleet.Query{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, false, aggregatedStatsTypeScheduledQuery, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
 		}
@@ -176,27 +335,60 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
 	sql := `
 		SELECT
-		       q.*,
-		       COALESCE(u.name, '<deleted>') AS author_name,
-		       COALESCE(u.email, '') AS author_email,
-		       JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
-		       JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
-		       JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
-		       JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
-					 JSON_EXTRACT(json_value, '$.total_executions') as total_executions
+			q.id,
+			q.team_id,
+			q.name,
+			q.description,
+			q.query,
+			q.author_id,
+			q.saved,
+			q.observer_can_run,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type,
+			q.created_at,
+			q.updated_at,
+			COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
+			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
+			JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
+			JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
+			JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
+			JSON_EXTRACT(json_value, '$.total_executions') as total_executions
 		FROM queries q
 		LEFT JOIN users u ON (q.author_id = u.id)
 		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
-		WHERE saved = true
 	`
+
+	args := []interface{}{false, aggregatedStatsTypeScheduledQuery}
+	whereClauses := "WHERE saved = true"
+
 	if opt.OnlyObserverCanRun {
-		sql += " AND q.observer_can_run=true"
+		whereClauses += " AND q.observer_can_run=true"
 	}
+
+	if opt.TeamID != nil {
+		args = append(args, *opt.TeamID)
+		whereClauses += " AND team_id = ?"
+	} else {
+		whereClauses += " AND team_id IS NULL"
+	}
+
+	if opt.IsScheduled != nil {
+		if *opt.IsScheduled {
+			whereClauses += " AND (q.schedule_interval>0 AND q.automations_enabled=1)"
+		} else {
+			whereClauses += " AND (q.schedule_interval=0 OR q.automations_enabled=0)"
+		}
+	}
+
+	sql += whereClauses
 	sql = appendListOptionsToSQL(sql, &opt.ListOptions)
 
 	results := []*fleet.Query{}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, false, aggregatedStatsTypeQuery); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
@@ -207,18 +399,19 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	return results, nil
 }
 
-// loadPacksForQueries loads the packs associated with the provided queries
+// loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.
 func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Query) error {
 	if len(queries) == 0 {
 		return nil
 	}
 
+	// packs.pack_type is NULL for user created packs (aka 2017 packs).
 	sql := `
 		SELECT p.*, sq.query_name AS query_name
 		FROM packs p
 		JOIN scheduled_queries sq
 			ON p.id = sq.pack_id
-		WHERE query_name IN (?)
+		WHERE query_name IN (?) AND p.pack_type IS NULL
 	`
 
 	// Used to map the results
@@ -267,4 +460,36 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 	}
 
 	return observerCanRun, nil
+}
+
+func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+	sql := `
+		SELECT
+			q.name,
+			q.query,
+			q.team_id,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type
+		FROM queries q
+		WHERE q.saved = true 
+			AND (q.schedule_interval > 0 AND q.automations_enabled = 1)
+	`
+
+	args := []interface{}{}
+	if teamID != nil {
+		args = append(args, *teamID)
+		sql += " AND team_id = ?"
+	} else {
+		sql += " AND team_id IS NULL"
+	}
+
+	results := []*fleet.Query{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list scheduled queries for agents")
+	}
+
+	return results, nil
 }

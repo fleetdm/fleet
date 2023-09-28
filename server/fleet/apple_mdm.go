@@ -322,18 +322,6 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	return cp.Mobileconfig.ScreenPayloads()
 }
 
-// IsWithinGracePeriod returns true if the host is within the grace period for the profile.
-//
-// The grace period is defined as 1 hour after the profile was updated. It is checked against the
-// host's detail_updated_at timestamp to allow for the host to check in at least once before the
-// profile is considered failed. If the host is online, it should report detail queries hourly by
-// default. If the host is offline, it should report detail queries shortly after it comes back
-// online.
-func (cp MDMAppleConfigProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) bool {
-	gracePeriod := 1 * time.Hour
-	return hostDetailUpdatedAt.Before(cp.UpdatedAt.Add(gracePeriod))
-}
-
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
 	HostUUID      string                  `db:"host_uuid" json:"-"`
@@ -377,11 +365,15 @@ func (d HostMDMProfileDetail) Message() string {
 }
 
 type MDMAppleProfilePayload struct {
-	ProfileID         uint   `db:"profile_id"`
-	ProfileIdentifier string `db:"profile_identifier"`
-	ProfileName       string `db:"profile_name"`
-	HostUUID          string `db:"host_uuid"`
-	Checksum          []byte `db:"checksum"`
+	ProfileID         uint                    `db:"profile_id"`
+	ProfileIdentifier string                  `db:"profile_identifier"`
+	ProfileName       string                  `db:"profile_name"`
+	HostUUID          string                  `db:"host_uuid"`
+	Checksum          []byte                  `db:"checksum"`
+	Status            *MDMAppleDeliveryStatus `db:"status" json:"status"`
+	OperationType     MDMAppleOperationType   `db:"operation_type"`
+	Detail            string                  `db:"detail"`
+	CommandUUID       string                  `db:"command_uuid"`
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
@@ -446,8 +438,9 @@ type MDMAppleBootstrapPackageSummary struct {
 // MDMAppleFleetdConfig contains the fields used to configure
 // `fleetd` in macOS devices via a configuration profile.
 type MDMAppleFleetdConfig struct {
-	FleetURL     string
-	EnrollSecret string
+	FleetURL      string
+	EnrollSecret  string
+	EnableScripts bool
 }
 
 // MDMApplePreassignProfilePayload is the payload accepted by the endpoint that
@@ -512,10 +505,15 @@ func (p MDMAppleSetupPayload) AuthzType() string {
 	return "mdm_apple_settings"
 }
 
-// HostDEPAssignment represents a row in the host_dep_assignments table
+// HostDEPAssignment represents a row in the host_dep_assignments table.
 type HostDEPAssignment struct {
-	HostID    uint       `db:"host_id"`
-	AddedAt   time.Time  `db:"added_at"`
+	// HostID is the id of the host in Fleet.
+	HostID uint `db:"host_id"`
+	// AddedAt is the timestamp when Fleet was notified that device was added to the Fleet MDM
+	// server in Apple Busines Manager (ABM).
+	AddedAt time.Time `db:"added_at"`
+	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
+	// MDM server in Apple Busines Manager (ABM).
 	DeletedAt *time.Time `db:"deleted_at"`
 }
 

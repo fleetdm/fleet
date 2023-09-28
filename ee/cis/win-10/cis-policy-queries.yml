@@ -3618,17 +3618,19 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Firewall state' is set to 'On (recommended)'
+    CIS - Ensure 'Windows Firewall: Public: Logging: Log dropped packets' is set to 'Yes'
   platforms: win10
   platform: windows
   description: |
-    Select On (recommended) to have Windows Firewall with Advanced Security use the settings for this profile to filter network traffic. If you select Off, Windows Firewall with Advanced Security will not use any of the firewall rules or connection security rules for this profile.
-    The recommended state for this setting is: On (recommended).
+    Use this option to log when Windows Firewall with Advanced Security discards an inbound packet
+    for any reason. The log records why and when the packet was dropped. Look for entries with the
+    word DROP in the action column of the log.
+    The recommended state for this setting is: Yes.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to On (recommended):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Firewall state'
+    To establish the recommended configuration via GP, set the following UI path to Yes:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Public Profile\Logging Customize\Log dropped packets'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\EnableFirewall' and data == 1);
+    SELECT * FROM registry WHERE (key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging\LogDroppedPackets' and data == 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.9
   contributors: RachelElysia
@@ -5589,7 +5591,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Turn off background refresh of Group Policy'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GroupPolicy.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
   query: |
-    # The registry key is not present when policy is disabled, so query below is returning 1 when policy is disabled and registry value does not exist. It also return 1 in case policy is enabled and its registry value is 1
+    -- The registry key is not present when policy is disabled, so query below is returning 1 when policy is disabled and registry value does not exist. It also return 1 in case policy is enabled and its registry value is 1
     SELECT 1 WHERE (
       NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' AND name = 'DisableBkGndGroupPolicy' )
     ) OR (
@@ -8030,7 +8032,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\MAPS\Join Microsoft MAPS'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates (or newer).
   query: |
-    # The registry key is not present when policy is disabled, so query below is returning 1 when policy is disabled and registry value does not exist. It also return 1 in case policy is enabled and its registry value is 1 or 2
+    -- The registry key is not present when policy is disabled, so query below is returning 1 when policy is disabled and registry value does not exist. It also return 1 in case policy is enabled and its registry value is 1 or 2
     SELECT 1 WHERE (
       NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet' COLLATE NOCASE AND name = 'SpynetReporting' )
     ) OR (
@@ -8653,7 +8655,6 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Search\Allow indexing of encrypted files'
   query: |
-    TODO
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search\\AllowIndexingEncryptedStoresOrItems' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.67.5
@@ -9361,7 +9362,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Allow Basic authentication' is set to 'Disabled'
+    CIS - Ensure 'Allow Basic authentication' in WinRM service is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
@@ -9399,7 +9400,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Allow unencrypted traffic' is set to 'Disabled'
+    CIS - Ensure 'Allow unencrypted traffic' in WinRM service is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
@@ -9906,7 +9907,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Always install with elevated privileges' is set to 'Disabled'
+    CIS - Ensure 'Always install with elevated privileges' is set to 'Disabled' (User Configuration)
   platforms: win10
   platform: windows
   description: |

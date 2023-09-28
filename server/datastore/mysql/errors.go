@@ -91,7 +91,11 @@ func (e *existsError) WithTeamID(teamID uint) error {
 }
 
 func (e *existsError) Error() string {
-	msg := fmt.Sprintf("%s %v already exists", e.ResourceType, e.Identifier)
+	msg := fmt.Sprintf("%s", e.ResourceType)
+	if e.Identifier != nil {
+		msg += fmt.Sprintf(" %v", e.Identifier)
+	}
+	msg += " already exists"
 	if e.TeamID != nil {
 		msg += fmt.Sprintf(" with TeamID %d", *e.TeamID)
 	}

@@ -104,6 +104,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 	if err != nil {
 		return fmt.Errorf("do multipart request: %w", err)
 	}
+	defer response.Body.Close()
 
 	var bpResponse uploadBootstrapPackageResponse
 	if err := c.parseResponse(verb, path, response, &bpResponse); err != nil {
@@ -118,7 +119,7 @@ func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, team
 	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
 		// not found is OK, it means this is our first time uploading a package
-		if !errors.Is(err, notFoundErr{}) {
+		if !errors.As(err, &notFoundErr{}) {
 			return fmt.Errorf("getting bootstrap package metadata: %w", err)
 		}
 		isFirstTime = true

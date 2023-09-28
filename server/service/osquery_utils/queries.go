@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -447,8 +446,8 @@ var extraDetailQueries = map[string]DetailQuery{
 			)
 			UNION ALL
 			SELECT * FROM (
-				SELECT "autopilot" AS "key", 1=1 AS "value" FROM registry
-				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache'
+				SELECT "is_federated" AS "key", data as "value" FROM registry 
+				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
 				LIMIT 1
 			)
 			UNION ALL
@@ -1151,7 +1150,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			},
 		)
 	}
-	if err := task.RecordScheduledQueryStats(ctx, host.ID, packStats, time.Now()); err != nil {
+	if err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, packStats, time.Now()); err != nil {
 		return ctxerr.Wrap(ctx, err, "record host pack stats")
 	}
 
@@ -1163,65 +1162,39 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	sPaths := map[string]struct{}{}
 
 	for _, row := range rows {
-		name := row["name"]
-		version := row["version"]
-		source := row["source"]
-		bundleIdentifier := row["bundle_identifier"]
-		vendor := row["vendor"]
-
-		if name == "" {
+		// Attempt to parse the last_opened_at and emit a debug log if it fails.
+		if _, err := fleet.ParseSoftwareLastOpenedAtRowValue(row["last_opened_at"]); err != nil {
 			level.Debug(logger).Log(
-				"msg", "host reported software with empty name",
-				"host", host.Hostname,
-				"version", version,
-				"source", source,
+				"msg", "host reported software with invalid last opened timestamp",
+				"host_id", host.ID,
+				"row", row,
+			)
+		}
+
+		s, err := fleet.SoftwareFromOsqueryRow(
+			row["name"],
+			row["version"],
+			row["source"],
+			row["vendor"],
+			row["installed_path"],
+			row["release"],
+			row["arch"],
+			row["bundle_identifier"],
+			row["last_opened_at"],
+		)
+		if err != nil {
+			level.Debug(logger).Log(
+				"msg", "failed to parse software row",
+				"host_id", host.ID,
+				"row", row,
+				"err", err,
 			)
 			continue
 		}
-		if source == "" {
-			level.Debug(logger).Log(
-				"msg", "host reported software with empty name",
-				"host", host.Hostname,
-				"version", version,
-				"name", name,
-			)
-			continue
-		}
 
-		var lastOpenedAt time.Time
-		if lastOpenedRaw := row["last_opened_at"]; lastOpenedRaw != "" {
-			if lastOpenedEpoch, err := strconv.ParseFloat(lastOpenedRaw, 64); err != nil {
-				level.Debug(logger).Log(
-					"msg", "host reported software with invalid last opened timestamp",
-					"host", host.Hostname,
-					"version", version,
-					"name", name,
-					"last_opened_at", lastOpenedRaw,
-				)
-			} else if lastOpenedEpoch > 0 {
-				lastOpenedAt = time.Unix(int64(lastOpenedEpoch), 0).UTC()
-			}
-		}
+		sanitizeSoftware(host, s)
 
-		// Check whether the vendor is longer than the max allowed width and if so, truncate it.
-		if utf8.RuneCountInString(vendor) >= fleet.SoftwareVendorMaxLength {
-			vendor = fmt.Sprintf(fleet.SoftwareVendorMaxLengthFmt, vendor)
-		}
-
-		s := fleet.Software{
-			Name:             name,
-			Version:          version,
-			Source:           source,
-			BundleIdentifier: bundleIdentifier,
-
-			Release: row["release"],
-			Vendor:  vendor,
-			Arch:    row["arch"],
-		}
-		if !lastOpenedAt.IsZero() {
-			s.LastOpenedAt = &lastOpenedAt
-		}
-		software = append(software, s)
+		software = append(software, *s)
 
 		installedPath := strings.TrimSpace(row["installed_path"])
 		if installedPath != "" &&
@@ -1243,6 +1216,40 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	}
 
 	return nil
+}
+
+var macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+
+// sanitizeSoftware performs any sanitization required to the ingested software fields.
+//
+// Some fields are reported with known incorrect values and we need to fix them before using them.
+func sanitizeSoftware(h *fleet.Host, s *fleet.Software) {
+	softwareSanitizers := []struct {
+		checkSoftware  func(*fleet.Host, *fleet.Software) bool
+		mutateSoftware func(*fleet.Software)
+	}{
+		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
+		// unexpected version format. Thus here we transform the version string to the expected format
+		// (see https://learn.microsoft.com/en-us/officeupdates/teams-app-versioning).
+		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed to `1.6.00.22155`.
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return h.Platform == "darwin" && s.Name == "Microsoft Teams.app"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
+					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
+				}
+			},
+		},
+	}
+
+	for _, softwareSanitizer := range softwareSanitizers {
+		if softwareSanitizer.checkSoftware(h, s) {
+			softwareSanitizer.mutateSoftware(s)
+			return
+		}
+	}
 }
 
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1281,6 +1288,8 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 
 func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
+		logger.Log("component", "service", "method", "ingestMDM", "warn",
+			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 		// assume the extension is not there
 		return nil
 	}
@@ -1339,10 +1348,14 @@ func deduceMDMNameMacOS(row map[string]string) string {
 }
 
 func deduceMDMNameWindows(data map[string]string) string {
+	serverURL := data["discovery_service_url"]
+	if serverURL == "" {
+		return ""
+	}
 	if name := data["provider_id"]; name != "" {
 		return name
 	}
-	return fleet.MDMNameFromServerURL(data["discovery_service_url"])
+	return fleet.MDMNameFromServerURL(serverURL)
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1350,15 +1363,26 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	for _, r := range rows {
 		data[r["key"]] = r["value"]
 	}
-	_, autoPilot := data["autopilot"]
+	var enrolled bool
+	var automatic bool
+	serverURL := data["discovery_service_url"]
+	if serverURL != "" {
+		enrolled = true
+		if isFederated := data["is_federated"]; isFederated == "1" {
+			// NOTE: We intentionally nest this condition to eliminate `enrolled == false && automatic == true`
+			// as a possible status for Windows hosts (which would be otherwise be categorized as
+			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
+			automatic = true
+		}
+	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
-	_, enrolled := data["provider_id"]
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		isServer,
 		enrolled,
-		data["discovery_service_url"],
-		autoPilot,
+		serverURL,
+		automatic,
 		deduceMDMNameWindows(data),
 	)
 }
@@ -1508,23 +1532,41 @@ func directIngestMacOSProfiles(
 		return nil
 	}
 
-	mapping := make([]*fleet.HostMacOSProfile, 0, len(rows))
+	installed := make(map[string]*fleet.HostMacOSProfile, len(rows))
 	for _, row := range rows {
 		installDate, err := time.Parse("2006-01-02 15:04:05 -0700", row["install_date"])
 		if err != nil {
 			return err
 		}
-		mapping = append(mapping, &fleet.HostMacOSProfile{
+		if installDate.IsZero() {
+			// this should never happen, but if it does, we should log it
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "directIngestMacOSProfiles",
+				"msg", "profile install date is zero value",
+				"host", host.Hostname,
+			)
+		}
+		if _, ok := installed[row["identifier"]]; ok {
+			// this should never happen, but if it does, we should log it
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "directIngestMacOSProfiles",
+				"msg", "duplicate profile identifier",
+				"host", host.Hostname,
+				"identifier", row["identifier"],
+			)
+		}
+		installed[row["identifier"]] = &fleet.HostMacOSProfile{
 			DisplayName: row["display_name"],
 			Identifier:  row["identifier"],
 			InstallDate: installDate,
-		})
+		}
 	}
-
-	return ds.UpdateVerificationHostMacOSProfiles(ctx, host, mapping)
+	return apple_mdm.VerifyHostMDMProfiles(ctx, ds, host, installed)
 }
 
-//go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md
+// go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,

@@ -335,6 +335,14 @@ func (r getClientConfigResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(r.Config)
 }
 
+// UnmarshalJSON implements json.Unmarshaler.
+//
+// Osquery expects the response for configs to be at the
+// top-level of the JSON response.
+func (r *getClientConfigResponse) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &r.Config)
+}
+
 func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
@@ -344,6 +352,24 @@ func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	return getClientConfigResponse{
 		Config: config,
 	}, nil
+}
+
+func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (fleet.Queries, error) {
+	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(queries) == 0 {
+		return nil, nil
+	}
+
+	config := make(fleet.Queries, len(queries))
+	for _, query := range queries {
+		config[query.Name] = query.ToQueryContent()
+	}
+
+	return config, nil
 }
 
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
@@ -368,12 +394,12 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		}
 	}
 
+	packConfig := fleet.Packs{}
+
 	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
 	if err != nil {
 		return nil, newOsqueryError("database error: " + err.Error())
 	}
-
-	packConfig := fleet.Packs{}
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
 		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
@@ -411,6 +437,29 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		packConfig[pack.Name] = fleet.PackContent{
 			Platform: pack.Platform,
 			Queries:  configQueries,
+		}
+	}
+
+	globalQueries, err := svc.getScheduledQueries(ctx, nil)
+	if err != nil {
+		return nil, newOsqueryError("database error: " + err.Error())
+	}
+	if len(globalQueries) > 0 {
+		packConfig["Global"] = fleet.PackContent{
+			Queries: globalQueries,
+		}
+	}
+
+	if host.TeamID != nil {
+		teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
+		if err != nil {
+			return nil, newOsqueryError("database error: " + err.Error())
+		}
+		if len(teamQueries) > 0 {
+			packName := fmt.Sprintf("team-%d", *host.TeamID)
+			packConfig[packName] = fleet.PackContent{
+				Queries: teamQueries,
+			}
 		}
 	}
 
@@ -573,12 +622,17 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		}
 	}
 
-	policyQueries, err := svc.policyQueriesForHost(ctx, host)
+	policyQueries, noPolicies, err := svc.policyQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, nil, 0, newOsqueryError(err.Error())
 	}
 	for name, query := range policyQueries {
 		queries[hostPolicyQueryPrefix+name] = query
+	}
+	if noPolicies {
+		// This is only set when it's time to re-run policies on the host,
+		// but the host doesn't have any policies assigned.
+		queries[hostNoPoliciesWildcard] = alwaysTrueQuery
 	}
 
 	accelerate = uint(0)
@@ -703,16 +757,22 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return labelQueries, nil
 }
 
-func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+// policyQueriesForHost returns policy queries if it's the time to re-run policies on the given host.
+// It returns (nil, true, nil) if the interval is so that policies should be executed on the host, but there are no policies
+// assigned to such host.
+func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (policyQueries map[string]string, noPoliciesForHost bool, err error) {
 	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
 	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
-		return nil, nil
+		return nil, false, nil
 	}
-	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
+	policyQueries, err = svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieve policy queries")
+		return nil, false, ctxerr.Wrap(ctx, err, "retrieve policy queries")
 	}
-	return policyQueries, nil
+	if len(policyQueries) == 0 {
+		return nil, true, nil
+	}
+	return policyQueries, false, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -826,6 +886,15 @@ const (
 	// osqueryd writes the distributed query results.
 	hostPolicyQueryPrefix = "fleet_policy_query_"
 
+	// hostNoPoliciesWildcard is a query sent to hosts when it's time to run policy
+	// queries on a host, but such host does not have any policies assigned.
+	// When Fleet receives results from such query then it will update the host's
+	// policy_updated_at column.
+	//
+	// This is used to prevent hosts without policies assigned to continuously
+	// perform lookups in the policies table on every check in.
+	hostNoPoliciesWildcard = "fleet_no_policies_wildcard"
+
 	// hostDistributedQueryPrefix is appended before the query name when a query is
 	// run from a distributed query campaign
 	hostDistributedQueryPrefix = "fleet_distributed_query_"
@@ -854,7 +923,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages)
 
+	var hostWithoutPolicies bool
 	for query, rows := range results {
+		// When receiving this query in the results, we will update the host's
+		// policy_updated_at column.
+		if query == hostNoPoliciesWildcard {
+			hostWithoutPolicies = true
+			continue
+		}
+
 		// osquery docs say any nonzero (string) value for status indicates a query error
 		status, ok := statuses[query]
 		failed := ok && status != fleet.StatusOK
@@ -932,6 +1009,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
+	} else {
+		if hostWithoutPolicies {
+			// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
+			if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+				logging.WithErr(ctx, err)
+			}
+		}
 	}
 
 	if additionalUpdated {
@@ -995,7 +1079,7 @@ func (svc *Service) ingestQueryResults(
 	var err error
 	switch {
 	case strings.HasPrefix(query, hostDistributedQueryPrefix):
-		err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
+		err = svc.ingestDistributedQuery(ctx, *host, query, rows, messages[query])
 	case strings.HasPrefix(query, hostPolicyQueryPrefix):
 		err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
 	case strings.HasPrefix(query, hostLabelQueryPrefix):
@@ -1063,7 +1147,7 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 
 // ingestDistributedQuery takes the results of a distributed query and modifies the
 // provided fleet.Host appropriately.
-func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
+func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host, name string, rows []map[string]string, errMsg string) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
 
 	campaignID, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
@@ -1081,7 +1165,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 		},
 		Rows: rows,
 	}
-	if failed {
+	if errMsg != "" {
 		res.Error = &errMsg
 	}
 

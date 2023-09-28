@@ -21,13 +21,17 @@
       &:focus {
         box-shadow: none;
         outline: 0;
-        background-color: $ui-vibrant-blue-10;
-
         &:after {
           left: 0;
           bottom: 0;
         }
       }
+
+      // focus-visible only highlights when tabbing not clicking
+      &:focus-visible {
+        background-color: $ui-vibrant-blue-10;
+      }
+
       // Bolding text when the button is active causes a layout shift
       // so we add a hidden pseudo element with the same text string
       &:before {

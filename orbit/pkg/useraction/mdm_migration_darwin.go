@@ -12,6 +12,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/rs/zerolog/log"
 )
 
@@ -27,13 +29,31 @@ const (
 	unknownExitCode      = 99
 )
 
+// mdmEnrollmentFile is a file that we use as a sentinel value to detect MDM
+// enrollment. The file must be present if the device is enrolled and absent
+// otherwise. We have found that this file accomplishes this purpose for DEP
+// enrollments, which is the only type of migration supported at the moment.
+//
+// Optionally we could use the output of `profiles show --type enrollment` to
+// accomplish the same thing, but it's more resource intensive and harder for
+// people that build integrations on top of the migration flow.
+var mdmEnrollmentFile = "/private/var/db/ConfigurationProfiles/Settings/.cloudConfigProfileInstalled"
+
+// mdmUnenrollmentTotalWaitTime defines how long the dialog is going to wait
+// for the device to be unenrolled before bailing out and showing an error
+// message.
+const mdmUnenrollmentTotalWaitTime = 90 * time.Second
+
+// defaultUnenrollmentRetryInterval defines how long we're going to wait
+// between unenrollment checks.
+const defaultUnenrollmentRetryInterval = 5 * time.Second
+
 var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Parse(`
 ## Migrate to Fleet
 
-To begin, click "Start." Your default browser will open your My Device page.
-
-{{ if .IsUnmanaged }}You {{ else }} Once you start, you {{ end -}} will see this dialog every 15 minutes until you click "Turn on MDM" and complete the instructions.` +
-	"\n\n![Image showing the Fleet UI](https://fleetdm.com/images/permanent/mdm-migration-screenshot-768x180-2x.png)\n\n",
+Select **Start** and look for this notification in your notification center:` +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
+	"After you start, this window will popup every 15-20 minutes until you finish.",
 ))
 
 var errorTemplate = template.Must(template.New("").Parse(`
@@ -54,6 +74,7 @@ func newBaseDialog(path string) *baseDialog {
 }
 
 func (b *baseDialog) CanRun() bool {
+	// check if swiftDialog has been downloaded
 	if _, err := os.Stat(b.path); err != nil {
 		return false
 	}
@@ -78,6 +99,13 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 	exitCodeCh := make(chan swiftDialogExitCode, 1)
 	errCh := make(chan error, 1)
 	go func() {
+		// all dialogs should always be blurred and on top
+		flags = append(
+			flags,
+			"--blurscreen",
+			"--ontop",
+			"--messageposition", "center",
+		)
 		cmd := exec.Command(b.path, flags...) //nolint:gosec
 		done := make(chan error)
 		stopInterruptCh := make(chan struct{})
@@ -126,11 +154,15 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 	return exitCodeCh, errCh
 }
 
+// NewMDMMigrator creates a new  swiftDialogMDMMigrator with the right internal state.
 func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
 	return &swiftDialogMDMMigrator{
-		handler:    handler,
-		baseDialog: newBaseDialog(path),
-		frequency:  frequency,
+		handler:                   handler,
+		baseDialog:                newBaseDialog(path),
+		frequency:                 frequency,
+		unenrollmentRetryInterval: defaultUnenrollmentRetryInterval,
+		// set a buffer size of 1 to allow one Show without blocking
+		showCh: make(chan struct{}, 1),
 	}
 }
 
@@ -144,11 +176,14 @@ type swiftDialogMDMMigrator struct {
 
 	// ensures only one dialog is open at a time, protects access to
 	// lastShown
-	showMu    sync.Mutex
-	lastShown time.Time
+	lastShown   time.Time
+	lastShownMu sync.RWMutex
+	showCh      chan struct{}
 
-	// ensures only one dialog is open at a given interval
-	intervalMu sync.Mutex
+	// testEnrollmentCheckFn is used in tests to mock the call to verify
+	// the enrollment status of the host
+	testEnrollmentCheckFn     func() (bool, error)
+	unenrollmentRetryInterval time.Duration
 }
 
 /**
@@ -194,17 +229,17 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 		"--message", message,
 		"--messagefont", "size=16",
 		"--alignment", "center",
-		"--ontop",
 	}, flags...)
 
 	return m.baseDialog.render(flags...)
 }
 
 func (m *swiftDialogMDMMigrator) renderLoadingSpinner() (chan swiftDialogExitCode, chan error) {
-	return m.render("## Migrate to Fleet\n\nCommunicating with MDM server...",
+	return m.render("## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...",
 		"--button1text", "Start",
 		"--button1disabled",
 		"--quitkey", "x",
+		"--height", "220",
 	)
 }
 
@@ -220,7 +255,39 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 		return codeChan, errChan
 	}
 
-	return m.render(errorMessage.String(), "--button1text", "Close")
+	return m.render(errorMessage.String(), "--button1text", "Close", "--height", "220")
+}
+
+// waitForUnenrollment waits 90 seconds (value determined by product) for the
+// device to unenroll from the current MDM solution. If the device doesn't
+// unenroll, an error is returned.
+func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
+	maxRetries := int(mdmUnenrollmentTotalWaitTime.Seconds() / m.unenrollmentRetryInterval.Seconds())
+	fn := m.testEnrollmentCheckFn
+	if fn == nil {
+		fn = func() (bool, error) {
+			return file.Exists(mdmEnrollmentFile)
+		}
+	}
+	return retry.Do(func() error {
+		enrolled, err := fn()
+		if err != nil {
+			log.Error().Err(err).Msgf("checking enrollment status in migration modal, will retry in %s", m.unenrollmentRetryInterval)
+			return err
+
+		}
+
+		if enrolled {
+			log.Info().Msgf("device is still enrolled, waiting %s", m.unenrollmentRetryInterval)
+			return errors.New("host didn't unenroll from MDM")
+		}
+
+		log.Info().Msg("device is unenrolled, closing migration modal")
+		return nil
+	},
+		retry.WithMaxAttempts(maxRetries),
+		retry.WithInterval(m.unenrollmentRetryInterval),
+	)
 }
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
@@ -237,7 +304,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		"--button1text", "Start",
 		// secondary button
 		"--button2text", "Later",
-		"--blurscreen", "--ontop", "--height", "500",
+		"--height", "440",
 	}
 
 	if m.props.OrgInfo.ContactURL != "" {
@@ -270,13 +337,27 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				errDialogExitChan, errDialogErrChan := m.renderError()
 				select {
 				case <-errDialogExitChan:
-					return nil
+					// return the error after showing the
+					// dialog so it can be caught upstream.
+					return notifyErr
 				case err := <-errDialogErrChan:
-					return fmt.Errorf("rendering errror dialog: %w", err)
+					return fmt.Errorf("rendering error dialog: %w", err)
 				}
 			}
 
-			log.Info().Msg("webhook sent, closing spinner")
+			log.Info().Msg("webhook sent, checking for unenrollment")
+			if err := m.waitForUnenrollment(); err != nil {
+				m.baseDialog.Exit()
+				errDialogExitChan, errDialogErrChan := m.renderError()
+				select {
+				case <-errDialogExitChan:
+					// return the error after showing the
+					// dialog so it can be caught upstream.
+					return err
+				case err := <-errDialogErrChan:
+					return fmt.Errorf("rendering error dialog: %w", err)
+				}
+			}
 
 			// close the spinner
 			// TODO: maybe it's better to use
@@ -286,33 +367,50 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		}
 
 		log.Info().Msg("showing instructions")
-		m.handler.ShowInstructions()
+		if err := m.handler.ShowInstructions(); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
+// Show displays the dialog every time is called, as long as there isn't a
+// dialog already open.
 func (m *swiftDialogMDMMigrator) Show() error {
-	if m.showMu.TryLock() {
-		defer m.showMu.Unlock()
-
-		if err := m.renderMigration(); err != nil {
-			return fmt.Errorf("show: %w", err)
-		}
+	select {
+	case m.showCh <- struct{}{}:
+		defer func() { <-m.showCh }()
+	default:
+		log.Info().Msg("there's a migration dialog already open, refusing to launch")
+		return nil
 	}
+
+	if err := m.renderMigration(); err != nil {
+		return fmt.Errorf("show: %w", err)
+	}
+
+	m.lastShownMu.Lock()
+	m.lastShown = time.Now()
+	m.lastShownMu.Unlock()
 
 	return nil
 }
 
+// ShowInterval acts as a rate limiter for Show, it only calls the function IIF
+// m.frequency has passed since the last time the dialog was successfully
+// shown.
 func (m *swiftDialogMDMMigrator) ShowInterval() error {
-	if m.intervalMu.TryLock() {
-		defer m.intervalMu.Unlock()
-		if time.Since(m.lastShown) > m.frequency {
-			if err := m.Show(); err != nil {
-				return fmt.Errorf("show interval: %w", err)
-			}
-			m.lastShown = time.Now()
-		}
+	m.lastShownMu.RLock()
+	lastShown := m.lastShown
+	m.lastShownMu.RUnlock()
+	if time.Since(lastShown) <= m.frequency {
+		log.Info().Msg("dialog was automatically launched too recently, skipping")
+		return nil
+	}
+
+	if err := m.Show(); err != nil {
+		return fmt.Errorf("show interval: %w", err)
 	}
 
 	return nil

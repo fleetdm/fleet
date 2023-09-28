@@ -1,9 +1,19 @@
 .label-filter-select {
   width: 175px;
 
+  svg {
+    transition: transform 0.25s ease;
+  }
+
   &:hover {
     // no access to hover state from react-select in JS so this is done here.
     .custom-dropdown-indicator {
+      & path {
+        stroke: $core-vibrant-blue;
+      }
+    }
+
+    .filter-icon {
       & path {
         fill: $core-vibrant-blue;
       }
@@ -14,6 +24,7 @@
     border: 1px solid $ui-fleet-black-10;
     background-color: $ui-light-grey;
     border-radius: $border-radius;
+    height: 40px;
 
     &--is-focused,
     &--menu-is-open,
@@ -21,20 +32,26 @@
       box-shadow: none;
       border: 1px solid $core-vibrant-blue;
     }
+    &--is-focused,
+    &--menu-is-open {
+      .custom-dropdown-indicator {
+        svg {
+          transform: rotate(180deg);
+          transition: transform 0.25s ease;
+        }
+      }
+      .filter-icon {
+        & path {
+          fill: $core-vibrant-blue;
+        }
+      }
+    }
   }
 
   .label-filter-select__value-container {
-    margin-left: 10px;
-    padding-left: 27px;
-
-    &::before {
-      display: inline-block;
-      position: absolute;
-      content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
-      transform: scale(0.5);
-      left: -6px;
-      margin-top: 4px;
-    }
+    display: flex;
+    gap: $pad-small;
+    margin-left: $pad-xsmall;
   }
 
   .label-filter-select__single-value,
@@ -43,13 +60,17 @@
     font-size: $small;
   }
 
+  .label-filter-select__single-value {
+    max-width: 84%; // Must override default styling of .css-qc6sy-singleValue
+  }
+
   .label-filter-select__placeholder {
-    width: 75px;
+    width: 75px; // Truncates text for smaller filter width
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    @media (max-width: $break-md) {
+    @media (max-width: 1150px) {
       width: auto;
     }
   }
@@ -60,6 +81,9 @@
 
   .label-filter-select__indicator {
     color: $core-fleet-black;
+    // override react-select default styles to increase flexibility of dropdown styling
+    padding: 0;
+    padding-right: $pad-small;
   }
 
   .label-filter-select__menu {
@@ -122,8 +146,12 @@
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1150px) {
   .label-filter-select {
-    width: 180px;
+    width: 220px;
+
+    &__single-value {
+      max-width: 135px !important; // Must override default styling of .css-qc6sy-singleValue
+    }
   }
 }

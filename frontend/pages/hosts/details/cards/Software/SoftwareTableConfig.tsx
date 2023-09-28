@@ -7,13 +7,14 @@ import { formatDistanceToNow } from "date-fns";
 import { ISoftware } from "interfaces/software";
 import PATHS from "router/paths";
 
-import Button from "components/buttons/Button";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
+import { getSoftwareBundleTooltipMarkup } from "utilities/helpers";
 
 interface IHeaderProps {
   column: {
@@ -215,9 +216,14 @@ export const generateSoftwareTableHeaders = ({
         };
 
         return (
-          <Button onClick={onClickSoftware} variant="text-link">
-            {bundle ? renderBundleTooltip(name, bundle) : name}
-          </Button>
+          <LinkCell
+            path={PATHS.SOFTWARE_DETAILS(id.toString())}
+            customOnClick={onClickSoftware}
+            value={name}
+            tooltipContent={
+              bundle ? getSoftwareBundleTooltipMarkup(bundle) : undefined
+            }
+          />
         );
       },
       sortType: "caseInsensitive",

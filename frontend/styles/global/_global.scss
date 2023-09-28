@@ -57,6 +57,13 @@ a {
   font-weight: $bold;
   font-size: $x-small;
   text-decoration: none;
+
+  &:focus-visible {
+    outline-color: #d9d9fe;
+    outline-offset: 3px;
+    outline-style: solid;
+    outline-width: 2px;
+  }
 }
 
 .__react_component_tooltip {
@@ -135,4 +142,13 @@ hr {
   margin-bottom: $pad-xlarge;
   border: none;
   border-bottom: 1px solid $ui-fleet-black-10;
+}
+
+dl {
+  margin: 0;
+  padding: 0;
+}
+
+dd {
+  margin: 0;
 }

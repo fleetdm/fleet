@@ -9,7 +9,7 @@ import { find } from "lodash";
 
 import { osqueryTables } from "utilities/osquery_tables";
 import { IOsQueryTable, DEFAULT_OSQUERY_TABLE } from "interfaces/osquery_table";
-import { IPlatformString } from "interfaces/platform";
+import { SelectedPlatformString } from "interfaces/platform";
 
 enum ACTIONS {
   SET_LAST_EDITED_QUERY_INFO = "SET_LAST_EDITED_QUERY_INFO",
@@ -25,7 +25,7 @@ interface ISetLastEditedQueryInfo {
   lastEditedQueryBody?: string;
   lastEditedQueryResolution?: string;
   lastEditedQueryCritical?: boolean;
-  lastEditedQueryPlatform?: IPlatformString | null;
+  lastEditedQueryPlatform?: SelectedPlatformString | null;
   defaultPolicy?: boolean;
 }
 
@@ -55,15 +55,15 @@ type InitialStateType = {
   lastEditedQueryBody: string;
   lastEditedQueryResolution: string;
   lastEditedQueryCritical: boolean;
-  lastEditedQueryPlatform: IPlatformString | null;
+  lastEditedQueryPlatform: SelectedPlatformString | null;
   defaultPolicy: boolean;
-  setLastEditedQueryId: (value: number) => void;
+  setLastEditedQueryId: (value: number | null) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryResolution: (value: string) => void;
   setLastEditedQueryCritical: (value: boolean) => void;
-  setLastEditedQueryPlatform: (value: IPlatformString | null) => void;
+  setLastEditedQueryPlatform: (value: SelectedPlatformString | null) => void;
   setDefaultPolicy: (value: boolean) => void;
   policyTeamId: number;
   setPolicyTeamId: (id: number) => void;
@@ -74,6 +74,8 @@ type InitialStateType = {
 const initTable =
   osqueryTables.find((table) => table.name === "users") ||
   DEFAULT_OSQUERY_TABLE;
+
+export type IPolicyContext = InitialStateType;
 
 const initialState = {
   lastEditedQueryId: null,
@@ -153,6 +155,7 @@ const reducer = (state: InitialStateType, action: IAction) => {
   }
 };
 
+// TODO: Can we remove policyTeamId in favor of always using URL team_id param?
 export const PolicyContext = createContext<InitialStateType>(initialState);
 
 const PolicyProvider = ({ children }: Props): JSX.Element => {
@@ -162,12 +165,15 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
     dispatch({ type: ACTIONS.SET_POLICY_TEAM_ID, id });
   }, []);
 
-  const setLastEditedQueryId = useCallback((lastEditedQueryId: number) => {
-    dispatch({
-      type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
-      lastEditedQueryId,
-    });
-  }, []);
+  const setLastEditedQueryId = useCallback(
+    (lastEditedQueryId: number | null) => {
+      dispatch({
+        type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryId,
+      });
+    },
+    []
+  );
 
   const setLastEditedQueryName = useCallback((lastEditedQueryName: string) => {
     dispatch({
@@ -210,7 +216,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
     []
   );
   const setLastEditedQueryPlatform = useCallback(
-    (lastEditedQueryPlatform: IPlatformString | null | undefined) => {
+    (lastEditedQueryPlatform: SelectedPlatformString | null | undefined) => {
       dispatch({
         type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryPlatform,

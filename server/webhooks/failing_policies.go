@@ -60,9 +60,9 @@ func SendFailingPoliciesBatchedPOSTs(
 			Policy:       policy,
 			FailingHosts: failingHosts,
 		}
-		level.Debug(logger).Log("payload", payload, "url", webhookURL.String(), "batch", len(batch))
+		level.Debug(logger).Log("payload", payload, "url", server.MaskSecretURLParams(webhookURL.String()), "batch", len(batch))
 		if err := server.PostJSONWithTimeout(ctx, webhookURL.String(), &payload); err != nil {
-			return ctxerr.Wrapf(ctx, err, "posting to %q", webhookURL)
+			return ctxerr.Wrapf(ctx, server.MaskURLError(err), "posting to %q", server.MaskSecretURLParams(webhookURL.String()))
 		}
 		if err := failingPoliciesSet.RemoveHosts(policy.ID, batch); err != nil {
 			return ctxerr.Wrapf(ctx, err, "removing hosts %+v from failing policies set %d", batch, policy.ID)

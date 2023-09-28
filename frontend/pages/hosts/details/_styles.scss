@@ -176,6 +176,14 @@
         font-size: $x-small;
         height: 38px;
         margin-left: $pad-small;
+
+        &:hover {
+          svg {
+            path {
+              fill: $core-vibrant-blue-over;
+            }
+          }
+        }
       }
 
       .refetch-offline {

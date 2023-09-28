@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
@@ -8,11 +9,16 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
+	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -23,22 +29,31 @@ import (
 )
 
 type SoapRequestContainer struct {
-	Data *fleet.SoapRequest
-	Err  error
+	Data   *fleet.SoapRequest
+	Params url.Values
+	Err    error
 }
 
 // MDM SOAP request decoder
-func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader) error {
+func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
 	// Reading the request bytes
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading soap mdm request")
 	}
 
-	// Unmarshal the XML data from the request into the SoapRequest struct
-	err = xml.Unmarshal(reqBytes, &req.Data)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshalling soap mdm request")
+	// Set the request parameters
+	req.Params = u
+
+	// Handle empty body scenario
+	req.Data = &fleet.SoapRequest{}
+
+	if len(reqBytes) != 0 {
+		// Unmarshal the XML data from the request into the SoapRequest struct
+		err = xml.Unmarshal(reqBytes, &req.Data)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unmarshalling soap mdm request")
+		}
 	}
 
 	return nil
@@ -51,11 +66,11 @@ type SoapResponseContainer struct {
 
 func (r SoapResponseContainer) error() error { return r.Err }
 
-// hijackRender writes the response header and the RAW XML output
+// hijackRender writes the response header and the RAW HTML output
 func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	xmlRes, err := xml.MarshalIndent(r.Data, "", "\t")
 	if err != nil {
-		logging.WithExtras(ctx, "Windows MDM SoapResponseContainer", err)
+		logging.WithExtras(ctx, "error with SoapResponseContainer", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -66,6 +81,110 @@ func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.Response
 	w.Header().Set("Content-Length", strconv.Itoa(len(xmlRes)))
 	w.WriteHeader(http.StatusOK)
 	if n, err := w.Write(xmlRes); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+type SyncMLReqMsgContainer struct {
+	Data   *fleet.SyncMLMessage
+	Params url.Values
+	Err    error
+}
+
+// MDM SOAP request decoder
+func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+	// Reading the request bytes
+	reqBytes, err := io.ReadAll(r)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading SyncML message request")
+	}
+
+	// Set the request parameters
+	req.Params = u
+
+	// Handle empty body scenario
+	req.Data = &fleet.SyncMLMessage{}
+
+	if len(reqBytes) != 0 {
+		// Unmarshal the XML data from the request into the SoapRequest struct
+		err = xml.Unmarshal(reqBytes, &req.Data)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unmarshalling SyncML message request")
+		}
+	}
+
+	return nil
+}
+
+type SyncMLResponseMsgContainer struct {
+	Data *string
+	Err  error
+}
+
+func (r SyncMLResponseMsgContainer) error() error { return r.Err }
+
+// hijackRender writes the response header and the RAW HTML output
+func (r SyncMLResponseMsgContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	resData := []byte(*r.Data + "\n")
+
+	w.Header().Set("Content-Type", mdm.SyncMLContentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
+	w.WriteHeader(http.StatusOK)
+	if n, err := w.Write(resData); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+type MDMWebContainer struct {
+	Data   *string
+	Params url.Values
+	Err    error
+}
+
+// MDM SOAP request decoder
+func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+	reqBytes, err := io.ReadAll(r)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading Webcontainer HTML message request")
+	}
+
+	// Set the request parameters
+	req.Params = u
+
+	// Get req data
+	content := string(reqBytes)
+	req.Data = &content
+
+	return nil
+}
+
+func (req MDMWebContainer) error() error { return req.Err }
+
+// hijackRender writes the response header and the RAW HTML output
+func (req MDMWebContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	resData := []byte(*req.Data + "\n")
+
+	w.Header().Set("Content-Type", mdm.WebContainerContentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
+	w.WriteHeader(http.StatusOK)
+	if n, err := w.Write(resData); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+type MDMAuthContainer struct {
+	Data *string
+	Err  error
+}
+
+func (r MDMAuthContainer) error() error { return r.Err }
+
+// hijackRender writes the response header and the RAW XML output
+func (r MDMAuthContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	w.Header().Set("Content-Length", strconv.Itoa(len(*r.Data)))
+	w.WriteHeader(http.StatusOK)
+	if n, err := w.Write([]byte(*r.Data)); err != nil {
 		logging.WithExtras(ctx, "err", err, "written", n)
 	}
 }
@@ -263,6 +382,14 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 	}
 }
 
+// getSTSAuthContent Retuns STS auth content
+func getSTSAuthContent(data string) errorer {
+	return MDMAuthContainer{
+		Data: &data,
+		Err:  nil,
+	}
+}
+
 // getSoapResponseFault Returns a SoapResponse with a SoapFault on its body
 func getSoapResponseFault(relatesTo string, soapFault *mdm_types.SoapFault) errorer {
 	if len(relatesTo) == 0 {
@@ -408,11 +535,19 @@ func NewBinarySecurityTokenPayload(encodedToken string) (fleet.WindowsMDMAccessT
 	return tokenPayload, nil
 }
 
-// GetEncodedBinarySecurityToken returns the base64 form of a BinarySecurityTokenPayload
-func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, hostUUID string) (string, error) {
+// GetEncodedBinarySecurityToken returns the base64 form of a input payload
+func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, payload string) (string, error) {
 	var pld fleet.WindowsMDMAccessTokenPayload
 	pld.Type = typeID
-	pld.Payload.HostUUID = hostUUID
+
+	if typeID == fleet.WindowsMDMProgrammaticEnrollmentType {
+		pld.Payload.OrbitNodeKey = payload
+	} else if typeID == fleet.WindowsMDMAutomaticEnrollmentType {
+		pld.Payload.AuthToken = payload
+	} else {
+		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
+	}
+
 	rawBytes, err := json.Marshal(pld)
 	if err != nil {
 		return "", err
@@ -591,7 +726,7 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 	}
 
 	// Getting the DiscoveryResponse message
-	discoveryResponseMsg, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx)
+	discoveryResponseMsg, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx, req.Body.Discover.Request.EmailAddress)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
@@ -610,6 +745,31 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
+// mdmMicrosoftAuthEndpoint handles the Security Token Service (STS) implementation
+func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	params := request.(*SoapRequestContainer).Params
+
+	// Sanity check on the expected query params
+	if !params.Has(mdm.STSAuthAppRu) || !params.Has(mdm.STSLoginHint) {
+		return getSTSAuthContent(""), errors.New("expected STS params are not present")
+	}
+
+	appru := params.Get(mdm.STSAuthAppRu)
+	loginHint := params.Get(mdm.STSLoginHint)
+
+	if (len(appru) == 0) || (len(loginHint) == 0) {
+		return getSTSAuthContent(""), errors.New("expected STS params are empty")
+	}
+
+	// Getting the STS endpoint HTML content
+	stsAuthContent, err := svc.GetMDMMicrosoftSTSAuthResponse(ctx, appru, loginHint)
+	if err != nil {
+		return getSTSAuthContent(""), errors.New("error generating STS content")
+	}
+
+	return getSTSAuthContent(stsAuthContent), nil
+}
+
 // mdmMicrosoftPolicyEndpoint handles the GetPolicies message and returns a valid GetPoliciesResponse message
 // GetPoliciesResponse message contains the certificate policies required for the next enrollment step. For more information about these messages, see [MS-XCEP] sections 3.1.4.1.1.1 and 3.1.4.1.1.2.
 func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -622,14 +782,14 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 	}
 
 	// Binary security token should be extracted to ensure this is a valid call
-	binSecTokenData, err := req.GetBinarySecurityToken()
+	hdrSecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Getting the GetPoliciesResponse message
-	policyResponseMsg, err := svc.GetMDMWindowsPolicyResponse(ctx, binSecTokenData)
+	policyResponseMsg, err := svc.GetMDMWindowsPolicyResponse(ctx, hdrSecToken)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
@@ -667,14 +827,14 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 	}
 
 	// Binary security token should be extracted to ensure this is a valid call
-	binSecTokenData, err := req.GetBinarySecurityToken()
+	hdrBinarySecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Getting the RequestSecurityTokenResponseCollection message
-	enrollResponseMsg, err := svc.GetMDMWindowsEnrollResponse(ctx, reqSecurityTokenMsg, binSecTokenData)
+	enrollResponseMsg, err := svc.GetMDMWindowsEnrollResponse(ctx, reqSecurityTokenMsg, hdrBinarySecToken)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
@@ -693,45 +853,133 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 	}, nil
 }
 
-// validateBinarySecurityToken checks if the provided token is valid
-func (svc *Service) validateBinarySecurityToken(ctx context.Context, encodedBinarySecToken string) error {
-	if len(encodedBinarySecToken) == 0 {
-		return errors.New("binarySecurityTokenValidation: encoded token is invalid")
+// mdmMicrosoftManagementEndpoint handles the OMA DM management sessions
+// It receives a SyncML message with protocol commands, it process the commands and responds with a
+// SyncML message with protocol commands results and more protocol commands for the calling host
+// Note: This logic needs to be improved with better SyncML message parsing, better message tracking
+// and better security authentication (done through TLS and in-message hash)
+func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	reqSyncML := request.(*SyncMLReqMsgContainer).Data
+
+	// Checking first if incoming SyncML message is valid and returning error if this is not the case
+	if err := reqSyncML.IsValidSyncMLMsg(); err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEFault, err)
+		return getSoapResponseFault(strconv.Itoa(reqSyncML.Header.MsgID), soapFault), nil
 	}
 
-	// Getting the Binary Security Token Payload
-	binSecToken, err := NewBinarySecurityTokenPayload(encodedBinarySecToken)
+	// Getting the RequestSecurityTokenResponseCollection message
+	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML)
 	if err != nil {
-		return fmt.Errorf("binarySecurityTokenValidation: token creation error %v", err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(strconv.Itoa(reqSyncML.Header.MsgID), soapFault), nil
 	}
 
-	// Validating the Binary Security Token Payload
-	err = binSecToken.IsValidToken()
+	return SyncMLResponseMsgContainer{
+		Data: resSyncML,
+		Err:  nil,
+	}, nil
+}
+
+// mdmMicrosoftTOSEndpoint handles the TOS content for the incoming MDM enrollment request
+func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	params := request.(*MDMWebContainer).Params
+
+	// Sanity check on the expected query params
+	if !params.Has(mdm.TOCRedirectURI) || !params.Has(mdm.TOCReqID) {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, errors.New("invalid params"))
+		return getSoapResponseFault(mdm.SoapErrorInternalServiceFault, soapFault), nil
+	}
+
+	redirectURI := params.Get(mdm.TOCRedirectURI)
+	reqID := params.Get(mdm.TOCReqID)
+
+	// Getting the TOS content message
+	resTOCData, err := svc.GetMDMWindowsTOSContent(ctx, redirectURI, reqID)
 	if err != nil {
-		return fmt.Errorf("binarySecurityTokenValidation: invalid token data %v", err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(mdm.SoapErrorInternalServiceFault, soapFault), nil
 	}
 
-	// Validating the Binary Security Token Type used on Programmatic Enrollments
-	if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
-		host, err := svc.ds.HostByIdentifier(ctx, binSecToken.Payload.HostUUID)
+	return MDMWebContainer{
+		Data: &resTOCData,
+		Err:  nil,
+	}, nil
+}
+
+// authBinarySecurityToken checks if the provided token is valid
+func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (string, error) {
+	if authToken == nil {
+		return "", errors.New("authToken is empty")
+	}
+
+	err := authToken.IsValidToken()
+	if err != nil {
+		return "", errors.New("authToken is not valid")
+	}
+
+	// Tokens that were generated by enrollment client
+	if authToken.IsDeviceToken() {
+
+		// Getting the Binary Security Token Payload
+		binSecToken, err := NewBinarySecurityTokenPayload(authToken.Content)
 		if err != nil {
-			return fmt.Errorf("binarySecurityTokenValidation: host data cannot be found %v", err)
+			return "", fmt.Errorf("token creation error %v", err)
 		}
 
-		// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-		if !host.IsEligibleForWindowsMDMEnrollment() {
-			return errors.New("binarySecurityTokenValidation: host is not elegible for Windows MDM enrollment")
+		// Validating the Binary Security Token Payload
+		err = binSecToken.IsValidToken()
+		if err != nil {
+			return "", fmt.Errorf("invalid token data %v", err)
+		}
+
+		// Validating the Binary Security Token Type used on Programmatic Enrollments
+		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
+			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
+			// host, err := svc.ds.HostByIdentifier(ctx, binSecToken.Payload.HostUUID)
+			if err != nil {
+				return "", fmt.Errorf("host data cannot be found %v", err)
+			}
+
+			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
+			if !host.IsEligibleForWindowsMDMEnrollment() {
+				return "", errors.New("host is not elegible for Windows MDM enrollment")
+			}
+
+			// No errors, token is authorized
+			return binSecToken.Payload.OrbitNodeKey, nil
+		}
+
+		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
+		if binSecToken.Type == mdm_types.WindowsMDMAutomaticEnrollmentType {
+
+			upnToken, err := svc.wstepCertManager.GetSTSAuthTokenUPNClaim(binSecToken.Payload.AuthToken)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "issue retrieving UPN from Auth token")
+			}
+
+			// No errors, token is authorized
+			return upnToken, nil
+		}
+	}
+
+	// Validating the Binary Security Token Type used on Automatic Enrollments
+	if authToken.IsAzureJWTToken() {
+
+		// Validate the JWT Auth token by retreving its claims
+		tokenData, err := mdm.GetAzureAuthTokenClaims(authToken.Content)
+		if err != nil {
+			return "", fmt.Errorf("binary security token claim failed: %v", err)
 		}
 
 		// No errors, token is authorized
-		return nil
+		return tokenData.UPN, nil
 	}
 
-	return errors.New("binarySecurityTokenValidation: token is not authorized")
+	return "", errors.New("token is not authorized")
 }
 
 // GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
-func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*fleet.DiscoverResponse, error) {
+func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*fleet.DiscoverResponse, error) {
 	// skipauth: This endpoint does not use authentication
 	svc.authz.SkipAuthorization(ctx)
 
@@ -760,14 +1008,68 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*flee
 	return &discoveryMsg, nil
 }
 
+// GetMDMMicrosoftSTSAuthResponse returns a valid Security Token Service (STS) page content
+func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error) {
+	// skipauth: This endpoint does not use authentication
+	svc.authz.SkipAuthorization(ctx)
+
+	// Dummy data will be returned as part of the token as user-driven enrollment is not supported yet
+	// In the future, the following calls would have to be made to support user-driven enrollment
+	// encodedBST will carry the token to return
+	// authToken, err := svc.wstepCertManager.NewSTSAuthToken(loginHint)
+	// encodedBST, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMAutomaticEnrollmentType, authToken)
+	encodedBST := "user_driven_enrollment_not_implemented"
+
+	// STS Auth Endpoint returns HTML content that gets render in a webview container
+	// The webview container expect a POST request to the appru URL with the wresult parameter set to the auth token
+	// The security token in wresult is later passed back in <wsse:BinarySecurityToken>
+	// This string is opaque to the enrollment client; the client does not interpret the string.
+	// The returned HTML content contains a JS script that will perform a POST request to the appru URL automatically
+	// This will set the wresult parameter to the value of auth token
+	tmpl, err := template.New("").Parse(`
+				<script>
+				function performPost() {
+				  // Dinamically create a form element to submit the request
+				  var form = document.createElement('form');
+				  form.method = 'POST';
+				  form.action = "{{.ActionURL}}"
+
+				  var inputToken = document.createElement('input');
+				  inputToken.type = 'hidden';
+				  inputToken.name = 'wresult';
+				  inputToken.value = '{{.Token}}';
+				  form.appendChild(inputToken);
+
+				  // Submit the form
+				  document.body.appendChild(form);
+				  form.submit();
+				}
+
+				// Call performPost() when the script is executed
+				performPost();
+				</script>
+				`)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "STS content template")
+	}
+
+	var htmlBuf bytes.Buffer
+	err = tmpl.Execute(&htmlBuf, map[string]string{"ActionURL": appru, "Token": encodedBST})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creation of STS content")
+	}
+
+	return htmlBuf.String(), nil
+}
+
 // GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
-func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken string) (*fleet.GetPoliciesResponse, error) {
-	if len(authToken) == 0 {
-		return nil, fleet.NewInvalidArgumentError("policy response", "authToken is empty")
+func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (*fleet.GetPoliciesResponse, error) {
+	if authToken == nil {
+		return nil, fleet.NewInvalidArgumentError("policy response", "authToken is invalid")
 	}
 
 	// Validate the binary security token
-	err := svc.validateBinarySecurityToken(ctx, authToken)
+	_, err := svc.authBinarySecurityToken(ctx, authToken)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
@@ -787,13 +1089,13 @@ func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken s
 // GetMDMWindowsEnrollResponse returns a valid RequestSecurityTokenResponseCollection message
 // secTokenMsg is the RequestSecurityToken message
 // authToken is the base64 encoded binary security token
-func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, authToken string) (*fleet.RequestSecurityTokenResponseCollection, error) {
-	if len(authToken) == 0 {
-		return nil, fleet.NewInvalidArgumentError("enroll response", "authToken is empty")
+func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, authToken *fleet.HeaderBinarySecurityToken) (*fleet.RequestSecurityTokenResponseCollection, error) {
+	if authToken == nil {
+		return nil, fleet.NewInvalidArgumentError("enroll response", "authToken is not present")
 	}
 
-	// Validate the binary security token
-	err := svc.validateBinarySecurityToken(ctx, authToken)
+	// Auth the binary security token
+	userID, err := svc.authBinarySecurityToken(ctx, authToken)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
@@ -804,7 +1106,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
-	// Getting the the device provisioning information in the form of a WapProvisioningDoc
+	// Getting the device provisioning information in the form of a WapProvisioningDoc
 	deviceProvisioning, err := svc.getDeviceProvisioningInformation(ctx, secTokenMsg)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device provisioning information")
@@ -828,12 +1130,177 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	//
 	// This method also creates the relevant enrollment activity as it has
 	// access to the device information.
-	err = svc.storeWindowsMDMEnrolledDevice(ctx, secTokenMsg)
+	err = svc.storeWindowsMDMEnrolledDevice(ctx, userID, secTokenMsg)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "enrolled device information cannot be stored")
 	}
 
 	return &secTokenResponseCollectionMsg, nil
+}
+
+// GetMDMWindowsManagementResponse returns a valid SyncML response message
+func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncMLMessage) (*string, error) {
+	if reqSyncML == nil {
+		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
+	}
+
+	// TODO: The following logic should happen here
+	// - TLS based auth
+	// - Device auth based on Source/LocURI DeviceID information
+	//   (this should be present on Enrollment DB)
+	// - Processing of incoming protocol commands (Alerts mostly
+	// - MS-MDM session management
+	// - Inclusion of queued protocol commands should be performed here
+	// - Tracking of message acknowledgements through Message queue
+
+	// Getting the management response message
+	resSyncMLmsg, err := svc.getManagementResponse(ctx, reqSyncML)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device provisioning information")
+	}
+
+	// Token is authorized
+	svc.authz.SkipAuthorization(ctx)
+
+	return resSyncMLmsg, nil
+}
+
+// GetMDMWindowsTOSContent returns valid TOC content
+func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
+	tmpl, err := server.GetTemplate("frontend/templates/windowsTOS.html", "windows-tos")
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
+	}
+
+	var htmlBuf bytes.Buffer
+	err = tmpl.Execute(&htmlBuf, map[string]string{"RedirectURL": redirectUri, "ClientData": reqID})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "executing TOS template content")
+	}
+
+	// skipauth: This endpoint does not use authentication
+	svc.authz.SkipAuthorization(ctx)
+
+	return htmlBuf.String(), nil
+}
+
+func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.SyncMLMessage) (*string, error) {
+	if reqSyncML == nil {
+		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
+	}
+
+	// cmdID tracks the command sequence
+	cmdID := 0
+
+	// Retrieve the MessageID from the syncml req body
+	deviceID := reqSyncML.Header.Source
+
+	// Retrieve the sessionID from the syncml req body
+	sessionID := reqSyncML.Header.SessionID
+
+	// Retrieve the msgID from the syncml req body
+	msgID := reqSyncML.Header.MsgID
+
+	// Getting the management URL message content
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	urlManagementEndpoint, err := mdm.ResolveWindowsMDMManagement(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// Checking the SyncML message types
+	var response string
+	if isSessionInitializationMessage(reqSyncML.Body) {
+		// Create response payload - MDM SyncML configuration profiles commands will be enforced here
+		response = `
+			<?xml version="1.0" encoding="UTF-8"?>
+			<SyncML xmlns="SYNCML:SYNCML1.2">
+				<SyncHdr>
+					<VerDTD>1.2</VerDTD>
+					<VerProto>DM/1.2</VerProto>
+					<SessionID>` + strconv.Itoa(sessionID) + `</SessionID>
+					<MsgID>` + strconv.Itoa(msgID) + `</MsgID>
+					<Target>
+						<LocURI>` + deviceID + `</LocURI>
+					</Target>
+					<Source>
+						<LocURI>` + urlManagementEndpoint + `</LocURI>
+					</Source>
+				</SyncHdr>
+				<SyncBody>
+					<Status>
+						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
+						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
+						<CmdRef>0</CmdRef>
+						<Cmd>SyncHdr</Cmd>
+						<Data>200</Data>
+					</Status>
+					<Status>
+						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
+						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
+						<CmdRef>2</CmdRef>
+						<Cmd>Alert</Cmd>
+						<Data>200</Data>
+					</Status>
+					<Status>
+						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
+						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
+						<CmdRef>3</CmdRef>
+						<Cmd>Alert</Cmd>
+						<Data>200</Data>
+					</Status>
+					<Status>
+						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
+						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
+						<CmdRef>4</CmdRef>
+						<Cmd>Replace</Cmd>
+						<Data>200</Data>
+					</Status>
+					` + svc.getConfigProfilesToEnforce(ctx, &cmdID) + `
+					<Final />
+				</SyncBody>
+			</SyncML>`
+	} else {
+		// Acknowledge SyncML messages sent by host
+		response = `
+			<?xml version="1.0" encoding="UTF-8"?>
+			<SyncML xmlns="SYNCML:SYNCML1.2">
+				<SyncHdr>
+					<VerDTD>1.2</VerDTD>
+					<VerProto>DM/1.2</VerProto>
+					<SessionID>` + strconv.Itoa(sessionID) + `</SessionID>
+					<MsgID>` + strconv.Itoa(msgID) + `</MsgID>
+					<Target>
+						<LocURI>` + deviceID + `</LocURI>
+					</Target>
+					<Source>
+						<LocURI>` + urlManagementEndpoint + `</LocURI>
+					</Source>
+				</SyncHdr>
+				<SyncBody>
+					<Status>
+						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
+						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
+						<CmdRef>0</CmdRef>
+						<Cmd>SyncHdr</Cmd>
+						<Data>200</Data>
+					</Status>
+					<Final />
+				</SyncBody>
+			</SyncML>`
+	}
+
+	// Create a replacer to replace both "\n" and "\t"
+	replacer := strings.NewReplacer("\n", "", "\t", "")
+
+	// Use the replacer on the string representation of xmlContent
+	responseRaw := replacer.Replace(response)
+
+	return &responseRaw, nil
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
@@ -944,7 +1411,7 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 }
 
 // storeWindowsMDMEnrolledDevice stores the device information to the list of MDM enrolled devices
-func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) error {
+func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID string, secTokenMsg *fleet.RequestSecurityToken) error {
 	const (
 		error_tag = "windows MDM enrolled storage: "
 	)
@@ -976,7 +1443,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, secTokenM
 	// Getting the Enroll RequestVersion context information from the RequestSecurityToken msg
 	reqEnrollVersion, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemRequestVersion)
 	if err != nil {
-		return fmt.Errorf("%s %v", error_tag, err)
+		reqEnrollVersion = "request_version_not_present"
 	}
 
 	// Getting the RequestVersion context information from the RequestSecurityToken msg
@@ -999,7 +1466,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, secTokenM
 		MDMDeviceType:          reqDeviceType,
 		MDMDeviceName:          reqDeviceName,
 		MDMEnrollType:          reqEnrollType,
-		MDMEnrollUserID:        "", // No user information is available at this point
+		MDMEnrollUserID:        userID, // This could be Host UUID or UPN email
 		MDMEnrollProtoVersion:  reqEnrollVersion,
 		MDMEnrollClientVersion: reqAppVersion,
 		MDMNotInOOBE:           false,
@@ -1038,7 +1505,7 @@ func GetContextItem(secTokenMsg *fleet.RequestSecurityToken, contextItem string)
 // GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
 func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *fleet.SoapFault {
 	svc.authz.SkipAuthorization(ctx)
-
+	logging.WithErr(ctx, ctxerr.Wrap(ctx, errorMsg, "soap fault"))
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)
 
 	return &soapFault
@@ -1059,4 +1526,101 @@ func (svc *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject strin
 	// svc.wstepCertManager.AssociateCertHash
 
 	return cert, fpHex, nil
+}
+
+func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *int) string {
+	// Getting the management URL
+	appCfg, _ := svc.ds.AppConfig(ctx)
+	fleetEnrollUrl := appCfg.ServerSettings.ServerURL
+
+	// Getting the global enrollment secret
+	var globalEnrollSecret string
+	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+	if err != nil {
+		return ""
+	}
+
+	for _, secret := range secrets {
+		if secret.TeamID == nil {
+			globalEnrollSecret = secret.Secret
+			break
+		}
+	}
+
+	// keeping the same GUID will prevent the MSI to be installed multiple times - it will be
+	// installed only the first time the message is issued.
+	// FleetURL and FleetSecret properties are passed to the Fleet MSI
+	// See here for more information: https://learn.microsoft.com/en-us/windows/win32/msi/command-line-options
+	installCommandPayload := `<MsiInstallJob id="{A427C0AA-E2D5-40DF-ACE8-0D726A6BE096}">
+					<Product Version="1.0.0.0">
+						<Download>
+							<ContentURLList>
+								<ContentURL>https://download.fleetdm.com/fleetd-base.msi</ContentURL>
+							</ContentURLList>
+						</Download>
+						<Validation>
+							<FileHash>9F89C57D1B34800480B38BD96186106EB6418A82B137A0D56694BF6FFA4DDF1A</FileHash>
+						</Validation>
+						<Enforcement>
+							<CommandLine>/quiet FLEET_URL="` + fleetEnrollUrl + `" FLEET_SECRET="` + globalEnrollSecret + `"</CommandLine>
+							<TimeOut>10</TimeOut>
+							<RetryCount>1</RetryCount>
+							<RetryInterval>5</RetryInterval>
+						</Enforcement>
+					</Product>
+				</MsiInstallJob>`
+
+	newCmds := `<Add>
+				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
+				<Item>
+					<Target>
+					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
+					</Target>
+				</Item>
+				</Add>
+				<Exec>
+				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
+				<Item>
+					<Target>
+					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
+					</Target>
+					<Data>` + html.EscapeString(installCommandPayload) + `</Data>
+					<Meta>
+					<Type xmlns="syncml:metinf">text/plain</Type>
+					<Format xmlns="syncml:metinf">xml</Format>
+					</Meta>
+				</Item>
+				</Exec>`
+
+	return newCmds
+}
+
+// getNextCmdID returns the next command ID
+func getNextCmdID(i *int) string {
+	*i++
+	return strconv.Itoa(*i)
+}
+
+// Checks if body contains a DM device unrollment SyncML message
+func isDeviceUnenrollmentMessage(body fleet.SyncMLBody) bool {
+	for _, element := range body.Item {
+		if element.Data == mdm.DeviceUnenrollmentID {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Checks if body contains a DM session initialization SyncML message sent by device
+func isSessionInitializationMessage(body fleet.SyncMLBody) bool {
+	isUnenrollMessage := isDeviceUnenrollmentMessage(body)
+
+	for _, element := range body.Item {
+		if element.Data == mdm.HostInitMessageID && !isUnenrollMessage {
+			return true
+		}
+	}
+
+	return false
 }

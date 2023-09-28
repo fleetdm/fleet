@@ -216,6 +216,7 @@ html, body {
     [purpose='header-nav-btn'][aria-expanded='true'] {
       font-weight: 700;
       outline: none;
+      color: #192147;
     }
     [purpose='header-nav-btn']:before {
       display: block;
@@ -231,7 +232,8 @@ html, body {
       cursor: pointer;
       display: inline-block;
     }
-    &:hover {
+    [purpose='header-nav-btn']:hover {
+      font-weight: 700;
       text-decoration: none;
     }
     &:focus {
@@ -278,6 +280,22 @@ html, body {
         vertical-align: middle;
       }
     }
+  }
+}
+[purpose='admin-nav'] {
+  justify-content: center;
+  a {
+    margin-left: 30px;
+    margin-right: 30px;
+    color: @core-fleet-black-75;
+    &:hover {
+      color: @core-fleet-black;
+    }
+  }
+  span {
+    color: @core-fleet-black;
+    font-weight: 600;
+    margin-right: 30px;
   }
 }
 

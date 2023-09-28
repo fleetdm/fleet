@@ -33,8 +33,6 @@ import { MAC_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
 import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
-import PolicyIcon from "../../../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
-
 const baseClass = "hosts-filter-block";
 
 interface IHostsFilterBlockProps {
@@ -201,7 +199,7 @@ const HostsFilterBlock = ({
         onChange={onChangePoliciesFilter}
       />
       <FilterPill
-        icon={PolicyIcon}
+        icon="policy"
         label={policy?.name ?? "..."}
         onClear={() => handleClearFilter(["policy_id", "policy_response"])}
         className={`${baseClass}__policies-filter-pill`}
@@ -287,8 +285,9 @@ const HostsFilterBlock = ({
           MDM was turned on <br />
           automatically using Apple <br />
           Automated Device <br />
-          Enrollment (DEP) or <br />
-          Windows Autopilot. <br />
+          Enrollment (DEP), <br />
+          Windows Autopilot, or <br />
+          Windows Azure AD Join. <br />
           Administrators can block <br />
           device users from turning
           <br /> MDM off.

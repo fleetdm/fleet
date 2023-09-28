@@ -23,9 +23,9 @@ import MdmMigrationPreview from "../../../../../../../../assets/images/mdm-migra
 const baseClass = "end-user-migration-section";
 
 const VOLUNTARY_MODE_DESCRIPTION =
-  "The end user sees the above window when they select Migrate to Fleet in the Fleet Desktop menu. If they’re unenrolled from your old MDM, the window appears every 15 minutes.";
+  "The end user sees the above window when they select Migrate to Fleet in the Fleet Desktop menu. If they’re unenrolled from your old MDM, the window appears every 15-20 minutes.";
 const FORCED_MODE_DESCRIPTION =
-  "The end user sees the above window every 15 minutes.";
+  "The end user sees the above window every 15-20 minutes.";
 
 interface IEndUserMigrationFormData {
   isEnabled: boolean;
@@ -139,8 +139,8 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     <div className={baseClass}>
       <h2>End user migration workflow</h2>
       <p>
-        Control the end user migration workflow for hosts that automatically
-        enrolled to your old MDM solution.
+        Control the end user migration workflow for macOS hosts that
+        automatically enrolled to your old MDM solution.
       </p>
 
       <img

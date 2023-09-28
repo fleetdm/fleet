@@ -44,11 +44,11 @@ func TestAppleMDM(t *testing.T) {
 	mdmStorage, err := ds.NewMDMAppleMDMStorage([]byte("test"), []byte("test"))
 	require.NoError(t, err)
 
-	//nopLog := kitlog.NewNopLogger()
+	// nopLog := kitlog.NewNopLogger()
 	// use this to debug/verify details of calls
 	nopLog := kitlog.NewJSONLogger(os.Stdout)
 
-	createEnrolledHost := func(t *testing.T, i int, teamID *uint) *fleet.Host {
+	createEnrolledHost := func(t *testing.T, i int, teamID *uint, depAssignedToFleet bool) *fleet.Host {
 		// create the host
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:       fmt.Sprintf("test-host%d-name", i),
@@ -71,7 +71,15 @@ func TestAppleMDM(t *testing.T) {
 				VALUES (?, ?, ?, ?, ?, ?)`, h.UUID, h.UUID, "device", "topic", "push_magic", "token_hex")
 			return err
 		})
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", true, fleet.WellKnownMDMFleet)
+		if depAssignedToFleet {
+			mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `
+					INSERT INTO host_dep_assignments (host_id) VALUES (?) ON DUPLICATE KEY UPDATE host_id = host_id, deleted_at = NULL
+				`, h.ID)
+				return err
+			})
+		}
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet)
 		require.NoError(t, err)
 		return h
 	}
@@ -95,7 +103,7 @@ func TestAppleMDM(t *testing.T) {
 		w.Register(mdmWorker)
 
 		// create a host and enqueue the job
-		h := createEnrolledHost(t, 1, nil)
+		h := createEnrolledHost(t, 1, nil, true)
 		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, nil, "")
 		require.NoError(t, err)
 
@@ -124,7 +132,7 @@ func TestAppleMDM(t *testing.T) {
 		w.Register(mdmWorker)
 
 		// create a host and enqueue the job
-		h := createEnrolledHost(t, 1, nil)
+		h := createEnrolledHost(t, 1, nil, true)
 		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMTask("no-such-task"), h.UUID, nil, "")
 		require.NoError(t, err)
 
@@ -146,7 +154,7 @@ func TestAppleMDM(t *testing.T) {
 	t.Run("installs default manifest", func(t *testing.T) {
 		defer mysql.TruncateTables(t, ds)
 
-		h := createEnrolledHost(t, 1, nil)
+		h := createEnrolledHost(t, 1, nil, true)
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -176,7 +184,7 @@ func TestAppleMDM(t *testing.T) {
 	t.Run("installs custom bootstrap manifest", func(t *testing.T) {
 		defer mysql.TruncateTables(t, ds)
 
-		h := createEnrolledHost(t, 1, nil)
+		h := createEnrolledHost(t, 1, nil, true)
 		err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
 			Name:   "custom-bootstrap",
 			TeamID: 0, // no-team
@@ -221,7 +229,7 @@ func TestAppleMDM(t *testing.T) {
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
 		require.NoError(t, err)
 
-		h := createEnrolledHost(t, 1, &tm.ID)
+		h := createEnrolledHost(t, 1, &tm.ID, true)
 		err = ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
 			Name:   "custom-team-bootstrap",
 			TeamID: tm.ID,
@@ -263,7 +271,7 @@ func TestAppleMDM(t *testing.T) {
 	t.Run("unknown enroll reference", func(t *testing.T) {
 		defer mysql.TruncateTables(t, ds)
 
-		h := createEnrolledHost(t, 1, nil)
+		h := createEnrolledHost(t, 1, nil, true)
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -299,9 +307,10 @@ func TestAppleMDM(t *testing.T) {
 			UUID:     "abcd",
 			Username: "test",
 			Fullname: "test",
+			Email:    "test@example.com",
 		})
 		require.NoError(t, err)
-		h := createEnrolledHost(t, 1, nil)
+		h := createEnrolledHost(t, 1, nil, true)
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -336,6 +345,7 @@ func TestAppleMDM(t *testing.T) {
 			UUID:     "abcd",
 			Username: "test",
 			Fullname: "test",
+			Email:    "test@example.com",
 		})
 		require.NoError(t, err)
 
@@ -347,7 +357,7 @@ func TestAppleMDM(t *testing.T) {
 		_, err = ds.SaveTeam(ctx, tm)
 		require.NoError(t, err)
 
-		h := createEnrolledHost(t, 1, &tm.ID)
+		h := createEnrolledHost(t, 1, &tm.ID, true)
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,

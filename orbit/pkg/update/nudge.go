@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -16,8 +17,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const nudgeConfigFile = "nudge-config.json"
-const nudgeConfigFileMode = os.FileMode(constant.DefaultWorldReadableFileMode)
+const (
+	nudgeConfigFile     = "nudge-config.json"
+	nudgeConfigFileMode = os.FileMode(constant.DefaultWorldReadableFileMode)
+)
 
 // NudgeConfigFetcher is a kind of middleware that wraps an OrbitConfigFetcher and a Runner.
 // It checks the config supplied by the wrapped OrbitConfigFetcher to detects whether the Fleet
@@ -30,6 +33,10 @@ type NudgeConfigFetcher struct {
 	// ensures only one command runs at a time, protects access to lastRun
 	cmdMu   sync.Mutex
 	lastRun time.Time
+
+	// launchErr is set if Nudge fails to launch. If launchErr is set, we won't try to
+	// launch Nudge again.
+	launchErr *nudgeLaunchErr
 }
 
 type NudgeConfigFetcherOptions struct {
@@ -196,7 +203,15 @@ func (n *NudgeConfigFetcher) launch() error {
 			// make sure nudge is added as a target and the hashes
 			// are refreshed
 			if err := checkFileHash(meta, nudge.Path); err != nil {
+				n.launchErr = nil // reset launchErr since we're dealing with a different file
 				return n.setTargetsAndHashes()
+			}
+
+			// if we have a prior launch error, we won't try to launch nudge again
+			if n.launchErr != nil {
+				log.Info().Msgf("Nudge disabled since %s due to launch error: %v", n.launchErr.timestamp.Format("2006-01-02"), n.launchErr)
+				n.lastRun = time.Now()
+				return nil
 			}
 
 			fn := n.opt.runNudgeFn
@@ -223,6 +238,17 @@ func (n *NudgeConfigFetcher) launch() error {
 			}
 
 			if err := fn(nudge.DirPath, fmt.Sprintf("file://%s", cfgFile)); err != nil {
+				if exitErr, ok := err.(*exec.ExitError); ok {
+					launchErr := &nudgeLaunchErr{
+						err:       err,
+						exitCode:  exitErr.ExitCode(),
+						detail:    string(exitErr.Stderr),
+						cfgFile:   cfgFile,
+						timestamp: time.Now(),
+					}
+					n.launchErr = launchErr
+					return fmt.Errorf("opening Nudge with config %q: %w", cfgFile, launchErr)
+				}
 				return fmt.Errorf("opening Nudge with config %q: %w", cfgFile, err)
 			}
 
@@ -231,4 +257,16 @@ func (n *NudgeConfigFetcher) launch() error {
 	}
 
 	return nil
+}
+
+type nudgeLaunchErr struct {
+	err       error
+	exitCode  int
+	detail    string
+	cfgFile   string
+	timestamp time.Time
+}
+
+func (e *nudgeLaunchErr) Error() string {
+	return fmt.Sprintf("%v: %s", e.err, e.detail)
 }

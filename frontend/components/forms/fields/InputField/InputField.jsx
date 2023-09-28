@@ -3,7 +3,11 @@ import PropTypes from "prop-types";
 import classnames from "classnames";
 import { noop, pick } from "lodash";
 
+import { stringToClipboard } from "utilities/copy_text";
+
 import FormField from "components/forms/FormField";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 const baseClass = "input-field";
 
@@ -34,6 +38,8 @@ class InputField extends Component {
       PropTypes.arrayOf(PropTypes.string),
       PropTypes.object,
     ]),
+    enableCopy: PropTypes.bool,
+    ignore1password: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -50,6 +56,8 @@ class InputField extends Component {
     parseTarget: false,
     tooltip: "",
     hint: "",
+    enableCopy: false,
+    ignore1password: false,
   };
 
   componentDidMount() {
@@ -91,6 +99,7 @@ class InputField extends Component {
       type,
       blockAutoComplete,
       value,
+      ignore1password,
     } = this.props;
 
     const { onInputChange } = this;
@@ -109,6 +118,12 @@ class InputField extends Component {
       "name",
       "tooltip",
     ]);
+
+    const copyValue = (e) => {
+      e.preventDefault();
+
+      stringToClipboard(value);
+    };
 
     if (type === "textarea") {
       return (
@@ -135,25 +150,43 @@ class InputField extends Component {
       );
     }
 
+    const inputContainerClasses = classnames(`${baseClass}__input-container`, {
+      "copy-enabled": this.props.enableCopy,
+    });
+
     return (
       <FormField {...formFieldProps} type="input" className={inputWrapperClass}>
-        <input
-          disabled={disabled}
-          name={name}
-          id={name}
-          onChange={onInputChange}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          className={inputClasses}
-          placeholder={placeholder}
-          ref={(r) => {
-            this.input = r;
-          }}
-          type={type}
-          {...inputOptions}
-          value={value}
-          autoComplete={blockAutoComplete ? "new-password" : ""}
-        />
+        <div className={inputContainerClasses}>
+          <input
+            disabled={disabled}
+            name={name}
+            id={name}
+            onChange={onInputChange}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            className={inputClasses}
+            placeholder={placeholder}
+            ref={(r) => {
+              this.input = r;
+            }}
+            type={type}
+            {...inputOptions}
+            value={value}
+            autoComplete={blockAutoComplete ? "new-password" : ""}
+            data-1p-ignore={ignore1password}
+          />
+          <div className={`${baseClass}__copy-wrapper`}>
+            {this.props.enableCopy && (
+              <Button
+                variant="text-icon"
+                onClick={copyValue}
+                className={`${baseClass}__copy-value-button`}
+              >
+                <Icon name="copy" /> Copy
+              </Button>
+            )}
+          </div>
+        </div>
       </FormField>
     );
   }

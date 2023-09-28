@@ -261,7 +261,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		for _, tt := range cases {
 			t.Run(tt.name, func(t *testing.T) {
 				ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-					return nil, &notFoundError{}
+					return nil, newNotFoundError()
 				}
 
 				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -369,6 +369,58 @@ func TestApplyTeamSpecs(t *testing.T) {
 			})
 		}
 	})
+}
+
+// Tests that a new enroll secret is created for new teams when none are provided
+func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, newNotFoundError()
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+
+	t.Run("creates enroll secret when not included for a new team spec", func(t *testing.T) {
+		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			require.Len(t, team.Secrets, 1)
+			require.NotEmpty(t, team.Secrets[0])
+			return &fleet.Team{ID: 1}, nil
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "Foo"}}, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.TeamByNameFuncInvoked)
+		require.True(t, ds.NewTeamFuncInvoked)
+	})
+
+	t.Run("does not create enroll secret when one is included for a new team spec", func(t *testing.T) {
+		enrollSecret := fleet.EnrollSecret{Secret: "test"}
+
+		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			require.Len(t, team.Secrets, 1)
+			require.Equal(t, enrollSecret.Secret, team.Secrets[0].Secret)
+			return &fleet.Team{ID: 1}, nil
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: []fleet.EnrollSecret{enrollSecret}}}, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.TeamByNameFuncInvoked)
+		require.True(t, ds.NewTeamFuncInvoked)
+	})
+
+	ds.TeamByNameFuncInvoked = false
+	ds.NewTeamFuncInvoked = false
 }
 
 // TestApplyTeamSpecsErrorInTeamByName tests that an error in ds.TeamByName will

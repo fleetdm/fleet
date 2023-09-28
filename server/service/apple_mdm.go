@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +18,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -974,7 +974,11 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		}
 	}
 
-	rawXMLCmd, err := base64.RawStdEncoding.DecodeString(rawBase64Cmd)
+	// using a padding agnostic decoder because we released this using
+	// base64.RawStdEncoding, but it was causing problems as many standard
+	// libraries default to padded strings. We're now supporting both for
+	// backwards compatibility.
+	rawXMLCmd, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
 	if err != nil {
 		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
 
@@ -1681,12 +1685,8 @@ func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MD
 	// for now, assume all settings require premium (this is true for the first
 	// supported setting, enable_disk_encryption. Adjust as needed in the future
 	// if this is not always the case).
-	license, err := svc.License(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return err
-	}
-	if !license.IsPremium() {
+	lic, _ := license.FromContext(ctx)
+	if lic == nil || !lic.IsPremium() {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 		return ErrMissingLicense
 	}
@@ -1706,7 +1706,10 @@ func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MD
 }
 
 func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
-	ac, err := svc.AppConfigObfuscated(ctx)
+	// appconfig is only used internally, it's fine to read it unobfuscated
+	// (svc.AppConfigObfuscated must not be used because the write-only users
+	// such as gitops will fail to access it).
+	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -2143,6 +2146,10 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 type callbackMDMAppleSSORequest struct{}
 
+// TODO: these errors will result in JSON being returned, but we should
+// redirect to the UI and let the UI display an error instead. The errors are
+// rare enough (malformed data coming from the SSO provider) so they shouldn't
+// affect many users.
 func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
@@ -2162,8 +2169,6 @@ func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Req
 }
 
 type callbackMDMAppleSSOResponse struct {
-	Err error `json:"error,omitempty"`
-
 	redirectURL string
 }
 
@@ -2172,25 +2177,23 @@ func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.Re
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func (r callbackMDMAppleSSOResponse) error() error { return r.Err }
+// Error will always be nil because errors are handled by sending a query
+// parameter in the URL response, this way the UI is able to display an erorr
+// message.
+func (r callbackMDMAppleSSOResponse) error() error { return nil }
 
 func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	auth := request.(fleet.Auth)
-
-	// validate that the SSO response is valid
-	redirectURL, err := svc.InitiateMDMAppleSSOCallback(ctx, auth)
-	if err != nil {
-		return callbackMDMAppleSSOResponse{Err: err}, nil
-	}
+	redirectURL := svc.InitiateMDMAppleSSOCallback(ctx, auth)
 	return callbackMDMAppleSSOResponse{redirectURL: redirectURL}, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) string {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", fleet.ErrMissingLicense
+	return apple_mdm.FleetUISSOCallbackPath + "?error=true"
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2273,7 +2276,10 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if err != nil {
 			return err
 		}
-		if info.InstalledFromDEP {
+
+		// TODO: improve this to not enqueue the job if a host that is
+		// assigned in ABM is manually enrolling for some reason.
+		if info.DEPAssignedToFleet || info.InstalledFromDEP {
 			svc.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", r.ID)
 
 			var tmID *uint
@@ -2377,13 +2383,14 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	switch requestType {
 	case "InstallProfile":
-		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
-			CommandUUID:   res.CommandUUID,
-			HostUUID:      res.UDID,
-			Status:        mdmAppleDeliveryStatusFromCommandStatus(res.Status),
-			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
-			OperationType: fleet.MDMAppleOperationTypeInstall,
-		})
+		return nil, apple_mdm.HandleHostMDMProfileInstallResult(
+			r.Context,
+			svc.ds,
+			res.UDID,
+			res.CommandUUID,
+			mdmAppleDeliveryStatusFromCommandStatus(res.Status),
+			apple_mdm.FmtErrorChain(res.ErrorChain),
+		)
 	case "RemoveProfile":
 		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   res.CommandUUID,
@@ -2518,6 +2525,22 @@ func ReconcileProfiles(
 	// with the new status, operation_type, etc.
 	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(toInstall)+len(toRemove))
 
+	// profileIntersection tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
+	//
+	// - Sending a RemoveProfile followed by an InstallProfile for a
+	// profile with an identifier that's already installed, which can cause
+	// racy behaviors.
+	// - Sending a InstallProfile command for a profile that's exactly the
+	// same as the one installed. Customers have reported that sending the
+	// command causes unwanted behavior.
+	profileIntersection := apple_mdm.NewProfileBimap()
+	profileIntersection.IntersectByIdentifierAndHostUUID(toInstall, toRemove)
+
+	// hostProfilesToCleanup is used to track profiles that should be removed
+	// from the database directly without having to issue a RemoveProfile
+	// command.
+	hostProfilesToCleanup := []*fleet.MDMAppleProfilePayload{}
+
 	// install/removeTargets are maps from profileID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
 	// multiple hosts at the same time. Note that the same command uuid is used
@@ -2529,6 +2552,26 @@ func ReconcileProfiles(
 	}
 	installTargets, removeTargets := make(map[uint]*cmdTarget), make(map[uint]*cmdTarget)
 	for _, p := range toInstall {
+		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
+			// if the profile was in any other status than `failed`
+			// and the checksums match (the profiles are exactly
+			// the same) we don't send another InstallProfile
+			// command.
+			if pp.Status != &fleet.MDMAppleDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
+				hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
+					ProfileID:         p.ProfileID,
+					HostUUID:          p.HostUUID,
+					ProfileIdentifier: p.ProfileIdentifier,
+					ProfileName:       p.ProfileName,
+					Checksum:          p.Checksum,
+					OperationType:     pp.OperationType,
+					Status:            pp.Status,
+					CommandUUID:       pp.CommandUUID,
+					Detail:            pp.Detail,
+				})
+				continue
+			}
+		}
 		toGetContents[p.ProfileID] = true
 
 		target := installTargets[p.ProfileID]
@@ -2554,6 +2597,11 @@ func ReconcileProfiles(
 	}
 
 	for _, p := range toRemove {
+		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+			continue
+		}
+
 		target := removeTargets[p.ProfileID]
 		if target == nil {
 			target = &cmdTarget{
@@ -2574,6 +2622,15 @@ func ReconcileProfiles(
 			ProfileName:       p.ProfileName,
 			Checksum:          p.Checksum,
 		})
+	}
+
+	// delete all profiles that have a matching identifier to be installed.
+	// This is to prevent sending both a `RemoveProfile` and an
+	// `InstallProfile` for the same identifier, which can cause race
+	// conditions. It's better to "update" the profile by sending a single
+	// `InstallProfile` command.
+	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
 	// First update all the profiles in the database before sending the
@@ -2673,4 +2730,81 @@ func ReconcileProfiles(
 	}
 
 	return nil
+}
+
+func (svc *Service) maybeRestorePendingDEPHost(ctx context.Context, host *fleet.Host) error {
+	if host.Platform != "darwin" {
+		return nil
+	}
+
+	license, ok := license.FromContext(ctx)
+	if !ok {
+		return ctxerr.New(ctx, "maybe restore pending DEP host: missing license")
+	} else if license.Tier != fleet.TierPremium {
+		// only premium tier supports DEP so nothing more to do
+		return nil
+	}
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "maybe restore pending DEP host: get app config")
+	} else if !ac.MDM.AppleBMEnabledAndConfigured {
+		// if ABM is not enabled and configured, nothing more to do
+		return nil
+	}
+
+	dep, err := svc.ds.GetHostDEPAssignment(ctx, host.ID)
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		return ctxerr.Wrap(ctx, err, "maybe restore pending DEP host: get host dep assignment")
+	case dep != nil && dep.DeletedAt == nil:
+		return svc.restorePendingDEPHost(ctx, host, ac)
+	default:
+		// no DEP assignment was found or the DEP assignment was deleted in ABM
+		// so nothing more to do
+	}
+
+	return nil
+}
+
+func (svc *Service) restorePendingDEPHost(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) error {
+	tmID, err := svc.getConfigAppleBMDefaultTeamID(ctx, appCfg)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host")
+	}
+	host.TeamID = tmID
+
+	if err := svc.ds.RestoreMDMApplePendingDEPHost(ctx, host); err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host")
+	}
+
+	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger,
+		worker.MacosSetupAssistantHostsTransferred, tmID, host.HardwareSerial); err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host")
+	}
+
+	return nil
+}
+
+func (svc *Service) getConfigAppleBMDefaultTeamID(ctx context.Context, appCfg *fleet.AppConfig) (*uint, error) {
+	var tmID *uint
+	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
+		team, err := svc.ds.TeamByName(ctx, name)
+		switch {
+		case fleet.IsNotFound(err):
+			level.Debug(svc.logger).Log(
+				"msg",
+				"unable to find default team assigned in config, mdm devices won't be assigned to a team",
+				"team_name",
+				name,
+			)
+			return nil, nil
+		case err != nil:
+			return nil, ctxerr.Wrap(ctx, err, "get default team for mdm devices")
+		case team != nil:
+			tmID = &team.ID
+		}
+	}
+
+	return tmID, nil
 }

@@ -10,7 +10,7 @@ export interface IInfoBannerProps {
   children?: React.ReactNode;
   className?: string;
   /** default light purple */
-  color?: "yellow";
+  color?: "yellow" | "grey";
   pageLevel?: boolean;
   /** cta and link are mutually exclusive */
   cta?: JSX.Element;

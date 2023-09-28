@@ -157,19 +157,26 @@
     position: relative;
   }
 
-  .policy-name-cell {
-    .children-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 2px;
+  .policies-table {
+    .data-table-block {
+      .data-table {
+        tbody {
+          .name__cell {
+            .policy-name-cell {
+              display: flex; // required for inline icon
+              gap: $pad-xsmall;
 
-      .tooltip-base {
-        display: inline-flex;
-      }
+              .tooltip-base {
+                display: inline-flex;
+              }
 
-      .policy-name-text {
-        text-overflow: ellipsis;
-        overflow: hidden;
+              .policy-name-text {
+                text-overflow: ellipsis;
+                overflow: hidden;
+              }
+            }
+          }
+        }
       }
     }
   }

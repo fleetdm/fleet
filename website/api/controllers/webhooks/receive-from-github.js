@@ -26,14 +26,17 @@ module.exports = {
 
   fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release}) {
 
-    // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
-    // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
-    // in-memory pocket here of PRs seen by this instance of the Sails app.  To get around any issues with this,
-    // users can edit and resave the PR description to trigger their PR to be unfrozen.
-    // FUTURE: Go through the trouble to migrate the database and make a little Platform model to hold this state in.
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    // Grab the set of GitHub pull request numbers the bot considers "unfrozen".
-    sails.pocketOfPrNumbersUnfrozen = sails.pocketOfPrNumbersUnfrozen || [];
+    // Grab the set of GitHub pull request numbers the bot considers "unfrozen" from the platform record.
+    // If there is more than one platform record, or it is missing, we'll throw an error.
+    let platformRecords = await Platform.find();
+    let platformRecord = platformRecords[0];
+    if(!platformRecord) {
+      throw new Error(`Consistency violation: when the GitHub webhook received an event, no platform record was found.`);
+    } else if(platformRecords.length > 1) {
+      throw new Error(`Consistency violation: when the GitHub webhook received an event, more than one platform record was found.`);
+    }
+
+    let pocketOfPrNumbersUnfrozen = platformRecord.currentUnfrozenGitHubPrNumbers;
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -65,7 +68,6 @@ module.exports = {
       'drewbakerfdm',
       'lucasmrod',
       'ksatter',
-      'zwinnerman-fleetdm',
       'hollidayn',
       'roperzh',
       'zhumo',
@@ -75,10 +77,15 @@ module.exports = {
       'zayhanlon',
       'bradmacd',
       'alexmitchelliii',
-      'jarodreyes',
       'jostableford',
       'jinny321',
       'sampfluger88',
+      'ireedy',
+      'mostlikelee',
+      'willmayhone88',
+      'pacamaster',
+      'AnthonySnyder8',
+      'jahzielv'
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -107,7 +114,8 @@ module.exports = {
     let issueOrPr = (pr || issue || undefined);
 
     let ghNoun = this.req.get('X-GitHub-Event');// See https://developer.github.com/v3/activity/events/types/
-    // sails.log(ghNoun, action, {sender, repository, issue, comment, pr, label});
+    sails.log.verbose(`Received GitHub webhook request: ${ghNoun} :: ${action}: ${require('util').inspect({sender, repository: _.isObject(repository) ? repository.full_name : undefined, comment, label, issueOrPr}, {depth:null})}`);
+
     if (
       (ghNoun === 'issues' &&        ['opened','reopened'].includes(action))
     ) {
@@ -249,7 +257,7 @@ module.exports = {
       );
 
     } else if (
-      (ghNoun === 'pull_request' &&  ['opened','reopened','edited', 'synchronize'].includes(action))
+      (ghNoun === 'pull_request' &&  ['opened','reopened','edited', 'synchronize', 'ready_for_review'].includes(action))
     ) {
       //  ██████╗ ██╗   ██╗██╗     ██╗         ██████╗ ███████╗ ██████╗ ██╗   ██╗███████╗███████╗████████╗
       //  ██╔══██╗██║   ██║██║     ██║         ██╔══██╗██╔════╝██╔═══██╗██║   ██║██╔════╝██╔════╝╚══██╔══╝
@@ -301,105 +309,133 @@ module.exports = {
 
         require('assert')(sender.login !== undefined);
 
+        //  ┌─┐┌─┐┌┬┐   ┬   ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐  ┌─┐─┐ ┬┌─┐┌─┐┌─┐┌┬┐┌─┐┌┬┐  ┬─┐┌─┐┬  ┬┬┌─┐┬ ┬┌─┐┬─┐┌─┐
+        //  │ ┬├┤  │   ┌┼─  │││├─┤│││├─┤│ ┬├┤   ├┤ ┌┴┬┘├─┘├┤ │   │ ├┤  ││  ├┬┘├┤ └┐┌┘│├┤ │││├┤ ├┬┘└─┐
+        //  └─┘└─┘ ┴   └┘   ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘  └─┘┴ └─┴  └─┘└─┘ ┴ └─┘─┴┘  ┴└─└─┘ └┘ ┴└─┘└┴┘└─┘┴└─└─┘
         let DRI_BY_PATH = {};
         if (repo === 'fleet') {
           DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
         } else {
           // Other repos don't have this configured.
+          // FUTURE: Configure it for them
         }
 
-        // Request review from DRI
-        // History: https://github.com/fleetdm/fleet/pull/12786)  (only relevant for paths NOT in the CODEOWNERS file)
-        // (Draft PRs are skipped)
-        if (!issueOrPr.draft) {
+        // Determine DRIs to request review from.
+        //   > History: https://github.com/fleetdm/fleet/pull/12786)
+        let expectedReviewers = [];//« GitHub usernames of people who we expect reviews from.
 
-          let reviewers = [];//« GitHub usernames of people to request review from.
+        // Look up already-requested reviewers
+        // (for use later in minimizing extra notifications for editing PRs to contain new changes
+        // while also still doing appropriate review requests.  Also for determining whether
+        // to apply the #g-ceo label)
+        //
+        // The "requested_reviewers" key in the pull request object:
+        //   - https://developer.github.com/v3/activity/events/types
+        //   - https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
+        //   - https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
+        let alreadyRequestedReviewers = _.isArray(issueOrPr.requested_reviewers) ? _.pluck(issueOrPr.requested_reviewers, 'login') : [];
+        alreadyRequestedReviewers = alreadyRequestedReviewers.map((username) => username.toLowerCase());// « make sure they are all lowercased
 
-          // Look up already-requested reviewers
-          // (for use in minimizing extra notifications for editing PRs to contain new changes
-          // while also still doing appropriate review requests)
-          // [?] https://developer.github.com/v3/activity/events/types
-          // [?] The "requested_reviewers" key in the pull request object: https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
-          let alreadyRequestedReviewers = _.pluck(issueOrPr.requested_reviewers, 'login');
+        // Look up paths
+        // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
+        let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
+          per_page: 100,//eslint-disable-line camelcase
+        }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
-          // Look up paths
-          // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
-          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
-            per_page: 100,//eslint-disable-line camelcase
-          }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
+        // For each changed file, decide what reviewer to request, if any…
+        for (let changedPath of changedPaths) {
+          changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
+          sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
 
-          // For each changed file, decide what reviewer to request, if any…
-          for (let changedPath of changedPaths) {
-            changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
-            sails.log.debug(`…checking DRI of changed path "${changedPath}"`);
-
-            let reviewer = undefined;//« whether to request review for this change
-            let exactMatchDri = DRI_BY_PATH[changedPath];
-            if (exactMatchDri) {
-              let isAuthorDRI = exactMatchDri === issueOrPr.user.login.toLowerCase();//« See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
-              let isSenderDRI = exactMatchDri === sender.login.toLowerCase();
-              if (isAuthorDRI || isSenderDRI) {
-                // If the original PR author OR you, the sender (current PR author/editor) are the DRI,
-                // then do nothing.  No need to request review from yourself, and you CAN'T request
-                // review from the author (or the GitHub API will respond with an error.)
-              } else {
-                // Otherwise, we've found our match.  We'll request review from this person.
-                // (And we'll stop looking.)
-                reviewer = exactMatchDri;
-              }
-            } else {// If there's no DRI for this *exact* file path, then check ancestral paths for the nearest DRI
-
-              let numRemainingPathsToCheck = changedPath.split('/').length - 1;
-              while (numRemainingPathsToCheck > 0) {
-                let ancestralPath = changedPath.split('/').slice(0, numRemainingPathsToCheck).join('/');
-                sails.log.debug(`…checking DRI of ancestral path "${ancestralPath}" for changed path "${changedPath}"`);
-
-                let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
-
-                let isAuthorAncestralDRI = nearestAncestralDri === issueOrPr.user.login.toLowerCase();//« See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
-                let isSenderAncestralDRI = nearestAncestralDri === sender.login.toLowerCase();
-                if (isAuthorAncestralDRI || isSenderAncestralDRI) {
-                  // For the same reasons as above, if the original PR author or you (current author/editor)
-                  // are the editor, then we do nothing.
-                } else if (nearestAncestralDri) {// Otherwise, if we have our DRI, we can stop here.
-                  reviewer = nearestAncestralDri;
-                  break;
-                }
-                numRemainingPathsToCheck--;
-              }//∞
-            }
-
-            // If review should be requested, do so, but only if review hasn't already
-            // been requested from this person.
-            if (reviewer && !alreadyRequestedReviewers.includes(reviewer)) {
-              reviewers.push(reviewer);
-              reviewers = _.uniq(reviewers);// « avoid attempting to request review from the same person twice
-            }//ﬁ
-
-          }//∞
-
-          if (reviewers.length >= 1) {// « avoid attempting to request review from no one
-            // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
-            await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, {
-              reviewers: reviewers,
-            }, baseHeaders);
+          let reviewer = undefined;//« whether to request review for this change
+          let exactMatchDri = DRI_BY_PATH[changedPath];
+          if (exactMatchDri) {// « If we've found our DRI, then we'll stop looking (for *this* changed path, anyway)
+            reviewer = exactMatchDri;
+          } else {// If there's no DRI for this *exact* file path, then check ancestral paths for the nearest DRI
+            let numRemainingPathsToCheck = changedPath.split('/').length - 1;
+            while (numRemainingPathsToCheck > 0) {
+              let ancestralPath = changedPath.split('/').slice(0, numRemainingPathsToCheck).join('/');
+              sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path "${changedPath}"`);
+              let nearestAncestralDri = DRI_BY_PATH[ancestralPath];// this is like the "catch-all" DRI, for a higher-level path
+              if (nearestAncestralDri) {// Otherwise, if we have our DRI, we can stop here.
+                reviewer = nearestAncestralDri;
+                break;
+              }//ﬁ
+              numRemainingPathsToCheck--;
+            }//∞
           }
 
+          if (reviewer) {
+            expectedReviewers.push(reviewer);
+            expectedReviewers = _.uniq(expectedReviewers);// « avoid attempting to request review from the same person twice
+          }//ﬁ
+
+        }//∞
+
+        // Now, if reviews should be requested for this PR, do so.
+        //
+        // > Note: Should we automatically remove reviewers?  Nah, we excluded this on purpose, to avoid removing deliberate
+        // > custom review requests sent by real humans humans.
+        if (!issueOrPr.draft) {// « (Draft PRs are skipped)
+          let newReviewers;
+          newReviewers = _.difference(expectedReviewers, alreadyRequestedReviewers);// « Don't request review from people whose review has already been requested.
+          newReviewers = _.difference(newReviewers, [// « If the original PR author OR you, the sender (current PR author/editor) are the DRI, then don't request review.  No need to request review from yourself, and you CAN'T request review from the author (or the GitHub API will respond with an error.)
+            issueOrPr.user.login.toLowerCase(),//« author (the original PR opener)  --  See `user.login` in https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request
+            sender.login.toLowerCase(),//« sender (*you*, the current PR opener/editor)
+          ]);
+          if (newReviewers.length >= 1) {// « don't attempt to request review from no one
+            // [?] https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#request-reviewers-for-a-pull-request
+            await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, {
+              reviewers: newReviewers,
+            }, baseHeaders);
+          }//ﬁ
         }//ﬁ
 
-        // Check whether auto-approval is warranted.
-        let isAutoApproved = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
+        //  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐  ┬  ┌─┐┌┐ ┌─┐┬  ┌─┐
+        //  │││├─┤│││├─┤│ ┬├┤   │  ├─┤├┴┐├┤ │  └─┐
+        //  ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘  ┴─┘┴ ┴└─┘└─┘┴─┘└─┘
+        // Now manage automatic labeling.
+        let existingLabels = _.isArray(issueOrPr.labels) ? _.pluck(issueOrPr.labels, 'name') : [];
+
+        // Add the #handbook label to PRs that only make changes to the handbook,
+        // and remove it from PRs that NO LONGER ONLY contain changes to the handbook.
+        let isHandbookPR = false;
+        if(repo === 'fleet'){
+          isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
+        }//ﬁ
+        if(isHandbookPR && !existingLabels.includes('#handbook')) {
+          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
+            labels: ['#handbook']
+          }, baseHeaders);
+        } else if (!isHandbookPR && existingLabels.includes('#handbook')) {
+          // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
+          await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#handbook')}`, {}, baseHeaders);
+        }//ﬁ
+
+        // Add the appropriate label to PRs awaiting review from the CEO so that these PRs show up in kanban.
+        // [?] https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
+        let isPRStillDependentOnAndReadyForCeoReview = expectedReviewers.includes('mikermcneil') && !issueOrPr.draft;
+        if (isPRStillDependentOnAndReadyForCeoReview && !existingLabels.includes('#g-ceo')) {
+          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
+            labels: ['#g-ceo']
+          }, baseHeaders);
+        } else if (!isPRStillDependentOnAndReadyForCeoReview && existingLabels.includes('#g-ceo')) {
+          // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
+          await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#g-ceo')}`, {}, baseHeaders);
+        }//ﬁ
+
+        //  ┌─┐┬ ┬┌┬┐┌─┐   ┌─┐┌─┐┌─┐┬─┐┌─┐┬  ┬┌─┐   ┬   ┬ ┬┌┐┌┌─┐┬─┐┌─┐┌─┐┌─┐┌─┐
+        //  ├─┤│ │ │ │ │───├─┤├─┘├─┘├┬┘│ │└┐┌┘├┤   ┌┼─  │ ││││├┤ ├┬┘├┤ ├┤ ┌─┘├┤
+        //  ┴ ┴└─┘ ┴ └─┘   ┴ ┴┴  ┴  ┴└─└─┘ └┘ └─┘  └┘   └─┘┘└┘└  ┴└─└─┘└─┘└─┘└─┘
+        // Now, if appropriate, auto-approve the change.
+        let isAutoApprovalExpected = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
           repo: repo,
           prNumber: prNumber,
           githubUserToCheck: sender.login,
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
-
-        let isHandbookPR = false;
-        if(repo === 'fleet'){
-          isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
-        }
-
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
         let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
@@ -408,29 +444,9 @@ module.exports = {
           sails.log.warn('When sending a request to the MergeFreeze API to get the status of the main branch, MergeFreeze did not respond with a 2xx status code.  (Error details forthcoming in just a sec.)  First, how to remediate: If the main branch is frozen, it will need to be manually unfrozen before PR #'+prNumber+' can be merged. Raw underlying error from MergeFreeze: '+err.stack);
           return { frozen: false };
         });
-        sails.log('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
+        sails.log.verbose('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
         let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen;
-
-        // Add the #handbook label to PRs that only make changes to the handbook.
-        if(isHandbookPR) {
-          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
-          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
-            labels: ['#handbook']
-          }, baseHeaders);
-        }//ﬁ
-
-        // Add the appropriate label to PRs awaiting review from the CEO so that these PRs show up in kanban.
-        // [?] https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
-        let isAwaitingCeoReview = _.isArray(pr.requested_reviewers) && _.pluck(pr.requested_reviewers, 'login').includes('mikermcneil');
-        if (isAwaitingCeoReview) {
-          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
-          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
-            labels: ['#g-ceo']
-          }, baseHeaders);
-        }//ﬁ
-
-        // Now, if appropriate, auto-approve the change.
-        if (isAutoApproved) {
+        if (isAutoApprovalExpected) {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
@@ -441,8 +457,8 @@ module.exports = {
           // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
           if (isMainBranchFrozen && repo === 'fleet') {
 
-            sails.pocketOfPrNumbersUnfrozen = _.union(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
-            sails.log('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
+            pocketOfPrNumbersUnfrozen = _.union(pocketOfPrNumbersUnfrozen, [ prNumber ]);
+            sails.log.verbose('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',pocketOfPrNumbersUnfrozen);
 
             // [?] See May 6th, 2022 changelog, which includes this code sample:
             // (https://www.mergefreeze.com/news)
@@ -455,9 +471,10 @@ module.exports = {
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
               user_name: 'fleet-release',//eslint-disable-line camelcase
-              unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+              unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
             });
-
+            // Update the Platform record to have the current unfrozen PR numbers
+            await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
           }//ﬁ
 
         } else {
@@ -466,14 +483,16 @@ module.exports = {
           // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
           if (isMainBranchFrozen && repo === 'fleet') {
 
-            sails.pocketOfPrNumbersUnfrozen = _.difference(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
-            sails.log('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
+            pocketOfPrNumbersUnfrozen = _.difference(pocketOfPrNumbersUnfrozen, [ prNumber ]);
+            sails.log.verbose('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',pocketOfPrNumbersUnfrozen);
 
             // [?] See explanation above.
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
               user_name: 'fleet-release',//eslint-disable-line camelcase
-              unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+              unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
             });
+            // Update the Platform record to have the current unfrozen PR numbers
+            await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
           }//ﬁ
 
           // Is this in use?

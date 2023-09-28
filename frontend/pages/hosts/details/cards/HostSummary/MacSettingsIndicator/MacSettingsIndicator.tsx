@@ -35,7 +35,7 @@ const STATUS_DISPLAY_OPTIONS: StatusDisplayOptions = {
   Pending: {
     iconName: "pending-partial",
     tooltipText:
-      "The host will receive MDM commands to install configuration profiles when the host come online.",
+      "The host will receive MDM commands to install configuration profiles when the host comes online.",
   },
   Failed: {
     iconName: "error",

@@ -544,7 +544,7 @@ None.
 
 ##### Default response
 
-```
+```json
 {
   "public_key": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNzVENDQVptZ0F3SUJBZ0lCQVRBTkJna3Foa2lHOXcwQkFRc0ZBREFTTVJBd0RnWURWUVFERXdkR2JHVmwKZEVSTk1CNFhEVEl5TVRJeE16RTFNREl6TmxvWERUSXpNREV4TWpFMU1USXpObG93RWpFUU1BNEdBMVVFQXhNSApSbXhsWlhSRVRUQ0NBU0l3RFFZSktvWklodmNOQVFFQkJRQURnZ0VQQURDQ0FRb0NnZ0VCQU1jbXIxOVNiQUhaCnVZNnJBa254dVBCV0tkSFlrSXpJY2JGMHErZ0ZKZVU3cUlwU0FQWFhmeUpFTXpyQXhpZStPSi9QSXhkTHZTZVoKdXA2Qzg5VHM1VEwrWjhKZmR3T2ZLQVFIUWpyQVpGZkxkdUh0SjNRZnk3di9rbmZ3VzNNSU9XZ00zcDQ3a0xzOAowZnJzNmVuTlpXZElsNUMyV1NpOXVGVVVQcFJTbm1Ha1AvK2QydmNCaWdIOHQ0K3RuV3NYdjhpekxqcHhhanV6CjN0Vlp3SFA0cjBQZTdIM0I0eDZINmlKZmxRZzI4Z3owbDZWa0c2NjVKT2NMLzlDSmNtOWpWRmpxb0RmZTVjUFAKMVFNbFpyb1FCaFhOUHN3bEhRWTkzekJFK3VSRUVNL1N1d0dZcGZLYjQwSDM0S1B1U3Y5SXZHTjIzTXdNM01FMwppNEFBWGJQOGZNTUNBd0VBQWFNU01CQXdEZ1lEVlIwUEFRSC9CQVFEQWdXZ01BMEdDU3FHU0liM0RRRUJDd1VBCkE0SUJBUUM5ZFcyRXBxemp1VWhhbk1CSXJpK09VWVhrekR2eVB6bGxTMXd0UVdQQ0s4cFJ5Rk5TM3RkakVXT2kKSTcyOVh2UmtpNjhNZStqRlpxSkxFWHpWUlkwb29aSWhhcG5lNUZoNzlCbkIrWGl6TFQ0TStDNHJ5RVQwOXg4SQpaWHJuY1BKME9ueUdVemlFK0szWEI2dVNLeWN1a3pZci9sRVBBMGlQRTZpM0dNYjljenJFL2NOQURrRXZwcjU2CjN1SFdMU3hwK1U5QmJyaTNDSXBoR1NvSWxnTVBEaUE1RkpiOXc0SnlMK0crZ3Q4c1BlcUZkZDYyRDRpV3U5a0wKMVZBUjRSU2xPcWt1cTVXREZVcUxsVGJFMS9oY1lqcVVUczRrSWhENmN6MkcxQlBnMUU2WVpRZWp6U0ZpeGR1MApYUy9UTTByUFBKNithUC82V1BNRWpJcGVRcmNvCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K",
   "private_key": "LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBeHlhdlgxSnNBZG01anFzQ1NmRzQ4RllwMGRpUWpNaHhzWFNyNkFVbDVUdW9pbElBCjlkZC9Ja1F6T3NER0o3NDRuODhqRjB1OUo1bTZub0x6MU96bE12NW53bDkzQTU4b0JBZENPc0JrVjh0MjRlMG4KZEIvTHUvK1NkL0JiY3dnNWFBemVuanVRdXp6Uit1enA2YzFsWjBpWGtMWlpLTDI0VlJRK2xGS2VZYVEvLzUzYQo5d0dLQWZ5M2o2MmRheGUveUxNdU9uRnFPN1BlMVZuQWMvaXZROTdzZmNIakhvZnFJbCtWQ0RieURQU1hwV1FiCnJya2s1d3YvMElseWIyTlVXT3FnTjk3bHc4L1ZBeVZtdWhBR0ZjMCt6Q1VkQmozZk1FVDY1RVFRejlLN0FaaWwKOHB2alFmZmdvKzVLLzBpOFkzYmN6QXpjd1RlTGdBQmRzL3g4d3dJREFRQUJBb0lCQUZRMUFFeGU3bnB0MUc4RgowZ2J3SlpIQjdSYms2bUlNMHo0RXBqZUtEYmI2M2MzMjFKOGV5b3Z6cUhHOFYwMHd1b0tnTkNkQ2lDMjVhOVpnCmFyZHFuNU5MVFJZOEJYZkxrVUQ2ekw5STRHVGJERjZGUjN4cmdWcnh1cjNxTE5EYjltSVBwd1hqQzlTUDUvMmcKdFZ0OTFOV3lOUndrYmxpeXQ4R0p1TmhBZ3VXbnJLQmw5b3o1QkpCU3JLZTJPUE5ERm5mbUs1NFM1VzRKakZZMApFTUV3Z2ZiL2xQZjluWFZwRG9QeEl3QnJmRU5oU3oxcVI0bzJPbVFyRGNOQUNZU05razRjbXVIMHpxc3J5aFg4CkNhajhCcllOemxaeGNPTmpmK1NxUkdvVndjdzZKbzNKazBEREZHeEVaOHBEUThJTXgzRUQ1SE4rbW1SaGRMQmoKT0pRZVhVRUNnWUVBeWZDaFArSVNzMGNtcEM3WUFrK1UrVHNTTElnY3BTTHdReFF2RGFmRWFtMHJoWDJQdDk1ZgpJN1NCTlM3TmlNR0xCVk4rWHg0RHlsT3RYaGNzTm5YUU5qU3J3ZFNHTGxFbU5wWDJXR0x4Znp4REVVbFFSS3FEClY2RHBDaHdmY2tCTFRUNkVaRDlnV21DOGZIYUNPc0JDUHR1VStLQUpFa1FRaVk1VlRLSjYrMkVDZ1lFQS9IYnQKKzIvWFJzSW84VkE4QmhjMitDYyt4YUNrK3dvTVByZ0d4OWxrMTR2R0hDcCtDY2ZGZThqU2NHMDhzU3RKTnJCVgp0cHgvbm1yYklyMzUxVkxlMFNLQ2R2aHF5ajBXQWlWVDhDL0VjcUxGV0VwNG5mY1ZnVHIxRjBGMUptR0Y4WVNYCk41VEh4Tnc4VjZLUDVmWEM2dVVFMkNpZnR1bkxqSGFSNXZCakxxTUNnWUVBdlNjTE0zYUVRNjlTejVrZE5sVHEKMnVUczZnOTRuV256bVRGdnZaKzJ5R1dIelp0R0lsbEZ6b0VHUWhXYjZndzROdjMxTWcxQVNhVkZrQXV1bXppUgpsaVNSK1pZak5ZRkhoUHZFNnhlSzA3NVRwLzUvRkVLUGttWWp3eGVDa1JjT01jVnNaeVpDRDRYcko3NHR6L0JFClhQSjdRTU5PbS9CcmVSMThZck1TOVNFQ2dZQjhqZnhaV1ZNL1FKbE1mTVl3UnhIQ21qSVk5R21ReE9OSHFpa0cKUGhYSFZkazJtaXcyalEyOFJWYTFTdDl2bFNoNHg4Ung1SUg5MlVBbHdzNVlWWnRDV0tFL0tzNGMyc2haNUtxbAp6QnRDWjFXdmVvWkpnTlptUEgwZ3JSV3NDdDgzU2JBRkp1enNEYS9qbUhzZi9BRGZQSUFJV1BwN0ZwdHF3REM1ClhBM0N1d0tCZ0c0QVVmMUZralNYRFBlL2JoVjhtZG4rZCtzN2g2RjZkRWttNnEya1dyS1B4V2lFdlN3QlZEQWoKQjhIRlNtNW1pcHNTTXhQbFVEZDRPSXRSUzVUM1AwcStRZENZNkwzemhmSFBCUzdhTlZaRUJXdVNlY2lDRk0wSQo3MjFSK081TitMTlFwN1N6VWUxRll1WWdhandFSE9KMW82d1ArZWloMmQyVVQyQ09Ed1NrCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg=="
@@ -570,7 +570,7 @@ Note that the `public_key` and `private_key` are base64 encoded and should be de
 
 ##### Default response
 
-```
+```json
 {
   "apns_key": "aGV5LCBJJ20gc2VjcmV0Cg==",
   "scep_cert": "bHR5LCBJJ20gc2VjcmV0Cg=",
@@ -621,7 +621,7 @@ None.
 
 ##### Default response
 
-```
+```json
 {
   "url": "https://idp-provider.com/saml?SAMLRequest=...",
 }
@@ -1918,7 +1918,7 @@ Note that live queries are automatically cancelled if this method is not called 
 
 #### Example script to handle request and response
 
-```
+```js
 const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
 
 socket.onopen = () => {
@@ -2058,7 +2058,7 @@ Note that SockJS has been found to be substantially less reliable than the [stan
 
 #### Example script to handle request and response
 
-```
+```js
 const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
 
 socket.onopen = () => {
@@ -2199,7 +2199,8 @@ currently pending.
 
 | Name | Type   | In    | Description                               |
 | ---- | ------ | ----- | ----------------------------------------- |
-| name | string | query | The name of the cron schedule to trigger. |
+| name | string | query | The name of the cron schedule to trigger. Supported trigger names are `apple_mdm_dep_profile_assigner`, `automations`, `cleanups_then_aggregation`, `integrations`, `mdm_apple_profile_manager`, `usage_statistics`, and `vulnerabilities`|
+ 
 
 #### Example
 
@@ -2215,7 +2216,6 @@ currently pending.
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
-- [Get device's host](#get-devices-host)
 - [Refetch device's host](#refetch-devices-host)
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
@@ -2225,198 +2225,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 - [Trigger FileVault key escrow](#trigger-filevault-key-escrow) 
-
-#### Get device's host
-
-Returns the host information about the device that makes the request.
-
-`GET /api/v1/fleet/device/{token}`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-##### Example
-
-`GET /api/v1/fleet/device/abcdef012456789`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host": {
-    "created_at": "2021-08-19T02:02:22Z",
-    "updated_at": "2021-08-19T21:14:58Z",
-    "software": [
-      {
-        "id": 408,
-        "name": "osquery",
-        "version": "4.5.1",
-        "source": "rpm_packages",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 1146,
-        "name": "tar",
-        "version": "1.30",
-        "source": "rpm_packages",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 321,
-        "name": "SomeApp.app",
-        "version": "1.0",
-        "source": "apps",
-        "bundle_identifier": "com.some.app",
-        "last_opened_at": "2021-08-18T21:14:00Z",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      }
-    ],
-    "id": 1,
-    "detail_updated_at": "2021-08-19T21:07:53Z",
-    "label_updated_at": "2021-08-19T21:07:53Z",
-    "last_enrolled_at": "2021-08-19T02:02:22Z",
-    "seen_time": "2021-08-19T21:14:58Z",
-    "refetch_requested": false,
-    "hostname": "23cfc9caacf0",
-    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
-    "platform": "rhel",
-    "osquery_version": "4.5.1",
-    "os_version": "CentOS Linux 8.3.2011",
-    "build": "",
-    "platform_like": "rhel",
-    "code_name": "",
-    "uptime": 210671000000000,
-    "memory": 16788398080,
-    "cpu_type": "x86_64",
-    "cpu_subtype": "158",
-    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
-    "cpu_physical_cores": 12,
-    "cpu_logical_cores": 12,
-    "hardware_vendor": "",
-    "hardware_model": "",
-    "hardware_version": "",
-    "hardware_serial": "",
-    "computer_name": "23cfc9caacf0",
-    "display_name": "23cfc9caacf0",
-    "public_ip": "",
-    "primary_ip": "172.27.0.6",
-    "primary_mac": "02:42:ac:1b:00:06",
-    "distributed_interval": 10,
-    "config_tls_refresh": 10,
-    "logger_tls_period": 10,
-    "team_id": null,
-    "pack_stats": null,
-    "team_name": null,
-    "additional": {},
-    "gigs_disk_space_available": 46.1,
-    "percent_disk_space_available": 73,
-    "disk_encryption_enabled": true,
-    "dep_assigned_to_fleet": false,
-    "users": [
-      {
-        "uid": 0,
-        "username": "root",
-        "type": "",
-        "groupname": "root",
-        "shell": "/bin/bash"
-      },
-      {
-        "uid": 1,
-        "username": "bin",
-        "type": "",
-        "groupname": "bin",
-        "shell": "/sbin/nologin"
-      }
-    ],
-    "labels": [
-      {
-        "created_at": "2021-08-19T02:02:17Z",
-        "updated_at": "2021-08-19T02:02:17Z",
-        "id": 6,
-        "name": "All Hosts",
-        "description": "All hosts which have enrolled in Fleet",
-        "query": "SELECT 1;",
-        "platform": "",
-        "label_type": "builtin",
-        "label_membership_type": "dynamic"
-      },
-      {
-        "created_at": "2021-08-19T02:02:17Z",
-        "updated_at": "2021-08-19T02:02:17Z",
-        "id": 9,
-        "name": "CentOS Linux",
-        "description": "All CentOS hosts",
-        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
-        "platform": "",
-        "label_type": "builtin",
-        "label_membership_type": "dynamic"
-      },
-      {
-        "created_at": "2021-08-19T02:02:17Z",
-        "updated_at": "2021-08-19T02:02:17Z",
-        "id": 12,
-        "name": "All Linux",
-        "description": "All Linux distributions",
-        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
-        "platform": "",
-        "label_type": "builtin",
-        "label_membership_type": "dynamic"
-      }
-    ],
-    "packs": [],
-    "status": "online",
-    "display_text": "23cfc9caacf0",
-    "batteries": [
-      {
-        "cycle_count": 999,
-        "health": "Good"
-      }
-    ],
-    "mdm": {
-      "encryption_key_available": false,
-      "enrollment_status": null,
-      "name": "",
-      "server_url": null,
-      "macos_settings": {
-        "disk_encryption": null,
-        "action_required": null
-      },
-      "macos_setup": {
-        "bootstrap_package_status": "installed",
-        "detail": "",
-        "bootstrap_package_name": "test.pkg"
-      },
-      "profiles": [
-        {
-          "profile_id": 999,
-          "name": "profile1",
-          "status": "verifying",
-          "operation_type": "install",
-          "detail": ""
-        }
-      ]
-    }
-  },
-  "org_logo_url": "https://example.com/logo.jpg",
-  "license": {
-    "tier": "free",
-    "expiration": "2031-01-01T00:00:00Z"
-  },
-  "global_config": {
-    "mdm": {
-      "enabled_and_configured": false
-    }
-  }
-}
-```
+- [Report an agent error](#report-an-agent-error)
 
 #### Refetch device's host
 
@@ -2486,6 +2295,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
     "org_info": {
       "org_name": "Fleet",
       "org_logo_url": "https://example.com/logo.jpg",
+      "org_logo_url_light_background": "https://example.com/logo-light.jpg",
       "contact_url": "https://fleetdm.com/company/contact"
     },
     "mdm": {
@@ -2679,6 +2489,30 @@ Sends a signal to Fleet Desktop to initiate a FileVault key escrow. This is usef
 
 `Status: 204`
 
+
+### Report an agent error
+
+Notifies the server about an agent error, resulting in two outcomes:
+
+- The error gets saved in Redis and can later be accessed using `fleetctl debug archive`.
+- The server consistently replies with a `500` status code, which can serve as a signal to activate an alarm through a monitoring tool.
+
+`POST /api/v1/fleet/device/{token}/debug/errors`
+
+#### Parameters
+
+| Name                  | Type     | Description                                                      |
+| --------------------- | -------- | ---------------------------------------------------------------- |
+| error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop |
+| error_source_version  | string   | version of error_source                                          |
+| error_timestamp       | datetime | Time in UTC that error occured                                   |
+| error_message         | string   | error message                                                    |
+| error_additional_info | obj      | Any additional identifiers to assist debugging                   |
+
+##### Default response
+
+`Status: 500`
+
 ---
 
 
@@ -2706,7 +2540,7 @@ Downloads a pre-built fleet-osquery installer with the given parameters.
 
 ##### Default response
 
-```
+```http
 Status: 200
 Content-Type: application/octet-stream
 Content-Disposition: attachment

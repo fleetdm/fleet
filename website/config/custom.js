@@ -105,33 +105,29 @@ module.exports.custom = {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // FUTURE: To avoid repeating structure and comments, consolidate all these configs w/ something like:
     //    ````
-    //    'articles': { dri: 'jarodreyes', maintainers: ['jarodreyes', 'mike-j-thomas', 'spokanemac', 'mikermcneil'], repo: 'fleetdm/fleet' },
+    //    'articles': { dri: 'mike-j-thomas', maintainers: ['mike-j-thomas', 'mike-j-thomas', 'spokanemac', 'mikermcneil'], repo: 'fleetdm/fleet' },
     //    ````
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    // Code for core product and integrations
+    // 🚀 Code for core product and integrations
     'ee/tools/puppet': 'georgekarrv',//« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
 
-    // Reference, config surface, built-in queries, API, and other documentation
-    'docs': 'rachaelshaw', //« Fleet documentation (who is auto-requested as reviewer for changes to docs?)
-
-    'docs/Using-Fleet/REST-API.md': 'rachaelshaw', //« REST API reference documentation
-    'docs/Contributing/API-for-contributors.md': 'rachaelshaw',//« Advanced / contributors-only API reference documentation
-
-    'schema': 'rachaelshaw', //« Data tables (osquery/fleetd schema) documentation
-
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'zwass', //« Built-in queries
+    // ⚗️ Reference, config surface, built-in queries, API, and other documentation
+    // 'docs': '',                                      // « Covered in CODEOWNERS (2023-07-22)
+    // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
+    // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
+    // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, Marcos, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
-    // Articles and release notes
-    'articles': 'jarodreyes',
+    // 🫧 Articles and release notes
+    'articles': 'spokanemac',
     'CHANGELOG.md': 'lukeheath',
 
-    // Website (fleetdm.com)
+    // 🫧 Website (fleetdm.com)
     'website': 'mikermcneil',// (catch-all)
     'website/assets': 'eashaw', // « Eric is DRI for website frontend code
     'website/views': 'eashaw',
-    'website/views/pages/pricing.ejs': 'mikermcneil',//« But CEO is DRI for pricing
     'website/api': 'mikermcneil',//« Website backend, scripts, deps
     'website/api/controllers/webhooks/receive-from-github.js': 'mikermcneil',// github bot (webhook)
     'website/api/controllers/imagine': 'eashaw',// landing pages
@@ -140,31 +136,30 @@ module.exports.custom = {
     'website/scripts': 'mikermcneil',
     'website/package.json': 'eashaw',
 
-    // Other brandfronts
+    // 🫧 Pricing and features
+    // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
+    // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
+
+    // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
     'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
 
-    // Config as code for infrastructure, internal security and IT use cases, and more.
-    'infrastructure': 'lukeheath',//« infrastructure and related terraform configuration files
-    'charts': 'lukeheath',
-    'terraform': 'lukeheath',
+    // 🦿 Repo automation and change control settings
+    // 'CODEOWNERS': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
+    'website/config/custom.js': 'mikermcneil',
 
-    // Repo automation and change control settings
-    'CODEOWNERS': 'mikermcneil',
+    // 🦿 Handbook
+    'handbook': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
+    //'handbook/company/ceo.md': 'sampfluger88',
+    //'handbook/company': 'mikermcneil',
+    //'handbook/business-operations': 'mikermcneil',
+    //'handbook/engineering': 'lukeheath',
+    //'handbook/product': 'zhumo',
+    //'handbook/customers': 'alexmitchelliii',
+    //'handbook/marketing': 'mikermcneil',
 
-    // Handbook
-    'handbook/company': 'mikermcneil',
-    'handbook/company/ceo-handbook.md': 'sampfluger88',
-    'handbook/business-operations': 'mikermcneil',// TODO: Transfer to joanne once the philosophical stuff is deduplicated
-    'handbook/engineering': 'lukeheath',
-    'handbook/product': 'zhumo',
-    'handbook/product/pricing-features-table.yml': 'mikermcneil',//« CEO is current DRI for product marketing (e.g. features table)
-    'handbook/customers': 'alexmitchelliii',
-    'handbook/marketing': 'jarodreyes',
-    'handbook/README.md': 'mikermcneil', // « This is the "Table of contents" landing page
-
-    // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': 'mikermcneil',//« GitHub issue templates
+    // 🦿 GitHub issue templates
+    // '.github/ISSUE_TEMPLATE': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
 
   },
 
@@ -192,15 +187,15 @@ module.exports.custom = {
     'ee/tools/puppet': ['roperzh', 'gillespi314', 'mna', 'georgekarrv'],
 
     // Reference, config surface, built-in queries, API, and other documentation
-    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
-    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h','rachaelshaw'],// (Osquery table schema)
-    'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia'],
+    'docs': ['rachaelshaw'],// (default for docs)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
+    'schema': ['rachaelshaw'],// (Osquery table schema)
+    'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia', 'rachaelshaw'],
 
     // Articles and release notes
     'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
-    'articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
-    'website/assets/images/articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+    'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil', 'spokanemac'],
+    'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
     // Website (fleetdm.com)
     'website': 'mikermcneil',// (default for website)
@@ -208,18 +203,20 @@ module.exports.custom = {
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/package.json': 'eashaw',
-    'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
+    'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
-    'website/api/controllers/imagine': ['eashaw', 'jarodreyes', 'mike-j-thomas'],// landing pages
+    'website/api/controllers/imagine': ['eashaw', 'mike-j-thomas'],// landing pages
 
     // Other brandfronts
-    'README.md': ['mikermcneil', 'jarodreyes', 'mike-j-thomas', 'zwass'],//« github brandfront (github.com/fleetdm/fleet)
-    'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm (npmjs.com/package/fleetctl)
+    'README.md': ['mikermcneil', 'mike-j-thomas', 'zwass'],//« github brandfront (github.com/fleetdm/fleet)
+    'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'zwass'],//« brandfront for fleetctl package on npm (npmjs.com/package/fleetctl)
 
     // Config as code for infrastructure, internal security and IT use cases, and more.
-    'infrastructure': ['edwardsb', 'zwinnerman-fleetdm', 'rfairburn', 'lukeheath'],
-    'charts': ['edwardsb', 'zwinnerman-fleetdm', 'rfairburn', 'lukeheath'],
-    'terraform': ['edwardsb', 'zwinnerman-fleetdm', 'rfairburn', 'lukeheath'],
+    //'infrastructure': [],// Decided against in https://github.com/fleetdm/fleet/pull/12890
+    //'charts': [], //Decided against in https://github.com/fleetdm/fleet/pull/12890
+    //'terraform': [],//Decided against in https://github.com/fleetdm/fleet/pull/12890
+
+    // Github workflows
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],//« website CI test script
     '.github/workflows': ['zwass', 'mikermcneil'],//« CI/CD workflows & misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
@@ -229,14 +226,16 @@ module.exports.custom = {
     'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     // Handbook
-    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
-    'handbook/company': 'mikermcneil',
-    'handbook/company/ceo-handbook.md': ['sampfluger88', 'mikermcneil'],
-    'handbook/business-operations': ['jostableford', 'hollidayn', 'mikermcneil'],
-    'handbook/engineering': ['zwass', 'lukeheath'],
-    'handbook/product': ['noahtalerman', 'zhumo'],
-    'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
-    'handbook/marketing': ['jarodreyes', 'mike-j-thomas', 'spokanemac'],
+    'handbook': 'mikermcneil',
+    // See https://github.com/fleetdm/fleet/pull/13195
+    //'handbook/README.md': 'mikermcneil',
+    //'handbook/company': 'mikermcneil',
+    //'handbook/company/ceo.md': ['sampfluger88'],
+    //'handbook/business-operations': ['jostableford'],
+    //'handbook/engineering': ['lukeheath'],
+    //'handbook/product': ['zhumo'],
+    //'handbook/customers': ['alexmitchelliii'],
+    //'handbook/marketing': ['mike-j-thomas'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
@@ -253,8 +252,8 @@ module.exports.custom = {
     '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn', 'lukeheath'],//« CI/CD workflows
 
     // Repo automation and change control settings
-    'CODEOWNERS': ['mikermcneil'],
-    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'zwinnerman-fleetdm', 'rfairburn'],// « what files should not be checked in?
+    'CODEOWNERS': ['mikermcneil', 'zwass'],
+    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'rfairburn'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 
     // "Secret handbook"
@@ -263,7 +262,7 @@ module.exports.custom = {
     'cold-outbound-strategy.md': ['mikermcneil','bradmacd'],// « Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'jostableford'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil'],// FUTURE: Bust out individual maintainership for issue templates once relevant DRIs are GitHub, markdown, and content design-certified
 
   },
 

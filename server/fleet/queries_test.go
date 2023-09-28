@@ -3,9 +3,88 @@ package fleet
 import (
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGetSnapshot(t *testing.T) {
+	testCases := []struct {
+		query    *Query
+		expected *bool
+	}{
+		{
+			query:    nil,
+			expected: nil,
+		},
+		{
+			query:    &Query{Logging: "snapshot"},
+			expected: ptr.Bool(true),
+		},
+		{
+			query:    &Query{Logging: "differential"},
+			expected: nil,
+		},
+		{
+			query:    &Query{Logging: "differential_ignore_removals"},
+			expected: nil,
+		},
+	}
+	for _, tCase := range testCases {
+		require.Equal(t, tCase.expected, tCase.query.GetSnapshot())
+	}
+}
+
+func TestGetRemoved(t *testing.T) {
+	testCases := []struct {
+		query    *Query
+		expected *bool
+	}{
+		{
+			query:    nil,
+			expected: nil,
+		},
+		{
+			query:    &Query{Logging: "snapshot"},
+			expected: nil,
+		},
+		{
+			query:    &Query{Logging: "differential"},
+			expected: ptr.Bool(true),
+		},
+		{
+			query:    &Query{Logging: "differential_ignore_removals"},
+			expected: ptr.Bool(false),
+		},
+	}
+	for i, tCase := range testCases {
+		require.Equal(t, tCase.expected, tCase.query.GetRemoved(), i)
+	}
+}
+
+func TestTeamIDStr(t *testing.T) {
+	testCases := []struct {
+		query    *Query
+		expected string
+	}{
+		{
+			query:    nil,
+			expected: "",
+		},
+		{
+			query:    &Query{},
+			expected: "",
+		},
+		{
+			query:    &Query{TeamID: ptr.Uint(10)},
+			expected: "10",
+		},
+	}
+
+	for _, tCase := range testCases {
+		require.Equal(t, tCase.expected, tCase.query.TeamIDStr())
+	}
+}
 
 func TestLoadQueriesFromYamlStrings(t *testing.T) {
 	testCases := []struct {
@@ -98,6 +177,36 @@ func TestRoundtripQueriesYaml(t *testing.T) {
 			queries, err := LoadQueriesFromYaml(yml)
 			require.Nil(t, err)
 			assert.Equal(t, tt.queries, queries)
+		})
+	}
+}
+
+func TestVerifyQueryPlatforms(t *testing.T) {
+	testCases := []struct {
+		name           string
+		platformString string
+		shouldErr      bool
+	}{
+		{"empty platform string okay", "", false},
+		{"platform string 'darwin' okay", "darwin", false},
+		{"platform string 'linux' okay", "linux", false},
+		{"platform string 'windows' okay", "windows", false},
+		{"platform string 'darwin,linux,windows' okay", "darwin,linux,windows", false},
+		{"platform string 'foo' invalid – not a supported platform", "foo", true},
+		{"platform string 'charles,darwin,linux,windows' invalid – 'charles' not a supported platform", "charles,darwin,linux,windows", true},
+		{"platform string 'darwin windows' invalid – missing comma delimiter", "darwin windows", true},
+		{"platform string 'charles darwin' invalid – 'charles' not supported and missing comma delimiter", "charles darwin", true},
+		{"platform string ';inux' invalid – ';inux' not a supported platform", ";inux", true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := verifyQueryPlatforms(tt.platformString)
+			if tt.shouldErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }

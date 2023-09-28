@@ -109,6 +109,18 @@
         .manage-hosts__filter-dropdowns {
           display: flex;
           margin-left: $pad-medium;
+
+          // Dropdown height matches search bar height
+          .manage-hosts__status_dropdown {
+            .Select-control,
+            .Select-input {
+              height: 33px;
+            }
+            .Select-value {
+              line-height: 38px;
+            }
+          }
+
           .manage-hosts__status-dropdown-sandbox {
             width: auto;
             .Select-control {
@@ -120,9 +132,9 @@
     }
 
     // table header content responsive styles
-    // NOTE: 1100px is a custom breakpoint to deal with responsiveness of the
+    // NOTE: 1150px is a custom breakpoint to deal with responsiveness of the
     // table controls. 990px doesnt work for us in this case.
-    @media (max-width: 1100px) {
+    @media (max-width: 1150px) {
       &__header {
         flex-direction: column;
       }
@@ -134,6 +146,10 @@
 
         .table-container__search-input {
           margin-left: 0;
+
+          .input-with-icon {
+            width: 100%;
+          }
 
           & .search-field__input-wrapper {
             width: auto;
@@ -153,14 +169,13 @@
 
         .controls {
           order: 1;
-          margin-bottom: $pad-large;
+          margin-bottom: $pad-medium;
 
           .manage-hosts__filter-dropdowns {
             flex: 1;
 
             .form-field--dropdown,
             .manage-hosts__label-filter-dropdown {
-              max-width: 366px;
               flex: 1;
             }
 
@@ -232,15 +247,15 @@
   }
 
   &__status_dropdown {
-    width: 165px;
+    width: 175px;
 
-    @media (min-width: 1100px) {
-      width: 180px;
+    @media (min-width: 1150px) {
+      width: 190px;
     }
 
     .Select-menu-outer {
       width: 364px;
-      max-height: 310px;
+      max-height: 325px;
 
       .Select-menu {
         max-height: none;
@@ -249,16 +264,6 @@
     .Select-value {
       padding-left: $pad-medium;
       padding-right: $pad-medium;
-
-      &::before {
-        display: inline-block;
-        position: absolute;
-        padding: 5px 0 0 0; // centers spin
-        content: url(../assets/images/icon-filter-black-16x16@2x.png);
-        transform: scale(0.5);
-        height: 26px;
-        left: 2px;
-      }
     }
     .Select-value-label {
       padding-left: $pad-large;
@@ -280,35 +285,12 @@
     padding-bottom: $pad-large;
   }
 
-  &__no-enroll-secret-banner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: $x-small;
-    background-color: $ui-off-white;
-    padding: $pad-large;
-    border-radius: 10px;
-    border: 1px solid $ui-fleet-black-50;
-
-    .dismiss-banner-button {
-      display: flex;
-      align-items: center;
-      img {
-        height: 16px;
-        width: auto;
-      }
-    }
-    &:not(:only-child) {
-      margin-bottom: $pad-medium;
-    }
-  }
-
   .total-issues-count {
     margin-left: $pad-small;
   }
 
   &__export-btn {
-    padding-left: $pad-medium;
+    margin-left: $pad-medium;
 
     img {
       width: 13px;

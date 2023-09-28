@@ -4,6 +4,8 @@ import { find } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_QUERY } from "utilities/constants";
 import { DEFAULT_OSQUERY_TABLE, IOsQueryTable } from "interfaces/osquery_table";
+import { SelectedPlatformString } from "interfaces/platform";
+import { QueryLoggingOption } from "interfaces/schedulable_query";
 
 type Props = {
   children: ReactNode;
@@ -16,13 +18,23 @@ type InitialStateType = {
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
   lastEditedQueryObserverCanRun: boolean;
-  setLastEditedQueryId: (value: number) => void;
+  lastEditedQueryFrequency: number;
+  lastEditedQueryPlatforms: SelectedPlatformString;
+  lastEditedQueryMinOsqueryVersion: string;
+  lastEditedQueryLoggingType: QueryLoggingOption;
+  setLastEditedQueryId: (value: number | null) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryObserverCanRun: (value: boolean) => void;
+  setLastEditedQueryFrequency: (value: number) => void;
+  setLastEditedQueryPlatforms: (value: SelectedPlatformString) => void;
+  setLastEditedQueryMinOsqueryVersion: (value: string) => void;
+  setLastEditedQueryLoggingType: (value: string) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
 };
+
+export type IQueryContext = InitialStateType;
 
 const initialState = {
   selectedOsqueryTable:
@@ -32,11 +44,19 @@ const initialState = {
   lastEditedQueryDescription: DEFAULT_QUERY.description,
   lastEditedQueryBody: DEFAULT_QUERY.query,
   lastEditedQueryObserverCanRun: DEFAULT_QUERY.observer_can_run,
+  lastEditedQueryFrequency: DEFAULT_QUERY.interval,
+  lastEditedQueryPlatforms: DEFAULT_QUERY.platform,
+  lastEditedQueryMinOsqueryVersion: DEFAULT_QUERY.min_osquery_version,
+  lastEditedQueryLoggingType: DEFAULT_QUERY.logging,
   setLastEditedQueryId: () => null,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
   setLastEditedQueryObserverCanRun: () => null,
+  setLastEditedQueryFrequency: () => null,
+  setLastEditedQueryPlatforms: () => null,
+  setLastEditedQueryMinOsqueryVersion: () => null,
+  setLastEditedQueryLoggingType: () => null,
   setSelectedOsqueryTable: () => null,
 };
 
@@ -77,6 +97,22 @@ const reducer = (state: InitialStateType, action: any) => {
           typeof action.lastEditedQueryObserverCanRun === "undefined"
             ? state.lastEditedQueryObserverCanRun
             : action.lastEditedQueryObserverCanRun,
+        lastEditedQueryFrequency:
+          typeof action.lastEditedQueryFrequency === "undefined"
+            ? state.lastEditedQueryFrequency
+            : action.lastEditedQueryFrequency,
+        lastEditedQueryPlatforms:
+          typeof action.lastEditedQueryPlatforms === "undefined"
+            ? state.lastEditedQueryPlatforms
+            : action.lastEditedQueryPlatforms,
+        lastEditedQueryMinOsqueryVersion:
+          typeof action.lastEditedQueryMinOsqueryVersion === "undefined"
+            ? state.lastEditedQueryMinOsqueryVersion
+            : action.lastEditedQueryMinOsqueryVersion,
+        lastEditedQueryLoggingType:
+          typeof action.lastEditedQueryLoggingType === "undefined"
+            ? state.lastEditedQueryLoggingType
+            : action.lastEditedQueryLoggingType,
       };
     default:
       return state;
@@ -95,7 +131,11 @@ const QueryProvider = ({ children }: Props) => {
     lastEditedQueryDescription: state.lastEditedQueryDescription,
     lastEditedQueryBody: state.lastEditedQueryBody,
     lastEditedQueryObserverCanRun: state.lastEditedQueryObserverCanRun,
-    setLastEditedQueryId: (lastEditedQueryId: number) => {
+    lastEditedQueryFrequency: state.lastEditedQueryFrequency,
+    lastEditedQueryPlatforms: state.lastEditedQueryPlatforms,
+    lastEditedQueryMinOsqueryVersion: state.lastEditedQueryMinOsqueryVersion,
+    lastEditedQueryLoggingType: state.lastEditedQueryLoggingType,
+    setLastEditedQueryId: (lastEditedQueryId: number | null) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryId,
@@ -125,6 +165,32 @@ const QueryProvider = ({ children }: Props) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryObserverCanRun,
+      });
+    },
+    setLastEditedQueryFrequency: (lastEditedQueryFrequency: number) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryFrequency,
+      });
+    },
+    setLastEditedQueryPlatforms: (lastEditedQueryPlatforms: string) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryPlatforms,
+      });
+    },
+    setLastEditedQueryMinOsqueryVersion: (
+      lastEditedQueryMinOsqueryVersion: string
+    ) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryMinOsqueryVersion,
+      });
+    },
+    setLastEditedQueryLoggingType: (lastEditedQueryLoggingType: string) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryLoggingType,
       });
     },
     setSelectedOsqueryTable: (tableName: string) => {

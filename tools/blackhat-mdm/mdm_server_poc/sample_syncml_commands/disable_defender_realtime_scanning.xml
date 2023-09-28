@@ -1,0 +1,13 @@
+<Add>
+  <CmdID>xxcmdidxx</CmdID>
+  <Item>
+	<Target>
+	  <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowRealtimeMonitoring</LocURI>
+	</Target>
+	<Meta>
+	  <Format>int</Format>
+	  <Type>text/plain</Type>
+	</Meta>
+	<Data>0</Data>
+  </Item>
+</Add>

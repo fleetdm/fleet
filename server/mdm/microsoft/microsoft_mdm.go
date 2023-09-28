@@ -14,6 +14,12 @@ const (
 	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/2681fd76-1997-4557-8963-cf656ab8d887
 	MDE2DiscoveryPath = MDMPath + "/discovery"
 
+	// AuthPath is the HTTP endpoint path that delivers the Security Token Servicefunctionality.
+	// The MS-MDE2 protocol is agnostic to the token format and value returned by this endpoint.
+	// See the section 3.2 on the MS-MDE2 specification for more details:
+	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/27ed8c2c-0140-41ce-b2fa-c3d1a793ab4a
+	MDE2AuthPath = MDMPath + "/auth"
+
 	// MDE2PolicyPath is the HTTP endpoint path that delivers the X.509 Certificate Enrollment Policy (MS-XCEP) functionality.
 	// This is the endpoint that process the GetPolicies and GetPoliciesResponse messages
 	// See the section 3.3 on the MS-MDE2 specification for more details on this endpoint requirements:
@@ -36,33 +42,38 @@ const (
 	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/5b02c625-ced2-4a01-a8e1-da0ae84f5bb7
 	MDE2ManagementPath = MDMPath + "/management"
 
+	// MDE2TOSPath is the HTTP endpoint path that delivers Terms of Service Content
+	MDE2TOSPath = MDMPath + "/tos"
+
 	// These are the entry points for the Microsoft Device Enrollment (MS-MDE) and Microsoft Device Enrollment v2 (MS-MDE2) protocols.
 	// These are required to be implemented by the MDM server to support user-driven enrollments
 	MSEnrollEntryPoint = "/EnrollmentServer/Discovery.svc"
 	MSManageEntryPoint = "/ManagementServer/MDM.svc"
 )
 
-// XML Namespaces used by the Microsoft Device Enrollment v2 protocol (MS-MDE2)
+// XML Namespaces and type URLs used by the Microsoft Device Enrollment v2 protocol (MS-MDE2)
 const (
-	DiscoverNS          = "http://schemas.microsoft.com/windows/management/2012/01/enrollment"
-	PolicyNS            = "http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy"
-	EnrollWSTrust       = "http://docs.oasis-open.org/ws-sx/ws-trust/200512"
-	EnrollSecExt        = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
-	EnrollTType         = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken"
-	EnrollPDoc          = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentProvisionDoc"
-	EnrollEncode        = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"
-	EnrollReq           = "http://schemas.microsoft.com/windows/pki/2009/01/enrollment"
-	EnrollNSS           = "http://www.w3.org/2003/05/soap-envelope"
-	EnrollNSA           = "http://www.w3.org/2005/08/addressing"
-	EnrollXSI           = "http://www.w3.org/2001/XMLSchema-instance"
-	EnrollXSD           = "http://www.w3.org/2001/XMLSchema"
-	EnrollXSU           = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
-	ActionNsDiag        = "http://schemas.microsoft.com/2004/09/ServiceModel/Diagnostics"
-	ActionNsDiscovery   = "http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/DiscoverResponse"
-	ActionNsPolicy      = "http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPoliciesResponse"
-	ActionNsEnroll      = EnrollReq + "/RSTRC/wstep"
-	EnrollReqTypePKCS10 = EnrollReq + "#PKCS10"
-	EnrollReqTypePKCS7  = EnrollReq + "#PKCS7"
+	DiscoverNS                 = "http://schemas.microsoft.com/windows/management/2012/01/enrollment"
+	PolicyNS                   = "http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy"
+	EnrollWSTrust              = "http://docs.oasis-open.org/ws-sx/ws-trust/200512"
+	EnrollSecExt               = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
+	EnrollTType                = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken"
+	EnrollPDoc                 = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentProvisionDoc"
+	EnrollEncode               = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"
+	EnrollReq                  = "http://schemas.microsoft.com/windows/pki/2009/01/enrollment"
+	EnrollNSS                  = "http://www.w3.org/2003/05/soap-envelope"
+	EnrollNSA                  = "http://www.w3.org/2005/08/addressing"
+	EnrollXSI                  = "http://www.w3.org/2001/XMLSchema-instance"
+	EnrollXSD                  = "http://www.w3.org/2001/XMLSchema"
+	EnrollXSU                  = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+	ActionNsDiag               = "http://schemas.microsoft.com/2004/09/ServiceModel/Diagnostics"
+	ActionNsDiscovery          = "http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/DiscoverResponse"
+	ActionNsPolicy             = "http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPoliciesResponse"
+	ActionNsEnroll             = EnrollReq + "/RSTRC/wstep"
+	EnrollReqTypePKCS10        = EnrollReq + "#PKCS10"
+	EnrollReqTypePKCS7         = EnrollReq + "#PKCS7"
+	BinarySecurityDeviceEnroll = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken"
+	BinarySecurityAzureEnroll  = "urn:ietf:params:oauth:token-type:jwt"
 )
 
 // Soap Error constants
@@ -101,6 +112,7 @@ const (
 	MDMDeviceStateEnrolled = "MDMDeviceEnrolledEnrolled"
 
 	// Device is MDM enrolled and managed
+	/* #nosec G101 -- this constant doesn't contain any credentials */
 	MDMDeviceStateManaged = "MDMDeviceEnrolledManaged"
 )
 
@@ -127,6 +139,12 @@ const (
 	// HTTP Content Type for SOAP responses
 	SoapContentType = "application/soap+xml; charset=utf-8"
 
+	// HTTP Content Type for SyncML MDM responses
+	SyncMLContentType = "application/vnd.syncml.dm+xml"
+
+	// HTTP Content Type for Webcontainer responses
+	WebContainerContentType = "text/html; charset=UTF-8"
+
 	// Minimal Key Length for SHA1WithRSA encryption
 	PolicyMinKeyLength = "2048"
 
@@ -136,8 +154,14 @@ const (
 	// Certificate Renewal Period in seconds (180 days)
 	PolicyCertRenewalPeriodInSecs = "15552000"
 
-	// Supported Enroll Type
-	ReqSecTokenEnrollType = "Full"
+	// Supported Enroll types gathered from MS-MDE2 Spec Section 2.2.9.3
+	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/f7553554-b6e1-4a0d-abd6-6a2534503af7
+
+	// Supported Enroll Type Device
+	ReqSecTokenEnrollTypeDevice = "Device"
+
+	// Supported Enroll Type Full
+	ReqSecTokenEnrollTypeFull = "Full"
 
 	// Provisioning Doc Certificate Renewal Period (365 days)
 	WstepCertRenewalPeriodInDays = "365"
@@ -214,6 +238,22 @@ const (
 	ReqSecTokenContextItemApplicationVersion   = "ApplicationVersion"
 	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
 	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
+
+	// APPRU query param expected by STS Auth endpoint
+	STSAuthAppRu = "appru"
+
+	// Login related query param expected by STS Auth endpoint
+	STSLoginHint = "login_hint"
+
+	// redirect_uri query param expected by TOS endpoint
+	TOCRedirectURI = "redirect_uri"
+
+	// client-request-id query param expected by TOS endpoint
+	TOCReqID = "client-request-id"
+
+	// Alert Command IDs
+	DeviceUnenrollmentID = "1226"
+	HostInitMessageID    = "1201"
 )
 
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
@@ -226,6 +266,10 @@ func ResolveWindowsMDMPolicy(serverURL string) (string, error) {
 
 func ResolveWindowsMDMEnroll(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2EnrollPath, false)
+}
+
+func ResolveWindowsMDMAuth(serverURL string) (string, error) {
+	return commonmdm.ResolveURL(serverURL, MDE2AuthPath, false)
 }
 
 func ResolveWindowsMDMManagement(serverURL string) (string, error) {

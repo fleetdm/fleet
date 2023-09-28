@@ -1,0 +1,17 @@
+.query-frequency-indicator {
+  width: 130px;
+  display: inline-block;
+  align-items: center;
+  padding: 8px 12px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+
+  .icon {
+    padding-right: $pad-small;
+  }
+}
+
+.grey {
+  color: $ui-fleet-black-33;
+}

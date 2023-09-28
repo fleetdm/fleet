@@ -33,7 +33,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
-		MDMHardwareID:          uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
 		MDMDeviceState:         uuid.New().String(),
 		MDMDeviceType:          "CIMClient_Windows",
 		MDMDeviceName:          "DESKTOP-1C3ARC1",
@@ -51,19 +51,19 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice)
 	require.ErrorAs(t, err, &ae)
 
-	gotEnrolledDevice, err := ds.MDMWindowsGetEnrolledDevice(ctx, enrolledDevice.MDMDeviceID)
+	gotEnrolledDevice, err := ds.MDMWindowsGetEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
 	require.NoError(t, err)
 	require.NotZero(t, gotEnrolledDevice.CreatedAt)
 	require.Equal(t, enrolledDevice.MDMDeviceID, gotEnrolledDevice.MDMDeviceID)
 	require.Equal(t, enrolledDevice.MDMHardwareID, gotEnrolledDevice.MDMHardwareID)
 
-	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMDeviceID)
+	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
 	require.NoError(t, err)
 
 	var nfe fleet.NotFoundError
-	_, err = ds.MDMWindowsGetEnrolledDevice(ctx, enrolledDevice.MDMDeviceID)
+	_, err = ds.MDMWindowsGetEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
 
-	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMDeviceID)
+	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
 }

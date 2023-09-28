@@ -2,12 +2,14 @@ import React, { useState, useContext, useEffect, useCallback } from "react";
 import { Row, Column } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
-import { format } from "date-fns";
 import FileSaver from "file-saver";
 import { QueryContext } from "context/query";
 import { useDebouncedCallback } from "use-debounce";
 
-import convertToCSV from "utilities/convert_to_csv";
+import {
+  generateCSVFilename,
+  generateCSVQueryResults,
+} from "utilities/generate_csv";
 import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
@@ -24,6 +26,7 @@ import generateResultsTableHeaders from "./QueryResultsTableConfig";
 interface IQueryResultsProps {
   campaign: ICampaign;
   isQueryFinished: boolean;
+  queryName?: string;
   onRunQuery: () => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
@@ -32,41 +35,16 @@ interface IQueryResultsProps {
 }
 
 const baseClass = "query-results";
-const CSV_QUERY_TITLE = "Query Results";
+const CSV_TITLE = "New Query";
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
 };
 
-const reorderCSVFields = (fields: string[]) => {
-  const result = fields.filter((field) => field !== "host_display_name");
-  result.unshift("host_display_name");
-
-  return result;
-};
-
-const generateExportCSVFile = (rows: Row[], filename: string) => {
-  return new global.window.File(
-    [
-      convertToCSV(
-        rows.map((r) => r.original),
-        reorderCSVFields
-      ),
-    ],
-    filename,
-    {
-      type: "text/csv",
-    }
-  );
-};
-
-const generateExportFilename = (descriptor: string) => {
-  return `${descriptor} (${format(new Date(), "MM-dd-yy hh-mm-ss")}).csv`;
-};
-
 const QueryResults = ({
   campaign,
   isQueryFinished,
+  queryName,
   onRunQuery,
   onStopQuery,
   setSelectedTargets,
@@ -82,10 +60,8 @@ const QueryResults = ({
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
-  const [tableHeaders, setTableHeaders] = useState<null | Column[]>([]);
-  const [errorTableHeaders, setErrorTableHeaders] = useState<null | Column[]>(
-    []
-  );
+  const [tableHeaders, setTableHeaders] = useState<Column[]>([]);
+  const [errorTableHeaders, setErrorTableHeaders] = useState<Column[]>([]);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
@@ -102,32 +78,43 @@ const QueryResults = ({
     { maxWait: 2000 }
   );
 
+  // This is throwing an error not to use hook within a useEffect
   useEffect(() => {
     debounceQueryResults(queryResults);
   }, [queryResults, debounceQueryResults]);
 
-  // set tableHeaders when initial results come in
-  // instead of memoizing tableHeaders, since we know the conditions exactly under which we want to
-  // set these
   useEffect(() => {
-    if (tableHeaders?.length === 0 && !!queryResults?.length) {
-      setTableHeaders(generateResultsTableHeaders(queryResults));
+    if (queryResults && queryResults.length > 0) {
+      const generatedTableHeaders = generateResultsTableHeaders(queryResults);
+      // Update tableHeaders if new headers are found
+      if (generatedTableHeaders !== tableHeaders) {
+        setTableHeaders(generatedTableHeaders);
+      }
     }
-  }, [tableHeaders, queryResults]);
+  }, [queryResults]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
 
   useEffect(() => {
     if (errorTableHeaders?.length === 0 && !!errors?.length) {
       setErrorTableHeaders(generateResultsTableHeaders(errors));
+
+      if (errorTableHeaders && errorTableHeaders.length > 0) {
+        const generatedErrorTableHeaders = generateResultsTableHeaders(errors);
+
+        // Update errorTableHeaders if new headers are found
+        if (generatedErrorTableHeaders !== tableHeaders) {
+          setErrorTableHeaders(generatedErrorTableHeaders);
+        }
+      }
     }
-  }, [errorTableHeaders, errors]);
+  }, [errors]); // Cannot use errorTableHeaders as it will cause infinite loop with setErrorTableHeaders
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
-
     FileSaver.saveAs(
-      generateExportCSVFile(
+      generateCSVQueryResults(
         filteredResults,
-        generateExportFilename(CSV_QUERY_TITLE)
+        generateCSVFilename(`${queryName || CSV_TITLE} - Results`),
+        tableHeaders
       )
     );
   };
@@ -136,9 +123,10 @@ const QueryResults = ({
     evt.preventDefault();
 
     FileSaver.saveAs(
-      generateExportCSVFile(
+      generateCSVQueryResults(
         filteredErrors,
-        generateExportFilename(`${CSV_QUERY_TITLE} Errors`)
+        generateCSVFilename(`${queryName || CSV_TITLE} - Errors`),
+        errorTableHeaders
       )
     );
   };
@@ -174,7 +162,7 @@ const QueryResults = ({
           variant="text-icon"
         >
           <>
-            Show query <Icon name="eye" size="small" />
+            Show query <Icon name="eye" />
           </>
         </Button>
         <Button
@@ -225,8 +213,7 @@ const QueryResults = ({
     // TODO - clean up these conditions
     const hasNoResultsYet =
       !isQueryFinished && (!queryResults?.length || tableHeaders === null);
-    const finishedWithNoResults =
-      isQueryFinished && (!queryResults?.length || !hostsCount.successful);
+    const finishedWithNoResults = isQueryFinished && !queryResults?.length;
 
     if (hasNoResultsYet) {
       return <AwaitingResults />;

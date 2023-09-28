@@ -5,20 +5,15 @@
   gap: 80px;
 
   &__section {
-    margin: 0 0 $pad-large;
 
     h2 {
+      margin-bottom: 0;
       padding-bottom: $pad-small;
       max-width: 100%;
       font-size: $medium;
       font-weight: $regular;
       color: $core-fleet-black;
       border-bottom: solid 1px $ui-fleet-black-10;
-      margin: 0 0 $pad-xxlarge;
-    }
-
-    h4 {
-      margin-bottom: 0;
     }
 
     .mdm-settings-team-btn {
@@ -34,17 +29,9 @@
     }
   }
 
-  &__section-description,
-  &__section-instructions,
-  &__section-information {
-    font-size: $x-small;
-    color: $core-fleet-black;
-    width: 100%;
-  }
-
-  &__section-information {
-    p {
-      margin: 0;
-    }
+  &__mdm-section {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
   }
 }

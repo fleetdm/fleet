@@ -21,7 +21,7 @@ import {
   IMdmSolution,
   IMdmSummaryResponse,
 } from "interfaces/mdm";
-import { ISelectedPlatform } from "interfaces/platform";
+import { SelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
@@ -107,7 +107,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     includeNoTeam: false,
   });
 
-  const [selectedPlatform, setSelectedPlatform] = useState<ISelectedPlatform>(
+  const [selectedPlatform, setSelectedPlatform] = useState<SelectedPlatform>(
     "all"
   );
   const [
@@ -307,7 +307,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         teamId: teamIdForApi,
       },
     ],
-    ({ queryKey }) => softwareAPI.count(queryKey[0]),
+    ({ queryKey }) => softwareAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk && !software?.software,
       keepPreviousData: true,
@@ -434,13 +434,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           }
         : undefined,
     actionUrl: selectedPlatform === "all" ? MANAGE_HOSTS : undefined,
-    total_host_count: (() => {
-      if (!isHostSummaryFetching && !errorHosts) {
-        return `${hostSummaryData?.totals_hosts_count}` || undefined;
-      }
-
-      return undefined;
-    })(),
+    total_host_count:
+      !isHostSummaryFetching && !errorHosts
+        ? hostSummaryData?.totals_hosts_count
+        : undefined,
     showTitle: true,
     children: (
       <HostsSummary
@@ -757,7 +754,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             className={`${baseClass}__platform_dropdown`}
             options={PLATFORM_DROPDOWN_OPTIONS}
             searchable={false}
-            onChange={(value: ISelectedPlatform) => {
+            onChange={(value: SelectedPlatform) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
                 (platform) => platform.value === value
               );

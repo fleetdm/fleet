@@ -132,7 +132,7 @@
     </noscript>
     <%/* End Google Tag Manager (noscript) */%>
     <div style="padding-bottom: <%= optimizeForAppleWebview  ?  '0px' : '60px' %>; background-color: #FFF;" purpose="page-wrap">
-      <div class="header <%= optimizeForAppleWebview  ?  'd-none' : '' %>" purpose="header-container">
+      <div class="header <%= optimizeForAppleWebview  ?  'd-none' : '' %>" purpose="header-container" data-nosnippet>
         <%// Page header%>
         <div purpose="page-header" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a purpose="header-logo" href="/">
@@ -158,14 +158,10 @@
               <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Platform</a>
               <div class="d-block">
                 <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
-                  <a href="/device-management">Device management</a>
-                  <a href="/osquery-management">Osquery management</a>
-                  <a href="/compliance">Security compliance</a>
                   <a href="/vulnerability-management">Vulnerability management</a>
-                  <span>SUCCESS STORIES</span>
-                  <a class="pl-3" href="/success-stories/fleet-user-stories-wayfair">Wayfair</a>
-                  <a class="pl-3" href="/success-stories/fleet-user-stories-schrodinger">Schrödinger</a>
-                  <a class="pl-3" href="/success-stories/fleet-user-stories-f100">F100 security & networking co.</a>
+                  <a href="/osquery-management">Endpoint operations</a>
+                  <a href="/device-management">Device management (MDM)</a>
+                  <a href="/compliance">Reporting and automation</a>
                 </div>
               </div>
               <hr>
@@ -213,15 +209,10 @@
             <div purpose="dropdown-button" class="btn-group">
               <a purpose="header-nav-btn" button-text="Platform" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
               <div purpose="header-dropdown" class="dropdown-menu">
-                <a class="dropdown-item mb-1" href="/device-management">Device management</a>
-                <a class="dropdown-item mb-1" href="/osquery-management">Osquery management</a>
-                <a class="dropdown-item mb-1" href="/compliance">Security compliance</a>
                 <a class="dropdown-item mb-1" href="/vulnerability-management">Vulnerability management</a>
-                <div class="dropdown-divider"></div>
-                <h6 class="muted dropdown-header">SUCCESS STORIES</h6>
-                <a class="dropdown-item mb-1" href="/success-stories/fleet-user-stories-wayfair">Wayfair</a>
-                <a class="dropdown-item mb-1" href="/success-stories/fleet-user-stories-schrodinger">Schrödinger</a>
-                <a class="dropdown-item" href="/success-stories/fleet-user-stories-f100">F100 security & networking co.</a>
+                <a class="dropdown-item mb-1" href="/osquery-management">Endpoint operations</a>
+                <a class="dropdown-item mb-1" href="/device-management">Device management (MDM)</a>
+                <a class="dropdown-item mb-1" href="/compliance">Reporting and automation</a>
               </div>
             </div>
             <div purpose="dropdown-button" class="btn-group">
@@ -272,7 +263,7 @@
 
       <%- body %>
 
-      <div purpose="footer" class="<%= optimizeForAppleWebview  ?  'd-none' : '' %>" style="position: absolute; bottom:  0px; width: 100%; height: 60px; color: #515774;">
+      <div purpose="footer" class="<%= optimizeForAppleWebview  ?  'd-none' : '' %>" style="position: absolute; bottom:  0px; width: 100%; height: 60px; color: #515774;" data-nosnippet>
         <div style="max-width: 500px;" class="container-fluid">
           <div style="font-size: 11px; line-height: 18px;" class="d-sm-flex d-block flex-sm-row justify-content-center mr-4 mr-md-auto">
             <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px;" class="mr-2 mb-2 mb-sm-0"/>
@@ -299,25 +290,6 @@
 
     <%/* Stripe.js */%>
     <script src="https://js.stripe.com/v3/"></script>
-
-    <%/* Linkedin Ads Insight tag */%>
-    <script type="text/javascript">
-    _linkedin_partner_id = "4365817";
-    window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
-    window._linkedin_data_partner_ids.push(_linkedin_partner_id);
-    </script><script type="text/javascript">
-    (function(l) {
-    if (!l){window.lintrk = function(a,b){window.lintrk.q.push([a,b])};
-    window.lintrk.q=[]}
-    var s = document.getElementsByTagName("script")[0];
-    var b = document.createElement("script");
-    b.type = "text/javascript";b.async = true;
-    b.src = "https://snap.licdn.com/li.lms-analytics/insight.min.js";
-    s.parentNode.insertBefore(b, s);})(window.lintrk);
-    </script>
-    <noscript>
-    <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
-    </noscript>
 
     <% /* Delete the global `self` to help avoid client-side bugs.
     (see https://developer.mozilla.org/en-US/docs/Web/API/Window/self) */ %>
@@ -349,6 +321,8 @@
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
+    <script src="/js/components/open-positions.component.js"></script>
+    <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
@@ -358,6 +332,7 @@
     <script src="/js/pages/admin/email-preview.page.js"></script>
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
+    <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/compliance.page.js"></script>
@@ -377,7 +352,9 @@
     <script src="/js/pages/get-started.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
+    <script src="/js/pages/imagine/defcon-31.page.js"></script>
     <script src="/js/pages/imagine/higher-education.page.js"></script>
+    <script src="/js/pages/imagine/jamf-alternative.page.js"></script>
     <script src="/js/pages/imagine/launch-party.page.js"></script>
     <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
@@ -391,13 +368,13 @@
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
-    <script src="/js/pages/sales-one-pager.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/register.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
+    <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/upgrade.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
     <script src="/js/pages/vulnerability-management.page.js"></script>
@@ -420,14 +397,14 @@
         //    - https://github.com/lancedikson/bowser/tree/1fb99ced0e8834fd9662604bad7e0f0c3eba2786#rendering-engine-flags
         // --------------------------------------------------------------------
         var LATEST_SUPPORTED_VERSION_BY_OS = {
-          iOS: '11',//« earliest version that suppports the hubspot chatbot.
+          iOS: '13',//« earliest version that suppports the embedded podcast player.
           Android: '7' // « earliest version we can test for compatibility issues with on browserstack
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
           msedge: '80',//« earliest version to support the backdrop filter css property.
-          safari: '11',//« earliest version that suppports the hubspot chatbot.
-          firefox: '102',//« earliest version to support the backdrop filter css property.
-          chrome: '76',//« earliest version to support the backdrop filter css property.
+          safari: '13',//« earliest version that suppports the hubspot chatbot.
+          firefox: '103',//« earliest version to support the backdrop filter css property.
+          chrome: '80',//« earliest version to support the embedded podcast player.
           opera: '64',//« earliest version to support the backdrop filter css property.
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {

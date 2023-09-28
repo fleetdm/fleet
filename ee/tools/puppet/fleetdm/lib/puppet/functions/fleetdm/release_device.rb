@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'puppet/util/fleet_client'
+require_relative '../../util/fleet_client'
 
 # fleetdm::release_device sends the [`DeviceConfigured`][1] MDM command to the
 # device with the provided UUID. This is useful to release DEP enrolled devices
@@ -29,8 +29,9 @@ Puppet::Functions.create_function(:"fleetdm::release_device") do
       </plist>
     COMMAND_TEMPLATE
 
+    env = closure_scope['server_facts']['environment']
     client = Puppet::Util::FleetClient.instance
-    response = client.send_mdm_command(uuid, command_xml)
+    response = client.send_mdm_command(uuid, command_xml, env)
 
     if response['error'].empty?
       Puppet.info('successfully released device')

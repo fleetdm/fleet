@@ -24,7 +24,7 @@ provider "kubectl" {
 }
 
 locals {
-  cluster_version = "1.21"
+  cluster_version = "1.23"
   account_role_mapping = {
     # Add nonprod or other deployed accounts here
     411315989055 = "AWSReservedSSO_SandboxProdAdmins_9ccaa4f25c2eada0"
@@ -58,7 +58,7 @@ terraform {
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = "3.18.0"
+      version = "4.11.0"
     }
   }
 }
@@ -87,7 +87,7 @@ data "aws_iam_policy_document" "fluentbit_logs" {
 }
 
 module "aws-eks-accelerator-for-terraform" {
-  source       = "github.com/aws-ia/terraform-aws-eks-blueprints.git?ref=v4.20.0"
+  source       = "github.com/aws-ia/terraform-aws-eks-blueprints.git?ref=v4.32.1"
   cluster_name = var.prefix
 
   # EKS Cluster VPC and Subnets
@@ -145,7 +145,7 @@ data "aws_eks_cluster_auth" "cluster" {
 }
 
 module "kubernetes-addons" {
-  source = "github.com/aws-ia/terraform-aws-eks-blueprints.git//modules/kubernetes-addons?ref=v4.20.0"
+  source = "github.com/aws-ia/terraform-aws-eks-blueprints.git//modules/kubernetes-addons?ref=v4.32.1"
 
   eks_cluster_id               = module.aws-eks-accelerator-for-terraform.eks_cluster_id
   eks_cluster_endpoint         = module.aws-eks-accelerator-for-terraform.eks_cluster_endpoint
@@ -154,9 +154,18 @@ module "kubernetes-addons" {
   eks_worker_security_group_id = module.aws-eks-accelerator-for-terraform.worker_node_security_group_id
 
   # EKS Managed Add-ons
-  enable_amazon_eks_vpc_cni            = true
-  enable_amazon_eks_coredns            = true
-  enable_amazon_eks_kube_proxy         = true
+  enable_amazon_eks_vpc_cni = true
+  amazon_eks_vpc_cni_config = {
+    addon_version = "v1.11.5-eksbuild.1"
+  }
+  enable_amazon_eks_coredns = true
+  amazon_eks_coredns_config = {
+    addon_version = "v1.8.7-eksbuild.7"
+  }
+  enable_amazon_eks_kube_proxy = true
+  amazon_eks_kube_proxy_config = {
+    addon_version = "v1.23.17-eksbuild.2"
+  }
   enable_amazon_eks_aws_ebs_csi_driver = true
 
   #K8s Add-ons
@@ -173,7 +182,7 @@ module "kubernetes-addons" {
   enable_kubernetes_dashboard         = false
   enable_yunikorn                     = false
 
-  depends_on = [module.aws-eks-accelerator-for-terraform.managed_node_groups]
+  #depends_on = [module.aws-eks-accelerator-for-terraform.managed_node_groups]
 }
 
 resource "helm_release" "haproxy_ingress" {
@@ -289,7 +298,7 @@ resource "kubernetes_deployment" "redirect" {
 
       spec {
         container {
-          image = "nginx:1.23.1"
+          image = "nginx:1.25.2"
           name  = "nginx"
 
           port {

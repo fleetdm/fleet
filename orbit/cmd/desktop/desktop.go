@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/useraction"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -155,6 +157,15 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
+		client.WithInvalidTokenRetry(func() string {
+			newToken, err := tokenReader.Read()
+			if err != nil {
+				log.Error().Err(err).Msg("refetch token")
+				return ""
+			}
+			log.Debug().Msg("successfully refetched the token from disk")
+			return newToken
+		})
 
 		refetchToken := func() {
 			if _, err := tokenReader.Read(); err != nil {
@@ -245,6 +256,25 @@ func main() {
 			)
 		}
 
+		reportError := func(err error, info map[string]any) {
+			if !client.GetServerCapabilities().Has(fleet.CapabilityErrorReporting) {
+				log.Info().Msg("skipped reporting error to the server as it doesn't have the capability enabled")
+				return
+			}
+
+			fleetdErr := fleet.FleetdError{
+				ErrorSource:         "fleet-desktop",
+				ErrorSourceVersion:  version,
+				ErrorTimestamp:      time.Now(),
+				ErrorMessage:        err.Error(),
+				ErrorAdditionalInfo: info,
+			}
+
+			if err := client.ReportError(tokenReader.GetCached(), fleetdErr); err != nil {
+				log.Error().Err(err).EmbedObject(fleetdErr).Msg("reporting error to Fleet server")
+			}
+		}
+
 		// poll the server to check the policy status of the host and update the
 		// tray icon accordingly
 		go func() {
@@ -296,28 +326,52 @@ func main() {
 				}
 				myDeviceItem.Enable()
 
-				if runtime.GOOS == "darwin" &&
-					(sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile) &&
-					mdmMigrator.CanRun() {
+				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
 
-					// update org info in case it changed
-					mdmMigrator.SetProps(useraction.MDMMigratorProps{
-						OrgInfo:     sum.Config.OrgInfo,
-						IsUnmanaged: sum.Notifications.RenewEnrollmentProfile,
-					})
+				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
+					enrolled, enrollURL, err := profiles.IsEnrolledInMDM()
+					if err != nil {
+						log.Error().Err(err).Msg("fetching enrollment status to show mdm migrator")
+						continue
+					}
 
-					// enable tray items
-					migrateMDMItem.Enable()
-					migrateMDMItem.Show()
+					// we perform this check locally on the client too to avoid showing the
+					// dialog if the client has already migrated but the Fleet server
+					// doesn't know about this state yet.
+					enrolledIntoFleet, err := fleethttp.HostnamesMatch(enrollURL, fleetURL)
+					if err != nil {
+						log.Error().Err(err).Msg("comparing MDM server URLs")
+						continue
+					}
+					if !enrolledIntoFleet {
+						// isUnmanaged captures two important bits of information:
+						//
+						// - The notification coming from the server, which is based on information that's
+						//   not available in the client (eg: is MDM configured? are migrations enabled?
+						//   is this device elegible for migration?)
+						// - The current enrollment status of the device.
+						isUnmanaged := sum.Notifications.RenewEnrollmentProfile && !enrolled
+						forceModeEnabled := sum.Notifications.NeedsMDMMigration &&
+							sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced
 
-					// if the device is unmanaged or we're
-					// in force mode and the device needs
-					// migration, enable aggressive mode.
-					if sum.Notifications.RenewEnrollmentProfile ||
-						(sum.Notifications.NeedsMDMMigration && sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced) {
-						log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
-						if err := mdmMigrator.ShowInterval(); err != nil {
-							log.Error().Err(err).Msg("showing MDM migration dialog at interval")
+						// update org info in case it changed
+						mdmMigrator.SetProps(useraction.MDMMigratorProps{
+							OrgInfo:     sum.Config.OrgInfo,
+							IsUnmanaged: isUnmanaged,
+						})
+
+						// enable tray items
+						migrateMDMItem.Enable()
+						migrateMDMItem.Show()
+
+						// if the device is unmanaged or we're in force mode and the device needs
+						// migration, enable aggressive mode.
+						if isUnmanaged || forceModeEnabled {
+							log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
+							if err := mdmMigrator.ShowInterval(); err != nil {
+								go reportError(err, nil)
+								log.Error().Err(err).Msg("showing MDM migration dialog at interval")
+							}
 						}
 					}
 				} else {
@@ -325,7 +379,6 @@ func main() {
 					migrateMDMItem.Hide()
 				}
 			}
-
 		}()
 
 		go func() {
@@ -343,6 +396,7 @@ func main() {
 					}
 				case <-migrateMDMItem.ClickedCh:
 					if err := mdmMigrator.Show(); err != nil {
+						go reportError(err, nil)
 						log.Error().Err(err).Msg("showing MDM migration dialog on user action")
 					}
 				}
@@ -374,11 +428,13 @@ func (m *mdmMigrationHandler) NotifyRemote() error {
 	return nil
 }
 
-func (m *mdmMigrationHandler) ShowInstructions() {
+func (m *mdmMigrationHandler) ShowInstructions() error {
 	openURL := m.client.BrowserDeviceURL(m.tokenReader.GetCached())
 	if err := open.Browser(openURL); err != nil {
 		log.Error().Err(err).Str("url", openURL).Msg("open browser")
+		return err
 	}
+	return nil
 }
 
 // setupLogs configures our logging system to write logs to rolling files and

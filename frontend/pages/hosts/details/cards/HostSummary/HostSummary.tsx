@@ -17,7 +17,6 @@ import {
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import MacSettingsIndicator from "./MacSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
@@ -121,7 +120,7 @@ const HostSummary = ({
           data-for="host-issue-count"
           data-tip-disable={false}
         >
-          <img alt="host issue" src={IssueIcon} />
+          <Icon name="issue" color="ui-fleet-black-50" />
         </span>
         <ReactTooltip
           place="bottom"
@@ -187,7 +186,6 @@ const HostSummary = ({
           <StatusIndicator
             value={status || ""} // temporary work around of integration test bug
             tooltip={{
-              id,
               tooltipText: getHostStatusTooltipText(status),
               position: "bottom",
             }}

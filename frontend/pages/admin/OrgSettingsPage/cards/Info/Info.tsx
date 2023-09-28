@@ -124,6 +124,8 @@ const Info = ({
               onBlur={validateForm}
               error={formErrors.org_logo_url}
               inputWrapperClass={`${cardClass}__logo-field`}
+              tooltip="Logo is displayed in the top bar and other areas of Fleet that
+                have dark backgrounds."
             />
             <div
               className={`${cardClass}__icon-preview ${cardClass}__dark-background`}
@@ -144,6 +146,8 @@ const Info = ({
               onBlur={validateForm}
               error={formErrors.org_logo_url_light_background}
               inputWrapperClass={`${cardClass}__logo-field`}
+              tooltip="Logo is displayed in Fleet on top of light backgrounds.
+"
             />
             <div
               className={`${cardClass}__icon-preview ${cardClass}__light-background`}

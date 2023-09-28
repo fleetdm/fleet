@@ -4,6 +4,7 @@
     font-weight: 800;
     font-size: 64px;
     line-height: 76px;
+    white-space: nowrap;
   }
   h2 {
     font-weight: 800;
@@ -28,6 +29,11 @@
   p {
     font-size: 16px;
     line-height: 24px;
+  }
+  a {
+    font-size: 14px;
+    color: @core-vibrant-blue;
+    text-decoration: underline;
   }
 
   [purpose='hero-background'] {
@@ -313,6 +319,10 @@
       padding-left: 0px;
       padding-right: 0px;
     }
+    h1 {
+      font-size: 50px;
+      line-height: 64px;
+    }
 
     [purpose='logos'] {
       height: 58px;
@@ -332,11 +342,13 @@
     h1 {
       font-size: 48px;
       line-height: 54px;
+      white-space: normal;
     }
 
     [purpose='page-container'] {
       padding-left: 40px;
       padding-right: 40px;
+      padding-bottom: 80px;
     }
 
     [purpose='checklists'] {
@@ -416,6 +428,10 @@
     [purpose='page-container'] {
       padding-left: 20px;
       padding-right: 20px;
+    }
+
+    [purpose='hero-text'] {
+      padding: 0;
     }
 
     [purpose='tweets-container'] {

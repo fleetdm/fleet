@@ -61,7 +61,7 @@ const UserMenu = ({
     const sortedTeams = getSortedTeamOptions(userAdminTeams);
     const settingsPath =
       currentUser.global_role === "admin"
-        ? PATHS.ADMIN_SETTINGS
+        ? PATHS.ADMIN_ORGANIZATION
         : `${PATHS.TEAM_DETAILS_MEMBERS(sortedTeams[0].value)}`;
     const settingsNavigate = onNavItemClick(settingsPath);
     const adminNavItem = {
@@ -72,7 +72,7 @@ const UserMenu = ({
   }
 
   return (
-    <div className={baseClass}>
+    <div className={baseClass} data-testid="user-menu">
       <DropdownButton options={dropdownItems}>
         <AvatarTopNav
           className={`${baseClass}__avatar-image`}

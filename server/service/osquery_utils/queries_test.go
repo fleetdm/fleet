@@ -55,7 +55,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{EnableAsyncHostProcessing: "false"})
 
 	var gotPackStats []fleet.PackStats
-	ds.SaveHostPackStatsFunc = func(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
+	ds.SaveHostPackStatsFunc = func(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
 		if hostID != host.ID {
 			return errors.New("not found")
 		}
@@ -549,23 +549,106 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
-		require.True(t, enrolled)
-		require.True(t, installedFromDep)
-		require.True(t, isServer)
-		require.NotEmpty(t, serverURL)
-		return nil
+	cases := []struct {
+		name                 string
+		data                 []map[string]string
+		wantEnrolled         bool
+		wantInstalledFromDep bool
+		wantIsServer         bool
+		wantServerURL        string
+	}{
+		{
+			name: "off empty server URL",
+			data: []map[string]string{
+				{"key": "discovery_service_url", "value": ""},
+				{"key": "is_federated", "value": "1"},
+				{"key": "provider_id", "value": "Some_ID"},
+				{"key": "installation_type", "value": "Client"},
+			},
+			wantEnrolled:         false,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "",
+		},
+		{
+			name: "off missing is_federated and server url",
+			data: []map[string]string{
+				{"key": "provider_id", "value": "Some_ID"},
+				{"key": "installation_type", "value": "Client"},
+			},
+			wantEnrolled:         false,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "",
+		},
+		{
+			name: "on automatic",
+			data: []map[string]string{
+				{"key": "discovery_service_url", "value": "https://example.com"},
+				{"key": "is_federated", "value": "1"},
+				{"key": "provider_id", "value": "Some_ID"},
+				{"key": "installation_type", "value": "Client"},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: true,
+			wantIsServer:         false,
+			wantServerURL:        "https://example.com",
+		},
+		{
+			name: "on manual",
+			data: []map[string]string{
+				{"key": "discovery_service_url", "value": "https://example.com"},
+				{"key": "is_federated", "value": "0"},
+				{"key": "provider_id", "value": "Local_Management"},
+				{"key": "installation_type", "value": "Client"},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://example.com",
+		},
+		{
+			name: "on manual missing is_federated",
+			data: []map[string]string{
+				{"key": "discovery_service_url", "value": "https://example.com"},
+				{"key": "provider_id", "value": "Some_ID"},
+				{"key": "installation_type", "value": "Client"},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://example.com",
+		},
+		{
+			name: "is_server",
+			data: []map[string]string{
+				{"key": "discovery_service_url", "value": "https://example.com"},
+				{"key": "is_federated", "value": "1"},
+				{"key": "provider_id", "value": "Some_ID"},
+				{"key": "installation_type", "value": "Windows SeRvEr 99.9"},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: true,
+			wantIsServer:         true,
+			wantServerURL:        "https://example.com",
+		},
 	}
 
-	var host fleet.Host
-	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
-		{"key": "discovery_service_url", "value": "some url"},
-		{"key": "autopilot", "value": "true"},
-		{"key": "provider_id", "value": "1337"},
-		{"key": "installation_type", "value": "Windows SeRvEr 99.9"},
-	})
-	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+				require.Equal(t, c.wantEnrolled, enrolled)
+				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
+				require.Equal(t, c.wantIsServer, isServer)
+				require.Equal(t, c.wantServerURL, serverURL)
+				return nil
+			}
+		})
+		err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, c.data)
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+		ds.SetOrUpdateMDMDataFuncInvoked = false
+	}
 }
 
 func TestDirectIngestChromeProfiles(t *testing.T) {
@@ -1123,29 +1206,6 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	logger := log.NewNopLogger()
 	h := &fleet.Host{ID: 1}
 
-	var expectedProfiles []*fleet.HostMacOSProfile
-	ds.UpdateVerificationHostMacOSProfilesFunc = func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
-		require.Equal(t, h.ID, host.ID)
-		require.Len(t, installedProfiles, len(expectedProfiles))
-		expectedByIdentifier := make(map[string]*fleet.HostMacOSProfile, len(expectedProfiles))
-		for _, ep := range expectedProfiles {
-			expectedByIdentifier[ep.Identifier] = ep
-		}
-		for _, ip := range installedProfiles {
-			ep, ok := expectedByIdentifier[ip.Identifier]
-			require.True(t, ok)
-			require.Equal(t, *ep, *ip)
-		}
-
-		return nil
-	}
-	expectedProfiles = []*fleet.HostMacOSProfile{
-		{
-			Identifier:  "com.example.test",
-			DisplayName: "Test Profile",
-			InstallDate: time.Now().Truncate(time.Second),
-		},
-	}
 	toRows := func(profs []*fleet.HostMacOSProfile) []map[string]string {
 		rows := make([]map[string]string, len(profs))
 		for i, p := range profs {
@@ -1158,17 +1218,47 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 		return rows
 	}
 
+	var installedProfiles []*fleet.HostMacOSProfile
+	ds.GetHostMDMProfilesExpectedForVerificationFunc = func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
+		require.Equal(t, h.ID, host.ID)
+		expected := make(map[string]*fleet.ExpectedMDMProfile, len(installedProfiles))
+		for _, p := range installedProfiles {
+			expected[p.Identifier] = &fleet.ExpectedMDMProfile{
+				Identifier:          p.Identifier,
+				EarliestInstallDate: p.InstallDate,
+			}
+		}
+		return expected, nil
+	}
+	ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, hostUUID string, toVerify, toFailed, toRetry []string) error {
+		require.Equal(t, h.UUID, hostUUID)
+		require.Equal(t, len(installedProfiles), len(toVerify))
+		require.Len(t, toFailed, 0)
+		require.Len(t, toRetry, 0)
+		for _, p := range installedProfiles {
+			require.Contains(t, toVerify, p.Identifier)
+		}
+		return nil
+	}
+
 	// expect no error: happy path
-	rows := toRows(expectedProfiles)
+	installedProfiles = []*fleet.HostMacOSProfile{
+		{
+			Identifier:  "com.example.test",
+			DisplayName: "Test Profile",
+			InstallDate: time.Now().Truncate(time.Second),
+		},
+	}
+	rows := toRows(installedProfiles)
 	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows))
 
 	// expect no error: identifer or display name is empty
-	expectedProfiles = append(expectedProfiles, &fleet.HostMacOSProfile{
+	installedProfiles = append(installedProfiles, &fleet.HostMacOSProfile{
 		Identifier:  "",
 		DisplayName: "",
 		InstallDate: time.Now().Truncate(time.Second),
 	})
-	rows = toRows(expectedProfiles)
+	rows = toRows(installedProfiles)
 	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows))
 
 	// expect no error: empty rows
@@ -1177,4 +1267,61 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	// expect error: install date format is not "2006-01-02 15:04:05 -0700"
 	rows[0]["install_date"] = time.Now().Format(time.UnixDate)
 	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "parsing time")
+}
+
+func TestSanitizeSoftware(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		h         *fleet.Host
+		s         *fleet.Software
+		sanitized *fleet.Software
+	}{
+		{
+			name: "Microsoft Teams.app on macOS",
+			h: &fleet.Host{
+				Platform: "darwin",
+			},
+			s: &fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Version: "1.00.622155",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Version: "1.6.00.22155",
+			},
+		},
+		{
+			name: "Microsoft Teams not on macOS",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Microsoft Teams",
+				Version: "1.6.00.22378",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams",
+				Version: "1.6.00.22378",
+			},
+		},
+		{
+			name: "Other.app on macOS",
+			h: &fleet.Host{
+				Platform: "darwin",
+			},
+			s: &fleet.Software{
+				Name:    "Other.app",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other.app",
+				Version: "1.2.3",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sanitizeSoftware(tc.h, tc.s)
+			require.Equal(t, tc.sanitized, tc.s)
+		})
+	}
 }

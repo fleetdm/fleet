@@ -537,7 +537,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           isLoading={loadingTableData}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search"}
+          inputPlaceHolder={"Search by name or email"}
           actionButton={{
             name: "create user",
             buttonText: "Create user",

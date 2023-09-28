@@ -17,6 +17,7 @@ parasails.registerPage('basic-documentation', {
     subtopics: [],
     relatedTopics: [],
     scrollDistance: 0,
+    navSectionsByDocsSectionSlug: {},
 
   },
 
@@ -38,29 +39,31 @@ parasails.registerPage('basic-documentation', {
 
     this.pages = _.sortBy(this.markdownPages, 'htmlId');
 
+    this.pages = this.pages.filter((page)=>{
+      return _.startsWith(page.url, '/docs');
+    });
     this.pagesBySectionSlug = (() => {
-      const DOCS_SLUGS = ['using-fleet', 'deploying', 'contributing'];
-
-      let sectionSlugs = _.uniq(_.pluck(this.pages, 'url').map((url) => url.split(/\//).slice(-2)[0]));
-
+      const DOCS_SLUGS = ['get-started', 'deploy', 'using-fleet', 'configuration', 'rest-api'];
+      let sectionSlugs = _.uniq(this.pages.map((page) => page.url.split(/\//).slice(-2)[0]));
       let pagesBySectionSlug = {};
 
       for (let sectionSlug of sectionSlugs) {
         pagesBySectionSlug[sectionSlug] = this.pages.filter((page) => {
           return sectionSlug === page.url.split(/\//).slice(-2)[0];
         });
+
         // Sorting pages by pageOrderInSectionPath value, README files do not have a pageOrderInSectionPath, and FAQ pages are added to the end of the sorted array below.
         pagesBySectionSlug[sectionSlug] = _.sortBy(pagesBySectionSlug[sectionSlug], (page) => {
           if (!page.sectionRelativeRepoPath.match(/README\.md$/i) && !page.sectionRelativeRepoPath.match(/FAQ\.md$/i)) {
             return page.pageOrderInSectionPath;
           }
         });
+        this.navSectionsByDocsSectionSlug[sectionSlug] = _.groupBy(pagesBySectionSlug[sectionSlug], 'docNavCategory');
       }
       // We need to re-sort the top-level sections because their htmlIds do not reflect the correct order
       pagesBySectionSlug['docs'] = DOCS_SLUGS.map((slug) => {
         return pagesBySectionSlug['docs'].find((page) => slug === _.kebabCase(page.title));
       });
-
       // We need to move any FAQs to the end of its array
       for (let slug of DOCS_SLUGS) {
         let pages = pagesBySectionSlug[slug];
@@ -174,19 +177,19 @@ parasails.registerPage('basic-documentation', {
       });
     })();
 
-    // Adding event handlers to the Headings on the page, allowing users to copy links by clicking on the heading.
+    // Adding event handlers to the links nested in headings on the page, allowing users to copy links by clicking on the link icon next to the heading.
     let headingsOnThisPage = $('#body-content').find(':header');
     for(let key in Object.values(headingsOnThisPage)){
       let heading = headingsOnThisPage[key];
-      $(heading).click(()=> {
+      // Find the child <a> element
+      let linkElementNestedInThisHeading = _.first($(heading).find('a.markdown-link'));
+      $(linkElementNestedInThisHeading).click(()=> {
         if(typeof navigator.clipboard !== 'undefined') {
-          // Find the child <a> element
-          let linkToCopy = _.first($(heading).find('a.markdown-link'));
           // If this heading has already been clicked and still has the copied class we'll just ignore this click
           if(!$(heading).hasClass('copied')){
             // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
-            if(linkToCopy) {
-              navigator.clipboard.writeText(linkToCopy.href);
+            if(linkElementNestedInThisHeading.href) {
+              navigator.clipboard.writeText(linkElementNestedInThisHeading.href);
             } else {
               navigator.clipboard.writeText(heading.baseURI.split('#')[0]);
             }
@@ -234,6 +237,24 @@ parasails.registerPage('basic-documentation', {
       return this.pagesBySectionSlug[slug];
     },
 
+    findAndSortNavSectionsByUrl: function (url='') {
+      let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
+        'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
+        'deploy':['Uncategorized','TBD','Deployment guides'],
+      };
+      let slug = _.last(url.split(/\//));
+      //
+      if(NAV_SECTION_ORDER_BY_DOCS_SLUG[slug]) {
+        let orderForThisSection = NAV_SECTION_ORDER_BY_DOCS_SLUG[slug];
+        let sortedSection = {};
+        orderForThisSection.map((section)=>{
+          sortedSection[section] = this.navSectionsByDocsSectionSlug[slug][section];
+        });
+        this.navSectionsByDocsSectionSlug[slug] = sortedSection;
+      }
+      return this.navSectionsByDocsSectionSlug[slug];
+    },
+
     getActiveSubtopicClass: function (currentLocation, url) {
       return _.last(currentLocation.split(/#/)) === _.last(url.split(/#/)) ? 'active' : '';
     },
@@ -243,7 +264,7 @@ parasails.registerPage('basic-documentation', {
         .chain(url.split(/\//))
         .last()
         .split(/-/)
-        .map((str) => str === 'fleet' ? 'Fleet' : str)
+        .map((str) => str === 'fleet' ? 'Fleet' : str === 'rest' ? 'REST' : str === 'api' ? 'API' : str)
         .join(' ')
         .capitalize()
         .value();

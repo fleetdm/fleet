@@ -16,3 +16,8 @@ declare module "*.gif" {
   const value: string;
   export = value;
 }
+
+declare module "*.pdf" {
+  const value: string;
+  export = value;
+}

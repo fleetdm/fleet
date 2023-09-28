@@ -326,6 +326,23 @@ func TestPreassignProfileValidation(t *testing.T) {
 	}
 }
 
+func TestKeyForExternalHostIdentifier(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"", ""},
+		{"abcd", "abcd"},
+		{"6f36ab2c-1a40-429b-9c9d-07c9029f4aa8", "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8"},
+		{"6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler06.test.example.com", "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8"},
+	}
+
+	for _, c := range cases {
+		got := keyForExternalHostIdentifier(c.in)
+		require.Equal(t, preassignKeyPrefix+c.want, got)
+	}
+}
+
 func generateProfile(name, ident, typ, uuid string) []byte {
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

@@ -220,25 +220,17 @@
       border-radius: 4px;
       padding: 4px 8px;
       text-decoration: none;
-
       i {
         height: 16px;
         padding-right: 5px;
       } &:hover {
         background: @core-vibrant-blue;
-
-        a {
-          text-decoration: none;
-          color: @accent-white;
-        }
-
+        color: @accent-white;
+        text-decoration: none;
       }
-
     } &:hover {
-
       [purpose='edit-button'] {
         opacity: 1;
-
       }
 
     }
@@ -296,7 +288,6 @@
     [purpose='left-sidebar'] {
       scrollbar-width: none;
       font-size: 14px;
-      border-right: 1px solid @core-fleet-black-25;
 
       a {
         color: @core-fleet-black;
@@ -330,15 +321,43 @@
 
       .topic {
         padding-left: 0px;
+        color: @core-fleet-black-75;
         &.active {
           color: @core-vibrant-blue;
         }
 
       }
 
+
     }
     [purpose='left-sidebar']::-webkit-scrollbar, [purpose='right-sidebar']::-webkit-scrollbar, [purpose='subtopics']::-webkit-scrollbar {
       display: none;
+    }
+    [purpose='expanded-nav'] {
+      li {
+        font-size: 14px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 21px;
+        color: @core-fleet-black-75;
+      }
+
+      [purpose='nav-section']:not(:last-of-type) {
+        border-bottom: 1px solid #E2E4EA;
+        margin-bottom: 16px;
+      }
+      [purpose='nav-section'] {
+        padding-bottom: 12px;
+        [purpose='nav-section-title'] {
+          font-size: 13px;
+          font-weight: 500;
+          line-height: 18px;
+          text-transform: uppercase;
+          margin-bottom: 12px;
+          padding-top: 8px;
+          color: @core-fleet-black;
+        }
+      }
     }
 
     [purpose='right-sidebar'] {
@@ -364,7 +383,7 @@
       box-shadow: 1px 2px 2px rgba(197, 199, 209, 0.2);
       border-radius: 6px;
       padding: 20px;
-      margin-top: 30px;
+      margin-top: 8px;
       color: @core-fleet-black;
       width: 100%;
       a {

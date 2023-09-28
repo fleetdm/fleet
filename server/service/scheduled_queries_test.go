@@ -60,6 +60,18 @@ func TestScheduledQueriesAuth(t *testing.T) {
 			shouldFailWrite: true,
 			shouldFailRead:  true,
 		},
+		{
+			name:            "global observer+",
+			user:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			shouldFailWrite: true,
+			shouldFailRead:  true,
+		},
+		{
+			name:            "global gitops",
+			user:            &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			shouldFailWrite: false,
+			shouldFailRead:  false, // Global gitops can read packs (exception to the write only rule)
+		},
 		// Team users cannot read or write scheduled queries using the below service APIs.
 		// Team users must use the "Team" endpoints (GetTeamScheduledQueries, TeamScheduleQuery,
 		// ModifyTeamScheduledQueries and DeleteTeamScheduledQueries).
@@ -78,6 +90,18 @@ func TestScheduledQueriesAuth(t *testing.T) {
 		{
 			name:            "team observer",
 			user:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			shouldFailWrite: true,
+			shouldFailRead:  true,
+		},
+		{
+			name:            "team observer+",
+			user:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			shouldFailWrite: true,
+			shouldFailRead:  true,
+		},
+		{
+			name:            "team gitops",
+			user:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			shouldFailWrite: true,
 			shouldFailRead:  true,
 		},

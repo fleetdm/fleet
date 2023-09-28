@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/facebookincubator/nvdtools/cvefeed"
+	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -336,4 +338,101 @@ func TestSyncsCVEFromURL(t *testing.T) {
 		err.Error(),
 		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
 	)
+}
+
+// This test is using real data from the 2022 NVD feed
+func TestGetMatchingVersionEndExcluding(t *testing.T) {
+	ctx := context.Background()
+	testDict := loadDict(t, "../testdata/nvdcve-1.1-2022.json.gz")
+
+	tests := []struct {
+		name    string
+		cve     string
+		meta    *wfn.Attributes
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "happy path with version with no Version Start",
+			cve:  "CVE-2022-40897",
+			meta: &wfn.Attributes{
+				Vendor:  "python",
+				Product: "setuptools",
+				Version: "64",
+			},
+			want:    "65.5.1",
+			wantErr: false,
+		},
+		{
+			name: "CVE matches multiple products",
+			cve:  "CVE-2022-40956",
+			meta: &wfn.Attributes{
+				Vendor:  "mozilla",
+				Product: "firefox",
+				Version: "93.0.100",
+			},
+			want:    "105.0",
+			wantErr: false,
+		},
+		{
+			name: "Nodes has nested Children",
+			cve:  "CVE-2022-40961",
+			meta: &wfn.Attributes{
+				Vendor:  "mozilla",
+				Product: "firefox",
+				Version: "93.0.100",
+			},
+			want:    "105.0",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getMatchingVersionEndExcluding(ctx, tt.cve, tt.meta, testDict, nil)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getMatchingVersionEndExcluding() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("getMatchingVersionEndExcluding() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPreprocessVersion(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"2.3.0.2", "2.3.0+2"},
+		{"2.3.0+2", "2.3.0+2"},
+		{"v2.3.0+2", "v2.3.0+2"},
+		{"2.3.0.2.5", "2.3.0+2.5"},
+		{"2.3.0", "2.3.0"},
+		{"2.3", "2.3"},
+		{"v2.3.0", "v2.3.0"},
+		{"notAVersion", "notAVersion"},
+		{"2.0.0+svn315-7fakesync1ubuntu0.22.04.1", "2.0.0+svn315-7fakesync1ubuntu0.22.04.1"},
+		{"1.21.1ubuntu2", "1.21.1+ubuntu2"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			output := preprocessVersion(tc.input)
+			if output != tc.expected {
+				t.Fatalf("expected: %s, got: %s", tc.expected, output)
+			}
+		})
+	}
+}
+
+// loadDict loads a cvefeed.Dictionary from a JSON NVD feed file.
+func loadDict(t *testing.T, path string) cvefeed.Dictionary {
+	dict, err := cvefeed.LoadJSONDictionary(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dict
 }

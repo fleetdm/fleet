@@ -10,10 +10,16 @@
 #
 # > How? This "requiredness" is provided natively by GitHub.  If a team is specified, then
 # > the logic behaves slightly differently.  See GitHub's latest documentation on CODEOWNERS
-# > for more information.
+# > for more information.  CODEOWNERS is especially useful for paths that usually end up
+# > in PRs with lots of other reviewers.)
 #
-# ⚠️ For file paths not listed, the DRI is indicated elsewhere (website/config/custom.js).
-# (In either case, the DRI is automatically requested for review when changes are proposed.)
+# ⚠️ For file paths not listed, the DRI is instead indicated in website/config/custom.js.
+# Regardless of whether a path's DRI is configured in CODEOWNERS or custom.js, the DRI is
+# automatically requested for review when changes are proposed.
+#   [!] But beware: No path should ever be configured as a DRI in both CODEOWNERS _and_
+#       the website config.
+#   [!] In addition, no path should ever be configured in CODEOWNERS if there is ALSO one
+#       of its ancestral paths configured in website/config/custom.js.
 #
 # ✅ Some paths also have multiple individuals who are allowed to make changes without review,
 # even though they are not the DRI.  These are called "maintainers".
@@ -25,7 +31,7 @@
 
 
 ##############################################################################################
-# Golang files and other files related to the core product backend.
+# 🚀 Golang files and other files related to the core product backend.
 # (1 or more Golang-literate engineers is required to review changes.)
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
@@ -36,26 +42,55 @@ go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 
 ##############################################################################################
-# React files and other files related to the core product frontend.
+# 🚀 React files and other files related to the core product frontend.
 # (1 or more React-literate engineers is required to review changes.)
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 /frontend/ @fleetdm/frontend
 
 ##############################################################################################
-# Key handbook pages w/ required reviewers
-#
-# (Especially useful for paths that tend to end up in PRs with lots of other reviewers)
+# 🚀 Config as code for infrastructure, internal security and IT use cases, and more.
+# (1 or more infra-literate engineers is required to review changes.)
+# FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
-/handbook/company/development-groups.md @mikermcneil
-/handbook/company/why-this-way.md @mikermcneil
-/handbook/company/README.md @mikermcneil
-/handbook/business-operations/README.md @mikermcneil
-/docs/ @rachaelshaw
-/schema/ @rachaelshaw #« Data tables (osquery/fleetd schema) documentation
-CHANGELOG.md @lukeheath
+/infrastructure/ @fleetdm/infra @edwardsb
+/charts/ @fleetdm/infra @edwardsb
+/terraform/ @fleetdm/infra @edwardsb
 
+##############################################################################################
+# ⚗️ Reference, config surface, built-in queries, API, and other documentation.
+#
+# (see website/config/custom.js for DRIs of other paths not listed here)
+##############################################################################################
+/docs                                           @rachaelshaw
+/docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
+/schema                                         @rachaelshaw # « Data tables (osquery/fleetd schema) documentation
 
+##############################################################################################
+# 🫧 Pricing and features
+#
+# (see website/config/custom.js for DRIs of other paths not listed here)
+##############################################################################################
+/website/views/pages/pricing.ejs                      @mikermcneil # « CEO is DRI for pricing
+/handbook/company/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for features table
+
+##############################################################################################
+# 🦿 Repo automation and change control settings
+##############################################################################################
+/CODEOWNERS                 @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
+
+##############################################################################################
+# 🦿 Handbook
+#
+# (see website/config/custom.js for DRIs of other paths not listed here)
+##############################################################################################
+/handbook                   @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
+
+##############################################################################################
+# 🦿 GitHub issue templates
+##############################################################################################
+/.github/ISSUE_TEMPLATE     @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

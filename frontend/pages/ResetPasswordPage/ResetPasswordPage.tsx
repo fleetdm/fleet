@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { size } from "lodash";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -30,11 +29,12 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     }
   }, [currentUser, token]);
 
-  const onResetErrors = () => {
-    if (size(errors)) {
-      setErrors({});
+  // No access prompt if API errors due to no role or currentUser data has no role
+  useEffect(() => {
+    if (!currentUser?.global_role && currentUser?.teams.length === 0) {
+      router.push(PATHS.NO_ACCESS);
     }
-  };
+  }, [errors, currentUser]);
 
   const continueWithLoggedInUser = async (formData: any) => {
     const { new_password } = formData;
@@ -44,7 +44,15 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
       const config = await configAPI.loadAll();
       setConfig(config);
       return router.push(PATHS.DASHBOARD);
-    } catch (response) {
+    } catch (response: any) {
+      if (
+        response.data.message.includes(
+          "either global role or team role needs to be defined"
+        )
+      ) {
+        router.push(PATHS.NO_ACCESS);
+      }
+
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
       return false;
@@ -73,12 +81,11 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
 
   return (
     <AuthenticationFormWrapper>
-      <StackedWhiteBoxes leadText="Create a new password. Your new password must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)">
-        <ResetPasswordForm
-          handleSubmit={onSubmit}
-          onChangeFunc={onResetErrors}
-          serverErrors={errors}
-        />
+      <StackedWhiteBoxes
+        router={router}
+        leadText="Create a new password. Your new password must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
+      >
+        <ResetPasswordForm handleSubmit={onSubmit} serverErrors={errors} />
       </StackedWhiteBoxes>
     </AuthenticationFormWrapper>
   );

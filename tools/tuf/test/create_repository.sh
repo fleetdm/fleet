@@ -25,11 +25,11 @@ fi
 
 SYSTEMS=${SYSTEMS:-macos linux windows}
 NUDGE_VERSION=stable
-SWIFT_DIALOG_MACOS_APP_VERSION=2.1.0
-SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4148
+SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
+SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.8.1
+    OSQUERY_VERSION=5.9.1
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -140,7 +140,7 @@ for system in $SYSTEMS; do
         rm fleet-desktop.exe
     fi
 
-    # Add Fleet Desktop application on  (if enabled).
+    # Add Fleet Desktop application on linux (if enabled).
     if [[ $system == "linux" && -n "$FLEET_DESKTOP" ]]; then
         FLEET_DESKTOP_VERSION=42.0.0 \
         make desktop-linux
@@ -151,5 +151,51 @@ for system in $SYSTEMS; do
         --name desktop \
         --version 42.0.0 -t 42.0 -t 42 -t stable
         rm desktop.tar.gz
+    fi
+
+    # Add extensions on macos (if set).
+    if [[ $system == "macos" && -n "$MACOS_TEST_EXTENSIONS" ]]; then
+        for extension in ${MACOS_TEST_EXTENSIONS//,/ }
+        do
+            extensionName=$(basename $extension)
+            extensionName=$(echo "$extensionName" | cut -d'.' -f1)
+            ./build/fleetctl updates add \
+                --path $TUF_PATH \
+                --target $extension \
+                --platform macos \
+                --name "extensions/$extensionName" \
+                --version 42.0.0 -t 42.0 -t 42 -t stable
+        done
+    fi
+
+    # Add extensions on linux (if set).
+    if [[ $system == "linux" && -n "$LINUX_TEST_EXTENSIONS" ]]; then
+        for extension in ${LINUX_TEST_EXTENSIONS//,/ }
+        do
+            extensionName=$(basename $extension)
+            extensionName=$(echo "$extensionName" | cut -d'.' -f1)
+            ./build/fleetctl updates add \
+                --path $TUF_PATH \
+                --target $extension \
+                --platform linux \
+                --name "extensions/$extensionName" \
+                --version 42.0.0 -t 42.0 -t 42 -t stable
+        done
+    fi
+
+    # Add extensions on windows (if set).
+    if [[ $system == "windows" && -n "$WINDOWS_TEST_EXTENSIONS" ]]; then
+        for extension in ${WINDOWS_TEST_EXTENSIONS//,/ }
+        do
+            extensionName=$(basename $extension)
+            extensionName=$(echo "$extensionName" | cut -d'.' -f1)
+            echo "$FILE" | cut -d'.' -f2
+            ./build/fleetctl updates add \
+                --path $TUF_PATH \
+                --target $extension \
+                --platform windows \
+                --name "extensions/$extensionName" \
+                --version 42.0.0 -t 42.0 -t 42 -t stable
+        done
     fi
 done

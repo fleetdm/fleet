@@ -1020,10 +1020,11 @@ func TestMDMTokenUpdate(t *testing.T) {
 	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 		require.Equal(t, uuid, hostUUID)
 		return &fleet.HostMDMCheckinInfo{
-			HardwareSerial:   serial,
-			DisplayName:      model,
-			InstalledFromDEP: true,
-			TeamID:           wantTeamID,
+			HardwareSerial:     serial,
+			DisplayName:        model,
+			InstalledFromDEP:   true,
+			TeamID:             wantTeamID,
+			DEPAssignedToFleet: true,
 		}, nil
 	}
 
@@ -1116,17 +1117,17 @@ func TestMDMCheckout(t *testing.T) {
 }
 
 func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
-	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds}
 	ctx := context.Background()
 	hostUUID := "ABC-DEF-GHI"
 	commandUUID := "COMMAND-UUID"
+	profileIdentifier := "PROFILE-IDENTIFIER"
 
 	cases := []struct {
 		status      string
 		requestType string
 		errors      []mdm.ErrorChain
 		want        *fleet.HostMDMAppleProfile
+		prevRetries uint
 	}{
 		{
 			status:      "Acknowledged",
@@ -1154,6 +1155,20 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			errors: []mdm.ErrorChain{
 				{ErrorCode: 123, ErrorDomain: "testDomain", USEnglishDescription: "testMessage"},
 			},
+			prevRetries: 0, // expect to retry
+			want: &fleet.HostMDMAppleProfile{
+				Status:        &fleet.MDMAppleDeliveryPending,
+				Detail:        "",
+				OperationType: fleet.MDMAppleOperationTypeInstall,
+			},
+		},
+		{
+			status:      "Error",
+			requestType: "InstallProfile",
+			errors: []mdm.ErrorChain{
+				{ErrorCode: 123, ErrorDomain: "testDomain", USEnglishDescription: "testMessage"},
+			},
+			prevRetries: 1, // expect to fail
 			want: &fleet.HostMDMAppleProfile{
 				Status:        &fleet.MDMAppleDeliveryFailed,
 				Detail:        "testDomain (123): testMessage\n",
@@ -1185,32 +1200,59 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, targetCmd string) (string, error) {
-			require.Equal(t, commandUUID, targetCmd)
-			return c.requestType, nil
-		}
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("%s%s-%d", c.requestType, c.status, i), func(t *testing.T) {
+			ds := new(mock.Store)
+			svc := MDMAppleCheckinAndCommandService{ds: ds}
+			ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, targetCmd string) (string, error) {
+				require.Equal(t, commandUUID, targetCmd)
+				return c.requestType, nil
+			}
+			ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+				c.want.CommandUUID = commandUUID
+				c.want.HostUUID = hostUUID
+				require.Equal(t, c.want, profile)
+				return nil
+			}
+			ds.GetHostMDMProfileRetryCountByCommandUUIDFunc = func(ctx context.Context, hstUUID, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
+				require.Equal(t, hostUUID, hstUUID)
+				require.Equal(t, commandUUID, cmdUUID)
+				return fleet.HostMDMProfileRetryCount{ProfileIdentifier: profileIdentifier, Retries: c.prevRetries}, nil
+			}
+			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, hostUUID string, toVerify, toFail, toRetry []string) error {
+				require.Equal(t, hostUUID, hostUUID)
+				require.Nil(t, toVerify)
+				require.Nil(t, toFail)
+				require.ElementsMatch(t, toRetry, []string{profileIdentifier})
+				return nil
+			}
 
-		ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
-			c.want.CommandUUID = commandUUID
-			c.want.HostUUID = hostUUID
-			require.Equal(t, c.want, profile)
-			return nil
-		}
-
-		_, err := svc.CommandAndReportResults(
-			&mdm.Request{Context: ctx},
-			&mdm.CommandResults{
-				Enrollment:  mdm.Enrollment{UDID: hostUUID},
-				CommandUUID: commandUUID,
-				Status:      c.status,
-				RequestType: c.requestType,
-				ErrorChain:  c.errors,
-			},
-		)
-		require.NoError(t, err)
-		require.True(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
-		require.True(t, ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
+			_, err := svc.CommandAndReportResults(
+				&mdm.Request{Context: ctx},
+				&mdm.CommandResults{
+					Enrollment:  mdm.Enrollment{UDID: hostUUID},
+					CommandUUID: commandUUID,
+					Status:      c.status,
+					RequestType: c.requestType,
+					ErrorChain:  c.errors,
+				},
+			)
+			require.NoError(t, err)
+			require.True(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
+			var shouldCheckCount, shouldRetry, shouldUpdateOrDelete bool
+			if c.requestType == "InstallProfile" && c.status == "Error" {
+				shouldCheckCount = true
+			}
+			if shouldCheckCount && c.prevRetries == uint(0) {
+				shouldRetry = true
+			}
+			if c.requestType == "RemoveProfile" || (c.requestType == "InstallProfile" && !shouldRetry) {
+				shouldUpdateOrDelete = true
+			}
+			require.Equal(t, shouldCheckCount, ds.GetHostMDMProfileRetryCountByCommandUUIDFuncInvoked)
+			require.Equal(t, shouldRetry, ds.UpdateHostMDMProfilesVerificationFuncInvoked)
+			require.Equal(t, shouldUpdateOrDelete, ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
+		})
 	}
 }
 
@@ -1943,6 +1985,11 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 			2: contents2,
 			4: contents4,
 		}, nil
+	}
+
+	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
+		require.Empty(t, payload)
+		return nil
 	}
 
 	var enqueueFailForOp fleet.MDMAppleOperationType

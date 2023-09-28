@@ -21,7 +21,7 @@ interface IInfoCardProps {
         text: string;
         onClick?: () => void;
       };
-  total_host_count?: string | (() => string | undefined);
+  total_host_count?: number;
   showTitle?: boolean;
 }
 
@@ -107,11 +107,15 @@ const useInfoCard = ({
             <div className={`${baseClass}__section-title-group`}>
               <div className={`${baseClass}__section-title`}>
                 <h2>{title}</h2>
-                {total_host_count && <span>{total_host_count}</span>}
+                {total_host_count !== undefined && (
+                  <span>{total_host_count}</span>
+                )}
               </div>
-              <div className={`${baseClass}__section-title-detail`}>
-                {titleDetail}
-              </div>
+              {titleDetail && (
+                <div className={`${baseClass}__section-title-detail`}>
+                  {titleDetail}
+                </div>
+              )}
             </div>
             {renderAction()}
           </div>

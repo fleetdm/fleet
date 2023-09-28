@@ -1,6 +1,8 @@
 import React, { useContext, useEffect } from "react";
 import classnames from "classnames";
 import { NotificationContext } from "context/notification";
+import Button from "components/buttons/Button/Button";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "modal";
 
@@ -11,6 +13,7 @@ export interface IModalProps {
   children: JSX.Element;
   onExit: () => void;
   onEnter?: () => void;
+  /**     default 650px, large 800px, xlarge 850px, auto auto-width */
   width?: ModalWidth;
   className?: string;
 }
@@ -71,7 +74,9 @@ const Modal = ({
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
           <div className={`${baseClass}__ex`}>
-            <button className="button button--unstyled" onClick={onExit} />
+            <Button className="button button--unstyled" onClick={onExit}>
+              <Icon name="ex" color="core-fleet-black" size="medium" />
+            </Button>
           </div>
         </div>
         <div className={`${baseClass}__content`}>{children}</div>

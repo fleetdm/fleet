@@ -6,8 +6,6 @@
     .controls {
       // vulnerable software dropdown filter
       .Select {
-        width: 225px;
-
         .Select-menu-outer {
           width: 364px;
           max-height: 310px;
@@ -19,23 +17,17 @@
         .Select-value {
           padding-left: $pad-medium;
           padding-right: $pad-medium;
-
-          &::before {
-            display: inline-block;
-            position: absolute;
-            padding: 5px 0 0 0; // centers spin
-            content: url(../assets/images/icon-filter-black-16x16@2x.png);
-            transform: scale(0.5);
-            height: 26px;
-            left: 2px;
-          }
         }
-        .Select-value-label {
-          padding-left: $pad-large;
-          font-size: $small !important;
+
+        .dropdown__custom-value-label {
+          width: 155px; // Override 105px for longer text options
         }
       }
     }
+  }
+
+  .table-container__search-input {
+    width: 325px; // Custom to fit placeholder text
   }
 
   .data-table-block {
@@ -196,6 +188,10 @@
   // NOTE: 990px is a custom breakpoint to deal with responsiveness of the
   // table controls.
   @media (max-width: $break-md) {
+    .table-container__search-input {
+      width: 100%; // Override custom placeholder width
+    }
+
     thead .name__header {
       width: $col-md;
       min-width: 252px;

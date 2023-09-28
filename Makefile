@@ -370,17 +370,28 @@ endif
 # Generate swiftDialog.app.tar.gz bundle from the swiftDialog repo.
 #
 # Usage:
-# make swift-dialog-app-tar-gz version=2.1.0 build=4148 out-path=.
+# make swift-dialog-app-tar-gz version=2.2.1 build=4591 out-path=.
 swift-dialog-app-tar-gz:
 ifneq ($(shell uname), Darwin)
 	@echo "Makefile target swift-dialog-app-tar-gz is only supported on macOS"
 	@exit 1
 endif
+	# locking the version of swiftDialog to 2.2.1-4591 as newer versions
+	# migth have layout issues.
+ifneq ($(version), 2.2.1)
+	@echo "Version is locked at 2.1.0, see comments in Makefile target for details"
+	@exit 1
+endif
+
+ifneq ($(build), 4591)
+	@echo "Build version is locked at 4591, see comments in Makefile target for details"
+	@exit 1
+endif
 	$(eval TMP_DIR := $(shell mktemp -d))
-	curl -L https://github.com/bartreardon/swiftDialog/releases/download/v$(version)/dialog-$(version)-$(build).pkg --output $(TMP_DIR)/swiftDialog-$(version).pkg
+	curl -L https://github.com/swiftDialog/swiftDialog/releases/download/v$(version)/dialog-$(version)-$(build).pkg --output $(TMP_DIR)/swiftDialog-$(version).pkg
 	pkgutil --expand $(TMP_DIR)/swiftDialog-$(version).pkg $(TMP_DIR)/swiftDialog_pkg_expanded
 	mkdir -p $(TMP_DIR)/swiftDialog_pkg_payload_expanded
-	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
+	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/tmp-package.pkg/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
 	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
 	rm -rf $(TMP_DIR)
@@ -428,6 +439,7 @@ desktop-linux:
 		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
 		/usr/lib/x86_64-linux-gnu/libayatana-indicator3.so.7 \
 		/lib/x86_64-linux-gnu/libm.so.6 \
+		/usr/lib/x86_64-linux-gnu/libcairo.so.2 \
 		/usr/lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4 \
 		/usr/lib/x86_64-linux-gnu/libdbusmenu-glib.so.4 \
 		/output/fleet-desktop && cd /output && \

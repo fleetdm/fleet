@@ -54,22 +54,6 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
-  it("renders the Query action as disabled if the host is offline", async () => {
-    const render = createCustomRenderer();
-
-    const { user } = render(
-      <HostActionsDropdown
-        onSelect={noop}
-        hostStatus="offline"
-        hostMdmEnrollemntStatus="On (automatic)"
-      />
-    );
-
-    await user.click(screen.getByText("Actions"));
-
-    expect(screen.getByText("Query").parentNode).toHaveClass("is-disabled");
-  });
-
   it("renders the Show Disk Encryption Key action when on premium tier and we store the disk encryption key", async () => {
     const render = createCustomRenderer({
       context: {

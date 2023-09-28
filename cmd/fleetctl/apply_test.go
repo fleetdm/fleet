@@ -671,6 +671,46 @@ spec:
   resolution: "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault."
   platform: darwin
 `
+	duplicateTeamPolicySpec = `---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  platform: darwin
+  team: Team1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  platform: darwin
+  team: Team1
+`
+	duplicateGlobalPolicySpec = `---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  platform: darwin
+`
 	enrollSecretsSpec = `---
 apiVersion: v1
 kind: enroll_secret
@@ -740,6 +780,18 @@ func TestApplyPolicies(t *testing.T) {
 		assert.NotEmpty(t, p.Platform)
 	}
 	assert.True(t, ds.TeamByNameFuncInvoked)
+}
+
+func TestApplyPoliciesValidation(t *testing.T) {
+	// Team Policy Spec
+	filename := writeTmpYml(t, duplicateTeamPolicySpec)
+	errorMsg := `applying policies: policy names must be globally unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
+	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
+
+	// Global Policy Spec
+	filename = writeTmpYml(t, duplicateGlobalPolicySpec)
+	errorMsg = `applying policies: policy names must be globally unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
+	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
 }
 
 func mobileconfigForTest(name, identifier string) []byte {
@@ -887,6 +939,11 @@ spec:
         pack_delimiter: /
     overrides: {}
 `)
+
+	// test applying with dry-run flag
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// test applying for real
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
 
@@ -914,6 +971,11 @@ spec:
       macos_setup_assistant: %s
     windows_enabled_and_configured: true
 `, mobileConfigPath, emptySetupAsst))
+
+	// first apply with dry-run
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
@@ -945,6 +1007,11 @@ spec:
     macos_setup:
       bootstrap_package: %s
 `, bootstrapURL))
+
+	// first apply with dry-run
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
@@ -988,6 +1055,10 @@ spec:
       - secret: BBB
 `, mobileConfigPath))
 
+	// first apply with dry-run
+	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
 	assert.Equal(t, fleet.TeamMDM{
@@ -1015,6 +1086,11 @@ spec:
       macos_setup:
         macos_setup_assistant: %s
 `, emptySetupAsst))
+
+	// first apply with dry-run
+	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
@@ -1045,6 +1121,11 @@ spec:
       macos_setup:
         bootstrap_package: %s
 `, bootstrapURL))
+
+	// first apply with dry-run
+	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+
+	// then apply for real
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// all left untouched, only bootstrap package added
 	assert.Equal(t, fleet.TeamMDM{
@@ -1122,7 +1203,7 @@ spec:
 
 	// Apply queries.
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return nil, sql.ErrNoRows
 	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
@@ -1223,7 +1304,7 @@ func TestApplyQueries(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return nil, sql.ErrNoRows
 	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {

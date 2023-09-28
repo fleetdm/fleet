@@ -281,6 +281,8 @@ func (c *Client) ApplyGroup(
 			logf(format, args...)
 		}
 	}
+
+	// specs.Queries must be applied before specs.Packs because packs reference queries.
 	if len(specs.Queries) > 0 {
 		if opts.DryRun {
 			logfn("[!] ignoring queries, dry run mode only supported for 'config' and 'team' specs\n")
@@ -307,6 +309,11 @@ func (c *Client) ApplyGroup(
 		if opts.DryRun {
 			logfn("[!] ignoring policies, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
+			// Policy names must be unique, return error if duplicate policy names are found
+			if policyName := fleet.FirstDuplicatePolicySpecName(specs.Policies); policyName != "" {
+				return fmt.Errorf("applying policies: policy names must be globally unique. Please correct policy %q and try again.", policyName)
+			}
+
 			// If set, override the team in all the policies.
 			if opts.TeamForPolicies != "" {
 				for _, policySpec := range specs.Policies {

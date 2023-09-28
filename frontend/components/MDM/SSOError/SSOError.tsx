@@ -14,7 +14,10 @@ const SSOError = ({ className }: ISSOErrorProps) => {
 
   return (
     <DataError className={classNames}>
-      <p>Please contact your IT admin at +1-(415)-651-2575.</p>
+      <p>
+        Select <strong>Cancel</strong> and try again. If this keeps happening,
+        please contact IT support.
+      </p>
     </DataError>
   );
 };

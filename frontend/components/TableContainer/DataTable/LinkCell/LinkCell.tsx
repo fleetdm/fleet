@@ -1,40 +1,55 @@
+// Utilizes Link over Button so we can right click links
 import React from "react";
 
-// using browserHistory directly because "router"
-// is difficult to pass as a prop
-import { browserHistory } from "react-router";
-
-import Button from "components/buttons/Button/Button";
+import { Link } from "react-router";
+import classnames from "classnames";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface ILinkCellProps {
   value: string | JSX.Element;
   path: string;
+  className?: string;
+  customOnClick?: (e: React.MouseEvent) => void;
+  /** allows viewing overflow for tooltip */
+  tooltipContent?: string;
   title?: string;
-  classes?: string;
-  customOnClick?: () => void;
 }
+
+const baseClass = "link-cell";
 
 const LinkCell = ({
   value,
   path,
-  title,
-  classes,
+  className,
   customOnClick,
+  title,
+  tooltipContent,
 }: ILinkCellProps): JSX.Element => {
-  const onClick = (): void => {
-    customOnClick && customOnClick();
-    browserHistory.push(path);
+  const cellClasses = classnames(baseClass, className);
+
+  const onClick = (e: React.MouseEvent): void => {
+    customOnClick && customOnClick(e);
   };
 
-  return (
-    <Button
-      className={`link-cell ${classes}`}
-      onClick={onClick}
-      variant="text-link"
+  return tooltipContent ? (
+    <TooltipWrapper
+      position="top"
+      className="link-cell-tooltip-wrapper"
+      tipContent={tooltipContent}
+    >
+      <Link className={cellClasses} to={path} onClick={onClick} title={title}>
+        {value}
+      </Link>
+    </TooltipWrapper>
+  ) : (
+    <Link
+      className={cellClasses}
+      to={path}
+      onClick={customOnClick}
       title={title}
     >
       {value}
-    </Button>
+    </Link>
   );
 };
 

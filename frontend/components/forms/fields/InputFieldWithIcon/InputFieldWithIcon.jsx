@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
+import Icon from "components/Icon/Icon";
 import FleetIcon from "components/icons/FleetIcon";
 import TooltipWrapper from "components/TooltipWrapper";
 import InputField from "../InputField";
@@ -14,6 +15,7 @@ class InputFieldWithIcon extends InputField {
     error: PropTypes.string,
     hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     iconName: PropTypes.string,
+    iconSvg: PropTypes.string,
     label: PropTypes.string,
     name: PropTypes.string,
     onChange: PropTypes.func,
@@ -25,6 +27,7 @@ class InputFieldWithIcon extends InputField {
     iconPosition: PropTypes.oneOf(["start", "end"]),
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     tooltip: PropTypes.string,
+    ignore1Password: PropTypes.bool,
   };
 
   renderHeading = () => {
@@ -67,6 +70,7 @@ class InputFieldWithIcon extends InputField {
       className,
       error,
       iconName,
+      iconSvg,
       name,
       placeholder,
       tabIndex,
@@ -75,6 +79,7 @@ class InputFieldWithIcon extends InputField {
       disabled,
       iconPosition,
       inputOptions,
+      ignore1Password,
     } = this.props;
     const { onInputChange, renderHint } = this;
 
@@ -102,7 +107,7 @@ class InputFieldWithIcon extends InputField {
 
     return (
       <div className={wrapperClasses}>
-        {this.renderHeading()}
+        {this.props.label && this.renderHeading()}
         <input
           id={name}
           name={name}
@@ -117,7 +122,9 @@ class InputFieldWithIcon extends InputField {
           value={value}
           disabled={disabled}
           {...inputOptions}
+          data-1p-ignore={ignore1Password}
         />
+        {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
         {iconName && <FleetIcon name={iconName} className={iconClasses} />}
         {renderHint()}
       </div>

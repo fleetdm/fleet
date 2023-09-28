@@ -16,7 +16,7 @@ Enrolling your device with more than one Fleet server is not currently possible.
 
 ### `dep: command not found`
 
-```
+```sh
 /bin/bash: dep: command not found
 make: *** [.deps] Error 127
 ```
@@ -26,7 +26,7 @@ See the Go language documentation for [workspaces](https://golang.org/doc/code.h
 
 ### `undefined: Asset`
 
-```
+```sh
 server/fleet/emails.go:90:23: undefined: Asset
 make: *** [fleet] Error 2
 ```
@@ -39,7 +39,7 @@ The `osquery` directory contains a docker-compose.yml and additional configurati
 
 To start osquery, first retrieve the "Enroll secret" from Fleet (by clicking the "Add New Host") button in the Fleet dashboard, or with `fleetctl get enroll-secret`).
 
-```
+```sh
 cd tools/osquery
 ENROLL_SECRET=<copy from fleet> docker-compose up
 ```
@@ -49,7 +49,7 @@ ENROLL_SECRET=<copy from fleet> docker-compose up
 If you are trying to run `fleetctl preview` and seeing errors about self-signed certificates, the
 most likely culprit is that you're behind a corporate proxy server and need to [add the proxy
 settings to Docker](https://docs.docker.com/network/proxy/) so that the container created by
-`fleetctl preview` is able to connect properly. 
+`fleetctl preview` is able to connect properly.
 
 ## Will updating fleetctl lead to loss of data in fleetctl preview?
 
@@ -62,7 +62,7 @@ Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage
 
 If you tried running `fleetctl preview` and you get the following error:
 
-```
+```sh
 fleetctl preview
 Downloading dependencies into /root/.fleet/preview...
 Pulling Docker dependencies...
@@ -73,7 +73,7 @@ Failed to run docker-compose
 
 You're probably running an old version of Docker. Download the installer for your platform from the [Docker Documentation](https://docs.docker.com/compose/install/).
 
-## What API endpoints do osquery and Orbit need access to?
+## What API endpoints do osquery and Fleetd need access to?
 
 Based on the configuration, osquery running on hosts will need access to these API endpoints:
 
@@ -85,12 +85,14 @@ Based on the configuration, osquery running on hosts will need access to these A
 * `/api/v1/osquery/carve/block`
 * `/api/v1/osquery/log`
 
-If you also have Orbit running on hosts, it will need access to these API endpoints:
+If you also have Fleetd running on hosts, it will need access to these API endpoints:
 
 * `/api/fleet/orbit/enroll`
 * `/api/fleet/orbit/config`
 * `/api/fleet/orbit/device_token`
 * `/api/fleet/orbit/ping`
+* `/api/fleet/orbit/scripts/request`
+* `/api/fleet/orbit/scripts/result`
 * `/api/osquery/log`
 
 <meta name="description" value="Find commonly asked questions and answers about contributing to Fleet as part of our community.">

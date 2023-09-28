@@ -43,7 +43,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{}, nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context) ([]*fleet.Policy, error) {
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 		return nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
@@ -134,7 +134,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.ListGlobalPolicies(ctx)
+			_, err = svc.ListGlobalPolicies(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetPolicyByIDQueries(ctx, 1)
@@ -221,4 +221,36 @@ func TestRemoveGlobalPoliciesFromWebhookConfig(t *testing.T) {
 			require.Equal(t, tc.expCfg, storedAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 		})
 	}
+}
+
+// test ApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs
+func TestApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs(t *testing.T) {
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	req := []*fleet.PolicySpec{
+		{
+			Name:     "query1",
+			Query:    "select 1;",
+			Platform: "windows",
+		},
+		{
+			Name:     "query1",
+			Query:    "select 1;",
+			Platform: "windows",
+		},
+	}
+
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	err := svc.ApplyPolicySpecs(ctx, req)
+
+	badRequestError := &fleet.BadRequestError{}
+	require.ErrorAs(t, err, &badRequestError)
+	require.Equal(t, "duplicate policy names not allowed", badRequestError.Message)
 }

@@ -58,7 +58,7 @@ func testDeleteEntity(t *testing.T, ds *Datastore) {
 func testDeleteEntityByName(t *testing.T, ds *Datastore) {
 	defer TruncateTables(t, ds)
 
-	query1 := test.NewQuery(t, ds, t.Name()+"time", "select * from time", 0, true)
+	query1 := test.NewQuery(t, ds, nil, t.Name()+"time", "select * from time", 0, true)
 
 	require.NoError(t, ds.deleteEntityByName(context.Background(), queriesTable, query1.Name))
 
@@ -70,9 +70,9 @@ func testDeleteEntityByName(t *testing.T, ds *Datastore) {
 func testDeleteEntities(t *testing.T, ds *Datastore) {
 	defer TruncateTables(t, ds)
 
-	query1 := test.NewQuery(t, ds, t.Name()+"time1", "select * from time", 0, true)
-	query2 := test.NewQuery(t, ds, t.Name()+"time2", "select * from time", 0, true)
-	query3 := test.NewQuery(t, ds, t.Name()+"time3", "select * from time", 0, true)
+	query1 := test.NewQuery(t, ds, nil, t.Name()+"time1", "select * from time", 0, true)
+	query2 := test.NewQuery(t, ds, nil, t.Name()+"time2", "select * from time", 0, true)
+	query3 := test.NewQuery(t, ds, nil, t.Name()+"time3", "select * from time", 0, true)
 
 	count, err := ds.deleteEntities(context.Background(), queriesTable, []uint{query1.ID, query2.ID})
 	require.NoError(t, err)

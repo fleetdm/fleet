@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 4.48.0"
+      version = "~> 5.10.0"
     }
     docker = {
       source  = "kreuzwerker/docker"
@@ -14,11 +14,11 @@ terraform {
     }
     random = {
       source  = "hashicorp/random"
-      version = "~> 3.1.2"
+      version = "~> 3.5.1"
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = "~> 3.18.0"
+      version = "~> 4.11.0"
     }
   }
   backend "s3" {}
@@ -127,7 +127,7 @@ resource "aws_kms_key" "main" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "3.12.0"
+  version = "5.1.1"
 
   name = local.prefix
   cidr = "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.0.0/16"
@@ -166,6 +166,10 @@ module "vpc" {
 
   single_nat_gateway = true
   enable_nat_gateway = true
+
+  manage_default_network_acl    = false
+  manage_default_route_table    = false
+  manage_default_security_group = false
 }
 
 module "shared-infrastructure" {
@@ -183,6 +187,7 @@ module "pre-provisioner" {
   prefix            = local.prefix
   vpc               = module.vpc
   kms_key           = aws_kms_key.main
+  installer_kms_key = module.SharedInfrastructure.installer_kms_key
   dynamodb_table    = aws_dynamodb_table.lifecycle-table
   remote_state      = module.remote_state
   mysql_secret      = module.shared-infrastructure.mysql_secret

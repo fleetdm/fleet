@@ -62,8 +62,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	_ "go.elastic.co/apm/module/apmsql"
-	_ "go.elastic.co/apm/module/apmsql/mysql"
+	_ "go.elastic.co/apm/module/apmsql/v2"
+	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -234,7 +234,7 @@ the way that the Fleet server works.
 					"#\n"+
 					"#   To run the server without performing migrations:\n"+
 					"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
-					"#     - Set config updates.allow_mising_migrations to true, or,\n"+
+					"#     - Set config updates.allow_missing_migrations to true, or,\n"+
 					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 					"################################################################################\n",
 					migrationStatus.MissingTable, migrationStatus.MissingData, os.Args[0])

@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strconv"
 
@@ -28,6 +29,15 @@ func (c *Client) CreateTeam(teamPayload fleet.TeamPayload) (*fleet.Team, error) 
 	var responseBody teamResponse
 	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
+		return nil, err
+	}
+	return responseBody.Team, nil
+}
+
+func (c *Client) GetTeam(teamID uint) (*fleet.Team, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID)
+	var responseBody getTeamResponse
+	if err := c.authenticatedRequest(getTeamRequest{}, verb, path, &responseBody); err != nil {
 		return nil, err
 	}
 	return responseBody.Team, nil

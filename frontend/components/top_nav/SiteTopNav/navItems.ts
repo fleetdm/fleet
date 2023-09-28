@@ -77,14 +77,6 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
       },
-    },
-    {
-      name: "Schedule",
-      location: {
-        regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
-        pathname: PATHS.MANAGE_SCHEDULE,
-      },
-      exclude: !isMaintainerOrAdmin,
       withParams: { type: "query", names: ["team_id"] },
     },
     {

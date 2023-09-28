@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -17,7 +18,7 @@ type InviteMailer struct {
 }
 
 func (i *InviteMailer) Message() ([]byte, error) {
-	t, err := getTemplate("server/mail/templates/invite_token.html")
+	t, err := server.GetTemplate("server/mail/templates/invite_token.html", "email_template")
 	if err != nil {
 		return nil, err
 	}

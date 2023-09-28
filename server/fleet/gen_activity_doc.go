@@ -15,9 +15,9 @@ func main() {
 	var b strings.Builder
 
 	b.WriteString(`<!-- DO NOT EDIT. This document is automatically generated. -->
-# Audit Activities
+# Audit logs
 
-Fleet logs the following information for administrative actions (in JSON):
+Fleet logs the following information for administrative activities (in JSON):
 
 - ` + "`" + `created_at` + "`" + `: Timestamp of the event.
 - ` + "`" + `id` + "`" + `: Unique ID of the generated event in Fleet.
@@ -44,8 +44,12 @@ Example:
 	}
 }
 ` + "```" + `
+
+You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
+
+To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
 	
-## List of activities and their specific details
+## Activity types
 
 `)
 
@@ -64,8 +68,11 @@ Example:
 		}
 	}
 	b.WriteString(`
-
-<meta name="pageOrderInSection" value="1400">`)
+<meta name="title" value="Audit logs">
+<meta name="pageOrderInSection" value="1400">
+<meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">
+<meta name="navSection" value="Dig deeper">
+`)
 
 	if err := os.WriteFile(os.Args[1], []byte(b.String()), 0600); err != nil {
 		panic(err)

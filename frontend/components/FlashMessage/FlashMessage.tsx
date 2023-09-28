@@ -6,9 +6,6 @@ import { INotification } from "interfaces/notification";
 import Icon from "components/Icon/Icon";
 import Button from "components/buttons/Button";
 
-import CloseIcon from "../../../assets/images/icon-close-white-16x16@2x.png";
-import CloseIconBlack from "../../../assets/images/icon-close-fleet-black-16x16@2x.png";
-
 const baseClass = "flash-message";
 
 export interface IFlashMessage {
@@ -91,9 +88,13 @@ const FlashMessage = ({
             className={`${baseClass}__remove ${baseClass}__remove--${alertType} button--unstyled`}
             onClick={onRemoveFlash}
           >
-            <img
-              src={alertType === "warning-filled" ? CloseIconBlack : CloseIcon}
-              alt="close icon"
+            <Icon
+              name="ex"
+              color={
+                alertType === "warning-filled"
+                  ? "core-fleet-black"
+                  : "core-fleet-white"
+              }
             />
           </button>
         </div>

@@ -97,7 +97,7 @@ func TestRecord(t *testing.T) {
 	ds.AsyncBatchUpdatePolicyTimestampFunc = func(ctx context.Context, ids []uint, ts time.Time) error {
 		return nil
 	}
-	ds.SaveHostPackStatsFunc = func(ctx context.Context, hid uint, stats []fleet.PackStats) error {
+	ds.SaveHostPackStatsFunc = func(ctx context.Context, teamID *uint, hid uint, stats []fleet.PackStats) error {
 		return nil
 	}
 	ds.AsyncBatchSaveHostsScheduledQueryStatsFunc = func(ctx context.Context, batch map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
@@ -126,12 +126,16 @@ func TestRecord(t *testing.T) {
 			pool := redistest.SetupRedis(t, "policy_pass", false, false, false)
 			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
+			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesAsync(t, ds, pool) })
 		})
 
 		t.Run("cluster", func(t *testing.T) {
 			pool := redistest.SetupRedis(t, "policy_pass", true, true, false)
 			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
+			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesAsync(t, ds, pool) })
 		})
 	})
 
@@ -197,22 +201,22 @@ func TestActiveHostIDsSet(t *testing.T) {
 		}
 
 		// store a new one but now use t[1] as purge date - will remove two
-		ts = append(ts, time.Unix(ts[len(ts)-1], 0).Add(time.Second).Unix())
-		n, err := storePurgeActiveHostID(pool, zkey, uint(len(ts)), time.Unix(ts[len(ts)-1], 0), time.Unix(ts[1], 0))
+		ts2 := append(ts, time.Unix(ts[len(ts)-1], 0).Add(time.Second).Unix())
+		n, err := storePurgeActiveHostID(pool, zkey, uint(len(ts2)), time.Unix(ts2[len(ts2)-1], 0), time.Unix(ts2[1], 0))
 		require.NoError(t, err)
 		require.Equal(t, 2, n)
 
 		// report t[3] and t[5] (hosts 4 and 6) as processed
 		batch := []hostIDLastReported{
-			{HostID: 4, LastReported: ts[3]},
-			{HostID: 6, LastReported: ts[5]},
+			{HostID: 4, LastReported: ts2[3]},
+			{HostID: 6, LastReported: ts2[5]},
 		}
 		n, err = removeProcessedHostIDs(pool, zkey, batch)
 		require.NoError(t, err)
 		require.Equal(t, 2, n)
 
 		// update t[6] of host 7, as if it had reported new data since the load
-		newT6 := time.Unix(ts[len(ts)-1], 0).Add(time.Second)
+		newT6 := time.Unix(ts2[len(ts2)-1], 0).Add(time.Second)
 		n, err = storePurgeActiveHostID(pool, zkey, 7, newT6, tpurgeNone)
 		require.NoError(t, err)
 		require.Equal(t, 0, n)
@@ -222,8 +226,8 @@ func TestActiveHostIDsSet(t *testing.T) {
 		// its old timestamp, to simluate that it changed since loading the
 		// information)
 		batch = []hostIDLastReported{
-			{HostID: 7, LastReported: ts[6]},
-			{HostID: 8, LastReported: ts[7]},
+			{HostID: 7, LastReported: ts2[6]},
+			{HostID: 8, LastReported: ts2[7]},
 		}
 		n, err = removeProcessedHostIDs(pool, zkey, batch)
 		require.NoError(t, err)
@@ -234,12 +238,12 @@ func TestActiveHostIDsSet(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, activeHosts, 6)
 		want := []hostIDLastReported{
-			{HostID: 3, LastReported: ts[2]},
-			{HostID: 5, LastReported: ts[4]},
+			{HostID: 3, LastReported: ts2[2]},
+			{HostID: 5, LastReported: ts2[4]},
 			{HostID: 7, LastReported: newT6.Unix()},
-			{HostID: 9, LastReported: ts[8]},
-			{HostID: 10, LastReported: ts[9]},
-			{HostID: 11, LastReported: ts[10]},
+			{HostID: 9, LastReported: ts2[8]},
+			{HostID: 10, LastReported: ts2[9]},
+			{HostID: 11, LastReported: ts2[10]},
 		}
 		require.ElementsMatch(t, want, activeHosts)
 	}

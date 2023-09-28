@@ -2,11 +2,14 @@ package update
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/rs/zerolog/log"
@@ -41,12 +44,20 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 			}
 
 			var cmdGotCalled bool
+			var depAssignedCheckGotCalled bool
 			renewFetcher := &renewEnrollmentProfileConfigFetcher{
 				Fetcher:   fetcher,
 				Frequency: time.Hour, // doesn't matter for this test
 				runCmdFn: func() error {
 					cmdGotCalled = true
 					return c.cmdErr
+				},
+				checkEnrollmentFn: func() (bool, string, error) {
+					return false, "", nil
+				},
+				checkAssignedEnrollmentProfileFn: func(url string) error {
+					depAssignedCheckGotCalled = true
+					return nil
 				},
 			}
 
@@ -55,6 +66,7 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 			require.Equal(t, fetcher.cfg, cfg) // the renew enrollment wrapper properly returns the expected config
 
 			require.Equal(t, c.wantCmdCalled, cmdGotCalled)
+			require.Equal(t, c.wantCmdCalled, depAssignedCheckGotCalled)
 			require.Contains(t, logBuf.String(), c.wantLog)
 		})
 	}
@@ -72,13 +84,25 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 	}
 
 	var cmdCallCount int
+	isEnrolled := false
+	isAssigned := true
 	chProceed := make(chan struct{})
 	renewFetcher := &renewEnrollmentProfileConfigFetcher{
 		Fetcher:   fetcher,
 		Frequency: 2 * time.Second, // just to be safe with slow environments (CI)
 		runCmdFn: func() error {
-			<-chProceed    // will be unblocked only when allowed
 			cmdCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
+			return nil
+		},
+		checkEnrollmentFn: func() (bool, string, error) {
+			<-chProceed // will be unblocked only when allowed
+			return isEnrolled, "", nil
+		},
+		checkAssignedEnrollmentProfileFn: func(url string) error {
+			<-chProceed // will be unblocked only when allowed
+			if !isAssigned {
+				return errors.New("not assigned")
+			}
 			return nil
 		},
 	}
@@ -120,7 +144,41 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 	cfg, err = renewFetcher.GetConfig()
 	assertResult(cfg, err)
 
+	// wait for the fetcher's frequency to pass
+	time.Sleep(renewFetcher.Frequency)
+
+	// this call doesn't execute the command since the host is already
+	// enrolled
+	isEnrolled = true
+	cfg, err = renewFetcher.GetConfig()
+	assertResult(cfg, err)
+
 	require.Equal(t, 2, cmdCallCount) // the initial call and the one after sleep
+
+	// wait for the fetcher's frequency to pass
+	time.Sleep(renewFetcher.Frequency)
+
+	// this call doesn't execute the command since the assigned profile check fails
+	isAssigned = false
+	isEnrolled = false
+	cfg, err = renewFetcher.GetConfig()
+	assertResult(cfg, err)
+
+	require.Equal(t, 2, cmdCallCount) // the initial call and the one after sleep
+
+	// wait for the fetcher's frequency to pass
+	time.Sleep(renewFetcher.Frequency)
+
+	// this next call won't execute the command because the backoff
+	// for a failed assigned check is always 2 minutes
+	cfg, err = renewFetcher.GetConfig()
+	assertResult(cfg, err)
+}
+
+type mockNodeKeyGetter struct{}
+
+func (m mockNodeKeyGetter) GetNodeKey() (string, error) {
+	return "nodekey-test", nil
 }
 
 func TestWindowsMDMEnrollment(t *testing.T) {
@@ -180,6 +238,7 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 					unenrollGotCalled = true
 					return c.apiErr
 				},
+				nodeKeyGetter: mockNodeKeyGetter{},
 			}
 
 			cfg, err := enrollFetcher.GetConfig()
@@ -226,8 +285,9 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 			)
 			chProceed := make(chan struct{})
 			fetcher := &windowsMDMEnrollmentConfigFetcher{
-				Fetcher:   baseFetcher,
-				Frequency: 2 * time.Second, // just to be safe with slow environments (CI)
+				Fetcher:       baseFetcher,
+				Frequency:     2 * time.Second, // just to be safe with slow environments (CI)
+				nodeKeyGetter: mockNodeKeyGetter{},
 			}
 			if cfg.NeedsProgrammaticWindowsMDMEnrollment {
 				fetcher.execEnrollFn = func(args WindowsMDMEnrollmentArgs) error {
@@ -304,4 +364,212 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 			require.Equal(t, 2, apiCallCount) // the initial call and the one that returned errIsWindowsServer after first sleep
 		})
 	}
+}
+
+func TestRunScripts(t *testing.T) {
+	var logBuf bytes.Buffer
+
+	oldLog := log.Logger
+	log.Logger = log.Output(&logBuf)
+	t.Cleanup(func() { log.Logger = oldLog })
+
+	var (
+		callsCount atomic.Int64
+		runFailure error
+		blockRun   chan struct{}
+	)
+
+	mockRun := func(r *scripts.Runner, ids []string) error {
+		callsCount.Add(1)
+		if blockRun != nil {
+			<-blockRun
+		}
+		return runFailure
+	}
+
+	waitForRun := func(t *testing.T, r *runScriptsConfigFetcher) {
+		var ok bool
+		for start := time.Now(); !ok && time.Since(start) < time.Second; {
+			ok = r.mu.TryLock()
+		}
+		require.True(t, ok, "timed out waiting for the lock to become available")
+		r.mu.Unlock()
+	}
+
+	t.Run("no pending scripts", func(t *testing.T) {
+		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset() })
+
+		fetcher := &dummyConfigFetcher{
+			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				PendingScriptExecutionIDs: nil,
+			}},
+		}
+		runner := &runScriptsConfigFetcher{
+			Fetcher:      fetcher,
+			runScriptsFn: mockRun,
+		}
+		cfg, err := runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+
+		// the lock should be available because no goroutine was started
+		require.True(t, runner.mu.TryLock())
+		require.Zero(t, callsCount.Load()) // no calls to execute scripts
+		require.Empty(t, logBuf.String())  // no logs written
+	})
+
+	t.Run("pending scripts succeed", func(t *testing.T) {
+		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset() })
+
+		fetcher := &dummyConfigFetcher{
+			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				PendingScriptExecutionIDs: []string{"a", "b", "c"},
+			}},
+		}
+		runner := &runScriptsConfigFetcher{
+			Fetcher:      fetcher,
+			runScriptsFn: mockRun,
+		}
+		cfg, err := runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+
+		waitForRun(t, runner)
+		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
+		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "running scripts [a b c] succeeded")
+	})
+
+	t.Run("pending scripts failed", func(t *testing.T) {
+		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset(); runFailure = nil })
+
+		fetcher := &dummyConfigFetcher{
+			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				PendingScriptExecutionIDs: []string{"a", "b", "c"},
+			}},
+		}
+
+		runFailure = io.ErrUnexpectedEOF
+		runner := &runScriptsConfigFetcher{
+			Fetcher:      fetcher,
+			runScriptsFn: mockRun,
+		}
+
+		cfg, err := runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+
+		waitForRun(t, runner)
+		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
+		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "running scripts failed")
+		require.Contains(t, logBuf.String(), io.ErrUnexpectedEOF.Error())
+	})
+
+	t.Run("concurrent run prevented", func(t *testing.T) {
+		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset(); blockRun = nil })
+
+		fetcher := &dummyConfigFetcher{
+			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				PendingScriptExecutionIDs: []string{"a", "b", "c"},
+			}},
+		}
+
+		blockRun = make(chan struct{})
+		runner := &runScriptsConfigFetcher{
+			Fetcher:      fetcher,
+			runScriptsFn: mockRun,
+		}
+
+		cfg, err := runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+
+		// call it again, while the previous run is still running
+		cfg, err = runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+
+		// unblock the initial run
+		close(blockRun)
+
+		waitForRun(t, runner)
+		require.Equal(t, int64(1), callsCount.Load()) // only called once because of mutex
+		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "running scripts [a b c] succeeded")
+	})
+
+	t.Run("dynamic enabling of scripts", func(t *testing.T) {
+		t.Cleanup(logBuf.Reset)
+
+		fetcher := &dummyConfigFetcher{
+			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				PendingScriptExecutionIDs: []string{"a"},
+			}},
+		}
+
+		var (
+			scriptsEnabledCalls []bool
+			dynamicEnabled      atomic.Bool
+
+			dynamicInterval = 300 * time.Millisecond
+		)
+
+		runner := &runScriptsConfigFetcher{
+			Fetcher:                 fetcher,
+			ScriptsExecutionEnabled: false,
+			runScriptsFn: func(r *scripts.Runner, s []string) error {
+				scriptsEnabledCalls = append(scriptsEnabledCalls, r.ScriptExecutionEnabled)
+				return nil
+			},
+			testGetFleetdConfig: func() (*fleet.MDMAppleFleetdConfig, error) {
+				return &fleet.MDMAppleFleetdConfig{
+					EnableScripts: dynamicEnabled.Load(),
+				}, nil
+			},
+			dynamicScriptsEnabledCheckInterval: dynamicInterval,
+		}
+
+		// the static Scripts Enabled flag is false, so it relies on the dynamic check
+		runner.runDynamicScriptsEnabledCheck()
+
+		// first call, scripts are disabled
+		cfg, err := runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		waitForRun(t, runner)
+
+		// swap scripts execution to true and wait to ensure the dynamic check
+		// did run.
+		dynamicEnabled.Store(true)
+		time.Sleep(dynamicInterval + 100*time.Millisecond)
+
+		// second call, scripts are enabled (change exec ID to "b")
+		cfg.Notifications.PendingScriptExecutionIDs[0] = "b"
+		cfg, err = runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		waitForRun(t, runner)
+
+		// swap scripts execution back to false and wait to ensure the dynamic
+		// check did run.
+		dynamicEnabled.Store(false)
+		time.Sleep(dynamicInterval + 100*time.Millisecond)
+
+		// third call, scripts are disabled (change exec ID to "c")
+		cfg.Notifications.PendingScriptExecutionIDs[0] = "c"
+		cfg, err = runner.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		waitForRun(t, runner)
+
+		// validate the Scripts Enabled flags that were passed to the runScriptsFn
+		require.Equal(t, []bool{false, true, false}, scriptsEnabledCalls)
+		require.Contains(t, logBuf.String(), "received request to run scripts [a]")
+		require.Contains(t, logBuf.String(), "running scripts [a] succeeded")
+		require.Contains(t, logBuf.String(), "received request to run scripts [b]")
+		require.Contains(t, logBuf.String(), "running scripts [b] succeeded")
+		require.Contains(t, logBuf.String(), "received request to run scripts [c]")
+		require.Contains(t, logBuf.String(), "running scripts [c] succeeded")
+	})
 }

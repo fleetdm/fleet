@@ -1,0 +1,193 @@
+- categoryName: Device management
+  features:
+    - name: User-initiated enrollment of macOS computers
+      tier: Free
+      comingSoon: false
+    - name: Remotely enforce macOS settings
+      tier: Free
+      comingSoon: false
+    - name: Low-level macOS MDM commands (e.g. remote restart)
+      tier: Free
+      comingSoon: false
+    - name: Native macOS update reminders
+      tier: Free
+      comingSoon: false
+    - name: Zero-touch setup for macOS computers
+      tier: Premium
+      comingSoon: false
+    - name: Safely execute custom scripts
+      tier: Premium
+      comingSoon: false      
+    - name: End-user macOS update reminders (via Nudge)
+      tier: Premium
+      comingSoon: false
+    - name: Encrypt macOS hard disks with FileVault
+      tier: Premium
+      comingSoon: false
+    - name: Manage queued MDM commands on macOS
+      tier: Premium
+      comingSoon: true
+    - name: Remotely lock and wipe macOS computers
+      tier: Premium
+      comingSoon: false
+    - name: Update apps on macOS computers
+      tier: Premium
+      comingSoon: true
+    - name: Puppet integration #   « Map macOS settings to computers with Puppet module
+      tier: Premium
+      comingSoon: false
+    - name: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
+      tier: Premium
+      comingSoon: false
+- categoryName: Support
+  features:
+    - name: Public issue tracker (GitHub)
+      tier: Free
+      comingSoon: false
+    - name: Community Slack channel
+      tier: Free
+      comingSoon: false
+    - name: Unlimited email support (confidential)
+      tier: Premium
+      comingSoon: false
+    - name: Phone and video call support
+      tier: Premium
+      comingSoon: false    
+- categoryName: Inventory management
+  features:
+    - name: Secure REST API
+      tier: Free
+      comingSoon: false
+    - name: Command line tool (CLI)
+      tier: Free
+      comingSoon: false
+    - name: Realtime device inventory dashboard
+      tier: Free
+      comingSoon: false
+    - name: Browse installed software packages
+      tier: Free
+      comingSoon: false
+    - name: Search devices by IP, serial, hostname, UUID
+      tier: Free
+      comingSoon: false
+    - name: Target and configure specific groups of devices
+      tier: Premium
+      comingSoon: false
+    - name: Aggregate insights for groups of devices
+      tier: Premium
+      comingSoon: false
+- categoryName: Collaboration
+  features:
+    - name: Shareable device health reports
+      tier: Free
+      comingSoon: false
+    - name: Versionable queries and config (GitOps)
+      tier: Free
+      comingSoon: false
+    - name: Human-to-device mapping
+      tier: Free
+      comingSoon: false
+    - name: Scope transparency
+      tier: Free
+      comingSoon: false
+- categoryName: Security and compliance
+  features:
+    - name: Single sign on (SSO, SAML)
+      tier: Free
+      comingSoon: false
+    - name: Report on disk encryption status (FileVault)
+      tier: Free
+      comingSoon: false
+    - name: Audit queries and user activities
+      tier: Free
+      comingSoon: false
+    - name: Grant API-only access
+      tier: Free
+      comingSoon: false
+    - name: Role-based access control
+      tier: Free
+      comingSoon: false
+    - name: Ship logs to Splunk, Snowflake, and more
+      tier: Free
+      comingSoon: false
+    - name: Programmable audit log
+      tier: Premium
+      comingSoon: false
+    - name: Just-in-time (JIT) provisioning
+      tier: Premium
+      comingSoon: false
+    - name: Automated user role sync via Okta, AD, or any IDP
+      tier: Premium
+      comingSoon: false
+    - name: Vanta integration
+      tier: Premium
+      comingSoon: false
+    - name: Trigger a workflow based on a failing policy
+      tier: Premium
+      comingSoon: true
+    - name: Granular role-based access control
+      tier: Premium
+      comingSoon: false
+- categoryName: Monitoring
+  features:
+    - name: Schedule and automate custom queries
+      tier: Free
+      comingSoon: false
+    - name: Detect vulnerable software
+      tier: Free
+      comingSoon: false
+    - name: Query performance monitoring
+      tier: Free
+      comingSoon: false
+    - name: Standard query and policy library
+      tier: Free
+      comingSoon: false
+    - name: Policy and vulnerability automations (webhook, Zendesk, JIRA, ServiceNow*)
+      tier: Free
+      comingSoon: false
+    - name: Detect and surface issues with devices (policies)
+      tier: Free
+      comingSoon: false
+    - name: Mark policies as critical
+      tier: Premium
+      comingSoon: false
+    - name: Vulnerability scores (EPSS and CVSS)
+      tier: Premium
+      comingSoon: false
+    - name: CISA known exploited vulnerabilities
+      tier: Premium
+      comingSoon: false
+    - name: End-user self-service
+      tier: Premium
+      comingSoon: false
+- categoryName: Data outputs
+  features:
+    - name: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
+      tier: Free
+      comingSoon: false
+    - name: File carving (AWS S3)
+      tier: Free
+      comingSoon: false
+- categoryName: Deployment
+  features:
+    - name: Self-hosted
+      tier: Free
+      comingSoon: false
+    - name: Deployment tools (Helm, Terraform)
+      tier: Free
+      comingSoon: false
+    - name: Configure osquery startup flags remotely
+      tier: Free
+      comingSoon: false
+    - name: Auto-update osquery agents
+      tier: Free
+      comingSoon: false
+    - name: Self-managed auto-update registry
+      tier: Premium
+      comingSoon: false
+    - name: Manage osquery extensions remotely
+      tier: Premium
+      comingSoon: false
+    - name: Managed Cloud
+      tier: Premium
+      comingSoon: false

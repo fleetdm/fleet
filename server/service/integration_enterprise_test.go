@@ -355,7 +355,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	appConfig, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
-	assert.Len(t, team.Secrets, 0) // no secret gets created automatically when creating a team via apply spec
+	assert.Len(t, team.Secrets, 1) // secret gets created automatically for a new team when none is supplied.
 	require.NotNil(t, team.Config.AgentOptions)
 	require.JSONEq(t, defaultOpts, string(*team.Config.AgentOptions))
 	require.Equal(t, appConfig.Features, team.Config.Features)
@@ -472,11 +472,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 
 	qr, err := s.ds.NewQuery(
 		context.Background(),
-		&fleet.Query{Name: "TestQueryTeamPolicy", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true},
+		&fleet.Query{
+			Name:           "TestQueryTeamPolicy",
+			Description:    "Some description",
+			Query:          "select * from osquery;",
+			ObserverCanRun: true,
+			Saved:          true,
+		},
 	)
 	require.NoError(t, err)
 
-	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: ptr.Uint(42)}}
+	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{
+		QueryID:  &qr.ID,
+		Interval: ptr.Uint(42),
+	}}
 	r := teamScheduleQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
 
@@ -484,8 +493,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
-	assert.Equal(t, "TestQueryTeamPolicy", ts.Scheduled[0].Name)
-	assert.Equal(t, qr.ID, ts.Scheduled[0].QueryID)
+	assert.Contains(t, ts.Scheduled[0].Name, "Copy of TestQueryTeamPolicy")
+	assert.NotEqual(t, qr.ID, ts.Scheduled[0].QueryID) // it creates a new query (copy)
 	id := ts.Scheduled[0].ID
 
 	modifyResp := modifyTeamScheduleResponse{}
@@ -1177,6 +1186,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 0)
 
 	// disable the webhook and enable the automation
+	tmResp = teamResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		Integrations: &fleet.TeamIntegrations{
 			Jira: []*fleet.TeamJiraIntegration{
@@ -1196,6 +1206,24 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
 	require.Equal(t, "qux", tmResp.Team.Config.Integrations.Jira[0].ProjectKey)
+
+	// update the team with an unrelated field, should not change integrations
+	tmResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Description: ptr.String("team-desc"),
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "team-desc", tmResp.Team.Description)
+
+	// make an unrelated appconfig change, should not remove the global integrations nor the teams'
+	var appCfgResp appConfigResponse
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-integrations"
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Equal(t, "test-integrations", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.Jira, 2)
 
 	// enable the webhook without changing the integration should fail (an integration is already enabled)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
@@ -1391,6 +1419,25 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
 	require.Equal(t, int64(122), tmResp.Team.Config.Integrations.Zendesk[0].GroupID)
 	require.Equal(t, int64(123), tmResp.Team.Config.Integrations.Zendesk[1].GroupID)
+
+	// update the team with an unrelated field, should not change integrations
+	tmResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Description: ptr.String("team-desc-2"),
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
+	require.Equal(t, "team-desc-2", tmResp.Team.Description)
+
+	// make an unrelated appconfig change, should not remove the global integrations nor the teams'
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-integrations-2"
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Equal(t, "test-integrations-2", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.Zendesk, 2)
+	require.Len(t, appCfgResp.Integrations.Jira, 2)
 
 	// enabling the second without disabling the first fails
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
@@ -1620,9 +1667,15 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.False(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Empty(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-		"integrations": {}
-	}`), http.StatusOK)
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"integrations": {
+			"jira": [],
+			"zendesk": []
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Len(t, appCfgResp.Integrations.Jira, 0)
+	require.Len(t, appCfgResp.Integrations.Zendesk, 0)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
@@ -2859,8 +2912,9 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(
 		ctx, fleet.SoftwareVulnerability{
-			SoftwareID: bar.ID,
-			CVE:        "cve-123",
+			SoftwareID:        bar.ID,
+			CVE:               "cve-123",
+			ResolvedInVersion: "1.2.3",
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
@@ -2872,6 +2926,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		EPSSProbability:  ptr.Float64(0.5),
 		CISAKnownExploit: ptr.Bool(true),
 		Published:        &now,
+		Description:      "a long description of the cve",
 	}}))
 
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now().UTC()))
@@ -2900,6 +2955,8 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, ptr.Float64Ptr(0.5))
 	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, ptr.BoolPtr(true))
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
+	require.Equal(t, barPayload.Vulnerabilities[0].Description, ptr.StringPtr("a long description of the cve"))
+	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
 }
 
 // TestGitOpsUserActions tests the permissions listed in ../../docs/Using-Fleet/Permissions.md.
@@ -2950,12 +3007,16 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	ggsr := getGlobalScheduleResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &ggsr)
 	require.NoError(t, ggsr.Err)
-	var globalPackID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &globalPackID,
-			`SELECT id FROM packs WHERE pack_type = 'global'`)
-	})
-	require.NotZero(t, globalPackID)
+	cpar := createPackResponse{}
+	var userPackID uint
+	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name:     ptr.String("Foobar"),
+			Disabled: ptr.Bool(false),
+		},
+	}, http.StatusOK, &cpar)
+	userPackID = cpar.Pack.Pack.ID
+	require.NotZero(t, userPackID)
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		UserPayload: fleet.UserPayload{
@@ -3178,10 +3239,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("POST", "/api/latest/fleet/queries/delete", deleteQueriesRequest{IDs: []uint{cqr2.Query.ID}}, http.StatusOK, &deleteQueriesResponse{})
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%s", cqr3.Query.Name), deleteQueryRequest{}, http.StatusOK, &deleteQueryResponse{})
 
-	// Attempt to add a query to the global schedule, should allow.
+	// Attempt to add a query to a user pack, should allow.
 	sqr := scheduleQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", scheduleQueryRequest{
-		PackID:   globalPackID,
+		PackID:   userPackID,
 		QueryID:  cqr4.Query.ID,
 		Interval: 60,
 	}, http.StatusOK, &sqr)
@@ -3196,9 +3257,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to remove a query from the global schedule, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), deleteScheduledQueryRequest{}, http.StatusOK, &scheduleQueryResponse{})
 
-	// Attempt to read the global schedule, should allow.
-	// This is an exception to the "write only" nature of gitops (packs can be viewed by gitops).
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
+	// Attempt to read the global schedule, should disallow.
+	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
 
 	// Attempt to create a pack, should allow.
 	cpr := createPackResponse{}
@@ -3391,12 +3451,22 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	s.setTokenForTest(t, "gitops2@example.com", test.GoodPassword)
 
-	// Attempt to create queries, should allow.
+	// Attempt to create queries in global domain, should fail.
 	tcqr := createQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo600"),
 			Query: ptr.String("SELECT * from orbit_info;"),
+		},
+	}, http.StatusForbidden, &tcqr)
+
+	// Attempt to create queries in its team, should allow.
+	tcqr = createQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:   ptr.String("foo600"),
+			Query:  ptr.String("SELECT * from orbit_info;"),
+			TeamID: &t1.ID,
 		},
 	}, http.StatusOK, &tcqr)
 
@@ -3431,19 +3501,28 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to read other team's schedule, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
 
-	// Attempt to add a query to the global schedule, should fail.
+	// Attempt to add a query to a user pack, should fail.
 	tsqr := scheduleQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", scheduleQueryRequest{
-		PackID:   globalPackID,
+		PackID:   userPackID,
 		QueryID:  cqr4.Query.ID,
 		Interval: 60,
 	}, http.StatusForbidden, &tsqr)
 
 	// Attempt to add a query to the team's schedule, should allow.
+	cqrt1 := createQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:   ptr.String("foo8"),
+			Query:  ptr.String("SELECT * from managed_policies;"),
+			TeamID: &t1.ID,
+		},
+	}, http.StatusOK, &cqrt1)
 	ttsqr := teamScheduleQueryResponse{}
+	// Add a schedule with the deprecated APIs (by referencing a global query).
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), teamScheduleQueryRequest{
 		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
-			QueryID:  ptr.Uint(cqr4.Query.ID),
+			QueryID:  ptr.Uint(q1.ID),
 			Interval: ptr.Uint(60),
 		},
 	}, http.StatusOK, &ttsqr)
@@ -3619,4 +3698,411 @@ func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() 
 	require.NoError(t, res.Body.Close())
 	require.NoError(t, desktopRes.Err)
 	require.Equal(t, uint(0), *desktopRes.FailingPolicies)
+}
+
+func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
+	t := s.T()
+
+	testRunScriptWaitForResult = 2 * time.Second
+	defer func() { testRunScriptWaitForResult = 0 }()
+
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	otherHost := createOrbitEnrolledHost(t, "linux", "other", s.ds)
+
+	// attempt to run a script on a non-existing host
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID + 100, ScriptContents: "echo"}, http.StatusNotFound, &runResp)
+
+	// attempt to run an empty script
+	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: ""}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Script contents must not be empty.")
+
+	// attempt to run an overly long script
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Script is too large.")
+
+	// make sure the host is still seen as "online"
+	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	// create a valid script execution request
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	// an activity was created for the async script execution
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), runResp.ExecutionID,
+		),
+		0,
+	)
+
+	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, result.HostID)
+	require.Equal(t, "echo", result.ScriptContents)
+	require.Nil(t, result.ExitCode)
+
+	// get script result
+	var scriptResultResp getScriptResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo", scriptResultResp.ScriptContents)
+	require.Nil(t, scriptResultResp.ExitCode)
+	require.False(t, scriptResultResp.HostTimeout)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
+
+	// verify that orbit would get the notification that it has a script to run
+	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Equal(t, []string{scriptResultResp.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// the orbit endpoint to get a pending script to execute returns it
+	var orbitGetScriptResp orbitGetScriptResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
+		http.StatusOK, &orbitGetScriptResp)
+	require.Equal(t, host.ID, orbitGetScriptResp.HostID)
+	require.Equal(t, scriptResultResp.ExecutionID, orbitGetScriptResp.ExecutionID)
+	require.Equal(t, "echo", orbitGetScriptResp.ScriptContents)
+
+	// trying to get that script via its execution ID but a different host returns not found
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *otherHost.OrbitNodeKey, scriptResultResp.ExecutionID)),
+		http.StatusNotFound, &orbitGetScriptResp)
+
+	// trying to get an unknown execution id returns not found
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID+"no-such")),
+		http.StatusNotFound, &orbitGetScriptResp)
+
+	// attempt to run a sync script on a non-existing host
+	var runSyncResp runScriptSyncResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID + 100, ScriptContents: "echo"}, http.StatusNotFound, &runSyncResp)
+
+	// attempt to sync run an empty script
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: ""}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Script contents must not be empty.")
+
+	// attempt to sync run an overly long script
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Script is too large.")
+
+	// make sure the host is still seen as "online"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	// attempt to create a valid sync script execution request, fails because the
+	// host has a pending script execution
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.RunScriptAlreadyRunningErrMsg)
+
+	// save a result via the orbit endpoint
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// verify that orbit does not receive any pending script anymore
+	orbitResp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// create a valid sync script execution request, fails because the
+	// request will time-out waiting for a result.
+	runSyncResp = runScriptSyncResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusGatewayTimeout, &runSyncResp)
+	require.Equal(t, host.ID, runSyncResp.HostID)
+	require.NotEmpty(t, runSyncResp.ExecutionID)
+	require.True(t, runSyncResp.HostTimeout)
+	require.Contains(t, runSyncResp.Message, fleet.RunScriptHostTimeoutErrMsg)
+
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// create a valid sync script execution request, and simulate a result
+	// arriving before timeout.
+	testRunScriptWaitForResult = 5 * time.Second
+	ctx, cancel := context.WithTimeout(ctx, testRunScriptWaitForResult)
+	defer cancel()
+
+	resultsCh := make(chan *fleet.HostScriptResultPayload, 1)
+	go func() {
+		for range time.Tick(300 * time.Millisecond) {
+			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, 10*time.Second)
+			if err != nil {
+				t.Log(err)
+				return
+			}
+			if len(pending) > 0 {
+				select {
+				case <-ctx.Done():
+					return
+				case r := <-resultsCh:
+					r.ExecutionID = pending[0].ExecutionID
+					// ignoring errors in this goroutine, the HTTP request below will fail if this fails
+					err = s.ds.SetHostScriptExecutionResult(ctx, r)
+					if err != nil {
+						t.Log(err)
+					}
+				}
+			}
+		}
+	}()
+
+	// simulate a successful script result
+	resultsCh <- &fleet.HostScriptResultPayload{
+		HostID:   host.ID,
+		Output:   "ok",
+		Runtime:  1,
+		ExitCode: 0,
+	}
+	runSyncResp = runScriptSyncResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusOK, &runSyncResp)
+	require.Equal(t, host.ID, runSyncResp.HostID)
+	require.NotEmpty(t, runSyncResp.ExecutionID)
+	require.Equal(t, "ok", runSyncResp.Output)
+	require.NotNil(t, runSyncResp.ExitCode)
+	require.Equal(t, int64(0), *runSyncResp.ExitCode)
+	require.False(t, runSyncResp.HostTimeout)
+
+	// an activity was created for the sync script execution
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": false}`,
+			host.ID, host.DisplayName(), runSyncResp.ExecutionID,
+		),
+		0,
+	)
+
+	// simulate a scripts disabled result
+	resultsCh <- &fleet.HostScriptResultPayload{
+		HostID:   host.ID,
+		Output:   "",
+		Runtime:  0,
+		ExitCode: -2,
+	}
+	runSyncResp = runScriptSyncResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusOK, &runSyncResp)
+	require.Equal(t, host.ID, runSyncResp.HostID)
+	require.NotEmpty(t, runSyncResp.ExecutionID)
+	require.Empty(t, runSyncResp.Output)
+	require.NotNil(t, runSyncResp.ExitCode)
+	require.Equal(t, int64(-2), *runSyncResp.ExitCode)
+	require.False(t, runSyncResp.HostTimeout)
+	require.Contains(t, runSyncResp.Message, "Scripts are disabled")
+
+	// make the host "offline"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
+	require.NoError(t, err)
+
+	// attempt to create a sync script execution request, fails because the host
+	// is offline.
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
+
+	// attempt to create an async script execution request, fails because the host
+	// is offline.
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
+}
+
+func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
+	t := s.T()
+	ctx := context.Background()
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	defer func() {
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
+
+	foobarLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  "Foobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	zoobarLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  "Zoobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	allHostsLabel, err := s.ds.GetLabelSpec(ctx, "All hosts")
+	require.NoError(t, err)
+
+	orbitDarwinClient := createOrbitEnrolledHost(t, "darwin", "foobar1", s.ds)
+	orbitLinuxClient := createOrbitEnrolledHost(t, "linux", "foobar2", s.ds)
+	orbitWindowsClient := createOrbitEnrolledHost(t, "windows", "foobar3", s.ds)
+
+	// orbitDarwinClient is member of 'All hosts' and 'Zoobar' labels.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitDarwinClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+		zoobarLabel.ID:   ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	// orbitLinuxClient is member of 'All hosts' and 'Foobar' labels.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+		foobarLabel.ID:   ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	// orbitWindowsClient is member of the 'All hosts' label only.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitWindowsClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Attempt to add labels to extensions.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+  "agent_options": {
+	"config": {
+		"options": {
+		"pack_delimiter": "/",
+		"logger_tls_period": 10,
+		"distributed_plugin": "tls",
+		"disable_distributed": false,
+		"logger_tls_endpoint": "/api/osquery/log",
+		"distributed_interval": 10,
+		"distributed_tls_max_attempts": 3
+		}
+	},
+	"extensions": {
+		"hello_world_linux": {
+			"labels": [
+				"All hosts",
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "linux"
+		},
+		"hello_world_macos": {
+			"labels": [
+				"All hosts",
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "macos"
+		},
+		"hello_mars_macos": {
+			"labels": [
+				"All hosts",
+				"Zoobar"
+			],
+			"channel": "stable",
+			"platform": "macos"
+		},
+		"hello_world_windows": {
+			"labels": [
+				"Zoobar"
+			],
+			"channel": "stable",
+			"platform": "windows"
+		},
+		"hello_mars_windows": {
+			"labels": [
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "windows"
+		}
+	}
+  }
+}`), http.StatusOK)
+
+	resp := orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_mars_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	}
+  }`, string(resp.Extensions))
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_world_linux": {
+		"channel": "stable",
+		"platform": "linux"
+	}
+  }`, string(resp.Extensions))
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitWindowsClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, string(resp.Extensions))
+
+	// orbitDarwinClient is now also a member of the 'Foobar' label.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitDarwinClient, map[uint]*bool{
+		foobarLabel.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_world_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	},
+	"hello_mars_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	}
+  }`, string(resp.Extensions))
+
+	// orbitLinuxClient is no longer a member of the 'Foobar' label.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
+		foobarLabel.ID: nil,
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, string(resp.Extensions))
+
+	// Attempt to set non-existent labels in the config.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+  "agent_options": {
+	"config": {
+		"options": {
+		"pack_delimiter": "/",
+		"logger_tls_period": 10,
+		"distributed_plugin": "tls",
+		"disable_distributed": false,
+		"logger_tls_endpoint": "/api/osquery/log",
+		"distributed_interval": 10,
+		"distributed_tls_max_attempts": 3
+		}
+	},
+	"extensions": {
+		"hello_world_linux": {
+			"labels": [
+				"All hosts",
+				"Doesn't exist"
+			],
+			"channel": "stable",
+			"platform": "linux"
+		}
+	}
+  }
+}`), http.StatusBadRequest)
 }

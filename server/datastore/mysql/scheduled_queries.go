@@ -37,7 +37,7 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 			JSON_EXTRACT(ag.json_value, '$.system_time_p95') as system_time_p95,
 			JSON_EXTRACT(ag.json_value, '$.total_executions') as total_executions
 		FROM scheduled_queries sq
-		JOIN queries q ON (sq.query_name = q.name)
+		JOIN (SELECT * FROM queries WHERE team_id IS NULL) q ON (sq.query_name = q.name)
 		LEFT JOIN aggregated_stats ag ON (ag.id = sq.id AND ag.global_stats = ? AND ag.type = ?)
 		WHERE sq.pack_id = ?
 	`
@@ -275,37 +275,33 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 	// in SaveHostPackStats (in hosts.go) - that is, the behaviour per host must
 	// be the same.
 
-	const (
-		stmt = `
-			INSERT INTO scheduled_query_stats (
-				host_id,
-				scheduled_query_id,
-				average_memory,
-				denylisted,
-				executions,
-				schedule_interval,
-				last_executed,
-				output_size,
-				system_time,
-				user_time,
-				wall_time
-			)
-			VALUES %s
-      ON DUPLICATE KEY UPDATE
-				average_memory = VALUES(average_memory),
-				denylisted = VALUES(denylisted),
-				executions = VALUES(executions),
-				schedule_interval = VALUES(schedule_interval),
-				last_executed = VALUES(last_executed),
-				output_size = VALUES(output_size),
-				system_time = VALUES(system_time),
-				user_time = VALUES(user_time),
-				wall_time = VALUES(wall_time)
-`
-
-		values = `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),`
-	)
-
+	stmt := `
+		INSERT IGNORE INTO scheduled_query_stats (
+			scheduled_query_id,
+			host_id,
+			average_memory,
+			denylisted,
+			executions,
+			schedule_interval,
+			last_executed,
+			output_size,
+			system_time,
+			user_time,
+			wall_time
+		)
+		VALUES %s ON DUPLICATE KEY UPDATE
+			scheduled_query_id = VALUES(scheduled_query_id),
+			host_id = VALUES(host_id),
+			average_memory = VALUES(average_memory),
+			denylisted = VALUES(denylisted),
+			executions = VALUES(executions),
+			schedule_interval = VALUES(schedule_interval),
+			last_executed = VALUES(last_executed),
+			output_size = VALUES(output_size),
+			system_time = VALUES(system_time),
+			user_time = VALUES(user_time),
+			wall_time = VALUES(wall_time);
+	`
 	var countExecs int
 
 	// inserting sorted by host id (the first key in the PK) apparently helps
@@ -318,40 +314,143 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 		return hostIDs[i] < hostIDs[j]
 	})
 
-	var batchArgs []interface{}
 	var batchCount int
+
+	var (
+		userPacksArgs              []interface{}
+		userPacksQueryCount        = 0
+		scheduledQueriesArgs       []interface{}
+		scheduledQueriesQueryCount = 0
+	)
+
 	for _, hostID := range hostIDs {
 		hostStats := stats[hostID]
 
 		for _, stat := range hostStats {
-			batchArgs = append(batchArgs,
-				hostID,
-				stat.ScheduledQueryID,
-				stat.AverageMemory,
-				stat.Denylisted,
-				stat.Executions,
-				stat.Interval,
-				stat.LastExecuted,
-				stat.OutputSize,
-				stat.SystemTime,
-				stat.UserTime,
-				stat.WallTime)
-			batchCount++
+			// Stats for 'new' query structure
+			if stat.PackName == "Global" || strings.HasPrefix(stat.PackName, "team-") {
+				scheduledQueriesQueryCount++
 
+				// Get the team id embedded in the pack name
+				var teamID int
+				statTeamID, err := stat.TeamID()
+				if err != nil {
+					return 0, err
+				}
+				if statTeamID != nil {
+					teamID = *statTeamID
+				}
+
+				scheduledQueriesArgs = append(scheduledQueriesArgs,
+					teamID,
+					stat.QueryName,
+					hostID,
+					stat.AverageMemory,
+					stat.Denylisted,
+					stat.Executions,
+					stat.Interval,
+					stat.LastExecuted,
+					stat.OutputSize,
+					stat.SystemTime,
+					stat.UserTime,
+					stat.WallTime,
+				)
+			} else { // stats for a 2017 pack
+				userPacksQueryCount++
+
+				userPacksArgs = append(userPacksArgs,
+					stat.PackName,
+					stat.ScheduledQueryName,
+					hostID,
+					stat.AverageMemory,
+					stat.Denylisted,
+					stat.Executions,
+					stat.Interval,
+					stat.LastExecuted,
+					stat.OutputSize,
+					stat.SystemTime,
+					stat.UserTime,
+					stat.WallTime,
+				)
+			}
+
+			batchCount++
 			if batchCount >= batchSize {
-				stmt := fmt.Sprintf(stmt, strings.TrimSuffix(strings.Repeat(values, batchCount), ","))
+				var values []string
+				batchArgs := make([]interface{}, 0, scheduledQueriesQueryCount+userPacksQueryCount)
+
+				if scheduledQueriesQueryCount > 0 {
+					values = append(values,
+						strings.TrimSuffix(
+							strings.Repeat(
+								"((SELECT q.id FROM queries q WHERE COALESCE(q.team_id, 0) = ? AND q.name = ?),?,?,?,?,?,?,?,?,?,?),",
+								scheduledQueriesQueryCount,
+							),
+							",",
+						),
+					)
+					batchArgs = append(batchArgs, scheduledQueriesArgs...)
+				}
+				if userPacksQueryCount > 0 {
+					values = append(values,
+						strings.TrimSuffix(
+							strings.Repeat(
+								"((SELECT sq.query_id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.pack_type IS NULL AND p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),",
+								userPacksQueryCount,
+							),
+							",",
+						),
+					)
+					batchArgs = append(batchArgs, userPacksArgs...)
+				}
+				stmt := fmt.Sprintf(stmt, strings.Join(values, ","))
+
 				if _, err := ds.writer(ctx).ExecContext(ctx, stmt, batchArgs...); err != nil {
 					return countExecs, ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")
 				}
+
 				countExecs++
-				batchArgs = batchArgs[:0]
+
+				scheduledQueriesArgs = scheduledQueriesArgs[:0]
+				userPacksArgs = userPacksArgs[:0]
+
 				batchCount = 0
+				scheduledQueriesQueryCount = 0
+				userPacksQueryCount = 0
 			}
 		}
 	}
 
 	if batchCount > 0 {
-		stmt := fmt.Sprintf(stmt, strings.TrimSuffix(strings.Repeat(values, batchCount), ","))
+		var values []string
+		batchArgs := make([]interface{}, 0, scheduledQueriesQueryCount+userPacksQueryCount)
+
+		if scheduledQueriesQueryCount > 0 {
+			values = append(values,
+				strings.TrimSuffix(
+					strings.Repeat(
+						"((SELECT q.id FROM queries q WHERE COALESCE(q.team_id, 0) = ? AND q.name = ?),?,?,?,?,?,?,?,?,?,?),",
+						scheduledQueriesQueryCount,
+					),
+					",",
+				),
+			)
+			batchArgs = append(batchArgs, scheduledQueriesArgs...)
+		}
+		if userPacksQueryCount > 0 {
+			values = append(values,
+				strings.TrimSuffix(
+					strings.Repeat(
+						"((SELECT sq.query_id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.pack_type IS NULL AND p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),",
+						userPacksQueryCount,
+					),
+					",",
+				),
+			)
+			batchArgs = append(batchArgs, userPacksArgs...)
+		}
+		stmt := fmt.Sprintf(stmt, strings.Join(values, ","))
+
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, batchArgs...); err != nil {
 			return countExecs, ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")
 		}

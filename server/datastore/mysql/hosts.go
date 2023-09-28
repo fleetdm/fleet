@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -136,44 +137,78 @@ func (ds *Datastore) SerialUpdateHost(ctx context.Context, host *fleet.Host) err
 	}
 }
 
-func (ds *Datastore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
-	return saveHostPackStatsDB(ctx, ds.writer(ctx), hostID, stats)
+func (ds *Datastore) SaveHostPackStats(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
+	return saveHostPackStatsDB(ctx, ds.writer(ctx), teamID, hostID, stats)
 }
 
-func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, hostID uint, stats []fleet.PackStats) error {
+func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID uint, stats []fleet.PackStats) error {
 	// NOTE: this implementation must be kept in sync with the async/batch version
 	// in AsyncBatchSaveHostsScheduledQueryStats (in scheduled_queries.go) - that is,
 	// the behaviour per host must be the same.
 
-	var args []interface{}
-	queryCount := 0
-	for _, pack := range stats {
-		for _, query := range pack.QueryStats {
-			queryCount++
+	var (
+		userPacksArgs              []interface{}
+		userPacksQueryCount        = 0
+		scheduledQueriesArgs       []interface{}
+		scheduledQueriesQueryCount = 0
+	)
 
-			args = append(args,
-				query.PackName,
-				query.ScheduledQueryName,
-				hostID,
-				query.AverageMemory,
-				query.Denylisted,
-				query.Executions,
-				query.Interval,
-				query.LastExecuted,
-				query.OutputSize,
-				query.SystemTime,
-				query.UserTime,
-				query.WallTime,
-			)
+	for _, pack := range stats {
+		if pack.PackName == "Global" || (teamID != nil && pack.PackName == fmt.Sprintf("team-%d", *teamID)) {
+			for _, query := range pack.QueryStats {
+				scheduledQueriesQueryCount++
+
+				teamIDArg := uint(0)
+				if pack.PackName != "Global" {
+					teamIDArg = *teamID
+				}
+				scheduledQueriesArgs = append(scheduledQueriesArgs,
+					teamIDArg,
+					query.ScheduledQueryName,
+
+					hostID,
+					query.AverageMemory,
+					query.Denylisted,
+					query.Executions,
+					query.Interval,
+					query.LastExecuted,
+					query.OutputSize,
+					query.SystemTime,
+					query.UserTime,
+					query.WallTime,
+				)
+			}
+		} else { // User 2017 packs
+			for _, query := range pack.QueryStats {
+				userPacksQueryCount++
+
+				userPacksArgs = append(userPacksArgs,
+					query.PackName,
+					query.ScheduledQueryName,
+
+					hostID,
+					query.AverageMemory,
+					query.Denylisted,
+					query.Executions,
+					query.Interval,
+					query.LastExecuted,
+					query.OutputSize,
+					query.SystemTime,
+					query.UserTime,
+					query.WallTime,
+				)
+			}
 		}
 	}
 
-	if queryCount == 0 {
+	if userPacksQueryCount == 0 && scheduledQueriesQueryCount == 0 {
 		return nil
 	}
 
-	values := strings.TrimSuffix(strings.Repeat("((SELECT sq.id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", queryCount), ",")
-	sql := fmt.Sprintf(`
+	if scheduledQueriesQueryCount > 0 {
+		// This query will import stats for queries (new format).
+		values := strings.TrimSuffix(strings.Repeat("((SELECT q.id FROM queries q WHERE COALESCE(q.team_id, 0) = ? AND q.name = ?),?,?,?,?,?,?,?,?,?,?),", scheduledQueriesQueryCount), ",")
+		sql := fmt.Sprintf(`
 			INSERT IGNORE INTO scheduled_query_stats (
 				scheduled_query_id,
 				host_id,
@@ -200,9 +235,47 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, hostID uint
 				user_time = VALUES(user_time),
 				wall_time = VALUES(wall_time)
 		`, values)
-	if _, err := db.ExecContext(ctx, sql, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert pack stats")
+		if _, err := db.ExecContext(ctx, sql, scheduledQueriesArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert query schedule stats")
+		}
 	}
+
+	if userPacksQueryCount > 0 {
+		// This query will import stats for 2017 packs.
+		// NOTE(lucas): If more than one scheduled query reference the same query then only one of the stats will be written.
+		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.query_id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.pack_type IS NULL AND p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", userPacksQueryCount), ",")
+		sql := fmt.Sprintf(`
+				INSERT IGNORE INTO scheduled_query_stats (
+					scheduled_query_id,
+					host_id,
+					average_memory,
+					denylisted,
+					executions,
+					schedule_interval,
+					last_executed,
+					output_size,
+					system_time,
+					user_time,
+					wall_time
+				)
+				VALUES %s ON DUPLICATE KEY UPDATE
+					scheduled_query_id = VALUES(scheduled_query_id),
+					host_id = VALUES(host_id),
+					average_memory = VALUES(average_memory),
+					denylisted = VALUES(denylisted),
+					executions = VALUES(executions),
+					schedule_interval = VALUES(schedule_interval),
+					last_executed = VALUES(last_executed),
+					output_size = VALUES(output_size),
+					system_time = VALUES(system_time),
+					user_time = VALUES(user_time),
+					wall_time = VALUES(wall_time)
+			`, values)
+		if _, err := db.ExecContext(ctx, sql, userPacksArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert pack stats")
+		}
+	}
+
 	return nil
 }
 
@@ -214,7 +287,7 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, hostID uint
 // ScheduledQueryStats.LastExecuted.
 var pastDate = "2000-01-01T00:00:00Z"
 
-// loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
+// loadhostPacksStatsDB will load all the "2017 pack" stats for the given host. The scheduled
 // queries that haven't run yet are returned with zero values.
 func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
 	packs, err := listPacksForHost(ctx, db, hid)
@@ -254,12 +327,12 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 		goqu.On(goqu.I("sq.pack_id").Eq(goqu.I("p.id"))),
 	).Join(
 		goqu.I("queries").As("q"),
-		goqu.On(goqu.I("sq.query_name").Eq(goqu.I("q.name"))),
+		goqu.On(goqu.I("sq.query_id").Eq(goqu.I("q.id"))),
 	).LeftJoin(
 		dialect.From("scheduled_query_stats").As("sqs").Where(
 			goqu.I("host_id").Eq(hid),
 		),
-		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.id"))),
+		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.query_id"))),
 	).Where(
 		goqu.Or(
 			// sq.platform empty or NULL means the scheduled query is set to
@@ -293,6 +366,60 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 		ps = append(ps, pack)
 	}
 	return ps, nil
+}
+
+func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string, teamID *uint) ([]fleet.QueryStats, error) {
+	var teamID_ uint
+	if teamID != nil {
+		teamID_ = *teamID
+	}
+	ds := dialect.From(goqu.I("queries").As("q")).Select(
+		goqu.I("q.id"),
+		goqu.I("q.name"),
+		goqu.I("q.description"),
+		goqu.I("q.team_id"),
+		goqu.I("q.schedule_interval").As("schedule_interval"),
+		goqu.COALESCE(goqu.I("sqs.average_memory"), 0).As("average_memory"),
+		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
+		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
+		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(?)", pastDate)).As("last_executed"),
+		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
+		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
+		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
+		goqu.COALESCE(goqu.I("sqs.wall_time"), 0).As("wall_time"),
+	).LeftJoin(
+		dialect.From("scheduled_query_stats").As("sqs").Where(
+			goqu.I("host_id").Eq(hid),
+		),
+		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("q.id"))),
+	).Where(
+		goqu.And(
+			goqu.Or(
+				// sq.platform empty or NULL means the scheduled query is set to
+				// run on all hosts.
+				goqu.I("q.platform").Eq(""),
+				goqu.I("q.platform").IsNull(),
+				// scheduled_queries.platform can be a comma-separated list of
+				// platforms, e.g. "darwin,windows".
+				goqu.L("FIND_IN_SET(?, q.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
+			),
+			goqu.I("q.schedule_interval").Gt(0),
+			goqu.I("q.automations_enabled").IsTrue(),
+			goqu.Or(
+				goqu.I("q.team_id").IsNull(),
+				goqu.I("q.team_id").Eq(teamID_),
+			),
+		),
+	)
+	sql, args, err := ds.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sql build")
+	}
+	var stats []fleet.QueryStats
+	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load query stats")
+	}
+	return stats, nil
 }
 
 func getPackTypeFromDBField(t *string) string {
@@ -337,11 +464,15 @@ var hostRefs = []string{
 	"host_updates",
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
-	"host_dep_assignments",
+	"host_script_results",
 }
 
-// those host refs cannot be deleted using the host.id like the hostRefs above,
-// they use the host.uuid instead. Additionally, the column name that refers to
+// NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
+// deleted from when a host is deleted in Fleet:
+// - host_dep_assignments
+
+// additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
+// above. They use the host.uuid instead. Additionally, the column name that refers to
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
@@ -497,6 +628,39 @@ LIMIT
 		return nil, err
 	}
 	host.PackStats = packStats
+	queriesStats, err := loadHostScheduledQueryStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform, host.TeamID)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		globalQueriesStats   []fleet.QueryStats
+		hostTeamQueriesStats []fleet.QueryStats
+	)
+	for _, queryStats := range queriesStats {
+		if queryStats.TeamID == nil {
+			globalQueriesStats = append(globalQueriesStats, queryStats)
+		} else {
+			hostTeamQueriesStats = append(hostTeamQueriesStats, queryStats)
+		}
+	}
+	if len(globalQueriesStats) > 0 {
+		host.PackStats = append(host.PackStats, fleet.PackStats{
+			PackName:   "Global",
+			Type:       "global",
+			QueryStats: queryStatsToScheduledQueryStats(globalQueriesStats, "Global"),
+		})
+	}
+	if host.TeamID != nil && len(hostTeamQueriesStats) > 0 {
+		team, err := ds.Team(ctx, *host.TeamID)
+		if err != nil {
+			return nil, err
+		}
+		host.PackStats = append(host.PackStats, fleet.PackStats{
+			PackName:   "Team: " + team.Name,
+			Type:       fmt.Sprintf("team-%d", team.ID),
+			QueryStats: queryStatsToScheduledQueryStats(hostTeamQueriesStats, "Team: "+team.Name),
+		})
+	}
 
 	users, err := loadHostUsersDB(ctx, ds.reader(ctx), host.ID)
 	if err != nil {
@@ -505,6 +669,29 @@ LIMIT
 	host.Users = users
 
 	return &host, nil
+}
+
+func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName string) []fleet.ScheduledQueryStats {
+	scheduledQueriesStats := make([]fleet.ScheduledQueryStats, 0, len(queriesStats))
+	for _, queryStats := range queriesStats {
+		scheduledQueriesStats = append(scheduledQueriesStats, fleet.ScheduledQueryStats{
+			ScheduledQueryName: queryStats.Name,
+			ScheduledQueryID:   queryStats.ID,
+			QueryName:          queryStats.Name,
+			Description:        queryStats.Description,
+			PackName:           packName,
+			AverageMemory:      queryStats.AverageMemory,
+			Denylisted:         queryStats.Denylisted,
+			Executions:         queryStats.Executions,
+			Interval:           queryStats.Interval,
+			LastExecuted:       queryStats.LastExecuted,
+			OutputSize:         queryStats.OutputSize,
+			SystemTime:         queryStats.SystemTime,
+			UserTime:           queryStats.UserTime,
+			WallTime:           queryStats.WallTime,
+		})
+	}
+	return scheduledQueriesStats
 }
 
 // hostMDMSelect is the SQL fragment used to construct the JSON object
@@ -592,6 +779,24 @@ func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byO
 	return byOS, totalCount, nil
 }
 
+// HostFailingPoliciesCountOptimPageSizeThreshold is the value of the page size that determines whether
+// to run an optimized version of the hosts queries when pagination is used.
+//
+// If the page size is under this value then the queries will be optimized assuming a low number of hosts.
+// If the page size is 0 or higher than this value then the queries will be optimized assuming a high number of hosts.
+//
+// IMPORTANT: The UI currently always uses PerPage=50 to list hosts. For better performance,
+// HostFailingPoliciesCountOptimPageSizeThreshold should always be higher than what the UI uses.
+//
+// The optimization consists on calculating the failing policy count (which involves querying a large table, `policy_membership`)
+// differently depending on the page size:
+//   - When the page size is short (lower than or equal to this value) then hosts are queried and filtered first, and
+//     then the failure policy count is calculated on such hosts only (with an IN clause).
+//   - When the page size is large (higher than this value) or ALL hosts are being retrieved then the hosts are
+//     filtered and their failing policy count are calculated on the same query (the IN clause performs worse
+//     than a LEFT JOIN when the number of rows is high).
+var HostFailingPoliciesCountOptimPageSizeThreshold = 100
+
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
     h.id,
@@ -649,14 +854,15 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`
 	}
 
-	failingPoliciesSelect := `,
-    coalesce(failing_policies.count, 0) as failing_policies_count,
-    coalesce(failing_policies.count, 0) as total_issues_count
-	`
-	if opt.DisableFailingPolicies {
-		failingPoliciesSelect = ""
+	// See definition of HostFailingPoliciesCountOptimPageSizeThreshold for more details.
+	useHostPaginationOptim := opt.PerPage != 0 && opt.PerPage <= uint(HostFailingPoliciesCountOptimPageSizeThreshold)
+
+	if !opt.DisableFailingPolicies && !useHostPaginationOptim {
+		sql += `,
+		COALESCE(failing_policies.count, 0) AS failing_policies_count,
+		COALESCE(failing_policies.count, 0) AS total_issues_count
+		`
 	}
-	sql += failingPoliciesSelect
 
 	var params []interface{}
 
@@ -679,18 +885,28 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		    ) FROM host_additional WHERE host_id = h.id) AS additional
 		    `
 	}
-	sql, params = ds.applyHostFilters(opt, sql, filter, params)
+
+	leftJoinFailingPolicies := !useHostPaginationOptim
+	sql, params = ds.applyHostFilters(opt, sql, filter, params, leftJoinFailingPolicies)
 
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
 
+	if !opt.DisableFailingPolicies && useHostPaginationOptim {
+		var err error
+		hosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, hosts)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update policy failure counts for hosts")
+		}
+	}
+
 	return hosts, nil
 }
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
-func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
+func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}, leftJoinFailingPolicies bool) (string, []interface{}) {
 	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
 
 	deviceMappingJoin := `LEFT JOIN (
@@ -718,12 +934,12 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		params = append(params, opt.SoftwareIDFilter)
 	}
 
-	failingPoliciesJoin := `LEFT JOIN (
+	failingPoliciesJoin := ""
+	if !opt.DisableFailingPolicies && leftJoinFailingPolicies {
+		failingPoliciesJoin = `LEFT JOIN (
 		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
 		    GROUP BY host_id
 		) as failing_policies ON (h.id=failing_policies.host_id)`
-	if opt.DisableFailingPolicies {
-		failingPoliciesJoin = ""
 	}
 
 	operatingSystemJoin := ""
@@ -824,6 +1040,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		params = append(params, *opt.MDMNameFilter)
 	}
 	if opt.MDMEnrollmentStatusFilter != "" {
+		// NOTE: ds.UpdateHostTablesOnMDMUnenroll sets installed_from_dep = 0 so DEP hosts are not counted as pending after unenrollment
 		switch opt.MDMEnrollmentStatusFilter {
 		case fleet.MDMEnrollStatusAutomatic:
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1`
@@ -838,7 +1055,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		}
 	}
 	if opt.MDMNameFilter != nil || opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
-		sql += ` AND NOT COALESCE(hmdm.is_server, false) `
+		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN('darwin', 'windows')`
 	}
 	return sql, params
 }
@@ -986,12 +1203,14 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
 	sql := `SELECT count(*) `
 
-	// ignore pagination in count
+	// Ignore pagination in count.
 	opt.Page = 0
 	opt.PerPage = 0
+	// We don't need the failing policy counts of each host for counting hosts.
+	leftJoinFailingPolicies := false
 
 	var params []interface{}
-	sql, params = ds.applyHostFilters(opt, sql, filter, params)
+	sql, params = ds.applyHostFilters(opt, sql, filter, params, leftJoinFailingPolicies)
 
 	var count int
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, sql, params...); err != nil {
@@ -2755,31 +2974,13 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	installedFromDep bool,
 	name string,
 ) error {
-	// MDM queries return an empty server URL when the host is not enrolled to an MDM.
-	if serverURL == "" {
-		// We use the reader even if it might miss some not replicated rows,
-		// because it will eventually catch up on subsequent ingestions and
-		// the entry will be deleted.
-		var id uint
-		switch err := sqlx.GetContext(ctx, ds.reader(ctx), &id,
-			`SELECT host_id FROM host_mdm WHERE host_id = ?`, hostID,
-		); {
-		case err == nil:
-			if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm WHERE host_id = ?`, hostID); err != nil {
-				return ctxerr.Wrapf(ctx, err, "delete host_mdm row: %d", hostID)
-			}
-			return nil
-		case errors.Is(err, sql.ErrNoRows):
-			return nil
-		default:
-			return ctxerr.Wrapf(ctx, err, "getting host_mdm row: %d", hostID)
+	var mdmID *uint
+	if serverURL != "" {
+		id, err := ds.getOrInsertMDMSolution(ctx, serverURL, name)
+		if err != nil {
+			return err
 		}
-
-	}
-
-	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL, name)
-	if err != nil {
-		return err
+		mdmID = &id
 	}
 
 	return ds.updateOrInsert(
@@ -2873,7 +3074,7 @@ func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) 
 			msg := fmt.Sprintf("for host %d", hostID)
 			return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
 		}
-		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_disk_encryption_keys for host_id %d", hostID)
 	}
 	return &key, nil
 }
@@ -2941,7 +3142,8 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
 			hd.display_name,
-			COALESCE(h.team_id, 0) as team_id
+			COALESCE(h.team_id, 0) as team_id,
+			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet
 		FROM
 			hosts h
 		LEFT JOIN
@@ -2950,6 +3152,9 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		LEFT JOIN
 			host_display_names hd
 		ON h.id = hd.host_id
+		LEFT JOIN
+			host_dep_assignments hda
+		ON h.id = hda.host_id
 		WHERE h.uuid = ? LIMIT 1`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -3308,7 +3513,7 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 		globalStats = true
 		status      fleet.AggregatedMDMStatus
 	)
-
+	// NOTE: ds.UpdateHostTablesOnMDMUnenroll sets installed_from_dep = 0 so DEP hosts are not counted as pending after unenrollment
 	query := `SELECT
 				COUNT(DISTINCT host_id) as hosts_count,
 				COALESCE(SUM(CASE WHEN NOT enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END), 0) as unenrolled_hosts_count,
@@ -3987,8 +4192,8 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 	return counts, nil
 }
 
-func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error) {
-	result := map[string]struct{}{}
+func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
+	result := map[string]*fleet.Host{}
 	if len(serials) == 0 {
 		return result, nil
 	}
@@ -3997,18 +4202,124 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 	for _, serial := range serials {
 		args = append(args, serial)
 	}
-	stmt, args, err := sqlx.In("SELECT hardware_serial FROM hosts WHERE hardware_serial IN (?)", args)
+	stmt, args, err := sqlx.In("SELECT id, hardware_serial, team_id FROM hosts WHERE hardware_serial IN (?)", args)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building IN statement for matching hosts")
 	}
-	var matchingSerials []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingSerials, stmt, args...); err != nil {
+	var matchingHosts []*fleet.Host
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingHosts, stmt, args...); err != nil {
 		return nil, err
 	}
 
-	for _, serial := range matchingSerials {
-		result[serial] = struct{}{}
+	for _, host := range matchingHosts {
+		result[host.HardwareSerial] = host
 	}
 
 	return result, nil
+}
+
+func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	const (
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output) VALUES (?, ?, ?, '')`
+		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at FROM host_script_results WHERE id = ?`
+	)
+
+	execID := uuid.New().String()
+	result, err := ds.writer(ctx).ExecContext(ctx, insStmt,
+		request.HostID,
+		execID,
+		request.ScriptContents,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
+	}
+
+	var script fleet.HostScriptResult
+	id, _ := result.LastInsertId()
+	if err := ds.writer(ctx).GetContext(ctx, &script, getStmt, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting the created host script result to return")
+	}
+	return &script, nil
+}
+
+func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
+	const updStmt = `
+  UPDATE host_script_results SET
+    output = ?,
+    runtime = ?,
+    exit_code = ?
+  WHERE
+    host_id = ? AND
+    execution_id = ?`
+
+	const maxOutputRuneLen = 10000
+	output := result.Output
+	if len(output) > utf8.UTFMax*maxOutputRuneLen {
+		// truncate the bytes as we know the output is too long, no point
+		// converting more bytes than needed to runes.
+		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
+	}
+	if utf8.RuneCountInString(output) > maxOutputRuneLen {
+		outputRunes := []rune(output)
+		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, updStmt,
+		output,
+		result.Runtime,
+		result.ExitCode,
+		result.HostID,
+		result.ExecutionID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "update host script result")
+	}
+	return nil
+}
+
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
+	const listStmt = `
+  SELECT
+    id,
+    host_id,
+    execution_id,
+    script_contents
+  FROM
+    host_script_results
+  WHERE
+    host_id = ? AND
+    exit_code IS NULL AND
+    created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
+
+	var results []*fleet.HostScriptResult
+	seconds := int(ignoreOlder.Seconds())
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list pending host script results")
+	}
+	return results, nil
+}
+
+func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	const getStmt = `
+  SELECT
+    id,
+    host_id,
+    execution_id,
+    script_contents,
+    output,
+    runtime,
+    exit_code,
+    created_at
+  FROM
+    host_script_results
+  WHERE
+    execution_id = ?`
+
+	var result fleet.HostScriptResult
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, getStmt, execID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host script result")
+	}
+	return &result, nil
 }

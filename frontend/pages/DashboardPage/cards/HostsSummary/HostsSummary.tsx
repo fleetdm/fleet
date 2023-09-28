@@ -3,7 +3,7 @@ import PATHS from "router/paths";
 
 import labelsAPI from "services/entities/labels";
 import DataError from "components/DataError";
-import { ISelectedPlatform } from "interfaces/platform";
+import { SelectedPlatform } from "interfaces/platform";
 import { useQuery } from "react-query";
 import { ILabelSpecResponse } from "interfaces/label";
 
@@ -20,7 +20,7 @@ interface IHostSummaryProps {
   isLoadingHostsSummary: boolean;
   showHostsUI: boolean;
   errorHosts: boolean;
-  selectedPlatform?: ISelectedPlatform;
+  selectedPlatform?: SelectedPlatform;
 }
 
 const HostsSummary = ({
@@ -50,7 +50,7 @@ const HostsSummary = ({
 
   const renderMacCount = (teamId?: number) => (
     <SummaryTile
-      iconName="darwin-purple"
+      iconName="apple-circled"
       count={macCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
@@ -63,7 +63,7 @@ const HostsSummary = ({
 
   const renderWindowsCount = (teamId?: number) => (
     <SummaryTile
-      iconName="windows-blue"
+      iconName="windows-circled"
       count={windowsCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
@@ -76,7 +76,7 @@ const HostsSummary = ({
 
   const renderLinuxCount = (teamId?: number) => (
     <SummaryTile
-      iconName="linux-green"
+      iconName="linux-circled"
       count={linuxCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
@@ -94,7 +94,7 @@ const HostsSummary = ({
 
     return (
       <SummaryTile
-        iconName="chrome-red"
+        iconName="chrome-circled"
         count={chromeCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}

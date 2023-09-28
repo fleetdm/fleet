@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/bindata"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -266,7 +266,7 @@ type SMTPTestMailer struct {
 }
 
 func (m *SMTPTestMailer) Message() ([]byte, error) {
-	t, err := getTemplate("server/mail/templates/smtp_setup.html")
+	t, err := server.GetTemplate("server/mail/templates/smtp_setup.html", "email_template")
 	if err != nil {
 		return nil, err
 	}
@@ -277,18 +277,4 @@ func (m *SMTPTestMailer) Message() ([]byte, error) {
 	}
 
 	return msg.Bytes(), nil
-}
-
-func getTemplate(templatePath string) (*template.Template, error) {
-	templateData, err := bindata.Asset(templatePath)
-	if err != nil {
-		return nil, err
-	}
-
-	t, err := template.New("email_template").Parse(string(templateData))
-	if err != nil {
-		return nil, err
-	}
-
-	return t, nil
 }
