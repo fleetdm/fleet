@@ -8,14 +8,14 @@ Windows 10 (Pro) and higher.
 
 > Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
-Windows MDM features require configuring Fleet with a certificate and key. This guide will walk you through how to upload these to Fleet and turn on Windows MDM in order to use Windows MDM features.
+Turning on Windows MDM features requires configuring Fleet with a certificate and key. This guide will walk you through how to upload these to Fleet and turn on Windows MDM.
 
 ## Requirements
 To use Fleet's Windows MDM features you need to have:
 - A [deployed Fleet instance](../Deploying/Introduction.md).
 - A Fleet user with the admin role.
 
-## Configuring Fleet
+## Turning on Windows MDM
 
 Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows host.
 
