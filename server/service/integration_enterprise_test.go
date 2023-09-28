@@ -4371,21 +4371,18 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// create some teams
-	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-script-details-team1"})
 	require.NoError(t, err)
-	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-script-details-team2"})
 	require.NoError(t, err)
-	tm3, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
+	tm3, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-script-details-team3"})
 	require.NoError(t, err)
 
 	// create 5 scripts for no team and team 1
 	for i := 0; i < 5; i++ {
-		_, err = s.ds.NewScript(ctx, &fleet.Script{
-			Name:           string('a' + byte(i)), // i.e. "a", "b", "c", ...
-			ScriptContents: "echo",
-		})
+		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d", i), ScriptContents: "echo"})
 		require.NoError(t, err)
-		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: string('a' + byte(i)), TeamID: &tm1.ID, ScriptContents: "echo"})
+		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d", i), TeamID: &tm1.ID, ScriptContents: "echo"})
 		require.NoError(t, err)
 	}
 
