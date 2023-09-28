@@ -3,22 +3,72 @@
 
 This page covers the things every team member needs to know to effectively contribute at Fleet.
 
+## All hands
+Every month, Fleet holds a company-wide meeting called the "All hands".
+
+All team members should attend the "All hands" every month.  Team members who cannot attend are expected to watch the [recording](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) within a few days.
+
+"All hands" meetings are [recorded](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) and have [slides](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) available.
+
 
 ## Strategy
 You can read about the company's positioning and product strategy in ["🎐 Why Fleet?" (private google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
 
 To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide ["All hands" meetings](https://fleetdm.com/handbook/business-operations#all-hands).
 
-## Email relays
-There are [several special email addresses](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#) that automatically relay messages to the appropriate people in Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.
+
+## Meetings
+- **Plan to join meetings on time.** At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
+- **Turn on your camera.** This allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
+  - **If you would prefer not to be on YouTube** when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
+- **Be warm.**  It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
+- **Take notes.** Every meeting should have a [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to ensure: 
+  - The agenda creation and/or prep beforehand. 
+  - There is a designated notetaker during the meeting. 
+  - All action items are tracked and assigned to the correct individuals. 
+
+### Meeting agendas
+["**No agenda, no attenda**."](https://about.gitlab.com/company/culture/all-remote/live-doc-meetings/#gitlab-meeting-best-practices) Every work-related meeting should have an editable agenda (e.g. edit access shared with all attendees) attached to the calendar invite. 
+- To create a meeting agenda please make a copy of [Fleet's meeting template](https://docs.google.com/document/d/1TaZ654gTwadWGDYhP3zuAzWe0eiY0s9NhaU9KLCokgw/copy).
+
+>Please do not use Google Calendar's automatic agenda/notes creation function, as it does not adhere to Fleet's preferred agenda format. If the automatic agenda doc has been created in error, edit the calendar invite to delete it from the meeting to avoid confusion.
+
+### External meeting scheduling
+When scheduling external meetings, provide external participants with a
+[Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
+need a Calendly account, reach out to `#g-business-operations` via Slack.
+
+### Internal meeting scheduling
+Fleet uses the Zoom add-on for Google Calendar to schedule meetings (exceptions are customers that are non-negotiably required to use a different tool) when we [create calendar events](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar). 
+Our Zoom meetings are configured to let participants join before the host arrives, to make sure meetings start on time even if the host isn't there.
+
+To schedule a meeting within Fleet:
+- To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
+- Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view.
+- Select a meeting time, the participants will automatically be invited and a video conference will be attached to the invite (this can save a lot of communication overhead when scheduling with multiple participants).
+
+It is important to [set your workinghours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. 
+- Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
+It is also common practice to block out time for focused work.
+
+In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Help each other by batching up internal meetings can enable longer, uninterrupted stretches of deep work.
+
+### Modifying an event organized by someone else
+To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
+This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
+
+### Shared calendars
+Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
+
+Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/ceo#contact-us) and the appropriate DRI will reply with feedback.
 
 
-## Zoom
+### Zoom
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
 By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
 Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
 
-## Recording meetings
+### Recording meetings
 Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry. At Fleet, we use Gong to capture Zoom meetings and share them company-wide. If a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
   - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
   - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
@@ -41,6 +91,23 @@ Here are some tips for troubleshooting Gong:
 ### Excluding calls from being recorded
 For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, make sure your calendar event title contains `[no shadows]`.  You can also read the [complete list of exclusion rules](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
 
+
+## Levels of confidentiality
+Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
+- **Public:**   _Share with anyone, anywhere in the world_
+- **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
+- **Classified:**  _Share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring_
+
+### Document titles
+Fleet uses these levels to standardize a commitment to minimal esotericism across the company. 
+- **"Public":** _(Available to public)_ 
+- _(Confidential - for Fleet eyes only)_     
+- **"¶":** _(E-group - Direct reports the the CEO)_
+- **"¶¶":** _(Classified - Founders and BizOps)_
+- **"¶¶¶":** _(Founders and board members)_
+
+## Email relays
+There are [several special email addresses](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#) that automatically relay messages to the appropriate people in Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.
 
 ## Slack
 At Fleet, we do not send internal emails to each other. Instead, we prefer to use [Slack](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/) to communicate with other folks who work at Fleet.
@@ -84,14 +151,14 @@ maintaining an expressive labeling system. For example, instead of a label calle
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 
-### Manage intake
-Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily, prioritizing all new intake within 24hrs from when it was submitted. 
+### Process new requests
+Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily, prioritizing all new requests including issues and PRs within one business day.
 
 To process intake team members will:
 - Inspect each item in the "📨 New requests" column and understand the next steps needed to complete the task.
 - Indicate to the requestor when they can expect the task to be completed by placing each item in the appropriate column (e.g. Not yet, Planned, In progress) and estimate if necessary.
 - If the goal/user story is unclear, assign the issue to the requestor and at-mention them in an issue comment asking to clarify the intended action. 
-- If the task is to be backlogged (e.g. Not yet), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed.  
+- If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed.  
 
 
 ### Making a pull request
@@ -146,16 +213,13 @@ If the link lives outside `/docs`, head to the file's location (in this case, [h
 
 
 ### Meta tags
-
-#### Page order
-The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective sections in **ascending** order by the `pageOrderInSection` value. Every Markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
+- **Page order:** The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective sections in **ascending** order by the `pageOrderInSection` value. Every Markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
 
 We leave large gaps between values to make future changes easier. For example, the first page in the "Using Fleet" section of the docs has a `pageOrderInSection` value of 100, and the next page has a value of 200. The significant difference between values allows us to add, remove and reorder pages without changing the value of multiple pages at a time.
 
 When adding or reordering a page, try to leave as much room between values as possible. If you were adding a new page that would go between the two pages from the example above, you would add `<meta name="pageOrderInSection" value="150">` to the page.
 
-#### Page description
-TODO: Document.
+- **Page description:** TODO: Document.
 
 ### Images
 Try to keep images in the docs at a minimum. Images can be a quick way to help users understand a concept or direct them towards a specific user interface(UI) element. Still, too many can make the documentation feel cluttered and more difficult to maintain.
@@ -193,64 +257,6 @@ See [📖Product#Working with Figma](https://fleetdm.com/handbook/product#workin
 - **NOTE:** The Figma docs in Design System contain the master components that are referenced throughout all other Figma files. Use caution when modifying these components, as changes will be reflected in the master Fleet EE (scratchpad) and fleetdm.com (current, dev-ready) Figma docs.
 
 **Marketing assets:** Product screenshots and artwork for social media, articles, and other marketing assets can be found in [Collateral](https://www.figma.com/files/project/20798819).
-
-## Levels of confidentiality
-Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
-- **Public:**   _Share with anyone, anywhere in the world_
-- **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
-- **Classified:**  _Share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring_
-
-
-### Google doc titles
-Fleet uses these levels to standardize a commitment to minimal esotericism across the company. 
-- **"Public":** _(Available to public)_ 
-- _(Confidential - for Fleet eyes only)_     
-- **"¶":** _(E-group - Direct reports the the CEO)_
-- **"¶¶":** _(Classified - Founders and BizOps)_
-- **"¶¶¶":** _(Founders and board members)_
-
-
-## Meetings
-- **Plan to join meetings on time.** At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
-- **Turning on your camera** allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
-- **If you would prefer not to be on YouTube** when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
-- **Be warm.**  It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
-
-### External meeting scheduling
-When scheduling external meetings, provide external participants with a
-[Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
-need a Calendly account, reach out to `mikermcneil` via Slack.
-
-### Internal meeting scheduling
-Fleet uses the Zoom add-on for Google Calendar to schedule meetings (exceptions are customers that are non-negotiably required to use a different tool) when we [create calendar events](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar). 
-Our Zoom meetings are configured to let participants join before the host arrives, to make sure meetings start on time even if the host isn't there.
-
-To schedule a meeting within Fleet:
-- To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
-- Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view.
-- Select a meeting time, the participants will automatically be invited and a video conference will be attached to the invite (this can save a lot of communication overhead when scheduling with multiple participants).
-
-It is important to [set your workinghours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. 
-- Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
-It is also common practice to block out time for focused work.
-
-<blockquote puropse="large-quote">In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.</blockquote>
-
-### Modifying an event organized by someone else
-To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
-This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
-
-### Shared calendars
-Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
-
-Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/ceo#contact-us) and the appropriate DRI will reply with feedback.
-
-### All hands
-Every month, Fleet holds a company-wide meeting called the "All hands".
-
-All team members should attend the "All hands" every month.  Team members who cannot attend are expected to watch the [recording](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) within a few days.
-
-"All hands" meetings are [recorded](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) and have [slides](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) available.
 
 
 ## Spending company money
@@ -354,7 +360,6 @@ When attending a conference for Fleet, treat it [like other travel for the compa
 
 
 ### SOC 2
-
 You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1B-Xb4ZVmZk7Fk0IA1eCr8tCVJ-cfipid/view?usp=drivesdk).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
 
 You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
@@ -364,7 +369,6 @@ You can learn more about how Fleet approaches security in the [security handbook
 In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires) 
 
 ## Getting a contract signed
-
 If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
 
 When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
