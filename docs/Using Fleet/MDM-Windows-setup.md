@@ -1,9 +1,5 @@
 # Windows setup
 
-## Supported Windows versions
-
-Windows 10 (Pro) and higher.
-
 ## Overview
 
 > Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
