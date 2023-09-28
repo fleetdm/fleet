@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useContext } from "react";
 import { formatDistanceToNow } from "date-fns";
 
-import { IScript } from "services/entities/scripts";
+import { NotificationContext } from "context/notification";
+import scriptAPI, { IScript } from "services/entities/scripts";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -29,8 +30,15 @@ const getFileIconName = (fileName: string) => {
 };
 
 const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
-  const onClickDownload = () => {
-    console.log("download");
+  const { renderFlash } = useContext(NotificationContext);
+
+  const onClickDownload = async () => {
+    try {
+      await scriptAPI.downloadScript(script.id);
+      renderFlash("success", "Successfully deleted!");
+    } catch {
+      renderFlash("error", "Couldn’t delete. Please try again.");
+    }
   };
 
   return (

@@ -22,7 +22,6 @@ const baseClass = "scripts";
 
 const Scripts = () => {
   const { isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
   const selectedScript = useRef<IScript | null>(null);
@@ -56,14 +55,7 @@ const Scripts = () => {
     setShowDeleteScriptModal(false);
   };
 
-  // TODO: change when integrating with API
-  const onDeleteScript = async (scriptId: number) => {
-    try {
-      await scriptAPI.deleteScript(scriptId);
-      renderFlash("success", "Successfully deleted!");
-    } catch {
-      renderFlash("error", "Couldn’t delete. Please try again.");
-    }
+  const onDeleteScript = () => {
     selectedScript.current = null;
     setShowDeleteScriptModal(false);
   };

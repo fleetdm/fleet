@@ -37,25 +37,32 @@ export interface IScriptResultResponse {
 }
 
 export default {
-  getScripts() {
+  getScripts(teamId?: number) {
     const { SCRIPTS } = endpoints;
+    const path = teamId
+      ? `${SCRIPTS}?${buildQueryStringFromParams({ team_id: teamId })}`
+      : SCRIPTS;
 
-    // TODO: API INTIGRATION: remove when API is ready
+    // TODO: API INTEGRATION: remove when API is ready
     return new Promise<IScriptsResponse>((resolve, reject) => {
       resolve({
         scripts: [createMockScript(), createMockScript({ id: 2 })],
       });
     });
 
-    return sendRequest("GET", SCRIPTS);
+    return sendRequest("GET", path);
   },
 
-  getScript(id: number, teamId?: number) {
+  getScript(id: number) {
     const { SCRIPT } = endpoints;
-    const path = teamId
-      ? `${SCRIPT(id)}/${buildQueryStringFromParams({ team_id: teamId })}`
-      : SCRIPT(id);
+    return sendRequest("GET", SCRIPT(id));
+  },
 
+  downloadScript(id: number) {
+    const { SCRIPT } = endpoints;
+    const path = `${SCRIPT(id)}?${buildQueryStringFromParams({
+      alt: "media",
+    })}`;
     return sendRequest("GET", path);
   },
 
