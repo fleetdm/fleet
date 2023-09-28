@@ -13,6 +13,10 @@ interface IFileUploaderProps {
   message: string;
   additionalInfo?: string;
   isLoading?: boolean;
+  /** A comma seperated string of one or more file types accepted to upload.
+   * This is the same as the html accept attribute.
+   * https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept
+   */
   accept?: string;
   className?: string;
   onFileUpload: (files: FileList | null) => void;

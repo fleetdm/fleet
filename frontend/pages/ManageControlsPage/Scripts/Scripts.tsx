@@ -94,6 +94,7 @@ const Scripts = () => {
         icon="file-bash"
         message="Script (.sh)"
         additionalInfo="Script will run with “#!/bin/sh”."
+        accept=".sh"
         onFileUpload={() => {
           return null;
         }}
