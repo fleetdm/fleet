@@ -17,7 +17,7 @@ To use Fleet's Windows MDM features you need to have:
 - A [deployed Fleet instance](../Deploying/Introduction.md).
 - A Fleet user with the admin role.
 
-## Configuring Fleet
+## Turning on Windows MDM
 
 Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows host.
 
