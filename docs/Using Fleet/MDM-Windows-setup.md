@@ -6,7 +6,7 @@
 
 Turning on Windows MDM features requires configuring Fleet with a certificate and key. This guide will walk you through how to upload these to Fleet and turn on Windows MDM.
 
-Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Azure Active Directory (Azure AD) This guide will also walk you through how to connect Azure AD to Fleet. 
+Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Microsoft Entra (formally Microsoft Azure) This guide will also walk you through how to connect Entra to Fleet. 
 
 ## Requirements
 To use Fleet's Windows MDM features you need to have:
@@ -74,43 +74,41 @@ spec:
 
 3. Confirm that Windows MDM is turned on by running `fleetctl get config`.
 
-## Azure Active Directory (Azure AD)
+## Microsoft Entra
 
 > Available in Fleet Premium or Ultimate
 
-By connecting Fleet to Azure AD, Windows workstations can automatically enroll to Fleet when they’re first unboxed and set up by your end user.
+By connecting Fleet to Microsoft Entra, Windows workstations can automatically enroll to Fleet when they’re first unboxed and set up by your end user.
 
 This section will guide you through how to:
 
-1. Connect Fleet to Azure AD
+1. Connect Fleet to Microsoft Entra
 
 2. Test automatic enrollment
 
-### Step 1: connect Fleet to Azure AD
+### Step 1: connect Fleet to Microsoft Entra
 
-For instructions on how to connect Fleet to Azure AD, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
+For instructions on how to connect Fleet to Entra, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
 
 ### Step 2: test automatic enrollment
 
-Testing automatic enrollment requires creating a test user in Azure AD and a freshly wiped or new Windows laptop.
+Testing automatic enrollment requires creating a test user in Entra and a freshly wiped or new Windows laptop.
 
-1. Sign in to your [Azure Portal](https://portal.azure.com).
+1. Sign in to your [Entra admin center](https://entra.microsoft.com).
 
-2. Type "Microsoft Entra ID" in the search bar and select **Microsoft Entra ID**.
+2. In the left-side bar, select **Users > All users**.
 
-3. In the left-side bar, select **Users**.
+3. Select **+ New user > Create new user**, fill out the details for your test user, and select **Review + Create > Create**
 
-4. Select **+ New user > Create new user**, fill out the details for your test user, and select **Review + Create > Create**
+4. In the left-side bar, select **Users > all users** again to refresh the page and confirm that your test user was created.
 
-5. On the **Users** page, refresh the page to confirm that your test user was created.
+5. Open your Windows laptop and follow the setup steps. When you reach the **How would you like to set up?** screen, select **Set up for an organization**. If your workstations has Windows 11, select **Set up for work or school**.
 
-6. Open your Windows laptop and follow the setup steps. When you reach the **How would you like to set up?** screen, select **Set up for an organization**. If your workstations has Windows 11, select **Set up for work or school**.
+6. Sign in with your test user's credentials and finish the setup steps.
 
-7. Sign in with your test user's credentials and finish the setup steps.
+7. When you reach the desktop on your Windows workstation, confirm that your workstation was automatically enrolled to Fleet by selecting the carrot (^) in your taskbar and then selecting the Fleet icon. This will navigate you to this workstation's **My device** page.
 
-8. When you reach the desktop on your Windows workstation, confirm that your workstation was automatically enrolled to Fleet by selecting the carrot (^) in your taskbar and then selecting the Fleet icon. This will navigate you to this workstation's **My device** page.
-
-9. On the **My device** page, below **My device** confirm that your laptop has a **Status** of "Online."
+8. On the **My device** page, below **My device** confirm that your laptop has a **Status** of "Online."
 
 <meta name="pageOrderInSection" value="1501">
 <meta name="title" value="Windows setup">
