@@ -43,12 +43,12 @@ func TestUp_20230927155121(t *testing.T) {
 	require.NoError(t, err)
 
 	type QueryResult struct {
-		ID                uint            `db:"id"`
-		QueryID           uint            `db:"query_id"`
-		HostID            uint            `db:"host_id"`
-		OsqueryVersion    string          `db:"osquery_version"`
-		Error             string          `db:"error"`
-		LastFetched       time.Time       `db:"last_fetched"`
+		ID                uint             `db:"id"`
+		QueryID           uint             `db:"query_id"`
+		HostID            uint             `db:"host_id"`
+		OsqueryVersion    string           `db:"osquery_version"`
+		Error             string           `db:"error"`
+		LastFetched       time.Time        `db:"last_fetched"`
 		OsqueryResultData *json.RawMessage `db:"data"`
 	}
 
