@@ -8,7 +8,9 @@ Windows 10 (Pro) and higher.
 
 > Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
-Windows MDM features require configuring Fleet with a certificate and key. This guide will walk you through how to upload these to Fleet and turn on Windows MDM in order to use Windows MDM features.
+Turning on Windows MDM features requires configuring Fleet with a certificate and key. This guide will walk you through how to upload these to Fleet and turn on Windows MDM.
+
+Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Azure Active Directory (Azure AD) This guide will also walk you through how to connect Azure AD to Fleet. 
 
 ## Requirements
 To use Fleet's Windows MDM features you need to have:
