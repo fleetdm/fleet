@@ -43,11 +43,6 @@ const Scripts = () => {
     );
   }
 
-  const onClickRerun = (script: IMdmScript) => {
-    selectedScript.current = script;
-    setShowRerunScriptModal(true);
-  };
-
   const onClickDelete = (script: IMdmScript) => {
     selectedScript.current = script;
     setShowDeleteScriptModal(true);
@@ -91,11 +86,7 @@ const Scripts = () => {
           listItems={scripts}
           HeadingComponent={ScriptListHeading}
           ListItemComponent={({ listItem }) => (
-            <ScriptListItem
-              script={listItem}
-              onRerun={onClickRerun}
-              onDelete={onClickDelete}
-            />
+            <ScriptListItem script={listItem} onDelete={onClickDelete} />
           )}
         />
       )}

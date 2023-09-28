@@ -10,13 +10,8 @@ const baseClass = "script-list-item";
 
 interface IScriptListItemProps {
   script: IMdmScript;
-  onRerun: (script: IMdmScript) => void;
   onDelete: (script: IMdmScript) => void;
 }
-
-const getStatusClassName = (value: number) => {
-  return value !== 0 ? `${baseClass}__has-value` : "";
-};
 
 const getFileIconName = (fileName: string) => {
   const fileExtension = fileName.split(".").pop();
@@ -33,11 +28,7 @@ const getFileIconName = (fileName: string) => {
   }
 };
 
-const ScriptListItem = ({
-  script,
-  onRerun,
-  onDelete,
-}: IScriptListItemProps) => {
+const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
   const onClickDownload = () => {
     console.log("download");
   };
