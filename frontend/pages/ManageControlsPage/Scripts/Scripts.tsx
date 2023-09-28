@@ -14,7 +14,16 @@ import FileUploader from "../components/FileUploader";
 import UploadList from "../components/UploadList";
 
 // TODO: remove when get integrate with API.
-const scripts: any[] = [];
+const scripts: any[] = [
+  {
+    id: 1,
+    name: "Test.py",
+    ran: 57,
+    pending: 2304,
+    errors: 0,
+    created_at: new Date().toString(),
+  },
+];
 
 const baseClass = "scripts";
 
@@ -91,6 +100,7 @@ const Scripts = () => {
         />
       )}
       <FileUploader
+        className={`${baseClass}__script-file-uploader`}
         icon="file-bash"
         message="Script (.sh)"
         additionalInfo="Script will run with “#!/bin/sh”."
