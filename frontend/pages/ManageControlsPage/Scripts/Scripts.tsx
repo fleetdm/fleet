@@ -1,7 +1,8 @@
 import React, { useContext, useRef, useState } from "react";
 
-import { IMdmScript } from "interfaces/mdm";
+import { createMockScript } from "__mocks__/scriptMock";
 import { AppContext } from "context/app";
+import { IScript } from "services/entities/scripts";
 
 import CustomLink from "components/CustomLink";
 
@@ -14,16 +15,7 @@ import FileUploader from "../components/FileUploader";
 import UploadList from "../components/UploadList";
 
 // TODO: remove when get integrate with API.
-const scripts: any[] = [
-  {
-    id: 1,
-    name: "Test.py",
-    ran: 57,
-    pending: 2304,
-    errors: 0,
-    created_at: new Date().toString(),
-  },
-];
+const scripts: IScript[] = [createMockScript()];
 
 const baseClass = "scripts";
 
@@ -32,7 +24,7 @@ const Scripts = () => {
   const [showRerunScriptModal, setShowRerunScriptModal] = useState(false);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
-  const selectedScript = useRef<IMdmScript | null>(null);
+  const selectedScript = useRef<IScript | null>(null);
 
   // The user is not a premium tier, so show the premium feature message.
   if (!isPremiumTier) {
@@ -43,7 +35,7 @@ const Scripts = () => {
     );
   }
 
-  const onClickDelete = (script: IMdmScript) => {
+  const onClickDelete = (script: IScript) => {
     selectedScript.current = script;
     setShowDeleteScriptModal(true);
   };

@@ -1,7 +1,7 @@
 import React from "react";
 import { formatDistanceToNow } from "date-fns";
 
-import { IMdmScript } from "interfaces/mdm";
+import { IScript } from "services/entities/scripts";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -9,8 +9,8 @@ import Button from "components/buttons/Button";
 const baseClass = "script-list-item";
 
 interface IScriptListItemProps {
-  script: IMdmScript;
-  onDelete: (script: IMdmScript) => void;
+  script: IScript;
+  onDelete: (script: IScript) => void;
 }
 
 const getFileIconName = (fileName: string) => {

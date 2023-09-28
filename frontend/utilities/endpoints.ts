@@ -124,6 +124,8 @@ export default {
   VERSION: `/${API_VERSION}/fleet/version`,
 
   // SCRIPTS
+  SCRIPTS: `/${API_VERSION}/fleet/scripts`,
+  SCRIPT: (id: number) => `/${API_VERSION}/fleet/scripts/${id}`,
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
 };
