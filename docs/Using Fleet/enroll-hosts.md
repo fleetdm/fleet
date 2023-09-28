@@ -327,7 +327,7 @@ To install the fleetd Chrome extension on Google Admin, there are two steps:
 1. Create an OU for all users who have Chromebooks and force-install the fleetd Chrome extension for those users
 2. Create an OU for all non-Chromebook devices and block the fleetd Chrome extension on this OU
 
-More complex setups depending on the organization's needs may be necessary, but the basic principle remains the same.
+> More complex setups may be necessary, depending on the organization's needs, but the basic principle remains the same.
 
 ### Step 1: OU for Chromebook users
 Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en) where the extension should be installed. [Add all the relevant users](https://support.google.com/a/answer/182449?hl=en) to this OU.
