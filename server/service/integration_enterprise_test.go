@@ -4469,14 +4469,14 @@ VALUES
 		require.Len(t, noTeamScripts, 5)
 
 		// insert saved script results for host0
-		insertResults(t, host0.ID, noTeamScripts[0], now, "exec0-0", ptr.Int64(0))
-		insertResults(t, host0.ID, noTeamScripts[1], now.Add(-1*time.Hour), "exec0-1", ptr.Int64(1))
-		insertResults(t, host0.ID, noTeamScripts[2], now.Add(-2*time.Hour), "exec0-2", nil)
+		insertResults(t, host0.ID, noTeamScripts[0], now, "exec0-0", ptr.Int64(0))                   // expect status ran
+		insertResults(t, host0.ID, noTeamScripts[1], now.Add(-1*time.Hour), "exec0-1", ptr.Int64(1)) // expect status error
+		insertResults(t, host0.ID, noTeamScripts[2], now.Add(-2*time.Hour), "exec0-2", nil)          // expect status pending
 
 		// insert some ad hoc script results, these are never included in the host script details
 		insertResults(t, host0.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now.Add(-3*time.Hour), "exec0-3", ptr.Int64(0))
 
-		// check host script details
+		// check host script details, should include all no team scripts
 		var resp getHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host0.ID), nil, http.StatusOK, &resp)
 		require.Len(t, resp.Scripts, len(noTeamScripts))
@@ -4516,9 +4516,9 @@ VALUES
 		require.Len(t, tm1Scripts, 5)
 
 		// insert results for host1
-		insertResults(t, host1.ID, tm1Scripts[0], now, "exec1-0", ptr.Int64(0))
+		insertResults(t, host1.ID, tm1Scripts[0], now, "exec1-0", ptr.Int64(0)) // expect status ran
 
-		// check host script details
+		// check host script details, should match team 1
 		var resp getHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host1.ID), nil, http.StatusOK, &resp)
 		require.Len(t, resp.Scripts, len(tm1Scripts))
