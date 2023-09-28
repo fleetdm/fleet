@@ -332,6 +332,23 @@ spec:
       # the team-specific mdm options go here
 ```
 
+### Scripts for teams
+
+List of saved script that can be run on hosts that are part of the team.
+
+- Default value: none
+- Config file format:
+  ```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineering
+  scripts:
+    - path/to/script1.sh
+    - path/to/script2.sh
+  ```
+
 ## Organization settings
 
 The `config` YAML file controls Fleet's organization settings and MDM features for hosts assigned to "No team."
