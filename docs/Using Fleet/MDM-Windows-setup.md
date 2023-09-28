@@ -1,9 +1,5 @@
 # Windows setup
 
-## Supported Windows versions
-
-Windows 10 (Pro) and higher.
-
 ## Overview
 
 > Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
@@ -77,6 +73,14 @@ spec:
 2. Run the fleetctl `apply -f fleet-config.yml` command to turn on Windows MDM.
 
 3. Confirm that Windows MDM is turned on by running `fleetctl get config`.
+
+## Azure Active Directory (Azure AD)
+
+> Available in Fleet Premium or Ultimate
+
+By connecting Fleet to Azure AD, Windows workstations can automatically enroll to Fleet when they’re first unboxed and set up by your end user.
+
+This section will guide you through how to
 
 <meta name="pageOrderInSection" value="1501">
 <meta name="title" value="Windows setup">
