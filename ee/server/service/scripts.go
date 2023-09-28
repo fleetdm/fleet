@@ -197,20 +197,67 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 }
 
 func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
+	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
+	if err != nil {
+		return err
+	}
+	return ctxerr.Wrap(ctx, svc.ds.DeleteScript(ctx, script.ID), "delete script")
+}
+
+func (svc *Service) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	// cursor-based pagination is not supported for scripts
+	opt.After = ""
+	// custom ordering is not supported, always by name
+	opt.OrderKey = "name"
+	opt.OrderDirection = fleet.OrderAscending
+	// no matching query support
+	opt.MatchQuery = ""
+	// always include metadata for scripts
+	opt.IncludeMetadata = true
+
+	return svc.ds.ListScripts(ctx, teamID, opt)
+}
+
+func (svc *Service) GetScript(ctx context.Context, scriptID uint, withContent bool) (*fleet.Script, []byte, error) {
+	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionRead)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var content []byte
+	if withContent {
+		content, err = svc.ds.GetScriptContents(ctx, scriptID)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return script, content, nil
+}
+
+func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {
+	// first, get the script because we don't know which team id it is for.
 	script, err := svc.ds.Script(ctx, scriptID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			// couldn't get the script to have its team, authorize with a no-team script
-			if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionWrite); err != nil {
-				return err
+			// couldn't get the script to have its team, authorize with a no-team
+			// script as a fallback - the requested script does not exist so there's
+			// no way to know what team it would be for, and returning a 404 without
+			// authorization would leak the existing/non existing ids.
+			if err := svc.authz.Authorize(ctx, &fleet.Script{}, authzAction); err != nil {
+				return nil, err
 			}
 		}
 		svc.authz.SkipAuthorization(ctx)
-		return ctxerr.Wrap(ctx, err, "get script")
+		return nil, ctxerr.Wrap(ctx, err, "get script")
 	}
 
-	if err := svc.authz.Authorize(ctx, script, fleet.ActionWrite); err != nil {
-		return err
+	// do the actual authorization with the script's team id
+	if err := svc.authz.Authorize(ctx, script, authzAction); err != nil {
+		return nil, err
 	}
-	return ctxerr.Wrap(ctx, svc.ds.DeleteScript(ctx, scriptID), "delete script")
+	return script, nil
 }

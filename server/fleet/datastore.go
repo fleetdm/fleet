@@ -1055,8 +1055,16 @@ type Datastore interface {
 	// Script returns the saved script corresponding to id.
 	Script(ctx context.Context, id uint) (*Script, error)
 
+	// GetScriptContents returns the raw script contents of the corresponding
+	// script.
+	GetScriptContents(ctx context.Context, id uint) ([]byte, error)
+
 	// DeleteScript deletes the script identified by its id.
 	DeleteScript(ctx context.Context, id uint) error
+
+	// ListScripts returns a paginated list of scripts corresponding to the
+	// criteria.
+	ListScripts(ctx context.Context, teamID *uint, opt ListOptions) ([]*Script, *PaginationMetadata, error)
 }
 
 const (
