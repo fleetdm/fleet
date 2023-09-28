@@ -349,7 +349,7 @@ Under "Installation Policy", select "Force install". Under "Update URL", select 
 > For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
 
 ### Step 2: OU to block non-Chromebook devices
-Create an [organization unit](https://support.google.com/a/answer/182537?hl=en) to house devices where the extension should not be installed. [Add all the relevant devices](https://support.google.com/chrome/a/answer/2978876?hl=en) to this OU.
+Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en) to house devices where the extension should not be installed. [Add all the relevant devices](https://support.google.com/chrome/a/answer/2978876?hl=en) to this OU.
 
 In the Google Admin console, in the navigation menu, visit Devices > Chrome > Managed Browsers.
 
