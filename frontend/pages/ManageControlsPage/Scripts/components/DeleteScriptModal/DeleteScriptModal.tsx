@@ -38,7 +38,7 @@ const DeleteScriptModal = ({
       className={baseClass}
       title={"Delete script"}
       onExit={onCancel}
-      onEnter={() => onDelete(scriptId)}
+      onEnter={() => onClickDelete(scriptId)}
     >
       <>
         <p>
