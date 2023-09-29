@@ -8,9 +8,11 @@ In Fleet, you can customize the out-of-the-box macOS setup experience for your e
 
 * Customize the macOS Setup Assistant by choosing to show or hide specific panes.
 
-* Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scrips, and more.
+* Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scripts, and more.
 
 * Populate the Full Name and Account Name during local account creation with the end user's IdP attributes.
+
+* Require end users to wait for configuration profiles before they can use their new Mac.
 
 In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
@@ -34,7 +36,7 @@ Fleet UI:
 
 2. Under **End user authentication**, enter your IdP credentials and select **Save**.
 
-> If you've already configured [single sign-on (SSO) for logging in to Fleet](https://fleetdm.com/docs/configuration/fleet-server-configuration#okta-idp-configuration), you'll need to create a separate app in your IdP so your end users can't log in to Fleet. In this separate app, use "https://fleetserver.com/api/v1/fleet/mdm/sso/callback" for the SSO URL.
+> If you've already configured [single sign-on (SSO) for logging in to Fleet](../Deploy/single-sign-on-sso.md#fleet-sso-configuration), you'll need to create a separate app in your IdP so your end users can't log in to Fleet. In this separate app, use "https://fleetserver.com/api/v1/fleet/mdm/sso/callback" for the SSO URL.
 
 fleetctl CLI:
 
@@ -129,7 +131,7 @@ You should see a `true` value for `mdm.macos_setup.enable_end_user_authenticatio
 
 Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. 
 
-This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scrips and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for you end users.
+This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for you end users.
 
 The following are examples of what some organizations deploy using a bootstrap package:
 
@@ -343,7 +345,90 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 ## Populate the Full Name and Account Name
 
-TODO
+When an end user unboxed their Mac, they're presented with the **Create a Computer Account** pane where they choose their local Full Name, Account Name, and Password they'll used to login to your Mac.
+
+With Fleet, you can populate the Full Name and Account Name with information from your Identity Provider (IdP).
+
+To populate the Full Name and Account Name, we will do the following steps:
+
+1. Enable end user authentication
+2. Configure your IdP
+3. Edit your macOS Setup Assistant settings
+4. Release the Mac from Await Configuration
+
+### Step 1: enable end user authentication
+
+If you haven't already follow the steps to enable end user authentication [here](#end-user-authentication-and-eula).
+
+### Step 2: configure your IdP
+
+1. In your IdP, make sure the end user's full name is set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will populate the Account Name with any of these.
+
+2. In your IdP configuration set **Name ID** to the end user's email. Fleet will trim this email and use it to populate the Account Name. For example, a "johndoe@example.com" email turn into a "johndoe" Account Name.
+
+### Step 3: edit your macOS Setup Assistant settings
+
+In Fleet, you control your macOS Setup Assistant settings with an automatic enrollment profile.
+
+Set `await_device_configured` to `true` in your automatic enrollment profile. Learn how to edit your automatic enrollment profile [here].(#macos-setup-assistant). 
+
+This will tell the Mac to not allow the user through Setup Assistant until the Mac is released. This way, the Mac has time to get the Full Name and Account Name from your IdP before the **Create a Computer Account** pane.
+
+## Step 4: release the Mac from Await Configuration
+
+Releasing the Mac can be automated using the Fleet API (run a custom MDM command). In this example, we'll release a test Mac manually.
+
+1. Open a freshly wiped test Mac and continue through macOS Setup Assistant.
+
+2. After you click past the **Remote Management** pane, on a separate workstation, login to Fleet and navigate to the **Hosts** page.
+
+3. Find your test Mac and select it to navigate to its **Host details** page.
+
+4. Select **OS settings** and wait until all settings are set to "Verifying."
+
+5. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using [fleetctl](https://fleetdm.com/docs/using-fleet/mdm-commands#custom-commands) or the [API](https://fleetdm.com/docs/rest-api/rest-api#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
+
+6. At this pane, confirm that the Full Name and Account Name are set to the correct values.
+
+## Wait for configuration profiles
+
+Some organizations want to ensure configuration profiles are installed before the end user can use their Mac. 
+
+For example, at the **Create a Computer Account** pane in macOS Setup Assistant, in order to require that the end user enters a password that meets your organization's password policy, a password policy profile must be installed on the Mac. 
+
+We'll use this example and do the following steps:
+
+1. Add a password policy configuration profile
+2. Edit your macOS Setup Assistant settings
+3. Release the Mac from Await Configuration
+
+## Step 1: add a password policy configuration profile
+
+1. Download Fleet's password policy configuration profile [here](https://github.com/fleetdm/fleet/blob/main/mdm_profiles/password_policy.mobileconfig). This password policy requires that an end user's password must be at least 10 characters long.
+
+2. Upload the profile to Fleet. Learn how to upload profiles [here](./MDM-custom-macOS-settings.md#enforce-custom-settings)
+
+## Step 2: edit your macOS Setup Assistant settings
+
+In Fleet, you control your macOS Setup Assistant settings with an automatic enrollment profile.
+
+Set `await_device_configured` to `true` in your automatic enrollment profile. Learn how to edit your automatic enrollment profile [here].(#macos-setup-assistant). 
+
+This will tell the Mac to not allow the user through Setup Assistant until the Mac is released. This way, the Mac has time to get the Full Name and Account Name from your IdP before the **Create a Computer Account** pane.
+
+## Step 3: release the Mac from Await Configuration
+
+1. Open a freshly wiped test Mac and continue through macOS Setup Assistant.
+
+2. After you click past the **Remote Management** pane, on a separate workstation, login to Fleet and navigate to the **Hosts** page.
+
+3. Find your test Mac and select it to navigate to its **Host details** page.
+
+4. Select **OS settings** and wait until the **Enforce password length (10 characters)** setting is set to "Verifying."
+
+5. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using [fleetctl](https://fleetdm.com/docs/using-fleet/mdm-commands#custom-commands) or the [API](https://fleetdm.com/docs/rest-api/rest-api#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
+
+6. At this pane, try to advance with a password that's 9 characters to confirm that your password must be at least 10 characters long.
 
 <meta name="pageOrderInSection" value="1505">
 <meta name="title" value="MDM macOS setup">
