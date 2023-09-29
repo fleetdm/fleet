@@ -157,6 +157,15 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
+		client.WithInvalidTokenRetry(func() string {
+			newToken, err := tokenReader.Read()
+			if err != nil {
+				log.Error().Err(err).Msg("refetch token")
+				return ""
+			}
+			log.Debug().Msg("successfully refetched the token from disk")
+			return newToken
+		})
 
 		refetchToken := func() {
 			if _, err := tokenReader.Read(); err != nil {
