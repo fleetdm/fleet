@@ -155,7 +155,7 @@ The Apprentice will reduce the scope of Mike's inbox to only include necessary a
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
 
-### Deliver performance feedback
+### Document performance feedback
 Every Friday at 5PM a [Business Operations team member](https://fleetdm.com/handbook/business-operations#team) will look for missing data in the [KPIs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). 
 1. If KPIs are not reported on time, the BizOps Engineer will notify the Apprentice to the CEO and the DRI.
 2. The Apprentice will update the "performance management" section of the appropriate individual's 1:1 doc so that the CEO can address during the next 1:1 meeting with the DRI.
