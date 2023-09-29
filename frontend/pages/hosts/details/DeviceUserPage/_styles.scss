@@ -2,6 +2,9 @@
   .site-nav {
     height: 50px;
   }
+  .site-nav-item:hover {
+    background-color: initial;
+  }
 }
 
 .device-user {
@@ -166,6 +169,16 @@
   table,
   tr,
   .data-table-block {
+  .table-container__header {
+    svg {
+      path {
+        fill: $ui-dark-grey;
+      }
+    }
+  }
+
+  .data-table-block,
+  .data-table__table {
     border-color: $ui-dark-fleet-25;
     color: $ui-dark-grey;
   }
@@ -250,9 +263,97 @@
     background-color: $ui-dark-modal-background;
     backdrop-filter: blur(25px);
     border: 1px solid rgba(255, 255, 255, 0.25);
+    color: $ui-dark-white;
 
     p {
       color: $ui-dark-white;
     }
+
+    .modal__ex {
+      svg {
+        path {
+          stroke: $ui-dark-blue-gray;
+        }
+      }
+      :hover {
+        svg {
+          path {
+            stroke: $ui-dark-grey;
+          }
+        }
+      }
+    }
+  }
+  .component__tooltip-wrapper__tip-text {
+    background: $ui-dark-fleet-25;
+  }
+  .host-summary__tooltip-text::after {
+    border-top-color: $ui-dark-fleet-25;
+  }
+
+  .text-muted {
+    color: $ui-dark-fleet-10;
+  }
+
+  .button--text-icon:hover {
+    color: $core-vibrant-blue-over;
+  }
+
+  .input-icon-field__input,
+  .Select-control {
+    border-color: $ui-dark-grey;
+    background-color: $ui-dark-fleet-50;
+    color: $ui-dark-grey;
+  }
+
+  // Arrow stroke/fill behaves differently
+  .dropdown__custom-arrow {
+    svg {
+      path {
+        stroke: $ui-dark-grey;
+        fill: none;
+      }
+    }
+  }
+  .input-icon-field {
+    :hover,
+    :focus {
+      border-color: $core-vibrant-blue-over;
+
+      svg {
+        path {
+          fill: $ui-dark-white;
+        }
+      }
+    }
+  }
+
+  .Select.is-focused > .Select-control {
+    background-color: $ui-dark-fleet-50;
+  }
+
+  .Select.is-focused,
+  .Select.is-open {
+    background-color: $ui-dark-fleet-50;
+
+    .Select-menu-outer,
+    .Select-menu {
+      background-color: $ui-dark-fleet-50;
+    }
+    .Select.is-focused {
+      background-color: $ui-dark-fleet-75;
+    }
+    .Select-option.is-selected {
+      background-color: $ui-dark-fleet-25;
+    }
+  }
+  .Select-input {
+    background-color: $ui-dark-fleet-50;
+  }
+  .dropdown__option {
+    color: $ui-dark-white;
+  }
+  .dropdown__help-text {
+    color: $ui-dark-grey;
   }
 }
