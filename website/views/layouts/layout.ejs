@@ -159,14 +159,10 @@
               <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Platform</a>
               <div class="d-block">
                 <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
-                  <a href="/device-management">Device management</a>
-                  <a href="/osquery-management">Osquery management</a>
-                  <a href="/compliance">Security compliance</a>
                   <a href="/vulnerability-management">Vulnerability management</a>
-                  <span>SUCCESS STORIES</span>
-                  <a class="pl-3" href="/success-stories/fleet-user-stories-wayfair">Wayfair</a>
-                  <a class="pl-3" href="/success-stories/fleet-user-stories-schrodinger">Schrödinger</a>
-                  <a class="pl-3" href="/success-stories/fleet-user-stories-f100">F100 security & networking co.</a>
+                  <a href="/osquery-management">Endpoint operations</a>
+                  <a href="/device-management">Device management (MDM)</a>
+                  <a href="/compliance">Reporting and automation</a>
                 </div>
               </div>
               <hr>
@@ -214,15 +210,10 @@
             <div purpose="dropdown-button" class="btn-group">
               <a purpose="header-nav-btn" style="" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
               <div purpose="header-dropdown" class="dropdown-menu">
-                <a class="dropdown-item mb-1" href="/device-management">Device management</a>
-                <a class="dropdown-item mb-1" href="/osquery-management">Osquery management</a>
-                <a class="dropdown-item mb-1" href="/compliance">Security compliance</a>
                 <a class="dropdown-item mb-1" href="/vulnerability-management">Vulnerability management</a>
-                <div class="dropdown-divider"></div>
-                <h6 class="muted dropdown-header">SUCCESS STORIES</h6>
-                <a class="dropdown-item mb-1" href="/success-stories/fleet-user-stories-wayfair">Wayfair</a>
-                <a class="dropdown-item mb-1" href="/success-stories/fleet-user-stories-schrodinger">Schrödinger</a>
-                <a class="dropdown-item" href="/success-stories/fleet-user-stories-f100">F100 security & networking co.</a>
+                <a class="dropdown-item mb-1" href="/osquery-management">Endpoint operations</a>
+                <a class="dropdown-item mb-1" href="/device-management">Device management (MDM)</a>
+                <a class="dropdown-item mb-1" href="/compliance">Reporting and automation</a>
               </div>
             </div>
             <div purpose="dropdown-button" class="btn-group">
@@ -454,7 +445,6 @@
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
-    <script src="/js/pages/sales-one-pager.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/register.page.js"></script>
@@ -484,14 +474,14 @@
         //    - https://github.com/lancedikson/bowser/tree/1fb99ced0e8834fd9662604bad7e0f0c3eba2786#rendering-engine-flags
         // --------------------------------------------------------------------
         var LATEST_SUPPORTED_VERSION_BY_OS = {
-          iOS: '12',//« earliest version that suppports the hubspot chatbot.
+          iOS: '13',//« earliest version that suppports the embedded podcast player.
           Android: '7' // « earliest version we can test for compatibility issues with on browserstack
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
           msedge: '80',//« earliest version to support the backdrop filter css property.
-          safari: '12',//« earliest version that suppports the hubspot chatbot.
-          firefox: '102',//« earliest version to support the backdrop filter css property.
-          chrome: '76',//« earliest version to support the backdrop filter css property.
+          safari: '13',//« earliest version that suppports the hubspot chatbot.
+          firefox: '103',//« earliest version to support the backdrop filter css property.
+          chrome: '80',//« earliest version to support the embedded podcast player.
           opera: '64',//« earliest version to support the backdrop filter css property.
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {

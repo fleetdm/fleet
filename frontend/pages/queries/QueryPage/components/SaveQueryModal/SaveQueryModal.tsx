@@ -156,6 +156,7 @@ const SaveQueryModal = ({
             label="Name"
             placeholder="What is your query called?"
             autofocus
+            ignore1password
           />
           <InputField
             name="description"

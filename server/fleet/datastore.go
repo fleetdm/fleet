@@ -230,6 +230,12 @@ type Datastore interface {
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
 	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
+	// HostMemberOfAllLabels returns whether the given host is a member of all the provided labels.
+	// If a label name does not exist, then the host is considered not a member of the provided label.
+	// A host will always be a member of an empty label set, so this method returns (true, nil)
+	// if labelNames is empty.
+	HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error)
+
 	// TODO JUAN: Refactor this to use the Operating System type instead.
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
 	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
@@ -701,11 +707,20 @@ type Datastore interface {
 
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 
-	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
-	UpdateHostMDMProfilesVerification(ctx context.Context, host *Host, verified, failed []string) error
+	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given
+	// host. The toVerify, toFail, and toRetry slices contain the identifiers of the profiles that
+	// should be verified, failed, and retried, respectively. For each profile in the toRetry slice,
+	// the retries count is incremented by 1 and the status is set to null so that an install
+	// profile command is enqueued the next time the profile manager cron runs.
+	UpdateHostMDMProfilesVerification(ctx context.Context, hostUUID string, toVerify, toFail, toRetry []string) error
 	// GetHostMDMProfilesExpected returns the expected MDM profiles for a given host. The map is
 	// keyed by the profile identifier.
 	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *Host) (map[string]*ExpectedMDMProfile, error)
+	// GetHostMDMProfilesRetryCounts returns a list of MDM profile retry counts for a given host.
+	GetHostMDMProfilesRetryCounts(ctx context.Context, hostUUID string) ([]HostMDMProfileRetryCount, error)
+	// GetHostMDMProfileRetryCountByCommandUUID returns the retry count for the specified
+	// host UUID and command UUID.
+	GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, hostUUID, cmdUUID string) (HostMDMProfileRetryCount, error)
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
@@ -856,6 +871,9 @@ type Datastore interface {
 	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM-enrolled device that is
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
+
+	// RestoreMDMApplePendingDEPHost restores a host that was previously deleted from Fleet.
+	RestoreMDMApplePendingDEPHost(ctx context.Context, host *Host) error
 
 	// ResetMDMAppleEnrollment resets all tables with enrollment-related
 	// information if a matching row for the host exists.

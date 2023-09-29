@@ -1,0 +1,1 @@
+* Use the correct set of parameters for SQL statement when the `after` and `order_key` query params are passed to the `/api/latest/fleet/labels/{labelID}/hosts` endpoint. Fixes issue 13809.

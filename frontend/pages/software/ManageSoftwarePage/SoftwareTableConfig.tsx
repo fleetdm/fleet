@@ -6,7 +6,10 @@ import ReactTooltip from "react-tooltip";
 import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
-import { formatFloatAsPercentage } from "utilities/helpers";
+import {
+  formatFloatAsPercentage,
+  getSoftwareBundleTooltipMarkup,
+} from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -216,8 +219,10 @@ const generateTableHeaders = (
           <LinkCell
             path={PATHS.SOFTWARE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
-            value={bundle ? renderBundleTooltip(name, bundle) : name}
-            withTooltip={!!bundle}
+            value={name}
+            tooltipContent={
+              bundle ? getSoftwareBundleTooltipMarkup(bundle) : undefined
+            }
           />
         );
       },

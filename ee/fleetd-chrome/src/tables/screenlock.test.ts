@@ -7,11 +7,13 @@ describe("screenlock", () => {
     const db = await VirtualDatabase.init();
 
     const res = await db.query("select * from screenlock");
-    expect(res).toEqual([
-      {
-        enabled: 1,
-        grace_period: 600,
-      },
-    ]);
+    expect(res).toEqual({
+      data: [
+        {
+          enabled: 1,
+          grace_period: 600,
+        },
+      ],
+    });
   });
 });

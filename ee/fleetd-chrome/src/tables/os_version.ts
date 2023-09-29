@@ -63,20 +63,22 @@ export default class TableOSVersion extends Table {
     const { arch } = platformInfo;
 
     // Some of these values won't actually be correct on a non-chromeOS machine.
-    return [
-      {
-        name: this.getName(data.platform),
-        platform: "chrome",
-        platform_like: "chrome",
-        version,
-        major,
-        minor,
-        build,
-        patch,
-        codename: this.getCodename(data.platformVersion),
-        // https://developer.chrome.com/docs/extensions/reference/runtime/#type-PlatformArch
-        arch: arch,
-      },
-    ];
+    return {
+      data: [
+        {
+          name: this.getName(data.platform),
+          platform: "chrome",
+          platform_like: "chrome",
+          version,
+          major,
+          minor,
+          build,
+          patch,
+          codename: this.getCodename(data.platformVersion),
+          // https://developer.chrome.com/docs/extensions/reference/runtime/#type-PlatformArch
+          arch: arch,
+        },
+      ],
+    };
   }
 }

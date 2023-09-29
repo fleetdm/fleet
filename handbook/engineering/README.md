@@ -13,8 +13,8 @@ Fleet [product groups](https://fleetdm.com/handbook/company/development-groups#w
 Each sprint is marked by five essential ceremonies:
 
 1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, select items from the backlog to work on. The team then commits to completing these items within the sprint.
-2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing.
-3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints.
+2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required partipants. 
+3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints. The EM is responsible for the point values assigned to each item and ensures they are as realistic as possible.
 4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review completed work. Engineers are allotted 3-10 minutes to present their accomplishments, as well as any pending tasks. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
 5. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.
 
@@ -133,11 +133,17 @@ Engineering leaders discuss topics of importance that week. Prepare agenda, anno
 - Director of Product Development
 - CTO
 
+#### Rituals
+
+1. Review Engineering KPIs.
+2. Review each product group's ZenHub board.
+3. Proceed to agenda. 
+
 #### Sample agenda
 
 - Engineer hiring
-- Engineering process discussion
-- Review engineering KPIs
+- Process discussion
+- New documentation needs
 
 ### Eng product bi-weekly
 
@@ -209,7 +215,7 @@ The current release cadence is once every three weeks and is concentrated around
 
 ### Release freeze period
 
-To ensure release quality, Fleet has a freeze period for testing beginning the Thursday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
+To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
 
 Bugs are exempt from the release freeze period.
 
@@ -258,6 +264,10 @@ It is sometimes necessary to delay the release to allow time to complete partial
 2. The Engineering Manager notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). 
 3. The Engineering Manager, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is unfrozen and merged.
 
+### Release readiness
+
+After each product group finishes their QA process during the freeze period, the EM @ mentions the release ritual DRI in the #help-qa Slack channel. When all EMs have certified that they are ready for release, the release ritual DRI begins the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md). 
+
 ### Release day
 
 Documentation on completing the release process can be found [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md).
@@ -278,6 +288,36 @@ How to deploy a new release to dogfood:
 >
 > Note that "fleetdm/fleet:main" is not a image name, instead use the commit hash in place of "main".
 
+## Milestone release ritual 
+
+Immediately after publishing a new release, we close out the associated GitHub issues and milestones. 
+
+### Update milestone in GitHub
+
+1. **Rename current milestone**: In GitHub, [change the current milestone name](https://github.com/fleetdm/fleet/milestones) from `4.x.x-tentative` to `4.x.x`. `4.37.0-tentative` becomes `4.37.0`.
+
+### ZenHub housekeeping
+
+2. **Update product group boards**: In ZenHub, go to each product group board tracking the current release. Usually, these are [#g-cx](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board) and [#g-mdm](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board).
+
+3. **Remove milestone from unfinished items**: If you see any items in columns other than "Ready for release" tagged with the current milestone, remove that milestone tag. These items didn't make it into the release.
+
+4. **Prep release items**: Make sure all items in the "Ready for release" column have the current milestone and sprint tags. If not, select all items in the column and apply the appropriate tags.
+
+5. **Move user stories to drafting board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label and remove the `:release` label. These items will move back to the product drafting board.
+
+6. **Confirm and close**: Make sure that all items with the `story` label have left the "Ready for release" column. Select all remaining items in the "Ready for release" column and move them to the "Closed" column. This will close the related GitHub issues.
+
+8. **Confirm and celebrate**: Now, head to the [Drafting](https://app.zenhub.com/workspaces/-drafting-ships-in-6-weeks-6192dd66ea2562000faea25c/board) board. Find all `story` issues with the current milestone (these are the ones you just moved). Move them to the "Confirm and celebrate" column. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals).
+
+9. **Close GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the current milestone.
+
+10. **Create next milestone**: Create a new milestone for the next versioned release, `4.x.x-tentative`.
+
+11. **Remove the freeze**: [Open the repo in Merge Freeze](https://app.mergefreeze.com/installations/3704/branches/6847) and click the "Unfreeze" button. 
+
+12. Announce that `main` is unfrozen and the milestone has been closed in #help-engineering.
+
 ## Oncall rotation
 
 - [The rotation](#the-rotation)
@@ -292,6 +332,10 @@ How to deploy a new release to dogfood:
 See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) for the engineers in the rotation.
 
 Fleet team members can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
+
+New engineers are added to the oncall rotation by their manager after they have completed onboarding and at least one full release cycle. We aim to alternate the rotation between product groups when possible. 
+
+> The oncall rotation may be adjusted with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
 
 ### Responsibilities
 
@@ -313,6 +357,8 @@ We respond within 1-hour (during business hours) for interactions and ask the on
 #### PR reviews
 
 PRs from Fleeties are reviewed by auto-assignment of codeowners, or by selecting the group or reviewer manually.
+
+PRs should remain in draft until they are ready to be reviewed for final approval, this means the feature is complete with tests already added. This helps keep our active list of PRs relevant and focused. It is ok and encouraged to request feedback while a PR is in draft to engage the team.
 
 All PRs from the community are routed through the oncall engineer. For documentation changes, the community contact ([Kathy](https://github.com/ksatter)) is assigned by the oncall engineer. For code changes, if the oncall engineer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
 
@@ -553,9 +599,11 @@ The above are all the possible states for a bug as envisioned in this process. T
 See [Bug states and filters](#bug-states-and-filters) at the end of this document for descriptions of these states and links to each GitHub filter.
 
 #### Inbox
+Quickly reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks).
+
 When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state.
 
-At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance. QA has one week to move the bug to the next step (reproduced).
+At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance.  QA has **1 business day** to move the bug to the next step (reproduced).
 
 For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters are encouraged to provide timely follow-up information for each report. At two weeks since last communication QA will ping the reporter for more information on the status of the issue. After four weeks of stale communication QA will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
