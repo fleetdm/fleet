@@ -1051,7 +1051,7 @@ kind: query
 spec:
   name: Get a list of Visual Studio Code extensions
   platform: darwin
-  description:
+  description: Get a list of installed VS Code extensions.
   query: |
     SELECT  split(user_path, '/', 1) as username,
         json_extract(value, '$.identifier.id') as id,
