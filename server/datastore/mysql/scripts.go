@@ -262,7 +262,8 @@ FROM
 	scripts s
 	LEFT JOIN (
 		SELECT
-			id,			
+			id,
+			host_id,		
 			script_id,
 			execution_id,
 			created_at,
@@ -277,16 +278,18 @@ FROM
 				FROM
 					host_script_results
 				WHERE
-					host_id = r.host_id
+					host_id = ?
+					AND id != r.id
 					AND script_id = r.script_id
 					AND(created_at > r.created_at
 						OR(created_at = r.created_at
 							AND id > r.id)))) hsr
 	ON s.id = hsr.script_id
 WHERE
-	s.global_or_team_id = ?`
+	(hsr.host_id IS NULL OR hsr.host_id = ?)
+	AND s.global_or_team_id = ?`
 
-	args := []any{hostID, globalOrTeamID}
+	args := []any{hostID, hostID, hostID, globalOrTeamID}
 	stmt, args := appendListOptionsWithCursorToSQL(sql, args, &opt)
 
 	var rows []*row
