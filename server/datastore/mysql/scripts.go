@@ -15,8 +15,8 @@ import (
 
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output) VALUES (?, ?, ?, '')`
-		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at FROM host_script_results WHERE id = ?`
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output, script_id) VALUES (?, ?, ?, '', ?)`
+		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at, script_id FROM host_script_results WHERE id = ?`
 	)
 
 	execID := uuid.New().String()
@@ -24,6 +24,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 		request.HostID,
 		execID,
 		request.ScriptContents,
+		request.ScriptID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
@@ -77,6 +78,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     id,
     host_id,
     execution_id,
+    script_id,
     script_contents
   FROM
     host_script_results
@@ -100,6 +102,7 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
     host_id,
     execution_id,
     script_contents,
+    script_id,
     output,
     runtime,
     exit_code,

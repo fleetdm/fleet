@@ -23,6 +23,7 @@ import (
 
 type runScriptRequest struct {
 	HostID         uint   `json:"host_id"`
+	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 }
 
@@ -41,6 +42,7 @@ func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	var noWait time.Duration
 	result, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         req.HostID,
+		ScriptID:       req.ScriptID,
 		ScriptContents: req.ScriptContents,
 	}, noWait)
 	if err != nil {
@@ -82,6 +84,7 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	req := request.(*runScriptRequest)
 	result, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         req.HostID,
+		ScriptID:       req.ScriptID,
 		ScriptContents: req.ScriptContents,
 	}, waitForResult)
 	var hostTimeout bool
@@ -120,6 +123,7 @@ type getScriptResultRequest struct {
 
 type getScriptResultResponse struct {
 	ScriptContents string `json:"script_contents"`
+	ScriptID       *uint  `json:"script_id"`
 	ExitCode       *int64 `json:"exit_code"`
 	Output         string `json:"output"`
 	Message        string `json:"message"`
@@ -147,6 +151,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 
 	return &getScriptResultResponse{
 		ScriptContents: scriptResult.ScriptContents,
+		ScriptID:       scriptResult.ScriptID,
 		ExitCode:       scriptResult.ExitCode,
 		Output:         scriptResult.Output,
 		Message:        scriptResult.Message,
