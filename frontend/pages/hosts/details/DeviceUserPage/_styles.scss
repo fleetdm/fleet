@@ -115,9 +115,13 @@
     background-color: $ui-dark-fleet-50;
 
     h1,
-    .react-tabs__tab--selected,
-    .table-container__results-count {
+    .react-tabs__tab--selected {
       background-color: $ui-dark-fleet-50;
+      color: $ui-dark-white;
+    }
+
+    .table-container__results-count {
+      background-color: $ui-dark-fleet-75;
       color: $ui-dark-white;
     }
 
