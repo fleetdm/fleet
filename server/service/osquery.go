@@ -584,6 +584,24 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
+	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
+		// If the live query store fails to fetch queries we still want the hosts
+		// to receive all the other queries (details, policies, labels, etc.),
+		// thus we just log the error.
+		level.Error(svc.logger).Log("op", "QueriesForHost", "err", err)
+	} else {
+		names := []string{}
+		for name, query := range liveQueries {
+			queries[hostDistributedQueryPrefix+name] = query
+			names = append(names, name)
+		}
+
+		if len(queries) > 0 {
+			level.Info(svc.logger).Log("hack", "early returning live queries only", "queries", strings.Join(names, ","), "host", host.Hostname)
+			return queries, discovery, accelerate, nil
+		}
+	}
+
 	detailQueries, detailDiscovery, err := svc.detailQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, nil, 0, newOsqueryError(err.Error())
@@ -601,17 +619,6 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	}
 	for name, query := range labelQueries {
 		queries[hostLabelQueryPrefix+name] = query
-	}
-
-	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
-		// If the live query store fails to fetch queries we still want the hosts
-		// to receive all the other queries (details, policies, labels, etc.),
-		// thus we just log the error.
-		level.Error(svc.logger).Log("op", "QueriesForHost", "err", err)
-	} else {
-		for name, query := range liveQueries {
-			queries[hostDistributedQueryPrefix+name] = query
-		}
 	}
 
 	policyQueries, err := svc.policyQueriesForHost(ctx, host)
@@ -644,6 +651,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = discoveryQuery
 	}
 
+	level.Info(svc.logger).Log("info", "returning queries for host", "queries len", len(queries), "host", host.Hostname)
 	return queries, discovery, accelerate, nil
 }
 
