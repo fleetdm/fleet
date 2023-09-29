@@ -35,7 +35,7 @@ If you have any questions or feedback, please contact us: https://fleetdm.com/ha
     - Outline the specific responsibilities of the department.  
 
   - `## Team`
-    - Table that displays each position and the team member(s) that fill that position, linking the Fleetie's LinkedIn to their name and GitHub to GiHub user name. See [handbook/ceo#team](https://fleetdm.com/handbook/ceo#team) for example.
+    - Table that displays each position and the team member(s) that fill that position, linking the Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/ceo#team](https://fleetdm.com/handbook/ceo#team) for example.
 
 
   - `## Contact us`

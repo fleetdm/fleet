@@ -42,18 +42,18 @@ fleetctl CLI:
 
 1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
 
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    end_user_authentication:
-      identity_provider_name: "Okta"
-      entity_id: "https://fleetserver.com"
-      issuer_url: "https://okta-instance.okta.com/84598y345hjdsshsfg/sso/saml/metadata"
-      metadata_url: "https://okta-instance.okta.com/84598y345hjdsshsfg/sso/saml/metadata"
-  ...
-```
+    ```yaml
+    apiVersion: v1
+    kind: config
+    spec:
+      mdm:
+        end_user_authentication:
+          identity_provider_name: "Okta"
+          entity_id: "https://fleetserver.com"
+          issuer_url: "https://okta-instance.okta.com/84598y345hjdsshsfg/sso/saml/metadata"
+          metadata_url: "https://okta-instance.okta.com/84598y345hjdsshsfg/sso/saml/metadata"
+      ...
+    ```
 
 2. Fill in the relevant information from your IdP under the `mdm.end_user_authentication` key. 
 
@@ -67,7 +67,7 @@ spec:
 
 2. Under **End user license agreement (EULA)**, select **Upload** and choose your EULA.
 
-> Uploading a EULA is optional. If you don't upload a EULA, the end user will skip this step and continue to the next step of the new Mac setup experience after they authenticate with your IdP.
+    > Uploading a EULA is optional. If you don't upload a EULA, the end user will skip this step and continue to the next step of the new Mac setup experience after they authenticate with your IdP.
 
 ### Step 3: enable end user authentication
 
@@ -89,33 +89,33 @@ fleetctl CLI:
 
 2. Create a `workstations-canary-config.yaml` file:
 
-```yaml
-apiVersion: v1
-kind: team
-spec:
-  team:
-    name: Workstations (canary)
-    mdm:
-      macos_setup:
-        enable_end_user_authentication: true
-    ...
-```
+    ```yaml
+    apiVersion: v1
+    kind: team
+    spec:
+      team:
+        name: Workstations (canary)
+        mdm:
+          macos_setup:
+            enable_end_user_authentication: true
+        ...
+    ```
 
-Learn more about team configurations options [here](./configuration-files/README.md#teams).
+    Learn more about team configurations options [here](./configuration-files/README.md#teams).
 
-If you want to enable authentication on hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
+    If you want to enable authentication on hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
 
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    macos_setup:
-      enable_end_user_authentication: true
-  ...
-```
+    ```yaml
+    apiVersion: v1
+    kind: config
+    spec:
+      mdm:
+        macos_setup:
+          enable_end_user_authentication: true
+      ...
+    ```
 
-Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
+    Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
 
 3. Add an `mdm.macos_setup.enable_end_user_authentication` key to your YAML document. This key accepts a boolean value.
 
@@ -123,9 +123,9 @@ Learn more about "No team" configuration options [here](./configuration-files/RE
 
 5. Confirm that end user authentication is enabled by running the `fleetctl get teams --name=Workstations --yaml` command.
 
-If you enabled authentication on "No team," run `fleetctl get config`.
+    If you enabled authentication on "No team," run `fleetctl get config`.
 
-You should see a `true` value for `mdm.macos_setup.enable_end_user_authentication`.
+    You should see a `true` value for `mdm.macos_setup.enable_end_user_authentication`.
 
 ## Bootstrap package
 
@@ -160,20 +160,20 @@ Apple requires that your package is a distribution package. Verify that the pack
 
 1. Run the following commands to expand you package and look at the files in the expanded folder:
 
-```bash
-$ pkgutil --expand package.pkg expanded-package
-$ ls expanded-package
-```
+    ```bash
+    $ pkgutil --expand package.pkg expanded-package
+    $ ls expanded-package
+    ```
 
-If your package is a distribution package should see a `Distribution` file.
+    If your package is a distribution package should see a `Distribution` file.
 
 2. If you don't see a `Distribution` file, run the following command to convert your package into a distribution package.
 
-```bash
-$ productbuild --package package.pkg distrbution-package.pkg
-```
+    ```bash
+    $ productbuild --package package.pkg distrbution-package.pkg
+    ```
 
-Make sure your package is a `.pkg` file.
+  Make sure your package is a `.pkg` file.
 
 ### Step 2: sign the package
 
@@ -182,25 +182,25 @@ To sign the package we need a valid Developer ID Installer certificate:
 1. Login to your [Apple Developer account](https://developer.apple.com/account).
 2. Follow Apple's instructions to create a Developer ID Installer certificate [here](https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates).
 
-> During step 3 in Apple's instructions, make sure you choose "Developer ID Installer." You'll need this kind of certificate to sign the package.
+    > During step 3 in Apple's instructions, make sure you choose "Developer ID Installer." You'll need this kind of certificate to sign the package.
 
-Confirm that certificate is installed on your Mac by opening the **Keychain Access** application. You should see your certificate in the **Certificates** tab.
+    Confirm that certificate is installed on your Mac by opening the **Keychain Access** application. You should see your certificate in the **Certificates** tab.
 
 3. Run the following command in the **Terminal** application to sign your package with your Developer ID certificate:
 
-```bash
-$ productsign --sign "Developer ID Installer: Your name (Serial number)" /path/to/package.pkg /path/to/signed-package.pkg
-```
+    ```bash
+    $ productsign --sign "Developer ID Installer: Your name (Serial number)" /path/to/package.pkg /path/to/signed-package.pkg
+    ```
 
-You might be prompted to enter the password for your local account.
+    You might be prompted to enter the password for your local account.
 
-Confirm that your package is signed by running the following command:
+    Confirm that your package is signed by running the following command:
 
-```bash
-$ pkgutil --check-signature /path/to/signed-package.pkg
-```
+    ```bash
+    $ pkgutil --check-signature /path/to/signed-package.pkg
+    ```
 
-In the output you should see that package has a "signed" status.
+    In the output you should see that package has a "signed" status.
 
 ### Step 3: upload the package to Fleet
 
@@ -216,42 +216,42 @@ fleetctl CLI:
 
 1. Upload the package to a storage location (ex. S3 or GitHub). During step 4, Fleet will retrieve the package from this storage location and host it for deployment.
 
-> The URL must be accessible by the computer that uploads the package to Fleet.
-> * This could be your local computer or the computer that runs your CI/CD workflow.
+    > The URL must be accessible by the computer that uploads the package to Fleet.
+    > * This could be your local computer or the computer that runs your CI/CD workflow.
 
 2. Choose which team you want to add the bootstrap package to.
 
-In this example, we'll add a bootstrap package to the "Workstations (canary)" team so that the package only gets installed on hosts that automatically enroll to this team.
+    In this example, we'll add a bootstrap package to the "Workstations (canary)" team so that the package only gets installed on hosts that automatically enroll to this team.
 
 3. Create a `workstations-canary-config.yaml` file:
 
-```yaml
-apiVersion: v1
-kind: team
-spec:
-  team:
-    name: Workstations (canary)
-    mdm:
-      macos_setup:
-        bootstrap_package: https://github.com/organinzation/repository/bootstrap-package.pkg
-    ...
-```
+    ```yaml
+    apiVersion: v1
+    kind: team
+    spec:
+      team:
+        name: Workstations (canary)
+        mdm:
+          macos_setup:
+            bootstrap_package: https://github.com/organinzation/repository/bootstrap-package.pkg
+        ...
+    ```
 
-Learn more about team configurations options [here](./configuration-files/README.md#teams).
+    Learn more about team configurations options [here](./configuration-files/README.md#teams).
 
-If you want to install the package on hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
+    If you want to install the package on hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
 
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    macos_setup:
-      bootstrap_package: https://github.com/organinzation/repository/bootstrap-package.pkg
-  ...
-```
+    ```yaml
+    apiVersion: v1
+    kind: config
+    spec:
+      mdm:
+        macos_setup:
+          bootstrap_package: https://github.com/organinzation/repository/bootstrap-package.pkg
+      ...
+    ```
 
-Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
+    Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
 
 3. Add an `mdm.macos_setup.bootstrap_package` key to your YAML document. This key accepts the URL for the storage location of the bootstrap package. 
 
@@ -259,9 +259,9 @@ Learn more about "No team" configuration options [here](./configuration-files/RE
 
 5. Confirm that your bootstrap package was uploaded to Fleet by running the `fleetctl get teams --name=Workstations --yaml` command.
 
-If you uploaded the package to "No team," run `fleetctl get config`.
+    If you uploaded the package to "No team," run `fleetctl get config`.
 
-You should see the URL for your bootstrap package as the value for `mdm.macos_setup.bootstrap_package`.
+    You should see the URL for your bootstrap package as the value for `mdm.macos_setup.bootstrap_package`.
 
 ## macOS Setup Assistant
 
@@ -285,45 +285,45 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 4. In your automatic enrollment profile, edit the `skip_setup_items` array so that it includes the panes you want to hide.
 
-> You can modify properties other than `skip_setup_items`. These are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/profile).
+    > You can modify properties other than `skip_setup_items`. These are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/profile).
 
 ### Step 2: upload the profile to Fleet
 
 1. Choose which team you want to add the automatic enrollment profile to.
 
-In this example, let's assume you have a "Workstations" team as your [default team](./MDM-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production. 
+   In this example, let's assume you have a "Workstations" team as your [default team](./MDM-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production. 
 
-To do this, we'll create a new "Workstations (canary)" team and add the automatic enrollment profile to it. Only hosts that automatically enroll to this team will see the custom macOS Setup Assistant.
+   To do this, we'll create a new "Workstations (canary)" team and add the automatic enrollment profile to it. Only hosts that automatically enroll to this team will see the custom macOS Setup Assistant.
 
 2. Create a `workstations-canary-config.yaml` file:
 
-```yaml
-apiVersion: v1
-kind: team
-spec:
-  team:
-    name: Workstations (canary)
-    mdm:
-      macos_setup:
-        macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
-    ...
-```
+    ```yaml
+    apiVersion: v1
+    kind: team
+    spec:
+      team:
+        name: Workstations (canary)
+        mdm:
+          macos_setup:
+            macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
+        ...
+    ```
 
-Learn more about team configurations options [here](./configuration-files/README.md#teams).
+    Learn more about team configurations options [here](./configuration-files/README.md#teams).
 
-If you want to customize the macOS Setup Assistant for hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
+    If you want to customize the macOS Setup Assistant for hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
 
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    macos_setup:
-      macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
-  ...
-```
+    ```yaml
+    apiVersion: v1
+    kind: config
+    spec:
+      mdm:
+        macos_setup:
+          macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
+      ...
+    ```
 
-Learn more about configuration options for hosts that aren't assigned to a team [here](./configuration-files/README.md#organization-settings).
+    Learn more about configuration options for hosts that aren't assigned to a team [here](./configuration-files/README.md#organization-settings).
 
 3. Add an `mdm.macos_setup.macos_setup_assistant` key to your YAML document. This key accepts a path to your automatic enrollment profile.
 
@@ -337,7 +337,7 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 2. In Fleet, navigate to the Hosts page and find your Mac. Make sure that the host's **MDM status** is set to "Pending."
 
-> New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." Learn more about these hosts [here](./MDM-setup.md#pending-hosts).
+    > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." Learn more about these hosts [here](./MDM-setup.md#pending-hosts).
 
 3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
 
