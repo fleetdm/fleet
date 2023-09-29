@@ -621,11 +621,6 @@ func (svc *Service) validateMDM(
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
-		if mdm.EnableDiskEncryption.Value {
-			invalid.Append("macos_settings.enable_disk_encryption",
-				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
-		}
-
 		if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
 			invalid.Append("macos_setup.macos_setup_assistant",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
@@ -716,6 +711,14 @@ func (svc *Service) validateMDM(
 		if mdm.WindowsEnabledAndConfigured {
 			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
 			return
+		}
+	}
+
+	// if either macOS or Windows MDM is enabled, this setting can be set.
+	if !oldMdm.AtLeastOnePlatformEnabledAndConfigured() {
+		if mdm.EnableDiskEncryption.Value {
+			invalid.Append("mdm.enable_disk_encryption",
+				`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
 		}
 	}
 }

@@ -2247,6 +2247,146 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 }
 
+func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
+	t := s.T()
+
+	// create a team
+	teamName := t.Name()
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc " + teamName,
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+
+	setMDMEnabled := func(macMDM, windowsMDM bool) {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.WindowsEnabledAndConfigured = windowsMDM
+		appConf.MDM.EnabledAndConfigured = macMDM
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	}
+
+	checkConfigSetErrors := func() {
+		// try to set app config
+		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": true }
+  }`), http.StatusUnprocessableEntity)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
+
+		// try to create a new team using specs
+		teamSpecs := map[string]any{
+			"specs": []any{
+				map[string]any{
+					"name": teamName + uuid.NewString(),
+					"mdm": map[string]any{
+						"enable_disk_encryption": true,
+					},
+				},
+			},
+		}
+		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
+
+		// try to edit the existing team using specs
+		teamSpecs = map[string]any{
+			"specs": []any{
+				map[string]any{
+					"name": teamName,
+					"mdm": map[string]any{
+						"enable_disk_encryption": true,
+					},
+				},
+			},
+		}
+		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
+	}
+
+	checkConfigSetSucceeds := func() {
+		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK)
+		errMsg := extractServerErrorText(res.Body)
+		require.Empty(t, errMsg)
+
+		// try to create a new team using specs
+		teamSpecs := map[string]any{
+			"specs": []any{
+				map[string]any{
+					"name": teamName + uuid.NewString(),
+					"mdm": map[string]any{
+						"enable_disk_encryption": true,
+					},
+				},
+			},
+		}
+		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+		errMsg = extractServerErrorText(res.Body)
+		require.Empty(t, errMsg)
+
+		// edit the existing team using specs
+		teamSpecs = map[string]any{
+			"specs": []any{
+				map[string]any{
+					"name": teamName,
+					"mdm": map[string]any{
+						"enable_disk_encryption": true,
+					},
+				},
+			},
+		}
+		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+		errMsg = extractServerErrorText(res.Body)
+		require.Empty(t, errMsg)
+
+		// always try to set the value to `false` so we start fresh
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": false }
+  }`), http.StatusOK)
+		teamSpecs = map[string]any{
+			"specs": []any{
+				map[string]any{
+					"name": teamName,
+					"mdm": map[string]any{
+						"enable_disk_encryption": false,
+					},
+				},
+			},
+		}
+		s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	}
+
+	// 1. disable both windows and mac mdm
+	// 2. turn off windows feature flag
+	// we should get an error
+	setMDMEnabled(false, false)
+	t.Setenv("FLEET_DEV_MDM_ENABLED", "0")
+	checkConfigSetErrors()
+
+	// turn on windows feature flag
+	// we should get an error
+	t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
+	checkConfigSetErrors()
+
+	// enable windows mdm, no errors
+	setMDMEnabled(false, true)
+	checkConfigSetSucceeds()
+
+	// enable mac mdm, no errors
+	setMDMEnabled(true, true)
+	checkConfigSetSucceeds()
+
+	// only macos mdm enabled, no errors
+	setMDMEnabled(true, false)
+	checkConfigSetSucceeds()
+}
+
 func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	t := s.T()
 	ctx := context.Background()

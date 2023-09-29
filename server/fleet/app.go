@@ -167,6 +167,12 @@ type MDM struct {
 	/////////////////////////////////////////////////////////////////
 }
 
+// AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform
+// (macOS or Windows) has MDM enabled and configured.
+func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
+	return m.EnabledAndConfigured || (config.IsMDMFeatureFlagEnabled() && m.WindowsEnabledAndConfigured)
+}
+
 // versionStringRegex is used to validate that a version string is in the x.y.z
 // format only (no prerelease or build metadata).
 var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
