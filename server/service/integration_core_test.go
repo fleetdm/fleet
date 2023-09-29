@@ -58,6 +58,8 @@ func (s *integrationTestSuite) TearDownTest() {
 }
 
 func TestIntegrations(t *testing.T) {
+	t.Parallel()
+
 	testingSuite := new(integrationTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)

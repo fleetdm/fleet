@@ -32,6 +32,8 @@ import (
 )
 
 func TestIntegrationsEnterprise(t *testing.T) {
+	t.Parallel()
+
 	testingSuite := new(integrationEnterpriseTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)

@@ -16,6 +16,8 @@ import (
 )
 
 func TestRunScriptCommand(t *testing.T) {
+	t.Parallel()
+
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
