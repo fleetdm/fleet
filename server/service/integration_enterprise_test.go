@@ -4387,7 +4387,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	}
 
 	// create a single script for team 2
-	_, err = s.ds.NewScript(ctx, &fleet.Script{Name: "a", TeamID: &tm2.ID, ScriptContents: "echo"})
+	_, err = s.ds.NewScript(ctx, &fleet.Script{Name: "test-script-details-team-2", TeamID: &tm2.ID, ScriptContents: "echo"})
 	require.NoError(t, err)
 
 	// create a host without a team
@@ -4436,9 +4436,9 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
-INSERT INTO 
-	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output) 
-VALUES 
+INSERT INTO
+	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output)
+VALUES
 	(%s ?,?,?,?,?,?)`
 
 		args := []interface{}{}
