@@ -84,6 +84,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.VulnDetectionEnabled = appConfig.VulnerabilitySettings.DatabasesPath != ""
 		stats.SystemUsersEnabled = appConfig.Features.EnableHostUsers
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
+		stats.MDMEnabledAndConfigured = appConfig.MDM.EnabledAndConfigured
+		stats.HostExpiryEnabled = appConfig.HostExpirySettings.HostExpiryEnabled
+		stats.MDMWindowsEnabledAndConfigured = appConfig.MDM.WindowsEnabledAndConfigured
+		stats.LiveQueryDisabled = appConfig.ServerSettings.LiveQueryDisabled
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
 		stats.NumWeeklyPolicyViolationDaysActual = amountPolicyViolationDaysActual
 		stats.NumWeeklyPolicyViolationDaysPossible = amountPolicyViolationDaysPossible

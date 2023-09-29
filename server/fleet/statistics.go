@@ -6,20 +6,26 @@ import (
 )
 
 type StatisticsPayload struct {
-	AnonymousIdentifier       string `json:"anonymousIdentifier"`
-	FleetVersion              string `json:"fleetVersion"`
-	LicenseTier               string `json:"licenseTier"`
-	Organization              string `json:"organization"`
-	NumHostsEnrolled          int    `json:"numHostsEnrolled"`
-	NumUsers                  int    `json:"numUsers"`
-	NumTeams                  int    `json:"numTeams"`
-	NumPolicies               int    `json:"numPolicies"`
-	NumLabels                 int    `json:"numLabels"`
-	SoftwareInventoryEnabled  bool   `json:"softwareInventoryEnabled"`
-	VulnDetectionEnabled      bool   `json:"vulnDetectionEnabled"`
-	SystemUsersEnabled        bool   `json:"systemUsersEnabled"`
-	HostsStatusWebHookEnabled bool   `json:"hostsStatusWebHookEnabled"`
-	NumWeeklyActiveUsers      int    `json:"numWeeklyActiveUsers"`
+	AnonymousIdentifier            string `json:"anonymousIdentifier"`
+	FleetVersion                   string `json:"fleetVersion"`
+	LicenseTier                    string `json:"licenseTier"`
+	Organization                   string `json:"organization"`
+	NumHostsEnrolled               int    `json:"numHostsEnrolled"`
+	NumUsers                       int    `json:"numUsers"`
+	NumTeams                       int    `json:"numTeams"`
+	NumPolicies                    int    `json:"numPolicies"`
+	NumLabels                      int    `json:"numLabels"`
+	SoftwareInventoryEnabled       bool   `json:"softwareInventoryEnabled"`
+	VulnDetectionEnabled           bool   `json:"vulnDetectionEnabled"`
+	SystemUsersEnabled             bool   `json:"systemUsersEnabled"`
+	HostsStatusWebHookEnabled      bool   `json:"hostsStatusWebHookEnabled"`
+	MDMEnabledAndConfigured        bool   `json:"MDMEnabledAndConfigured"`
+	HostExpiryEnabled              bool   `json:"hostExpiryEnabled"`
+	JiraIntegrationEnabled         bool   `json:"jiraIntegrationEnabled"`
+	ZendeskIntegrationEnabled      bool   `json:"zendeskIntegrationEnabled"`
+	MDMWindowsEnabledAndConfigured bool   `json:"MDMWindowsEnabledAndConfigured"`
+	LiveQueryDisabled              bool   `json:"liveQueryDisabled"`
+	NumWeeklyActiveUsers           int    `json:"numWeeklyActiveUsers"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of actual policy violation days. One
 	// policy violation day is added for each policy that a host is failing as of the time the count
 	// is incremented. The count increments once per 24-hour interval and resets each week.
@@ -54,5 +60,5 @@ type HostsCountByOSVersion struct {
 }
 
 const (
-	StatisticsFrequency = time.Hour * 24 * 3
+	StatisticsFrequency = time.Hour * 24
 )
