@@ -60,9 +60,9 @@ export const munkiIssuesTableHeaders: IDataColumn[] = [
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <NewTooltipWrapper
-          tipContent={`
-            Issues reported the last time Munki ran on each host.
-          `}
+          tipContent={
+            <>Issues reported the last time Munki ran on each host.</>
+          }
         >
           Issue
         </NewTooltipWrapper>
@@ -95,9 +95,7 @@ export const munkiIssuesTableHeaders: IDataColumn[] = [
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <NewTooltipWrapper
-          tipContent={`
-            The first time Munki reported this issue.
-          `}
+          tipContent={<>The first time Munki reported this issue.</>}
         >
           Time
         </NewTooltipWrapper>

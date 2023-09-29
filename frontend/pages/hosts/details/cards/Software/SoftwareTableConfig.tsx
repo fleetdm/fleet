@@ -107,13 +107,12 @@ const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <NewTooltipWrapper
       position="top"
-      tipContent={`
+      tipContent={
         <span>
           <b>Bundle identifier: </b>
-          <br />
-          ${bundle}
+          <br />${bundle}
         </span>
-      `}
+      }
     >
       {name}
     </NewTooltipWrapper>

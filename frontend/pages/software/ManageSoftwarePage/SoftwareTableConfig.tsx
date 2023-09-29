@@ -95,13 +95,15 @@ const generateEPSSColumnHeader = (isSandboxMode = false) => {
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <NewTooltipWrapper
-          tipContent={`
-            The probability that this software will be exploited
-            <br />
-            in the next 30 days (EPSS probability). This data is
-            <br />
-            reported by FIRST.org.
-          `}
+          tipContent={
+            <>
+              The probability that this software will be exploited
+              <br />
+              in the next 30 days (EPSS probability). This data is
+              <br />
+              reported by FIRST.org.
+            </>
+          }
         >
           Probability of exploit
         </NewTooltipWrapper>

@@ -240,11 +240,13 @@ const allHostTableHeaders: IDataColumn[] = [
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <NewTooltipWrapper
-          tipContent={`
-             Online hosts will respond to a live query. Offline
-             hosts won’t respond to a live query because
-             they may be shut down, asleep, or not
-             connected to the internet.`}
+          tipContent={
+            <>
+              Online hosts will respond to a live query. Offline hosts won’t
+              respond to a live query because they may be shut down, asleep, or
+              not connected to the internet.
+            </>
+          }
           className="status-header"
         >
           Status
@@ -384,11 +386,14 @@ const allHostTableHeaders: IDataColumn[] = [
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <NewTooltipWrapper
-          tipContent={`
-            Settings can be updated remotely on <br/>
-            hosts with MDM turned on. To filter by<br/>
-            MDM status, head to the Dashboard page.
-          `}
+          tipContent={
+            <>
+              Settings can be updated remotely on <br />
+              hosts with MDM turned on. To filter by
+              <br />
+              MDM status, head to the Dashboard page.
+            </>
+          }
         >
           MDM status
         </NewTooltipWrapper>
@@ -413,11 +418,15 @@ const allHostTableHeaders: IDataColumn[] = [
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <NewTooltipWrapper
-          tipContent={`
-            The MDM server that updates settings<br/>
-            on the host. To filter by MDM server URL,<br/>
-            head to the Dashboard page.
-          `}
+          tipContent={
+            <>
+              The MDM server that updates settings
+              <br />
+              on the host. To filter by MDM server URL,
+              <br />
+              head to the Dashboard page.
+            </>
+          }
         >
           MDM server URL
         </NewTooltipWrapper>
@@ -486,9 +495,12 @@ const allHostTableHeaders: IDataColumn[] = [
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <NewTooltipWrapper
-          tipContent={`
-            The last time the host<br/> reported vitals.
-          `}
+          tipContent={
+            <>
+              The last time the host
+              <br /> reported vitals.
+            </>
+          }
         >
           Last fetched
         </NewTooltipWrapper>
@@ -513,9 +525,12 @@ const allHostTableHeaders: IDataColumn[] = [
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <NewTooltipWrapper
-          tipContent={`
-            The last time the <br/>host was online.
-          `}
+          tipContent={
+            <>
+              The last time the <br />
+              host was online.
+            </>
+          }
         >
           Last seen
         </NewTooltipWrapper>

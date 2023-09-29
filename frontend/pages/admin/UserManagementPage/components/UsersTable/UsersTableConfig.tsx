@@ -132,11 +132,11 @@ const generateTableHeaders = (
           return (
             <NewTooltipWrapper
               position="top"
-              tipContent={`
+              tipContent={<>
             The GitOps role is only available on the command-line<br/>
             when creating an API-only user. This user has no<br/>
             access to the UI.
-          `}
+          </>}
             >
               GitOps
             </NewTooltipWrapper>
@@ -146,11 +146,11 @@ const generateTableHeaders = (
           return (
             <NewTooltipWrapper
               position="top"
-              tipContent={`
+              tipContent={<>
             Users with the Observer+ role have access to all of<br/>
             the same functions as an Observer, with the added<br/>
             ability to run any live query against all hosts. 
-          `}
+          </>}
             >
               {cellProps.cell.value}
             </NewTooltipWrapper>
