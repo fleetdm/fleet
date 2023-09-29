@@ -5,7 +5,7 @@ import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 import { uniqueId } from "lodash";
 
 interface INewTooltipWrapperBase {
-  children: string;
+  children: string | JSX.Element;
   position?: PlacesType;
   isDelayed?: boolean;
   underline?: boolean;
