@@ -11,6 +11,8 @@ on:
       - '.github/workflows/test-bruno.yaml'
       - 'server/authz/policy.rego'
   pull_request:
+    branches:
+      - bruno-*
     paths:
       - '**.go'
       - 'go.mod'
