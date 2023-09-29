@@ -34,8 +34,6 @@ parasails.registerPage('homepage', {
     },
 
     clickOpenVideoModal: function(modalName) {
-      console.log(modalName);
-      console.log('hi?');
       this.modal = modalName;
     },
 
