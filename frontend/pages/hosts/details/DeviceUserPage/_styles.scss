@@ -108,6 +108,10 @@
   background-color: $ui-dark-fleet-50;
   color: $ui-dark-white;
 
+  .loading-spinner {
+    background-color: initial;
+  }
+
   .site-nav-container {
     background-color: $ui-dark-fleet-50;
   }
