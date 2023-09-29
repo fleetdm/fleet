@@ -1,6 +1,6 @@
 import React from "react";
 import { noop } from "lodash";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 import createMockOsqueryTable from "__mocks__/osqueryTableMock";
 import QuerySidePanel from "./QuerySidePanel";
@@ -10,7 +10,7 @@ describe("QuerySidePanel - component", () => {
     render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={(tableName: string) => noop}
+        onOsqueryTableSelect={() => noop}
         onClose={noop}
       />
     );
@@ -23,7 +23,7 @@ describe("QuerySidePanel - component", () => {
     const { container } = render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={(tableName: string) => noop}
+        onOsqueryTableSelect={() => noop}
         onClose={noop}
       />
     );
@@ -42,7 +42,7 @@ describe("QuerySidePanel - component", () => {
     const { container } = render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={(tableName: string) => noop}
+        onOsqueryTableSelect={() => noop}
         onClose={noop}
       />
     );
@@ -51,14 +51,23 @@ describe("QuerySidePanel - component", () => {
     expect(platformList.length).toBe(11); // 2 columns are set to hidden
   });
 
-  it("renders the platform specific column tooltip", () => {
+  // commmenting out the below test as the new tooltip is now event-based and doesn't exist in the
+  // DOM at this point. TODO(jacob) – figure out a work around
+
+  it("renders the platform specific column tooltip", async () => {
     render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={(tableName: string) => noop}
+        onOsqueryTableSelect={() => noop}
         onClose={noop}
       />
     );
+
+    // await screen.getByText("email").onmouseenter;
+
+    // const el = screen.getByText("email");
+    // await user.hover();
+    await fireEvent.mouseEnter(screen.getByText("email"));
 
     const tooltip = screen.getByText(/only available on chrome/i);
     expect(tooltip).toBeInTheDocument();
@@ -68,7 +77,7 @@ describe("QuerySidePanel - component", () => {
     render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={(tableName: string) => noop}
+        onOsqueryTableSelect={() => noop}
         onClose={noop}
       />
     );
@@ -87,7 +96,7 @@ describe("QuerySidePanel - component", () => {
         selectedOsqueryTable={createMockOsqueryTable({
           notes: "This table is being used for testing.",
         })}
-        onOsqueryTableSelect={(tableName: string) => noop}
+        onOsqueryTableSelect={() => noop}
         onClose={noop}
       />
     );
@@ -102,7 +111,7 @@ describe("QuerySidePanel - component", () => {
     render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={(tableName: string) => noop}
+        onOsqueryTableSelect={() => noop}
         onClose={noop}
       />
     );
