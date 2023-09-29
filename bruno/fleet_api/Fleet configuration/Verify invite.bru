@@ -1,0 +1,10 @@
+meta {
+  name: Verify invite
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/invites/:token
+  body: none
+}

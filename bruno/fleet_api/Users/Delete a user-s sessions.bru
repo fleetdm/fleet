@@ -1,0 +1,10 @@
+meta {
+  name: Delete a user-s sessions
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{host}}/api/{{api_version}}/fleet/users/:id/sessions
+  body: none
+}

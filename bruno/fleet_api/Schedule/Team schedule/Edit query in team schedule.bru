@@ -1,0 +1,16 @@
+meta {
+  name: Edit query in team schedule
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{host}}/api/{{api_version}}/fleet/teams/:team_id/schedule/:scheduled_query_id
+  body: json
+}
+
+body:json {
+  {
+    "interval": 604800
+  }
+}

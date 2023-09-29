@@ -1,0 +1,13 @@
+meta {
+  name: Get host-s Google Chrome profiles
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/hosts/:id/device_mapping
+  body: none
+}
+headers {
+  Authorization: Bearer {{token}}
+}

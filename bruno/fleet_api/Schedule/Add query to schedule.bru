@@ -1,0 +1,18 @@
+meta {
+  name: Add query to schedule
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/global/schedule
+  body: json
+}
+
+body:json {
+  {
+    "interval": 86400,
+    "query_id": 2,
+    "snapshot": true
+  }
+}

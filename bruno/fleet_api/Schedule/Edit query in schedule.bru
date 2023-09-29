@@ -1,0 +1,16 @@
+meta {
+  name: Edit query in schedule
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{host}}/api/{{api_version}}/fleet/global/schedule/:id
+  body: json
+}
+
+body:json {
+  {
+    "interval": 604800
+  }
+}

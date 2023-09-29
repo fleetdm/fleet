@@ -1,0 +1,13 @@
+meta {
+  name: List queries
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/queries
+  body: none
+}
+headers {
+  Authorization: Bearer {{token}}
+}

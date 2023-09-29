@@ -1,0 +1,29 @@
+meta {
+  name: List Hosts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/hosts
+  body: none
+}
+
+query {
+  ~page: 1
+  ~per_page: 20
+  ~order_key: 
+  ~after: 
+  ~order_direction: 
+  ~status: 
+  ~query: 
+  ~additional_info_filters: 
+  ~team_id: 
+  ~policy_id: 
+  ~policy_response: 
+  ~software_id: 
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

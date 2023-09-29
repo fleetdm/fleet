@@ -1,0 +1,10 @@
+meta {
+  name: Get team schedule
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/teams/:id/schedule
+  body: none
+}

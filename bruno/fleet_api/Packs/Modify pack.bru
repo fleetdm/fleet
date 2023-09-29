@@ -1,0 +1,18 @@
+meta {
+  name: Modify pack
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{host}}/api/{{api_version}}/fleet/packs/:id
+  body: json
+}
+
+body:json {
+  {
+    "description": "MacOS hosts are targeted",
+    "host_ids": [],
+    "label_ids": [7]
+  }
+}

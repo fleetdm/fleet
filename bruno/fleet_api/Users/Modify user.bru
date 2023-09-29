@@ -1,0 +1,17 @@
+meta {
+  name: Modify user
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{host}}/api/{{api_version}}/fleet/users/:id
+  body: json
+}
+
+body:json {
+  {
+    "name": "Jane Doe",
+    "global_role": "admin"
+  }
+}

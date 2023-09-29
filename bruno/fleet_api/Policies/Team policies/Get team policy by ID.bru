@@ -1,0 +1,13 @@
+meta {
+  name: Get team policy by ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/teams/:team_id/policies/:policy_id
+  body: none
+}
+headers {
+  Authorization: Bearer {{token}}
+}

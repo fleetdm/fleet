@@ -1,0 +1,22 @@
+meta {
+  name: Create label
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/labels
+  body: json
+}
+
+body:json {
+  {
+    "name": "Ubuntu hosts",
+    "description": "Filters ubuntu hosts",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+    "platform": ""
+  }
+}
+headers {
+  Authorization: Bearer {{token}}
+}

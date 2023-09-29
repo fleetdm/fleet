@@ -1,0 +1,13 @@
+meta {
+  name: Delete host
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{host}}/api/{{api_version}}/fleet/hosts/identifier/:id
+  body: none
+}
+headers {
+  Authorization: Bearer {{token}}
+}

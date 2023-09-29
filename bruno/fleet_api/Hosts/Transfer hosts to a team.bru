@@ -1,0 +1,20 @@
+meta {
+  name: Transfer hosts to a team
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/hosts/transfer
+  body: json
+}
+
+body:json {
+  {
+      "team_id": 1,
+      "hosts": [5, 9, 3, 2]
+  }
+}
+headers {
+  Authorization: Bearer {{token}}
+}

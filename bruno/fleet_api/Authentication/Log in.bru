@@ -1,0 +1,21 @@
+meta {
+  name: Log in
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/login
+  body: json
+}
+
+body:json {
+  {
+      "email": "{{admin_email}}",
+      "password": "{{admin_pass}}"
+  }
+}
+
+vars:post-response {
+  token: res.body.token
+}

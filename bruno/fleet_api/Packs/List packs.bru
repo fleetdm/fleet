@@ -1,0 +1,15 @@
+meta {
+  name: List packs
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/packs
+  body: none
+}
+
+query {
+  ~order_key: 
+  ~order_direction: 
+}

@@ -1,0 +1,16 @@
+meta {
+  name: List invites
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/invites
+  body: none
+}
+
+query {
+  ~order_key: 34
+  ~order_direction: asc
+  ~query: name
+}

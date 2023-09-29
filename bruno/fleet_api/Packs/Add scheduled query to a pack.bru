@@ -1,0 +1,23 @@
+meta {
+  name: Add scheduled query to a pack
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/schedule
+  body: json
+}
+
+body:json {
+  {
+    "interval": 120,
+    "pack_id": 15,
+    "query_id": 23,
+    "removed": true,
+    "shard": null,
+    "snapshot": false,
+    "version": "4.5.0",
+    "platform": "windows"
+  }
+}

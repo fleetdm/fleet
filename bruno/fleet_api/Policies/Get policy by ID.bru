@@ -1,0 +1,13 @@
+meta {
+  name: Get policy by ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/global/policies/:id
+  body: none
+}
+headers {
+  Authorization: Bearer {{token}}
+}

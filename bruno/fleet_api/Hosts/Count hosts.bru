@@ -1,0 +1,33 @@
+meta {
+  name: Count hosts
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/hosts/count
+  body: text
+}
+
+query {
+  ~page: 1
+  ~order_key: 
+  ~after: 
+  ~order_direction: 
+  ~status: 
+  ~query: 
+  ~additional_info_filters: 
+  ~team_id: 
+  ~policy_id: 
+  ~policy_response: 
+  ~label_id: 
+  ~disable_failing_policies: 
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+assert {
+  res.status: 200
+}

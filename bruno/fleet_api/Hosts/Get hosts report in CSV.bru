@@ -1,0 +1,17 @@
+meta {
+  name: Get hosts report in CSV
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/hosts/report?format=csv
+  body: none
+}
+
+query {
+  format: csv
+}
+headers {
+  Authorization: Bearer {{token}}
+}

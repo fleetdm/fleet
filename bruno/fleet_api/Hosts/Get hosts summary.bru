@@ -1,0 +1,18 @@
+meta {
+  name: Get hosts summary
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/host_summary
+  body: none
+}
+
+query {
+  ~team_id: 1
+  ~platform: darwin
+}
+headers {
+  Authorization: Bearer {{token}}
+}

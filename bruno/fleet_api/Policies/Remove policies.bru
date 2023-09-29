@@ -1,0 +1,19 @@
+meta {
+  name: Remove policies
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/global/policies/delete
+  body: json
+}
+
+body:json {
+  {
+    "ids": [6, 3, 4 ]
+  }
+}
+headers {
+  Authorization: Bearer {{token}}
+}

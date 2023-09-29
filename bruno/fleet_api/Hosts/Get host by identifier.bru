@@ -1,0 +1,13 @@
+meta {
+  name: Get host by identifier
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/hosts/identifier/:identifier
+  body: none
+}
+headers {
+  Authorization: Bearer {{token}}
+}

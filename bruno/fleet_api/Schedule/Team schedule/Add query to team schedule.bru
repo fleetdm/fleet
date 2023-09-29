@@ -1,0 +1,18 @@
+meta {
+  name: Add query to team schedule
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/teams/:id/schedule
+  body: json
+}
+
+body:json {
+  {
+    "interval": 86400,
+    "query_id": 2,
+    "snapshot": true
+  }
+}

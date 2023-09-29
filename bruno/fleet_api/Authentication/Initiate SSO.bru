@@ -1,0 +1,16 @@
+meta {
+  name: Initiate SSO
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/sso
+  body: json
+}
+
+body:json {
+  {
+      "relay_url": "/hosts/manage"
+  }
+}

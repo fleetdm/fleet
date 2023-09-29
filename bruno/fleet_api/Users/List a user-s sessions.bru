@@ -1,0 +1,10 @@
+meta {
+  name: List a user-s sessions
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/users/:id/sessions
+  body: none
+}

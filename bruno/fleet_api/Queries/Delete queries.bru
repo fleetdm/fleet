@@ -1,0 +1,21 @@
+meta {
+  name: Delete queries
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/queries/delete
+  body: json
+}
+
+body:json {
+  {
+    "ids": [
+      2, 24, 25
+    ]
+  }
+}
+headers {
+  Authorization: Bearer {{token}}
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Create query
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/queries
+  body: json
+}
+
+body:json {
+  {
+    "description": "This is a new query.",
+    "name": "new_query",
+    "query": "SELECT * FROM osquery_info"
+  }
+}
+headers {
+  Authorization: Bearer {{token}}
+}

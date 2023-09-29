@@ -1,0 +1,13 @@
+meta {
+  name: List labels
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/labels
+  body: none
+}
+headers {
+  Authorization: Bearer {{token}}
+}

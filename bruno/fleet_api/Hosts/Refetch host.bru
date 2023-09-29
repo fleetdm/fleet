@@ -1,0 +1,13 @@
+meta {
+  name: Refetch host
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/hosts/:id/refetch
+  body: none
+}
+headers {
+  Authorization: Bearer {{token}}
+}

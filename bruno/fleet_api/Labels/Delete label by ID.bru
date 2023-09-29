@@ -1,0 +1,13 @@
+meta {
+  name: Delete label by ID
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{host}}/api/{{api_version}}/fleet/labels/id/:id
+  body: none
+}
+headers {
+  Authorization: Bearer {{token}}
+}

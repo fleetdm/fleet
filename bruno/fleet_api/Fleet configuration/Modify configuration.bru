@@ -1,0 +1,24 @@
+meta {
+  name: Modify configuration
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{host}}/api/{{api_version}}/fleet/config
+  body: json
+}
+
+body:json {
+  {
+    "org_info": {
+      "org_name": "Fleet Device Management",
+      "org_logo_url": "https://fleetdm.com/logo.png"
+    },
+    "smtp_settings": {
+      "enable_smtp": true,
+      "server": "localhost",
+      "port": "1025"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+meta {
+  name: List hosts in a label
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/labels/:id/hosts
+  body: none
+}
+
+query {
+  ~order_key: 
+  ~order_direction: 
+  ~status: 
+  ~query: 
+  ~team_id: 
+}
+headers {
+  Authorization: Bearer {{token}}
+}

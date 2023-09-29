@@ -1,0 +1,10 @@
+meta {
+  name: Delete scheduled query
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{host}}/api/{{api_version}}/fleet/schedule/:id
+  body: none
+}
