@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{host}}/api/{{api_version}}/fleet/labels/:id/hosts
+  url: {{host}}/api/{{api_version}}/fleet/labels/{{label_id}}/hosts
   body: none
 }
 
@@ -16,6 +16,11 @@ query {
   ~query: 
   ~team_id: 
 }
+
 headers {
   Authorization: Bearer {{token}}
+}
+
+assert {
+  res.status: 200
 }

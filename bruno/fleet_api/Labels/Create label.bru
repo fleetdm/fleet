@@ -23,10 +23,9 @@ body:json {
 }
 
 vars:post-response {
-  label_name: "Ubuntu hosts"
   label_id: res("label.id")
 }
 
 assert {
-  res: 200
+  res.status: 200
 }
