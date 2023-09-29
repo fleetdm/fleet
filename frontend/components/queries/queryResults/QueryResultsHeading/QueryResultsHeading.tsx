@@ -125,7 +125,12 @@ const QuertResultsHeading = ({
         {!isQueryFinished && (
           <div className={`${baseClass}__tooltip`}>
             <NewTooltipWrapper
-              tipContent={<>The hosts’ distributed interval can <br/>impact live query response times.</>}
+              tipContent={
+                <>
+                  The hosts’ distributed interval can <br />
+                  impact live query response times.
+                </>
+              }
             >
               Taking longer than 15 seconds?
             </NewTooltipWrapper>
