@@ -37,7 +37,7 @@ module "alb" {
   security_groups = concat(var.alb_config.security_groups, [aws_security_group.alb.id])
   access_logs     = var.alb_config.access_logs
 
-  target_groups = [
+  target_groups = concat([
     {
       name             = var.alb_config.name
       backend_protocol = "HTTP"
@@ -52,7 +52,7 @@ module "alb" {
         unhealthy_threshold = 5
       }
     }
-  ]
+  ], var.alb_config.extra_target_groups)
 
   # Require TLS 1.2 as earlier versions are insecure
   listener_ssl_policy_default = "ELBSecurityPolicy-TLS-1-2-2017-01"

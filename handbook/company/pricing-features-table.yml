@@ -15,9 +15,9 @@
     - name: Zero-touch setup for macOS computers
       tier: Premium
       comingSoon: false
-    - name: Safely execute remote scripts
+    - name: Safely execute custom scripts
       tier: Premium
-      comingSoon: true      
+      comingSoon: false      
     - name: End-user macOS update reminders (via Nudge)
       tier: Premium
       comingSoon: false
