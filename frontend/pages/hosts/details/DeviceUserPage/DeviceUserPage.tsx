@@ -87,18 +87,15 @@ const DeviceUserPage = ({
     null
   );
 
-  // const userColorThemePreference = window.matchMedia(
-  //   "(prefers-color-scheme: dark)"
-  // );
+  const userColorThemePreference: MediaQueryList = window.matchMedia(
+    "(prefers-color-scheme: dark)"
+  );
 
-  // console.log("userColorThemePreference: ", userColorThemePreference);
+  userColorThemePreference.addEventListener("change", () => {
+    router.push(location.pathname);
+  });
 
-  console.log("Y U NO WORK?!?!");
-
-  const setDarkMode = true; // TODO: identify if dark mode is on
-
-  const darkMode = setDarkMode && "dark-mode";
-
+  const darkMode = userColorThemePreference.matches && "dark-mode";
   const darkModeClass = classNames(baseClass, darkMode);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
