@@ -100,3 +100,35 @@
 .dup-org-logo {
   cursor: default;
 }
+
+.dark-mode {
+  .device-user {
+    background-color: $ui-dark-fleet-50;
+    color: $ui-dark-white;
+  }
+
+  table {
+    border-color: $ui-dark-fleet-25;
+  }
+
+  th {
+    background-color: $ui-dark-fleet-50;
+    border-color: $ui-dark-fleet-25;
+    color: $ui-dark-white;
+  }
+  tbody,
+  .section,
+  .policy-failing-count {
+    background-color: $ui-dark-fleet-75;
+  }
+  .data-table-block {
+    color: $ui-dark-grey;
+  }
+
+  .component__tabs-wrapper {
+    background-color: $ui-dark-fleet-50;
+  }
+  .react-tabs__tab-list {
+    border-color: $ui-dark-grey;
+  }
+}
