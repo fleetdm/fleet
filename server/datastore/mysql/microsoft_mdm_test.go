@@ -188,18 +188,33 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		})
 	})
 
-	t.Run("BitLocker verified status", func(t *testing.T) {
+	t.Run("BitLocker verifying and verified statuses", func(t *testing.T) {
 		// TODO: Update test to use methods to set windows disk encryption when they are implemented
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
-				`INSERT INTO host_disk_encryption_keys (host_id, decryptable, client_error) VALUES (?, ?, ?)`,
+				`INSERT INTO host_disk_encryption_keys (host_id, base64_encrypted, decryptable, client_error, updated_at) VALUES (?, ?, ?, ?, ?)`,
 				hosts[0].ID,
+				"test-key",
 				true,
-				"")
+				"",
+				time.Now().Add(-1*time.Minute))
 			return err
 		})
 		checkExpected(t, nil, hostIDsByStatus{
-			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+			fleet.DiskEncryptionVerifying: []uint{hosts[0].ID}, // status is verifying because hosts_disks hasn't been updated yet
+			fleet.DiskEncryptionEnforcing: []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+		})
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_disks (host_id, encrypted, updated_at) VALUES (?, ?, ?)`,
+				hosts[0].ID,
+				true,
+				time.Now())
+			return err
+		})
+		checkExpected(t, nil, hostIDsByStatus{
+			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID}, // status is verified because hosts_disks has been updated
 			fleet.DiskEncryptionEnforcing: []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 		})
 	})
