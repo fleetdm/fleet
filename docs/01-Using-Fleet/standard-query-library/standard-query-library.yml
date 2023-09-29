@@ -1049,7 +1049,7 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get a list of Visual Studio extensions
+  name: Get a list of Visual Studio Code extensions
   platform: darwin
   description:
   query: |
