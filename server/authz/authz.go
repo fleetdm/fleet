@@ -22,7 +22,7 @@ import (
 
 // Authorizer stores the compiled policy and performs authorization checks.
 type Authorizer struct {
-	query rego.PreparedEvalQuer
+	query rego.PreparedEvalQuery
 }
 
 // Load the policy from policy.rego in this directory.
