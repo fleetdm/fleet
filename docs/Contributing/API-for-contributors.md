@@ -531,6 +531,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
+- [Get FileVault statistics](#get-filevault-statistics)
 
 ### Generate Apple DEP Key Pair
 
@@ -698,6 +699,44 @@ This endpoint stores a profile to be assigned to a host at some point in the fut
 ##### Default response
 
 `Status: 204`
+
+### Get FileVault statistics
+
+_Available in Fleet Premium_
+
+Get aggregate status counts of disk encryption enforced on macOS hosts.
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter the summary.            |
+
+#### Example
+
+Get aggregate status counts of Apple disk encryption profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "verified": 123,
+  "verifying": 123,
+  "action_required": 123,
+  "enforcing": 123,
+  "failed": 123,
+  "removing_enforcement": 123
+}
+```
+
 
 ### Match preassigned profiles
 
