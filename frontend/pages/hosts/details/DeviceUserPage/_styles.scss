@@ -102,13 +102,37 @@
 }
 
 .dark-mode {
+  background-color: $ui-dark-fleet-50;
+
+  .site-nav-container {
+    background-color: $ui-dark-fleet-50;
+  }
+
   .device-user {
     background-color: $ui-dark-fleet-50;
     color: $ui-dark-white;
+
+    h1,
+    .react-tabs__tab--selected,
+    .table-container__results-count {
+      background-color: $ui-dark-fleet-50;
+      color: $ui-dark-white;
+    }
+
+    p,
+    .last-fetched {
+      color: $ui-dark-grey;
+    }
+
+    .section {
+      box-shadow: 0px 3px 0px rgba(226, 228, 234, 0.2);
+    }
   }
 
-  table {
+  table,
+  .data-table-block {
     border-color: $ui-dark-fleet-25;
+    color: $ui-dark-grey;
   }
 
   th {
@@ -118,11 +142,9 @@
   }
   tbody,
   .section,
-  .policy-failing-count {
+  .policy-failing-count,
+  .software-vuln-count {
     background-color: $ui-dark-fleet-75;
-  }
-  .data-table-block {
-    color: $ui-dark-grey;
   }
 
   .component__tabs-wrapper {
@@ -130,5 +152,33 @@
   }
   .react-tabs__tab-list {
     border-color: $ui-dark-grey;
+  }
+
+  .info-flex,
+  .info-grid {
+    .info-flex__header,
+    .info-grid__header {
+      color: $ui-dark-white;
+    }
+    .info-flex__data,
+    .info-grid__data {
+      color: $ui-dark-grey;
+    }
+  }
+
+  .info__header {
+    color: $ui-dark-white;
+  }
+  .info__data {
+    color: $ui-dark-grey;
+  }
+
+  .modal__modal_container,
+  .__react_component_tooltip {
+    background-color: $ui-dark-fleet-10;
+
+    p {
+      color: $ui-dark-white;
+    }
   }
 }
