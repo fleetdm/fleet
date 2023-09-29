@@ -5,8 +5,12 @@ meta {
 }
 
 patch {
-  url: {{host}}/api/{{api_version}}/fleet/labels/:id
+  url: {{host}}/api/{{api_version}}/fleet/labels/{{label_id}}
   body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
 }
 
 body:json {
@@ -16,6 +20,7 @@ body:json {
     "platform": "darwin"
   }
 }
-headers {
-  Authorization: Bearer {{token}}
+
+vars:post-response {
+  label_name: res("label.name")
 }

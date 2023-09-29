@@ -9,6 +9,10 @@ post {
   body: json
 }
 
+headers {
+  Authorization: Bearer {{token}}
+}
+
 body:json {
   {
     "name": "Ubuntu hosts",
@@ -17,6 +21,12 @@ body:json {
     "platform": ""
   }
 }
-headers {
-  Authorization: Bearer {{token}}
+
+vars:post-response {
+  label_name: "Ubuntu hosts"
+  label_id: res("label.id")
+}
+
+assert {
+  res: 200
 }

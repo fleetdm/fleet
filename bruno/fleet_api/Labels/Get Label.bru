@@ -5,9 +5,18 @@ meta {
 }
 
 get {
-  url: {{host}}/api/{{api_version}}/fleet/labels/:id
+  url: {{host}}/api/{{api_version}}/fleet/labels/{{label_id}}
   body: none
 }
+
 headers {
   Authorization: Bearer {{token}}
+}
+
+vars:pre-request {
+  id: 14
+}
+
+assert {
+  res.status: 200
 }
