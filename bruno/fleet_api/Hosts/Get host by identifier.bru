@@ -5,9 +5,14 @@ meta {
 }
 
 get {
-  url: {{host}}/api/{{api_version}}/fleet/hosts/identifier/:identifier
+  url: {{host}}/api/{{api_version}}/fleet/hosts/identifier/{{host_1_uuid}}
   body: none
 }
+
 headers {
   Authorization: Bearer {{token}}
+}
+
+assert {
+  res.status: 200
 }

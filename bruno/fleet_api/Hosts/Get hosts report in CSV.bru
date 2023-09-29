@@ -12,6 +12,11 @@ get {
 query {
   format: csv
 }
+
 headers {
   Authorization: Bearer {{token}}
+}
+
+assert {
+  res.status: 200
 }

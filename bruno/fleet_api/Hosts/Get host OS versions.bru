@@ -8,6 +8,11 @@ get {
   url: {{host}}/api/{{api_version}}/fleet/os_versions
   body: none
 }
+
 headers {
   Authorization: Bearer {{token}}
+}
+
+assert {
+  res.status: 200
 }

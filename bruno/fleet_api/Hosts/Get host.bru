@@ -12,3 +12,11 @@ get {
 headers {
   Authorization: Bearer {{token}}
 }
+
+assert {
+  res.status: 200
+}
+
+script:post-response {
+  bru.setVar("host_1_uuid", res.body.host.uuid)
+}

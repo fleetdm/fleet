@@ -5,9 +5,14 @@ meta {
 }
 
 get {
-  url: {{host}}/api/{{api_version}}/fleet/hosts/:id/device_mapping
+  url: {{host}}/api/{{api_version}}/fleet/hosts/{{host_id}}/device_mapping
   body: none
 }
+
 headers {
   Authorization: Bearer {{token}}
+}
+
+assert {
+  res.status: 200
 }
