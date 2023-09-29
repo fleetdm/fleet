@@ -323,12 +323,15 @@ To be acceptable for consideration, a request must:
 - Have a clear proposed change
 - Have a well-articulated underlying user need
 - Specify the requestor (either internal stakeholder or customer or community user)
-- Include the `feature fest` and customer labels (if applicable) 
 
 To help the product team, other pieces of information can be optionally included:
 - How would they solve the problem without any changes if pressed?
 - How does this change fit into the requester's overall usage of Fleet?
 - What other potential changes to the product have you considered?
+
+To ensure your request appears on the Feature Fest board:
+- Add the `feature fest` label to your issue
+- Add the relevant customer label (if applicable) 
 
 To maximize your chances of having a feature accepted, requesters can visit the [🗣 Product office hours](#rituals) meeting to get feedback on requests prior to being accepted. 
 
