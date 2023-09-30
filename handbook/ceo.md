@@ -38,9 +38,9 @@ Internal meetings can sometimes be moved to make room. External meetings, blocke
 - **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](#why-not-mention-the-ceo-in-slack-threads).
 
 ### Request equipment from Fleet IT
-The Apprentice fulfills equipment requests once per week.  Follow the process for [buying new equipment](https://fleetdm.com/handbook/company/communications#buying-other-new-equipment) and submit an [equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request+for+%7BGithub+%20username%7D). 
+The Apprentice fulfills approved equipment requests once per week.  Follow the process for [buying new equipment](https://fleetdm.com/handbook/company/communications#buying-other-new-equipment) and submit an [equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request+for+%7BGithub+%20username%7D). 
 
-Once the request is approved by the Business Operations department, the Apprentice will [ship the approved equipment](https://fleetdm.com/handbook/ceo#ship-approved-equipment) the next business day.
+The Apprentice will [ship the approved equipment](https://fleetdm.com/handbook/ceo#ship-approved-equipment) and at-mention the requestor with tracking information.
 
 ## Why not mention the CEO in Slack threads?
 Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
