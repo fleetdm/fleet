@@ -40,11 +40,11 @@ This page includes a list of available resources and their API routes.
 
 All API requests to the Fleet server require API token authentication unless noted in the documentation. API tokens are tied to your Fleet user account.
 
-To get an API token, retrieve it from the "Account settings" > "Get API token" in the Fleet UI (`/profile`). Or, you can send a request to the [login API endpoint](#log-in) to get your token.
+To get an API token, retrieve it from "My account" > "Get API token" in the Fleet UI (`/profile`). Or, you can send a request to the [login API endpoint](#log-in) to get your token.
 
 Then, use that API token to authenticate all subsequent API requests by sending it in the "Authorization" request header, prefixed with "Bearer ":
 
-```
+```http
 Authorization: Bearer <your token>
 ```
 
@@ -98,6 +98,42 @@ Authenticates the user with the specified credentials. Use the token returned fr
     "teams": []
   },
   "token": "{your token}"
+}
+```
+
+##### Authentication failed
+
+`Status: 401 Unauthorized`
+
+```json
+{
+  "message": "Authentication failed",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Authentication failed"
+    }
+  ],
+  "uuid": "1272014b-902b-4b36-bcdb-75fde5eac1fc"
+}
+```
+
+##### Too many requests / Rate limiting
+
+`Status: 429 Too Many Requests`
+`Header: retry-after: N`
+
+> This response includes a header `retry-after` that indicates how many more seconds you are blocked before you can try again.
+
+```json
+{
+  "message": "limit exceeded, retry after: Ns",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "limit exceeded, retry after: Ns"
+    }
+  ]
 }
 ```
 
@@ -980,6 +1016,8 @@ Modifies the Fleet's configuration with the supplied information.
 | ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | org_name                          | string  | body  | _Organization information_. The organization name.                                                                                                                                     |
 | org_logo_url                      | string  | body  | _Organization information_. The URL for the organization logo.                                                                                                                         |
+| org_logo_url_light_background     | string  | body  | _Organization information_. The URL for the organization logo displayed in Fleet on top of light backgrounds.                                                                          |
+| contact_url                       | string  | body  | _Organization information_. A URL that can be used by end users to contact the organization.                                                                                          |
 | server_url                        | string  | body  | _Server settings_. The Fleet server URL.                                                                                                                                               |
 | live_query_disabled               | boolean | body  | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
 | enable_smtp                       | boolean | body  | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
@@ -1072,6 +1110,7 @@ Note that when making changes to the `integrations` object, all integrations mus
   "org_info": {
     "org_name": "Fleet Device Management",
     "org_logo_url": "https://fleetdm.com/logo.png",
+    "org_logo_url_light_background": "https://fleetdm.com/logo-light.png",
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
@@ -3257,7 +3296,7 @@ requested by a web browser.
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
-| policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
+| policy_response         | string  | query | Valid options are `passing` or `failing`. `policy_id` must also be specified with `policy_response`. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
@@ -3270,6 +3309,7 @@ requested by a web browser.
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
+| disable_failing_policies | boolean | query | If `true`, hosts will return failing policies as 0 (returned as the `issues` column) regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 
 If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
@@ -3860,14 +3900,14 @@ assigned to a team. Note that in this example the form data specifies`team_id` i
 
 ##### Request headers
 
-```
+```http
 Content-Length: 850
 Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
 ```
 
 ##### Request body
 
-```
+```http
 --------------------------f02md47480und42y
 Content-Disposition: form-data; name="team_id"
 
@@ -3979,14 +4019,14 @@ solely on the response status code returned by this endpoint.
 
 ##### Example response headers
 
-```
+```http
   Content-Length: 542
   Content-Type: application/octet-stream
   Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
 ```
 
 ###### Example response body
-```
+```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -4411,14 +4451,14 @@ assigned to a team. Note that in this example the form data specifies `team_id` 
 
 ##### Request headers
 
-```
+```http
 Content-Length: 850
 Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
 ```
 
 ##### Request body
 
-```
+```http
 --------------------------f02md47480und42y
 Content-Disposition: form-data; name="team_id"
 1
@@ -4516,7 +4556,7 @@ Download a bootstrap package.
 
 `Status: 200`
 
-```
+```http
 Status: 200
 Content-Type: application/octet-stream
 Content-Disposition: attachment
@@ -4608,14 +4648,14 @@ Upload an EULA that will be shown during the DEP flow.
 
 ##### Request headers
 
-```
+```http
 Content-Length: 850
 Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
 ```
 
 ##### Request body
 
-```
+```http
 --------------------------f02md47480und42y
 Content-Disposition: form-data; name="eula"; filename="eula.pdf"
 Content-Type: application/octet-stream
@@ -4699,7 +4739,7 @@ Download an EULA file
 
 `Status: 200`
 
-```
+```http
 Status: 200
 Content-Type: application/pdf
 Content-Disposition: attachment
@@ -6559,7 +6599,8 @@ Deletes the session specified by ID. When the user associated with the session n
             "cvss_score": 7.5,
             "epss_probability": 0.01537,
             "cisa_known_exploit": false,
-            "cve_published": "2022-01-01 12:32:00"
+            "cve_published": "2022-01-01 12:32:00",
+            "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match."
           }
         ],
         "hosts_count": 1

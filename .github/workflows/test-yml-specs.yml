@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - patch-*
+      - prepare-*
     paths:
       - 'ee/cis/**.yml'
       - '.github/workflows/test-yml-specs.yml'

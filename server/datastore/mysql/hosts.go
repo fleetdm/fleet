@@ -464,12 +464,15 @@ var hostRefs = []string{
 	"host_updates",
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
-	"host_dep_assignments",
 	"host_script_results",
 }
 
-// those host refs cannot be deleted using the host.id like the hostRefs above,
-// they use the host.uuid instead. Additionally, the column name that refers to
+// NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
+// deleted from when a host is deleted in Fleet:
+// - host_dep_assignments
+
+// additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
+// above. They use the host.uuid instead. Additionally, the column name that refers to
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
@@ -776,6 +779,24 @@ func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byO
 	return byOS, totalCount, nil
 }
 
+// HostFailingPoliciesCountOptimPageSizeThreshold is the value of the page size that determines whether
+// to run an optimized version of the hosts queries when pagination is used.
+//
+// If the page size is under this value then the queries will be optimized assuming a low number of hosts.
+// If the page size is 0 or higher than this value then the queries will be optimized assuming a high number of hosts.
+//
+// IMPORTANT: The UI currently always uses PerPage=50 to list hosts. For better performance,
+// HostFailingPoliciesCountOptimPageSizeThreshold should always be higher than what the UI uses.
+//
+// The optimization consists on calculating the failing policy count (which involves querying a large table, `policy_membership`)
+// differently depending on the page size:
+//   - When the page size is short (lower than or equal to this value) then hosts are queried and filtered first, and
+//     then the failure policy count is calculated on such hosts only (with an IN clause).
+//   - When the page size is large (higher than this value) or ALL hosts are being retrieved then the hosts are
+//     filtered and their failing policy count are calculated on the same query (the IN clause performs worse
+//     than a LEFT JOIN when the number of rows is high).
+var HostFailingPoliciesCountOptimPageSizeThreshold = 100
+
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
     h.id,
@@ -833,6 +854,16 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`
 	}
 
+	// See definition of HostFailingPoliciesCountOptimPageSizeThreshold for more details.
+	useHostPaginationOptim := opt.PerPage != 0 && opt.PerPage <= uint(HostFailingPoliciesCountOptimPageSizeThreshold)
+
+	if !opt.DisableFailingPolicies && !useHostPaginationOptim {
+		sql += `,
+		COALESCE(failing_policies.count, 0) AS failing_policies_count,
+		COALESCE(failing_policies.count, 0) AS total_issues_count
+		`
+	}
+
 	var params []interface{}
 
 	// Only include "additional" if filter provided.
@@ -855,14 +886,15 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		    `
 	}
 
-	sql, params = ds.applyHostFilters(opt, sql, filter, params)
+	leftJoinFailingPolicies := !useHostPaginationOptim
+	sql, params = ds.applyHostFilters(opt, sql, filter, params, leftJoinFailingPolicies)
 
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
 
-	if !opt.DisableFailingPolicies {
+	if !opt.DisableFailingPolicies && useHostPaginationOptim {
 		var err error
 		hosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, hosts)
 		if err != nil {
@@ -874,7 +906,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
-func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
+func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}, leftJoinFailingPolicies bool) (string, []interface{}) {
 	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
 
 	deviceMappingJoin := `LEFT JOIN (
@@ -900,6 +932,14 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	if opt.SoftwareIDFilter != nil {
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
 		params = append(params, opt.SoftwareIDFilter)
+	}
+
+	failingPoliciesJoin := ""
+	if !opt.DisableFailingPolicies && leftJoinFailingPolicies {
+		failingPoliciesJoin = `LEFT JOIN (
+		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
+		    GROUP BY host_id
+		) as failing_policies ON (h.id=failing_policies.host_id)`
 	}
 
 	operatingSystemJoin := ""
@@ -937,6 +977,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     %s
     %s
     %s
+    %s
 		WHERE TRUE AND %s AND %s AND %s AND %s
     `,
 
@@ -944,6 +985,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		hostMDMJoin,
 		deviceMappingJoin,
 		policyMembershipJoin,
+		failingPoliciesJoin,
 		operatingSystemJoin,
 		munkiJoin,
 		displayNameJoin,
@@ -1161,12 +1203,14 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
 	sql := `SELECT count(*) `
 
-	// ignore pagination in count
+	// Ignore pagination in count.
 	opt.Page = 0
 	opt.PerPage = 0
+	// We don't need the failing policy counts of each host for counting hosts.
+	leftJoinFailingPolicies := false
 
 	var params []interface{}
-	sql, params = ds.applyHostFilters(opt, sql, filter, params)
+	sql, params = ds.applyHostFilters(opt, sql, filter, params, leftJoinFailingPolicies)
 
 	var count int
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, sql, params...); err != nil {
@@ -3090,16 +3134,6 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 }
 
 func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
-	// TODO: consider using host_dep_assignments instead of host_mdm because installed_from_dep can
-	// be set to false for DEP-assigned host (e.g., ds.UpdateHostTablesOnMDMUnenroll), which may
-	// lead to unexpected results in certain edge cases where HostMDMCheckinInfo is used to
-	// determine like bootstrap package installation
-	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
-	// manually enroll or re-enroll are included in the results so long as they are not unassigned
-	// in Apple Business Manager. The problem with using host_dep_assignments is that a host can be
-	// assigned to Fleet in ABM but still manually enroll. We should probably keep using host_mdm,
-	// but be better at updating the table with the right values when a host enrolls (perhaps adding
-	// a query param to the enroll endpoint).
 	var hmdm fleet.HostMDMCheckinInfo
 
 	// use writer as it is used just after creation in some cases
@@ -3108,7 +3142,8 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
 			hd.display_name,
-			COALESCE(h.team_id, 0) as team_id
+			COALESCE(h.team_id, 0) as team_id,
+			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet
 		FROM
 			hosts h
 		LEFT JOIN
@@ -3117,6 +3152,9 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		LEFT JOIN
 			host_display_names hd
 		ON h.id = hd.host_id
+		LEFT JOIN
+			host_dep_assignments hda
+		ON h.id = hda.host_id
 		WHERE h.uuid = ? LIMIT 1`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {

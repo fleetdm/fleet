@@ -24,13 +24,13 @@ To see the commands you can run with fleetctl, run the `fleetctl --help` command
 
 Each command available to `fleetctl` has a help menu with additional information. To pull up the help menu, run `fleetctl <command> --help`, replacing `<command>` with the command you're looking up:
 
-```
+```sh
 > fleetctl setup --help
 ```
 
 You will see more info about the command, including the usage and information about any additional commands and options (or 'flags') that can be passed with it:
 
-```
+```sh
 NAME:
    fleetctl setup - Set up a Fleet instance
 
@@ -62,7 +62,7 @@ This guide illustrates:
 
 For the sake of this tutorial, we will be using the local development Docker Compose infrastructure to run Fleet locally. This is documented in some detail in the [developer documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md#development-infrastructure), but the following are the minimal set of commands that you can run from the root of the repository (assuming that you have a working Go/JavaScript toolchain installed along with Docker Compose):
 
-```
+```sh
 docker-compose up -d
 make deps
 make generate
@@ -79,7 +79,7 @@ At this point, the MySQL database doesn't have any users in it. Because of this,
 
 Now, since our Fleet instance is local in this tutorial, we didn't get a valid TLS certificate, so we need to run the following to configure our Fleet context:
 
-```
+```sh
 fleetctl config set --address https://localhost:8080 --tls-skip-verify
 [+] Set the address config key to "https://localhost:8080" in the "default" context
 [+] Set the tls-skip-verify config key to "true" in the "default" context
@@ -87,7 +87,7 @@ fleetctl config set --address https://localhost:8080 --tls-skip-verify
 
 Now, if you were connecting to a Fleet instance for real, you wouldn't want to skip TLS certificate verification, so you might run something like:
 
-```
+```sh
 fleetctl config set --address https://fleet.corp.example.com
 [+] Set the address config key to "https://fleet.corp.example.com" in the "default" context
 ```
@@ -96,7 +96,7 @@ fleetctl config set --address https://fleet.corp.example.com
 
 Now that we've configured our local CLI context, lets go ahead and create our admin account:
 
-```
+```sh
 fleetctl setup --email zwass@example.com --name 'Zach' --org-name 'Fleet Test'
 Password:
 [+] Fleet setup successful and context configured!
@@ -108,7 +108,7 @@ It's possible to specify the password via the `--password` flag or the `$PASSWOR
 
 To run a simple query against all hosts, you might run something like the following:
 
-```
+```sh
 fleetctl query --query 'SELECT * FROM osquery_info;' --labels='All Hosts' > results.json
 ⠂  100% responded (100% online) | 1/1 targeted hosts (1/1 online)
 ^C
@@ -143,7 +143,7 @@ When the query is done (or you have enough results), CTRL-C and look at the `res
 
 If you have an existing Fleet instance, run `fleetctl login` (after configuring your local CLI context):
 
-```
+```sh
 fleetctl config set --address https://fleet.corp.example.com
 [+] Set the address config key to "https://fleet.corp.example.com" in the "default" context
 
@@ -164,7 +164,7 @@ Users that authenticate to Fleet via SSO should retrieve their API token from th
 
 2. Set the API token in the `~/.fleet/config` file. The file should look like the following:
 
-```
+```yaml
 contexts:
   default:
     address: https://fleet.corp.example.com
@@ -201,8 +201,8 @@ An API-only user does not have access to the Fleet UI. Instead, it's only purpos
 
 To create your new API-only user, run `fleetctl user create` and pass values for `--name`, `--email`, and `--password`, and include the `--api-only` flag:
 
-```
-fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only
+```sh
+fleetctl user create --name "API User" --email api@example.com --password temp@pass123 --api-only
 ```
 
 ### Creating an API-only user
@@ -210,13 +210,13 @@ An API-only user can be given the same permissions as a regular user. The defaul
 
 If you'd like your API-only user to have a different access level than the default `Observer` role, you can specify what level of access the new user should have using the `--global-role` flag:
 
-```
+```sh
 fleetctl user create --name "API User" --email api@example.com --password temp#pass --api-only --global-role admin
 ```
 
 On Fleet Premium, use the `--team` flag setting `team_id:role` to create an API-only user on a team:
 
-```
+```sh
 fleetctl user create --name "API Team Maintainer User" --email apimaintainer@example.com --password temp#pass --team 4:maintainer
 ```
 
@@ -268,7 +268,7 @@ The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will retu
 
 To use `fleetctl` with your regular user account but occasionally use your API-only user for specific cases, you can set up your `fleetctl` config with a new `context` to hold the credentials of your API-only user:
 
-```
+```sh
 fleetctl config set --address https://dogfood.fleetdm.com --context api
 [+] Context "api" not found, creating it with default values
 [+] Set the address config key to "https://dogfood.fleetdm.com" in the "api" context
@@ -276,7 +276,7 @@ fleetctl config set --address https://dogfood.fleetdm.com --context api
 
 From there on, you can use  the `--context api` flag whenever you need to use the API-only user's identity, rather than logging in and out to switch accounts:
 
-```
+```sh
 fleetctl login --context admin
 Log in using the admin Fleet credentials.
 Email: admin@example.com
@@ -300,7 +300,7 @@ File carving data can be either stored in Fleet's database or to an external S3 
 
 Given a working flagfile for connecting osquery agents to Fleet, add the following flags to enable carving:
 
-```
+```sh
 --disable_carver=false
 --carver_disable_function=false
 --carver_start_endpoint=/api/v1/osquery/carve/begin
@@ -332,13 +332,13 @@ File carves are initiated with osquery queries. Issue a query to the `carves` ta
 
 For example, to extract the `/etc/hosts` file on a host with hostname `mac-workstation`:
 
-```
+```sh
 fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
 ```
 
 The standard osquery file globbing syntax is also supported to carve entire directories or more:
 
-```
+```sh
 fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
 ```
 
@@ -352,13 +352,13 @@ Contents of carves are returned as .tar archives, and compressed if that option 
 
 To download the contents of a carve with ID 3, use
 
-```
+```sh
 fleetctl get carve --outfile carve.tar 3
 ```
 
 It can also be useful to pipe the results directly into the tar command for unarchiving:
 
-```
+```sh
 fleetctl get carve --stdout 3 | tar -x
 ```
 
@@ -388,7 +388,7 @@ Osquery can report on the status of carves through queries to the `carves` table
 
 The details provided by
 
-```
+```sh
 fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
 ```
 
@@ -415,13 +415,13 @@ Start with a default of 2MiB for MySQL (2097152 bytes), and 5MiB for S3/Minio (5
 
 `fleetctl` provides debugging capabilities about the running Fleet server via the `debug` command. To see a complete list of all the options run:
 
-```
+```sh
 fleetctl debug --help
 ```
 
 To generate a full debugging archive, run:
 
-```
+```sh
 fleetctl debug archive
 ```
 

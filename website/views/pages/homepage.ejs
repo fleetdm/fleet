@@ -35,6 +35,29 @@
   </div>
   <%/* Homepage content */%>
   <div purpose="homepage-content" class="container">
+    <%/* Testimonial videos */%>
+    <div purpose="testimonials" class="d-flex flex-md-row flex-column justify-content-center card-deck">
+      <div purpose="testimonial" class="d-flex flex-xl-row flex-column-reverse card" @click="clickOpenVideoModal('austin-anderson')">
+        <div purpose="testimonial-text" class="card-body">
+          <img alt="an opening quotation mark" style="width:18px; margin-bottom: 16px;" src="/images/quote-icon-18x12@2x.png">
+          <p purpose="testimonial-quote">We can build it exactly the way we want it. Which is just not possible on other platforms.</p>
+          <p class="mb-0"><strong>Austin Anderson</strong></p>
+          <p>Cybersecurity team senior manager</p>
+        </div>
+        <div purpose="testimonial-video" class="card-title">
+        </div>
+      </div>
+      <div purpose="testimonial" class="d-flex flex-xl-row flex-column-reverse card" @click="clickOpenVideoModal('nick-fohs')">
+        <div purpose="testimonial-text" class="card-body">
+          <img alt="an opening quotation mark" style="width:18px; margin-bottom: 16px;" src="/images/quote-icon-18x12@2x.png">
+          <p purpose="testimonial-quote">Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.</p>
+          <p class="mb-0"><strong>Nick Fohs</strong></p>
+          <p>Systems and infrastructure manager</p>
+        </div>
+        <div purpose="testimonial-video" class="card-title">
+        </div>
+      </div>
+    </div>
 
     <%/* Device management block */%>
     <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
@@ -184,7 +207,7 @@
       <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-start justify-content-center">
         <div purpose="feature" class="ml-sm-0">
           <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png" class="mx-auto mx-sm-0">
-          <h5>Transparency: user-first</h5>
+          <h5>Scope transparency</h5>
           <p>Fleet champions a user-first transparency model with its open-source software, allowing users to see what's being monitored and how. Read more on Fleet’s <a href="/transparency">transparency</a> page. </p>
         </div>
 
@@ -267,5 +290,12 @@
     <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md-990x375@2x.png">
     <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
   </div>
+
+  <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
+  <modal purpose="video-modal" v-if="modal === 'nick-fohs'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/fs5ULAR4e4A?si=pChZBt_sSNj13goP&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

@@ -7,20 +7,17 @@ The Sales department is directly responsible for attaining the revenue goals of 
 
 
 ## Team
-| Role                                | Contributor(s)           |
-|:------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief Revenue Officer               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| VP of Customer Success              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Director of Solutions Consulting    | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
-| Solutions Consultant                | [Will Mayhone](https://www.linkedin.com/in/william-mayhone-671977b6/) _([@willmayhone88](https://github.com/willmayhone88))_
-| Head of Public Sector               | [Keith Barnes](https://www.linkedin.com/in/keith-barnes-8b666/) _([@KAB703](https://github.com/KAB703))_
-| Business Expansion Lead             | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_
-| Sales Development Rep               | [Tom "Ringo" Ringhofer](https://www.linkedin.com/in/tom-ringhofer/) _([@ringoshere](https://github.com/ringoshere))_
-| Account Executives                  | [Carlos Sanz](https://www.linkedin.com/in/carlos-sanz-53b28b/) _([@CarlosFleetDM](https://github.com/CarlosFleetDM))_,[Jin Yi](https://www.linkedin.com/in/jin-yi-743986196/) _([@jinny321](https://github.com/jinny321))_, [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_,[Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@AnthonySnyder8](https://github.com/AnthonySnyder8))_
-| Sr. Customer Success Manager        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_
-| Senior Support Engineer             | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_
-| Software Engineer                   | Ben Edwards _([@edwardsb](https://github.com/edwardsb))_
-| Customer Support Engineer           | [Grant Bilstad](https://www.linkedin.com/in/grantbilstad/) _([@Pacamaster](https://github.com/Pacamaster))_
+| Role                                  | Contributor(s)           |
+|:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
+| Chief Revenue Officer (CRO)           | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| VP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
+| Customer Success Manager (CSM)        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_, [Grant Bilstad](https://www.linkedin.com/in/grantbilstad/) _([@Pacamaster](https://github.com/Pacamaster))_, Ben Edwards _([@edwardsb](https://github.com/edwardsb))_
+| Director of Solutions Consulting      | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
+| Solutions Consultant (SC)             | [Will Mayhone](https://www.linkedin.com/in/william-mayhone-671977b6/) _([@willmayhone88](https://github.com/willmayhone88))_
+| Head of Public Sector                 | [Keith Barnes](https://www.linkedin.com/in/keith-barnes-8b666/) _([@KAB703](https://github.com/KAB703))_
+| Account Executive (AE)                | [Carlos Sanz](https://www.linkedin.com/in/carlos-sanz-53b28b/) _([@CarlosFleetDM](https://github.com/CarlosFleetDM))_, [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_, [Jin Yi](https://www.linkedin.com/in/jin-yi-743986196/) _([@jinny321](https://github.com/jinny321))_, [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_,[Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@AnthonySnyder8](https://github.com/AnthonySnyder8))_
+| Sales Development Rep (SDR)           | [Ringo Ringhofer](https://www.linkedin.com/in/tom-ringhofer/) _([@ringoshere](https://github.com/ringoshere))_, [Brad Macdowall](https://www.linkedin.com/in/bradmacdowall/) _([@bradmacd](https://github.com/bradmacd))_
 
 ## Contact us
 - To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
@@ -216,6 +213,15 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 
 ## Responsibilities
 
+### Send a quote
+During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
+
+All quotes and purchase orders must be approved by CRO before being sent to the prospect or customer. Often, the CRO will request Fleet business operations/legal of any unique terms required.
+
+The Fleet owner of the opportunity (usually AE or CSM) will prepare a quote and/or a Purchase Order when requested.
+- Because the champion may need to socialize "what is Fleet" or "what are we getting when buying Fleet," it is most often best to send the quote in [slide form](https://docs.google.com/presentation/d/15kbqm0OYPf1OmmTZvDp4F7VvMERnX4K6TMYqCYNr-wI/edit?usp=sharing).
+- Docusign can be used to create a [standard Purchase Order](https://www.loom.com/share/Loom-Message-16-January-2023-2ba8cf195ec645ebabac267d7df59823?sid=214f8c6b-beb3-427a-a3a8-e8c20b5dc350) if no special terms or pricing are needed.
+
 ### Review rep activity
 Following up with people interested in Fleet is an important part of finding out whether or not they'd like to continue the process of buying the product.  It is also very important not to be annoying.  At Fleet, team members follow up with people, but not too often.
 
@@ -314,7 +320,8 @@ This workflow outlines the process that sales and customer success can follow wh
 2. The Customer and Fleet sign the order form.
     - (AE) The AE adds the fully executed contract to the opportunity record.
     - (AE) The AE marks the opportunity 'Closed Won' and includes the 'Closing Date'.
-    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive 
+    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive
+    - (AE) Help BizOps secure a PO from the new customer to be referenced on invoice.
 3. (AE) The AE creates a 'New Sale Issue'
     - They complete the AE tasks listed at the top of the issue.
     - Then they assign the issue to BizOps and the Head of Customer Success (CS).
@@ -488,6 +495,9 @@ No further action is needed if the crawler successfully reindexes the Fleet webs
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
+
+### Extend sandbox trial
+If a Fleet user would like an extension on the 5 day sandbox trial, this can be accomplished by creating a new confidential issue with labels `g-infra` and `:release`. It is important to include the projected expiration date of the sandbox trial, as sandbox instances cannot be extended after they expire. Please note the user email address that is requesting the sandbox extension in the confidential issue.
 
 
 ## Rituals
