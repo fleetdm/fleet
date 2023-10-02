@@ -3,6 +3,7 @@ import classnames from "classnames";
 import { isEmpty } from "lodash";
 
 import NewTooltipWrapper from "components/NewTooltipWrapper";
+import { INewTooltipWrapperTipContent } from "components/NewTooltipWrapper/NewTooltipWrapper";
 
 const baseClass = "form-field";
 
@@ -14,7 +15,7 @@ export interface IFormFieldProps {
   label: Array<any> | JSX.Element | string;
   name: string;
   type: string;
-  tooltip?: string;
+  tooltip?: INewTooltipWrapperTipContent["tipContent"];
 }
 
 const FormField = ({

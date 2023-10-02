@@ -31,7 +31,7 @@ interface INewTooltipWrapperCustomRender extends INewTooltipWrapperBase {
   tipContent?: never;
 }
 
-interface INewTooltipWrapperTipContent extends INewTooltipWrapperBase {
+export interface INewTooltipWrapperTipContent extends INewTooltipWrapperBase {
   customRender?: never;
   tipContent: string | JSX.Element;
 }

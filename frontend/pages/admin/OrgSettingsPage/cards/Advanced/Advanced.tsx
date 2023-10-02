@@ -125,7 +125,7 @@ const Advanced = ({
                 name="verifySSLCerts"
                 value={verifySSLCerts}
                 parseTarget
-                tooltip={
+                tooltipContent={
                   <p>
                     Turn this off (not recommended) <br />
                     if you use a self-signed certificate{" "}
@@ -143,7 +143,7 @@ const Advanced = ({
                 name="enableStartTLS"
                 value={enableStartTLS}
                 parseTarget
-                tooltip={
+                tooltipContent={
                   <p>
                     Detects if STARTTLS is enabled <br />
                     in your SMTP server and starts <br />
@@ -161,7 +161,7 @@ const Advanced = ({
                 name="enableHostExpiry"
                 value={enableHostExpiry}
                 parseTarget
-                tooltip={
+                tooltipContent={
                   <p>
                     When enabled, allows automatic cleanup <br />
                     of hosts that have not communicated with Fleet <br />
@@ -184,7 +184,7 @@ const Advanced = ({
                 parseTarget
                 onBlur={validateForm}
                 error={formErrors.host_expiry_window}
-                tooltip={
+                tooltipContent={
                   <p>
                     If a host has not communicated with Fleet in the specified
                     number of days, it will be removed.
@@ -196,25 +196,7 @@ const Advanced = ({
                 name="disableLiveQuery"
                 value={disableLiveQuery}
                 parseTarget
-                tooltip={
-                  <p>
-                    When enabled, disables the ability to run live queries{" "}
-                    <br />
-                    (ad hoc queries executed via the UI or fleetctl).{" "}
-                    <em className="hint hint--brand">
-                      (Default: <strong>Off</strong>)
-                    </em>
-                  </p>
-                }
-              >
-                Disable live queries
-              </Checkbox>
-              <Checkbox
-                onChange={handleInputChange}
-                name="disable query reports"
-                value={disableQueryReports}
-                parseTarget
-                tooltip={
+                tooltipContent={
                   <p>
                     When enabled, disables the ability to run live queries{" "}
                     <br />
