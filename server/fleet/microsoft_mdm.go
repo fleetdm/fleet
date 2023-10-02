@@ -967,7 +967,7 @@ func (msg *SyncML) IsValidHeader() error {
 	}
 
 	// Target LocURI check
-	if strings.TrimSpace(*msg.SyncHdr.Target.LocURI) == "" {
+	if msg.SyncHdr.Target == nil || msg.SyncHdr.Target.LocURI == nil || strings.TrimSpace(*msg.SyncHdr.Target.LocURI) == "" {
 		return errors.New("Target.LocURI")
 	}
 
