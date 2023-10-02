@@ -4160,22 +4160,22 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 ### Run custom MDM command
 
-This endpoint tells Fleet to run a custom MDM command, on the targeted macOS hosts, the next time they come online.
+This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
 
-`POST /api/v1/fleet/mdm/apple/enqueue`
+`POST /api/v1/fleet/mdm/commands`
 
 #### Parameters
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries). Supported formats are standard ([RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)) and raw (unpadded) encoding ([RFC 4648 section 3.2](https://www.rfc-editor.org/rfc/rfc4648.html#section-3.2)) |
+| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). Supported formats are standard ([RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)) and raw (unpadded) encoding ([RFC 4648 section 3.2](https://www.rfc-editor.org/rfc/rfc4648.html#section-3.2)) |
 | device_ids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
 
 Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/enqueue`
+`POST /api/v1/fleet/mdm/commands`
 
 ##### Default response
 
@@ -4184,6 +4184,7 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 ```json
 {
   "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+  "platform": "darwin",
   "request_type": "ProfileList"
 }
 ```
@@ -4192,7 +4193,7 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 This endpoint returns the results for a specific custom MDM command.
 
-`GET /api/v1/fleet/mdm/apple/commandresults`
+`GET /api/v1/fleet/mdm/commandresults`
 
 #### Parameters
 
@@ -4214,6 +4215,7 @@ This endpoint returns the results for a specific custom MDM command.
     {
       "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "platform": "darwin",
       "status": "Acknowledged",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
@@ -4228,12 +4230,13 @@ This endpoint returns the results for a specific custom MDM command.
 
 This endpoint returns the list of custom MDM commands that have been executed.
 
-`GET /api/v1/fleet/mdm/apple/commands`
+`GET /api/v1/fleet/mdm/commands`
 
 #### Parameters
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
+| platform                  | string  | query | Filter MDM commands by the hosts' platform they ran on. 
 | page                      | integer | query | Page number of the results to fetch.                                      |
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
@@ -4241,7 +4244,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/commands?per_page=5`
+`GET /api/v1/fleet/mdm/commands?per_page=5?platform=darwin`
 
 ##### Default response
 
@@ -4253,6 +4256,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
     {
       "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "platform": "darwin",
       "status": "Acknowledged",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
