@@ -51,9 +51,6 @@ describe("QuerySidePanel - component", () => {
     expect(platformList.length).toBe(11); // 2 columns are set to hidden
   });
 
-  // commmenting out the below test as the new tooltip is now event-based and doesn't exist in the
-  // DOM at this point. TODO(jacob) – figure out a work around
-
   it("renders the platform specific column tooltip", async () => {
     render(
       <QuerySidePanel
@@ -62,11 +59,6 @@ describe("QuerySidePanel - component", () => {
         onClose={noop}
       />
     );
-
-    // await screen.getByText("email").onmouseenter;
-
-    // const el = screen.getByText("email");
-    // await user.hover();
     await fireEvent.mouseEnter(screen.getByText("email"));
 
     const tooltip = screen.getByText(/only available on chrome/i);
