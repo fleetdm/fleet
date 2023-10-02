@@ -3851,13 +3851,13 @@ Deletes the label specified by ID.
 
 These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
-- [Add custom macOS setting (configuration profile)](#add-custom-macos-setting-configuration-profile)
-- [List custom macOS settings (configuration profiles)](#list-custom-macos-settings-configuration-profiles)
-- [Download custom macOS setting (configuration profile)](#download-custom-macos-setting-configuration-profile)
-- [Delete custom macOS setting (configuration profile)](#delete-custom-macos-setting-configuration-profile)
+- [Add custom macOS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
+- [List custom macOS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
+- [Download custom macOS setting (configuration profile)](#download-custom-os-setting-configuration-profile)
+- [Delete custom macOS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
-- [Get macOS settings statistics](#get-macos-settings-statistics)
+- [Get OS settings statistics](#get-os-settings-statistics)
 - [Run custom MDM command](#run-custom-mdm-command)
 - [Get custom MDM command results](#get-custom-mdm-command-results)
 - [List custom MDM commands](#list-custom-mdm-commands)
@@ -3877,7 +3877,7 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
 
-### Add custom setting (configuration profile)
+### Add custom OS setting (configuration profile)
 
 Add a configuration profile to enforce custom settings on macOS and Windows hosts.
 
@@ -3953,7 +3953,7 @@ If the response is `Status: 409 Conflict`, the body may include additional error
 of duplicate payload display name or duplicate payload identifier.
 
 
-### List custom macOS settings (configuration profiles)
+### List custom OS settings (configuration profiles)
 
 Get a list of the configuration profiles in Fleet.
 
@@ -4005,7 +4005,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 }
 ```
 
-### Download custom macOS setting (configuration profile)
+### Download custom OS setting (configuration profile)
 
 `GET /api/v1/fleet/mdm/profiles/{profile_id}`
 
@@ -4057,7 +4057,7 @@ solely on the response status code returned by this endpoint.
 </plist>
 ```
 
-### Delete custom macOS setting (configuration profile)
+### Delete custom OS setting (configuration profile)
 
 `DELETE /api/v1/fleet/mdm/profiles/{profile_id}`
 
@@ -4133,15 +4133,15 @@ Get aggregate status counts of Apple disk encryption profiles applying to macOS 
 }
 ```
 
-### Get macOS settings statistics
+### Get OS settings statistics
 
-Get aggregate status counts of all macOS settings (configuraiton profiles and disk encryption) enforced on hosts.
+Get aggregate status counts of all OS settings (configuration profiles and disk encryption) enforced on hosts.
 
 For Fleet Premium uses, the statistics can
 optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
 results (i.e., only profiles that are associated with "No team" are listed).
 
-`GET /api/v1/fleet/mdm/apple/profiles/summary`
+`GET /api/v1/fleet/mdm/profiles/summary`
 
 #### Parameters
 
@@ -4153,7 +4153,7 @@ results (i.e., only profiles that are associated with "No team" are listed).
 
 Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
 
-`GET /api/v1/fleet/mdm/apple/profiles/summary`
+`GET /api/v1/fleet/mdm/profiles/summary`
 
 ##### Default response
 
