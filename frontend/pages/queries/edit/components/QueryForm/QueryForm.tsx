@@ -15,7 +15,11 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
-import { addGravatarUrlToResource, secondsToDhms } from "utilities/helpers";
+import {
+  addGravatarUrlToResource,
+  secondsToDhms,
+  TAGGED_TEMPLATES,
+} from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
@@ -48,6 +52,7 @@ import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveQueryModal from "../SaveQueryModal";
+import SaveChangesModal from "../SaveChangesModal";
 
 const baseClass = "query-form";
 
@@ -63,11 +68,11 @@ interface IQueryFormProps {
   isQueryUpdating: boolean;
   saveQuery: (formData: ICreateQueryRequestBody) => void;
   onOsqueryTableSelect: (tableName: string) => void;
-  goToSelectTargets: () => void;
   onUpdate: (formData: ICreateQueryRequestBody) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
+  hostId?: number;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -110,11 +115,11 @@ const QueryForm = ({
   isQueryUpdating,
   saveQuery,
   onOsqueryTableSelect,
-  goToSelectTargets,
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
   backendValidators,
+  hostId,
 }: IQueryFormProps): JSX.Element => {
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -153,6 +158,7 @@ const QueryForm = ({
   const savedQueryMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [showSaveQueryModal, setShowSaveQueryModal] = useState(false);
+  const [showSaveChangesModal, setShowSaveChangesModal] = useState(false); // #7766 implementation
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
   );
@@ -203,6 +209,11 @@ const QueryForm = ({
 
   const toggleSaveQueryModal = () => {
     setShowSaveQueryModal(!showSaveQueryModal);
+  };
+
+  // #7766 implementation
+  const toggleSaveChangesModal = () => {
+    setShowSaveChangesModal(!showSaveChangesModal);
   };
 
   const onLoad = (editor: IAceEditor) => {
@@ -400,6 +411,12 @@ const QueryForm = ({
           logging: lastEditedQueryLoggingType,
         });
       }
+
+      // #7766 implementation
+      // savedQueryMode
+      //   ? setShowSaveChangesModal(true)
+      //   : setShowSaveQueryModal(true);
+      // TODO: onUpdate for saveChangesModal
     }
   };
 
@@ -575,7 +592,13 @@ const QueryForm = ({
           <Button
             className={`${baseClass}__run`}
             variant="blue-green"
-            onClick={goToSelectTargets}
+            onClick={() => {
+              queryIdForEdit &&
+                router.push(
+                  PATHS.LIVE_QUERY(queryIdForEdit) +
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                );
+            }}
           >
             Live query
           </Button>
@@ -749,7 +772,13 @@ const QueryForm = ({
             <Button
               className={`${baseClass}__run`}
               variant="blue-green"
-              onClick={goToSelectTargets}
+              onClick={() => {
+                queryIdForEdit &&
+                  router.push(
+                    PATHS.LIVE_QUERY(queryIdForEdit) +
+                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                  );
+              }}
             >
               Live query
             </Button>
@@ -763,6 +792,13 @@ const QueryForm = ({
             toggleSaveQueryModal={toggleSaveQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}
+          />
+        )}
+        {showSaveChangesModal && (
+          <SaveChangesModal
+            onSaveChanges={saveQuery}
+            toggleSaveChangesModal={toggleSaveChangesModal}
+            isUpdating={isQuerySaving}
           />
         )}
       </>

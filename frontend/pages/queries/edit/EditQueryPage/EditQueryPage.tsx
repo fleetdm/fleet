@@ -1,34 +1,36 @@
-import React, { useState, useEffect, useContext, useCallback } from "react";
-import { useQuery, useMutation } from "react-query";
+import React, { useState, useEffect, useContext } from "react";
+import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
+import { DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries";
-import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { IHost, IHostResponse } from "interfaces/host";
-import { ILabel } from "interfaces/label";
-import { ITeam } from "interfaces/team";
 import {
   IGetQueryResponse,
+  ICreateQueryRequestBody,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { ITarget } from "interfaces/target";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
-import SelectTargets from "components/LiveQuery/SelectTargets";
 import CustomLink from "components/CustomLink";
 
-import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
-import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
-interface IQueryPageProps {
+import { NotificationContext } from "context/notification";
+
+import PATHS from "router/paths";
+import debounce from "utilities/debounce";
+import deepDifference from "utilities/deep_difference";
+
+import BackLink from "components/BackLink";
+import QueryForm from "pages/queries/edit/components/QueryForm";
+
+interface IEditQueryPageProps {
   router: InjectedRouter;
   params: Params;
   location: {
@@ -38,13 +40,13 @@ interface IQueryPageProps {
   };
 }
 
-const baseClass = "query-page";
+const baseClass = "edit-query-page";
 
-const QueryPage = ({
+const EditQueryPage = ({
   router,
   params: { id: paramsQueryId },
   location,
-}: IQueryPageProps): JSX.Element => {
+}: IEditQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
   const {
     currentTeamName: teamNameForQuery,
@@ -67,6 +69,15 @@ const QueryPage = ({
   const {
     selectedOsqueryTable,
     setSelectedOsqueryTable,
+    lastEditedQueryName,
+    lastEditedQueryDescription,
+    lastEditedQueryBody,
+    lastEditedQueryObserverCanRun,
+    lastEditedQueryFrequency,
+    lastEditedQueryPlatforms,
+    lastEditedQueryLoggingType,
+    lastEditedQueryMinOsqueryVersion,
+    selectedQueryTargets,
     setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -76,15 +87,14 @@ const QueryPage = ({
     setLastEditedQueryLoggingType,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryPlatforms,
+    // setSelectedQueryTargets,
   } = useContext(QueryContext);
+  const { currentUser } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
-  const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
-  const [step, setStep] = useState(QUERIES_PAGE_STEPS[1]);
-  const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
-  const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
-  const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
-  const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
-  const [targetsTotalCount, setTargetsTotalCount] = useState(0);
+  // const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
+  // const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
+
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
@@ -119,29 +129,6 @@ const QueryPage = ({
     }
   );
 
-  useQuery<IHostResponse, Error, IHost>(
-    "hostFromURL",
-    () =>
-      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
-    {
-      enabled: !!location.query.host_ids && !queryParamHostsAdded,
-      select: (data: IHostResponse) => data.host,
-      onSuccess: (host) => {
-        setTargetedHosts((prevHosts) =>
-          prevHosts.filter((h) => h.id !== host.id).concat(host)
-        );
-        const targets = selectedTargets;
-        host.target_type = "hosts";
-        targets.push(host);
-        setSelectedTargets([...targets]);
-        if (!queryParamHostsAdded) {
-          setQueryParamHostsAdded(true);
-        }
-        router.replace(location.pathname);
-      },
-    }
-  );
-
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
@@ -163,15 +150,87 @@ const QueryPage = ({
     }
   }, [queryId]);
 
+  const [isQuerySaving, setIsQuerySaving] = useState(false);
+  const [isQueryUpdating, setIsQueryUpdating] = useState(false);
+  const [backendValidators, setBackendValidators] = useState<{
+    [key: string]: string;
+  }>({});
+
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // e.g., Query details | Discover TLS certificates | Fleet for osquery
-    document.title = `Query details | ${storedQuery?.name} | Fleet for osquery`;
+    document.title = `Edit query | ${storedQuery?.name} | Fleet for osquery`;
   }, [location.pathname, storedQuery?.name]);
 
   useEffect(() => {
     setShowOpenSchemaActionText(!isSidebarOpen);
   }, [isSidebarOpen]);
+
+  const saveQuery = debounce(async (formData: ICreateQueryRequestBody) => {
+    setIsQuerySaving(true);
+    try {
+      const { query } = await queryAPI.create(formData);
+      router.push(PATHS.EDIT_QUERY(query.id));
+      renderFlash("success", "Query created!");
+      setBackendValidators({});
+    } catch (createError: any) {
+      if (createError.data.errors[0].reason.includes("already exists")) {
+        const teamErrorText =
+          teamNameForQuery && apiTeamIdForQuery !== 0
+            ? `the ${teamNameForQuery} team`
+            : "all teams";
+        setBackendValidators({
+          name: `A query with that name already exists for ${teamErrorText}.`,
+        });
+      } else {
+        renderFlash(
+          "error",
+          "Something went wrong creating your query. Please try again."
+        );
+        setBackendValidators({});
+      }
+    } finally {
+      setIsQuerySaving(false);
+    }
+  });
+
+  const onUpdateQuery = async (formData: ICreateQueryRequestBody) => {
+    if (!queryId) {
+      return false;
+    }
+
+    setIsQueryUpdating(true);
+
+    const updatedQuery = deepDifference(formData, {
+      lastEditedQueryName,
+      lastEditedQueryDescription,
+      lastEditedQueryBody,
+      lastEditedQueryObserverCanRun,
+      lastEditedQueryFrequency,
+      lastEditedQueryPlatforms,
+      lastEditedQueryLoggingType,
+      lastEditedQueryMinOsqueryVersion,
+    });
+
+    try {
+      await queryAPI.update(queryId, updatedQuery);
+      renderFlash("success", "Query updated!");
+    } catch (updateError: any) {
+      console.error(updateError);
+      if (updateError.data.errors[0].reason.includes("Duplicate")) {
+        renderFlash("error", "A query with this name already exists.");
+      } else {
+        renderFlash(
+          "error",
+          "Something went wrong updating your query. Please try again."
+        );
+      }
+    }
+
+    setIsQueryUpdating(false);
+
+    return false;
+  };
 
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
@@ -207,64 +266,12 @@ const QueryPage = ({
     );
   };
 
-  const goToQueryEditor = useCallback(() => setStep(QUERIES_PAGE_STEPS[1]), []);
-
-  const renderScreen = () => {
-    const step1Props = {
-      router,
-      baseClass,
-      queryIdForEdit: queryId,
-      teamNameForQuery,
-      apiTeamIdForQuery,
-      showOpenSchemaActionText,
-      storedQuery,
-      isStoredQueryLoading,
-      storedQueryError,
-      onOsqueryTableSelect,
-      goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
-      onOpenSchemaSidebar,
-      renderLiveQueryWarning,
-    };
-
-    const step2Props = {
-      baseClass,
-      queryId,
-      selectedTargets,
-      targetedHosts,
-      targetedLabels,
-      targetedTeams,
-      targetsTotalCount,
-      goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
-      goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
-      setSelectedTargets,
-      setTargetedHosts,
-      setTargetedLabels,
-      setTargetedTeams,
-      setTargetsTotalCount,
-    };
-
-    const step3Props = {
-      queryId,
-      selectedTargets,
-      storedQuery,
-      setSelectedTargets,
-      goToQueryEditor,
-      targetsTotalCount,
-    };
-
-    switch (step) {
-      case QUERIES_PAGE_STEPS[2]:
-        return <SelectTargets {...step2Props} />;
-      case QUERIES_PAGE_STEPS[3]:
-        return <RunQuery {...step3Props} />;
-      default:
-        return <QueryEditor {...step1Props} />;
-    }
+  // Function instead of constant eliminates race condition
+  const backToQueriesPath = () => {
+    return queryId ? PATHS.QUERY(queryId) : PATHS.MANAGE_QUERIES;
   };
 
-  const isFirstStep = step === QUERIES_PAGE_STEPS[1];
   const showSidebar =
-    isFirstStep &&
     isSidebarOpen &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
@@ -275,7 +282,31 @@ const QueryPage = ({
   return (
     <>
       <MainContent className={baseClass}>
-        <div className={`${baseClass}_wrapper`}>{renderScreen()}</div>
+        <div className={`${baseClass}_wrapper`}>
+          <div className={`${baseClass}__form`}>
+            <div className={`${baseClass}__header-links`}>
+              <BackLink text="Back to report" path={backToQueriesPath()} />
+            </div>
+            <QueryForm
+              router={router}
+              saveQuery={saveQuery}
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              onUpdate={onUpdateQuery}
+              storedQuery={storedQuery}
+              queryIdForEdit={queryId}
+              apiTeamIdForQuery={apiTeamIdForQuery}
+              teamNameForQuery={teamNameForQuery}
+              isStoredQueryLoading={isStoredQueryLoading}
+              showOpenSchemaActionText={showOpenSchemaActionText}
+              onOpenSchemaSidebar={onOpenSchemaSidebar}
+              renderLiveQueryWarning={renderLiveQueryWarning}
+              backendValidators={backendValidators}
+              isQuerySaving={isQuerySaving}
+              isQueryUpdating={isQueryUpdating}
+              hostId={parseInt(location.query.host_ids as string, 10)}
+            />
+          </div>
+        </div>
       </MainContent>
       {showSidebar && (
         <SidePanelContent>
@@ -290,4 +321,4 @@ const QueryPage = ({
   );
 };
 
-export default QueryPage;
+export default EditQueryPage;

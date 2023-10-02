@@ -49,3 +49,6 @@ export interface IPackTargets {
   label_ids: (number | string)[];
   team_ids: (number | string)[];
 }
+
+// TODO: Also use for testing
+export const DEFAULT_TARGETS: ITarget[] = [];

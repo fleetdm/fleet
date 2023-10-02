@@ -6,6 +6,7 @@ import { DEFAULT_QUERY } from "utilities/constants";
 import { DEFAULT_OSQUERY_TABLE, IOsQueryTable } from "interfaces/osquery_table";
 import { SelectedPlatformString } from "interfaces/platform";
 import { QueryLoggingOption } from "interfaces/schedulable_query";
+import { DEFAULT_TARGETS, ITarget } from "interfaces/target";
 
 type Props = {
   children: ReactNode;
@@ -22,6 +23,7 @@ type InitialStateType = {
   lastEditedQueryPlatforms: SelectedPlatformString;
   lastEditedQueryMinOsqueryVersion: string;
   lastEditedQueryLoggingType: QueryLoggingOption;
+  selectedQueryTargets: ITarget[];
   setLastEditedQueryId: (value: number | null) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
@@ -32,6 +34,7 @@ type InitialStateType = {
   setLastEditedQueryMinOsqueryVersion: (value: string) => void;
   setLastEditedQueryLoggingType: (value: string) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
+  setSelectedQueryTargets: (value: ITarget[]) => void;
 };
 
 export type IQueryContext = InitialStateType;
@@ -48,6 +51,7 @@ const initialState = {
   lastEditedQueryPlatforms: DEFAULT_QUERY.platform,
   lastEditedQueryMinOsqueryVersion: DEFAULT_QUERY.min_osquery_version,
   lastEditedQueryLoggingType: DEFAULT_QUERY.logging,
+  selectedQueryTargets: DEFAULT_TARGETS,
   setLastEditedQueryId: () => null,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
@@ -58,11 +62,13 @@ const initialState = {
   setLastEditedQueryMinOsqueryVersion: () => null,
   setLastEditedQueryLoggingType: () => null,
   setSelectedOsqueryTable: () => null,
+  setSelectedQueryTargets: () => null,
 };
 
 const actions = {
   SET_SELECTED_OSQUERY_TABLE: "SET_SELECTED_OSQUERY_TABLE",
   SET_LAST_EDITED_QUERY_INFO: "SET_LAST_EDITED_QUERY_INFO",
+  SET_SELECTED_QUERY_TARGETS: "SET_SELECTED_QUERY_TARGETS",
 } as const;
 
 const reducer = (state: InitialStateType, action: any) => {
@@ -114,6 +120,14 @@ const reducer = (state: InitialStateType, action: any) => {
             ? state.lastEditedQueryLoggingType
             : action.lastEditedQueryLoggingType,
       };
+    case actions.SET_SELECTED_QUERY_TARGETS:
+      return {
+        ...state,
+        selectedQueryTargets:
+          typeof action.selectedQueryTargets === "undefined"
+            ? state.selectedQueryTargets
+            : action.selectedQueryTargets,
+      };
     default:
       return state;
   }
@@ -135,6 +149,7 @@ const QueryProvider = ({ children }: Props) => {
     lastEditedQueryPlatforms: state.lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion: state.lastEditedQueryMinOsqueryVersion,
     lastEditedQueryLoggingType: state.lastEditedQueryLoggingType,
+    selectedQueryTargets: state.selectedQueryTargets,
     setLastEditedQueryId: (lastEditedQueryId: number | null) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
@@ -191,6 +206,12 @@ const QueryProvider = ({ children }: Props) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryLoggingType,
+      });
+    },
+    setSelectedQueryTargets: (selectedQueryTargets: ITarget[]) => {
+      dispatch({
+        type: actions.SET_SELECTED_QUERY_TARGETS,
+        selectedQueryTargets,
       });
     },
     setSelectedOsqueryTable: (tableName: string) => {

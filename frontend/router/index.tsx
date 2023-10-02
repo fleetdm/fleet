@@ -36,7 +36,9 @@ import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PolicyPage from "pages/policies/PolicyPage";
-import QueryPage from "pages/queries/QueryPage";
+import QueryDetailsPage from "pages/queries/details/QueryDetailsPage";
+import LiveQueryPage from "pages/queries/live/LiveQueryPage";
+import EditQueryPage from "pages/queries/edit/EditQueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
@@ -220,9 +222,13 @@ const routes = (
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageQueriesPage} />
             <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
-              <Route path="new" component={QueryPage} />
+              <Route path="new" component={EditQueryPage} />
             </Route>
-            <Route path=":id" component={QueryPage} />
+            <Route path=":id">
+              <IndexRoute component={QueryDetailsPage} />
+              <Route path="edit" component={EditQueryPage} />
+              <Route path="run" component={LiveQueryPage} />
+            </Route>
           </Route>
           <Route path="policies">
             <IndexRedirect to="manage" />

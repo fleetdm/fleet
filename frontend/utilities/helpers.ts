@@ -910,6 +910,12 @@ export const getSoftwareBundleTooltipMarkup = (bundle: string) => {
       `;
 };
 
+export const TAGGED_TEMPLATES = {
+  queryByHostRoute: (hostId: number | undefined | null) => {
+    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  },
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -945,4 +951,5 @@ export default {
   syntaxHighlight,
   normalizeEmptyValues,
   wrapFleetHelper,
+  TAGGED_TEMPLATES,
 };

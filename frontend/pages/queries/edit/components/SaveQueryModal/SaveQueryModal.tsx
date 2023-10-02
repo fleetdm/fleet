@@ -141,116 +141,114 @@ const SaveQueryModal = ({
 
   return (
     <Modal title={"Save query"} onExit={toggleSaveQueryModal}>
-      <>
-        <form
-          onSubmit={onClickSaveQuery}
-          className={baseClass}
-          autoComplete="off"
+      <form
+        onSubmit={onClickSaveQuery}
+        className={baseClass}
+        autoComplete="off"
+      >
+        <InputField
+          name="name"
+          onChange={(value: string) => setName(value)}
+          value={name}
+          error={errors.name}
+          inputClassName={`${baseClass}__name`}
+          label="Name"
+          placeholder="What is your query called?"
+          autofocus
+          ignore1password
+        />
+        <InputField
+          name="description"
+          onChange={(value: string) => setDescription(value)}
+          value={description}
+          inputClassName={`${baseClass}__description`}
+          label="Description"
+          type="textarea"
+          placeholder="What information does your query reveal? (optional)"
+        />
+        <Dropdown
+          searchable={false}
+          options={FREQUENCY_DROPDOWN_OPTIONS}
+          onChange={(value: number) => {
+            setSelectedFrequency(value);
+          }}
+          placeholder={"Every hour"}
+          value={selectedFrequency}
+          label="Frequency"
+          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+        />
+        <p className="help-text">
+          If automations are on, this is how often your query collects data.
+        </p>
+        <Checkbox
+          name="observerCanRun"
+          onChange={setObserverCanRun}
+          value={observerCanRun}
+          wrapperClassName={`${baseClass}__observer-can-run-wrapper`}
         >
-          <InputField
-            name="name"
-            onChange={(value: string) => setName(value)}
-            value={name}
-            error={errors.name}
-            inputClassName={`${baseClass}__name`}
-            label="Name"
-            placeholder="What is your query called?"
-            autofocus
-            ignore1password
-          />
-          <InputField
-            name="description"
-            onChange={(value: string) => setDescription(value)}
-            value={description}
-            inputClassName={`${baseClass}__description`}
-            label="Description"
-            type="textarea"
-            placeholder="What information does your query reveal? (optional)"
-          />
-          <Dropdown
-            searchable={false}
-            options={FREQUENCY_DROPDOWN_OPTIONS}
-            onChange={(value: number) => {
-              setSelectedFrequency(value);
-            }}
-            placeholder={"Every hour"}
-            value={selectedFrequency}
-            label="Frequency"
-            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-          />
-          <p className="help-text">
-            If automations are on, this is how often your query collects data.
-          </p>
-          <Checkbox
-            name="observerCanRun"
-            onChange={setObserverCanRun}
-            value={observerCanRun}
-            wrapperClassName={`${baseClass}__observer-can-run-wrapper`}
+          Observers can run
+        </Checkbox>
+        <p className="help-text">
+          Users with the Observer role will be able to run this query as a live
+          query.
+        </p>
+        <RevealButton
+          isShowing={showAdvancedOptions}
+          className={`${baseClass}__advanced-options-toggle`}
+          hideText={"Hide advanced options"}
+          showText={"Show advanced options"}
+          caretPosition={"after"}
+          onClick={toggleAdvancedOptions}
+        />
+        {showAdvancedOptions && (
+          <>
+            <Dropdown
+              options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
+              placeholder="Select"
+              label="Platforms"
+              onChange={onChangeSelectPlatformOptions}
+              value={selectedPlatformOptions}
+              multi
+              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+            />
+            <p className="help-text">
+              If automations are turned on, your query collects data on
+              compatible platforms.
+              <br />
+              If you want more control, override platforms.
+            </p>
+            <Dropdown
+              options={MIN_OSQUERY_VERSION_OPTIONS}
+              onChange={setSelectedMinOsqueryVersionOptions}
+              placeholder="Select"
+              value={selectedMinOsqueryVersionOptions}
+              label="Minimum osquery version"
+              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
+            />
+            <Dropdown
+              options={LOGGING_TYPE_OPTIONS}
+              onChange={setSelectedLoggingType}
+              placeholder="Select"
+              value={selectedLoggingType}
+              label="Logging"
+              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+            />
+          </>
+        )}
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            variant="brand"
+            className="save-query-loading"
+            isLoading={isLoading}
           >
-            Observers can run
-          </Checkbox>
-          <p className="help-text">
-            Users with the Observer role will be able to run this query as a
-            live query.
-          </p>
-          <RevealButton
-            isShowing={showAdvancedOptions}
-            className={`${baseClass}__advanced-options-toggle`}
-            hideText={"Hide advanced options"}
-            showText={"Show advanced options"}
-            caretPosition={"after"}
-            onClick={toggleAdvancedOptions}
-          />
-          {showAdvancedOptions && (
-            <>
-              <Dropdown
-                options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
-                placeholder="Select"
-                label="Platforms"
-                onChange={onChangeSelectPlatformOptions}
-                value={selectedPlatformOptions}
-                multi
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
-              />
-              <p className="help-text">
-                If automations are turned on, your query collects data on
-                compatible platforms.
-                <br />
-                If you want more control, override platforms.
-              </p>
-              <Dropdown
-                options={MIN_OSQUERY_VERSION_OPTIONS}
-                onChange={setSelectedMinOsqueryVersionOptions}
-                placeholder="Select"
-                value={selectedMinOsqueryVersionOptions}
-                label="Minimum osquery version"
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
-              />
-              <Dropdown
-                options={LOGGING_TYPE_OPTIONS}
-                onChange={setSelectedLoggingType}
-                placeholder="Select"
-                value={selectedLoggingType}
-                label="Logging"
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
-              />
-            </>
-          )}
-          <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              variant="brand"
-              className="save-query-loading"
-              isLoading={isLoading}
-            >
-              Save
-            </Button>
-            <Button onClick={toggleSaveQueryModal} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </>
+            Save
+          </Button>
+          <Button onClick={toggleSaveQueryModal} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };
