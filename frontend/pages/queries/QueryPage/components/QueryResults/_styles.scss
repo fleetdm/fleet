@@ -1,5 +1,4 @@
 .query-results {
-
   &__results-cta {
     display: flex;
   }
@@ -51,5 +50,9 @@
   &__results-table-container,
   &__error-table-container {
     margin-top: 32px;
+  }
+
+  .error__cell {
+    white-space: pre-wrap; // Converts \n into new lines
   }
 }

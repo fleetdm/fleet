@@ -11,7 +11,6 @@ const FilterFunnel = ({
   size = "medium",
   color = "ui-fleet-black-33",
 }: IFilterFunnelProps) => {
-  console.log("color", color);
   return (
     <svg
       width={ICON_SIZES[size]}

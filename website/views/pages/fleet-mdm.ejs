@@ -5,10 +5,10 @@
     <div purpose="hero-container" class="d-flex flex-column align-items-center">
       <div purpose="hero-text">
         <h4 class="mb-2">Device management built for IT, security approved</h4>
-        <h1>Fleet brings GitOps to MDM</h1>
-        <p>We prefer a more collaborative approach to device management. Fleet uses a GitOps workflow, ensuring checks and balances for your configuration deployments.</p>
+        <h1>Open-source MDM</h1>
+        <p>The future of IT and security is smart people using open-source tools.  Whether you do pull requests or click around, Fleet is 100% open-source.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-          <a purpose="cta-button" @click="clickOpenMdmModal()">See MDM in action</a>
+          <a purpose="cta-button" @click="clickOpenMdmModal()">See GitOps in action</a>
           <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
@@ -47,7 +47,7 @@
     </div>
 
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-      <a purpose="cta-button" @click="clickOpenMdmModal()">See MDM in action</a>
+      <a purpose="cta-button" @click="clickOpenMdmModal()">See GitOps in action</a>
       <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
     </div>
 
@@ -117,6 +117,7 @@
             <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Submit</ajax-button>
           </div>
         </ajax-form>
+        <p class="mb-0 mt-4"><a href="/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else" target="_blank">We will never spam you</a>.</p>
       </div>
       <div purpose="modal-form" class="text-center" v-else>
         <h2 class="mb-2">Thank you!</h2>

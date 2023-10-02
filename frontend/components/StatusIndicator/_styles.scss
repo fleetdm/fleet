@@ -2,7 +2,10 @@
   display: flex;
   align-items: center;
   color: $core-fleet-blue;
-  text-transform: capitalize;
+
+  ::first-letter {
+    text-transform: capitalize;
+  }
 
   &:before {
     border-radius: 100%;
@@ -11,7 +14,6 @@
     margin-right: $pad-small;
     height: 8px;
     width: 8px;
-    margin-bottom: 1px;
   }
 
   // host status

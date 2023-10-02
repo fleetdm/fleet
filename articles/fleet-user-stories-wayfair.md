@@ -2,7 +2,7 @@
 
 ## Ahmed Elshaer — DFIR, Blue Team, SecOps @ Wayfair
 
-![Two people talking about Fleet](../website/assets/images/articles/fleet-user-stories-wayfair-cover-800x450@2x.jpeg)
+![Two people talking about Fleet](../website/assets/images/articles/fleet-user-stories-wayfair-cover-800x450@2x.png)
 
 This week, I spoke with Ahmed Elshaer (DFIR, Blue Team, SecOps) about how Wayfair uses Fleet and osquery:
 
@@ -13,7 +13,8 @@ We were looking for a tool that provided linux logging, and incident response ca
 ### Why are you using Fleet?
 
 We have POC’d couple free options and Fleet was the highest engagement and continuous development although it may be missing some features.
-How do your end users feel about Fleet?
+
+### How do your end users feel about Fleet?
 
 We are using Fleet only in the remote query on scale, so we find Fleet is doing a good job in that area, and it’s easy to use for any new members.
 
@@ -26,4 +27,4 @@ We have lots of queries that generate logs, but the ones that go into alerts are
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-08-20">
 <meta name="articleTitle" value="Fleet user stories — Wayfair">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-user-stories-wayfair-cover-800x450@2x.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-user-stories-wayfair-cover-800x450@2x.png">

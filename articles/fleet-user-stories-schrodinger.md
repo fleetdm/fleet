@@ -2,7 +2,7 @@
 
 ## Jason Walton — Director of information security @ Schrödinger
 
-![Four speech bubbles and four stars emanating from the Fleet logo](../website/assets/images/articles/fleet-user-stories-schrodinger-cover-800x450@2x.jpeg)
+![Four speech bubbles and four stars emanating from the Fleet logo](../website/assets/images/articles/fleet-user-stories-schrodinger-cover-800x450@2x.png)
 
 Jason Walton gives us some insight into how his team uses Fleet and osquery at Schrödinger.
 
@@ -27,4 +27,4 @@ We actually don’t use a SIEM for this reason. We rely on alerts and signals fr
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-09-10">
 <meta name="articleTitle" value="Fleet user stories — Schrödinger">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-user-stories-schrodinger-cover-800x450@2x.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-user-stories-schrodinger-cover-800x450@2x.png">

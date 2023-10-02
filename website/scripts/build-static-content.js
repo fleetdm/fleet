@@ -24,7 +24,7 @@ module.exports = {
 
     // The data we're compiling will get built into this dictionary and then written on top of the .sailsrc file.
     let builtStaticContent = {};
-
+    let rootRelativeUrlPathsSeen = [];
     let baseHeadersForGithubRequests;
     if(!skipGithubRequests){
       baseHeadersForGithubRequests = {
@@ -179,7 +179,7 @@ module.exports = {
           'handbook/': { urlPrefix: '/handbook', },
           'articles/': { urlPrefix: '/articles', }
         };
-        let rootRelativeUrlPathsSeen = [];
+
         for (let sectionRepoPath of Object.keys(SECTION_INFOS_BY_SECTION_REPO_PATHS)) {// FUTURE: run this in parallel
           let thinTree = await sails.helpers.fs.ls.with({
             dir: path.join(topLvlRepoPath, sectionRepoPath),
@@ -255,32 +255,9 @@ module.exports = {
               if(mdString.match(/\{\{([^}]+)\}\}/gi)) {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/\{\{([^}]+)\}\}/gi)[0]}) that will cause client-side javascript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
               }
-              mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
+              // [?] Looking for code that used to be here related to syntax highlighting?  Please see https://github.com/fleetdm/fleet/pull/14124/files  -mikermcneil, 2023-09-25
               let htmlString = await sails.helpers.strings.toHtml(mdString);
-              htmlString = (// « Add the appropriate class to the `<code>` based on the temporary "LANG" markers that were just added above
-                htmlString
-                .replace(// Interpret `js` as `javascript`
-                  // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%js\%__ --\&gt;)\s*/gm,
-                  '$1 class="javascript"$2$3'
-                )
-                .replace(// Interpret `sh` and `bash` as `bash`
-                  // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%(bash|sh)\%__ --\&gt;)\s*/gm,
-                  '$1 class="bash"$2$3'
-                )
-                .replace(// When unspecified, default to `text`
-                  // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
-                  '$1 class="nohighlight"$2$3'
-                )
-                .replace(// Finally, nab the rest, leaving the code language as-is.
-                  // $1     $2     $3   $4               $5    $6
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
-                  '$1 class="$5"$2$3'
-                )
-              );
               // Throw an error if the compiled Markdown contains nested codeblocks (nested codeblocks meaning 3 backtick codeblocks nested inside a 4 backtick codeblock, or vice versa). Note: We're checking this after the markdown has been compiled because backticks (`) within codeblocks will be replaced with HTML entities (&#96;) and nested triple backticks can be easy to overmatch.
               if(htmlString.match(/(&#96;){3,4}[\s\S]+(&#96;){3}/g)){
                 throw new Error('The compiled markdown has a codeblock (\`\`\`) nested inside of another codeblock (\`\`\`\`) at '+pageSourcePath+'. To resolve this error, remove the codeblock nested inside another codeblock from this file.');
@@ -563,10 +540,123 @@ module.exports = {
             }
           }//∞ </each source file>
         }//∞ </each section repo path>
+        // Now build EJS partials from open positions in open-positions.yml. Note: We don't build these
+        builtStaticContent.openPositions = [];// This will be passed into a component on the company handbook page to render a list of open positions.
+        let RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO = 'handbook/company/open-positions.yml';
+
+        // Get last modified timestamp using git, and represent it as a JS timestamp.
+        // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+          command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
+          dir: topLvlRepoPath,
+        })).stdout)).getTime();
+
+        let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
+
+        for(let openPosition of openPositionsToCreatePartialsFor){
+          // Make sure all open positions have the required values.
+          if(!openPosition.jobTitle){
+            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "jobTitle". To resolve, add a "jobTitle" value and try running this script again.`);
+          }
+
+          if(!openPosition.department){
+            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "department" value. To resolve, add a "department" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+          }
+
+          if(!openPosition.hiringManagerName){
+            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerName" value. To resolve, add a "hiringManagerName" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+          }
+
+          if(!openPosition.hiringManagerLinkedInUrl){
+            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerLinkedInUrl" value. To resolve, add a "hiringManagerLinkedInUrl" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+          }
+
+          if(!openPosition.hiringManagerGithubUsername){
+            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerGithubUsername" value. To resolve, add a "hiringManagerGithubUsername" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+          }
+
+          if(!openPosition.responsibilities){
+            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "responsibilities" value. To resolve, add a "responsibilities" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+          }
+
+          if(!openPosition.experience){
+            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing an "experience" value. To resolve, add an "experience" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+          }
+
+          let pageTitle = openPosition.jobTitle;
+
+          let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}).`;
+
+
+          let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
+
+          // Modify links in the generated html string.
+          htmlStringForThisPosition = htmlStringForThisPosition.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{// « Modify links that are potentially external
+            // Check if this is an external link (like https://google.com) but that is ALSO not a link
+            // to some page on the destination site where this will be hosted, like `(*.)?fleetdm.com`.
+            // If external, add target="_blank" so the link will open in a new tab.
+            // Note: links to blog.fleetdm.com will be treated as an external link.
+            let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
+            // Check if this link is to fleetdm.com or www.fleetdm.com.
+            let isBaseUrl = hrefString.match(/^(href="https?:\/\/)([^\.]+\.)*fleetdm\.com"$/g);
+            if (isExternal) {
+
+              return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
+            } else {
+              // Otherwise, change the link to be web root relative.
+              // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
+              // > Note: See the Git version history of "compile-markdown-content.js" in the sailsjs.com website repo for examples of ways this can work across versioned subdomains.
+              if (isBaseUrl) {
+                return hrefString.replace(/href="https?:\/\//, '').replace(/([^\.]+\.)*fleetdm\.com/, 'href="/');
+              } else {
+                return hrefString.replace(/href="https?:\/\//, '').replace(/^([^\.]+\.)*fleetdm\.com/, 'href="');
+              }
+            }
+          });//∞
+
+          // Determine the htmlId for the generated page.
+          let htmlId = (
+            'handbook'+
+            '--'+
+            _.kebabCase(openPosition.jobTitle)+
+            '--'+
+            sails.helpers.strings.random.with({len:10})// if two files in different folders happen to have the same filename, there is a 1/16^10 chance of a collision (this is small enough- worst case, the build fails at the uniqueness check and we rerun it.)
+          ).replace(/[^a-z0-9\-]/ig,'');
+
+          // Determine the rootRelativeUrlPath for this open position, this will be used as the page's URL and to check if a markdown page already exists with this page's URL
+          let rootRelativeUrlPath = '/handbook/company/'+encodeURIComponent(_.kebabCase(openPosition.jobTitle));
+
+          // If there is an existing page with the generated url, throw an error.
+          if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
+            throw new Error(`Failed compiling markdown content: The "jobTitle" of an open position in ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO} matches an existing page in the company handbook folder, and named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ${rootRelativeUrlPath}`);
+          }//•
+
+          // Generate ejs partial
+          let htmlOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs'));
+          if (dry) {
+            sails.log('Dry run: Would have generated file:', htmlOutputPath);
+          } else {
+            await sails.helpers.fs.write(htmlOutputPath, htmlStringForThisPosition);
+          }
+
+          builtStaticContent.markdownPages.push({
+            url: rootRelativeUrlPath,
+            title: pageTitle,
+            lastModifiedAt: lastModifiedAt,
+            htmlId: htmlId,
+            sectionRelativeRepoPath: 'company/open-positions.yml', // This is used to create the url for the "Edit this page" link
+            meta: {maintainedBy: openPosition.hiringManagerGithubUsername},// Set the page maintainer to be the position's hiring manager.
+          });
+          // Add the positon to builtStaticContent.openPositions
+          builtStaticContent.openPositions.push({
+            jobTitle: openPosition.jobTitle,
+            url: rootRelativeUrlPath,
+          });
+        }
 
         // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
-
-        let expandedTables = await sails.helpers.getExtendedOsquerySchema();
+        let expandedTables = await sails.helpers.getExtendedOsquerySchema.with({includeLastModifiedAtValue: true});
 
         // Once we have our merged schema, we'll create ejs partials for each table.
         for(let table of expandedTables) {
@@ -677,6 +767,7 @@ module.exports = {
               title: table.name,
               htmlId: htmlId,
               evented: table.evented,
+              lastModifiedAt: table.lastModifiedAt,
               platforms: table.platforms,
               keywordsForSyntaxHighlighting: keywordsForSyntaxHighlighting,
               sectionRelativeRepoPath: table.name, // Setting the sectionRelativeRepoPath to an arbitrary string to work with existing pages.

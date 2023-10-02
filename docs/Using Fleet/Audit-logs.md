@@ -1,7 +1,7 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
 # Audit logs
 
-Fleet logs the following information for administrative actions (in JSON):
+Fleet logs the following information for administrative activities (in JSON):
 
 - `created_at`: Timestamp of the event.
 - `id`: Unique ID of the generated event in Fleet.
@@ -28,8 +28,12 @@ Example:
 	}
 }
 ```
+
+You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
+
+To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
 	
-## List of activities and their specific details
+## Activity types
 
 ### Type `created_pack`
 
@@ -837,6 +841,27 @@ This activity does not contain any detail fields.
 Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
+
+### Type `ran_script`
+
+Generated when a script is sent to be run for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "script_execution_id": Execution ID of the script run.
+- "async": Whether the script was executed asynchronously.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "async": false
+}
+```
 
 
 <meta name="title" value="Audit logs">

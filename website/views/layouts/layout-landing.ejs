@@ -132,7 +132,7 @@
     </noscript>
     <%/* End Google Tag Manager (noscript) */%>
     <div style="padding-bottom: 60px; background-color: #FFFFFF;" purpose="page-wrap">
-      <div purpose="header-container" class="header">
+      <div purpose="header-container" class="header" data-nosnippet>
         <div purpose="page-header" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
           <a purpose="header-logo" href="/">
             <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
@@ -145,7 +145,7 @@
 
       <%- body %>
 
-      <div purpose="landing-footer" class="d-flex">
+      <div purpose="landing-footer" class="d-flex" data-nosnippet>
         <div style="max-width: 1200px;" class="container-fluid align-items-center d-sm-flex d-block flex-sm-row ">
           <div style="font-size: 11px; line-height: 18px;" class="justify-content-start mr-4 pt-3 pt-sm-0 mr-md-auto">
             <div class="d-sm-flex d-block">
@@ -203,6 +203,7 @@
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
+    <script src="/js/components/open-positions.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
@@ -250,7 +251,6 @@
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
-    <script src="/js/pages/sales-one-pager.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/register.page.js"></script>
@@ -280,14 +280,14 @@
         //    - https://github.com/lancedikson/bowser/tree/1fb99ced0e8834fd9662604bad7e0f0c3eba2786#rendering-engine-flags
         // --------------------------------------------------------------------
         var LATEST_SUPPORTED_VERSION_BY_OS = {
-          iOS: '12',//« earliest version that suppports the hubspot chatbot.
+          iOS: '13',//« earliest version that suppports the embedded podcast player.
           Android: '7' // « earliest version we can test for compatibility issues with on browserstack
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
           msedge: '80',//« earliest version to support the backdrop filter css property.
-          safari: '12',//« earliest version that suppports the hubspot chatbot.
-          firefox: '102',//« earliest version to support the backdrop filter css property.
-          chrome: '76',//« earliest version to support the backdrop filter css property.
+          safari: '13',//« earliest version that suppports the hubspot chatbot.
+          firefox: '103',//« earliest version to support the backdrop filter css property.
+          chrome: '80',//« earliest version to support the embedded podcast player.
           opera: '64',//« earliest version to support the backdrop filter css property.
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {

@@ -1762,7 +1762,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 	}
 
 	host := fleet.Host{ID: 1}
-	err := svc.ingestDistributedQuery(context.Background(), host, "bad_name", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "bad_name", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unable to parse campaign")
 }
@@ -1788,7 +1788,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading orphaned campaign")
 }
@@ -1821,7 +1821,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 waiting for listener")
 }
@@ -1857,7 +1857,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
 }
@@ -1894,7 +1894,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
 }
@@ -1931,7 +1931,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 stopped")
 	lq.AssertExpectations(t)
@@ -1962,7 +1962,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "record query completion")
 	lq.AssertExpectations(t)
@@ -1993,7 +1993,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.NoError(t, err)
 	lq.AssertExpectations(t)
 }

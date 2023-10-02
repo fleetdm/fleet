@@ -1186,6 +1186,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 0)
 
 	// disable the webhook and enable the automation
+	tmResp = teamResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		Integrations: &fleet.TeamIntegrations{
 			Jira: []*fleet.TeamJiraIntegration{
@@ -1205,6 +1206,24 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
 	require.Equal(t, "qux", tmResp.Team.Config.Integrations.Jira[0].ProjectKey)
+
+	// update the team with an unrelated field, should not change integrations
+	tmResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Description: ptr.String("team-desc"),
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "team-desc", tmResp.Team.Description)
+
+	// make an unrelated appconfig change, should not remove the global integrations nor the teams'
+	var appCfgResp appConfigResponse
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-integrations"
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Equal(t, "test-integrations", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.Jira, 2)
 
 	// enable the webhook without changing the integration should fail (an integration is already enabled)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
@@ -1400,6 +1419,25 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
 	require.Equal(t, int64(122), tmResp.Team.Config.Integrations.Zendesk[0].GroupID)
 	require.Equal(t, int64(123), tmResp.Team.Config.Integrations.Zendesk[1].GroupID)
+
+	// update the team with an unrelated field, should not change integrations
+	tmResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Description: ptr.String("team-desc-2"),
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
+	require.Equal(t, "team-desc-2", tmResp.Team.Description)
+
+	// make an unrelated appconfig change, should not remove the global integrations nor the teams'
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-integrations-2"
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Equal(t, "test-integrations-2", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.Zendesk, 2)
+	require.Len(t, appCfgResp.Integrations.Jira, 2)
 
 	// enabling the second without disabling the first fails
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
@@ -1629,9 +1667,15 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.False(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Empty(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-		"integrations": {}
-	}`), http.StatusOK)
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"integrations": {
+			"jira": [],
+			"zendesk": []
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Len(t, appCfgResp.Integrations.Jira, 0)
+	require.Len(t, appCfgResp.Integrations.Zendesk, 0)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
@@ -2868,8 +2912,9 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(
 		ctx, fleet.SoftwareVulnerability{
-			SoftwareID: bar.ID,
-			CVE:        "cve-123",
+			SoftwareID:        bar.ID,
+			CVE:               "cve-123",
+			ResolvedInVersion: "1.2.3",
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
@@ -2881,6 +2926,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		EPSSProbability:  ptr.Float64(0.5),
 		CISAKnownExploit: ptr.Bool(true),
 		Published:        &now,
+		Description:      "a long description of the cve",
 	}}))
 
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now().UTC()))
@@ -2909,6 +2955,8 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, ptr.Float64Ptr(0.5))
 	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, ptr.BoolPtr(true))
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
+	require.Equal(t, barPayload.Vulnerabilities[0].Description, ptr.StringPtr("a long description of the cve"))
+	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
 }
 
 // TestGitOpsUserActions tests the permissions listed in ../../docs/Using-Fleet/Permissions.md.
@@ -3670,7 +3718,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// attempt to run an empty script
 	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: ""}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "a script to execute is required")
+	require.Contains(t, errMsg, "Script contents must not be empty.")
 
 	// attempt to run an overly long script
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
@@ -3686,36 +3734,55 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
 
+	// an activity was created for the async script execution
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), runResp.ExecutionID,
+		),
+		0,
+	)
+
 	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, result.HostID)
 	require.Equal(t, "echo", result.ScriptContents)
-	require.False(t, result.ExitCode.Valid)
+	require.Nil(t, result.ExitCode)
+
+	// get script result
+	var scriptResultResp getScriptResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo", scriptResultResp.ScriptContents)
+	require.Nil(t, scriptResultResp.ExitCode)
+	require.False(t, scriptResultResp.HostTimeout)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
 
 	// verify that orbit would get the notification that it has a script to run
 	var orbitResp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
-	require.Equal(t, []string{result.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
+	require.Equal(t, []string{scriptResultResp.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
 
 	// the orbit endpoint to get a pending script to execute returns it
 	var orbitGetScriptResp orbitGetScriptResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, result.ExecutionID)),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusOK, &orbitGetScriptResp)
 	require.Equal(t, host.ID, orbitGetScriptResp.HostID)
-	require.Equal(t, result.ExecutionID, orbitGetScriptResp.ExecutionID)
+	require.Equal(t, scriptResultResp.ExecutionID, orbitGetScriptResp.ExecutionID)
 	require.Equal(t, "echo", orbitGetScriptResp.ScriptContents)
 
 	// trying to get that script via its execution ID but a different host returns not found
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *otherHost.OrbitNodeKey, result.ExecutionID)),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *otherHost.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusNotFound, &orbitGetScriptResp)
 
 	// trying to get an unknown execution id returns not found
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, result.ExecutionID+"no-such")),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID+"no-such")),
 		http.StatusNotFound, &orbitGetScriptResp)
 
 	// attempt to run a sync script on a non-existing host
@@ -3725,7 +3792,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// attempt to sync run an empty script
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: ""}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "a script to execute is required")
+	require.Contains(t, errMsg, "Script contents must not be empty.")
 
 	// attempt to sync run an overly long script
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
@@ -3740,12 +3807,12 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// host has a pending script execution
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "A script is already running on this host.")
+	require.Contains(t, errMsg, fleet.RunScriptAlreadyRunningErrMsg)
 
 	// save a result via the orbit endpoint
 	var orbitPostScriptResp orbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)
 
 	// verify that orbit does not receive any pending script anymore
@@ -3762,7 +3829,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.True(t, runSyncResp.HostTimeout)
-	require.Contains(t, runSyncResp.Message, "Fleet hasn't heard from the host in over 1 minute. Fleet doesn't know if the script ran because the host went offline.")
+	require.Contains(t, runSyncResp.Message, fleet.RunScriptHostTimeoutErrMsg)
 
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
@@ -3810,9 +3877,19 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.Equal(t, "ok", runSyncResp.Output)
-	require.True(t, runSyncResp.ExitCode.Valid)
-	require.Equal(t, int64(0), runSyncResp.ExitCode.Int64)
+	require.NotNil(t, runSyncResp.ExitCode)
+	require.Equal(t, int64(0), *runSyncResp.ExitCode)
 	require.False(t, runSyncResp.HostTimeout)
+
+	// an activity was created for the sync script execution
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": false}`,
+			host.ID, host.DisplayName(), runSyncResp.ExecutionID,
+		),
+		0,
+	)
 
 	// simulate a scripts disabled result
 	resultsCh <- &fleet.HostScriptResultPayload{
@@ -3826,8 +3903,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.Empty(t, runSyncResp.Output)
-	require.True(t, runSyncResp.ExitCode.Valid)
-	require.Equal(t, int64(-2), runSyncResp.ExitCode.Int64)
+	require.NotNil(t, runSyncResp.ExitCode)
+	require.Equal(t, int64(-2), *runSyncResp.ExitCode)
 	require.False(t, runSyncResp.HostTimeout)
 	require.Contains(t, runSyncResp.Message, "Scripts are disabled")
 
@@ -3839,11 +3916,193 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// is offline.
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script can't run on offline host.")
+	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
 
 	// attempt to create an async script execution request, fails because the host
 	// is offline.
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script can't run on offline host.")
+	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
+}
+
+func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
+	t := s.T()
+	ctx := context.Background()
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	defer func() {
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
+
+	foobarLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  "Foobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	zoobarLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  "Zoobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	allHostsLabel, err := s.ds.GetLabelSpec(ctx, "All hosts")
+	require.NoError(t, err)
+
+	orbitDarwinClient := createOrbitEnrolledHost(t, "darwin", "foobar1", s.ds)
+	orbitLinuxClient := createOrbitEnrolledHost(t, "linux", "foobar2", s.ds)
+	orbitWindowsClient := createOrbitEnrolledHost(t, "windows", "foobar3", s.ds)
+
+	// orbitDarwinClient is member of 'All hosts' and 'Zoobar' labels.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitDarwinClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+		zoobarLabel.ID:   ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	// orbitLinuxClient is member of 'All hosts' and 'Foobar' labels.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+		foobarLabel.ID:   ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	// orbitWindowsClient is member of the 'All hosts' label only.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitWindowsClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Attempt to add labels to extensions.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+  "agent_options": {
+	"config": {
+		"options": {
+		"pack_delimiter": "/",
+		"logger_tls_period": 10,
+		"distributed_plugin": "tls",
+		"disable_distributed": false,
+		"logger_tls_endpoint": "/api/osquery/log",
+		"distributed_interval": 10,
+		"distributed_tls_max_attempts": 3
+		}
+	},
+	"extensions": {
+		"hello_world_linux": {
+			"labels": [
+				"All hosts",
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "linux"
+		},
+		"hello_world_macos": {
+			"labels": [
+				"All hosts",
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "macos"
+		},
+		"hello_mars_macos": {
+			"labels": [
+				"All hosts",
+				"Zoobar"
+			],
+			"channel": "stable",
+			"platform": "macos"
+		},
+		"hello_world_windows": {
+			"labels": [
+				"Zoobar"
+			],
+			"channel": "stable",
+			"platform": "windows"
+		},
+		"hello_mars_windows": {
+			"labels": [
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "windows"
+		}
+	}
+  }
+}`), http.StatusOK)
+
+	resp := orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_mars_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	}
+  }`, string(resp.Extensions))
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_world_linux": {
+		"channel": "stable",
+		"platform": "linux"
+	}
+  }`, string(resp.Extensions))
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitWindowsClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, string(resp.Extensions))
+
+	// orbitDarwinClient is now also a member of the 'Foobar' label.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitDarwinClient, map[uint]*bool{
+		foobarLabel.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_world_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	},
+	"hello_mars_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	}
+  }`, string(resp.Extensions))
+
+	// orbitLinuxClient is no longer a member of the 'Foobar' label.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
+		foobarLabel.ID: nil,
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, string(resp.Extensions))
+
+	// Attempt to set non-existent labels in the config.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+  "agent_options": {
+	"config": {
+		"options": {
+		"pack_delimiter": "/",
+		"logger_tls_period": 10,
+		"distributed_plugin": "tls",
+		"disable_distributed": false,
+		"logger_tls_endpoint": "/api/osquery/log",
+		"distributed_interval": 10,
+		"distributed_tls_max_attempts": 3
+		}
+	},
+	"extensions": {
+		"hello_world_linux": {
+			"labels": [
+				"All hosts",
+				"Doesn't exist"
+			],
+			"channel": "stable",
+			"platform": "linux"
+		}
+	}
+  }
+}`), http.StatusBadRequest)
 }
