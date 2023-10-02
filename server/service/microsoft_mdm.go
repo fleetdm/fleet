@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
@@ -1634,4 +1635,155 @@ func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode
 		Data:    &statusCode,
 		Items:   nil,
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Enqueue Microsoft MDM Command
+////////////////////////////////////////////////////////////////////////////////
+
+type enqueueMDMMicrosoftCommandRequest struct {
+	Command   string   `json:"command"`
+	DeviceIDs []string `json:"device_ids"`
+}
+
+type enqueueMDMMicrosoftCommandResponse struct {
+	*fleet.CommandEnqueueResult
+	Err error `json:"error,omitempty"`
+}
+
+func (r enqueueMDMMicrosoftCommandResponse) error() error { return r.Err }
+
+func enqueueMDMMicrosoftCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*enqueueMDMMicrosoftCommandRequest)
+	result, err := svc.EnqueueMDMMicrosoftCommand(ctx, req.Command, req.DeviceIDs)
+	if err != nil {
+		return enqueueMDMMicrosoftCommandResponse{Err: err}, nil
+	}
+	return enqueueMDMMicrosoftCommandResponse{
+		CommandEnqueueResult: result,
+	}, nil
+}
+
+var microsoftMDMPremiumCommands = map[string]bool{
+	"Wipe": true,
+}
+
+func (svc *Service) EnqueueMDMMicrosoftCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+	// TODO(mna): epic mentions "GitOps users can run commands", check that it is what we want
+	// (how can gitops run a command?). This complicates a lot of things, as gitops has no read
+	// permissions at all (e.g. HostByIdentifier call in fleetctl, list permission here, etc.).
+
+	// load hosts (lite) by uuids, check that the user has the rights to run
+	// commands for every affected team.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO(mna): extract this authorization logic to a common function, same as apple mdm
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	// for the team filter, we don't include observers as we require maintainer
+	// and up to run commands.
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: false}
+	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, deviceIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(hosts) == 0 {
+		return nil, newNotFoundError()
+	}
+
+	// collect the team IDs and verify that the user has access to run commands
+	// on all affected teams.
+	teamIDs := make(map[uint]bool)
+	for _, h := range hosts {
+		var id uint
+		if h.TeamID != nil {
+			id = *h.TeamID
+		}
+		teamIDs[id] = true
+	}
+
+	var commandAuthz fleet.MDMAppleCommandAuthz
+	for tmID := range teamIDs {
+		commandAuthz.TeamID = &tmID
+		if tmID == 0 {
+			commandAuthz.TeamID = nil
+		}
+
+		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionWrite); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+	}
+
+	// using a padding agnostic decoder because we released this using
+	// base64.RawStdEncoding, but it was causing problems as many standard
+	// libraries default to padded strings. We're now supporting both for
+	// backwards compatibility.
+	rawXMLCmd, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
+	if err != nil {
+		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
+	}
+	/*
+		cmd, err := mdm.DecodeCommand(rawXMLCmd)
+		if err != nil {
+			err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
+			return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
+		}
+	*/
+
+	if microsoftMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get license")
+		}
+		if !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
+		}
+	}
+
+	/*
+		if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
+			// if at least one UUID enqueued properly, return success, otherwise return
+			// error
+			var apnsErr *apple_mdm.APNSDeliveryError
+			var mysqlErr *mysql.MySQLError
+			if errors.As(err, &apnsErr) {
+				if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
+					// some hosts properly received the command, so return success, with the list
+					// of failed uuids.
+					return http.StatusOK, &fleet.CommandEnqueueResult{
+						CommandUUID: cmd.CommandUUID,
+						RequestType: cmd.Command.RequestType,
+						FailedUUIDs: apnsErr.FailedUUIDs,
+					}, nil
+				}
+				// push failed for all hosts
+				err := fleet.NewBadGatewayError("Apple push notificiation service", err)
+				return http.StatusBadGateway, nil, ctxerr.Wrap(ctx, err, "enqueue command")
+
+			} else if errors.As(err, &mysqlErr) {
+				// enqueue may fail with a foreign key constraint error 1452 when one of
+				// the hosts provided is not enrolled in nano_enrollments. Detect when
+				// that's the case and add information to the error.
+				if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
+					err := fleet.NewInvalidArgumentError(
+						"device_ids",
+						fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err),
+					).WithStatus(http.StatusConflict)
+					return http.StatusConflict, nil, ctxerr.Wrap(ctx, err, "enqueue command")
+				}
+			}
+
+			return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
+		}
+	*/
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: cmd.CommandUUID,
+		RequestType: cmd.Command.RequestType,
+	}, nil
 }

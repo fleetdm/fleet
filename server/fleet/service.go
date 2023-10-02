@@ -790,6 +790,10 @@ type Service interface {
 	// GetMDMWindowsTOSContent returns TOS content
 	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
 
+	// EnqueueMDMMicrosoftCommand enqueues a command for execution on the given
+	// devices. Note that a deviceID is the same as a host's UUID.
+	EnqueueMDMMicrosoftCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution
 
