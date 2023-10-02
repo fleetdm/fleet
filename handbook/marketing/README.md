@@ -123,11 +123,11 @@ For an event to be considered, booked, and scheduled, we follow the event issue 
 
 1. Create a New GitHub Issue from the [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board).
 2. Select the "Event-preparation" template.
-3. Drag the issue into the "Ideas for future events" column as you work through the template.
-4. Once approval has been received, move the event into the "Planned events" column.
+3. Drag the issue into the "🗓 Ideas for future events" column as you work through the template.
+4. Once approval has been received, move the event into the "🗓 Planned events" column.
 
 ### Review ongoing events
-In order to be timely, preparation is ongoing for events within the "Planned events" column within the [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board).
+In order to be timely, preparation is ongoing for events within the "🗓 Planned events" column within the [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board).
 
 1. Check "🗓 Planned events" and continue to work through steps in each event's issue.
 2. Remember to communicate with event organizers to ask questions when necessary.
