@@ -2269,6 +2269,16 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 		require.NoError(s.T(), err)
 	}
 
+	// before doing any modifications, grab the current values and make
+	// sure they're set to the same ones on cleanup to not interfere with
+	// other tests.
+	origAppConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	t.Cleanup(func() {
+		err := s.ds.SaveAppConfig(context.Background(), origAppConf)
+		require.NoError(s.T(), err)
+	})
+
 	checkConfigSetErrors := func() {
 		// try to set app config
 		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
