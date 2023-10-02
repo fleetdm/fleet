@@ -51,6 +51,8 @@ Here are some topics for social media posts:
 ### Ads
 Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
 
+### Events
+It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
 ## Responsibilities
 
@@ -115,6 +117,20 @@ Any changes to the current running ads visible to a user, including designs, key
 1. Add your proposal to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
 2. Compare existing ads against the newly proposed ad within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
 3. If your change is approved, Field Marketer makes changes and creates a calendar reminder to check performance two weeks from the date changes were made.
+
+### Book an event
+For an event to be considered, booked, and scheduled, we follow the event issue template.
+
+1. Create a New GitHub Issue from the [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board).
+2. Select the "Event-preparation" template.
+3. Drag the issue into the "Ideas for future events" column as you work through the template.
+4. Once approval has been received, move the event into the "Planned events" column.
+
+### Review ongoing events
+In order to be timely, preparation is ongoing for events within the "Planned events" column within the [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board).
+
+1. Check "🗓 Planned events" and continue to work through steps in each event's issue.
+2. Remember to communicate with event organizers to ask questions when necessary.
 
 ## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
