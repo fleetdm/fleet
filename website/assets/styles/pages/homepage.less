@@ -352,8 +352,99 @@
     }
   }
 
+  [purpose='testimonials'] {
+    margin-bottom: 80px;
+  }
 
-  @media (max-width: 1200px) {
+  [purpose='testimonial'] {
+    border-radius: 12px;
+    border: 1px solid #E2E4EA;
+    background: #FFF;
+    cursor: pointer;
+    max-width: 550px;
+    [purpose='testimonial-text'] {
+      width: 320px;
+      padding: 40px;
+      p {
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 18px;
+      }
+      [purpose='testimonial-quote'] {
+        font-size: 16px;
+        font-style: normal;
+        font-weight: 500;
+        line-height: 24px;
+      }
+    }
+    [purpose='testimonial-video'] {
+      width: 230px;
+      border-top-right-radius: 12px;
+      border-bottom-right-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0px;
+    }
+    &:hover {
+      box-shadow: 0px 4px 16px 0px #E2E4EA;
+    }
+    &:first-of-type {
+      [purpose='testimonial-video'] {
+        background: url('/images/video-testimonial-austin-anderson-1440x810@2x.jpg');
+        background-position: center;
+        background-size: cover;
+      }
+      margin-right: 20px;
+      margin-left: 0px;
+    }
+    &:last-of-type {
+      [purpose='testimonial-video'] {
+        background: url('/images/video-testimonial-nick-fohs-1440x810@2x.jpg');
+        background-position: center;
+        background-size: cover;
+      }
+      margin-right: 0px;
+      margin-left: 20px;
+    }
+  }
+  [purpose='video-modal'] {
+    [purpose='modal-dialog'] {
+      width: 100%;
+      max-width: 100%;
+    }
+    [purpose='modal-content'] {
+      max-width: 1140px;
+      height: 641px;
+      background-color: transparent;
+      box-shadow: none;
+      border: none;
+      padding: 0px;
+      margin-top: 150px;
+      margin-left: auto;
+      margin-right: auto;
+      [purpose='modal-close-button'] {
+        top: -40px;
+        right: 0px;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        padding: 0px 0px 4px 0px;
+        background-color: #192147;
+        color: #FFF;
+        opacity: 1;
+      }
+    }
+    iframe {
+      width: 1140px;
+      height: 641px;
+    }
+  }
+
+
+  @media (max-width: 1199px) {
 
     [purpose='hero-background-image'] {
       background-size: 1600px auto;
@@ -371,6 +462,44 @@
       padding-right: 60px;
       padding-left: 60px;
     }
+
+    [purpose='testimonial'] {
+      border-radius: 12px;
+      border: 1px solid #E2E4EA;
+      background: #FFF;
+      cursor: pointer;
+      max-width: 460px;
+      [purpose='testimonial-text'] {
+        width: 100%;
+        padding: 40px;
+      }
+      [purpose='testimonial-video'] {
+        height: 200px;
+        width: 100%;
+        border-top-right-radius: 12px;
+        border-top-left-radius: 12px;
+        border-bottom-right-radius: 0px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+    [purpose='video-modal'] {
+      [purpose='modal-dialog'] {
+        width: 100%;
+        max-width: 100%;
+      }
+      [purpose='modal-content'] {
+        max-width: 960px;
+        height: 540px;
+      }
+      iframe {
+        width: 960px;
+        height: 540px;
+      }
+    }
+
   }
 
   @media (max-width: 991px) {
@@ -437,12 +566,25 @@
       }
     }
 
-
-
     [purpose='bottom-cloud-city-banner'] {
       max-height: 375px;
       height: auto;
       width: 100%;
+    }
+
+    [purpose='video-modal'] {
+      [purpose='modal-dialog'] {
+        width: 100%;
+        max-width: 100%;
+      }
+      [purpose='modal-content'] {
+        max-width: 720px;
+        height: 405px;
+      }
+      iframe {
+        width: 720px;
+        height: 405px;
+      }
     }
   }
 
@@ -554,6 +696,40 @@
     }
     [purpose='three-column-features'] {
       margin-bottom: 120px;
+    }
+    [purpose='testimonial'] {
+      &:first-of-type {
+        [purpose='testimonial-video'] {
+          background: url('/images/video-testimonial-austin-anderson-1440x810@2x.jpg');
+          background-position: center;
+          background-size: cover;
+        }
+        margin-right: auto;
+        margin-left: auto;
+        margin-bottom: 40px;
+      }
+      &:last-of-type {
+        [purpose='testimonial-video'] {
+          background: url('/images/video-testimonial-nick-fohs-1440x810@2x.jpg');
+          background-position: center;
+          background-size: cover;
+        }
+        margin-right: auto;
+        margin-left: auto;
+      }
+    }
+    [purpose='video-modal'] {
+      [purpose='modal-dialog'] {
+        max-width: 97vw;
+      }
+      [purpose='modal-content'] {
+        max-width: 540px;
+        height: 304px;
+      }
+      iframe {
+        width: 540px;
+        height: 304px;
+      }
     }
   }
 
@@ -676,7 +852,16 @@
         height: 24px;
       }
     }
-
+    [purpose='video-modal'] {
+      [purpose='modal-content'] {
+        width: 95vw;
+        height: calc(~'9/16 * 95vw');
+      }
+      iframe {
+        width: 95vw;
+        height: calc(~'9/16 * 95vw');
+      }
+    }
   }
 
   @media (max-width: 375px) {
