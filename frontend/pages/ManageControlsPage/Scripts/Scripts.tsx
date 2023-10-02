@@ -98,7 +98,7 @@ const Scripts = ({ teamIdForApi }: IScriptsProps) => {
           scriptName={selectedScript.current?.name}
           scriptId={selectedScript.current?.id}
           onCancel={onCancelDelete}
-          onDelete={onDeleteScript}
+          onDone={onDeleteScript}
         />
       )}
     </div>

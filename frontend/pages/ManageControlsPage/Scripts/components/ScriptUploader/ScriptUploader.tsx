@@ -23,15 +23,13 @@ const ScriptPackageUploader = ({
   const [showLoading, setShowLoading] = useState(false);
 
   const onUploadFile = async (files: FileList | null) => {
-    setShowLoading(true);
-
     if (!files || files.length === 0) {
-      setShowLoading(false);
       return;
     }
 
     const file = files[0];
 
+    setShowLoading(true);
     try {
       await scriptAPI.uploadScript(file, currentTeamId);
       renderFlash("success", "Successfully uploaded!");

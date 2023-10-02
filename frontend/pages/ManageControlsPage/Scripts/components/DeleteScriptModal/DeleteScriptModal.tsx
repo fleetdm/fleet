@@ -12,14 +12,14 @@ interface IDeleteScriptModalProps {
   scriptName: string;
   scriptId: number;
   onCancel: () => void;
-  onDelete: () => void;
+  onDone: () => void;
 }
 
 const DeleteScriptModal = ({
   scriptName,
   scriptId,
   onCancel,
-  onDelete,
+  onDone,
 }: IDeleteScriptModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -30,7 +30,7 @@ const DeleteScriptModal = ({
     } catch {
       renderFlash("error", "Couldn’t delete. Please try again.");
     }
-    onDelete();
+    onDone();
   };
 
   return (
