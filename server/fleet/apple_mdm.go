@@ -247,6 +247,11 @@ type MDMAppleCommandAuthz struct {
 	TeamID *uint `json:"team_id"` // required for authorization by team
 }
 
+// SetTeamID implements the TeamIDSetter interface.
+func (m *MDMAppleCommandAuthz) SetTeamID(tid *uint) {
+	m.TeamID = tid
+}
+
 // AuthzType implements authz.AuthzTyper.
 func (m MDMAppleCommandAuthz) AuthzType() string {
 	return "mdm_apple_command"
