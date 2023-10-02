@@ -997,7 +997,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\NoConnectedUser' AND data == 3);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_2.3.1.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_2.3.1.1
   contributors: marcosd4h
 ---
 apiVersion: v1
