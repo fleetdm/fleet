@@ -5565,7 +5565,8 @@ Returns the query report specified by ID.
 }
 
 ```
-
+### osquery Scheduled queries do not return errors.
+osquery scheduled queries mechanism does not return errors. Hence those are not stored in the cache and are not part of this report.
 ### List queries
 
 Returns a list of global queries or team queries.
