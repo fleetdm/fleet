@@ -125,6 +125,7 @@ For an event to be considered, booked, and scheduled, we follow the event issue 
 2. Select the "Event-preparation" template.
 3. Drag the issue into the "🗓 Ideas for future events" column as you work through the template.
 4. Once approval has been received, move the event into the "🗓 Planned events" column.
+5. If there was an issue created under the "📨New requests" from a team member, move any relevant information from the old issue to the new one and close the old one.
 
 ### Review ongoing events
 In order to be timely, preparation is ongoing for events within the "🗓 Planned events" column within the [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board).
