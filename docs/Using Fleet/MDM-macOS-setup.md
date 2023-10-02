@@ -345,7 +345,7 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 ## Populate the Full Name and Account Name
 
-When an end user unboxed their Mac, they're presented with the **Create a Computer Account** pane where they choose their local Full Name, Account Name, and Password they'll used to login to your Mac.
+When an end user unboxes their Mac, they're presented with the **Create a Computer Account** pane where they choose their local Full Name, Account Name, and Password they'll used to login to your Mac.
 
 With Fleet, you can populate the Full Name and Account Name with information from your Identity Provider (IdP).
 
@@ -358,7 +358,7 @@ To populate the Full Name and Account Name, we will do the following steps:
 
 ### Step 1: enable end user authentication
 
-If you haven't already follow the steps to enable end user authentication [here](#end-user-authentication-and-eula).
+If you haven't already, follow the steps to enable end user authentication [here](#end-user-authentication-and-eula).
 
 ### Step 2: configure your IdP
 
@@ -370,13 +370,13 @@ If you haven't already follow the steps to enable end user authentication [here]
 
 In Fleet, you control your macOS Setup Assistant settings with an automatic enrollment profile.
 
-Set `await_device_configured` to `true` in your automatic enrollment profile. Learn how to edit your automatic enrollment profile [here].(#macos-setup-assistant). 
+Set `await_device_configured` to `true` in your automatic enrollment profile. Learn how to edit your automatic enrollment profile [here](#macos-setup-assistant). 
 
 This will tell the Mac to not allow the user through Setup Assistant until the Mac is released. This way, the Mac has time to get the Full Name and Account Name from your IdP before the **Create a Computer Account** pane.
 
 ## Step 4: release the Mac from Await Configuration
 
-Releasing the Mac can be automated using the Fleet API (run a custom MDM command). In this example, we'll release a test Mac manually.
+Releasing the Mac can be automated using the Fleet API. In this example, we'll release a test Mac manually.
 
 1. Open a freshly wiped test Mac and continue through macOS Setup Assistant.
 
@@ -410,11 +410,7 @@ We'll use this example and do the following steps:
 
 ## Step 2: edit your macOS Setup Assistant settings
 
-In Fleet, you control your macOS Setup Assistant settings with an automatic enrollment profile.
-
-Set `await_device_configured` to `true` in your automatic enrollment profile. Learn how to edit your automatic enrollment profile [here].(#macos-setup-assistant). 
-
-This will tell the Mac to not allow the user through Setup Assistant until the Mac is released. This way, the Mac has time to get the Full Name and Account Name from your IdP before the **Create a Computer Account** pane.
+Set `await_device_configured` to `true` in your automatic enrollment profile. Learn how to edit your automatic enrollment profile [here](#macos-setup-assistant).
 
 ## Step 3: release the Mac from Await Configuration
 
