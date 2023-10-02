@@ -21,3 +21,10 @@
   description: "Complete draft orders." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#process-pending-swag-requests-from-the-website" #URL used to highlight "description:" test in table
   dri: "drewbakerfdm" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+-
+  task: "Engage with communities"
+  startedOn: "2023-09-20"
+  frequency: "Daily"
+  description: "Find relevant conversations with the community and contribute"
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#engage-with-the-community"
+  dri: "drewbakerfdm"
