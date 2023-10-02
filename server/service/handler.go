@@ -500,6 +500,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
 
+	mdmWindowsMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
+	mdmWindowsMW.POST("/api/_version_/fleet/mdm/microsoft/enqueue", enqueueMDMMicrosoftCommandEndpoint, enqueueMDMMicrosoftCommandRequest{})
+
 	// the following set of mdm endpoints must always be accessible (even
 	// if MDM is not configured) as it bootstraps the setup of MDM
 	// (generates CSR request for APNs, plus the SCEP and ABM keypairs).
