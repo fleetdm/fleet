@@ -17,24 +17,34 @@ import ScriptListItem from "./components/ScriptListItem";
 import DeleteScriptModal from "./components/DeleteScriptModal";
 import FileUploader from "../components/FileUploader";
 import UploadList from "../components/UploadList";
+import ScriptUploader from "./components/ScriptUploader";
 
 const baseClass = "scripts";
 
-const Scripts = () => {
+interface IScriptsProps {
+  teamIdForApi: number;
+}
+
+const Scripts = ({ teamIdForApi }: IScriptsProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
   const selectedScript = useRef<IScript | null>(null);
 
-  const { data: scripts, isLoading, isError } = useQuery<
-    IScriptsResponse,
-    AxiosError,
-    IScript[]
-  >(["scripts"], () => scriptAPI.getScripts(), {
-    retry: false,
-    refetchOnWindowFocus: false,
-    select: (data) => data.scripts,
-  });
+  const {
+    data: scripts,
+    isLoading,
+    isError,
+    refetch: refetchScripts,
+  } = useQuery<IScriptsResponse, AxiosError, IScript[]>(
+    ["scripts"],
+    () => scriptAPI.getScripts(),
+    {
+      retry: false,
+      refetchOnWindowFocus: false,
+      select: (data) => data.scripts,
+    }
+  );
 
   // The user is not a premium tier, so show the premium feature message.
   if (!isPremiumTier) {
@@ -60,6 +70,10 @@ const Scripts = () => {
     setShowDeleteScriptModal(false);
   };
 
+  const onUploadScript = () => {
+    refetchScripts();
+  };
+
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
@@ -80,16 +94,7 @@ const Scripts = () => {
           )}
         />
       )}
-      <FileUploader
-        className={`${baseClass}__script-file-uploader`}
-        icon="file-bash"
-        message="Script (.sh)"
-        additionalInfo="Script will run with “#!/bin/sh”."
-        accept=".sh"
-        onFileUpload={() => {
-          return null;
-        }}
-      />
+      <ScriptUploader currentTeamId={teamIdForApi} onUpload={onUploadScript} />
       {showDeleteScriptModal && selectedScript.current && (
         <DeleteScriptModal
           scriptName={selectedScript.current?.name}

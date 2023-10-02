@@ -1,11 +1,14 @@
 import React, { useContext, useState } from "react";
+import { AxiosResponse } from "axios";
 
+import { IApiError } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import scriptAPI from "services/entities/scripts";
 
 import FileUploader from "pages/ManageControlsPage/components/FileUploader";
+import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 
-const baseClass = "script-package-uploader";
+const baseClass = "script-uploader";
 
 interface IScriptPackageUploaderProps {
   currentTeamId: number;
@@ -51,9 +54,11 @@ const ScriptPackageUploader = ({
 
   return (
     <FileUploader
-      message="Package (.pkg)"
-      icon="file-pkg"
-      accept=".pkg"
+      className={baseClass}
+      icon="file-bash"
+      message="Script (.sh)"
+      additionalInfo="Script will run with “#!/bin/sh”."
+      accept=".sh"
       onFileUpload={onUploadFile}
       isLoading={showLoading}
     />
