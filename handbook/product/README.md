@@ -171,12 +171,13 @@ Start off cross-platform for every option, setting, and feature. If we **prove**
 
 - Showing these principles and ideas, to help remember the pros and cons and conceptualize the above visually.
 
-   - Figma:
-https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?type=design&node-id=17819%3A222919&t=kBHyWO7TXGpkylzS-1 
+   - Figma: [⚗️ Fleet product project](https://www.figma.com/files/project/17318630/%E2%9A%97%EF%B8%8F-Fleet-product?fuid=1234929285759903870)
 
 We have certain design conventions that we include in Fleet. We will document more of these over time.
 
-> TODO: Link to style guide here instead, and deduplicate all of this content (or as much as possible).
+**Figma component library**
+
+Use the 🧩 ["Design System (current)"](https://www.figma.com/file/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-System-(current)?type=design&mode=design&t=BytcobQwypszkxf5-1) Figma library as a source of truth for components. Components in the product ([Storybook](https://fleetdm.com/storybook/)) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs).
 
 **Table empty states**
 
@@ -219,6 +220,25 @@ When writing copy, consider whether additional information is necessary before a
 **Writing the time**
 
 When writing the time in the UI using "am" and "pm" abbreviations, write them **without space** between time and abbreviation, with **no punctuation**, and use **lowercase** letters (e.g. Working hours are 8am to 5pm).
+
+**Writing error messages**
+
+When writing error messages in the UI or CLI, follow these rules:
+- If the solution to the error isn't obvious, write a message with the **error** followed by the **solution**. For example, "No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
+- If the solution is obvious when additional info is provided, write a message with the **error** followed by **additional info**. For example, "You don’t have permission to run the script. Only users with the maintainer role and above can run scripts."
+
+**Fleetctl commands with `--hosts` or `--host` flag**
+
+When designing CLI experience for commands that target hosts (e.g. `fleetctl query` or `fleetctl mdm run-command` when including the `--hosts` or `--host` flag), if a non-existing host is specified, use a single error message such as: `Error: No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.`
+
+When writing copy for CLI help pages use the following descriptions:
+```
+$ fleetctl <command with --hosts/--host flag> -h
+
+OPTIONS
+--hosts     Hosts specified by hostname, uuid, osquery_host_id or node_key that you want to target.     
+--host      Host specified by hostname, uuid, osquery_host_id or node_key that you want to target.     
+```
 
 ## Release 
 

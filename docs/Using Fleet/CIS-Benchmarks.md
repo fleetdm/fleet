@@ -84,6 +84,8 @@ Fleet only implements automated audit checks. Manual checks require administrato
 ## Levels 1 and 2
 CIS designates various benchmarks as Level 1 or Level 2 to describe the level of thoroughness and burden that each benchmark represents.
 
+Each benchmark is tagged as `CIS_Level1` or `CIS_Level2`. 
+
 ### Level 1
 
 Items in this profile intend to:
@@ -257,6 +259,11 @@ Requires this GPO in place: 'Computer Configuration\Policies\Administrative Temp
 18.8.27.1 CIS - Ensure 'Disallow copying of user input methods to the system account for sign-in' is set to 'Enabled' (Automated)
 Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
 ```
+
+## Performance testing
+In August 2023, we completed scale testing on 10k Windows hosts and 70k macOS hosts. Ultimately, we validated both server and host performance at that scale.
+
+Detailed results are [here](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing).
 
 <meta name="pageOrderInSection" value="1700">
 <meta name="title" value="CIS Benchmarks">

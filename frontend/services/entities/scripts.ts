@@ -1,7 +1,7 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
-export interface IScriptResult {
+export interface IScriptResultResponse {
   hostname: string;
   host_id: number;
   execution_id: string;
