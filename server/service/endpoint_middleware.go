@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -92,16 +93,18 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 			return nil, err
 		}
 
-		host, debug, err := svc.AuthenticateHost(ctx, nodeKey)
+		start := time.Now()
+		host, _, err := svc.AuthenticateHost(ctx, nodeKey)
 		if err != nil {
 			logging.WithErr(ctx, err)
 			return nil, err
 		}
 
 		hlogger := log.With(logger, "host-id", host.ID)
-		if debug {
-			logJSON(hlogger, request, "request")
-		}
+		//if debug {
+		logJSON(hlogger, time.Since(start), "authenticate_host_took")
+		logJSON(hlogger, request, "request")
+		//}
 
 		ctx = hostctx.NewContext(ctx, host)
 		instrumentHostLogger(ctx)
@@ -114,9 +117,9 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 			return nil, err
 		}
 
-		if debug {
-			logJSON(hlogger, resp, "response")
-		}
+		//if debug {
+		logJSON(hlogger, resp, "response")
+		//}
 		return resp, nil
 	}
 	return logged(authHostFunc)

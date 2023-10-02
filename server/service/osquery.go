@@ -293,19 +293,19 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 }
 
 func (svc *Service) debugEnabledForHost(ctx context.Context, id uint) bool {
-	hlogger := log.With(svc.logger, "host-id", id)
-	ac, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		level.Debug(hlogger).Log("err", ctxerr.Wrap(ctx, err, "getting app config for host debug"))
-		return false
-	}
-
-	for _, hostID := range ac.ServerSettings.DebugHostIDs {
-		if hostID == id {
-			return true
-		}
-	}
-	return false
+	//	hlogger := log.With(svc.logger, "host-id", id)
+	//	ac, err := svc.ds.AppConfig(ctx)
+	//	if err != nil {
+	//		level.Debug(hlogger).Log("err", ctxerr.Wrap(ctx, err, "getting app config for host debug"))
+	//		return false
+	//	}
+	//
+	//	for _, hostID := range ac.ServerSettings.DebugHostIDs {
+	//		if hostID == id {
+	//			return true
+	//		}
+	//	}
+	return true
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -573,6 +573,7 @@ func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
+	start := time.Now()
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -580,6 +581,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	if !ok {
 		return nil, nil, 0, newOsqueryError("internal error: missing host from request context")
 	}
+
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "started", "host", host.Hostname)
 
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
@@ -595,6 +598,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = query
 	}
 
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_detail_queries", "host", host.Hostname)
+
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, nil, 0, newOsqueryError(err.Error())
@@ -602,6 +607,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	for name, query := range labelQueries {
 		queries[hostLabelQueryPrefix+name] = query
 	}
+
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_label_queries", "host", host.Hostname)
 
 	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
 		// If the live query store fails to fetch queries we still want the hosts
@@ -614,6 +621,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		}
 	}
 
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_live_queries", "host", host.Hostname)
+
 	policyQueries, err := svc.policyQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, nil, 0, newOsqueryError(err.Error())
@@ -621,6 +630,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	for name, query := range policyQueries {
 		queries[hostPolicyQueryPrefix+name] = query
 	}
+
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_policy_queries", "host", host.Hostname)
 
 	accelerate = uint(0)
 	if host.Hostname == "" || host.Platform == "" {
@@ -644,6 +655,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = discoveryQuery
 	}
 
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "returning queries", "query_len", len(queries), "accelerate", accelerate, "took", time.Since(start), "host", host.Hostname)
 	return queries, discovery, accelerate, nil
 }
 
@@ -878,6 +890,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
 ) error {
+	start := time.Now()
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -885,6 +898,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	if !ok {
 		return newOsqueryError("internal error: missing host from request context")
 	}
+	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "started", "host", host.Hostname)
 
 	detailUpdated := false
 	additionalResults := make(fleet.OsqueryDistributedQueryResults)
@@ -931,6 +945,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
+	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "recorded_label_executions", "host", host.Hostname)
+
 	if len(policyResults) > 0 {
 
 		// filter policy results for webhooks
@@ -975,6 +991,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
+	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "recorded_policy_executions", "host", host.Hostname)
+
 	if additionalUpdated {
 		additionalJSON, err := json.Marshal(additionalResults)
 		if err != nil {
@@ -986,6 +1004,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 		}
 	}
+
+	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "recorded_host_additional", "host", host.Hostname)
 
 	if detailUpdated {
 		host.DetailUpdatedAt = svc.clock.Now()
@@ -1011,6 +1031,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 		}
 	}
+
+	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "finished", "took", time.Since(start), "host", host.Hostname)
 
 	return nil
 }
