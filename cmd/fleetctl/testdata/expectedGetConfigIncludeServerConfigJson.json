@@ -69,6 +69,7 @@
         "idp_name": ""
       }
     },
+    "scripts": null,
     "sso_settings": {
       "enable_jit_provisioning": false,
       "enable_jit_role_sync": false,

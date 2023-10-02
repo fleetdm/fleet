@@ -4513,3 +4513,137 @@ func generateNewScriptMultipartRequest(t *testing.T, tmID *uint,
 ) (*bytes.Buffer, map[string]string) {
 	return generateMultipartRequest(t, tmID, "script", fileName, fileContent, token)
 }
+
+func (s *integrationEnterpriseTestSuite) TestAppConfigScripts() {
+	t := s.T()
+
+	// set the script fields
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": ["foo", "bar"] }`), http.StatusOK, &acResp)
+	assert.ElementsMatch(t, []string{"foo", "bar"}, acResp.Scripts.Value)
+
+	// check that they are returned by a GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.ElementsMatch(t, []string{"foo", "bar"}, acResp.Scripts.Value)
+
+	// patch without specifying the scripts fields, should not remove them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{}`), http.StatusOK, &acResp)
+	assert.ElementsMatch(t, []string{"foo", "bar"}, acResp.Scripts.Value)
+
+	// patch with explicitly empty scripts fields, would remove
+	// them but this is a dry-run
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": null }`), http.StatusOK, &acResp, "dry_run", "true")
+	assert.ElementsMatch(t, []string{"foo", "bar"}, acResp.Scripts.Value)
+
+	// patch with explicitly empty scripts fields, removes them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": null }`), http.StatusOK, &acResp)
+	assert.Empty(t, acResp.Scripts.Value)
+
+	// set the script fields again
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": ["foo", "bar"] }`), http.StatusOK, &acResp)
+	assert.ElementsMatch(t, []string{"foo", "bar"}, acResp.Scripts.Value)
+
+	// patch with an empty array sets the scripts to an empty array as well
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": [] }`), http.StatusOK, &acResp)
+	assert.Empty(t, acResp.Scripts.Value)
+
+	// patch with an invalid array returns an error
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": ["foo", 1] }`), http.StatusBadRequest, &acResp)
+	assert.Empty(t, acResp.Scripts.Value)
+}
+
+func (s *integrationEnterpriseTestSuite) TestApplyTeamsScripts() {
+	t := s.T()
+
+	// create a team through the service so it initializes the agent ops
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc team1",
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	// apply with scripts
+	// must not use applyTeamSpecsRequest and marshal it as JSON, as it will set
+	// all keys to their zerovalue, and some are only valid with mdm enabled.
+	teamSpecs := map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":    teamName,
+				"scripts": []string{"foo", "bar"},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// retrieving the team returns the scripts
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
+
+	// apply without custom scripts specified, should not replace existing scripts
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
+
+	// apply with explicitly empty custom scripts would clear the existing
+	// scripts, but dry-run
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":    teamName,
+				"scripts": nil,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
+
+	// apply with explicitly empty scripts clears the existing scripts
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":    teamName,
+				"scripts": nil,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Scripts.Value)
+
+	// patch with an invalid array returns an error
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":    teamName,
+				"scripts": []any{"foo", 1},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Scripts.Value)
+}

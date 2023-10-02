@@ -17,6 +17,7 @@ spec:
         bootstrap_package:
         enable_end_user_authentication: false
         macos_setup_assistant:
+    scripts: null
     name: team1
 ---
 apiVersion: v1
@@ -46,4 +47,5 @@ spec:
         bootstrap_package:
         enable_end_user_authentication: false
         macos_setup_assistant:
+    scripts: null
     name: team2

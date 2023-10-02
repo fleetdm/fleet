@@ -875,6 +875,7 @@ None.
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true
     },
+    "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
       "entity_id": "",
       "issuer_uri": "",
@@ -1075,6 +1076,7 @@ Modifies the Fleet's configuration with the supplied information.
 | custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#end-user-authentication). **Requires Fleet Premium license** |
+| scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
