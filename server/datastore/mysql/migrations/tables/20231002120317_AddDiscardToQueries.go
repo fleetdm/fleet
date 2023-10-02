@@ -10,7 +10,7 @@ func init() {
 
 func Up_20231002120317(tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE `queries` " +
-		"ADD COLUMN discard_data BOOLEAN NOT NULL DEFAULT FALSE;")
+		"ADD COLUMN discard_data TINYINT(1) NOT NULL DEFAULT FALSE;")
 	return err
 }
 
