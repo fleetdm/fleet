@@ -337,6 +337,7 @@ func (r downloadScriptResponse) hijackRender(ctx context.Context, w http.Respons
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.content)))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.filename))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be
