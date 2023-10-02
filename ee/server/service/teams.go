@@ -809,7 +809,7 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
-	if !defaults.MDM.AtLeastOnePlatformEnabledAndConfigured() {
+	if enableDiskEncryption && !defaults.MDM.AtLeastOnePlatformEnabledAndConfigured() {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
 			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 	}
@@ -896,7 +896,7 @@ func (svc *Service) editTeamFromSpec(
 	} else if de := team.Config.MDM.MacOSSettings.DeprecatedEnableDiskEncryption; de != nil {
 		team.Config.MDM.EnableDiskEncryption = *de
 	}
-	if !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() {
+	if team.Config.MDM.EnableDiskEncryption && !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
 			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 	}
