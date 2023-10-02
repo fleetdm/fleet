@@ -3877,26 +3877,26 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
 
-### Add custom macOS setting (configuration profile)
+### Add custom setting (configuration profile)
 
-Add a configuration profile to enforce custom settings on macOS hosts.
+Add a configuration profile to enforce custom settings on macOS and Windows hosts.
 
-`POST /api/v1/fleet/mdm/apple/profiles`
+`POST /api/v1/fleet/mdm/profiles`
 
 #### Parameters
 
-| Name                      | Type     | In   | Description                                                               |
-| ------------------------- | -------- | ---- | ------------------------------------------------------------------------- |
-| profile                   | file     | form | **Required**. The mobileconfig file containing the profile.               |
-| team_id                   | string   | form | _Available in Fleet Premium_ The team id for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+| Name                      | Type     | In   | Description                                                                                                   |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| profile                   | file     | form | **Required.** The .mobileconfig or .xml file containing the profile.                                          |
+| team_id                   | string   | form | _Available in Fleet Premium_ The team id for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team.                         |
 
 #### Example
 
-Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM that are
+Add a new configuration profile to be applied to macOS and Windows hosts enrolled to Fleet's MDM that are
 assigned to a team. Note that in this example the form data specifies`team_id` in addition to
 `profile`.
 
-`POST /api/v1/fleet/mdm/apple/profiles`
+`POST /api/v1/fleet/mdm/profiles`
 
 ##### Request headers
 
@@ -3961,7 +3961,7 @@ For Fleet Premium, the list can
 optionally be filtered by team ID. If no team ID is specified, team profiles are excluded from the
 results (i.e., only profiles that are associated with "No team" are listed).
 
-`GET /api/v1/fleet/mdm/apple/profiles`
+`GET /api/v1/fleet/mdm/profiles`
 
 #### Parameters
 
@@ -3971,9 +3971,9 @@ results (i.e., only profiles that are associated with "No team" are listed).
 
 #### Example
 
-List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+List all configuration profiles for macOS and Windows hosts enrolled to Fleet's MDM that are not assigned to any team.
 
-`GET /api/v1/fleet/mdm/apple/profiles`
+`GET /api/v1/fleet/mdm/profiles`
 
 ##### Default response
 
@@ -3986,10 +3986,20 @@ List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are
       "profile_id": 1337,
       "team_id": 0,
       "name": "Example profile",
+      "platform": "macOS",
       "identifier": "com.example.profile",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo="
+    },
+    {
+      "profile_id": 1338,
+      "team_id": 0,
+      "name": "Example Windows profile",
+      "platform": "Windows",
+      "created_at": "2023-04-31T00:00:00Z",
+      "updated_at": "2023-04-31T00:00:00Z",
+      "checksum": "aCLemVr)"
     }
   ]
 }
@@ -3997,7 +4007,7 @@ List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are
 
 ### Download custom macOS setting (configuration profile)
 
-`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+`GET /api/v1/fleet/mdm/profiles/{profile_id}`
 
 #### Parameters
 
@@ -4007,7 +4017,7 @@ List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/profiles/42`
+`GET /api/v1/fleet/mdm/profiles/42`
 
 ##### Default response
 
@@ -4049,7 +4059,7 @@ solely on the response status code returned by this endpoint.
 
 ### Delete custom macOS setting (configuration profile)
 
-`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+`DELETE /api/v1/fleet/mdm/profiles/{profile_id}`
 
 #### Parameters
 
@@ -4059,7 +4069,7 @@ solely on the response status code returned by this endpoint.
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/profiles/42`
+`DELETE /api/v1/fleet/mdm/profiles/42`
 
 ##### Default response
 
