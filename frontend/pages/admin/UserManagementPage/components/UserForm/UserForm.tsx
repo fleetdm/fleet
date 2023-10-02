@@ -5,7 +5,6 @@ import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
-import { IRole } from "interfaces/role";
 
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
@@ -437,7 +436,7 @@ const UserForm = ({
           value={canUseSso && formData.sso_enabled}
           disabled={!canUseSso}
           wrapperClassName={`${baseClass}__invite-admin`}
-          tooltip={
+          tooltipContent={
             <>
               Enabling single sign-on for a user requires that SSO is first
               enabled for the organization.

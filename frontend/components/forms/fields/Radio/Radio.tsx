@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import NewTooltipWrapper from "components/NewTooltipWrapper";
+import { INewTooltipWrapperTipContent } from "components/NewTooltipWrapper/NewTooltipWrapper";
 
 const baseClass = "radio";
 
@@ -14,7 +15,7 @@ export interface IRadioProps {
   name?: string;
   className?: string;
   disabled?: boolean;
-  tooltip?: string;
+  tooltip?: INewTooltipWrapperTipContent["tipContent"];
   testId?: string;
 }
 
