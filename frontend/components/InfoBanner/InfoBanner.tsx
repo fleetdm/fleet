@@ -3,6 +3,7 @@ import classNames from "classnames";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import { IconNames } from "components/icons";
 
 const baseClass = "info-banner";
 
@@ -19,6 +20,7 @@ export interface IInfoBannerProps {
   /** closable and link are mutually exclusive */
   closable?: boolean;
   link?: string;
+  icon?: IconNames;
 }
 
 const InfoBanner = ({
@@ -30,6 +32,7 @@ const InfoBanner = ({
   cta,
   closable,
   link,
+  icon,
 }: IInfoBannerProps): JSX.Element => {
   const wrapperClasses = classNames(
     baseClass,
@@ -37,6 +40,7 @@ const InfoBanner = ({
       [`${baseClass}__${color}`]: !!color,
       [`${baseClass}__border-radius-${borderRadius}`]: !!borderRadius,
       [`${baseClass}__page-banner`]: !!pageLevel,
+      [`${baseClass}__icon`]: !!icon,
     },
     className
   );
@@ -46,6 +50,7 @@ const InfoBanner = ({
   const content = (
     <>
       <div className={`${baseClass}__info`}>{children}</div>
+
       {(cta || closable) && (
         <div className={`${baseClass}__cta`}>
           {cta}
