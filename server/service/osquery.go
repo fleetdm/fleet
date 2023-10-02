@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cast"
 )
 
@@ -572,7 +573,53 @@ func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
+var detailQueriesHistogram = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "detail_queries_duration",
+		Buckets: prometheus.DefBuckets,
+	},
+	[]string{"hostname"},
+)
+
+var labelQueriesHistogram = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "label_queries_duration",
+		Buckets: prometheus.DefBuckets,
+	},
+	[]string{"hostname"},
+)
+
+var liveQueriesHistogram = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "live_queries_duration",
+		Buckets: prometheus.DefBuckets,
+	},
+	[]string{"hostname"},
+)
+
+var policyQueriesHistogram = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "policy_queries_duration",
+		Buckets: prometheus.DefBuckets,
+	},
+	[]string{"hostname"},
+)
+
 func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
+	registerOrExisting := func(coll prometheus.Collector) prometheus.Collector {
+		if err := prometheus.Register(coll); err != nil {
+			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+				return are.ExistingCollector
+			}
+			panic(err)
+		}
+		return coll
+	}
+	registerOrExisting(detailQueriesHistogram)
+	registerOrExisting(labelQueriesHistogram)
+	registerOrExisting(liveQueriesHistogram)
+	registerOrExisting(policyQueriesHistogram)
+
 	start := time.Now()
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -582,7 +629,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		return nil, nil, 0, newOsqueryError("internal error: missing host from request context")
 	}
 
-	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "started", "host", host.Hostname)
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "started", "took", time.Since(start), "host", host.Hostname)
 
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
@@ -598,7 +645,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = query
 	}
 
-	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_detail_queries", "host", host.Hostname)
+	detailQueriesHistogram.WithLabelValues(host.Hostname).Observe(time.Since(start).Seconds())
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_detail_queries", "took", time.Since(start), "host", host.Hostname)
 
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
 	if err != nil {
@@ -608,7 +656,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		queries[hostLabelQueryPrefix+name] = query
 	}
 
-	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_label_queries", "host", host.Hostname)
+	labelQueriesHistogram.WithLabelValues(host.Hostname).Observe(time.Since(start).Seconds())
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_label_queries", "took", time.Since(start), "host", host.Hostname)
 
 	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
 		// If the live query store fails to fetch queries we still want the hosts
@@ -621,7 +670,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		}
 	}
 
-	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_live_queries", "host", host.Hostname)
+	liveQueriesHistogram.WithLabelValues(host.Hostname).Observe(time.Since(start).Seconds())
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_live_queries", "took", time.Since(start), "host", host.Hostname)
 
 	policyQueries, err := svc.policyQueriesForHost(ctx, host)
 	if err != nil {
@@ -631,7 +681,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		queries[hostPolicyQueryPrefix+name] = query
 	}
 
-	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_policy_queries", "host", host.Hostname)
+	policyQueriesHistogram.WithLabelValues(host.Hostname).Observe(time.Since(start).Seconds())
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_policy_queries", "took", time.Since(start), "host", host.Hostname)
 
 	accelerate = uint(0)
 	if host.Hostname == "" || host.Platform == "" {
@@ -655,7 +706,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = discoveryQuery
 	}
 
-	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "returning queries", "query_len", len(queries), "accelerate", accelerate, "took", time.Since(start), "host", host.Hostname)
+	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "returning queries", "query_len", len(queries), "accelerate", accelerate, "took", time.Since(start), "took", time.Since(start), "host", host.Hostname)
 	return queries, discovery, accelerate, nil
 }
 
@@ -945,7 +996,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
-	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "recorded_label_executions", "host", host.Hostname)
+	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "recorded_label_executions", "took", time.Since(start), "host", host.Hostname)
 
 	if len(policyResults) > 0 {
 
@@ -991,7 +1042,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
-	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "recorded_policy_executions", "host", host.Hostname)
+	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "recorded_policy_executions", "took", time.Since(start), "host", host.Hostname)
 
 	if additionalUpdated {
 		additionalJSON, err := json.Marshal(additionalResults)
@@ -1005,7 +1056,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
-	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "recorded_host_additional", "host", host.Hostname)
+	level.Info(svc.logger).Log("endpoint", "distributed_write", "status", "recorded_host_additional", "took", time.Since(start), "host", host.Hostname)
 
 	if detailUpdated {
 		host.DetailUpdatedAt = svc.clock.Now()
