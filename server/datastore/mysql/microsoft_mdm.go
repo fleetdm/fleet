@@ -108,17 +108,48 @@ func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) str
 		whereEncrypted        = `(hd.encrypted IS NOT NULL AND hd.encrypted = 1)`
 		whereHostDisksUpdated = `(hd.updated_at IS NOT NULL AND hdek.updated_at IS NOT NULL AND hd.updated_at >= hdek.updated_at)`
 		whereClientError      = `(hdek.client_error IS NOT NULL AND hdek.client_error != '')`
+		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR))`
 	)
+
+	// TODO: what if windows sends us a key for an already encrypted volumne? could it get stuck
+	// in pending or verifying? should we modify SetOrUpdateHostDiskEncryption to ensure that we
+	// increment the updated_at timestamp on the host_disks table for all encrypted volumes
+	// host_disks if the hdek timestamp is newer? What about SetOrUpdateHostDiskEncryptionKey?
 
 	switch status {
 	case fleet.DiskEncryptionVerified:
-		return whereNotServer + ` AND NOT ` + whereClientError + ` AND ` + whereKeyAvailable + ` AND (` + whereHostDisksUpdated + ` AND ` + whereEncrypted + `)`
+		return whereNotServer + `
+AND NOT ` + whereClientError + `
+AND ` + whereKeyAvailable + `
+AND ` + whereEncrypted + `
+AND ` + whereHostDisksUpdated
 
 	case fleet.DiskEncryptionVerifying:
-		return whereNotServer + ` AND NOT ` + whereClientError + ` AND ` + whereKeyAvailable + ` AND NOT (` + whereHostDisksUpdated + ` AND ` + whereEncrypted + `)`
+		// Possible verifying scenarios:
+		// - we have the key and host_disks already encrypted before the key but hasn't been updated yet
+		// - we have the key and host_disks reported unencrypted during the 1-hour grace period after key was updated
+		return whereNotServer + `
+AND NOT ` + whereClientError + `
+AND ` + whereKeyAvailable + `
+AND (
+	(` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + `)
+	OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
+)`
 
 	case fleet.DiskEncryptionEnforcing:
-		return whereNotServer + ` AND NOT ` + whereClientError + ` AND NOT ` + whereKeyAvailable
+		// Possible enforcing scenarios:
+		// - we don't have the key
+		// - we have the key and host_disks reported unencrypted before the key was updated or outside the 1-hour grace period after key was updated
+		return whereNotServer + `
+AND NOT ` + whereClientError + `
+AND (
+	NOT ` + whereKeyAvailable + `
+	OR (` + whereKeyAvailable + `
+		AND (NOT ` + whereEncrypted + `
+			AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `)
+		)
+	)
+)`
 
 	case fleet.DiskEncryptionFailed:
 		return whereNotServer + ` AND ` + whereClientError
@@ -138,7 +169,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *
 		return &fleet.MDMWindowsBitLockerSummary{}, nil
 	}
 
-	// Note verifying, action_required, and removing_enforcement are not applicable to Windows hosts
+	// Note action_required and removing_enforcement are not applicable to Windows hosts
 	sqlFmt := `
 SELECT
     COUNT(if((%s), 1, NULL)) AS verified,
