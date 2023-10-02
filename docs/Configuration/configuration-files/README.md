@@ -334,7 +334,7 @@ spec:
 
 ### Scripts for teams
 
-List of saved script that can be run on hosts that are part of the team.
+List of saved scripts that can be run on hosts that are part of the team.
 
 - Default value: none
 - Config file format:
@@ -1167,7 +1167,7 @@ If you're using Fleet Premium, this enforces disk encryption on all hosts assign
 
 #### Scripts 
 
-List of saved script that can be run on all hosts.
+List of saved scripts that can be run on all hosts.
 
 > If you want to add scripts to hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
 
