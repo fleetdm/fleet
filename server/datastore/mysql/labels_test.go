@@ -1210,6 +1210,8 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	}
 	// add disk encryption key for h1
 	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1.ID, "test-key", "", ptr.Bool(true)))
+	// add disk encryption for h1
+	require.NoError(t, db.SetOrUpdateHostDisksEncryption(context.Background(), h1.ID, true))
 
 	checkHosts := func(t *testing.T, gotHosts []*fleet.Host, expectedIDs []uint) {
 		require.Len(t, gotHosts, len(expectedIDs))
@@ -1223,14 +1225,14 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	checkHosts(t, hosts, []uint{h1.ID, h2.ID, h3.ID})
 
 	t.Run("os_settings", func(t *testing.T) {
-		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 1)
+		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 1)
 		checkHosts(t, hosts, []uint{h1.ID})
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)
 		checkHosts(t, hosts, []uint{h2.ID})
 	})
 
 	t.Run("os_settings_disk_encryption", func(t *testing.T) {
-		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerifying}, 1)
+		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerified}, 1)
 		checkHosts(t, hosts, []uint{h1.ID})
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}, 1)
 		checkHosts(t, hosts, []uint{h2.ID})

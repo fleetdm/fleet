@@ -217,13 +217,13 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 				fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 			})
 
-			ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true))
+			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true)))
 			checkExpected(t, nil, hostIDsByStatus{
 				// status is still pending because hosts_disks hasn't been updated yet
 				fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 			})
 
-			ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true)
+			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
 			checkExpected(t, nil, hostIDsByStatus{
 				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 				fleet.DiskEncryptionEnforcing: []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
@@ -321,8 +321,8 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		})
 
 		// ensure hosts[0] is set to verified for the rest of the tests
-		ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true))
-		ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true)
+		require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true)))
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
 		checkExpected(t, nil, hostIDsByStatus{
 			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 			fleet.DiskEncryptionEnforcing: []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
