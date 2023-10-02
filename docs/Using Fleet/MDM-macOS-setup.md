@@ -384,7 +384,7 @@ Releasing the Mac can be automated using the Fleet API. In this example, we'll r
 
 3. Find your test Mac and select it to navigate to its **Host details** page.
 
-4. Select **OS settings** and wait until all settings are set to "Verifying."
+4. Select **OS settings** and wait until all settings, except for **Disk encryption**, are set to "Verifying."
 
 5. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using [fleetctl](https://fleetdm.com/docs/using-fleet/mdm-commands#custom-commands) or the [API](https://fleetdm.com/docs/rest-api/rest-api#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
 
