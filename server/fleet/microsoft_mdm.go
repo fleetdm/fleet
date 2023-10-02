@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -856,7 +855,7 @@ type MetaHdr struct {
 }
 
 // ProtoCmds contains a slice of SyncML protocol commands
-type ProtoCmds *[]SyncMLCmd
+type ProtoCmds []SyncMLCmd
 
 // See supported Commands in section 2.2.7.1
 type SyncBody struct {
@@ -962,7 +961,7 @@ func (msg *SyncML) IsValidHeader() error {
 	}
 
 	// SyncML MsgID check
-	if utf8.RuneCountInString(msg.SyncHdr.MsgID) < 1 {
+	if msg.SyncHdr.MsgID == "" {
 		return errors.New("MsgID")
 	}
 
@@ -972,7 +971,7 @@ func (msg *SyncML) IsValidHeader() error {
 	}
 
 	// Device ID check
-	if strings.TrimSpace(*msg.SyncHdr.Source.LocURI) == "" {
+	if msg.SyncHdr.Source == nil || msg.SyncHdr.Source.LocURI == nil || strings.TrimSpace(*msg.SyncHdr.Source.LocURI) == "" {
 		return errors.New("Source.LocURI")
 	}
 
@@ -982,43 +981,43 @@ func (msg *SyncML) IsValidHeader() error {
 func (msg *SyncML) IsValidBody() error {
 	nonNilCount := 0
 
-	if msg.SyncBody.Add != nil {
+	if len(msg.SyncBody.Add) > 0 {
 		nonNilCount++
 	}
 
-	if msg.SyncBody.Alert != nil {
+	if len(msg.SyncBody.Alert) > 0 {
 		nonNilCount++
 	}
 
-	if msg.SyncBody.Atomic != nil {
+	if len(msg.SyncBody.Atomic) > 0 {
 		nonNilCount++
 	}
 
-	if msg.SyncBody.Delete != nil {
+	if len(msg.SyncBody.Delete) > 0 {
 		nonNilCount++
 	}
 
-	if msg.SyncBody.Exec != nil {
+	if len(msg.SyncBody.Exec) > 0 {
 		nonNilCount++
 	}
 
-	if msg.SyncBody.Get != nil {
+	if len(msg.SyncBody.Get) > 0 {
 		nonNilCount++
 	}
 
-	if msg.SyncBody.Replace != nil {
+	if len(msg.SyncBody.Replace) > 0 {
 		nonNilCount++
 	}
 
-	if msg.SyncBody.Status != nil {
+	if len(msg.SyncBody.Status) > 0 {
 		nonNilCount++
 	}
 
-	if msg.SyncBody.Results != nil {
+	if len(msg.SyncBody.Results) > 0 {
 		nonNilCount++
 	}
 
-	if msg.SyncBody.Raw != nil {
+	if len(msg.SyncBody.Raw) > 0 {
 		nonNilCount++
 	}
 
@@ -1088,96 +1087,74 @@ func (msg *SyncML) GetTarget() (string, error) {
 	return "", errors.New("message target is empty")
 }
 
-// AppendAddCommand appends a SyncML command to the Raw command list
-func (msg *SyncML) AppendCommand(cmd *SyncMLCmd) {
-	if msg.SyncBody.Raw == nil {
-		msg.SyncBody.Raw = &[]SyncMLCmd{}
+type MDMCommandType int
+
+const (
+	MDMRaw MDMCommandType = iota
+	MDMAdd
+	MDMAlert
+	MDMAtomic
+	MDMDelete
+	MDMExec
+	MDMGet
+	MDMReplace
+	MDMResults
+	MDMStatus
+)
+
+func (msg *SyncML) AppendCommand(cmdType MDMCommandType, cmd SyncMLCmd) {
+	switch cmdType {
+	case MDMRaw:
+		if msg.SyncBody.Raw == nil {
+			msg.SyncBody.Raw = []SyncMLCmd{}
+		}
+		msg.SyncBody.Raw = append(msg.SyncBody.Raw, cmd)
+	case MDMAdd:
+		if msg.SyncBody.Add == nil {
+			msg.SyncBody.Add = []SyncMLCmd{}
+		}
+		msg.SyncBody.Add = append(msg.SyncBody.Add, cmd)
+	case MDMAlert:
+		if msg.SyncBody.Alert == nil {
+			msg.SyncBody.Alert = []SyncMLCmd{}
+		}
+		msg.SyncBody.Alert = append(msg.SyncBody.Alert, cmd)
+	case MDMAtomic:
+		if msg.SyncBody.Atomic == nil {
+			msg.SyncBody.Atomic = []SyncMLCmd{}
+		}
+		msg.SyncBody.Atomic = append(msg.SyncBody.Atomic, cmd)
+	case MDMDelete:
+		if msg.SyncBody.Delete == nil {
+			msg.SyncBody.Delete = []SyncMLCmd{}
+		}
+		msg.SyncBody.Delete = append(msg.SyncBody.Delete, cmd)
+	case MDMExec:
+		if msg.SyncBody.Exec == nil {
+			msg.SyncBody.Exec = []SyncMLCmd{}
+		}
+		msg.SyncBody.Exec = append(msg.SyncBody.Exec, cmd)
+	case MDMGet:
+		if msg.SyncBody.Get == nil {
+			msg.SyncBody.Get = []SyncMLCmd{}
+		}
+		msg.SyncBody.Get = append(msg.SyncBody.Get, cmd)
+	case MDMReplace:
+		if msg.SyncBody.Replace == nil {
+			msg.SyncBody.Replace = []SyncMLCmd{}
+		}
+		msg.SyncBody.Replace = append(msg.SyncBody.Replace, cmd)
+	case MDMResults:
+		if msg.SyncBody.Results == nil {
+			msg.SyncBody.Results = []SyncMLCmd{}
+		}
+		msg.SyncBody.Results = append(msg.SyncBody.Results, cmd)
+	case MDMStatus:
+		if msg.SyncBody.Status == nil {
+			msg.SyncBody.Status = []SyncMLCmd{}
+		}
+		msg.SyncBody.Status = append(msg.SyncBody.Status, cmd)
 	}
-
-	if cmd != nil {
-		*msg.SyncBody.Raw = append(*msg.SyncBody.Raw, *cmd)
-	}
-}
-
-// AppendAddCommand appends a SyncML command to the Add command list
-func (msg *SyncML) AppendAddCommand(cmd SyncMLCmd) {
-	if msg.SyncBody.Add == nil {
-		msg.SyncBody.Add = &[]SyncMLCmd{}
-	}
-
-	*msg.SyncBody.Add = append(*msg.SyncBody.Add, cmd)
-}
-
-// AppendAlertCommand appends a SyncML command to the Alert command list
-func (msg *SyncML) AppendAlertCommand(cmd SyncMLCmd) {
-	if msg.SyncBody.Alert == nil {
-		msg.SyncBody.Alert = &[]SyncMLCmd{}
-	}
-
-	*msg.SyncBody.Alert = append(*msg.SyncBody.Alert, cmd)
-}
-
-// AppendAtomicCommand appends a SyncML command to the Atomic command list
-func (msg *SyncML) AppendAtomicCommand(cmd SyncMLCmd) {
-	if msg.SyncBody.Atomic == nil {
-		msg.SyncBody.Atomic = &[]SyncMLCmd{}
-	}
-
-	*msg.SyncBody.Atomic = append(*msg.SyncBody.Atomic, cmd)
-}
-
-// AppendDeleteCommand appends a SyncML command to the Delete command list
-func (msg *SyncML) AppendDeleteCommand(cmd SyncMLCmd) {
-	if msg.SyncBody.Delete == nil {
-		msg.SyncBody.Delete = &[]SyncMLCmd{}
-	}
-
-	*msg.SyncBody.Delete = append(*msg.SyncBody.Delete, cmd)
-}
-
-// AppendExecCommand appends a SyncML command to the Exec command list
-func (msg *SyncML) AppendExecCommand(cmd SyncMLCmd) {
-	if msg.SyncBody.Exec == nil {
-		msg.SyncBody.Exec = &[]SyncMLCmd{}
-	}
-
-	*msg.SyncBody.Exec = append(*msg.SyncBody.Exec, cmd)
-}
-
-// AppendGetCommand appends a SyncML command to the Get command list
-func (msg *SyncML) AppendGetCommand(cmd SyncMLCmd) {
-	if msg.SyncBody.Get == nil {
-		msg.SyncBody.Get = &[]SyncMLCmd{}
-	}
-
-	*msg.SyncBody.Get = append(*msg.SyncBody.Get, cmd)
-}
-
-// AppendReplaceCommand appends a SyncML command to the Replace command list
-func (msg *SyncML) AppendReplaceCommand(cmd SyncMLCmd) {
-	if msg.SyncBody.Replace == nil {
-		msg.SyncBody.Replace = &[]SyncMLCmd{}
-	}
-
-	*msg.SyncBody.Replace = append(*msg.SyncBody.Replace, cmd)
-}
-
-// AppendResultsCommand appends a SyncML command to the Results command list
-func (msg *SyncML) AppendResultsCommand(cmd SyncMLCmd) {
-	if msg.SyncBody.Results == nil {
-		msg.SyncBody.Results = &[]SyncMLCmd{}
-	}
-
-	*msg.SyncBody.Results = append(*msg.SyncBody.Results, cmd)
-}
-
-// AppendStatusCommand appends a SyncML command to the Status command list
-func (msg *SyncML) AppendStatusCommand(cmd SyncMLCmd) {
-	if msg.SyncBody.Status == nil {
-		msg.SyncBody.Status = &[]SyncMLCmd{}
-	}
-
-	*msg.SyncBody.Status = append(*msg.SyncBody.Status, cmd)
 }
 
 // SetID sets the MsgID field in the SyncML header

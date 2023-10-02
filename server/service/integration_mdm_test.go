@@ -6709,9 +6709,6 @@ func (s *integrationMDMTestSuite) TestValidSyncMLRequestNoAuth() {
 
 	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
 
-	_, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
 	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
 
 	// TODO: This should be updated once GetMDMWindowsManagementResponse() is implemented

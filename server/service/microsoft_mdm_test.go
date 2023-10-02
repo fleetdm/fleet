@@ -232,7 +232,7 @@ func TestValidSyncMLCmdStatus(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	payload := string(outXML)
-	err = CheckWrappedSyncMLCmd(fleet.CmdStatus, payload)
+	err = checkWrappedSyncMLCmd(fleet.CmdStatus, payload)
 	require.NoError(t, err)
 	require.Contains(t, payload, fmt.Sprintf("<MsgRef>%s</MsgRef>", testMsgRef))
 	require.Contains(t, payload, fmt.Sprintf("<CmdRef>%s</CmdRef>", testCmdRef))
@@ -247,7 +247,7 @@ func TestValidNewSyncMLCmdGet(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	payload := string(outXML)
-	err = CheckWrappedSyncMLCmd(fleet.CmdGet, payload)
+	err = checkWrappedSyncMLCmd(fleet.CmdGet, payload)
 	require.NoError(t, err)
 	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
 }
@@ -260,7 +260,7 @@ func TestValidNewSyncMLCmdBool(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	payload := string(outXML)
-	err = CheckWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
 	require.NoError(t, err)
 	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
 	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
@@ -276,7 +276,7 @@ func TestValidNewSyncMLCmdInt(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	payload := string(outXML)
-	err = CheckWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
 	require.NoError(t, err)
 	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
 	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
@@ -292,7 +292,7 @@ func TestValidSyncMLCmdText(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	payload := string(outXML)
-	err = CheckWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
 	require.NoError(t, err)
 	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
 	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
@@ -308,7 +308,7 @@ func TestValidSyncMLCmdXml(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	payload := string(outXML)
-	err = CheckWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
 	require.NoError(t, err)
 	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
 	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
@@ -323,7 +323,7 @@ func TestValidSyncMLCmdAlert(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	payload := string(outXML)
-	err = CheckWrappedSyncMLCmd(fleet.CmdAlert, payload)
+	err = checkWrappedSyncMLCmd(fleet.CmdAlert, payload)
 	require.NoError(t, err)
 	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
 }
@@ -339,7 +339,7 @@ func TestValidSyncMLCmd(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	payload := string(outXML)
-	err = CheckWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
 	require.NoError(t, err)
 	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testCmdSource))
 	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testCmdTarget))
@@ -348,8 +348,8 @@ func TestValidSyncMLCmd(t *testing.T) {
 	require.Contains(t, payload, fmt.Sprintf("<Format xmlns=\"syncml:metinf\">%s</Format>", testCmdDataFormat))
 }
 
-// CheckWrappedSyncMLCmd checks that the payload is wrapped in the given tag.
-func CheckWrappedSyncMLCmd(tag string, data string) error {
+// checkWrappedSyncMLCmd checks that the payload is wrapped in the given tag.
+func checkWrappedSyncMLCmd(tag string, data string) error {
 	trimmedData := strings.TrimSpace(data)
 	openTag := fmt.Sprintf("<%s>", tag)
 	closeTag := fmt.Sprintf("</%s>", tag)

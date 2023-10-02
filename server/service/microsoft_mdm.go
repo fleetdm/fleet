@@ -1469,7 +1469,7 @@ func NewSyncMLMessage(sessionID string, msgID string, deviceID string, source st
 		// Updating CmdID on target protocol command
 		protoCmd.CmdID = strconv.Itoa(cmdIndex)
 		cmdIndex++
-		msg.AppendCommand(protoCmd)
+		msg.AppendCommand(fleet.MDMRaw, *protoCmd)
 	}
 
 	err := msg.IsValidBody()
