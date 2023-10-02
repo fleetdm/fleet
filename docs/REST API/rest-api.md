@@ -3892,7 +3892,7 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 
 #### Example
 
-Add a new configuration profile to be applied to macOS and Windows hosts enrolled to Fleet's MDM that are
+Add a new configuration profile to be applied to a macOS host
 assigned to a team. Note that in this example the form data specifies`team_id` in addition to
 `profile`.
 
