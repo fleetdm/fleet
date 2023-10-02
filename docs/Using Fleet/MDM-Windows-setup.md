@@ -8,7 +8,7 @@ Turning on Windows MDM features requires configuring Fleet with a certificate an
 
 Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Microsoft Entra (formally Microsoft Azure). This guide will walk you through how to connect Entra to Fleet. 
 
-With Fleet connected to Entra, the end user will see Microsoft's default setup experience. You can further customize the initial setup with Autopilot, which is similar to Apple's Automated Device Enrollment (DEP). Autopilot requires a Microsoft Intune license. This guide will also walk you through how to customize the intitial setup with Autopilot.
+With Fleet connected to Entra, the end user will see Microsoft's default setup experience. You can further customize the initial setup with Windows Autopilot, which is similar to Apple's Automated Device Enrollment (DEP). Autopilot requires a Microsoft Intune license. This guide will also walk you through how to customize the intitial setup with Autopilot.
 
 ## Requirements
 To use Fleet's Windows MDM features you need to have:
@@ -112,11 +112,11 @@ Testing automatic enrollment requires creating a test user in Entra and a freshl
 
 8. On the **My device** page, below **My device** confirm that your workstation has a **Status** of "Online."
 
-## Autopilot
+## Window Autopilot
 
 > Available in Fleet Premium or Ultimate
 
-After you connect Fleet to Microsoft Entra, you can customize the Window setup experience with [Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
+After you connect Fleet to Microsoft Entra, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
 This section will guide you through how to:
 
