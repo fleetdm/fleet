@@ -957,7 +957,7 @@ func (msg *SyncML) IsValidHeader() error {
 	}
 
 	// SyncML SessionID check
-	if utf8.RuneCountInString(msg.SyncHdr.SessionID) < 1 {
+	if msg.SyncHdr.SessionID == "" {
 		return errors.New("sessionID")
 	}
 
