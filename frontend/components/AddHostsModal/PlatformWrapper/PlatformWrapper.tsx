@@ -538,7 +538,7 @@ const PlatformWrapper = ({
               Include&nbsp;
               <NewTooltipWrapper
                 tipContent={
-                  "Include Fleet Desktop if your're adding workstations."
+                  "Include Fleet Desktop if you're adding workstations."
                 }
               >
                 Fleet Desktop
