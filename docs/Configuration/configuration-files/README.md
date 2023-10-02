@@ -344,9 +344,9 @@ kind: team
 spec:
   team:
     name: Client Platform Engineering
-  scripts:
-    - path/to/script1.sh
-    - path/to/script2.sh
+    scripts:
+      - path/to/script1.sh
+      - path/to/script2.sh
   ```
 
 ## Organization settings
