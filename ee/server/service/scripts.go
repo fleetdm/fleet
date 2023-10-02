@@ -32,13 +32,23 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		svc.authz.SkipAuthorization(ctx)
 		return nil, ctxerr.Wrap(ctx, err, "get host lite")
 	}
-	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+
+	// must check that only one of script id or contents is provided before
+	// authorization, as the permissions are not the same if a script id is
+	// provided. There's no harm in returning the error if this validation fails,
+	// since both values are user-provided it doesn't leak any internal
+	// information.
+	if request.ScriptID != nil && request.ScriptContents != "" {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewInvalidArgumentError("script_id", `Only one of "script_id" or "script_contents" can be provided.`)
+	}
+
+	// authorize with the host's team and the script id provided, as both affect
+	// the permissions.
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID, ScriptID: request.ScriptID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
-	if request.ScriptID != nil && request.ScriptContents != "" {
-		return nil, fleet.NewInvalidArgumentError("script_id", `Only one of "script_id" or "script_contents" can be provided.`)
-	}
 	if request.ScriptID != nil {
 		script, err := svc.ds.Script(ctx, *request.ScriptID)
 		if err != nil {
