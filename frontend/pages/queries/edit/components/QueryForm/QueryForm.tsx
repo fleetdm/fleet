@@ -603,20 +603,24 @@ const QueryForm = ({
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
-  const confirmChanges = (): boolean => {
-    const hasSqlChange =
-      storedQuery && lastEditedQueryBody !== storedQuery.query;
-    const hasSnapshotChange =
-      storedQuery &&
-      lastEditedQueryLoggingType !== "snapshot" &&
-      storedQuery.logging === "snapshot";
-    // Use commented out logic when discard data checkbox is implemented #13470
-    const hasEnabledDiscardData = false;
-    // const hasEnabledDiscardData =
-    //   storedQuery && lastEditedDiscardData && !storedQuery.discardData;
+  const hasSqlChange = storedQuery && lastEditedQueryBody !== storedQuery.query;
+  const hasSnapshotChange =
+    storedQuery &&
+    lastEditedQueryLoggingType !== "snapshot" &&
+    storedQuery.logging === "snapshot";
+  // Use commented out logic when discard data checkbox is implemented #13470
+  const hasEnabledDiscardData = false;
+  // const hasEnabledDiscardData =
+  //   storedQuery && lastEditedDiscardData && !storedQuery.discardData;
 
+  const confirmChanges = (): boolean => {
     // Confirm changes if the query has been edited, removed snapshot logging, or enabled discard data
     return hasSqlChange || hasSnapshotChange || hasEnabledDiscardData;
+  };
+
+  const confirmSqlChange = (): boolean => {
+    // Confirm sql changes
+    return !!hasSqlChange && !hasSnapshotChange && !hasEnabledDiscardData;
   };
 
   // Global admin, any maintainer, any observer+ on new query
@@ -815,6 +819,7 @@ const QueryForm = ({
             onSaveChanges={promptSaveQuery}
             toggleSaveChangesModal={toggleSaveChangesModal}
             isUpdating={isQuerySaving}
+            sqlUpdated={confirmSqlChange()}
           />
         )}
       </>
