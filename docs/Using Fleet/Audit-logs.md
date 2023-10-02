@@ -627,9 +627,9 @@ This activity contains the following fields:
 }
 ```
 
-### Type `created_macos_profile`
+### Type `created_configuration_profile`
 
-Generated when a user adds a new macOS profile to a team (or no team).
+Generated when a user adds a new configuration profile to a team (or no team).
 
 This activity contains the following fields:
 - "profile_name": Name of the profile.
@@ -648,9 +648,9 @@ This activity contains the following fields:
 }
 ```
 
-### Type `deleted_macos_profile`
+### Type `deleted_configuration_profile`
 
-Generated when a user deletes a macOS profile from a team (or no team).
+Generated when a user deletes a configuration profile from a team (or no team).
 
 This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
@@ -669,9 +669,9 @@ This activity contains the following fields:
 }
 ```
 
-### Type `edited_macos_profile`
+### Type `edited_configuration_profile`
 
-Generated when a user edits the macOS profiles of a team (or no team) via the fleetctl CLI.
+Generated when a user edits the configuration profiles of a team (or no team) via the fleetctl CLI.
 
 This activity contains the following fields:
 - "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
