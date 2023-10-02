@@ -1068,7 +1068,7 @@ type Datastore interface {
 
 	// GetHostScriptDetails returns the list of host script details for saved scripts applicable to
 	// a given host.
-	GetHostScriptDetails(ctx context.Context, hostID uint, globalOrTeamID uint, opts ListOptions) ([]*HostScriptDetail, *PaginationMetadata, error)
+	GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts ListOptions) ([]*HostScriptDetail, *PaginationMetadata, error)
 }
 
 const (

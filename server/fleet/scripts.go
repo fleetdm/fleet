@@ -29,7 +29,7 @@ func (s Script) AuthzType() string {
 	return "script"
 }
 
-// HostScripDetail represents the details of a script that applies to a specific host.
+// HostScriptDetail represents the details of a script that applies to a specific host.
 type HostScriptDetail struct {
 	// HostID is the ID of the host.
 	HostID uint `json:"-"`
@@ -50,7 +50,7 @@ func NewHostScriptDetail(hostID, scriptID uint, name string, executionID *string
 		ScriptID: scriptID,
 		Name:     name,
 	}
-	hs.SetLastExecution(executionID, executedAt, exitCode, hsrID)
+	hs.setLastExecution(executionID, executedAt, exitCode, hsrID)
 	return &hs
 }
 
@@ -74,7 +74,7 @@ type HostScriptExecution struct {
 
 // SetLastExecution updates the LastExecution field of the HostScriptDetail if the provided details
 // are more recent than the current LastExecution. It returns true if the LastExecution was updated.
-func (hs *HostScriptDetail) SetLastExecution(executionID *string, executedAt *time.Time, exitCode *int64, hsrID *uint) bool {
+func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *time.Time, exitCode *int64, hsrID *uint) bool {
 	if hsrID == nil || executionID == nil || executedAt == nil {
 		// no new execution, nothing to do
 		return false

@@ -23,6 +23,7 @@ func TestScripts(t *testing.T) {
 		{"HostScriptResult", testHostScriptResult},
 		{"Scripts", testScripts},
 		{"ListScripts", testListScripts},
+		{"GetHostScriptDetailss", testGetHostScriptDetails},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -358,8 +359,7 @@ func testListScripts(t *testing.T, ds *Datastore) {
 	}
 }
 
-func TestHostScripts(t *testing.T) {
-	ds := CreateMySQLDS(t)
+func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	names := []string{"script-1", "script-2", "script-3", "script-4", "script-5"}
@@ -420,7 +420,7 @@ VALUES
 	insertResults(t, 42, &fleet.Script{Name: "script-6", ScriptContents: "echo script-6"}, now.Add(-1*time.Minute), "execution-6-1", ptr.Int64(0))
 
 	t.Run("results match expected formatting and filtering", func(t *testing.T) {
-		res, _, err := ds.GetHostScriptDetails(ctx, 42, 0, fleet.ListOptions{})
+		res, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, res, 5)
 		for _, r := range res {
@@ -459,7 +459,7 @@ VALUES
 	})
 
 	t.Run("empty slice returned if no scripts", func(t *testing.T) {
-		res, _, err := ds.GetHostScriptDetails(ctx, 42, 1, fleet.ListOptions{}) // team 1 has no scripts
+		res, _, err := ds.GetHostScriptDetails(ctx, 42, ptr.Uint(1), fleet.ListOptions{}) // team 1 has no scripts
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		require.Len(t, res, 0)
@@ -499,7 +499,7 @@ VALUES
 				c.opts.IncludeMetadata = true
 				// custom ordering is not supported, always by name
 				c.opts.OrderKey = "name"
-				results, meta, err := ds.GetHostScriptDetails(ctx, 42, 0, c.opts)
+				results, meta, err := ds.GetHostScriptDetails(ctx, 42, nil, c.opts)
 				require.NoError(t, err)
 
 				require.Equal(t, len(c.wantNames), len(results))

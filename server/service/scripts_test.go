@@ -672,8 +672,8 @@ func TestHostScriptDetails(t *testing.T) {
 					require.Equal(t, uint(42), hostID)
 					return &fleet.Host{ID: hostID}, nil
 				}
-				ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, globalOrTeamID uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
-					require.Equal(t, uint(0), globalOrTeamID)
+				ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+					require.Nil(t, teamID)
 					return []*fleet.HostScriptDetail{}, nil, nil
 				}
 				_, _, err := svc.GetHostScriptDetails(ctx, 42, fleet.ListOptions{})
@@ -685,8 +685,9 @@ func TestHostScriptDetails(t *testing.T) {
 					require.Equal(t, uint(42), hostID)
 					return &fleet.Host{ID: hostID, TeamID: ptr.Uint(1)}, nil
 				}
-				ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, globalOrTeamID uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
-					require.Equal(t, uint(1), globalOrTeamID)
+				ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+					require.NotNil(t, teamID)
+					require.Equal(t, uint(1), *teamID)
 					return []*fleet.HostScriptDetail{}, nil, nil
 				}
 				_, _, err := svc.GetHostScriptDetails(ctx, 42, fleet.ListOptions{})

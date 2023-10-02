@@ -289,10 +289,5 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 		return nil, nil, err
 	}
 
-	var globalOrTeamID uint
-	if h.TeamID != nil {
-		globalOrTeamID = *h.TeamID
-	}
-
-	return svc.ds.GetHostScriptDetails(ctx, h.ID, globalOrTeamID, opt)
+	return svc.ds.GetHostScriptDetails(ctx, h.ID, h.TeamID, opt)
 }

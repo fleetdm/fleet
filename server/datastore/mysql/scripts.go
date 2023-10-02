@@ -240,7 +240,12 @@ WHERE
 	return scripts, metaData, nil
 }
 
-func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, globalOrTeamID uint, opt fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opt fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
 	type row struct {
 		ScriptID    uint       `db:"script_id"`
 		Name        string     `db:"name"`
@@ -306,7 +311,7 @@ WHERE
 		}
 	}
 
-	results := []*fleet.HostScriptDetail{}
+	results := make([]*fleet.HostScriptDetail, 0, len(rows))
 	for _, r := range rows {
 		results = append(results, fleet.NewHostScriptDetail(hostID, r.ScriptID, r.Name, r.ExecutionID, r.ExecutedAt, r.ExitCode, r.HSRID))
 	}
