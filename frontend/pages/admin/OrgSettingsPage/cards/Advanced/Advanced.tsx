@@ -18,7 +18,7 @@ const Advanced = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState({
     domain: appConfig.smtp_settings.domain || "",
     verifySSLCerts: appConfig.smtp_settings.verify_ssl_certs || false,
     enableStartTLS: appConfig.smtp_settings.enable_start_tls,
@@ -26,6 +26,8 @@ const Advanced = ({
       appConfig.host_expiry_settings.host_expiry_enabled || false,
     hostExpiryWindow: appConfig.host_expiry_settings.host_expiry_window || 0,
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
+    disableQueryReports:
+      appConfig.server_settings.query_reports_disabled || false, // double-check default value!
   });
 
   const {
@@ -35,6 +37,7 @@ const Advanced = ({
     enableHostExpiry,
     hostExpiryWindow,
     disableLiveQuery,
+    disableQueryReports,
   } = formData;
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
@@ -69,6 +72,7 @@ const Advanced = ({
         server_url: appConfig.server_settings.server_url || "",
         live_query_disabled: disableLiveQuery,
         enable_analytics: appConfig.server_settings.enable_analytics,
+        query_reports_disabled: disableQueryReports,
       },
       smtp_settings: {
         enable_smtp: appConfig.smtp_settings.enable_smtp || false,
@@ -171,6 +175,22 @@ const Advanced = ({
                 }
               >
                 Disable live queries
+              </Checkbox>
+              <Checkbox
+                onChange={handleInputChange}
+                name="disableQueryReports"
+                value={disableQueryReports}
+                parseTarget
+                // TODO - update to JSX once tooltip wrapper refactor is merged
+                tooltip={
+                  '<p>Disabling query reports will decrease database usage, <br />\
+                  but will prevent you from accessing query results in<br /> \
+                  Fleet and will delete existing reports. This can also be<br />\
+                  disabled on a per-query basis by enabling "Discard <br />\
+                  data". <em>(Default: <b>Off</b>)</em></p>'
+                }
+              >
+                Disable query reports
               </Checkbox>
             </div>
           </div>
