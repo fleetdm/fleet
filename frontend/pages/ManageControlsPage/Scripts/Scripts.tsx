@@ -3,7 +3,6 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import scriptAPI, {
   IScript,
   IScriptsResponse,
@@ -15,7 +14,6 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
 import DeleteScriptModal from "./components/DeleteScriptModal";
-import FileUploader from "../components/FileUploader";
 import UploadList from "../components/UploadList";
 import ScriptUploader from "./components/ScriptUploader";
 

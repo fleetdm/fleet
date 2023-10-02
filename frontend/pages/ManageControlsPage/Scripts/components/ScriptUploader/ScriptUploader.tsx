@@ -6,7 +6,7 @@ import { NotificationContext } from "context/notification";
 import scriptAPI from "services/entities/scripts";
 
 import FileUploader from "pages/ManageControlsPage/components/FileUploader";
-import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "script-uploader";
 
@@ -32,21 +32,13 @@ const ScriptPackageUploader = ({
 
     const file = files[0];
 
-    // quick exit if the file type is incorrect
-    if (!file.name.includes(".pkg")) {
-      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
-      setShowLoading(false);
-      return;
-    }
-
     try {
       await scriptAPI.uploadScript(file, currentTeamId);
       renderFlash("success", "Successfully uploaded!");
       onUpload();
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
-      const errMessage = getErrorMessage(error);
-      renderFlash("error", errMessage);
+      renderFlash("error", `Couldn't upload. ${getErrorMessage(error)}`);
     } finally {
       setShowLoading(false);
     }
