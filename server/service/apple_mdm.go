@@ -930,48 +930,12 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		"DeviceLock":  true,
 	}
 
-	// load hosts (lite) by uuids, check that the user has the rights to run
-	// commands for every affected team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return 0, nil, ctxerr.Wrap(ctx, err)
-	}
-
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return 0, nil, fleet.ErrNoContext
-	}
-	// for the team filter, we don't include observers as we require maintainer
-	// and up to run commands.
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: false}
-	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, deviceIDs)
+	hosts, err := svc.authorizeAllHostsTeams(ctx, deviceIDs, false, fleet.ActionWrite, &fleet.MDMAppleCommandAuthz{})
 	if err != nil {
 		return 0, nil, err
 	}
 	if len(hosts) == 0 {
 		return 0, nil, newNotFoundError()
-	}
-
-	// collect the team IDs and verify that the user has access to run commands
-	// on all affected teams.
-	teamIDs := make(map[uint]bool)
-	for _, h := range hosts {
-		var id uint
-		if h.TeamID != nil {
-			id = *h.TeamID
-		}
-		teamIDs[id] = true
-	}
-
-	var commandAuthz fleet.MDMAppleCommandAuthz
-	for tmID := range teamIDs {
-		commandAuthz.TeamID = &tmID
-		if tmID == 0 {
-			commandAuthz.TeamID = nil
-		}
-
-		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionWrite); err != nil {
-			return 0, nil, ctxerr.Wrap(ctx, err)
-		}
 	}
 
 	// using a padding agnostic decoder because we released this using
@@ -2807,4 +2771,58 @@ func (svc *Service) getConfigAppleBMDefaultTeamID(ctx context.Context, appCfg *f
 	}
 
 	return tmID, nil
+}
+
+// authorizeAllHostsTeams is a helper function that loads the hosts
+// corresponding to the hostUUIDs and authorizes the context user to execute
+// the specified authzAction (e.g. fleet.ActionWrite) for all the hosts' teams
+// with the specified authorizer, which is typically a struct that can set a
+// TeamID field and defines an authorization subject, such as
+// fleet.MDMAppleCommandAuthz.
+//
+// On success, the list of hosts is returned (which may be empty, it is up to
+// the caller to return an error if needed when no hosts are found).
+func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []string, includeObservers bool, authzAction any, authorizer fleet.TeamIDSetter) ([]*fleet.Host, error) {
+	// load hosts (lite) by uuids, check that the user has the rights to run
+	// commands for every affected team.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	// for the team filter, we don't include observers as we require maintainer
+	// and up to run commands.
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObservers}
+	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// collect the team IDs and verify that the user has access to run commands
+	// on all affected teams.
+	teamIDs := make(map[uint]bool, len(hosts))
+	for _, h := range hosts {
+		var id uint
+		if h.TeamID != nil {
+			id = *h.TeamID
+		}
+		teamIDs[id] = true
+	}
+
+	for tmID := range teamIDs {
+		authzTeamID := &tmID
+		if tmID == 0 {
+			authzTeamID = nil
+		}
+		authorizer.SetTeamID(authzTeamID)
+
+		if err := svc.authz.Authorize(ctx, authorizer, authzAction); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+	}
+	return hosts, nil
 }

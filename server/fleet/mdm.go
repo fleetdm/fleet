@@ -135,3 +135,9 @@ type HostMDMProfileRetryCount struct {
 	ProfileIdentifier string `db:"profile_identifier"`
 	Retries           uint   `db:"retries"`
 }
+
+// TeamIDSetter defines the method to set a TeamID value on a struct,
+// which helps define authorization helpers based on teams.
+type TeamIDSetter interface {
+	SetTeamID(tid *uint)
+}

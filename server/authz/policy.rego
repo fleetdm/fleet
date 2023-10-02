@@ -850,3 +850,38 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
+
+# Global admins and maintainers can write (execute) MDM Microsoft commands.
+# TODO(mna): and gitops??
+allow {
+  object.type == "mdm_microsoft_command"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Team admins and maintainers can write (execute) MDM Microsoft commands on
+# hosts of their teams.
+# TODO(mna): and gitops??
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_microsoft_command"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
+# Global admins, maintainers, observers and observer_plus can read MDM
+# Microsoft commands.
+allow {
+  object.type == "mdm_microsoft_command"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admins, maintainers, observers and observer_plus can read MDM Microsoft
+# commands on hosts of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_microsoft_command"
+  team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
