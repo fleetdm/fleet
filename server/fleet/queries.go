@@ -91,6 +91,7 @@ type Query struct {
 	//
 	// This field has null values if the query did not run as a schedule on any host.
 	AggregatedStats `json:"stats"`
+	DiscardData     bool `json:"discard_data" db:"discard_data"`
 }
 
 var (
