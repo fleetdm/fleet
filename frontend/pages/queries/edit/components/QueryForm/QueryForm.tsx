@@ -411,12 +411,6 @@ const QueryForm = ({
           logging: lastEditedQueryLoggingType,
         });
       }
-
-      // #7766 implementation
-      // savedQueryMode
-      //   ? setShowSaveChangesModal(true)
-      //   : setShowSaveQueryModal(true);
-      // TODO: onUpdate for saveChangesModal
     }
   };
 
@@ -609,6 +603,22 @@ const QueryForm = ({
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
+  const confirmChanges = (): boolean => {
+    const hasSqlChange =
+      storedQuery && lastEditedQueryBody !== storedQuery.query;
+    const hasSnapshotChange =
+      storedQuery &&
+      lastEditedQueryLoggingType !== "snapshot" &&
+      storedQuery.logging === "snapshot";
+    // Use commented out logic when discard data checkbox is implemented #13470
+    const hasEnabledDiscardData = false;
+    // const hasEnabledDiscardData =
+    //   storedQuery && lastEditedDiscardData && !storedQuery.discardData;
+
+    // Confirm changes if the query has been edited, removed snapshot logging, or enabled discard data
+    return hasSqlChange || hasSnapshotChange || hasEnabledDiscardData;
+  };
+
   // Global admin, any maintainer, any observer+ on new query
   const renderEditableQueryForm = () => {
     // Save disabled for team maintainer/admins viewing global queries
@@ -640,7 +650,9 @@ const QueryForm = ({
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
             onChange={onChangeQuery}
-            handleSubmit={promptSaveQuery}
+            handleSubmit={
+              confirmChanges() ? toggleSaveChangesModal : promptSaveQuery
+            }
             wrapEnabled
             focus={!savedQueryMode}
           />
@@ -743,7 +755,11 @@ const QueryForm = ({
                     <Button
                       className="save-loading"
                       variant="brand"
-                      onClick={promptSaveQuery()}
+                      onClick={
+                        confirmChanges()
+                          ? toggleSaveChangesModal
+                          : promptSaveQuery()
+                      }
                       // Button disabled for team maintainer/admins viewing global queries
                       disabled={
                         disableSavePermissionDenied || disableSaveFormErrors
@@ -796,7 +812,7 @@ const QueryForm = ({
         )}
         {showSaveChangesModal && (
           <SaveChangesModal
-            onSaveChanges={saveQuery}
+            onSaveChanges={promptSaveQuery}
             toggleSaveChangesModal={toggleSaveChangesModal}
             isUpdating={isQuerySaving}
           />
