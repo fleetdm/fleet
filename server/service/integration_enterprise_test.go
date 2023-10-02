@@ -4411,6 +4411,11 @@ func (s *integrationEnterpriseTestSuite) TestAppConfigScripts() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": [] }`), http.StatusOK, &acResp)
 	assert.Empty(t, acResp.Scripts.Value)
+
+	// patch with an invalid array returns an error
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": ["foo", 1] }`), http.StatusBadRequest, &acResp)
+	assert.Empty(t, acResp.Scripts.Value)
 }
 
 func (s *integrationEnterpriseTestSuite) TestApplyTeamsScripts() {
@@ -4483,6 +4488,20 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScripts() {
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Scripts.Value)
+
+	// patch with an invalid array returns an error
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":    teamName,
+				"scripts": []any{"foo", 1},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Scripts.Value)
