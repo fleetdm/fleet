@@ -3996,7 +3996,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "profile_id": 1338,
       "team_id": 0,
       "name": "Example Windows profile",
-      "platform": "Windows",
+      "platform": "windows",
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)"
