@@ -34,4 +34,27 @@ func TestUp_20231002120317(t *testing.T) {
 	FROM queries WHERE id = ?`, id)
 	require.NoError(t, err)
 	require.True(t, query[0].DiscardData)
+
+	// Insert without discard_data, verify that default is correct
+
+	insertStmt = `INSERT INTO queries (
+		name, description, query
+	) VALUES (?, ?, ?)`
+
+	res, err = db.Exec(insertStmt, "test 2", "test description 2", "SELECT 1 from hosts")
+	require.NoError(t, err)
+	id, _ = res.LastInsertId()
+	require.NotNil(t, id)
+	require.Equal(t, int64(2), id)
+
+	var queryNoDiscard []fleet.Query
+	err = db.Select(&queryNoDiscard, `SELECT
+		id,
+		name,
+		description,
+		query,
+		discard_data
+	FROM queries WHERE id = ?`, id)
+	require.NoError(t, err)
+	require.False(t, queryNoDiscard[0].DiscardData)
 }
