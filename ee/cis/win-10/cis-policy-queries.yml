@@ -4733,7 +4733,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\RasMan\\Parameters\DisableSavePassword' AND data = 2);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.4.4, CIS_group_policy_template_required
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.5.4, CIS_group_policy_template_required
   contributors: rachelelysia
 ---
 apiVersion: v1
