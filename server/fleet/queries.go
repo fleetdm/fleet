@@ -91,7 +91,8 @@ type Query struct {
 	//
 	// This field has null values if the query did not run as a schedule on any host.
 	AggregatedStats `json:"stats"`
-	DiscardData     bool `json:"discard_data" db:"discard_data"`
+	// DiscardData indicates if the cached data related to the query should be discarded (true) or kept (false).
+	DiscardData bool `json:"discard_data" db:"discard_data"`
 }
 
 var (
