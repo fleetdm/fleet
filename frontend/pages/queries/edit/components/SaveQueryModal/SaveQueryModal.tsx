@@ -73,6 +73,7 @@ const SaveQueryModal = ({
     setSelectedLoggingType,
   ] = useState<QueryLoggingOption>(existingQuery?.logging ?? "snapshot");
   const [observerCanRun, setObserverCanRun] = useState(false);
+  const [discardData, setDiscardData] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
@@ -108,6 +109,7 @@ const SaveQueryModal = ({
         description,
         interval: selectedFrequency,
         observer_can_run: observerCanRun,
+        discard_data: discardData,
         platform: selectedPlatformOptions,
         min_osquery_version: selectedMinOsqueryVersionOptions,
         logging: selectedLoggingType,
@@ -236,6 +238,13 @@ const SaveQueryModal = ({
             >
               Discard data
             </Checkbox>
+            <p className="help-text">
+              The most recent results for each host will not be available in
+              Fleet.
+              <br />
+              Data will still be sent to your log destination if{" "}
+              <b>automations</b> are <b>on</b>.
+            </p>
           </>
         )}
         <div className="modal-cta-wrap">
