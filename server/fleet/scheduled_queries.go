@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -129,6 +130,13 @@ type ScheduledQueryStats struct {
 	SystemTime   int       `json:"system_time" db:"system_time"`
 	UserTime     int       `json:"user_time" db:"user_time"`
 	WallTime     int       `json:"wall_time" db:"wall_time"`
+}
+
+type ScheduledQueryResultRow struct {
+	QueryID     uint            `db:"query_id"`
+	HostID      uint            `db:"host_id"`
+	Data        json.RawMessage `db:"data"`
+	LastFetched time.Time       `db:"last_fetched"`
 }
 
 // TeamID returns the team id if the stat is for a team query stat result
