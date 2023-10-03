@@ -6787,7 +6787,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\FDVHideRecoveryPage' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.1.6
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.1.6
   contributors: rachelelysia
 ---
 apiVersion: v1
