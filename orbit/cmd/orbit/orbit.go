@@ -786,6 +786,7 @@ func main() {
 							// check again when the token will expire, which will happen
 							// before the next rotation check
 							rotationTicker.Reset(remain)
+							log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
 						}
 
 					case <-remoteCheckTicker.C:
