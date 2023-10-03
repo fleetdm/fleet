@@ -4427,7 +4427,7 @@ spec:
   query: |
     SELECT 1 FROM registry where path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft Services\AdmPwd\PwdExpirationProtectionEnabled' AND data = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.2.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.3.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
