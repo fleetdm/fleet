@@ -8,7 +8,7 @@ In Fleet, you can customize the out-of-the-box macOS setup experience for your e
 
 * Customize the macOS Setup Assistant by choosing to show or hide specific panes.
 
-* Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scrips, and more.
+* Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scripts, and more.
 
 In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
