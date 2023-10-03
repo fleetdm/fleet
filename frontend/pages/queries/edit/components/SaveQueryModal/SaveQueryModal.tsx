@@ -23,6 +23,10 @@ import {
   ISchedulableQuery,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
+import TooltipWrapper from "components/TooltipWrapper";
+import { Link } from "react-router";
+import Icon from "components/Icon";
+import { IConfig } from "interfaces/config";
 
 const baseClass = "save-query-modal";
 export interface ISaveQueryModalProps {
@@ -33,6 +37,8 @@ export interface ISaveQueryModalProps {
   toggleSaveQueryModal: () => void;
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;
+  appConfig?: IConfig;
+  isLoadingAppConfig?: boolean;
 }
 
 const validateQueryName = (name: string) => {
@@ -54,6 +60,8 @@ const SaveQueryModal = ({
   toggleSaveQueryModal,
   backendValidators,
   existingQuery,
+  appConfig,
+  isLoadingAppConfig,
 }: ISaveQueryModalProps): JSX.Element => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -78,10 +86,14 @@ const SaveQueryModal = ({
     backendValidators
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [forceEditDiscardData, setForceEditDiscardData] = useState(false);
 
   const toggleAdvancedOptions = () => {
     setShowAdvancedOptions(!showAdvancedOptions);
   };
+
+  const query_reports_disabled =
+    true || appConfig?.server_settings?.query_reports_disabled;
 
   useDeepEffect(() => {
     if (name) {
@@ -141,6 +153,62 @@ const SaveQueryModal = ({
     [setSelectedPlatformOptions]
   );
 
+  const renderDiscardDataCheckbox = () => {
+    const disable = query_reports_disabled && !forceEditDiscardData;
+    return (
+      <>
+        <Checkbox
+          name="discardData"
+          onChange={setDiscardData}
+          value={discardData}
+          wrapperClassName={`${baseClass}__discard-data-wrapper`}
+          disabled={disable}
+        >
+          Discard data
+        </Checkbox>
+        <p className="help-text">
+          {disable ? (
+            <>
+              This setting is ignored because query reports in Fleet have been{" "}
+              <TooltipWrapper
+                // TODO - use JSX once new tooltipwrapper is merged
+                tipContent={
+                  "A Fleet administrator can enable query reports under <br />\
+                  <b>Organization settings > Advanced options > Disable  query reports</b>."
+                }
+                position="bottom"
+              >
+                <>globally disabled.</>
+              </TooltipWrapper>{" "}
+              <Link
+                to={""}
+                onClick={() => {
+                  setForceEditDiscardData(true);
+                }}
+              >
+                <>
+                  Edit anyway
+                  <Icon
+                    name="chevron"
+                    direction="right"
+                    color="core-fleet-blue"
+                  />
+                </>
+              </Link>
+            </>
+          ) : (
+            <>
+              The most recent results for each host will not be available in
+              Fleet.
+              <br />
+              Data will still be sent to your log destination if{" "}
+              <b>automations</b> are <b>on</b>.
+            </>
+          )}
+        </p>
+      </>
+    );
+  };
   return (
     <Modal title={"Save query"} onExit={toggleSaveQueryModal}>
       <form
@@ -230,21 +298,7 @@ const SaveQueryModal = ({
               label="Logging"
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
             />
-            <Checkbox
-              name="discardData"
-              onChange={setDiscardData}
-              value={discardData}
-              wrapperClassName={`${baseClass}__discard-data-wrapper`}
-            >
-              Discard data
-            </Checkbox>
-            <p className="help-text">
-              The most recent results for each host will not be available in
-              Fleet.
-              <br />
-              Data will still be sent to your log destination if{" "}
-              <b>automations</b> are <b>on</b>.
-            </p>
+            {!isLoadingAppConfig && renderDiscardDataCheckbox()}
           </>
         )}
         <div className="modal-cta-wrap">

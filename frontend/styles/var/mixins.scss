@@ -108,3 +108,10 @@ $max-width: 2560px;
     list-style-position: inside;
   }
 }
+
+@mixin disabled {
+  opacity: 0.5;
+  filter: grayscale(0.5);
+  pointer-events: none;
+  // cursor: default;
+}
