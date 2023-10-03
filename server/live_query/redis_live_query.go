@@ -102,6 +102,7 @@ func extractTargetKeyName(key string) string {
 // duration of the query or its TTL. Note that hostIDs *must* be sorted
 // in ascending order.
 func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
+	fmt.Println("===================================== live query running calling RunQuery")
 	if len(hostIDs) == 0 {
 		return errors.New("no hosts targeted")
 	}
@@ -120,6 +121,7 @@ func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 }
 
 func (r *redisLiveQuery) StopQuery(name string) error {
+	fmt.Println("===================================== live query stopped calling StopQuery")
 	// remove the sql and targeted hosts keys
 	if err := r.removeQueryInfo(name); err != nil {
 		return fmt.Errorf("remove query info: %w", err)

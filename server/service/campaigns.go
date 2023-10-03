@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/log/level"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -224,5 +225,6 @@ func (svc *Service) NewDistributedQueryCampaignByNames(ctx context.Context, quer
 	}
 
 	targets := fleet.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}
+	level.Info(svc.logger).Log("endpoint", "create_distributed_query", "status", "created_new_query", "query_id", queryID, "query_string", queryString)
 	return svc.NewDistributedQueryCampaign(ctx, queryString, queryID, targets)
 }
