@@ -66,6 +66,7 @@ const Scripts = ({ teamIdForApi }: IScriptsProps) => {
   const onDeleteScript = () => {
     selectedScript.current = null;
     setShowDeleteScriptModal(false);
+    refetchScripts();
   };
 
   const onUploadScript = () => {

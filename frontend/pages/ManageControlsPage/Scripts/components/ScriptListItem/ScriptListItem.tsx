@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
+import FileSaver from "file-saver";
 
 import { NotificationContext } from "context/notification";
 import scriptAPI, { IScript } from "services/entities/scripts";
@@ -34,10 +35,13 @@ const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
 
   const onClickDownload = async () => {
     try {
-      await scriptAPI.downloadScript(script.id);
-      renderFlash("success", "Successfully deleted!");
+      const content = await scriptAPI.downloadScript(script.id);
+      const formatDate = format(new Date(), "yyyy-MM-dd");
+      const filename = `${formatDate}_${script.name}`;
+      const file = new File([content], filename);
+      FileSaver.saveAs(file);
     } catch {
-      renderFlash("error", "Couldn’t delete. Please try again.");
+      renderFlash("error", "Couldn’t Download. Please try again.");
     }
   };
 

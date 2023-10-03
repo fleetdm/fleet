@@ -19,6 +19,10 @@ export type IScriptResponse = IScript;
 /** All scripts response from GET /scripts */
 export interface IScriptsResponse {
   scripts: IScript[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
 }
 
 /**
@@ -42,13 +46,6 @@ export default {
     const path = teamId
       ? `${SCRIPTS}?${buildQueryStringFromParams({ team_id: teamId })}`
       : SCRIPTS;
-
-    // TODO: API INTEGRATION: remove when API is ready
-    return new Promise<IScriptsResponse>((resolve, reject) => {
-      resolve({
-        scripts: [createMockScript(), createMockScript({ id: 2 })],
-      });
-    });
 
     return sendRequest("GET", path);
   },
