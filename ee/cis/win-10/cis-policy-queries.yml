@@ -1434,7 +1434,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\PasswordExpiryWarning' AND CAST(data AS INTEGER) >= 5 AND CAST(data AS INTEGER) <= 14);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_2.3.7.7
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_2.3.7.8
   contributors: marcosd4h
 ---
 apiVersion: v1
