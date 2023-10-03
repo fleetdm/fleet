@@ -121,7 +121,7 @@ Any changes to the current running ads visible to a user, including designs, key
 ### Book an event
 For an event to be considered, booked, and scheduled, we follow the event issue template.
 
-1. Create a New GitHub Issue from the [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board).
+1. Create a [new GitHub issue for the #g-marketing board](https://fleetdm.com/handbook/marketing#contact-us).
 2. Select the "Event-preparation" template.
 3. Drag the issue into the "🗓 Ideas for future events" column as you work through the template.
 4. Once approval has been received, move the event into the "🗓 Planned events" column.
