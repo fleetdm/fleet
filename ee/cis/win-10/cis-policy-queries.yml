@@ -7529,7 +7529,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\DisableExternalDMAUnderLock' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.4
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.4
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7548,7 +7548,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Camera\AllowCamera' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.12.1
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.10.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7566,7 +7566,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\\Windows\\CloudContent\DisableConsumerAccountStateContent' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.14.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.12.1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -7584,7 +7584,7 @@ spec:
   query: |
     Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent\DisableCloudOptimizedContent' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.14.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.12.2
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7602,7 +7602,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent\DisableWindowsConsumerFeatures' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.14.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.12.3
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7620,7 +7620,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\Windows\\Connect\RequirePinForPairing' AND data = 2);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.15.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.13.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7638,7 +7638,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CredUI\DisablePasswordReveal' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.16.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.14.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7656,7 +7656,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\CredUI\EnumerateAdministrators' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.16.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.14.2
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7674,7 +7674,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\NoLocalPasswordResetQuestions' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.16.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.14.3
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7696,7 +7696,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\AllowTelemetry' AND (data = 0 OR data = 1));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.17.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.15.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7714,7 +7714,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DisableEnterpriseAuthProxy' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.17.2
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.15.2
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7733,7 +7733,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\\DisableOneSettingsDownloads' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.17.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.15.3
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -7751,7 +7751,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DoNotShowFeedbackNotifications' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.17.4
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.15.4
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7770,7 +7770,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\\EnableOneSettingsAuditing' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.17.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.15.5
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -7789,7 +7789,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\\LimitDiagnosticLogCollection' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.17.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.15.6
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -7808,7 +7808,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\LimitDumpCollection' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.17.7
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.15.7
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -7826,7 +7826,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PreviewBuilds\AllowBuildPreview' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.17.8
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.15.8
   contributors: rachelelysia
 ---
 apiVersion: v1
