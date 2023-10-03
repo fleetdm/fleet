@@ -9,6 +9,8 @@ import scriptAPI, {
 } from "services/entities/scripts";
 
 import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import ScriptListHeading from "./components/ScriptListHeading";
@@ -73,6 +75,29 @@ const Scripts = ({ teamIdForApi }: IScriptsProps) => {
     refetchScripts();
   };
 
+  const renderScriptsList = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (isError) {
+      return <DataError />;
+    }
+
+    return (
+      scripts &&
+      scripts.length !== 0 && (
+        <UploadList
+          listItems={scripts}
+          HeadingComponent={ScriptListHeading}
+          ListItemComponent={({ listItem }) => (
+            <ScriptListItem script={listItem} onDelete={onClickDelete} />
+          )}
+        />
+      )
+    );
+  };
+
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
@@ -84,15 +109,7 @@ const Scripts = ({ teamIdForApi }: IScriptsProps) => {
           newTab
         />
       </p>
-      {scripts && scripts.length !== 0 && (
-        <UploadList
-          listItems={scripts}
-          HeadingComponent={ScriptListHeading}
-          ListItemComponent={({ listItem }) => (
-            <ScriptListItem script={listItem} onDelete={onClickDelete} />
-          )}
-        />
-      )}
+      {renderScriptsList()}
       <ScriptUploader currentTeamId={teamIdForApi} onUpload={onUploadScript} />
       {showDeleteScriptModal && selectedScript.current && (
         <DeleteScriptModal
