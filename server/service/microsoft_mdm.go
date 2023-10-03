@@ -1640,34 +1640,42 @@ func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode
 // Enqueue Microsoft MDM Command
 ////////////////////////////////////////////////////////////////////////////////
 
-type enqueueMDMMicrosoftCommandRequest struct {
+type runMDMCommandRequest struct {
 	Command   string   `json:"command"`
 	DeviceIDs []string `json:"device_ids"`
 }
 
-type enqueueMDMMicrosoftCommandResponse struct {
+type runMDMCommandResponse struct {
 	*fleet.CommandEnqueueResult
-	Err error `json:"error,omitempty"`
+	Platform string `json:"platform"`
+	Err      error  `json:"error,omitempty"`
 }
 
-func (r enqueueMDMMicrosoftCommandResponse) error() error { return r.Err }
+func (r runMDMCommandResponse) error() error { return r.Err }
 
-func enqueueMDMMicrosoftCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*enqueueMDMMicrosoftCommandRequest)
-	result, err := svc.EnqueueMDMMicrosoftCommand(ctx, req.Command, req.DeviceIDs)
+func runMDMCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*runMDMCommandRequest)
+	result, err := svc.RunMDMCommand(ctx, req.Command, req.DeviceIDs)
 	if err != nil {
-		return enqueueMDMMicrosoftCommandResponse{Err: err}, nil
+		return runMDMCommandResponse{Err: err}, nil
 	}
-	return enqueueMDMMicrosoftCommandResponse{
+	return runMDMCommandResponse{
 		CommandEnqueueResult: result,
 	}, nil
 }
 
-var microsoftMDMPremiumCommands = map[string]bool{
-	"Wipe": true,
-}
+var (
+	appleMDMPremiumCommands = map[string]bool{
+		"EraseDevice": true,
+		"DeviceLock":  true,
+	}
 
-func (svc *Service) EnqueueMDMMicrosoftCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+	microsoftMDMPremiumCommands = map[string]bool{
+		"Wipe": true,
+	}
+)
+
+func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
 	// TODO(mna): epic mentions "GitOps users can run commands", check that it is what we want
 	// (how can gitops run a command?). This complicates a lot of things, as gitops has no read
 	// permissions at all (e.g. HostByIdentifier call in fleetctl, list permission here, etc.).
@@ -1680,7 +1688,29 @@ func (svc *Service) EnqueueMDMMicrosoftCommand(ctx context.Context, rawBase64Cmd
 		return nil, newNotFoundError()
 	}
 
-	// TODO(mna): validate hosts (platform, mdm enrolled, etc.)
+	platforms := make(map[string]bool)
+	for _, h := range hosts {
+		// TODO(mna): hosts lite does not have mdm info
+		if !h.MDMInfo.IsFleetEnrolled() {
+			err := fleet.NewInvalidArgumentError("device_ids", "Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.").WithStatus(http.StatusPreconditionFailed)
+			return nil, ctxerr.Wrap(ctx, err, "check host mdm enrollment")
+		}
+		platforms[h.FleetPlatform()] = true
+	}
+	if len(platforms) != 1 {
+		err := fleet.NewInvalidArgumentError("device_ids", "All hosts must be on the same platform.")
+		return nil, ctxerr.Wrap(ctx, err, "check host platform")
+	}
+
+	// it's a for loop but at this point it's guaranteed that the map has a single value.
+	var commandPlatform string
+	for platform := range platforms {
+		commandPlatform = platform
+	}
+	if commandPlatform != "windows" && commandPlatform != "darwin" {
+		err := fleet.NewInvalidArgumentError("device_ids", "Invalid platform. You can only run MDM commands on Windows or macOS hosts.")
+		return nil, ctxerr.Wrap(ctx, err, "check host platform")
+	}
 
 	// We're supporting both padded and unpadded base64.
 	rawXMLCmd, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
@@ -1688,18 +1718,21 @@ func (svc *Service) EnqueueMDMMicrosoftCommand(ctx context.Context, rawBase64Cmd
 		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
 	}
+	_ = rawXMLCmd
 
-	// a command is a SyncML message
-	var cmdMsg fleet.SyncML
-	if err := xml.Unmarshal(rawXMLCmd, &cmdMsg); err != nil {
-		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't valid XML. Please provide a file with valid XML: %v", err))
-		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
-	}
-	cmd, err := mdm.DecodeCommand(rawXMLCmd)
-	if err != nil {
-		err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
-		return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
-	}
+	/*
+		// a command is a SyncML message
+		var cmdMsg fleet.SyncML
+		if err := xml.Unmarshal(rawXMLCmd, &cmdMsg); err != nil {
+			err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't valid XML. Please provide a file with valid XML: %v", err))
+			return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
+		}
+		cmd, err := mdm.DecodeCommand(rawXMLCmd)
+		if err != nil {
+			err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
+			return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
+		}
+	*/
 
 	/*
 		if microsoftMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {

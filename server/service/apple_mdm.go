@@ -928,11 +928,6 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	rawBase64Cmd string,
 	deviceIDs []string,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
-	premiumCommands := map[string]bool{
-		"EraseDevice": true,
-		"DeviceLock":  true,
-	}
-
 	hosts, err := svc.authorizeAllHostsTeams(ctx, deviceIDs, false, fleet.ActionWrite, &fleet.MDMAppleCommandAuthz{})
 	if err != nil {
 		return 0, nil, err
@@ -957,7 +952,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
 	}
 
-	if premiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
+	if appleMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
 		lic, err := svc.License(ctx)
 		if err != nil {
 			return 0, nil, ctxerr.Wrap(ctx, err, "get license")
