@@ -8,7 +8,7 @@ In Fleet, you can customize the out-of-the-box macOS setup experience for your e
 
 * Customize the macOS Setup Assistant by choosing to show or hide specific panes.
 
-* Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scrips, and more.
+* Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scripts, and more.
 
 In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
@@ -36,7 +36,7 @@ Fleet UI:
 
 fleetctl CLI:
 
-1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
+1. Create a `fleet-config.yaml` file or add to your existing `config` YAML file:
 
   ```yaml
   apiVersion: v1
@@ -99,7 +99,7 @@ fleetctl CLI:
 
   Learn more about team configurations options [here](./configuration-files/README.md#teams).
 
-  If you want to enable authentication on hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
+  If you want to enable authentication on hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
 
   ```yaml
   apiVersion: v1
@@ -127,7 +127,7 @@ Learn more about "No team" configuration options [here](./configuration-files/RE
 
 Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. 
 
-This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scrips and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for you end users.
+This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
 The following are examples of what some organizations deploy using a bootstrap package:
 
@@ -154,14 +154,14 @@ Whether you have to download or generate a package depends on what you want to d
 
 Apple requires that your package is a distribution package. Verify that the package is a distribution package:
 
-1. Run the following commands to expand you package and look at the files in the expanded folder:
+1. Run the following commands to expand your package and look at the files in the expanded folder:
 
   ```bash
   $ pkgutil --expand package.pkg expanded-package
   $ ls expanded-package
   ```
 
-  If your package is a distribution package should see a `Distribution` file.
+  If your package is a distribution package you should see a `Distribution` file.
 
 2. If you don't see a `Distribution` file, run the following command to convert your package into a distribution package.
 
@@ -196,7 +196,7 @@ To sign the package we need a valid Developer ID Installer certificate:
   $ pkgutil --check-signature /path/to/signed-package.pkg
   ```
 
-  In the output you should see that package has a "signed" status.
+  In the output you should see that your package has a "signed" status.
 
 ### Step 3: upload the package to Fleet
 
@@ -213,7 +213,7 @@ fleetctl CLI:
 1. Upload the package to a storage location (ex. S3 or GitHub). During step 4, Fleet will retrieve the package from this storage location and host it for deployment.
 
   > The URL must be accessible by the computer that uploads the package to Fleet.
-  > * This could be your local computer or the computer that runs your CI/CD workflow.
+  > This could be your local computer or the computer that runs your CI/CD workflow.
 
 2. Choose which team you want to add the bootstrap package to.
 
@@ -235,7 +235,7 @@ fleetctl CLI:
 
   Learn more about team configurations options [here](./configuration-files/README.md#teams).
 
-  If you want to install the package on hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
+  If you want to install the package on hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
 
   ```yaml
   apiVersion: v1

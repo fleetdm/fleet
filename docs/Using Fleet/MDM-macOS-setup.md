@@ -6,7 +6,7 @@ MDM features require Apple's Push Notification service (APNs) to control and sec
 
 [Automated Device Enrollment](https://support.apple.com/en-us/HT204142) allows Macs to automatically enroll to Fleet when they are first set up. This guide will also walk you through how to connect Apple Business Manager (ABM) to Fleet. 
 
-> **Note** you are only required to connect Apple Business Manager (ABM) to Fleet if you are using Automated Device Enrollment AKA Device Enrollment Program (DEP) AKA "Zero-touch."
+> **Note:** you are only required to connect Apple Business Manager (ABM) to Fleet if you are using Automated Device Enrollment AKA Device Enrollment Program (DEP) AKA "Zero-touch."
 
 ## Requirements
 To use Fleet's MDM features you need to have:
@@ -51,7 +51,7 @@ fleetctl generate mdm-apple --email <email> --org <org>
 3. Upload your CSR and input a friendly name, such as "Fleet."
 4. Download the APNs certificate.
 
-> **Important** Take note of the Apple ID you use to sign into Apple Push Certificates Portal. You'll need to use the same Apple ID when renewing your APNs certificate.
+> **Important:** Take note of the Apple ID you use to sign into Apple Push Certificates Portal. You'll need to use the same Apple ID when renewing your APNs certificate.
 
 ### Step 3: configure Fleet with the generated files
 Restart the Fleet server with the contents of the APNs certificate, APNs private key, SCEP certificate, and SCEP private key in the following environment variables:
@@ -82,7 +82,7 @@ fleetctl get mdm-apple
 
 ## Renewing APNs 
 
-> **Important** Apple requires that APNs certificates are renewed anually. 
+> **Important:** Apple requires that APNs certificates are renewed annually. 
 > - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
