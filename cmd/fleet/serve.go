@@ -590,6 +590,11 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
+			instanceID, err := server.GenerateRandomText(64)
+			if err != nil {
+				initFatal(errors.New("Error generating random instance identifier"), "")
+			}
+
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
@@ -618,6 +623,7 @@ the way that the Fleet server works.
 				mdmPushCertTopic,
 				cronSchedules,
 				wstepCertManager,
+				instanceID,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -647,10 +653,6 @@ the way that the Fleet server works.
 				}
 			}
 
-			instanceID, err := server.GenerateRandomText(64)
-			if err != nil {
-				initFatal(errors.New("Error generating random instance identifier"), "")
-			}
 			level.Info(logger).Log("instanceID", instanceID)
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the

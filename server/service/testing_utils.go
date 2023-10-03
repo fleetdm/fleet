@@ -168,6 +168,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPushCertTopic,
 		cronSchedulesService,
 		wstepManager,
+		"random",
 	)
 	if err != nil {
 		panic(err)

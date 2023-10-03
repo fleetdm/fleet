@@ -578,7 +578,7 @@ var detailQueriesHistogram = prometheus.NewHistogramVec(
 		Name:    "detail_queries_duration",
 		Buckets: prometheus.DefBuckets,
 	},
-	[]string{"endpoint"},
+	[]string{"instance_id"},
 )
 
 var labelQueriesHistogram = prometheus.NewHistogramVec(
@@ -586,7 +586,7 @@ var labelQueriesHistogram = prometheus.NewHistogramVec(
 		Name:    "label_queries_duration",
 		Buckets: prometheus.DefBuckets,
 	},
-	[]string{"endpoint"},
+	[]string{"instance_id"},
 )
 
 var liveQueriesHistogram = prometheus.NewHistogramVec(
@@ -594,7 +594,7 @@ var liveQueriesHistogram = prometheus.NewHistogramVec(
 		Name:    "live_queries_duration",
 		Buckets: prometheus.DefBuckets,
 	},
-	[]string{"endpoint"},
+	[]string{"instance_id"},
 )
 
 var policyQueriesHistogram = prometheus.NewHistogramVec(
@@ -602,7 +602,7 @@ var policyQueriesHistogram = prometheus.NewHistogramVec(
 		Name:    "policy_queries_duration",
 		Buckets: prometheus.DefBuckets,
 	},
-	[]string{"endpoint"},
+	[]string{"instance_id"},
 )
 
 func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
@@ -645,7 +645,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = query
 	}
 
-	detailQueriesHistogram.WithLabelValues("distributed_read").Observe(time.Since(start).Seconds())
+	detailQueriesHistogram.WithLabelValues(svc.instanceID).Observe(time.Since(start).Seconds())
 	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_detail_queries", "took", time.Since(start), "host", host.Hostname)
 
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
@@ -656,7 +656,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		queries[hostLabelQueryPrefix+name] = query
 	}
 
-	labelQueriesHistogram.WithLabelValues("distributed_read").Observe(time.Since(start).Seconds())
+	labelQueriesHistogram.WithLabelValues(svc.instanceID).Observe(time.Since(start).Seconds())
 	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_label_queries", "took", time.Since(start), "host", host.Hostname)
 
 	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
@@ -670,7 +670,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		}
 	}
 
-	liveQueriesHistogram.WithLabelValues("distributed_read").Observe(time.Since(start).Seconds())
+	liveQueriesHistogram.WithLabelValues(svc.instanceID).Observe(time.Since(start).Seconds())
 	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_live_queries", "took", time.Since(start), "host", host.Hostname)
 
 	policyQueries, err := svc.policyQueriesForHost(ctx, host)
@@ -681,7 +681,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		queries[hostPolicyQueryPrefix+name] = query
 	}
 
-	policyQueriesHistogram.WithLabelValues("distributed_read").Observe(time.Since(start).Seconds())
+	policyQueriesHistogram.WithLabelValues(svc.instanceID).Observe(time.Since(start).Seconds())
 	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "got_policy_queries", "took", time.Since(start), "host", host.Hostname)
 
 	accelerate = uint(0)
