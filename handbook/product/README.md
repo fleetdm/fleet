@@ -331,7 +331,7 @@ To help the product team, other pieces of information can be optionally included
 - What other potential changes to the product have you considered?
 
 To ensure your request appears on the ["Feature Fest" board](https://app.zenhub.com/workspaces/-feature-fest-651b2962605ba29209324c57/board):
-- Add the `feature fest` label to your issue
+- Add the `~feature fest` label to your issue
 - Add the relevant customer label (if applicable) 
 
 To maximize your chances of having a feature accepted, requesters can visit the [🗣 Product office hours](#rituals) meeting to get feedback on requests prior to being accepted. 
