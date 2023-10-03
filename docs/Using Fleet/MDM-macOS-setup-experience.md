@@ -154,7 +154,7 @@ Whether you have to download or generate a package depends on what you want to d
 
 Apple requires that your package is a distribution package. Verify that the package is a distribution package:
 
-1. Run the following commands to expand you package and look at the files in the expanded folder:
+1. Run the following commands to expand your package and look at the files in the expanded folder:
 
   ```bash
   $ pkgutil --expand package.pkg expanded-package
