@@ -37,8 +37,8 @@ const Scripts = ({ teamIdForApi }: IScriptsProps) => {
     isError,
     refetch: refetchScripts,
   } = useQuery<IScriptsResponse, AxiosError, IScript[]>(
-    ["scripts"],
-    () => scriptAPI.getScripts(),
+    ["scripts", teamIdForApi],
+    () => scriptAPI.getScripts(teamIdForApi),
     {
       retry: false,
       refetchOnWindowFocus: false,
