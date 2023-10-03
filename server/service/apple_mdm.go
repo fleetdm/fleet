@@ -908,6 +908,9 @@ type enqueueMDMAppleCommandResponse struct {
 func (r enqueueMDMAppleCommandResponse) error() error { return r.Err }
 func (r enqueueMDMAppleCommandResponse) Status() int  { return r.status }
 
+// Deprecated: enqueueMDMAppleCommandEndpoint is now deprecated, replaced by
+// the platform-agnostic runMDMCommandEndpoint. It is still supported
+// indefinitely for backwards compatibility.
 func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enqueueMDMAppleCommandRequest)
 	status, result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs)

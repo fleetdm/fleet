@@ -1680,24 +1680,28 @@ func (svc *Service) EnqueueMDMMicrosoftCommand(ctx context.Context, rawBase64Cmd
 		return nil, newNotFoundError()
 	}
 
-	/*
-		// using a padding agnostic decoder because we released this using
-		// base64.RawStdEncoding, but it was causing problems as many standard
-		// libraries default to padded strings. We're now supporting both for
-		// backwards compatibility.
-		rawXMLCmd, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
-		if err != nil {
-			err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
-			return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
-		}
-	*/
-	/*
-			cmd, err := mdm.DecodeCommand(rawXMLCmd)
-			if err != nil {
-				err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
-				return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
-			}
+	// TODO(mna): validate hosts (platform, mdm enrolled, etc.)
 
+	// We're supporting both padded and unpadded base64.
+	rawXMLCmd, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
+	if err != nil {
+		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
+	}
+
+	// a command is a SyncML message
+	var cmdMsg fleet.SyncML
+	if err := xml.Unmarshal(rawXMLCmd, &cmdMsg); err != nil {
+		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't valid XML. Please provide a file with valid XML: %v", err))
+		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
+	}
+	cmd, err := mdm.DecodeCommand(rawXMLCmd)
+	if err != nil {
+		err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
+		return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
+	}
+
+	/*
 		if microsoftMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
 			lic, err := svc.License(ctx)
 			if err != nil {
