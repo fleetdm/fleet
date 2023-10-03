@@ -42,7 +42,8 @@ export default {
 
     const queryString = buildQueryStringFromParams(queryParams);
 
-    const endpoint = `${QUERIES}/${id}/report`;
+    // const endpoint = `${QUERIES}/${id}/report`;
+    const endpoint = `${QUERIES}/113/report`;
     const path = `${endpoint}?${queryString}`;
     return sendRequest("GET", path);
   },

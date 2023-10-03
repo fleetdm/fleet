@@ -1,0 +1,10 @@
+.query-report {
+  &__wrapper {
+    margin-top: $pad-large;
+  }
+
+  &__results-cta {
+    display: flex;
+    gap: $pad-medium;
+  }
+}

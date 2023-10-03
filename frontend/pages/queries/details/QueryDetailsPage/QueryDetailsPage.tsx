@@ -25,7 +25,7 @@ import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
 import DataError from "components/DataError/DataError";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
-import CachedDetails from "../components/CachedDetails/CachedDetails";
+import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
 
 import {
@@ -266,7 +266,7 @@ const QueryDetailsPage = ({
         />
       );
     }
-    return <CachedDetails />; // TODO: Everything related to new APIs including surfacing errorsOnly
+    return <QueryReport queryReport={queryReport} />; // TODO: Everything related to new APIs including surfacing errorsOnly
   };
 
   return (
