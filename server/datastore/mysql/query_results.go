@@ -8,6 +8,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	// QueryResultRowLimit is the maximum number of rows that can be stored per query
+	QueryResultRowLimit = 1000
+)
+
 func (ds *Datastore) SaveQueryResultRow(ctx context.Context, row *fleet.ScheduledQueryResultRow) (*fleet.ScheduledQueryResultRow, error) {
 	insertStmt := `
 		INSERT INTO query_results (query_id, host_id, last_fetched, data)
@@ -47,4 +52,14 @@ func (ds *Datastore) DeleteQueryResultsForHost(ctx context.Context, hostID, quer
 	}
 
 	return nil
+}
+
+func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (bool, error) {
+	var count int
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `select count(*) from query_results where query_id = ?`, queryID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "counting query results")
+	}
+
+	return count >= QueryResultRowLimit, nil
 }
