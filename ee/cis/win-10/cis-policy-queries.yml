@@ -4513,7 +4513,7 @@ spec:
   query: |
     SELECT 1 FROM registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft Services\\AdmPwd\\PasswordAgeDays'  AND data <= 30;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.2.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.3.6
   contributors: sharon-fdm
 ---
 apiVersion: v1
