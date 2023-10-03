@@ -121,17 +121,13 @@ Any changes to the current running ads visible to a user, including designs, key
 ### Book an event
 For an event to be considered, booked, and scheduled, we follow the event issue template.
 
-1. Create a [new GitHub issue for the #g-marketing board](https://fleetdm.com/handbook/marketing#contact-us).
-2. Select the "Event-preparation" template.
-3. Drag the issue into the "🗓 Ideas for future events" column.  
-4. Once approval has been received, move the event into the "🗓 Planned events" column.
-5. If there was an issue created under the "📨New requests" from a team member, move any relevant information from the old issue to the new one and close the old one.
+1. Create a [new GitHub issue for the #g-marketing board](https://fleetdm.com/handbook/marketing#contact-us) and select the "Event-preparation" template..
+2. Drag the issue into the "🗓 Ideas for future events" column.  
+
+Once approval has been received, move the event into the "🗓 Planned events" column.
 
 ### Review ongoing events
-In order to be timely, preparation is ongoing for events within the "🗓 Planned events" column within the [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board).
-
-1. Check "🗓 Planned events" and continue to work through steps in each event's issue.
-2. Remember to communicate with event organizers to ask questions when necessary.
+Check the "🗓 Planned events" column in [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 
 ## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
