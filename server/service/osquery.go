@@ -698,7 +698,9 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	//
 	// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
 	// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
+	queryNames := []string{}
 	for name := range queries {
+		queryNames = append(queryNames, name)
 		discoveryQuery := discovery[name]
 		if discoveryQuery == "" {
 			discoveryQuery = alwaysTrueQuery
@@ -706,7 +708,15 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = discoveryQuery
 	}
 
-	level.Info(svc.logger).Log("endpoint", "distributed_read", "status", "returning queries", "query_len", len(queries), "accelerate", accelerate, "took", time.Since(start), "took", time.Since(start), "host", host.Hostname)
+	level.Info(svc.logger).Log(
+		"endpoint", "distributed_read",
+		"status", "returning queries",
+		"queries", strings.Join(queryNames, ","),
+		"query_len", len(queries),
+		"accelerate", accelerate,
+		"took", time.Since(start),
+		"host", host.Hostname,
+	)
 	return queries, discovery, accelerate, nil
 }
 
@@ -787,7 +797,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 
 	if svc.jitterH[interval] == nil {
 		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
-		level.Debug(svc.logger).Log("jitter", "created", "bucketCount", svc.jitterH[interval].bucketCount)
+		level.Info(svc.logger).Log("jitter", "created", "bucketCount", svc.jitterH[interval].bucketCount)
 	}
 
 	jitter := svc.jitterH[interval].jitterForHost(hostID)
@@ -960,12 +970,45 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages)
 
+	// hack: try to ingest live queries only if any were returned in the result set
+	ingestedLiveQueries := []string{}
+	for query, rows := range results {
+		if strings.HasPrefix(query, hostDistributedQueryPrefix) {
+			ingestedLiveQueries = append(ingestedLiveQueries, query)
+			status, ok := statuses[query]
+			failed := ok && status != fleet.StatusOK
+			if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
+				ll := level.Info(svc.logger)
+				// We'd like to log these as error for troubleshooting and improving of distributed queries.
+				if messages[query] == "distributed query is denylisted" {
+					ll = level.Error(svc.logger)
+				}
+				ll.Log("query", query, "message", messages[query], "hostID", host.ID)
+			}
+			if err := svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query]); err != nil {
+				logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
+				logging.WithExtras(ctx, "ingestion-err", err)
+			}
+		}
+	}
+
+	if len(ingestedLiveQueries) > 0 {
+		level.Info(svc.logger).Log(
+			"endpoint", "distributed_write",
+			"status", "ingested_live_queries_only",
+			"took", time.Since(start),
+			"queries", strings.Join(ingestedLiveQueries, ","),
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
 	for query, rows := range results {
 		// osquery docs say any nonzero (string) value for status indicates a query error
 		status, ok := statuses[query]
 		failed := ok && status != fleet.StatusOK
 		if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
-			ll := level.Debug(svc.logger)
+			ll := level.Info(svc.logger)
 			// We'd like to log these as error for troubleshooting and improving of distributed queries.
 			if messages[query] == "distributed query is denylisted" {
 				ll = level.Error(svc.logger)
