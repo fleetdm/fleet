@@ -156,6 +156,8 @@ Users that are members of multiple teams can be assigned different roles for eac
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
 | Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
 | Run saved scripts on hosts                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
+| View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
+
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
