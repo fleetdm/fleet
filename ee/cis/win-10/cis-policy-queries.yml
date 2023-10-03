@@ -4947,7 +4947,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System\EnableFontProviders' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.5.5.1
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.6.5.1
   contributors: DefensiveDepth
 ---
 apiVersion: v1
