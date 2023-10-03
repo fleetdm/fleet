@@ -4506,6 +4506,258 @@ func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
 	}
 }
 
+func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
+	t := s.T()
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// create some teams
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-script-details-team1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-script-details-team2"})
+	require.NoError(t, err)
+	tm3, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-script-details-team3"})
+	require.NoError(t, err)
+
+	// create 5 scripts for no team and team 1
+	for i := 0; i < 5; i++ {
+		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d", i), ScriptContents: "echo"})
+		require.NoError(t, err)
+		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d", i), TeamID: &tm1.ID, ScriptContents: "echo"})
+		require.NoError(t, err)
+	}
+
+	// create a single script for team 2
+	_, err = s.ds.NewScript(ctx, &fleet.Script{Name: "test-script-details-team-2", TeamID: &tm2.ID, ScriptContents: "echo"})
+	require.NoError(t, err)
+
+	// create a host without a team
+	host0, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String("host0"),
+		NodeKey:         ptr.String("host0"),
+		UUID:            uuid.New().String(),
+		Hostname:        "host0",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// create a host for team 1
+	host1, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String("host1"),
+		NodeKey:         ptr.String("host1"),
+		UUID:            uuid.New().String(),
+		Hostname:        "host1",
+		Platform:        "windows",
+		TeamID:          &tm1.ID,
+	})
+	require.NoError(t, err)
+
+	// create a host for team 3
+	host2, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String("host2"),
+		NodeKey:         ptr.String("host2"),
+		UUID:            uuid.New().String(),
+		Hostname:        "host2",
+		Platform:        "linux",
+		TeamID:          &tm3.ID,
+	})
+	require.NoError(t, err)
+
+	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
+		stmt := `
+INSERT INTO
+	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output)
+VALUES
+	(%s ?,?,?,?,?,?)`
+
+		args := []interface{}{}
+		if script.ID == 0 {
+			stmt = fmt.Sprintf(stmt, "", "")
+		} else {
+			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
+			args = append(args, script.ID)
+		}
+		args = append(args, hostID, createdAt, execID, exitCode, script.ScriptContents, "")
+
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+
+	// insert some ad hoc script results, these are never included in the host script details
+	insertResults(t, host0.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now, "ad-hoc-0", ptr.Int64(0))
+	insertResults(t, host1.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now.Add(-1*time.Hour), "ad-hoc-1", ptr.Int64(1))
+
+	t.Run("no team", func(t *testing.T) {
+		noTeamScripts, _, err := s.ds.ListScripts(ctx, nil, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, noTeamScripts, 5)
+
+		// insert saved script results for host0
+		insertResults(t, host0.ID, noTeamScripts[0], now, "exec0-0", ptr.Int64(0))                   // expect status ran
+		insertResults(t, host0.ID, noTeamScripts[1], now.Add(-1*time.Hour), "exec0-1", ptr.Int64(1)) // expect status error
+		insertResults(t, host0.ID, noTeamScripts[2], now.Add(-2*time.Hour), "exec0-2", nil)          // expect status pending
+
+		// insert some ad hoc script results, these are never included in the host script details
+		insertResults(t, host0.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now.Add(-3*time.Hour), "exec0-3", ptr.Int64(0))
+
+		// check host script details, should include all no team scripts
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host0.ID), nil, http.StatusOK, &resp)
+		require.Len(t, resp.Scripts, len(noTeamScripts))
+		byScriptID := make(map[uint]*fleet.HostScriptDetail, len(resp.Scripts))
+		for _, s := range resp.Scripts {
+			byScriptID[s.ScriptID] = s
+		}
+		for i, s := range noTeamScripts {
+			gotScript, ok := byScriptID[s.ID]
+			require.True(t, ok)
+			require.Equal(t, s.Name, gotScript.Name)
+			switch i {
+			case 0:
+				require.NotNil(t, gotScript.LastExecution)
+				require.Equal(t, "exec0-0", gotScript.LastExecution.ExecutionID)
+				require.Equal(t, now, gotScript.LastExecution.ExecutedAt)
+				require.Equal(t, "ran", gotScript.LastExecution.Status)
+			case 1:
+				require.NotNil(t, gotScript.LastExecution)
+				require.Equal(t, "exec0-1", gotScript.LastExecution.ExecutionID)
+				require.Equal(t, now.Add(-1*time.Hour), gotScript.LastExecution.ExecutedAt)
+				require.Equal(t, "error", gotScript.LastExecution.Status)
+			case 2:
+				require.NotNil(t, gotScript.LastExecution)
+				require.Equal(t, "exec0-2", gotScript.LastExecution.ExecutionID)
+				require.Equal(t, now.Add(-2*time.Hour), gotScript.LastExecution.ExecutedAt)
+				require.Equal(t, "pending", gotScript.LastExecution.Status)
+			default:
+				require.Nil(t, gotScript.LastExecution)
+			}
+		}
+	})
+
+	t.Run("team 1", func(t *testing.T) {
+		tm1Scripts, _, err := s.ds.ListScripts(ctx, &tm1.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, tm1Scripts, 5)
+
+		// insert results for host1
+		insertResults(t, host1.ID, tm1Scripts[0], now, "exec1-0", ptr.Int64(0)) // expect status ran
+
+		// check host script details, should match team 1
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host1.ID), nil, http.StatusOK, &resp)
+		require.Len(t, resp.Scripts, len(tm1Scripts))
+		byScriptID := make(map[uint]*fleet.HostScriptDetail, len(resp.Scripts))
+		for _, s := range resp.Scripts {
+			byScriptID[s.ScriptID] = s
+		}
+		for i, s := range tm1Scripts {
+			gotScript, ok := byScriptID[s.ID]
+			require.True(t, ok)
+			require.Equal(t, s.Name, gotScript.Name)
+			switch i {
+			case 0:
+				require.NotNil(t, gotScript.LastExecution)
+				require.Equal(t, "exec1-0", gotScript.LastExecution.ExecutionID)
+				require.Equal(t, now, gotScript.LastExecution.ExecutedAt)
+				require.Equal(t, "ran", gotScript.LastExecution.Status)
+			default:
+				require.Nil(t, gotScript.LastExecution)
+			}
+		}
+	})
+
+	t.Run("deleted script", func(t *testing.T) {
+		noTeamScripts, _, err := s.ds.ListScripts(ctx, nil, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, noTeamScripts, 5)
+
+		// delete a script
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScripts[0].ID), nil, http.StatusNoContent)
+
+		// check host script details, should not include deleted script
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host0.ID), nil, http.StatusOK, &resp)
+		require.Len(t, resp.Scripts, len(noTeamScripts)-1)
+		byScriptID := make(map[uint]*fleet.HostScriptDetail, len(resp.Scripts))
+		for _, s := range resp.Scripts {
+			require.NotEqual(t, noTeamScripts[0].ID, s.ScriptID)
+			byScriptID[s.ScriptID] = s
+		}
+		for i, s := range noTeamScripts {
+			gotScript, ok := byScriptID[s.ID]
+			if i == 0 {
+				require.False(t, ok)
+			} else {
+				require.True(t, ok)
+				require.Equal(t, s.Name, gotScript.Name)
+				switch i {
+				case 1:
+					require.NotNil(t, gotScript.LastExecution)
+					require.Equal(t, "exec0-1", gotScript.LastExecution.ExecutionID)
+					require.Equal(t, now.Add(-1*time.Hour), gotScript.LastExecution.ExecutedAt)
+					require.Equal(t, "error", gotScript.LastExecution.Status)
+				case 2:
+					require.NotNil(t, gotScript.LastExecution)
+					require.Equal(t, "exec0-2", gotScript.LastExecution.ExecutionID)
+					require.Equal(t, now.Add(-2*time.Hour), gotScript.LastExecution.ExecutedAt)
+					require.Equal(t, "pending", gotScript.LastExecution.Status)
+				case 3, 4:
+					require.Nil(t, gotScript.LastExecution)
+				default:
+					require.Fail(t, "unexpected script")
+				}
+			}
+		}
+	})
+
+	t.Run("transfer team", func(t *testing.T) {
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+			TeamID:  &tm2.ID,
+			HostIDs: []uint{host1.ID},
+		}, http.StatusOK, &addHostsToTeamResponse{})
+
+		tm2Scripts, _, err := s.ds.ListScripts(ctx, &tm2.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, tm2Scripts, 1)
+
+		// check host script details, should not include prior team's scripts
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host1.ID), nil, http.StatusOK, &resp)
+		require.Len(t, resp.Scripts, len(tm2Scripts))
+		byScriptID := make(map[uint]*fleet.HostScriptDetail, len(resp.Scripts))
+		for _, s := range resp.Scripts {
+			byScriptID[s.ScriptID] = s
+		}
+		for _, s := range tm2Scripts {
+			gotScript, ok := byScriptID[s.ID]
+			require.True(t, ok)
+			require.Equal(t, s.Name, gotScript.Name)
+			require.Nil(t, gotScript.LastExecution)
+		}
+	})
+
+	t.Run("no scripts", func(t *testing.T) {
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host2.ID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Scripts)
+		require.Len(t, resp.Scripts, 0)
+	})
+}
+
 // generates the body and headers part of a multipart request ready to be
 // used via s.DoRawWithHeaders to POST /api/_version_/fleet/scripts.
 func generateNewScriptMultipartRequest(t *testing.T, tmID *uint,
