@@ -36,3 +36,15 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID, hostID uint) 
 
 	return results, nil
 }
+
+func (ds *Datastore) DeleteQueryResultsForHost(ctx context.Context, hostID, queryID uint) error {
+	deleteStmt := `
+		DELETE FROM query_results WHERE host_id = ? AND query_id = ?
+		`
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, hostID, queryID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting query results for host")
+	}
+
+	return nil
+}
