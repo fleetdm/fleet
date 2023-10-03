@@ -127,7 +127,7 @@ Learn more about "No team" configuration options [here](./configuration-files/RE
 
 Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. 
 
-This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scrips and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for you end users.
+This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
 The following are examples of what some organizations deploy using a bootstrap package:
 
