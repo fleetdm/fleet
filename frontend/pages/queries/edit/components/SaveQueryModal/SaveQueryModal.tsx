@@ -177,9 +177,7 @@ const SaveQueryModal = ({
           label="Frequency"
           wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
         />
-        <p className="help-text">
-          If automations are on, this is how often your query collects data.
-        </p>
+        <p className="help-text">This is how often your query collects data.</p>
         <Checkbox
           name="observerCanRun"
           onChange={setObserverCanRun}
@@ -212,10 +210,7 @@ const SaveQueryModal = ({
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
             />
             <p className="help-text">
-              If automations are turned on, your query collects data on
-              compatible platforms.
-              <br />
-              If you want more control, override platforms.
+              By default, your query collects data on all compatible platforms.
             </p>
             <Dropdown
               options={MIN_OSQUERY_VERSION_OPTIONS}
