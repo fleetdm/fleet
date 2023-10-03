@@ -380,15 +380,11 @@ Releasing the Mac can be automated using the Fleet API. In this example, we'll r
 
 1. Open a freshly wiped test Mac and continue through macOS Setup Assistant.
 
-2. After you click past the **Remote Management** pane, on a separate workstation, login to Fleet and navigate to the **Hosts** page.
+2. After you click past the **Remote Management** pane, send a request to the [`GET /hosts/identifier/{uuid}` API route](../REST%20API/rest-api.md#get-host-by-identifier). In the response, make sure all profiles in the `profiles` array have `status` set to "verifying".
 
-3. Find your test Mac and select it to navigate to its **Host details** page.
+3. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using the [Fleet API](../REST%20API/rest-api.md#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
 
-4. Select **OS settings** and wait until all settings, except for **Disk encryption**, are set to "Verifying."
-
-5. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using [fleetctl](https://fleetdm.com/docs/using-fleet/mdm-commands#custom-commands) or the [API](https://fleetdm.com/docs/rest-api/rest-api#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
-
-6. At this pane, confirm that the Full Name and Account Name are set to the correct values.
+4. At this pane, confirm that the Full Name and Account Name are set to the correct values.
 
 ## Wait for configuration profiles
 
@@ -416,13 +412,9 @@ Set `await_device_configured` to `true` in your automatic enrollment profile. Le
 
 1. Open a freshly wiped test Mac and continue through macOS Setup Assistant.
 
-2. After you click past the **Remote Management** pane, on a separate workstation, login to Fleet and navigate to the **Hosts** page.
+2. After you click past the **Remote Management** pane, send a request to the [`GET /hosts/identifier/{uuid}` API route](../REST%20API/rest-api.md#get-host-by-identifier). In the response, make sure all profiles in the `profiles` array have `status` set to "verifying".
 
-3. Find your test Mac and select it to navigate to its **Host details** page.
-
-4. Select **OS settings** and wait until the **Enforce password length (10 characters)** setting is set to "Verifying."
-
-5. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using [fleetctl](https://fleetdm.com/docs/using-fleet/mdm-commands#custom-commands) or the [API](https://fleetdm.com/docs/rest-api/rest-api#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
+3. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using the [Fleet API](../REST%20API/rest-api.md#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
 
 6. At this pane, try to advance with a password that's 9 characters to confirm that your password must be at least 10 characters long.
 
