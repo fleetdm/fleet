@@ -29,4 +29,16 @@
   &__advanced-options-toggle {
     font-weight: $xbold;
   }
+
+  &__disabled-discard-data-checkbox {
+    @include disabled;
+  }
+
+  &__edit-anyway {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: inherit;
+    font-size: inherit;
+  }
 }

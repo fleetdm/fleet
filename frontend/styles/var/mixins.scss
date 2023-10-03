@@ -9,11 +9,11 @@ $max-width: 2560px;
       @content;
     }
   } @else if ($size == ltdesktop) {
-    @media (max-width: $desktop-width - 1) {
+    @media (max-width: ($desktop-width - 1)) {
       @content;
     }
   } @else if ($size == desktop) {
-    @media (min-width: $medium-width + 1) {
+    @media (min-width: ($medium-width + 1)) {
       @content;
     }
   } @else if ($size == smalldesk) {
@@ -113,5 +113,5 @@ $max-width: 2560px;
   opacity: 0.5;
   filter: grayscale(0.5);
   pointer-events: none;
-  // cursor: default;
+  cursor: default;
 }

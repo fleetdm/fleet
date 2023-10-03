@@ -93,7 +93,7 @@ const SaveQueryModal = ({
   };
 
   const query_reports_disabled =
-    true || appConfig?.server_settings?.query_reports_disabled;
+    appConfig?.server_settings?.query_reports_disabled;
 
   useDeepEffect(() => {
     if (name) {
@@ -161,12 +161,13 @@ const SaveQueryModal = ({
           name="discardData"
           onChange={setDiscardData}
           value={discardData}
-          wrapperClassName={`${baseClass}__discard-data-wrapper`}
-          disabled={disable}
+          wrapperClassName={
+            disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
+          }
         >
           Discard data
         </Checkbox>
-        <p className="help-text">
+        <div className="help-text">
           {disable ? (
             <>
               This setting is ignored because query reports in Fleet have been{" "}
@@ -185,6 +186,7 @@ const SaveQueryModal = ({
                 onClick={() => {
                   setForceEditDiscardData(true);
                 }}
+                className={`${baseClass}__edit-anyway`}
               >
                 <>
                   Edit anyway
@@ -192,6 +194,7 @@ const SaveQueryModal = ({
                     name="chevron"
                     direction="right"
                     color="core-fleet-blue"
+                    size="small"
                   />
                 </>
               </Link>
@@ -205,7 +208,7 @@ const SaveQueryModal = ({
               <b>automations</b> are <b>on</b>.
             </>
           )}
-        </p>
+        </div>
       </>
     );
   };
@@ -247,7 +250,9 @@ const SaveQueryModal = ({
           label="Frequency"
           wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
         />
-        <p className="help-text">This is how often your query collects data.</p>
+        <div className="help-text">
+          This is how often your query collects data.
+        </div>
         <Checkbox
           name="observerCanRun"
           onChange={setObserverCanRun}
@@ -256,10 +261,10 @@ const SaveQueryModal = ({
         >
           Observers can run
         </Checkbox>
-        <p className="help-text">
+        <div className="help-text">
           Users with the Observer role will be able to run this query as a live
           query.
-        </p>
+        </div>
         <RevealButton
           isShowing={showAdvancedOptions}
           className={`${baseClass}__advanced-options-toggle`}
@@ -279,9 +284,9 @@ const SaveQueryModal = ({
               multi
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
             />
-            <p className="help-text">
+            <div className="help-text">
               By default, your query collects data on all compatible platforms.
-            </p>
+            </div>
             <Dropdown
               options={MIN_OSQUERY_VERSION_OPTIONS}
               onChange={setSelectedMinOsqueryVersionOptions}
