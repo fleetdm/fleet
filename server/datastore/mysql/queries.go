@@ -497,3 +497,17 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 
 	return results, nil
 }
+
+func (ds *Datastore) DeleteAllResultsForQuery(ctx context.Context, queryId *uint) error {
+	// TODO: should we return the number?
+	deleteStmt := fmt.Sprintf(`DELETE FROM %s WHERE query_id = ?`, queryResultsTable.name)
+	result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryId)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "delete %s", queryResultsTable)
+	}
+	rows, _ := result.RowsAffected()
+	if rows != 1 {
+		return ctxerr.Wrap(ctx, notFound(queryResultsTable.name).WithID(*queryId))
+	}
+	return nil
+}

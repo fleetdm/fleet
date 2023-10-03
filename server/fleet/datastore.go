@@ -91,6 +91,8 @@ type Datastore interface {
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
+	// DeleteAllResultsForQuery deletes all cached query results for a given query.
+	DeleteAllResultsForQuery(ctx context.Context, queryId *uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods

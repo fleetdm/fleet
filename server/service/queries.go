@@ -272,7 +272,11 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		query.Description = *p.Description
 	}
 	if p.Query != nil {
+		// TODO: delete the query results
 		query.Query = *p.Query
+		if err := svc.ds.DeleteAllResultsForQuery(ctx, &id); err != nil {
+			return nil, err
+		}
 	}
 	if p.Interval != nil {
 		query.Interval = *p.Interval
@@ -294,6 +298,11 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 	if p.DiscardData != nil {
 		query.DiscardData = *p.DiscardData
+		if *p.DiscardData == true {
+			if err := svc.ds.DeleteAllResultsForQuery(ctx, &id); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
