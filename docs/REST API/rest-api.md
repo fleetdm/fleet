@@ -4267,7 +4267,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
       "platform": "windows",
       "status": "200",
       "updated_at": "2023-05-04:00:00Z",
-      "request_type": "Exec",
+      "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
       "hostname": "myhost"
     }
   ]
