@@ -330,7 +330,7 @@ To help the product team, other pieces of information can be optionally included
 - How does this change fit into the requester's overall usage of Fleet?
 - What other potential changes to the product have you considered?
 
-To ensure your request appears on the [Feature Fest board](https://app.zenhub.com/workspaces/-feature-fest-651b2962605ba29209324c57/board):
+To ensure your request appears on the ["Feature Fest" board](https://app.zenhub.com/workspaces/-feature-fest-651b2962605ba29209324c57/board):
 - Add the `feature fest` label to your issue
 - Add the relevant customer label (if applicable) 
 
