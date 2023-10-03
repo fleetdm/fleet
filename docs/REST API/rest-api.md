@@ -2346,7 +2346,7 @@ Returns the information of the specified host.
       "enrollment_status": null,
       "name": "",
       "server_url": null,
-      "os_settings": {
+      "macos_settings": {
         "disk_encryption": null,
         "action_required": null
       },
