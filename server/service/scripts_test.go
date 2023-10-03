@@ -57,11 +57,18 @@ func TestHostRunScript(t *testing.T) {
 		require.IsType(t, fleet.ActivityTypeRanScript{}, activity)
 		return nil
 	}
+	ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+		return &fleet.Script{ID: id}, nil
+	}
+	ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+		return []byte("echo"), nil
+	}
 
 	t.Run("authorization checks", func(t *testing.T) {
 		testCases := []struct {
 			name                  string
 			user                  *fleet.User
+			scriptID              *uint
 			shouldFailTeamWrite   bool
 			shouldFailGlobalWrite bool
 		}{
@@ -72,8 +79,22 @@ func TestHostRunScript(t *testing.T) {
 				shouldFailGlobalWrite: false,
 			},
 			{
+				name:                  "global admin saved",
+				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				scriptID:              ptr.Uint(1),
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: false,
+			},
+			{
 				name:                  "global maintainer",
 				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: false,
+			},
+			{
+				name:                  "global maintainer saved",
+				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+				scriptID:              ptr.Uint(1),
 				shouldFailTeamWrite:   false,
 				shouldFailGlobalWrite: false,
 			},
@@ -84,14 +105,35 @@ func TestHostRunScript(t *testing.T) {
 				shouldFailGlobalWrite: true,
 			},
 			{
+				name:                  "global observer saved",
+				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				scriptID:              ptr.Uint(1),
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: false,
+			},
+			{
 				name:                  "global observer+",
 				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
 				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
 			{
+				name:                  "global observer+ saved",
+				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+				scriptID:              ptr.Uint(1),
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: false,
+			},
+			{
 				name:                  "global gitops",
 				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "global gitops saved",
+				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+				scriptID:              ptr.Uint(1),
 				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
@@ -102,8 +144,22 @@ func TestHostRunScript(t *testing.T) {
 				shouldFailGlobalWrite: true,
 			},
 			{
+				name:                  "team admin, belongs to team, saved",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+				scriptID:              ptr.Uint(1),
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: true,
+			},
+			{
 				name:                  "team maintainer, belongs to team",
 				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team maintainer, belongs to team, saved",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+				scriptID:              ptr.Uint(1),
 				shouldFailTeamWrite:   false,
 				shouldFailGlobalWrite: true,
 			},
@@ -114,14 +170,35 @@ func TestHostRunScript(t *testing.T) {
 				shouldFailGlobalWrite: true,
 			},
 			{
+				name:                  "team observer, belongs to team, saved",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+				scriptID:              ptr.Uint(1),
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: true,
+			},
+			{
 				name:                  "team observer+, belongs to team",
 				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
 				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
 			{
+				name:                  "team observer+, belongs to team, saved",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+				scriptID:              ptr.Uint(1),
+				shouldFailTeamWrite:   false,
+				shouldFailGlobalWrite: true,
+			},
+			{
 				name:                  "team gitops, belongs to team",
 				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team gitops, belongs to team, saved",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+				scriptID:              ptr.Uint(1),
 				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
@@ -132,8 +209,22 @@ func TestHostRunScript(t *testing.T) {
 				shouldFailGlobalWrite: true,
 			},
 			{
+				name:                  "team admin, DOES NOT belong to team, saved",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+				scriptID:              ptr.Uint(1),
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
 				name:                  "team maintainer, DOES NOT belong to team",
 				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team maintainer, DOES NOT belong to team, saved",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+				scriptID:              ptr.Uint(1),
 				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
@@ -144,8 +235,22 @@ func TestHostRunScript(t *testing.T) {
 				shouldFailGlobalWrite: true,
 			},
 			{
+				name:                  "team observer, DOES NOT belong to team, saved",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+				scriptID:              ptr.Uint(1),
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
 				name:                  "team observer+, DOES NOT belong to team",
 				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserverPlus}}},
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
+			{
+				name:                  "team observer+, DOES NOT belong to team, saved",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserverPlus}}},
+				scriptID:              ptr.Uint(1),
 				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
@@ -155,19 +260,32 @@ func TestHostRunScript(t *testing.T) {
 				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
+			{
+				name:                  "team gitops, DOES NOT belong to team, saved",
+				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}}},
+				scriptID:              ptr.Uint(1),
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
+			},
 		}
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
 				ctx = viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-				_, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: noTeamHost.ID, ScriptContents: "abc"}, 0)
+				contents := "abc"
+				if tt.scriptID != nil {
+					contents = ""
+				}
+				_, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: noTeamHost.ID, ScriptContents: contents, ScriptID: tt.scriptID}, 0)
 				checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-				_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: teamHost.ID, ScriptContents: "abc"}, 0)
+				_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: teamHost.ID, ScriptContents: contents, ScriptID: tt.scriptID}, 0)
 				checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-				// a non-existing host is authorized as for global write (because we can't know what team it belongs to)
-				_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: nonExistingHost.ID, ScriptContents: "abc"}, 0)
-				checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+				if tt.scriptID == nil {
+					// a non-existing host is authorized as for global write (because we can't know what team it belongs to)
+					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: nonExistingHost.ID, ScriptContents: "abc"}, 0)
+					checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+				}
 			})
 		}
 	})
