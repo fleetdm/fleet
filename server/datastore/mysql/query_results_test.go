@@ -21,19 +21,6 @@ func TestQueryResults(t *testing.T) {
 		{"Save", saveQueryResultRow},
 		{"Get", getQueryResultRows},
 		{"DeleteForHost", testDeleteQueryResultsForHost},
-		// {"Apply", testQueriesApply},
-		// {"Delete", testQueriesDelete},
-		// {"GetByName", testQueriesGetByName},
-		// {"DeleteMany", testQueriesDeleteMany},
-		// {"Save", testQueriesSave},
-		// {"List", testQueriesList},
-		// {"LoadPacksForQueries", testQueriesLoadPacksForQueries},
-		// {"DuplicateNew", testQueriesDuplicateNew},
-		// {"ListFiltersObservers", testQueriesListFiltersObservers},
-		// {"ObserverCanRunQuery", testObserverCanRunQuery},
-		// {"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
-		// {"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
-		// {"ListScheduledQueriesForAgents", testListScheduledQueriesForAgents},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -48,10 +35,12 @@ func saveQueryResultRow(t *testing.T, ds *Datastore) {
 	query := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", user.ID, true)
 	host := test.NewHost(t, ds, "hostname123", "192.168.1.100", "1234", "UI8XB1223", time.Now())
 
+	mockTime := time.Now().UTC().Truncate(time.Second)
+
 	resultRow := &fleet.ScheduledQueryResultRow{
 		QueryID:     query.ID,
 		HostID:      host.ID,
-		LastFetched: time.Now(),
+		LastFetched: mockTime,
 		Data: json.RawMessage(`{
 			"model": "USB Keyboard",
 			"vendor": "Apple Inc."
