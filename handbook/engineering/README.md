@@ -632,7 +632,16 @@ If the bug does not meet the criteria of a critical bug, the EM will determine i
 
 When fixing the bug, if the proposed solution requires changes that would affect the user experience (UI, API, or CLI), notify the EM and PM to align on the acceptability of the change.
 
-Engineering teams collaboratively handle bug fixes. If one team is at capacity and a bug needs attention, another team can step in to assist. When the MDM team helps with a CX bug, use the `~leaning on MDM` label to ensure the bug shows on the #g-mdm board. If the CX team helps with an MDM bug, use the `~leaning on CX` label to ensure the bug shows on the #g-cx board.
+Engineering teams coordinate on bug fixes with the product team during the joint sprint kick-off review. If one team is at capacity and a bug needs attention, another team can step in to assist by following these steps:
+
+For MDM support on CX bugs:
+- Remove the `#g-cx` label and add `#g-mdm` label.
+- Add `~assisting CX` to clarify the bug’s origin.
+
+For CX support on MDM bugs:
+- Remove the `#g-mdm` label and add `#g-cx` label.
+- Add `~assisting MDM` to clarify the bug’s origin.
+
 
 Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements) into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary.
 
