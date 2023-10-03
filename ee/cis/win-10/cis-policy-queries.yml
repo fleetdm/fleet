@@ -1073,7 +1073,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameGuestAccount</LocURI></Target></Item></Get></SyncBody>" and mdm_command_output != "Guest";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_2.3.1.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_2.3.1.5
   contributors: marcosd4h
 ---
 apiVersion: v1
