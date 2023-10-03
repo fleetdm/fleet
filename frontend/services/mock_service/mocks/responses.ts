@@ -598,6 +598,57 @@ const teamQueries = {
   ],
 };
 
+const queryReport = {
+  query_id: 31,
+  results: [
+    {
+      host_id: 1,
+      host_name: "foo",
+      last_fetched: "2021-01-19T17:08:31Z",
+      columns: {
+        model: "USB 2.0 Hub",
+        vendor: "VIA Labs, Inc.",
+      },
+    },
+    {
+      host_id: 1,
+      host_name: "foo",
+      last_fetched: "2021-01-19T17:08:31Z",
+      columns: {
+        model: "USB Keyboard",
+        vendor: "VIA Labs, Inc.",
+      },
+    },
+    {
+      host_id: 2,
+      host_name: "bar",
+      last_fetched: "2021-01-19T17:20:00Z",
+      columns: {
+        model: "USB Reciever",
+        vendor: "Logitech",
+      },
+    },
+    {
+      host_id: 2,
+      host_name: "bar",
+      last_fetched: "2021-01-19T17:20:00Z",
+      columns: {
+        model: "USB Reciever",
+        vendor: "Logitech",
+      },
+    },
+    {
+      host_id: 2,
+      host_name: "bar",
+      last_fetched: "2021-01-19T17:20:00Z",
+      columns: {
+        model: "Display Audio",
+        vendor: "Apple Inc.",
+      },
+    },
+  ],
+};
+
 const globalQuery1 = { query: globalQueries.queries[0] };
 const globalQuery2 = { query: globalQueries.queries[1] };
 const globalQuery3 = { query: globalQueries.queries[2] };
@@ -611,6 +662,7 @@ export default {
   count,
   hosts,
   labels,
+  queryReport,
   globalQueries,
   globalQuery1,
   globalQuery2,

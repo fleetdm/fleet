@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
@@ -12,8 +12,10 @@ import {
   IGetQueryResponse,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { IQueryReport } from "interfaces/query_report";
 
 import queryAPI from "services/entities/queries";
+import queryReportAPI, { ISortOption } from "services/entities/query_report";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -26,12 +28,17 @@ import LogDestinationIndicator from "components/LogDestinationIndicator/LogDesti
 import CachedDetails from "../components/CachedDetails/CachedDetails";
 import NoResults from "../components/NoResults/NoResults";
 
+import {
+  DEFAULT_SORT_HEADER,
+  DEFAULT_SORT_DIRECTION,
+} from "./QueryDetailsPageConfig";
+
 interface IQueryDetailsPageProps {
   router: InjectedRouter; // v3
   params: Params;
   location: {
     pathname: string;
-    query: { team_id?: string };
+    query: { team_id?: string; order_key?: string; order_direction?: string };
     search: string;
   };
 }
@@ -44,6 +51,23 @@ const QueryDetailsPage = ({
   location,
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const queryParams = location.query;
+
+  // Functions to avoid race conditions
+  const initialSortBy: ISortOption[] = (() => {
+    let key = DEFAULT_SORT_HEADER;
+    let direction = DEFAULT_SORT_DIRECTION;
+
+    if (queryParams) {
+      const { order_key, order_direction } = queryParams;
+      key = order_key || key;
+      direction = order_direction || direction;
+    }
+
+    return [{ key, direction }];
+  })();
+
+  const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
 
   const {
     currentTeamName: teamNameForQuery,
@@ -111,8 +135,27 @@ const QueryDetailsPage = ({
     }
   );
 
-  const isLoading = isStoredQueryLoading; // TODO: Add || isCachedResultsLoading for new API response
-  const isApiError = storedQueryError || false; // TODO: Add || isCachedResultsError for new API response
+  const {
+    isLoading: isQueryReportLoading,
+    data: queryReport,
+    error: queryReportError,
+  } = useQuery<IQueryReport, Error, IQueryReport>(
+    [],
+    () =>
+      queryReportAPI.load({
+        sortBy,
+        id: queryId as number,
+      }),
+    {
+      enabled: !!queryId,
+      refetchOnWindowFocus: false,
+      select: (data) => data,
+      onError: (error) => handlePageError(error),
+    }
+  );
+
+  const isLoading = isStoredQueryLoading || isQueryReportLoading; // TODO: Add || isCachedResultsLoading for new API response
+  const isApiError = storedQueryError || queryReportError; // TODO: Add || isCachedResultsError for new API response
 
   const renderHeader = () => {
     const canEditQuery =
@@ -198,8 +241,7 @@ const QueryDetailsPage = ({
     const loggingSnapshot = storedQuery?.logging === "snapshot";
     const disabledCaching =
       disabledCachingGlobally || discardDataEnabled || !loggingSnapshot;
-    const emptyCache = true; // TODO: Update with API response
-    const errorsOnly = true; // TODO: Update with API response
+    const emptyCache = queryReport?.results.length === 0; // TODO: Update with API response
 
     // Loading state
     if (isLoading) {
@@ -221,7 +263,6 @@ const QueryDetailsPage = ({
           disabledCachingGlobally={disabledCachingGlobally}
           discardDataEnabled={discardDataEnabled}
           loggingSnapshot={loggingSnapshot}
-          errorsOnly={errorsOnly}
         />
       );
     }

@@ -14,7 +14,6 @@ interface INoResultsProps {
   disabledCachingGlobally: boolean;
   discardDataEnabled: boolean;
   loggingSnapshot: boolean;
-  errorsOnly: boolean;
 }
 
 const baseClass = "no-results";
@@ -26,7 +25,6 @@ const NoResults = ({
   disabledCachingGlobally,
   discardDataEnabled,
   loggingSnapshot,
-  errorsOnly,
 }: INoResultsProps): JSX.Element => {
   // Returns how many seconds it takes to expect a cached update
   const secondsCheckbackTime = () => {
@@ -92,14 +90,15 @@ const NoResults = ({
         </>
       );
     }
-    if (errorsOnly) {
-      return (
-        <>
-          This query had trouble collecting data on some hosts. Check out the{" "}
-          <strong>Errors</strong> tab to see why.
-        </>
-      );
-    }
+    // No errors will be reported in V1
+    // if (errorsOnly) {
+    //   return (
+    //     <>
+    //       This query had trouble collecting data on some hosts. Check out the{" "}
+    //       <strong>Errors</strong> tab to see why.
+    //     </>
+    //   );
+    // }
     return "This query has returned no data so far.";
   };
 
