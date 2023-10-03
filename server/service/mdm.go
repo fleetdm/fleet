@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
@@ -17,6 +19,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/go-sql-driver/mysql"
+	"github.com/micromdm/nanomdm/mdm"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -512,6 +516,8 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, devi
 	}
 	_ = rawXMLCmd
 
+	// the rest is platform-specific (validation of command payload, enqueueing, etc.)
+
 	/*
 		// a command is a SyncML message
 		var cmdMsg fleet.SyncML
@@ -579,4 +585,65 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, devi
 		}, nil
 	*/
 	return &fleet.CommandEnqueueResult{}, nil
+}
+
+func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+	cmd, err := mdm.DecodeCommand(rawXMLCmd)
+	if err != nil {
+		err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
+		return nil, ctxerr.Wrap(ctx, err, "decode plist command")
+	}
+
+	if appleMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get license")
+		}
+		if !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
+		}
+	}
+
+	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
+		// if at least one UUID enqueued properly, return success, otherwise return
+		// error
+		var apnsErr *apple_mdm.APNSDeliveryError
+		var mysqlErr *mysql.MySQLError
+		if errors.As(err, &apnsErr) {
+			if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
+				// some hosts properly received the command, so return success, with the list
+				// of failed uuids.
+				return &fleet.CommandEnqueueResult{
+					CommandUUID: cmd.CommandUUID,
+					RequestType: cmd.Command.RequestType,
+					FailedUUIDs: apnsErr.FailedUUIDs,
+				}, nil
+			}
+			// push failed for all hosts
+			err := fleet.NewBadGatewayError("Apple push notificiation service", err)
+			return nil, ctxerr.Wrap(ctx, err, "enqueue command")
+
+		} else if errors.As(err, &mysqlErr) {
+			// enqueue may fail with a foreign key constraint error 1452 when one of
+			// the hosts provided is not enrolled in nano_enrollments. Detect when
+			// that's the case and add information to the error.
+			if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
+				err := fleet.NewInvalidArgumentError(
+					"device_ids",
+					fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err),
+				).WithStatus(http.StatusConflict)
+				return nil, ctxerr.Wrap(ctx, err, "enqueue command")
+			}
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "enqueue command")
+	}
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: cmd.CommandUUID,
+		RequestType: cmd.Command.RequestType,
+	}, nil
+}
+
+func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+	panic("unimplemented")
 }

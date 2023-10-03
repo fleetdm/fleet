@@ -659,7 +659,7 @@ type Service interface {
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given
 	// devices. Note that a deviceID is the same as a host's UUID.
-	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (status int, result *CommandEnqueueResult, err error)
+	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
 
 	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
 	// profile used for Fleet MDM enrollment from the specified device.

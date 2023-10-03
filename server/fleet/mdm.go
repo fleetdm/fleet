@@ -141,3 +141,13 @@ type HostMDMProfileRetryCount struct {
 type TeamIDSetter interface {
 	SetTeamID(tid *uint)
 }
+
+// CommandEnqueueResult is the result of a command execution on enrolled Apple devices.
+type CommandEnqueueResult struct {
+	// CommandUUID is the unique identifier for the command.
+	CommandUUID string `json:"command_uuid,omitempty"`
+	// RequestType is the name of the command.
+	RequestType string `json:"request_type,omitempty"`
+	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
+	FailedUUIDs []string `json:"failed_uuids,omitempty"`
+}
