@@ -1277,7 +1277,7 @@ CREATE TABLE `windows_mdm_command_results` (
   `session_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `message_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `command_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `cmd_verb` smallint(5) unsigned NOT NULL,
+  `cmd_verb` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `setting_uri` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `setting_value` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `priority` smallint(5) unsigned NOT NULL DEFAULT '0',
@@ -1287,8 +1287,8 @@ CREATE TABLE `windows_mdm_command_results` (
   `result_output` text COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`command_uuid`),
-  CONSTRAINT `windows_mdm_command_results_ibfk_1` FOREIGN KEY (`command_uuid`) REFERENCES `windows_mdm_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE
+  PRIMARY KEY (`command_uuid`,`device_id`),
+  CONSTRAINT `windows_mdm_command_results_ibfk_1` FOREIGN KEY (`command_uuid`, `device_id`) REFERENCES `windows_mdm_commands` (`command_uuid`, `device_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -1296,13 +1296,13 @@ CREATE TABLE `windows_mdm_command_results` (
 CREATE TABLE `windows_mdm_commands` (
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `device_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `cmd_verb` smallint(5) unsigned NOT NULL,
+  `cmd_verb` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `setting_uri` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `setting_value` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `priority` smallint(5) unsigned NOT NULL DEFAULT '0',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`command_uuid`)
+  PRIMARY KEY (`command_uuid`,`device_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
