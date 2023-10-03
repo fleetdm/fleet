@@ -4162,7 +4162,7 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
 
-`POST /api/v1/fleet/mdm/commands`
+`POST /api/v1/fleet/mdm/commands/run`
 
 #### Parameters
 
@@ -4175,7 +4175,7 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 #### Example
 
-`POST /api/v1/fleet/mdm/commands`
+`POST /api/v1/fleet/mdm/commands/run`
 
 ##### Default response
 
@@ -4236,7 +4236,6 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
-| platform                  | string  | query | Filter MDM commands by the hosts' platform they ran on. 
 | page                      | integer | query | Page number of the results to fetch.                                      |
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
