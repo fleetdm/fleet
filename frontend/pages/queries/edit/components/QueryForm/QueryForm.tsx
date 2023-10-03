@@ -73,6 +73,8 @@ interface IQueryFormProps {
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
   hostId?: number;
+  showSaveChangesModal: boolean;
+  setShowSaveChangesModal: (bool: boolean) => void;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -120,6 +122,8 @@ const QueryForm = ({
   renderLiveQueryWarning,
   backendValidators,
   hostId,
+  showSaveChangesModal,
+  setShowSaveChangesModal,
 }: IQueryFormProps): JSX.Element => {
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -158,7 +162,6 @@ const QueryForm = ({
   const savedQueryMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [showSaveQueryModal, setShowSaveQueryModal] = useState(false);
-  const [showSaveChangesModal, setShowSaveChangesModal] = useState(false); // #7766 implementation
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
   );
@@ -211,7 +214,6 @@ const QueryForm = ({
     setShowSaveQueryModal(!showSaveQueryModal);
   };
 
-  // #7766 implementation
   const toggleSaveChangesModal = () => {
     setShowSaveChangesModal(!showSaveChangesModal);
   };
@@ -619,7 +621,7 @@ const QueryForm = ({
   };
 
   const confirmSqlChange = (): boolean => {
-    // Confirm sql changes
+    // Confirm sql changes message if sql changed but snapshot and enabling discard data has not
     return !!hasSqlChange && !hasSnapshotChange && !hasEnabledDiscardData;
   };
 
@@ -816,9 +818,9 @@ const QueryForm = ({
         )}
         {showSaveChangesModal && (
           <SaveChangesModal
-            onSaveChanges={promptSaveQuery}
+            onSaveChanges={promptSaveQuery()}
             toggleSaveChangesModal={toggleSaveChangesModal}
-            isUpdating={isQuerySaving}
+            isUpdating={isQueryUpdating}
             sqlUpdated={confirmSqlChange()}
           />
         )}

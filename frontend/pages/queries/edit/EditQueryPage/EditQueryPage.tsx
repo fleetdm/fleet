@@ -100,13 +100,14 @@ const EditQueryPage = ({
   const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
     false
   );
+  const [showSaveChangesModal, setShowSaveChangesModal] = useState(false);
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
   const {
     isLoading: isStoredQueryLoading,
     data: storedQuery,
-    error: storedQueryError,
+    refetch: refetchStoredQuery,
   } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
     ["query", queryId],
     () => queryAPI.load(queryId as number),
@@ -215,6 +216,7 @@ const EditQueryPage = ({
     try {
       await queryAPI.update(queryId, updatedQuery);
       renderFlash("success", "Query updated!");
+      refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
     } catch (updateError: any) {
       console.error(updateError);
       if (updateError.data.errors[0].reason.includes("Duplicate")) {
@@ -228,6 +230,7 @@ const EditQueryPage = ({
     }
 
     setIsQueryUpdating(false);
+    setShowSaveChangesModal(false); // Closes conditionally opened modal when discarding previous results
 
     return false;
   };
@@ -304,6 +307,8 @@ const EditQueryPage = ({
               isQuerySaving={isQuerySaving}
               isQueryUpdating={isQueryUpdating}
               hostId={parseInt(location.query.host_ids as string, 10)}
+              showSaveChangesModal={showSaveChangesModal}
+              setShowSaveChangesModal={setShowSaveChangesModal}
             />
           </div>
         </div>
