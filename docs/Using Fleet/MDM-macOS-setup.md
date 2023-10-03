@@ -82,7 +82,7 @@ fleetctl get mdm-apple
 
 ## Renewing APNs 
 
-> **Important** Apple requires that APNs certificates are renewed anually. 
+> **Important:** Apple requires that APNs certificates are renewed annually. 
 > - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
