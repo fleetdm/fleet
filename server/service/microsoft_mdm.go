@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"text/template"
 	"time"
 
@@ -86,7 +85,7 @@ func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.Response
 }
 
 type SyncMLReqMsgContainer struct {
-	Data   *fleet.SyncMLMessage
+	Data   *fleet.SyncML
 	Params url.Values
 	Err    error
 }
@@ -103,7 +102,7 @@ func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u
 	req.Params = u
 
 	// Handle empty body scenario
-	req.Data = &fleet.SyncMLMessage{}
+	req.Data = &fleet.SyncML{}
 
 	if len(reqBytes) != 0 {
 		// Unmarshal the XML data from the request into the SoapRequest struct
@@ -862,16 +861,16 @@ func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, sv
 	reqSyncML := request.(*SyncMLReqMsgContainer).Data
 
 	// Checking first if incoming SyncML message is valid and returning error if this is not the case
-	if err := reqSyncML.IsValidSyncMLMsg(); err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEFault, err)
-		return getSoapResponseFault(strconv.Itoa(reqSyncML.Header.MsgID), soapFault), nil
+	if err := reqSyncML.IsValidMsg(); err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MSMDM, err)
+		return getSoapResponseFault(reqSyncML.SyncHdr.MsgID, soapFault), nil
 	}
 
-	// Getting the RequestSecurityTokenResponseCollection message
+	// Getting the MS-MDM response message
 	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML)
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
-		return getSoapResponseFault(strconv.Itoa(reqSyncML.Header.MsgID), soapFault), nil
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MSMDM, err)
+		return getSoapResponseFault(reqSyncML.SyncHdr.MsgID, soapFault), nil
 	}
 
 	return SyncMLResponseMsgContainer{
@@ -1139,18 +1138,16 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 }
 
 // GetMDMWindowsManagementResponse returns a valid SyncML response message
-func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncMLMessage) (*string, error) {
+func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*string, error) {
 	if reqSyncML == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
-	// TODO: The following logic should happen here
+	// TODO - The following logic should happen here
 	// - TLS based auth
-	// - Device auth based on Source/LocURI DeviceID information
-	//   (this should be present on Enrollment DB)
-	// - Processing of incoming protocol commands (Alerts mostly
-	// - MS-MDM session management
-	// - Inclusion of queued protocol commands should be performed here
+	// - Device auth based on Source/LocURI DeviceID information (this should be present on Enrollment DB)
+	// - Processing of incoming protocol commands (Alerts mostly)
+	// - Processing of outgoing protocol commands (Commands queued from biz logic layers)
 	// - Tracking of message acknowledgements through Message queue
 
 	// Getting the management response message
@@ -1184,121 +1181,15 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	return htmlBuf.String(), nil
 }
 
-func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.SyncMLMessage) (*string, error) {
+func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*string, error) {
 	if reqSyncML == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
-	// cmdID tracks the command sequence
-	cmdID := 0
+	// This is a placeholder for the management response message logic
 
-	// Retrieve the MessageID from the syncml req body
-	deviceID := reqSyncML.Header.Source
-
-	// Retrieve the sessionID from the syncml req body
-	sessionID := reqSyncML.Header.SessionID
-
-	// Retrieve the msgID from the syncml req body
-	msgID := reqSyncML.Header.MsgID
-
-	// Getting the management URL message content
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	urlManagementEndpoint, err := mdm.ResolveWindowsMDMManagement(appCfg.ServerSettings.ServerURL)
-	if err != nil {
-		return nil, err
-	}
-
-	// Checking the SyncML message types
-	var response string
-	if isSessionInitializationMessage(reqSyncML.Body) {
-		// Create response payload - MDM SyncML configuration profiles commands will be enforced here
-		response = `
-			<?xml version="1.0" encoding="UTF-8"?>
-			<SyncML xmlns="SYNCML:SYNCML1.2">
-				<SyncHdr>
-					<VerDTD>1.2</VerDTD>
-					<VerProto>DM/1.2</VerProto>
-					<SessionID>` + strconv.Itoa(sessionID) + `</SessionID>
-					<MsgID>` + strconv.Itoa(msgID) + `</MsgID>
-					<Target>
-						<LocURI>` + deviceID + `</LocURI>
-					</Target>
-					<Source>
-						<LocURI>` + urlManagementEndpoint + `</LocURI>
-					</Source>
-				</SyncHdr>
-				<SyncBody>
-					<Status>
-						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
-						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
-						<CmdRef>0</CmdRef>
-						<Cmd>SyncHdr</Cmd>
-						<Data>200</Data>
-					</Status>
-					<Status>
-						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
-						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
-						<CmdRef>2</CmdRef>
-						<Cmd>Alert</Cmd>
-						<Data>200</Data>
-					</Status>
-					<Status>
-						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
-						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
-						<CmdRef>3</CmdRef>
-						<Cmd>Alert</Cmd>
-						<Data>200</Data>
-					</Status>
-					<Status>
-						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
-						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
-						<CmdRef>4</CmdRef>
-						<Cmd>Replace</Cmd>
-						<Data>200</Data>
-					</Status>
-					` + svc.getConfigProfilesToEnforce(ctx, &cmdID) + `
-					<Final />
-				</SyncBody>
-			</SyncML>`
-	} else {
-		// Acknowledge SyncML messages sent by host
-		response = `
-			<?xml version="1.0" encoding="UTF-8"?>
-			<SyncML xmlns="SYNCML:SYNCML1.2">
-				<SyncHdr>
-					<VerDTD>1.2</VerDTD>
-					<VerProto>DM/1.2</VerProto>
-					<SessionID>` + strconv.Itoa(sessionID) + `</SessionID>
-					<MsgID>` + strconv.Itoa(msgID) + `</MsgID>
-					<Target>
-						<LocURI>` + deviceID + `</LocURI>
-					</Target>
-					<Source>
-						<LocURI>` + urlManagementEndpoint + `</LocURI>
-					</Source>
-				</SyncHdr>
-				<SyncBody>
-					<Status>
-						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
-						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
-						<CmdRef>0</CmdRef>
-						<Cmd>SyncHdr</Cmd>
-						<Data>200</Data>
-					</Status>
-					<Final />
-				</SyncBody>
-			</SyncML>`
-	}
-
-	// Create a replacer to replace both "\n" and "\t"
-	replacer := strings.NewReplacer("\n", "", "\t", "")
-
-	// Use the replacer on the string representation of xmlContent
-	responseRaw := replacer.Replace(response)
+	// Raw Response
+	responseRaw := ""
 
 	return &responseRaw, nil
 }
@@ -1528,99 +1419,219 @@ func (svc *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject strin
 	return cert, fpHex, nil
 }
 
-func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *int) string {
-	// Getting the management URL
-	appCfg, _ := svc.ds.AppConfig(ctx)
-	fleetEnrollUrl := appCfg.ServerSettings.ServerURL
+// MS-MDM Commands helpers
+// NewSyncMLMessage takes input data and returns a SyncML struct
+func NewSyncMLMessage(sessionID string, msgID string, deviceID string, source string, protoCommands []*mdm_types.SyncMLCmd) (*mdm_types.SyncML, error) {
+	// Sanity check on input
+	if len(sessionID) == 0 || len(msgID) == 0 || len(deviceID) == 0 || len(source) == 0 {
+		return nil, errors.New("invalid parameters")
+	}
 
-	// Getting the global enrollment secret
-	var globalEnrollSecret string
-	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+	if sessionID == "0" {
+		return nil, errors.New("invalid session ID")
+	}
+
+	if msgID == "0" {
+		return nil, errors.New("invalid msg ID")
+	}
+
+	if len(protoCommands) == 0 {
+		return nil, errors.New("invalid operations")
+	}
+
+	// Setting source LocURI
+	var sourceLocURI *mdm_types.LocURI
+
+	if len(source) > 0 {
+		sourceLocURI = &mdm_types.LocURI{
+			LocURI: &source,
+		}
+	}
+
+	// setting up things on the SyncML message
+	var msg mdm_types.SyncML
+	msg.Xmlns = mdm.SyncCmdNamespace
+	msg.SyncHdr = mdm_types.SyncHdr{
+		VerDTD:    mdm.SyncMLSupportedVersion,
+		VerProto:  mdm.SyncMLVerProto,
+		SessionID: sessionID,
+		MsgID:     msgID,
+		Target:    &mdm_types.LocURI{LocURI: &deviceID},
+		Source:    sourceLocURI,
+	}
+
+	// CmdID counter
+	cmdIndex := 1
+
+	// iterate over operations and append them to the SyncML message
+	for _, protoCmd := range protoCommands {
+
+		// Updating CmdID on target protocol command
+		protoCmd.CmdID = strconv.Itoa(cmdIndex)
+		cmdIndex++
+		msg.AppendCommand(fleet.MDMRaw, *protoCmd)
+	}
+
+	err := msg.IsValidBody()
 	if err != nil {
-		return ""
+		return nil, fmt.Errorf("there was a problem unmarshalling SyncML request: %v", err)
 	}
 
-	for _, secret := range secrets {
-		if secret.TeamID == nil {
-			globalEnrollSecret = secret.Secret
-			break
+	// If there was no error, return the SyncML and a nil error
+	return &msg, nil
+}
+
+// newSyncMLCmdWithNoItem creates a new SyncML command
+func newSyncMLCmdWithNoItem(cmdVerb *string, cmdData *string) *mdm_types.SyncMLCmd {
+	return &mdm_types.SyncMLCmd{
+		XMLName: xml.Name{Local: *cmdVerb},
+		Data:    cmdData,
+		Items:   nil,
+	}
+}
+
+// newSyncMLCmdWithItem creates a new SyncML command
+func newSyncMLCmdWithItem(cmdVerb *string, cmdData *string, cmdItem *mdm_types.CmdItem) *mdm_types.SyncMLCmd {
+	return &mdm_types.SyncMLCmd{
+		XMLName: xml.Name{Local: *cmdVerb},
+		Data:    cmdData,
+		Items:   &[]mdm_types.CmdItem{*cmdItem},
+	}
+}
+
+// newSyncMLItem creates a new SyncML command
+func newSyncMLItem(cmdSource *string, cmdTarget *string, cmdDataType *string, cmdDataFormat *string, cmdDataValue *string) *mdm_types.CmdItem {
+	var metaFormat *mdm_types.MetaAttr
+	var metaType *mdm_types.MetaAttr
+	var meta *mdm_types.Meta
+
+	if cmdDataFormat != nil && len(*cmdDataFormat) > 0 {
+		metaFormat = &mdm_types.MetaAttr{
+			XMLNS:   "syncml:metinf",
+			Content: cmdDataFormat,
 		}
 	}
 
-	// keeping the same GUID will prevent the MSI to be installed multiple times - it will be
-	// installed only the first time the message is issued.
-	// FleetURL and FleetSecret properties are passed to the Fleet MSI
-	// See here for more information: https://learn.microsoft.com/en-us/windows/win32/msi/command-line-options
-	installCommandPayload := `<MsiInstallJob id="{A427C0AA-E2D5-40DF-ACE8-0D726A6BE096}">
-					<Product Version="1.0.0.0">
-						<Download>
-							<ContentURLList>
-								<ContentURL>https://download.fleetdm.com/fleetd-base.msi</ContentURL>
-							</ContentURLList>
-						</Download>
-						<Validation>
-							<FileHash>9F89C57D1B34800480B38BD96186106EB6418A82B137A0D56694BF6FFA4DDF1A</FileHash>
-						</Validation>
-						<Enforcement>
-							<CommandLine>/quiet FLEET_URL="` + fleetEnrollUrl + `" FLEET_SECRET="` + globalEnrollSecret + `"</CommandLine>
-							<TimeOut>10</TimeOut>
-							<RetryCount>1</RetryCount>
-							<RetryInterval>5</RetryInterval>
-						</Enforcement>
-					</Product>
-				</MsiInstallJob>`
-
-	newCmds := `<Add>
-				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
-				<Item>
-					<Target>
-					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
-					</Target>
-				</Item>
-				</Add>
-				<Exec>
-				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
-				<Item>
-					<Target>
-					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
-					</Target>
-					<Data>` + html.EscapeString(installCommandPayload) + `</Data>
-					<Meta>
-					<Type xmlns="syncml:metinf">text/plain</Type>
-					<Format xmlns="syncml:metinf">xml</Format>
-					</Meta>
-				</Item>
-				</Exec>`
-
-	return newCmds
-}
-
-// getNextCmdID returns the next command ID
-func getNextCmdID(i *int) string {
-	*i++
-	return strconv.Itoa(*i)
-}
-
-// Checks if body contains a DM device unrollment SyncML message
-func isDeviceUnenrollmentMessage(body fleet.SyncMLBody) bool {
-	for _, element := range body.Item {
-		if element.Data == mdm.DeviceUnenrollmentID {
-			return true
+	if cmdDataType != nil && len(*cmdDataType) > 0 {
+		metaType = &mdm_types.MetaAttr{
+			XMLNS:   "syncml:metinf",
+			Content: cmdDataType,
 		}
 	}
 
-	return false
-}
-
-// Checks if body contains a DM session initialization SyncML message sent by device
-func isSessionInitializationMessage(body fleet.SyncMLBody) bool {
-	isUnenrollMessage := isDeviceUnenrollmentMessage(body)
-
-	for _, element := range body.Item {
-		if element.Data == mdm.HostInitMessageID && !isUnenrollMessage {
-			return true
+	if metaFormat != nil || metaType != nil {
+		meta = &mdm_types.Meta{
+			Format: metaFormat,
+			Type:   metaType,
 		}
 	}
 
-	return false
+	return &mdm_types.CmdItem{
+		Meta:   meta,
+		Data:   cmdDataValue,
+		Target: cmdTarget,
+		Source: cmdSource,
+	}
+}
+
+// NewSyncMLCmd creates a new SyncML command
+func NewSyncMLCmd(cmdVerb string, cmdSource string, cmdTarget string, cmdDataType string, cmdDataFormat string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	var workCmdVerb *string
+	var workCmdSource *string
+	var workCmdTarget *string
+	var workCmdDataType *string
+	var workCmdDataFormat *string
+	var workCmdDataValue *string
+
+	if len(cmdVerb) > 0 {
+		workCmdVerb = &cmdVerb
+	}
+
+	if len(cmdSource) > 0 {
+		workCmdSource = &cmdSource
+	}
+
+	if len(cmdTarget) > 0 {
+		workCmdTarget = &cmdTarget
+	}
+
+	if len(cmdDataType) > 0 {
+		workCmdDataType = &cmdDataType
+	}
+
+	if len(cmdDataFormat) > 0 {
+		workCmdDataFormat = &cmdDataFormat
+	}
+
+	if len(cmdDataValue) > 0 {
+		workCmdDataValue = &cmdDataValue
+	}
+
+	item := newSyncMLItem(workCmdSource, workCmdTarget, workCmdDataType, workCmdDataFormat, workCmdDataValue)
+	return newSyncMLCmdWithItem(workCmdVerb, nil, item)
+}
+
+// NewSyncMLCmdAlert creates a new SyncML Alert command
+func NewSyncMLCmdAlert(cmdData string) *mdm_types.SyncMLCmd {
+	cmdVerb := mdm_types.CmdAlert
+	return newSyncMLCmdWithNoItem(&cmdVerb, &cmdData)
+}
+
+// NewSyncMLCmdText creates a new SyncML command with text data
+func NewSyncMLCmdText(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdType := "text/plain"
+	cmdFormat := "chr"
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// NewSyncMLCmdXml creates a new SyncML command with XML data
+func NewSyncMLCmdXml(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdType := "text/plain"
+	cmdFormat := "xml"
+	escapedXML := html.EscapeString(cmdDataValue)
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &escapedXML)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// NewSyncMLCmdInt creates a new SyncML command with text data
+func NewSyncMLCmdRawInt(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdFormat := "int"
+	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, &cmdDataValue)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// NewSyncMLCmdInt creates a new SyncML command with text data
+func NewSyncMLCmdInt(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdType := "text/plain"
+	cmdFormat := "int"
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// NewSyncMLCmdBool creates a new SyncML command with text data
+func NewSyncMLCmdBool(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdType := "text/plain"
+	cmdFormat := "bool"
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// NewSyncMLCmdGet creates a new SyncML command with text data
+func NewNewSyncMLCmdGet(cmdTarget string) *mdm_types.SyncMLCmd {
+	cmdVerb := mdm_types.CmdGet
+	item := newSyncMLItem(nil, &cmdTarget, nil, nil, nil)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// NewSyncMLCmdStatus creates a new SyncML command with text data
+func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode string) *mdm_types.SyncMLCmd {
+	return &mdm_types.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		MsgRef:  &msgRef,
+		CmdRef:  &cmdRef,
+		Cmd:     &cmdOrig,
+		Data:    &statusCode,
+		Items:   nil,
+	}
 }
