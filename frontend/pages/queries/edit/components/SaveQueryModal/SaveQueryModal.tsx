@@ -228,6 +228,14 @@ const SaveQueryModal = ({
               label="Logging"
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
             />
+            <Checkbox
+              name="discardData"
+              onChange={setDiscardData}
+              value={discardData}
+              wrapperClassName={`${baseClass}__discard-data-wrapper`}
+            >
+              Discard data
+            </Checkbox>
           </>
         )}
         <div className="modal-cta-wrap">
