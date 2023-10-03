@@ -4243,7 +4243,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/commands?per_page=5?platform=darwin`
+`GET /api/v1/fleet/mdm/commands?per_page=5`
 
 ##### Default response
 
@@ -4260,6 +4260,15 @@ This endpoint returns the list of custom MDM commands that have been executed.
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
       "hostname": "mycomputer"
+    },
+    {
+      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "platform": "windows",
+      "status": "200",
+      "updated_at": "2023-04-04:00:00Z",
+      "request_type": "Exec",
+      "hostname": "myhost"
     }
   ]
 }
