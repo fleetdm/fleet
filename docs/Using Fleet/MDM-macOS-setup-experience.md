@@ -196,7 +196,7 @@ To sign the package we need a valid Developer ID Installer certificate:
   $ pkgutil --check-signature /path/to/signed-package.pkg
   ```
 
-  In the output you should see that package has a "signed" status.
+  In the output you should see that your package has a "signed" status.
 
 ### Step 3: upload the package to Fleet
 
