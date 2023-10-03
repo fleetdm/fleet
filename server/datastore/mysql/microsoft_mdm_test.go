@@ -17,6 +17,8 @@ func TestMDMWindows(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
+		{"TestMDMWindowsPendingCommand", testMDMWindowsPendingCommand},
+		{"TestMDMWindowsCommand", testMDMWindowCommand},
 	}
 
 	for _, c := range cases {
@@ -66,4 +68,70 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 
 	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
+}
+
+func testMDMWindowsPendingCommand(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	deviceID := uuid.New().String()
+
+	pendingCmd := &fleet.MDMWindowsPendingCommand{
+		CommandUUID:  uuid.New().String(),
+		DeviceID:     deviceID,
+		CmdVerb:      fleet.CmdGet,
+		SettingURI:   "./test/uri",
+		SettingValue: "testdata",
+		DataType:     2,
+		SystemOrigin: false,
+	}
+
+	err := ds.MDMWindowsInsertPendingCommand(ctx, pendingCmd)
+	require.NoError(t, err)
+
+	var ae fleet.AlreadyExistsError
+	err = ds.MDMWindowsInsertPendingCommand(ctx, pendingCmd)
+	require.ErrorAs(t, err, &ae)
+
+	gotPendingCmds, err := ds.MDMWindowsListPendingCommands(ctx, deviceID)
+	require.NoError(t, err)
+	require.NotZero(t, gotPendingCmds)
+	require.NotZero(t, gotPendingCmds[0].CreatedAt)
+	require.Equal(t, gotPendingCmds[0].DeviceID, deviceID)
+}
+
+func testMDMWindowCommand(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	deviceID := uuid.New().String()
+	sessionID := "1"
+	messageID := "2"
+	commandID := "3"
+	newCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.New().String(),
+		DeviceID:     deviceID,
+		SessionID:    sessionID,
+		MessageID:    messageID,
+		CommandID:    commandID,
+		CmdVerb:      fleet.CmdGet,
+		SettingURI:   "./test/uri",
+		SettingValue: "testdata",
+		DataType:     2,
+		SystemOrigin: false,
+	}
+
+	err := ds.MDMWindowsInsertCommand(ctx, newCmd)
+	require.NoError(t, err)
+
+	var ae fleet.AlreadyExistsError
+	err = ds.MDMWindowsInsertCommand(ctx, newCmd)
+	require.ErrorAs(t, err, &ae)
+
+	gotCmds, err := ds.MDMWindowsListCommands(ctx, deviceID)
+	require.NoError(t, err)
+	require.NotZero(t, gotCmds)
+	require.NotZero(t, gotCmds[0].CreatedAt)
+	require.Equal(t, gotCmds[0].DeviceID, deviceID)
+	require.Equal(t, gotCmds[0].SessionID, sessionID)
+	require.Equal(t, gotCmds[0].MessageID, messageID)
+	require.Equal(t, gotCmds[0].CommandID, commandID)
 }

@@ -1143,12 +1143,9 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
-	// TODO - The following logic should happen here
+	// TODO - Security checks that need to be implemented
 	// - TLS based auth
 	// - Device auth based on Source/LocURI DeviceID information (this should be present on Enrollment DB)
-	// - Processing of incoming protocol commands (Alerts mostly)
-	// - Processing of outgoing protocol commands (Commands queued from biz logic layers)
-	// - Tracking of message acknowledgements through Message queue
 
 	// Getting the management response message
 	resSyncMLmsg, err := svc.getManagementResponse(ctx, reqSyncML)
@@ -1181,12 +1178,17 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	return htmlBuf.String(), nil
 }
 
+// getManagementResponse returns a valid SyncML response message
 func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*string, error) {
 	if reqSyncML == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
 	// This is a placeholder for the management response message logic
+
+	// - Processing of incoming protocol commands (Alerts mostly)
+	// - Processing of outgoing protocol commands (Commands queued from biz logic layers)
+	// - Tracking of message acknowledgements through Message queue
 
 	// Raw Response
 	responseRaw := ""
@@ -1571,22 +1573,99 @@ func NewSyncMLCmd(cmdVerb string, cmdSource string, cmdTarget string, cmdDataTyp
 	return newSyncMLCmdWithItem(workCmdVerb, nil, item)
 }
 
-// NewSyncMLCmdAlert creates a new SyncML Alert command
-func NewSyncMLCmdAlert(cmdData string) *mdm_types.SyncMLCmd {
-	cmdVerb := mdm_types.CmdAlert
+func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTarget string, cmdData string) (*mdm_types.SyncMLCmd, error) {
+	errInvalidParameters := errors.New("invalid parameters")
+
+	// Checking if command verb is present
+	if len(cmdVerb) > 0 {
+		return nil, errInvalidParameters
+	}
+
+	// Returning command based on input command data type
+	switch dataType {
+	case mdm_types.SFEmpty:
+		if len(cmdData) > 0 {
+			rawCmd := newSyncMLNoItem(cmdVerb, cmdData)
+			return rawCmd, nil
+		} else {
+			return nil, errInvalidParameters
+		}
+
+	case mdm_types.SFNoFormat:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
+			rawCmd := newSyncMLNoFormat(cmdVerb, cmdTarget)
+			return rawCmd, nil
+		} else {
+			return nil, errInvalidParameters
+		}
+
+	case mdm_types.SFText:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+			rawCmd := newSyncMLCmdText(cmdVerb, cmdTarget, cmdData)
+			return rawCmd, nil
+		} else {
+			return nil, errInvalidParameters
+		}
+
+	case mdm_types.SFXml:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+			rawCmd := newSyncMLCmdXml(cmdVerb, cmdTarget, cmdData)
+			return rawCmd, nil
+		} else {
+			return nil, errInvalidParameters
+		}
+
+	case mdm_types.SFInteger:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+			rawCmd := newSyncMLCmdInt(cmdVerb, cmdTarget, cmdData)
+			return rawCmd, nil
+		} else {
+			return nil, errInvalidParameters
+		}
+
+	case mdm_types.SFBase64:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+			rawCmd := newSyncMLCmdBase64(cmdVerb, cmdTarget, cmdData)
+			return rawCmd, nil
+		} else {
+			return nil, errInvalidParameters
+		}
+
+	case mdm_types.SFBoolean:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+			rawCmd := newSyncMLCmdBool(cmdVerb, cmdTarget, cmdData)
+			return rawCmd, nil
+		} else {
+			return nil, errInvalidParameters
+		}
+	}
+
+	return nil, errInvalidParameters
+}
+
+// newSyncMLNoItem creates a new SyncML command with no item
+// This is used for commands that do not have any items such as Alerts
+func newSyncMLNoItem(cmdVerb string, cmdData string) *mdm_types.SyncMLCmd {
 	return newSyncMLCmdWithNoItem(&cmdVerb, &cmdData)
 }
 
-// NewSyncMLCmdText creates a new SyncML command with text data
-func NewSyncMLCmdText(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+// newSyncMLNoFormat creates a new SyncML command with no format
+// This is used for commands that do not have any data such as Get
+func newSyncMLNoFormat(cmdVerb string, cmdTarget string) *mdm_types.SyncMLCmd {
+	item := newSyncMLItem(nil, &cmdTarget, nil, nil, nil)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdText creates a new SyncML command with text data
+func newSyncMLCmdText(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
 	cmdType := "text/plain"
 	cmdFormat := "chr"
 	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
-// NewSyncMLCmdXml creates a new SyncML command with XML data
-func NewSyncMLCmdXml(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+// newSyncMLCmdXml creates a new SyncML command with XML data
+func newSyncMLCmdXml(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
 	cmdType := "text/plain"
 	cmdFormat := "xml"
 	escapedXML := html.EscapeString(cmdDataValue)
@@ -1594,38 +1673,32 @@ func NewSyncMLCmdXml(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
-// NewSyncMLCmdInt creates a new SyncML command with text data
-func NewSyncMLCmdRawInt(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
-	cmdFormat := "int"
-	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, &cmdDataValue)
+// newSyncMLCmdBase64 creates a new SyncML command with Base64 encoded data
+func newSyncMLCmdBase64(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdFormat := "b64"
+	escapedXML := html.EscapeString(cmdDataValue)
+	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, &escapedXML)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
-// NewSyncMLCmdInt creates a new SyncML command with text data
-func NewSyncMLCmdInt(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+// newSyncMLCmdInt creates a new SyncML command with text data
+func newSyncMLCmdInt(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
 	cmdType := "text/plain"
 	cmdFormat := "int"
 	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
-// NewSyncMLCmdBool creates a new SyncML command with text data
-func NewSyncMLCmdBool(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+// newSyncMLCmdBool creates a new SyncML command with text data
+func newSyncMLCmdBool(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
 	cmdType := "text/plain"
 	cmdFormat := "bool"
 	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
-// NewSyncMLCmdGet creates a new SyncML command with text data
-func NewNewSyncMLCmdGet(cmdTarget string) *mdm_types.SyncMLCmd {
-	cmdVerb := mdm_types.CmdGet
-	item := newSyncMLItem(nil, &cmdTarget, nil, nil, nil)
-	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
-}
-
-// NewSyncMLCmdStatus creates a new SyncML command with text data
-func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode string) *mdm_types.SyncMLCmd {
+// newSyncMLCmdStatus creates a new SyncML command with text data
+func newSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode string) *mdm_types.SyncMLCmd {
 	return &mdm_types.SyncMLCmd{
 		XMLName: xml.Name{Local: mdm_types.CmdStatus},
 		MsgRef:  &msgRef,

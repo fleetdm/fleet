@@ -1102,6 +1102,18 @@ const (
 	MDMStatus
 )
 
+type SyncMLDataType uint16
+
+const (
+	SFEmpty SyncMLDataType = iota
+	SFNoFormat
+	SFText
+	SFXml
+	SFInteger
+	SFBoolean
+	SFBase64
+)
+
 func (msg *SyncML) AppendCommand(cmdType MDMCommandType, cmd SyncMLCmd) {
 	switch cmdType {
 	case MDMRaw:
@@ -1169,4 +1181,39 @@ func (cmd *SyncMLCmd) IsValid() bool {
 	}
 
 	return true
+}
+
+// /////////////////////////////////////////////////////////////
+// MDMWindowsPendingCommand type
+// Represents a command in the windows_mdm_pending_commands table
+type MDMWindowsPendingCommand struct {
+	CommandUUID  string    `db:"command_uuid"`
+	DeviceID     string    `db:"device_id"`
+	CmdVerb      string    `db:"cmd_verb"`
+	SettingURI   string    `db:"setting_uri"`
+	SettingValue string    `db:"setting_value"`
+	DataType     uint16    `db:"data_type"`
+	SystemOrigin bool      `db:"system_origin"`
+	CreatedAt    time.Time `db:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"`
+}
+
+// /////////////////////////////////////////////////////////////
+// MDMWindowsCommand type
+// Represents a command that has been already sent and
+// that is stored in the windows_mdm_commands table
+type MDMWindowsCommand struct {
+	CommandUUID  string    `db:"command_uuid"`
+	DeviceID     string    `db:"device_id"`
+	SessionID    string    `db:"session_id"`
+	MessageID    string    `db:"message_id"`
+	CommandID    string    `db:"command_id"`
+	CmdVerb      string    `db:"cmd_verb"`
+	SettingURI   string    `db:"setting_uri"`
+	SettingValue string    `db:"setting_value"`
+	DataType     uint16    `db:"data_type"`
+	SystemOrigin bool      `db:"system_origin"`
+	ErrorCode    string    `db:"rx_error_code"`
+	CreatedAt    time.Time `db:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"`
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 )
 
 // MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
@@ -89,4 +90,166 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevi
 	}
 
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+}
+
+// MDMWindowsInsertPendingCommand inserts a new WindowMDMPendingCommand in the database
+func (ds *Datastore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fleet.MDMWindowsPendingCommand) error {
+	stmt := `
+		INSERT INTO windows_mdm_pending_commands (
+		command_uuid,
+		device_id,
+		cmd_verb,
+		setting_uri,
+		setting_value,
+		data_type,
+		system_origin ) VALUES (?, ?, ?, ?, ?, ?, ?)
+	`
+	_, err := ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		cmd.CommandUUID,
+		cmd.DeviceID,
+		cmd.CmdVerb,
+		cmd.SettingURI,
+		cmd.SettingValue,
+		cmd.DataType,
+		cmd.SystemOrigin)
+	if err != nil {
+		if isDuplicate(err) {
+			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsPendingCommand", cmd.CommandUUID))
+		}
+		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsPendingCommand")
+	}
+
+	return nil
+}
+
+// MDMWindowsListPendingCommands retrieves all commands for a given device ID from the windows_mdm_pending_commands table
+func (ds *Datastore) MDMWindowsListPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {
+	var commands []*fleet.MDMWindowsPendingCommand
+
+	query := `
+        SELECT
+            command_uuid,
+            device_id,
+            cmd_verb,
+            setting_uri,
+            setting_value,
+            data_type,
+			system_origin,
+            created_at,
+            updated_at
+        FROM
+            windows_mdm_pending_commands
+        WHERE
+            device_id = ?
+    `
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, deviceID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by device id")
+	}
+
+	return commands, nil
+}
+
+// MDMWindowsInsertCommand inserts a new WindowMDMCommand in the database
+func (ds *Datastore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDMWindowsCommand) error {
+	stmt := `
+		INSERT INTO windows_mdm_commands (
+		command_uuid,
+		device_id,
+		session_id,
+		message_id,
+		command_id,
+		cmd_verb,
+		setting_uri,
+		setting_value,
+		data_type,
+		system_origin,
+		rx_error_code ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	_, err := ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		cmd.CommandUUID,
+		cmd.DeviceID,
+		cmd.SessionID,
+		cmd.MessageID,
+		cmd.CommandID,
+		cmd.CmdVerb,
+		cmd.SettingURI,
+		cmd.SettingValue,
+		cmd.DataType,
+		cmd.SystemOrigin,
+		"")
+	if err != nil {
+		if isDuplicate(err) {
+			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommand", cmd.CommandUUID))
+		}
+		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
+	}
+
+	return nil
+}
+
+// MDMWindowsUpdateCommandErrorCode updates the rx_error_code for a given command that matches with device_id, session_id, message_id and command_id.
+func (ds *Datastore) MDMWindowsUpdateCommandErrorCode(ctx context.Context, deviceID, sessionID, messageID, commandID, errorCode string) error {
+	query := `
+        UPDATE
+            windows_mdm_commands
+        SET
+            rx_error_code = ?
+        WHERE
+            device_id = ? AND
+            session_id = ? AND
+            message_id = ? AND
+            command_id = ?
+    `
+
+	_, err := ds.writer(ctx).ExecContext(ctx, query, errorCode, deviceID, sessionID, messageID, commandID)
+	if err != nil {
+		return errors.Wrap(err, "updating windows command rx_error_code")
+	}
+
+	return nil
+}
+
+// MDMWindowsListCommands retrieves all commands for a given device ID from the windows_mdm_commands table
+func (ds *Datastore) MDMWindowsListCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
+	var commands []*fleet.MDMWindowsCommand
+
+	query := `
+        SELECT
+            command_uuid,
+            device_id,
+            session_id,
+            message_id,
+            command_id,
+            cmd_verb,
+            setting_uri,
+            setting_value,
+            data_type,
+            system_origin,
+            rx_error_code,
+            created_at,
+            updated_at
+        FROM
+            windows_mdm_commands
+        WHERE
+            device_id = ?
+    `
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, deviceID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "get Windows MDM commands by device id")
+	}
+
+	return commands, nil
 }

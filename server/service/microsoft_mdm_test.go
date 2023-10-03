@@ -227,7 +227,7 @@ func TestValidSyncMLCmdStatus(t *testing.T) {
 	testCmdRef := "testcmdref"
 	testCmdOrig := "testcmdorig"
 	testStatusCode := "teststatuscode"
-	cmdMsg := NewSyncMLCmdStatus(testMsgRef, testCmdRef, testCmdOrig, testStatusCode)
+	cmdMsg := newSyncMLCmdStatus(testMsgRef, testCmdRef, testCmdOrig, testStatusCode)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -242,7 +242,7 @@ func TestValidSyncMLCmdStatus(t *testing.T) {
 
 func TestValidNewSyncMLCmdGet(t *testing.T) {
 	testOmaURI := "testuri"
-	cmdMsg := NewNewSyncMLCmdGet(testOmaURI)
+	cmdMsg := newSyncMLNoFormat(fleet.CmdGet, testOmaURI)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -255,7 +255,7 @@ func TestValidNewSyncMLCmdGet(t *testing.T) {
 func TestValidNewSyncMLCmdBool(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"
-	cmdMsg := NewSyncMLCmdBool(mdm_types.CmdReplace, testOmaURI, testData)
+	cmdMsg := newSyncMLCmdBool(mdm_types.CmdReplace, testOmaURI, testData)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -271,7 +271,7 @@ func TestValidNewSyncMLCmdBool(t *testing.T) {
 func TestValidNewSyncMLCmdInt(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"
-	cmdMsg := NewSyncMLCmdInt(mdm_types.CmdReplace, testOmaURI, testData)
+	cmdMsg := newSyncMLCmdInt(mdm_types.CmdReplace, testOmaURI, testData)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -287,7 +287,7 @@ func TestValidNewSyncMLCmdInt(t *testing.T) {
 func TestValidSyncMLCmdText(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"
-	cmdMsg := NewSyncMLCmdText(mdm_types.CmdReplace, testOmaURI, testData)
+	cmdMsg := newSyncMLCmdText(mdm_types.CmdReplace, testOmaURI, testData)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -303,7 +303,7 @@ func TestValidSyncMLCmdText(t *testing.T) {
 func TestValidSyncMLCmdXml(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"
-	cmdMsg := NewSyncMLCmdXml(mdm_types.CmdReplace, testOmaURI, testData)
+	cmdMsg := newSyncMLCmdXml(mdm_types.CmdReplace, testOmaURI, testData)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
@@ -318,7 +318,7 @@ func TestValidSyncMLCmdXml(t *testing.T) {
 
 func TestValidSyncMLCmdAlert(t *testing.T) {
 	testData := "1234"
-	cmdMsg := NewSyncMLCmdAlert(testData)
+	cmdMsg := newSyncMLNoItem(fleet.CmdAlert, testData)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
