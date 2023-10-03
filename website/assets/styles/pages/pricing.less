@@ -33,13 +33,15 @@
     max-width: 1120px;
   }
   [purpose='pricing-switch'] {
-    width: 280px;
+    width: 600px;
     cursor: pointer;
     border: 1px solid #E2E4EA;
     border-radius: 28px;
-    background: #EBF2F5;
+    background: #F8F8F8;
     position: relative;
-    box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.10) inset;
+    margin-bottom: 40px;
+    margin-top: 40px;
     [purpose='pricing-tier-switch'] {
       position: absolute;
       top: 0px;
@@ -53,15 +55,23 @@
       transition: 0.25s all;
     }
     [purpose='pricing-switch-option'] {
-      padding: 16px;
-      width: 140px;
+      padding: 16px 40px;
       text-align: center;
       cursor: pointer;
       z-index: 3;
       user-select: none;
+      white-space: nowrap;
     }
     .security-selected {
-      transform: translateX(140px);
+      width: 251px;
+      transform: translateX(167px);
+    }
+    .it-selected {
+      width: 183px;
+      transform: translateX(416px);
+    }
+    .all-selected {
+      width: 167px;
     }
   }
 
@@ -69,7 +79,7 @@
     padding: 40px;
     border-radius: 15px;
     margin-right: 6px;
-    width: 380px;
+    width: 50%;
     strong {
       color: #192147;
       font-size: 16px;
@@ -78,7 +88,7 @@
   }
 
   [purpose='premium-card'] {
-    width: 66%;
+    width: 50%;
   }
   [purpose='premium-tier-card'] {
     padding: 40px;
@@ -147,7 +157,7 @@
     }
   }
   [purpose='pricing-tier-title'] {
-    text-align: left;
+    text-align: center;
     h1 {// Price e.g., $0
       font-weight: 700;
       font-size: 32px;
@@ -166,7 +176,7 @@
       font-size: 14px;
       line-height: 20px;
       color: #515774;
-      margin-bottom: 24px;
+      margin-bottom: 4px;
     }
     h4 { // "Starting at"
       font-weight: 400;
@@ -255,7 +265,7 @@
   }
 
   [purpose='features-table'] {
-    padding-top: 80px;
+    // padding-top: 80px;
   }
   [purpose='mobile-feature-table-section'] {
     margin-bottom: 16px;
@@ -410,6 +420,28 @@
     }
   }
 
+  @media (max-width: 768px) {
+    [purpose='pricing-switch'] {
+      width: 250px;
+      [purpose='pricing-tier-switch'] {
+        height: 56px;
+      }
+      [purpose='pricing-switch-option'] {
+        height: 56px;
+      }
+      .security-selected {
+        width: 250px;
+        transform: translateY(56px);
+      }
+      .it-selected {
+        width: 250px;
+        transform: translateY(113px);
+      }
+      .all-selected {
+        width: 250px;
+      }
+    }
+  }
   @media (max-width: 575px) {
     // >575px:
     //   - The Premium Cloud card switches to a column layout
