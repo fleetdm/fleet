@@ -46,6 +46,7 @@ First, take the existing servers offline.
 Run database migrations:
 
 ```sh
+# make sure database servers currently offline or this will fail
 fleet prepare db
 ```
 
