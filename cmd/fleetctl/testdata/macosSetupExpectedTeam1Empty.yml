@@ -17,5 +17,6 @@ spec:
       macos_updates:
         deadline: null
         minimum_version: null
+    scripts: null
     name: tm1
 
