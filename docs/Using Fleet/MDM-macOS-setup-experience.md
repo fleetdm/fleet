@@ -161,7 +161,7 @@ Apple requires that your package is a distribution package. Verify that the pack
   $ ls expanded-package
   ```
 
-  If your package is a distribution package should see a `Distribution` file.
+  If your package is a distribution package you should see a `Distribution` file.
 
 2. If you don't see a `Distribution` file, run the following command to convert your package into a distribution package.
 
