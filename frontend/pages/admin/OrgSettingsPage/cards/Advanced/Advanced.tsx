@@ -27,7 +27,7 @@ const Advanced = ({
     hostExpiryWindow: appConfig.host_expiry_settings.host_expiry_window || 0,
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
     disableQueryReports:
-      appConfig.server_settings.query_reports_disabled || false, // double-check default value!
+      appConfig.server_settings.query_reports_disabled || false,
   });
 
   const {
@@ -182,6 +182,8 @@ const Advanced = ({
                 value={disableQueryReports}
                 parseTarget
                 // TODO - update to JSX once tooltip wrapper refactor is merged
+                // TODO - once refactor is merged, have this and bove tooltips disappear more
+                // quickly to get out of users' way
                 tooltip={
                   '<p>Disabling query reports will decrease database usage, <br />\
                   but will prevent you from accessing query results in<br /> \
