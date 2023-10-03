@@ -98,12 +98,18 @@ module.exports = {
       };
     }
 
-    // Creating a custom codeblock renderer function to render mermaid code blocks (```mermaid```) without the added <pre> tags.
-    customRenderer.code = function(code) {
-      if(code.match(/\<!-- __LANG=\%mermaid\%__ --\>/g)) {
-        return '<code>'+_.escape(code)+'\n</code>';
-      } else {
-        return '<pre><code>'+_.escape(code)+'\n</code></pre>';
+    // Creating a custom codeblock renderer function to add syntax highlighting keywords and render mermaid code blocks (```mermaid```) without the added <pre> tags.
+    customRenderer.code = function(code, infostring) {
+      if(infostring === 'mermaid') {
+        return `<code class="mermaid">${_.escape(code)}</code>`;
+      } else if(infostring === 'js') {// Interpret `js` as `javascript`
+        return `<pre><code class="hljs javascript">${_.escape(code)}</code></pre>`;
+      } else if(infostring === 'bash' || infostring === 'sh') {// Interpret `sh` and `bash` as `bash`
+        return `<pre><code class="hljs bash">${_.escape(code)}</code></pre>`;
+      } else if(infostring !== '') {// leaving the code language as-is if the infoString is anything else.
+        return `<pre><code class="hljs ${_.escape(infostring)}">${_.escape(code)}</code></pre>`;
+      } else {// When unspecified, default to `text`
+        return `<pre><code class="nohighlight">${_.escape(code)}</code></pre>`;
       }
     };
 

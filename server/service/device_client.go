@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/rs/zerolog/log"
 )
 
 // Device client is used consume the `device/...` endpoints and meant to be used by Fleet Desktop
@@ -47,6 +48,7 @@ func NewDeviceClient(addr string, insecureSkipVerify bool, rootCA string, fleetC
 // ErrUnauthenticated. The client will call this function to get a fresh token
 // and retry if it returns a different, non-empty token.
 func (dc *DeviceClient) WithInvalidTokenRetry(fn func() string) {
+	log.Debug().Msg("setting invalid token retry hook")
 	dc.invalidTokenRetryFunc = fn
 }
 
@@ -55,7 +57,7 @@ func (dc *DeviceClient) WithInvalidTokenRetry(fn func() string) {
 // (the pathFmt is used as-is as path). It will retry if the request fails due
 // to an invalid token and the invalidTokenRetryFunc field is set.
 func (dc *DeviceClient) request(verb, pathFmt, token, query string, params interface{}, responseDest interface{}) error {
-	const maxAttempts = 3
+	const maxAttempts = 4
 	var attempt int
 	for {
 		attempt++
@@ -67,11 +69,18 @@ func (dc *DeviceClient) request(verb, pathFmt, token, query string, params inter
 		reqErr := dc.requestAttempt(verb, path, query, params, responseDest)
 		if attempt >= maxAttempts || dc.invalidTokenRetryFunc == nil || token == "-" || !errors.Is(reqErr, ErrUnauthenticated) {
 			// no retry possible, return the result
+			if reqErr != nil {
+				log.Debug().Msgf("not retrying API error; attempt=%d, hook set=%t, token unset=%t, error is auth=%t",
+					attempt, dc.invalidTokenRetryFunc != nil, token == "-", errors.Is(reqErr, ErrUnauthenticated))
+			}
 			return reqErr
 		}
 
-		time.Sleep(time.Duration(attempt) * time.Second)
+		delay := time.Duration(attempt) * time.Second
+		log.Debug().Msgf("retrying API error in %s", delay)
+		time.Sleep(delay)
 		newToken := dc.invalidTokenRetryFunc()
+		log.Debug().Msgf("retrying API error; token is different=%t", newToken != "" && newToken != token)
 		if newToken != "" {
 			token = newToken
 		}
