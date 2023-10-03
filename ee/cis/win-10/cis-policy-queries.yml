@@ -6683,7 +6683,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\FDVDiscoveryVolumeType' AND data = '<none>');
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.1.1
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.1.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -6707,7 +6707,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\FDVRecovery' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.1.2
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.1.2
   contributors: rachelelysia
 ---
 apiVersion: v1
