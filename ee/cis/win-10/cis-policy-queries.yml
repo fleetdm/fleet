@@ -1453,7 +1453,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\scremoveoption' AND CAST(data AS INTEGER) >= 1 AND CAST(data AS INTEGER) <= 3);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_2.3.7.8
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_2.3.7.9
   contributors: marcosd4h
 ---
 apiVersion: v1
