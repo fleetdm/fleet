@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -460,22 +461,15 @@ func runMDMCommandEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}, nil
 }
 
-var (
-	appleMDMPremiumCommands = map[string]bool{
-		"EraseDevice": true,
-		"DeviceLock":  true,
-	}
-
-	microsoftMDMPremiumCommands = map[string]bool{
-		"Wipe": true,
-	}
-)
-
 func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
 	// TODO(mna): epic mentions "GitOps users can run commands", check that it is what we want
 	// (how can gitops run a command?). This complicates a lot of things, as gitops has no read
 	// permissions at all (e.g. HostByIdentifier call in fleetctl, list permission here, etc.).
 
+	// TODO(mna): this doesn't work as it assumes a Microsoft Authz (it could be macOS, we don't know
+	// until we've checked the hosts). I think that now that this is a platform-agnostic endpoint,
+	// authorization would be the same regardless of platform. Confirm this and we can reuse a single
+	// MDMApple/Microsoft/CommandAuthz struct.
 	hosts, err := svc.authorizeAllHostsTeams(ctx, deviceIDs, false, fleet.ActionWrite, &fleet.MDMMicrosoftCommandAuthz{})
 	if err != nil {
 		return nil, err
@@ -486,7 +480,8 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, devi
 
 	platforms := make(map[string]bool)
 	for _, h := range hosts {
-		// TODO(mna): hosts lite does not have mdm info
+		// TODO(mna): hosts lite does not have mdm info, add it to hosts lite or
+		// create a new get non-lite hosts by uuids?
 		if !h.MDMInfo.IsFleetEnrolled() {
 			err := fleet.NewInvalidArgumentError("device_ids", "Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.").WithStatus(http.StatusPreconditionFailed)
 			return nil, ctxerr.Wrap(ctx, err, "check host mdm enrollment")
@@ -514,78 +509,26 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, devi
 		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
 	}
-	_ = rawXMLCmd
 
 	// the rest is platform-specific (validation of command payload, enqueueing, etc.)
-
-	/*
-		// a command is a SyncML message
-		var cmdMsg fleet.SyncML
-		if err := xml.Unmarshal(rawXMLCmd, &cmdMsg); err != nil {
-			err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't valid XML. Please provide a file with valid XML: %v", err))
-			return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
-		}
-		cmd, err := mdm.DecodeCommand(rawXMLCmd)
-		if err != nil {
-			err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
-			return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
-		}
-	*/
-
-	/*
-		if microsoftMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
-			lic, err := svc.License(ctx)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get license")
-			}
-			if !lic.IsPremium() {
-				return nil, fleet.ErrMissingLicense
-			}
-		}
-	*/
-
-	/*
-			if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
-				// if at least one UUID enqueued properly, return success, otherwise return
-				// error
-				var apnsErr *apple_mdm.APNSDeliveryError
-				var mysqlErr *mysql.MySQLError
-				if errors.As(err, &apnsErr) {
-					if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
-						// some hosts properly received the command, so return success, with the list
-						// of failed uuids.
-						return http.StatusOK, &fleet.CommandEnqueueResult{
-							CommandUUID: cmd.CommandUUID,
-							RequestType: cmd.Command.RequestType,
-							FailedUUIDs: apnsErr.FailedUUIDs,
-						}, nil
-					}
-					// push failed for all hosts
-					err := fleet.NewBadGatewayError("Apple push notificiation service", err)
-					return http.StatusBadGateway, nil, ctxerr.Wrap(ctx, err, "enqueue command")
-
-				} else if errors.As(err, &mysqlErr) {
-					// enqueue may fail with a foreign key constraint error 1452 when one of
-					// the hosts provided is not enrolled in nano_enrollments. Detect when
-					// that's the case and add information to the error.
-					if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
-						err := fleet.NewInvalidArgumentError(
-							"device_ids",
-							fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err),
-						).WithStatus(http.StatusConflict)
-						return http.StatusConflict, nil, ctxerr.Wrap(ctx, err, "enqueue command")
-					}
-				}
-
-				return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
-			}
-		return &fleet.CommandEnqueueResult{
-			CommandUUID: cmd.CommandUUID,
-			RequestType: cmd.Command.RequestType,
-		}, nil
-	*/
-	return &fleet.CommandEnqueueResult{}, nil
+	switch commandPlatform {
+	case "windows":
+		return svc.enqueueMicrosoftMDMCommand(ctx, rawXMLCmd, deviceIDs)
+	default:
+		return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, deviceIDs)
+	}
 }
+
+var (
+	appleMDMPremiumCommands = map[string]bool{
+		"EraseDevice": true,
+		"DeviceLock":  true,
+	}
+
+	microsoftMDMPremiumCommands = map[string]bool{
+		"Wipe": true,
+	}
+)
 
 func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
 	cmd, err := mdm.DecodeCommand(rawXMLCmd)
@@ -644,6 +587,88 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 	}, nil
 }
 
-func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+	// a command is a SyncML message
+	var cmdMsg fleet.SyncML
+	if err := xml.Unmarshal(rawXMLCmd, &cmdMsg); err != nil {
+		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't valid XML: %v", err))
+		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
+	}
+	if err := cmdMsg.IsValidHeader(); err != nil {
+		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't a valid MDM command: %v", err))
+		return nil, ctxerr.Wrap(ctx, err, "validate SyncML header")
+	}
+	if err := cmdMsg.IsValidBody(); err != nil {
+		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't a valid MDM command: %v", err))
+		return nil, ctxerr.Wrap(ctx, err, "validate SyncML body")
+	}
+
+	// any non-exec commands provided?
+	if len(cmdMsg.SyncBody.Add)+len(cmdMsg.SyncBody.Alert)+len(cmdMsg.SyncBody.Atomic)+len(cmdMsg.SyncBody.Delete)+
+		len(cmdMsg.SyncBody.Get)+len(cmdMsg.SyncBody.Replace)+len(cmdMsg.SyncBody.Status)+len(cmdMsg.SyncBody.Results)+
+		len(cmdMsg.SyncBody.Raw) > 0 {
+		err = fleet.NewInvalidArgumentError("command", "You can run only <Exec> command type.")
+		return nil, ctxerr.Wrap(ctx, err, "validate SyncML commands")
+	}
+	if len(cmdMsg.SyncBody.Exec) != 1 {
+		err = fleet.NewInvalidArgumentError("command", "You can run only a single <Exec> command.")
+		return nil, ctxerr.Wrap(ctx, err, "validate SyncML Exec commands")
+	}
+
+	cmd := cmdMsg.SyncBody.Exec[0]
+	_ = cmd
+
 	panic("unimplemented")
+	/*
+		if microsoftMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
+			lic, err := svc.License(ctx)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get license")
+			}
+			if !lic.IsPremium() {
+				return nil, fleet.ErrMissingLicense
+			}
+		}
+	*/
+
+	/*
+			if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
+				// if at least one UUID enqueued properly, return success, otherwise return
+				// error
+				var apnsErr *apple_mdm.APNSDeliveryError
+				var mysqlErr *mysql.MySQLError
+				if errors.As(err, &apnsErr) {
+					if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
+						// some hosts properly received the command, so return success, with the list
+						// of failed uuids.
+						return http.StatusOK, &fleet.CommandEnqueueResult{
+							CommandUUID: cmd.CommandUUID,
+							RequestType: cmd.Command.RequestType,
+							FailedUUIDs: apnsErr.FailedUUIDs,
+						}, nil
+					}
+					// push failed for all hosts
+					err := fleet.NewBadGatewayError("Apple push notificiation service", err)
+					return http.StatusBadGateway, nil, ctxerr.Wrap(ctx, err, "enqueue command")
+
+				} else if errors.As(err, &mysqlErr) {
+					// enqueue may fail with a foreign key constraint error 1452 when one of
+					// the hosts provided is not enrolled in nano_enrollments. Detect when
+					// that's the case and add information to the error.
+					if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
+						err := fleet.NewInvalidArgumentError(
+							"device_ids",
+							fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err),
+						).WithStatus(http.StatusConflict)
+						return http.StatusConflict, nil, ctxerr.Wrap(ctx, err, "enqueue command")
+					}
+				}
+
+				return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
+			}
+		return &fleet.CommandEnqueueResult{
+			CommandUUID: cmd.CommandUUID,
+			RequestType: cmd.Command.RequestType,
+		}, nil
+	*/
 }
