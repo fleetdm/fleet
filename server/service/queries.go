@@ -239,6 +239,7 @@ type modifyQueryResponse struct {
 func (r modifyQueryResponse) error() error { return r.Err }
 
 func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	fmt.Println("howdy")
 	req := request.(*modifyQueryRequest)
 	query, err := svc.ModifyQuery(ctx, req.ID, req.QueryPayload)
 	if err != nil {
@@ -290,6 +291,9 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 	if p.ObserverCanRun != nil {
 		query.ObserverCanRun = *p.ObserverCanRun
+	}
+	if p.DiscardData != nil {
+		query.DiscardData = *p.DiscardData
 	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)

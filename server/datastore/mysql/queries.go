@@ -213,7 +213,8 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 			min_osquery_version = ?,
 			schedule_interval   = ?,
 			automations_enabled = ?,
-			logging_type        = ?
+			logging_type        = ?,
+			discard_data        = ?
 		WHERE id = ?
 	`
 	result, err := ds.writer(ctx).ExecContext(
@@ -232,6 +233,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 		q.Interval,
 		q.AutomationsEnabled,
 		q.Logging,
+		q.DiscardData,
 		q.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating query")
@@ -301,6 +303,7 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 			q.logging_type,
 			q.created_at,
 			q.updated_at,
+			q.discard_data,
 			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, 
 			COALESCE(u.email, '') AS author_email,
 			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
@@ -350,6 +353,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 			q.logging_type,
 			q.created_at,
 			q.updated_at,
+			q.discard_data,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
 			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,

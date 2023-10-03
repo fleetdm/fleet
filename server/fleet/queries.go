@@ -36,6 +36,8 @@ type QueryPayload struct {
 	AutomationsEnabled *bool `json:"automations_enabled"`
 	// Logging is set to "snapshot" if not set when creating a query.
 	Logging *string `json:"logging"`
+	// DiscardData is set to false if not set when creating a query.
+	DiscardData *bool `json:"discard_data"`
 }
 
 // Query represents a osquery query to run on devices.
