@@ -27,6 +27,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { Link } from "react-router";
 import Icon from "components/Icon";
 import { IConfig } from "interfaces/config";
+import InfoBanner from "components/InfoBanner";
 
 const baseClass = "save-query-modal";
 export interface ISaveQueryModalProps {
@@ -153,10 +154,21 @@ const SaveQueryModal = ({
     [setSelectedPlatformOptions]
   );
 
-  const renderDiscardDataCheckbox = () => {
+  const renderDiscardDataOption = () => {
     const disable = query_reports_disabled && !forceEditDiscardData;
     return (
       <>
+        {["differential", "differential_ignore_removals"].includes(
+          selectedLoggingType
+        ) && (
+          <InfoBanner color="purple-bold-border">
+            <>
+              The <b>Discard data</b> setting is ignored when differential
+              logging is enabled. This <br />
+              query&apos;s results will not be saved in Fleet.
+            </>
+          </InfoBanner>
+        )}
         <Checkbox
           name="discardData"
           onChange={setDiscardData}
@@ -303,7 +315,7 @@ const SaveQueryModal = ({
               label="Logging"
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
             />
-            {!isLoadingAppConfig && renderDiscardDataCheckbox()}
+            {!isLoadingAppConfig && renderDiscardDataOption()}
           </>
         )}
         <div className="modal-cta-wrap">

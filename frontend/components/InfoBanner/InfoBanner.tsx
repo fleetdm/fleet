@@ -9,8 +9,7 @@ const baseClass = "info-banner";
 export interface IInfoBannerProps {
   children?: React.ReactNode;
   className?: string;
-  /** default light purple */
-  color?: "yellow" | "grey";
+  color?: "purple" | "purple-bold-border" | "yellow" | "grey";
   pageLevel?: boolean;
   /** cta and link are mutually exclusive */
   cta?: JSX.Element;
@@ -22,7 +21,7 @@ export interface IInfoBannerProps {
 const InfoBanner = ({
   children,
   className,
-  color,
+  color = "purple",
   pageLevel,
   cta,
   closable,
@@ -30,8 +29,8 @@ const InfoBanner = ({
 }: IInfoBannerProps): JSX.Element => {
   const wrapperClasses = classNames(
     baseClass,
+    `${baseClass}__${color}`,
     {
-      [`${baseClass}__${color}`]: !!color,
       [`${baseClass}__page-banner`]: !!pageLevel,
     },
     className

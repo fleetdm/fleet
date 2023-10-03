@@ -30,6 +30,13 @@
     font-weight: $xbold;
   }
 
+  .info-banner {
+    margin-bottom: 1.5rem;
+    &__info {
+      line-height: 21px;
+    }
+  }
+
   &__disabled-discard-data-checkbox {
     @include disabled;
   }
