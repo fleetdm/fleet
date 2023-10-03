@@ -51,7 +51,7 @@ fleetctl generate mdm-apple --email <email> --org <org>
 3. Upload your CSR and input a friendly name, such as "Fleet."
 4. Download the APNs certificate.
 
-> **Important** Take note of the Apple ID you use to sign into Apple Push Certificates Portal. You'll need to use the same Apple ID when renewing your APNs certificate.
+> **Important:** Take note of the Apple ID you use to sign into Apple Push Certificates Portal. You'll need to use the same Apple ID when renewing your APNs certificate.
 
 ### Step 3: configure Fleet with the generated files
 Restart the Fleet server with the contents of the APNs certificate, APNs private key, SCEP certificate, and SCEP private key in the following environment variables:
