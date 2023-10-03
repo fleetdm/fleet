@@ -380,7 +380,7 @@ Releasing the Mac can be automated using the Fleet API. In this example, we'll r
 
 1. Open a freshly wiped test Mac and continue through macOS Setup Assistant.
 
-2. After you click past the **Remote Management** pane, send a request to the [`GET /hosts/identifier/{uuid}` API route](../REST%20API/rest-api.md#get-host-by-identifier). In the response, make sure all profiles in the `profiles` array have `status` set to "verifying".
+2. After you click past the **Remote Management** pane, send a request to the [`GET /hosts/identifier/{uuid}` API route](../REST%20API/rest-api.md#get-host-by-identifier). In the response, wait until all profiles in the `"profiles"` array, except for `"Disk encryption"`, have `"status"` set to `"verifying"`.
 
 3. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using the [Fleet API](../REST%20API/rest-api.md#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
 
@@ -412,11 +412,11 @@ Set `await_device_configured` to `true` in your automatic enrollment profile. Le
 
 1. Open a freshly wiped test Mac and continue through macOS Setup Assistant.
 
-2. After you click past the **Remote Management** pane, send a request to the [`GET /hosts/identifier/{uuid}` API route](../REST%20API/rest-api.md#get-host-by-identifier). In the response, make sure all profiles in the `profiles` array have `status` set to "verifying".
+2. After you click past the **Remote Management** pane, send a request to the [`GET /hosts/identifier/{uuid}` API route](../REST%20API/rest-api.md#get-host-by-identifier). In the response, wait until the `"Enforce password length (10 characters)"` profile in the `"profiles"` array has `"status"` set to `"verifying"`. 
 
 3. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using the [Fleet API](../REST%20API/rest-api.md#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
 
-6. At this pane, try to advance with a password that's 9 characters to confirm that your password must be at least 10 characters long.
+4. At this pane, try to advance with a password that's 9 characters to confirm that your password must be at least 10 characters long.
 
 <meta name="pageOrderInSection" value="1505">
 <meta name="title" value="MDM macOS setup">
