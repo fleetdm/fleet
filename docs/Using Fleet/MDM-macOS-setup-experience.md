@@ -36,7 +36,7 @@ Fleet UI:
 
 fleetctl CLI:
 
-1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
+1. Create a `fleet-config.yaml` file or add to your existing `config` YAML file:
 
   ```yaml
   apiVersion: v1
