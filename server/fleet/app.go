@@ -167,6 +167,15 @@ type MDM struct {
 	/////////////////////////////////////////////////////////////////
 }
 
+// AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform
+// (macOS or Windows) has MDM enabled and configured.
+func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
+	// explicitly check for the feature flag to account for the edge case of:
+	// 1. FF enabled, windows is turned on
+	// 2. FF disabled on server restart
+	return m.EnabledAndConfigured || (config.IsMDMFeatureFlagEnabled() && m.WindowsEnabledAndConfigured)
+}
+
 // versionStringRegex is used to validate that a version string is in the x.y.z
 // format only (no prerelease or build metadata).
 var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
