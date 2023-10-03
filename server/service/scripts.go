@@ -373,3 +373,40 @@ func (svc *Service) GetScript(ctx context.Context, scriptID uint, withContent bo
 
 	return nil, nil, fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Host Script Details
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostScriptDetailsRequest struct {
+	HostID      uint              `url:"id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+type getHostScriptDetailsResponse struct {
+	Scripts []*fleet.HostScriptDetail `json:"scripts"`
+	Meta    *fleet.PaginationMetadata `json:"meta"`
+	Err     error                     `json:"error,omitempty"`
+}
+
+func (r getHostScriptDetailsResponse) error() error { return r.Err }
+
+func getHostScriptDetailsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostScriptDetailsRequest)
+	scripts, meta, err := svc.GetHostScriptDetails(ctx, req.HostID, req.ListOptions)
+	if err != nil {
+		return getHostScriptDetailsResponse{Err: err}, nil
+	}
+	return getHostScriptDetailsResponse{
+		Scripts: scripts,
+		Meta:    meta,
+	}, nil
+}
+
+func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, nil, fleet.ErrMissingLicense
+}

@@ -674,3 +674,156 @@ func TestSavedScripts(t *testing.T) {
 		})
 	}
 }
+
+func TestHostScriptDetails(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	testCases := []struct {
+		name                 string
+		user                 *fleet.User
+		shouldFailTeamRead   bool
+		shouldFailGlobalRead bool
+	}{
+		{
+			name:                 "global admin",
+			user:                 &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: false,
+		},
+		{
+			name:                 "global maintainer",
+			user:                 &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: false,
+		},
+		{
+			name:                 "global observer",
+			user:                 &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: false,
+		},
+		{
+			name:                 "global observer+",
+			user:                 &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: false,
+		},
+		{
+			name:                 "global gitops",
+			user:                 &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team admin, belongs to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team maintainer, belongs to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team observer, belongs to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team observer+, belongs to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			shouldFailTeamRead:   false,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team gitops, belongs to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team admin, DOES NOT belong to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team maintainer, DOES NOT belong to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team observer, DOES NOT belong to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team observer+, DOES NOT belong to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserverPlus}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+		{
+			name:                 "team gitops, DOES NOT belong to team",
+			user:                 &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}}},
+			shouldFailTeamRead:   true,
+			shouldFailGlobalRead: true,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+			t.Run("no team host script details", func(t *testing.T) {
+				ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+					require.Equal(t, uint(42), hostID)
+					return &fleet.Host{ID: hostID}, nil
+				}
+				ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+					require.Nil(t, teamID)
+					return []*fleet.HostScriptDetail{}, nil, nil
+				}
+				_, _, err := svc.GetHostScriptDetails(ctx, 42, fleet.ListOptions{})
+				checkAuthErr(t, tt.shouldFailGlobalRead, err)
+			})
+
+			t.Run("team host script details", func(t *testing.T) {
+				ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+					require.Equal(t, uint(42), hostID)
+					return &fleet.Host{ID: hostID, TeamID: ptr.Uint(1)}, nil
+				}
+				ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+					require.NotNil(t, teamID)
+					require.Equal(t, uint(1), *teamID)
+					return []*fleet.HostScriptDetail{}, nil, nil
+				}
+				_, _, err := svc.GetHostScriptDetails(ctx, 42, fleet.ListOptions{})
+				checkAuthErr(t, tt.shouldFailTeamRead, err)
+			})
+
+			t.Run("host not found", func(t *testing.T) {
+				ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+					require.Equal(t, uint(43), hostID)
+					return nil, &notFoundError{}
+				}
+				_, _, err := svc.GetHostScriptDetails(ctx, 43, fleet.ListOptions{})
+				if tt.shouldFailGlobalRead {
+					checkAuthErr(t, tt.shouldFailGlobalRead, err)
+				} else {
+					require.True(t, fleet.IsNotFound(err))
+				}
+			})
+		})
+	}
+}

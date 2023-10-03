@@ -820,4 +820,7 @@ type Service interface {
 	// GetScript returns the script corresponding to the provided id. If the
 	// download is requested, it also returns the script's contents.
 	GetScript(ctx context.Context, scriptID uint, downloadRequested bool) (*Script, []byte, error)
+
+	// GetHostScriptDetails returns a list of scripts that apply to the provided host.
+	GetHostScriptDetails(ctx context.Context, hostID uint, opt ListOptions) ([]*HostScriptDetail, *PaginationMetadata, error)
 }
