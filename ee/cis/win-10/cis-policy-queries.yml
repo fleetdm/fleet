@@ -5394,7 +5394,7 @@ spec:
   query: |
     SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceGuard\EnableVirtualizationBasedSecurity' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_2.0.0, CIS_bullet_18.8.5.1
+  tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.5.1
   contributors: rachelelysia
 ---
 apiVersion: v1
