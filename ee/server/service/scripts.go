@@ -237,6 +237,28 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		}
 		return nil, ctxerr.Wrap(ctx, err, "create script")
 	}
+
+	var teamName *string
+	if teamID != nil && *teamID != 0 {
+		tm, err := svc.teamByIDOrName(ctx, teamID, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team name for create script activity")
+		}
+		teamName = &tm.Name
+	}
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAddedScript{
+			TeamID:     teamID,
+			TeamName:   teamName,
+			ScriptName: script.Name,
+		},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new activity for create script")
+	}
+
 	return savedScript, nil
 }
 
@@ -245,7 +267,33 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 	if err != nil {
 		return err
 	}
-	return ctxerr.Wrap(ctx, svc.ds.DeleteScript(ctx, script.ID), "delete script")
+
+	if err := svc.ds.DeleteScript(ctx, script.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete script")
+	}
+
+	var teamName *string
+	if script.TeamID != nil && *script.TeamID != 0 {
+		tm, err := svc.teamByIDOrName(ctx, script.TeamID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team name for delete script activity")
+		}
+		teamName = &tm.Name
+	}
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedScript{
+			TeamID:     script.TeamID,
+			TeamName:   teamName,
+			ScriptName: script.Name,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "new activity for delete script")
+	}
+
+	return nil
 }
 
 func (svc *Service) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
