@@ -7228,7 +7228,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVDiscoveryVolumeType' AND data = '<none>');
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.1
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7252,7 +7252,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVRecovery' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.2
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.2
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7272,7 +7272,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVManageDRA' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.3
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.3
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7292,7 +7292,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVRecoveryPassword' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.4
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.4
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7312,7 +7312,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVRecoveryKey' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.5
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.5
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7332,7 +7332,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVHideRecoveryPage' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.6
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.6
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7352,7 +7352,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVActiveDirectoryBackup' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.7
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.7
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7372,7 +7372,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVActiveDirectoryInfoToStore' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.8
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.8
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7392,7 +7392,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVRequireActiveDirectoryBackup' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.9
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.9
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7412,7 +7412,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVHardwareEncryption' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.10
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.10
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7431,7 +7431,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVPassphrase' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.11
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.11
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7451,7 +7451,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVAllowUserCert' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.12
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.12
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7471,7 +7471,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVEnforceUserCert' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.13
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.13
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -7491,7 +7491,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\FVE\RDVDenyWriteAccess' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.14
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.14
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -7510,7 +7510,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVDenyCrossOrg' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.9.11.3.15
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.9.3.15
   contributors: rachelelysia
 ---
 apiVersion: v1
