@@ -102,7 +102,7 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 
 		hlogger := log.With(logger, "host-id", host.ID)
 		//if debug {
-		logJSON(hlogger, time.Since(start), "authenticate_host_took")
+		logJSON(hlogger, time.Since(start).String(), "authenticate_host_took")
 		logJSON(hlogger, request, "request")
 		//}
 
