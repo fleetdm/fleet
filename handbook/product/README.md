@@ -77,7 +77,9 @@ For external contributors: please consider opening an issue with reference scree
 
 Once the draft has been approved, it moves to the "Settled" column on the drafting board. 
 
-Before assigning an engineering manager for [estimation](https://fleetdm.com/handbook/engineering#sprint-ceremonies), the product team should ensure the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
+Before assigning an engineering manager to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product team should ensure the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
+
+For bugs that have gone through design and are considered "Settled", the designer should remove the `:product` label and move the issue to the 'To be scheduled' column on the bugs board for the attention of the product manager.
 
 > The story's designer is responsible for ensuring the checklist has been completed, the requirements section is consistent with the Figma, and the group engineering manager has been assigned. 
 
