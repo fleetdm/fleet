@@ -29,6 +29,90 @@ func (s Script) AuthzType() string {
 	return "script"
 }
 
+// HostScriptDetail represents the details of a script that applies to a specific host.
+type HostScriptDetail struct {
+	// HostID is the ID of the host.
+	HostID uint `json:"-"`
+	// ScriptID is the ID of the script.
+	ScriptID uint `json:"script_id"`
+	// Name is the name of the script.
+	Name string `json:"name"`
+	// LastExecution is the most recent execution of the script on the host. It is nil if the script
+	// has never executed on the host.
+	LastExecution *HostScriptExecution `json:"last_execution"`
+}
+
+// NewHostScriptDetail creates a new HostScriptDetail and sets its LastExecution field based on the
+// provided details.
+func NewHostScriptDetail(hostID, scriptID uint, name string, executionID *string, executedAt *time.Time, exitCode *int64, hsrID *uint) *HostScriptDetail {
+	hs := HostScriptDetail{
+		HostID:   hostID,
+		ScriptID: scriptID,
+		Name:     name,
+	}
+	hs.setLastExecution(executionID, executedAt, exitCode, hsrID)
+	return &hs
+}
+
+// HostScriptExecution represents a single execution of a script on a host.
+type HostScriptExecution struct {
+	// HostID is the ID of the host.
+	HostID uint `json:"-"`
+	// ScriptID is the ID of the script.
+	ScriptID uint `json:"-"`
+	// HSRID is the unique row identifier of the host_script_results table for this execution.
+	HSRID uint `json:"-"`
+	// ExecutionID is a unique identifier for a single execution of the script.
+	ExecutionID string `json:"execution_id"`
+	// ExecutedAt represents the time that the script was executed on the host. It should correspond to
+	// the created_at field of the host_script_results table for the associated HSRID.
+	ExecutedAt time.Time `json:"executed_at"`
+	// Status is the status of the script execution. It is one of "pending", "ran", or "error". It
+	// is derived from the exit_code field of the host_script_results table for the associated HSRID.
+	Status string `json:"status"`
+}
+
+// SetLastExecution updates the LastExecution field of the HostScriptDetail if the provided details
+// are more recent than the current LastExecution. It returns true if the LastExecution was updated.
+func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *time.Time, exitCode *int64, hsrID *uint) bool {
+	if hsrID == nil || executionID == nil || executedAt == nil {
+		// no new execution, nothing to do
+		return false
+	}
+
+	newHSE := &HostScriptExecution{
+		HSRID:       *hsrID,
+		ExecutionID: *executionID,
+		ExecutedAt:  *executedAt,
+	}
+	switch {
+	case exitCode == nil:
+		newHSE.Status = "pending"
+	case *exitCode == 0:
+		newHSE.Status = "ran"
+	default:
+		newHSE.Status = "error"
+	}
+
+	if hs.LastExecution == nil {
+		// no previous execution, use the new one
+		hs.LastExecution = newHSE
+		return true
+	}
+	if newHSE.ExecutedAt.After(hs.LastExecution.ExecutedAt) {
+		// new execution is more recent, use it
+		hs.LastExecution = newHSE
+		return true
+	}
+	if newHSE.ExecutedAt == hs.LastExecution.ExecutedAt && newHSE.HSRID > hs.LastExecution.HSRID {
+		// same execution time, but new execution has a higher ID, use it
+		hs.LastExecution = newHSE
+		return true
+	}
+
+	return false
+}
+
 type HostScriptRequestPayload struct {
 	HostID         uint   `json:"host_id"`
 	ScriptID       *uint  `json:"script_id"`
@@ -125,10 +209,8 @@ func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
 
 const MaxScriptRuneLen = 10000
 
-var (
-	// anchored, so that it matches to the end of the line
-	scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
-)
+// anchored, so that it matches to the end of the line
+var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
 
 func ValidateHostScriptContents(s string) error {
 	if s == "" {

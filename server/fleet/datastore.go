@@ -1065,6 +1065,10 @@ type Datastore interface {
 	// ListScripts returns a paginated list of scripts corresponding to the
 	// criteria.
 	ListScripts(ctx context.Context, teamID *uint, opt ListOptions) ([]*Script, *PaginationMetadata, error)
+
+	// GetHostScriptDetails returns the list of host script details for saved scripts applicable to
+	// a given host.
+	GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts ListOptions) ([]*HostScriptDetail, *PaginationMetadata, error)
 }
 
 const (
