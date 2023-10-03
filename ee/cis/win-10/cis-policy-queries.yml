@@ -5189,7 +5189,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows\\CurrentVersion\\PushNotifications\NoCloudApplicationNotification' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.1.1
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.8.1.1
   contributors: rachelelysia
 ---
 apiVersion: v1
