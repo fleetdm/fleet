@@ -213,7 +213,7 @@ fleetctl CLI:
 1. Upload the package to a storage location (ex. S3 or GitHub). During step 4, Fleet will retrieve the package from this storage location and host it for deployment.
 
   > The URL must be accessible by the computer that uploads the package to Fleet.
-  > * This could be your local computer or the computer that runs your CI/CD workflow.
+  > This could be your local computer or the computer that runs your CI/CD workflow.
 
 2. Choose which team you want to add the bootstrap package to.
 
