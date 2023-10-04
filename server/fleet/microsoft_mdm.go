@@ -1100,7 +1100,7 @@ func (msg *SyncML) GetOrderedCmds() []ProtoCmdOperation {
 		}
 	}
 
-	// Process each command type in the order they appear in SyncBody
+	// Process each command one by one
 	if msg.SyncBody.Add != nil {
 		addCmds(msg.SyncBody.Add, CmdAdd)
 	}

@@ -127,7 +127,7 @@ func (r SyncMLResponseMsgContainer) hijackRender(ctx context.Context, w http.Res
 	xmlRes, err := xml.MarshalIndent(r.Data, "", "\t")
 	if err != nil {
 		logging.WithExtras(ctx, "error with SyncMLResponseMsgContainer", err)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -1202,37 +1202,29 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 
 // processIncomingProtocolCommands will process the incoming command
 func (svc *Service) processIncomingProtocolCommands(messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
-	if svc == nil {
-		return nil, fmt.Errorf("service was not initialized")
-	}
-
 	// TODO:
 	// - Handle Security Alerts
 	// - Handle Results/Responses
 
 	// We return a status 200 for all the operations
-	return NewSyncMLCmdStatus(messageID, cmd.Cmd.CmdID, string(cmd.Verb), mdm.CmdStatusCode200), nil
+	return NewSyncMLCmdStatus(messageID, cmd.Cmd.CmdID, string(cmd.Verb), mdm.CmdStatusOK), nil
 }
 
 // processIncomingMDMCmds process the incoming message from the device
 // It will return the list of operations that need to be sent to the device
 func (svc *Service) processIncomingMDMCmds(deviceID string, reqMsg *fleet.SyncML) ([]*fleet.SyncMLCmd, error) {
-	if svc == nil {
-		return nil, fmt.Errorf("service was not initialized")
-	}
-
 	var responseCmds []*fleet.SyncMLCmd
 
 	// Get the incoming MessageID
 	reqMessageID, err := reqMsg.GetMessageID()
 	if err != nil {
-		return nil, fmt.Errorf("processing incoming msg %v", err)
+		return nil, fmt.Errorf("get incoming msg: %w", err)
 	}
 
 	// Acknowledge the message header
 	// msgref is always 0 for the header
 	if err = reqMsg.IsValidHeader(); err == nil {
-		ackMsg := NewSyncMLCmdStatus(reqMessageID, "0", mdm.SyncMLHdrName, mdm.CmdStatusCode200)
+		ackMsg := NewSyncMLCmdStatus(reqMessageID, "0", mdm.SyncMLHdrName, mdm.CmdStatusOK)
 		responseCmds = append(responseCmds, ackMsg)
 	}
 
@@ -1243,7 +1235,7 @@ func (svc *Service) processIncomingMDMCmds(deviceID string, reqMsg *fleet.SyncML
 	for _, protoCMD := range protoCMDs {
 		protoCmd, err := svc.processIncomingProtocolCommands(reqMessageID, deviceID, protoCMD)
 		if err != nil {
-			return nil, fmt.Errorf("processing incoming msg %v", err)
+			return nil, fmt.Errorf("process incoming command: %w", err)
 		}
 
 		// Append the operations to the response
@@ -1257,22 +1249,19 @@ func (svc *Service) processIncomingMDMCmds(deviceID string, reqMsg *fleet.SyncML
 
 // getPendingMDMCmds returns the list of pending MDM commands for the device
 func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*mdm_types.SyncMLCmd, error) {
-	if svc == nil {
-		return nil, fmt.Errorf("service was not initialized")
-	}
-
 	// Getting the list of pending commands
 	// Pending commands will be removed from the DB
 	pendingCmds, err := svc.ds.MDMWindowsGetAndRemovePendingCommands(ctx, deviceID)
 	if err != nil {
-		return nil, fmt.Errorf("getting incoming cmds %v", err)
+		return nil, fmt.Errorf("getting incoming cmds %w", err)
 	}
 
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
 	for _, pendingCmd := range pendingCmds {
 		newCmd, err := NewTypedSyncMLCmd(mdm_types.SyncMLDataType(pendingCmd.DataType), pendingCmd.CmdVerb, pendingCmd.SettingURI, pendingCmd.SettingValue)
-		if (err != nil) || (newCmd == nil) {
+		if err != nil {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getPendingMDMCmds syncML cmd creation"))
 			continue
 		}
 		newCmd.UUID = pendingCmd.CommandUUID
@@ -1285,32 +1274,28 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*
 
 // createResponseSyncML returns a valid SyncML message
 func (svc *Service) createResponseSyncML(ctx context.Context, req *fleet.SyncML, responseOps []*mdm_types.SyncMLCmd) (*fleet.SyncML, error) {
-	if svc == nil {
-		return nil, fmt.Errorf("service was not initialized")
-	}
-
 	// Get the DeviceID
 	deviceID, err := req.GetSource()
 	if err != nil || deviceID == "" {
-		return nil, fmt.Errorf("invalid SyncML message %v", err)
+		return nil, fmt.Errorf("invalid SyncML message %w", err)
 	}
 
 	// Get SessionID
 	sessionID, err := req.GetSessionID()
 	if err != nil {
-		return nil, fmt.Errorf("session ID processing error %v", err)
+		return nil, fmt.Errorf("session ID processing error %w", err)
 	}
 
 	// Get MessageID
 	messageID, err := req.GetMessageID()
 	if err != nil {
-		return nil, fmt.Errorf("message ID processing error %v", err)
+		return nil, fmt.Errorf("message ID processing error %w", err)
 	}
 
 	// Getting the Management endpoint URL
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("appconfig was not available %v", err)
+		return nil, fmt.Errorf("appconfig was not available %w", err)
 	}
 
 	urlManagementEndpoint, err := mdm.ResolveWindowsMDMManagement(appConfig.ServerSettings.ServerURL)
@@ -1329,17 +1314,13 @@ func (svc *Service) createResponseSyncML(ctx context.Context, req *fleet.SyncML,
 
 // storeProtoCmd stores the SyncML protocol command operation for tracking purposes
 func (svc *Service) storeSyncMLCmd(ctx context.Context, msg *mdm_types.SyncML) error {
-	if svc == nil {
-		return fmt.Errorf("service was not initialized")
-	}
-
 	if msg == nil {
 		return fmt.Errorf("syncml msg is invalid")
 	}
 
 	err := msg.IsValidBody()
 	if err != nil {
-		return fmt.Errorf("syncml msg body is invalid %v", err)
+		return fmt.Errorf("syncml msg body is invalid %w", err)
 	}
 
 	// Get cmds to be tracked
@@ -1353,19 +1334,19 @@ func (svc *Service) storeSyncMLCmd(ctx context.Context, msg *mdm_types.SyncML) e
 	// Get the DeviceID
 	deviceID, err := msg.GetSource()
 	if err != nil || deviceID == "" {
-		return fmt.Errorf("invalid SyncML message %v", err)
+		return fmt.Errorf("invalid SyncML message %w", err)
 	}
 
 	// Get SessionID
 	sessionID, err := msg.GetSessionID()
 	if err != nil {
-		return fmt.Errorf("session ID processing error %v", err)
+		return fmt.Errorf("session ID processing error %w", err)
 	}
 
 	// Get MessageID
 	messageID, err := msg.GetMessageID()
 	if err != nil {
-		return fmt.Errorf("message ID processing error %v", err)
+		return fmt.Errorf("message ID processing error %w", err)
 	}
 
 	// Iterate over the operations and store on DB the ones that need to be tracked
@@ -1400,10 +1381,6 @@ func (svc *Service) storeSyncMLCmd(ctx context.Context, msg *mdm_types.SyncML) e
 
 // getManagementResponse returns a valid SyncML response message
 func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.SyncML) (*mdm_types.SyncML, error) {
-	if svc == nil {
-		return nil, fmt.Errorf("service was not initialized")
-	}
-
 	if reqMsg == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
@@ -1411,19 +1388,19 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	// Get the DeviceID
 	deviceID, err := reqMsg.GetSource()
 	if err != nil || deviceID == "" {
-		return nil, fmt.Errorf("invalid SyncML message %v", err)
+		return nil, fmt.Errorf("invalid SyncML message %w", err)
 	}
 
 	// Process the incoming MDM protocol commands and get the response MDM protocol commands
 	resIncomingCmds, err := svc.processIncomingMDMCmds(deviceID, reqMsg)
 	if err != nil {
-		return nil, fmt.Errorf("message processing error %v", err)
+		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
 	// Process the pending operations and get the MDM response protocol commands
 	resPendingCmds, err := svc.getPendingMDMCmds(ctx, deviceID)
 	if err != nil {
-		return nil, fmt.Errorf("message processing error %v", err)
+		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
 	// Combined cmd responses
@@ -1432,13 +1409,13 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	// Create the response SyncML message
 	msg, err := svc.createResponseSyncML(ctx, reqMsg, resCmds)
 	if err != nil {
-		return nil, fmt.Errorf("message syncML creation error %v", err)
+		return nil, fmt.Errorf("message syncML creation error %w", err)
 	}
 
 	// Track the response SyncML protocol commands
 	err = svc.storeSyncMLCmd(ctx, msg)
 	if err != nil {
-		return nil, fmt.Errorf("tracking response syncML msg %v", err)
+		return nil, fmt.Errorf("tracking response syncML msg %w", err)
 	}
 
 	return msg, nil

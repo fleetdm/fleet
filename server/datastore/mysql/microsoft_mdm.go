@@ -7,7 +7,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 // MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
@@ -148,7 +147,7 @@ func (ds *Datastore) MDMWindowsGetAndRemovePendingCommands(ctx context.Context, 
             setting_uri,
             setting_value,
             data_type,
-			system_origin,
+            system_origin,
             created_at,
             updated_at
         FROM
@@ -159,10 +158,6 @@ func (ds *Datastore) MDMWindowsGetAndRemovePendingCommands(ctx context.Context, 
 
 	// Retrieve commands first
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, deviceID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-
 		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by device id")
 	}
 
@@ -228,7 +223,7 @@ func (ds *Datastore) MDMWindowsUpdateCommandErrorCode(ctx context.Context, devic
 
 	_, err := ds.writer(ctx).ExecContext(ctx, query, errorCode, deviceID, sessionID, messageID, commandID)
 	if err != nil {
-		return errors.Wrap(err, "updating windows command rx_error_code")
+		return ctxerr.Wrap(ctx, err, "updating windows command rx_error_code")
 	}
 
 	return nil
@@ -259,10 +254,6 @@ func (ds *Datastore) MDMWindowsListCommands(ctx context.Context, deviceID string
     `
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, deviceID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-
 		return nil, ctxerr.Wrap(ctx, err, "get Windows MDM commands by device id")
 	}
 

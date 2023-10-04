@@ -282,78 +282,78 @@ const (
 
 const (
 	// The SyncML command completed successfully
-	CmdStatusCode200 = "200"
+	CmdStatusOK = "200"
 
 	// 	Accepted for processing
 	// This code denotes an asynchronous operation, such as a request to run a remote execution of an application
-	CmdStatusCode202 = "202"
+	CmdStatusAcceptedForProcessing = "202"
 
 	// Authentication accepted
 	// Normally you'll only see this code in response to the SyncHdr element (used for authentication in the OMA-DM standard)
 	// You may see this code if you look at OMA DM logs, but CSPs don't typically generate this code.
-	CmdStatusCode212 = "212"
+	CmdStatusAuthenticationAccepted = "212"
 
 	// Operation canceled
 	// The SyncML command completed successfully, but no more commands will be processed within the session.
-	CmdStatusCode214 = "214"
+	CmdStatusOperationCancelled = "214"
 
 	// Not executed
 	// A command wasn't executed as a result of user interaction to cancel the command.
-	CmdStatusCode215 = "215"
+	CmdStatusNotExecuted = "215"
 
 	// Atomic roll back OK
 	// A command was inside an Atomic element and Atomic failed, thhis command was rolled back successfully
-	CCmdStatusCode216 = "216"
+	CmdStatusAtomicRollbackAccepted = "216"
 
 	// Bad request. The requested command couldn't be performed because of malformed syntax.
 	// CSPs don't usually generate this error, however you might see it if your SyncML is malformed.
-	CmdStatusCode400 = "400"
+	CmdStatusBadRequest = "400"
 
 	// 	Invalid credentials
 	// The requested command failed because the requestor must provide proper authentication. CSPs don't usually generate this error
-	CmdStatusCode401 = "401"
+	CmdStatusInvalidCredentials = "401"
 
 	// Forbidden
 	// The requested command failed, but the recipient understood the requested command
-	CmdStatusCode403 = "403"
+	CmdStatusForbidden = "403"
 
 	// Not found
 	// The requested target wasn't found. This code will be generated if you query a node that doesn't exist
-	CmdStatusCode404 = "404"
+	CmdStatusNotFound = "404"
 
 	// Command not allowed
 	// This respond code will be generated if you try to write to a read-only node
-	CmdStatusCode405 = "405"
+	CmdStatusNotAllowed = "405"
 
 	// Optional feature not supported
 	// This response code will be generated if you try to access a property that the CSP doesn't support
-	CmdStatusCode406 = "406"
+	CmdStatusOptionalFeature = "406"
 
 	// Unsupported type or format
 	// This response code can result from XML parsing or formatting errors
-	CmdStatusCode415 = "415"
+	CmdStatusUnsupportedType = "415"
 
 	// Already exists
 	// This response code occurs if you attempt to add a node that already exists
-	CmdStatusCode418 = "418"
+	CmdStatusAlreadyExists = "418"
 
 	// Permission Denied
 	// The requested command failed because the sender doesn't have adequate access control permissions (ACL) on the recipient.
 	// An "Access denied" errors usually get translated to this response code.
-	CmdStatusCode425 = "425"
+	CmdStatusPermissionDenied = "425"
 
 	// Command failed. Generic failure.
 	// The recipient encountered an unexpected condition, which prevented it from fulfilling the request
 	// This response code will occur when the SyncML DPU can't map the originating error code
-	CmdStatusCode500 = "500"
+	CmdStatusCommandFailed = "500"
 
 	// Atomic failed
 	// One of the operations in an Atomic block failed
-	CmdStatusCode507 = "507"
+	CmdStatusAtomicFailed = "507"
 
 	// Atomic roll back failed
 	// An Atomic operation failed and the command wasn't rolled back successfully.
-	CmdStatusCode516 = "516"
+	CmdStatusAtomicRollbackFailed = "516"
 )
 
 // MS-MDM Supported Alerts
@@ -362,31 +362,31 @@ const (
 const (
 	// SERVER-INITIATED MGMT
 	// Server-initiated device management session
-	CmdAlert1200 = "1200"
+	CmdAlertServerInitiatedManagement = "1200"
 
 	// CLIENT-INITIATED MGMT
 	// Client-initiated device management session
-	CmdAlert1201 = "1201"
+	CmdAlertClientInitiatedManagement = "1201"
 
 	// NEXT MESSAGE
 	// Request for the next message of a large object package
-	CmdAlert1222 = "1222"
+	CmdAlertNextMessage = "1222"
 
 	// SESSION ABORT
 	// Informs recipient that the sender wishes to abort the DM session
-	CmdAlert1223 = "1223"
+	CmdAlertSessionAbort = "1223"
 
 	// CLIENT EVENT
 	// Informs server that an event has occurred on the client
-	CmdAlert1224 = "1224"
+	CmdAlertClientEvent = "1224"
 
 	// NO END OF DATA
 	// End of Data for chunked object not received.
-	CmdAlert1225 = "1225"
+	CmdAlertNoEndOfData = "1225"
 
 	// GENERIC ALERT
 	// Generic client generated alert with or without a reference to a Management
-	CmdAlert1226 = "1226"
+	CmdAlertGeneric = "1226"
 )
 
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
