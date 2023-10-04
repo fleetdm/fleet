@@ -392,6 +392,13 @@ type Datastore interface {
 	ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// QueryResultsStore
+	SaveQueryResultRow(ctx context.Context, row *ScheduledQueryResultRow) (*ScheduledQueryResultRow, error)
+	QueryResultRows(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
+	DeleteQueryResultsForHost(ctx context.Context, hostID, queryID uint) error
+	ResultCountForQuery(ctx context.Context, queryID uint) (bool, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
 
 	// NewTeam creates a new Team object in the store.

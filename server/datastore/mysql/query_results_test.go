@@ -21,6 +21,7 @@ func TestQueryResults(t *testing.T) {
 		{"Save", saveQueryResultRow},
 		{"Get", getQueryResultRows},
 		{"DeleteForHost", testDeleteQueryResultsForHost},
+		{"Count", testCountResultsForQuery},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

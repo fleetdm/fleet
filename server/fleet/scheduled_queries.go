@@ -89,6 +89,20 @@ func (sql ScheduledQueryList) Clone() (interface{}, error) {
 	return cloned, nil
 }
 
+type ScheduledQueryResult struct {
+	QueryName     string            `json:"name,omitempty"`
+	OsqueryHostID string            `json:"hostIdentifier"`
+	Snapshot      []json.RawMessage `json:"snapshot"`
+	LastFetched   uint              `json:"unixTime"`
+}
+
+type ScheduledQueryResultRow struct {
+	QueryID     uint            `db:"query_id"`
+	HostID      uint            `db:"host_id"`
+	Data        json.RawMessage `db:"data"`
+	LastFetched time.Time       `db:"last_fetched"`
+}
+
 type AggregatedStats struct {
 	SystemTimeP50   *float64 `json:"system_time_p50" db:"system_time_p50"`
 	SystemTimeP95   *float64 `json:"system_time_p95" db:"system_time_p95"`
@@ -130,13 +144,6 @@ type ScheduledQueryStats struct {
 	SystemTime   int       `json:"system_time" db:"system_time"`
 	UserTime     int       `json:"user_time" db:"user_time"`
 	WallTime     int       `json:"wall_time" db:"wall_time"`
-}
-
-type ScheduledQueryResultRow struct {
-	QueryID     uint            `db:"query_id"`
-	HostID      uint            `db:"host_id"`
-	Data        json.RawMessage `db:"data"`
-	LastFetched time.Time       `db:"last_fetched"`
 }
 
 // TeamID returns the team id if the stat is for a team query stat result

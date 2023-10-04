@@ -294,6 +294,14 @@ type CleanupExpiredHostsFunc func(ctx context.Context) ([]uint, error)
 
 type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
+type SaveQueryResultRowFunc func(ctx context.Context, row *fleet.ScheduledQueryResultRow) (*fleet.ScheduledQueryResultRow, error)
+
+type QueryResultRowsFunc func(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error)
+
+type DeleteQueryResultsForHostFunc func(ctx context.Context, hostID uint, queryID uint) error
+
+type ResultCountForQueryFunc func(ctx context.Context, queryID uint) (bool, error)
+
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -1096,6 +1104,18 @@ type DataStore struct {
 
 	ScheduledQueryIDsByNameFunc        ScheduledQueryIDsByNameFunc
 	ScheduledQueryIDsByNameFuncInvoked bool
+
+	SaveQueryResultRowFunc        SaveQueryResultRowFunc
+	SaveQueryResultRowFuncInvoked bool
+
+	QueryResultRowsFunc        QueryResultRowsFunc
+	QueryResultRowsFuncInvoked bool
+
+	DeleteQueryResultsForHostFunc        DeleteQueryResultsForHostFunc
+	DeleteQueryResultsForHostFuncInvoked bool
+
+	ResultCountForQueryFunc        ResultCountForQueryFunc
+	ResultCountForQueryFuncInvoked bool
 
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
@@ -2646,6 +2666,34 @@ func (s *DataStore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, 
 	s.ScheduledQueryIDsByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.ScheduledQueryIDsByNameFunc(ctx, batchSize, packAndSchedQueryNames...)
+}
+
+func (s *DataStore) SaveQueryResultRow(ctx context.Context, row *fleet.ScheduledQueryResultRow) (*fleet.ScheduledQueryResultRow, error) {
+	s.mu.Lock()
+	s.SaveQueryResultRowFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveQueryResultRowFunc(ctx, row)
+}
+
+func (s *DataStore) QueryResultRows(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+	s.mu.Lock()
+	s.QueryResultRowsFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueryResultRowsFunc(ctx, queryID, hostID)
+}
+
+func (s *DataStore) DeleteQueryResultsForHost(ctx context.Context, hostID uint, queryID uint) error {
+	s.mu.Lock()
+	s.DeleteQueryResultsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteQueryResultsForHostFunc(ctx, hostID, queryID)
+}
+
+func (s *DataStore) ResultCountForQuery(ctx context.Context, queryID uint) (bool, error) {
+	s.mu.Lock()
+	s.ResultCountForQueryFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResultCountForQueryFunc(ctx, queryID)
 }
 
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {

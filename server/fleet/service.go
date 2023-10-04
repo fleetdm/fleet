@@ -451,6 +451,7 @@ type Service interface {
 	ScheduleQuery(ctx context.Context, sq *ScheduledQuery) (query *ScheduledQuery, err error)
 	DeleteScheduledQuery(ctx context.Context, id uint) (err error)
 	ModifyScheduledQuery(ctx context.Context, id uint, p ScheduledQueryPayload) (query *ScheduledQuery, err error)
+	SaveResultLogs(ctx context.Context, results []json.RawMessage) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// StatusService

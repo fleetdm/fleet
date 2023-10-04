@@ -1379,6 +1379,11 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			break
 		}
 
+		err = svc.SaveResultLogs(ctx, results)
+		if err != nil {
+			break
+		}
+
 	default:
 		err = newOsqueryError("unknown log type: " + req.LogType)
 	}
@@ -1404,4 +1409,79 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		return newOsqueryError("error writing result logs: " + err.Error())
 	}
 	return nil
+}
+
+func (svc *Service) SaveResultLogs(ctx context.Context, results []json.RawMessage) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	var queryResults []fleet.ScheduledQueryResult
+	for _, raw := range results {
+		var result fleet.ScheduledQueryResult
+		if err := json.Unmarshal(raw, &result); err != nil {
+			return newOsqueryError("unmarshalling individual result log: " + err.Error())
+		}
+		queryResults = append(queryResults, result)
+	}
+
+	filtered := GetMostRecentResults(queryResults)
+
+	for _, result := range filtered {
+
+		query, err := svc.ds.QueryByName(ctx, nil, getQueryNameFromResult(result.QueryName))
+		if err != nil {
+			return newOsqueryError("getting query by Name: " + err.Error())
+		}
+		host, err := svc.ds.HostByIdentifier(ctx, result.OsqueryHostID)
+		if err != nil {
+			return newOsqueryError("getting host ID: " + err.Error())
+		}
+
+		for _, snapshotItem := range result.Snapshot {
+			row := &fleet.ScheduledQueryResultRow{
+				QueryID:     query.ID,
+				HostID:      host.ID,
+				Data:        snapshotItem,
+				LastFetched: time.Unix(int64(result.LastFetched), 0),
+			}
+
+			if _, err := svc.ds.SaveQueryResultRow(ctx, row); err != nil {
+				return newOsqueryError("saving query result row: " + err.Error())
+			}
+		}
+	}
+
+	return nil
+}
+
+func GetMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.ScheduledQueryResult {
+	// Use a map to track the most recent entry for each unique QueryName
+	latestResults := make(map[string]fleet.ScheduledQueryResult)
+
+	for _, result := range results {
+		if existing, ok := latestResults[result.QueryName]; ok {
+			// Compare the LastFetched time and update the map if the current result is more recent
+			if result.LastFetched > existing.LastFetched {
+				latestResults[result.QueryName] = result
+			}
+		} else {
+			latestResults[result.QueryName] = result
+		}
+	}
+
+	// Convert the map back to a slice
+	var filteredResults []fleet.ScheduledQueryResult
+	for _, v := range latestResults {
+		filteredResults = append(filteredResults, v)
+	}
+
+	return filteredResults
+}
+
+func getQueryNameFromResult(path string) string {
+	lastSlash := strings.LastIndex(path, "/")
+	if lastSlash == -1 {
+		return path
+	}
+	return path[lastSlash+1:]
 }
