@@ -5,7 +5,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import CustomLink from "components/CustomLink";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IInvite } from "interfaces/invite";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -130,7 +130,7 @@ const generateTableHeaders = (
       Cell: (cellProps: ICellProps) => {
         if (cellProps.cell.value === "GitOps") {
           return (
-            <NewTooltipWrapper
+            <TooltipWrapper
               position="top"
               tipContent={
                 <>
@@ -143,12 +143,12 @@ const generateTableHeaders = (
               }
             >
               GitOps
-            </NewTooltipWrapper>
+            </TooltipWrapper>
           );
         }
         if (cellProps.cell.value === "Observer+") {
           return (
-            <NewTooltipWrapper
+            <TooltipWrapper
               position="top"
               tipContent={
                 <>
@@ -161,7 +161,7 @@ const generateTableHeaders = (
               }
             >
               {cellProps.cell.value}
-            </NewTooltipWrapper>
+            </TooltipWrapper>
           );
         }
         return (

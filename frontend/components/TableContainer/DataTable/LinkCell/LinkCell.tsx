@@ -3,7 +3,7 @@ import React from "react";
 
 import { Link } from "react-router";
 import classnames from "classnames";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface ILinkCellProps {
   value: string | JSX.Element;
@@ -32,7 +32,7 @@ const LinkCell = ({
   };
 
   return tooltipContent ? (
-    <NewTooltipWrapper
+    <TooltipWrapper
       position="top"
       className="link-cell-tooltip-wrapper"
       tipContent={tooltipContent}
@@ -40,7 +40,7 @@ const LinkCell = ({
       <Link className={cellClasses} to={path} onClick={onClick} title={title}>
         {value}
       </Link>
-    </NewTooltipWrapper>
+    </TooltipWrapper>
   ) : (
     <Link
       className={cellClasses}

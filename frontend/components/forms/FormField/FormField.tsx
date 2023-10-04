@@ -2,8 +2,8 @@ import React from "react";
 import classnames from "classnames";
 import { isEmpty } from "lodash";
 
-import NewTooltipWrapper from "components/NewTooltipWrapper";
-import { INewTooltipWrapperTipContent } from "components/NewTooltipWrapper/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
+import { ITooltipWrapperTipContent } from "components/TooltipWrapper/TooltipWrapper";
 
 const baseClass = "form-field";
 
@@ -15,7 +15,7 @@ export interface IFormFieldProps {
   label: Array<any> | JSX.Element | string;
   name: string;
   type: string;
-  tooltip?: INewTooltipWrapperTipContent["tipContent"];
+  tooltip?: ITooltipWrapperTipContent["tipContent"];
 }
 
 const FormField = ({
@@ -45,9 +45,9 @@ const FormField = ({
       >
         {error ||
           (tooltip ? (
-            <NewTooltipWrapper tipContent={tooltip}>
+            <TooltipWrapper tipContent={tooltip}>
               {label as string}
-            </NewTooltipWrapper>
+            </TooltipWrapper>
           ) : (
             <>{label}</>
           ))}

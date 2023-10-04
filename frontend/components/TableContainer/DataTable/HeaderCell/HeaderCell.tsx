@@ -3,7 +3,7 @@ import React from "react";
 import classnames from "classnames";
 
 interface IHeaderCellProps {
-  value: string | JSX.Element; // either a string or a NewTooltipWrapper
+  value: string | JSX.Element; // either a string or a TooltipWrapper
   isSortedDesc?: boolean;
   disableSortBy?: boolean;
 }

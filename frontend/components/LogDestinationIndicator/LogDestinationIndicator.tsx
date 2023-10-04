@@ -1,6 +1,6 @@
 import React from "react";
 import classnames from "classnames";
-import NewTooltipWrapper from "components/NewTooltipWrapper/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ILogDestinationIndicatorProps {
@@ -109,9 +109,9 @@ const LogDestinationIndicator = ({
   };
 
   return (
-    <NewTooltipWrapper tipContent={tooltipText()} className={statusClassName}>
+    <TooltipWrapper tipContent={tooltipText()} className={statusClassName}>
       {readableLogDestination()}
-    </NewTooltipWrapper>
+    </TooltipWrapper>
   );
 };
 

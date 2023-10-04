@@ -5,7 +5,7 @@ import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 // NOTE: cellProps come from react-table
@@ -40,13 +40,13 @@ const generateMunkiIssuesTableHeaders = (teamId?: number): IDataColumn[] => [
     title: "Issue",
     Header: (): JSX.Element => {
       const titleWithToolTip = (
-        <NewTooltipWrapper
+        <TooltipWrapper
           tipContent={
             <>Issues reported the last time Munki ran on each host.</>
           }
         >
           Issue
-        </NewTooltipWrapper>
+        </TooltipWrapper>
       );
       return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },

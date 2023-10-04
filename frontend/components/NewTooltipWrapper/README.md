@@ -1,7 +1,7 @@
 # Tooltips Notes
 
 This tooltip component was created to allow any content to be shown as a tooltip. You can place any
-JSX inside of the `tipContent` prop. Also, very important, the `NewTooltipWrapper` is designed **ONLY**
+JSX inside of the `tipContent` prop. Also, very important, the `TooltipWrapper` is designed **ONLY**
 to wrap text so make sure to use static text or text returned from a function.
 
 ## Use cases
@@ -13,9 +13,9 @@ to wrap text so make sure to use static text or text returned from a function.
 
 **As its own component (Basic)**
 ```jsx
-<NewTooltipWrapper tipContent="After hovering, you will see this.">
+<TooltipWrapper tipContent="After hovering, you will see this.">
   The base text that contains the hover state
-</NewTooltipWrapper>
+</TooltipWrapper>
 ```
 
 **As its own component (Advanced)**
@@ -23,7 +23,7 @@ to wrap text so make sure to use static text or text returned from a function.
 You can even make the tooltip more dynamic HTML:
 
 ```jsx
-<NewTooltipWrapper
+<TooltipWrapper
   tipContent={
     <>
     The "snapshot" key includes the query's results. 
@@ -34,7 +34,7 @@ You can even make the tooltip more dynamic HTML:
 >
   The data sent to your configured log destination will look similar
   to the following JSON:
-</NewTooltipWrapper>
+</TooltipWrapper>
 ```
 
 **Within a form input element**

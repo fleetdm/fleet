@@ -6,7 +6,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
@@ -91,7 +91,7 @@ const generateVulnTableHeaders = (
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
-          <NewTooltipWrapper
+          <TooltipWrapper
             tipContent={
               <>
                 The probability that this vulnerability will be exploited in the
@@ -102,7 +102,7 @@ const generateVulnTableHeaders = (
             }
           >
             Probability of exploit
-          </NewTooltipWrapper>
+          </TooltipWrapper>
         );
         return (
           <>
@@ -124,7 +124,7 @@ const generateVulnTableHeaders = (
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
-          <NewTooltipWrapper
+          <TooltipWrapper
             tipContent={
               <>
                 The worst case impact across different environments (CVSS base
@@ -136,7 +136,7 @@ const generateVulnTableHeaders = (
             }
           >
             Severity
-          </NewTooltipWrapper>
+          </TooltipWrapper>
         );
         return (
           <>
@@ -159,7 +159,7 @@ const generateVulnTableHeaders = (
       sortType: "boolean",
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
-          <NewTooltipWrapper
+          <TooltipWrapper
             tipContent={
               <>
                 The vulnerability has been actively exploited in the wild. This
@@ -169,7 +169,7 @@ const generateVulnTableHeaders = (
             }
           >
             Known exploit
-          </NewTooltipWrapper>
+          </TooltipWrapper>
         );
         return (
           <>
@@ -192,7 +192,7 @@ const generateVulnTableHeaders = (
       sortType: "boolean",
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
-          <NewTooltipWrapper
+          <TooltipWrapper
             tipContent={
               <>
                 The date this vulnerability was published in the National
@@ -201,7 +201,7 @@ const generateVulnTableHeaders = (
             }
           >
             Published
-          </NewTooltipWrapper>
+          </TooltipWrapper>
         );
         return (
           <>

@@ -4,7 +4,7 @@ import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 
 import { uniqueId } from "lodash";
 
-interface INewTooltipWrapperBase {
+interface ITooltipWrapperBase {
   children: React.ReactNode;
   position?: PlacesType;
   isDelayed?: boolean;
@@ -22,7 +22,7 @@ interface INewTooltipWrapperBase {
 }
 
 // Require either `tipContent` OR `customRender` prop
-interface INewTooltipWrapperCustomRender extends INewTooltipWrapperBase {
+interface ITooltipWrapperCustomRender extends ITooltipWrapperBase {
   // see https://react-tooltip.com/docs/examples/render
   customRender: (render: {
     content: string | null;
@@ -31,14 +31,14 @@ interface INewTooltipWrapperCustomRender extends INewTooltipWrapperBase {
   tipContent?: never;
 }
 
-export interface INewTooltipWrapperTipContent extends INewTooltipWrapperBase {
+export interface ITooltipWrapperTipContent extends ITooltipWrapperBase {
   customRender?: never;
   tipContent: React.ReactNode;
 }
 
 const baseClass = "component__tooltip-wrapper";
 
-const NewTooltipWrapper = ({
+const TooltipWrapper = ({
   // wrapperCustomClass,
   // elementCustomClass,
   // tipCustomClass,
@@ -51,7 +51,7 @@ const NewTooltipWrapper = ({
   className,
   tooltipClass,
   clickable = true,
-}: INewTooltipWrapperTipContent | INewTooltipWrapperCustomRender) => {
+}: ITooltipWrapperTipContent | ITooltipWrapperCustomRender) => {
   const wrapperClassNames = classnames(baseClass, className, {
     // [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
   });
@@ -89,4 +89,4 @@ const NewTooltipWrapper = ({
   );
 };
 
-export default NewTooltipWrapper;
+export default TooltipWrapper;

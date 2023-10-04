@@ -7,7 +7,7 @@ import { IconNames } from "components/icons";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import classnames from "classnames";
 import { Colors } from "styles/var/colors";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface ISummaryTileProps {
   count: number;
@@ -73,7 +73,7 @@ const SummaryTile = ({
         )}
         <div className={`${baseClass}__description`}>
           {tooltip ? (
-            <NewTooltipWrapper tipContent={tooltip}>{title}</NewTooltipWrapper>
+            <TooltipWrapper tipContent={tooltip}>{title}</TooltipWrapper>
           ) : (
             title
           )}

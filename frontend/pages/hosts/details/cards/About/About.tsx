@@ -2,7 +2,7 @@ import React from "react";
 
 import ReactTooltip from "react-tooltip";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
@@ -102,12 +102,12 @@ const About = ({
         <div className="info-grid__block">
           <span className="info-grid__header">MDM status</span>
           <span className="info-grid__data">
-            <NewTooltipWrapper
+            <TooltipWrapper
               position="bottom"
               tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
             >
               {mdm.enrollment_status}
-            </NewTooltipWrapper>
+            </TooltipWrapper>
           </span>
         </div>
         <div className="info-grid__block">

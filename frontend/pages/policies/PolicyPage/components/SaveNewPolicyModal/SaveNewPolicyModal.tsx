@@ -11,7 +11,7 @@ import useDeepEffect from "hooks/useDeepEffect";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
@@ -152,13 +152,13 @@ const SaveNewPolicyModal = ({
                 value={critical}
                 isLeftLabel
               >
-                <NewTooltipWrapper
+                <TooltipWrapper
                   tipContent={
                     "<p>If automations are turned on, this<br/> information is included.</p>"
                   }
                 >
                   Critical:
-                </NewTooltipWrapper>
+                </TooltipWrapper>
               </Checkbox>
             </div>
           )}

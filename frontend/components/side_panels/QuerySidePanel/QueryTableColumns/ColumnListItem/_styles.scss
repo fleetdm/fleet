@@ -17,7 +17,7 @@
     font-size: $x-small;
 
     // We need to wrap on really long column names so we override some
-    // NewTooltipWrapper styles here.
+    // TooltipWrapper styles here.
     .component__tooltip-wrapper__element {
       white-space: normal;
       max-width: 180px;
@@ -25,7 +25,7 @@
     }
   }
 
-  // this is to override the tooltip text style from NewTooltipWrapper. When we
+  // this is to override the tooltip text style from TooltipWrapper. When we
   // change the component to support ReactNode we wont need this.
   &__tooltip {
     .component__tooltip-wrapper__tip-text {

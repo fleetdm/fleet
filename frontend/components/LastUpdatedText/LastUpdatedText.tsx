@@ -2,7 +2,7 @@ import React from "react";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 import { abbreviateTimeUnits } from "utilities/helpers";
 
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "component__last-updated-text";
 
@@ -26,7 +26,7 @@ const LastUpdatedText = ({
 
   return (
     <span className={baseClass}>
-      <NewTooltipWrapper
+      <TooltipWrapper
         tipContent={
           <>
             Fleet periodically queries all hosts <br />
@@ -35,7 +35,7 @@ const LastUpdatedText = ({
         }
       >
         {`Updated ${lastUpdatedAt}`}
-      </NewTooltipWrapper>
+      </TooltipWrapper>
     </span>
   );
 };

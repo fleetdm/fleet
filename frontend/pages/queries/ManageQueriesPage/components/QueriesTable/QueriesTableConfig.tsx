@@ -22,7 +22,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import { COLORS } from "styles/var/colors";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
@@ -197,7 +197,7 @@ const generateTableHeaders = ({
       Header: () => {
         return (
           <div>
-            <NewTooltipWrapper
+            <TooltipWrapper
               tipContent={
                 <>
                   This is the average <br />
@@ -208,7 +208,7 @@ const generateTableHeaders = ({
               }
             >
               Performance impact
-            </NewTooltipWrapper>
+            </TooltipWrapper>
           </div>
         );
       },

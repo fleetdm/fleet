@@ -7,7 +7,7 @@ import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import stringUtils from "utilities/strings";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -124,7 +124,7 @@ const generateTableHeaders = (
       Cell: (cellProps: ICellProps) => {
         if (cellProps.cell.value === "GitOps") {
           return (
-            <NewTooltipWrapper
+            <TooltipWrapper
               position="top"
               tipContent={
                 <>
@@ -137,12 +137,12 @@ const generateTableHeaders = (
               }
             >
               GitOps
-            </NewTooltipWrapper>
+            </TooltipWrapper>
           );
         }
         if (cellProps.cell.value === "Observer+") {
           return (
-            <NewTooltipWrapper
+            <TooltipWrapper
               position="top"
               tipContent={
                 <>
@@ -155,7 +155,7 @@ const generateTableHeaders = (
               }
             >
               {cellProps.cell.value}
-            </NewTooltipWrapper>
+            </TooltipWrapper>
           );
         }
         return <TextCell value={cellProps.cell.value} />;

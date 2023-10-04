@@ -2,7 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import { ColumnType, IQueryTableColumn } from "interfaces/osquery_table";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import { buildQueryStringFromParams } from "utilities/url";
 import { OsqueryPlatform } from "interfaces/platform";
 
@@ -111,12 +111,12 @@ const ColumnListItem = ({
     <li key={column.name} className={baseClass}>
       <div className={`${baseClass}__name-wrapper`}>
         <span className={columnNameClasses}>
-          <NewTooltipWrapper
+          <TooltipWrapper
             tipContent={renderTooltip(column, selectedTableName)}
             className={`${baseClass}__tooltip`}
           >
             {column.name}
-          </NewTooltipWrapper>
+          </TooltipWrapper>
         </span>
         {column.required && <span className={`${baseClass}__asterisk`}>*</span>}
       </div>

@@ -14,7 +14,7 @@ import { AppContext } from "context/app";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner/Spinner";
 
@@ -200,12 +200,12 @@ const AppleBusinessManagerSection = ({
         </div>
         <div className={`${baseClass}__section-information`}>
           <h4>
-            <NewTooltipWrapper
+            <TooltipWrapper
               position="top"
               tipContent="macOS hosts will be added to this team when they’re first unboxed."
             >
               Team
-            </NewTooltipWrapper>
+            </TooltipWrapper>
           </h4>
           <p>
             {defaultTeamName}{" "}

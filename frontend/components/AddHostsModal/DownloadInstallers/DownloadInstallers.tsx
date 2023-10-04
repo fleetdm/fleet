@@ -15,7 +15,7 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 import SuccessIcon from "./../../../../assets/images/icon-circle-check-blue-48x48@2x.png";
@@ -238,13 +238,13 @@ const DownloadInstallers = ({
       >
         <>
           Include&nbsp;
-          <NewTooltipWrapper
+          <TooltipWrapper
             tipContent={
               <p>Include Fleet Desktop if you&apos;re adding workstations.</p>
             }
           >
             Fleet Desktop
-          </NewTooltipWrapper>
+          </TooltipWrapper>
         </>
       </Checkbox>
       {form}

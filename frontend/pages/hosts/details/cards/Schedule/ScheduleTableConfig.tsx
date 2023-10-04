@@ -5,7 +5,7 @@ import { performanceIndicator, secondsToDhms } from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -76,9 +76,9 @@ const generateTableHeaders = (): IDataColumn[] => {
     {
       Header: () => {
         return (
-          <NewTooltipWrapper tipContent="This is the performance <br />impact on this host.">
+          <TooltipWrapper tipContent="This is the performance <br />impact on this host.">
             Performance impact
-          </NewTooltipWrapper>
+          </TooltipWrapper>
         );
       },
       disableSortBy: true,
