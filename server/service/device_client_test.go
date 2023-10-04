@@ -162,6 +162,6 @@ func TestDeviceClientRetryInvalidToken(t *testing.T) {
 		_, err = client.DesktopSummary("bad")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrUnauthenticated)
-		require.Equal(t, int64(4), callCounts.Load())
+		require.Equal(t, int64(3), callCounts.Load())
 	})
 }

@@ -32,6 +32,28 @@ The Fleet Customer team embodies [our values](https://fleetdm.com/handbook/compa
 Fleet's main source for prospects to learn about the company and its offerings is our website, fleetdm.com. There are many places across the website for prospects to ask for more information, request merchandise, try the product and even purchase licenses directly. If the user experience in any of these locations asks for an email address or other contact information, Fleet may use that contact information for follow-up, including sales and marketing purposes. That contact information is for Fleet's sole use, and we do not give or sell that information to any third parties.
 
 
+## Contacting Fleet
+In the case of a prospect or customer request, we strive to adhere to the following response times:
+- Web chat: 1 hour response during working hours, 8 hours otherwise
+- Talk to an expert: prospects can schedule chats via our calendar tool
+- All other enquiries: 1-2 days
+
+If you're using a free version of Fleet, you can access free community support by opening an issue in the [Fleet GitHub repository](https://github.com/fleetdm/fleet/).
+
+Customers on a paid tier of Fleet can get in touch directly for commercial support:
+
+
+| Level of impact | Response time - premium tier | Response time - ultimate tier |
+| :--- | :--- | :--- |
+| Low to medium impact </br> Email/chat support during business hours </br> Email: Support email address </br> Chat: Dedicated Slack channel (confidential) </br>|  **1 business day** | **1 business day**  |
+| High to emergency impact </br> Expedited phone/chat/email support </br> Call or text: Fleet support phone number </br> Email: Emergency support email address </br> |  **4 business hours** | **≤1 hour during business hours** </br> **≤2 hours outside business hours** 
+
+| Level of impact | Type of support |
+| :--- | :--- |
+| Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
+| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
+
+
 ## Customer codenames
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
@@ -49,7 +71,7 @@ Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https:/
 Fleet's intro video shows how to get started with Fleet as an admin. Find it on [YouTube](https://www.youtube.com/watch?v=rVxSgvKjrWo).
 
 
-## Contacting Fleet: customer support service level agreements (SLA's)
+## Customer support service level agreements (SLA's)
 
 ### Fleet Free
 | Impact Level | Definition | Preferred Contact | Response Time |
@@ -66,7 +88,7 @@ Note: If you're using Fleet Free, you can also access community support by openi
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
 | Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
 
-Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Fleeties can find Fleet general contact information [here](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit).
+Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues.
 
 
 ### Fleet Ultimate

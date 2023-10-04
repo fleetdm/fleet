@@ -2,11 +2,6 @@
 
 ## Using Fleet
 
-### Can you host Fleet for me?
-
-Fleet offers managed cloud hosting for large deployments.  Unfortunately, while organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are not currently able to provide hosting for deployments smaller than 1000 hosts.  If you are comfortable doing so, you can still buy a license and host Fleet yourself.
-
-
 ### How can I switch to Fleet from Kolide Fleet?
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](https://fleetdm.com/docs/deploying/upgrading-fleet) of the documentation.
