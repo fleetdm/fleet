@@ -636,7 +636,7 @@ Engineering teams coordinate on bug fixes with the product team during the joint
 
 For MDM support on CX bugs:
 - Remove the `#g-cx` label and add `#g-mdm` label.
-- Add `~assisting CX` to clarify the bug’s origin.
+- Add `~assisting g-cx` to clarify the bug’s origin.
 
 For CX support on MDM bugs:
 - Remove the `#g-mdm` label and add `#g-cx` label.
