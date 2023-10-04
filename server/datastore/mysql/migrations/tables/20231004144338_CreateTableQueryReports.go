@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230927155121, Down_20230927155121)
+	MigrationClient.AddMigration(Up_20231004144338, Down_20231004144338)
 }
 
-func Up_20230927155121(tx *sql.Tx) error {
+func Up_20231004144338(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE query_results (
 			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -19,8 +19,7 @@ func Up_20230927155121(tx *sql.Tx) error {
 			error TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 			last_fetched TIMESTAMP NOT NULL,
 			data JSON,
-			FOREIGN KEY (query_id) REFERENCES queries(id) ON DELETE CASCADE,
-			FOREIGN KEY (host_id) REFERENCES hosts(id)
+			FOREIGN KEY (query_id) REFERENCES queries(id) ON DELETE CASCADE
 		);
     `)
 	if err != nil {
@@ -30,6 +29,6 @@ func Up_20230927155121(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230927155121(tx *sql.Tx) error {
+func Down_20231004144338(tx *sql.Tx) error {
 	return nil
 }
