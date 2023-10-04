@@ -46,7 +46,8 @@ First, take the existing servers offline.
 Run database migrations:
 
 ```sh
-# make sure database servers currently offline or this will fail
+# make sure database servers currently offline or this will fail and might corrupt database
+# if ran this before taking offline, recommended rolling to backup
 fleet prepare db
 ```
 
