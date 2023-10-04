@@ -81,12 +81,17 @@
     margin-right: 6px;
     width: 50%;
     strong {
-      color: #192147;
+      color: @core-fleet-black-75;
+      font-weight: 400;
       font-size: 16px;
       line-height: 20px;
     }
   }
 
+  [purpose='price-dollar-sign'] {
+    vertical-align: text-bottom;
+    font-size: 24px;
+  }
   [purpose='premium-card'] {
     width: 50%;
   }
@@ -192,7 +197,8 @@
       font-weight: 700;
       font-size: 12px;
       line-height: 20px;
-      color: #192147;
+      color: @core-fleet-black-75;
+      font-weight: 400;
     }
     p {
       color: #ff5c83;
@@ -202,6 +208,7 @@
   [purpose='contact-sales-link'] {
     text-align: center;
     margin-top: 8px;
+    margin-bottom: 0px;
     font-weight: 400;
     font-size: 14px;
     line-height: 20px;
@@ -239,7 +246,7 @@
     font-size: 16px;
     padding: 15px;
     margin-top: 8px;
-    margin-bottom: 32px;
+    margin-bottom: 0px;
     color: #FFF;
   }
   [purpose='chat-button'], [purpose='card-button'] {
@@ -396,6 +403,12 @@
       max-width: 1160px;
       padding-left: 0px;
       padding-right: 0px;
+    }
+    [purpose='premium-tier-card'] {
+      padding: 40px 140px;
+    }
+    [purpose='free-tier-card'] {
+      padding: 40px 140px;
     }
   }
   @media (max-width: 991px) {
