@@ -1280,7 +1280,6 @@ CREATE TABLE `windows_mdm_commands` (
   `cmd_verb` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `setting_uri` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `setting_value` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `data_type` smallint(5) unsigned NOT NULL DEFAULT '0',
   `system_origin` tinyint(1) NOT NULL DEFAULT '0',
   `rx_error_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
