@@ -72,6 +72,8 @@ describe("QueryForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
+        showSaveChangesModal={false}
+        setShowSaveChangesModal={jest.fn()}
       />
     );
 

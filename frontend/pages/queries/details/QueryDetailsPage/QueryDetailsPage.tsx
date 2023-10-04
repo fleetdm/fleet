@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
@@ -112,7 +112,7 @@ const QueryDetailsPage = ({
   );
 
   const isLoading = isStoredQueryLoading; // TODO: Add || isCachedResultsLoading for new API response
-  const isApiError = storedQueryError || true; // TODO: Add || isCachedResultsError for new API response
+  const isApiError = storedQueryError || false; // TODO: Add || isCachedResultsError for new API response
 
   const renderHeader = () => {
     const canEditQuery =
