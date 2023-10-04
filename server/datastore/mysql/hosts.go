@@ -465,6 +465,7 @@ var hostRefs = []string{
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
 	"host_script_results",
+	"query_results",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
