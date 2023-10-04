@@ -477,8 +477,6 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, devi
 
 	platforms := make(map[string]bool)
 	for _, h := range hosts {
-		// TODO(mna): hosts lite does not have mdm info, add it to hosts lite or
-		// create a new get non-lite hosts by uuids?
 		if !h.MDMInfo.IsFleetEnrolled() {
 			err := fleet.NewInvalidArgumentError("device_ids", "Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.").WithStatus(http.StatusPreconditionFailed)
 			return nil, ctxerr.Wrap(ctx, err, "check host mdm enrollment")
@@ -498,6 +496,22 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, devi
 	if commandPlatform != "windows" && commandPlatform != "darwin" {
 		err := fleet.NewInvalidArgumentError("device_ids", "Invalid platform. You can only run MDM commands on Windows or macOS hosts.")
 		return nil, ctxerr.Wrap(ctx, err, "check host platform")
+	}
+
+	// check that the platform-specific MDM is enabled (not sure this check can
+	// ever happen, since we verify that the hosts are enrolled, but just to be
+	// safe)
+	switch commandPlatform {
+	case "windows":
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			err := fleet.NewInvalidArgumentError("device_ids", "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
+			return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+		}
+	default:
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			err := fleet.NewInvalidArgumentError("device_ids", "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
+			return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+		}
 	}
 
 	// We're supporting both padded and unpadded base64.
