@@ -428,11 +428,11 @@ func (c *AppConfig) Copy() *AppConfig {
 
 	// HostExpirySettings: nothing needs cloning
 
-	if c.Features.AdditionalQueries != nil {
-		aq := make(json.RawMessage, len(*c.Features.AdditionalQueries))
-		copy(aq, *c.Features.AdditionalQueries)
-		c.Features.AdditionalQueries = &aq
+	featuresClone := c.Features.Copy()
+	if featuresClone != nil {
+		c.Features = *featuresClone
 	}
+
 	if c.AgentOptions != nil {
 		ao := make(json.RawMessage, len(*c.AgentOptions))
 		copy(ao, *c.AgentOptions)
@@ -689,6 +689,10 @@ type HostExpirySettings struct {
 }
 
 type Features struct {
+	// ///////////////////////////////////////////////////////////////
+	// WARNING: If you add or change fields of this struct make sure
+	// it's taken into account in the Features Clone implementation!
+	// ///////////////////////////////////////////////////////////////
 	EnableHostUsers         bool               `json:"enable_host_users"`
 	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
 	AdditionalQueries       *json.RawMessage   `json:"additional_queries,omitempty"`
@@ -705,6 +709,27 @@ func (f *Features) ApplyDefaultsForNewInstalls() {
 
 func (f *Features) ApplyDefaults() {
 	f.EnableHostUsers = true
+}
+
+func (f *Features) Clone() (interface{}, error) {
+	return f.Copy(), nil
+}
+
+func (f *Features) Copy() *Features {
+	if f == nil {
+		return nil
+	}
+
+	var clone Features
+	clone = *f
+
+	if f.AdditionalQueries != nil {
+		aq := make(json.RawMessage, len(*f.AdditionalQueries))
+		copy(aq, *f.AdditionalQueries)
+		clone.AdditionalQueries = &aq
+	}
+
+	return &clone
 }
 
 // FleetDesktopSettings contains settings used to configure Fleet Desktop.

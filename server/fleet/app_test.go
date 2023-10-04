@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -158,4 +159,46 @@ func TestMacOSMigrationModeIsValid(t *testing.T) {
 	require.True(t, (MacOSMigrationMode("voluntary")).IsValid())
 	require.False(t, (MacOSMigrationMode("")).IsValid())
 	require.False(t, (MacOSMigrationMode("foo")).IsValid())
+}
+
+func TestFeaturesCopy(t *testing.T) {
+	t.Run("nil receiver", func(t *testing.T) {
+		var f *Features
+		require.Nil(t, f.Copy())
+	})
+
+	t.Run("shallow copy", func(t *testing.T) {
+		f := &Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: false,
+		}
+		clone := f.Copy()
+		require.NotNil(t, clone)
+		require.Equal(t, f.EnableHostUsers, clone.EnableHostUsers)
+		require.Equal(t, f.EnableSoftwareInventory, clone.EnableSoftwareInventory)
+	})
+
+	t.Run("copy AdditionalQueries", func(t *testing.T) {
+		rawMessage := json.RawMessage(`{"test": "data"}`)
+		f := &Features{
+			AdditionalQueries: &rawMessage,
+		}
+		clone := f.Copy()
+		require.NotNil(t, clone.AdditionalQueries)
+		require.NotSame(t, f.AdditionalQueries, clone.AdditionalQueries)
+		require.Equal(t, *f.AdditionalQueries, *clone.AdditionalQueries)
+	})
+
+	t.Run("copy DetailQueryOverrides", func(t *testing.T) {
+		f := &Features{
+			DetailQueryOverrides: map[string]*string{
+				"foo": ptr.String("bar"),
+				"baz": nil,
+			},
+		}
+		clone := f.Copy()
+		require.NotNil(t, clone.DetailQueryOverrides)
+		require.NotSame(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
+		require.Equal(t, f.DetailQueryOverrides["testKey"], clone.DetailQueryOverrides["testKey"])
+	})
 }

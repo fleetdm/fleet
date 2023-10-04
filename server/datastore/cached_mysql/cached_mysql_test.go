@@ -400,6 +400,10 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         false,
 		EnableSoftwareInventory: true,
 		AdditionalQueries:       &aq,
+		DetailQueryOverrides: map[string]*string{
+			"foo": ptr.String("bar"),
+			"baz": nil,
+		},
 	}
 
 	testTeam := fleet.Team{
@@ -420,6 +424,7 @@ func TestCachedTeamFeatures(t *testing.T) {
 		return &testFeatures, nil
 	}
 	mockedDS.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		testTeam = *team
 		return team, nil
 	}
 	mockedDS.DeleteTeamFunc = func(ctx context.Context, teamID uint) error {
@@ -437,6 +442,10 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: false,
 		AdditionalQueries:       &aq,
+		DetailQueryOverrides: map[string]*string{
+			"foo": nil,
+			"baz": ptr.String("bar"),
+		},
 	}
 	updateTeam := &fleet.Team{
 		ID:        testTeam.ID,
