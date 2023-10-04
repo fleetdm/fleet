@@ -4011,6 +4011,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		}, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.CommandUUID)
 	require.Contains(t, rawCmd, resp.CommandUUID)
+	require.Equal(t, resp.Platform, "darwin")
 	require.Empty(t, resp.FailedUUIDs)
 	require.Equal(t, "ProfileList", resp.RequestType)
 

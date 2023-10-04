@@ -150,6 +150,8 @@ type CommandEnqueueResult struct {
 	RequestType string `json:"request_type,omitempty"`
 	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
 	FailedUUIDs []string `json:"failed_uuids,omitempty"`
+	// Platform is the platform of the hosts targeted by the command.
+	Platform string `json:"platform"`
 }
 
 // MDMCommandAuthz is used to check user authorization to read/write an

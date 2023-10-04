@@ -589,6 +589,7 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 	return &fleet.CommandEnqueueResult{
 		CommandUUID: cmd.CommandUUID,
 		RequestType: cmd.Command.RequestType,
+		Platform:    "darwin",
 	}, nil
 }
 
@@ -633,5 +634,7 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 
 	// TODO(mna): enqueue in the windows mdm command table
 
-	return &fleet.CommandEnqueueResult{}, nil
+	return &fleet.CommandEnqueueResult{
+		Platform: "windows",
+	}, nil
 }
