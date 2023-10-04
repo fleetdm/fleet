@@ -1374,6 +1374,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			err = newOsqueryError("unmarshalling result logs: " + err.Error())
 			break
 		}
+
 		err = svc.SubmitResultLogs(ctx, results)
 		if err != nil {
 			break
@@ -1432,12 +1433,26 @@ func (svc *Service) SaveResultLogs(ctx context.Context, results []json.RawMessag
 		if err != nil {
 			return newOsqueryError("getting query by Name: " + err.Error())
 		}
+
+		rowCount, err := svc.ds.ResultCountForQuery(ctx, query.ID)
+		if err != nil {
+			return newOsqueryError("getting result count for query: " + err.Error())
+		}
+
+		if rowCount >= 1000 {
+			continue
+		}
+
 		host, err := svc.ds.HostByIdentifier(ctx, result.OsqueryHostID)
 		if err != nil {
 			return newOsqueryError("getting host ID: " + err.Error())
 		}
 
 		for _, snapshotItem := range result.Snapshot {
+			if rowCount >= 1000 {
+				break
+			}
+
 			row := &fleet.ScheduledQueryResultRow{
 				QueryID:     query.ID,
 				HostID:      host.ID,
@@ -1448,6 +1463,8 @@ func (svc *Service) SaveResultLogs(ctx context.Context, results []json.RawMessag
 			if _, err := svc.ds.SaveQueryResultRow(ctx, row); err != nil {
 				return newOsqueryError("saving query result row: " + err.Error())
 			}
+
+			rowCount++
 		}
 	}
 

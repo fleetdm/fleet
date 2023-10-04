@@ -54,12 +54,12 @@ func (ds *Datastore) DeleteQueryResultsForHost(ctx context.Context, hostID, quer
 	return nil
 }
 
-func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (bool, error) {
+func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
 	var count int
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `select count(*) from query_results where query_id = ?`, queryID)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "counting query results")
+		return 0, ctxerr.Wrap(ctx, err, "counting query results")
 	}
 
-	return count >= QueryResultRowLimit, nil
+	return count, nil
 }

@@ -300,7 +300,7 @@ type QueryResultRowsFunc func(ctx context.Context, queryID uint, hostID uint) ([
 
 type DeleteQueryResultsForHostFunc func(ctx context.Context, hostID uint, queryID uint) error
 
-type ResultCountForQueryFunc func(ctx context.Context, queryID uint) (bool, error)
+type ResultCountForQueryFunc func(ctx context.Context, queryID uint) (int, error)
 
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
@@ -2689,7 +2689,7 @@ func (s *DataStore) DeleteQueryResultsForHost(ctx context.Context, hostID uint, 
 	return s.DeleteQueryResultsForHostFunc(ctx, hostID, queryID)
 }
 
-func (s *DataStore) ResultCountForQuery(ctx context.Context, queryID uint) (bool, error) {
+func (s *DataStore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
 	s.mu.Lock()
 	s.ResultCountForQueryFuncInvoked = true
 	s.mu.Unlock()

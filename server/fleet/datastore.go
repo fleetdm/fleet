@@ -396,7 +396,7 @@ type Datastore interface {
 	SaveQueryResultRow(ctx context.Context, row *ScheduledQueryResultRow) (*ScheduledQueryResultRow, error)
 	QueryResultRows(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
 	DeleteQueryResultsForHost(ctx context.Context, hostID, queryID uint) error
-	ResultCountForQuery(ctx context.Context, queryID uint) (bool, error)
+	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
