@@ -29,7 +29,7 @@ import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 
 import BackLink from "components/BackLink";
-import QueryForm from "pages/queries/edit/components/QueryForm";
+import EditQueryForm from "pages/queries/edit/components/EditQueryForm";
 import { IConfig } from "interfaces/config";
 
 interface IEditQueryPageProps {
@@ -303,7 +303,7 @@ const EditQueryPage = ({
             <div className={`${baseClass}__header-links`}>
               <BackLink text="Back to report" path={backToQueriesPath()} />
             </div>
-            <QueryForm
+            <EditQueryForm
               router={router}
               saveQuery={saveQuery}
               onOsqueryTableSelect={onOsqueryTableSelect}

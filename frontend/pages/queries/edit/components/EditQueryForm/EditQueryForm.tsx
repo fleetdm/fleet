@@ -55,9 +55,9 @@ import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveQueryModal from "../SaveQueryModal";
 import SaveChangesModal from "../SaveChangesModal";
 
-const baseClass = "query-form";
+const baseClass = "edit-query-form";
 
-interface IQueryFormProps {
+interface IEditQueryFormProps {
   router: InjectedRouter;
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
@@ -108,7 +108,7 @@ const customFrequencyOptions = (frequency: number) => {
   return FREQUENCY_DROPDOWN_OPTIONS;
 };
 
-const QueryForm = ({
+const EditQueryForm = ({
   router,
   queryIdForEdit,
   apiTeamIdForQuery,
@@ -129,7 +129,7 @@ const QueryForm = ({
   isLoadingAppConfig,
   showSaveChangesModal,
   setShowSaveChangesModal,
-}: IQueryFormProps): JSX.Element => {
+}: IEditQueryFormProps): JSX.Element => {
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
   const {
@@ -756,7 +756,7 @@ const QueryForm = ({
                     Save as new
                   </Button>
                 )}
-                <div className="query-form__button-wrap--save-query-button">
+                <div className="edit-query-form__button-wrap--save-query-button">
                   <div
                     data-tip
                     data-for="save-query-button"
@@ -856,4 +856,4 @@ const QueryForm = ({
   return renderEditableQueryForm();
 };
 
-export default QueryForm;
+export default EditQueryForm;
