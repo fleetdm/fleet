@@ -9,6 +9,7 @@ const baseClass = "info-banner";
 export interface IInfoBannerProps {
   children?: React.ReactNode;
   className?: string;
+  /** default light purple */
   color?: "purple" | "purple-bold-border" | "yellow" | "grey";
   pageLevel?: boolean;
   /** cta and link are mutually exclusive */

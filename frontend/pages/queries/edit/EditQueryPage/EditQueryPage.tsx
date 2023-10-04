@@ -103,10 +103,11 @@ const EditQueryPage = ({
     false
   );
 
-  const {
-    data: appConfig, // TODO - pass to savequery modal
-    isLoading: isLoadingAppConfig, // TODO - pass to savequery modal
-  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
+  const { data: appConfig, isLoading: isLoadingAppConfig } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
       setConfig(data);
