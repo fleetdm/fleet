@@ -8,7 +8,7 @@ const baseClass = "save-changes-modal";
 
 export interface ISaveChangesModalProps {
   isUpdating: boolean;
-  onSaveChanges: (formData: ICreateQueryRequestBody) => void;
+  onSaveChanges: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   toggleSaveChangesModal: () => void;
   sqlUpdated?: boolean;
 }
