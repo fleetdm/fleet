@@ -297,10 +297,11 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewQuery(context.Background(), &fleet.Query{
-			Name:     fmt.Sprintf("name%02d", i),
-			Query:    fmt.Sprintf("query%02d", i),
-			Saved:    true,
-			AuthorID: &user.ID,
+			Name:        fmt.Sprintf("name%02d", i),
+			Query:       fmt.Sprintf("query%02d", i),
+			Saved:       true,
+			AuthorID:    &user.ID,
+			DiscardData: true,
 		})
 		require.Nil(t, err)
 	}
@@ -320,6 +321,7 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	require.Equal(t, 10, len(results))
 	require.Equal(t, "Zach", results[0].AuthorName)
 	require.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
+	require.True(t, results[0].DiscardData)
 
 	idWithAgg := results[0].ID
 

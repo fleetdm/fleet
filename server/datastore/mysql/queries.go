@@ -164,8 +164,9 @@ func (ds *Datastore) NewQuery(
 			min_osquery_version,
 			schedule_interval,
 			automations_enabled,
-			logging_type 
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			logging_type,
+			discard_data
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -183,6 +184,7 @@ func (ds *Datastore) NewQuery(
 		query.Interval,
 		query.AutomationsEnabled,
 		query.Logging,
+		query.DiscardData,
 	)
 
 	if err != nil && isDuplicate(err) {
@@ -499,7 +501,6 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 }
 
 func (ds *Datastore) DeleteAllResultsForQuery(ctx context.Context, queryId *uint) error {
-	// TODO: should we return the number?
 	deleteStmt := fmt.Sprintf(`DELETE FROM %s WHERE query_id = ?`, queryResultsTable.name)
 	result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryId)
 	if err != nil {
@@ -512,6 +513,7 @@ func (ds *Datastore) DeleteAllResultsForQuery(ctx context.Context, queryId *uint
 	return nil
 }
 
+// DeleteAllResultsForQueryByName is needed for deleting query results when modifying specs, as we don't have the query ID in that context.
 func (ds *Datastore) DeleteAllResultsForQueryByName(ctx context.Context, queryName *string) error {
 	deleteStmt := `DELETE query_results FROM query_results LEFT JOIN queries ON query_results.query_id = queries.id WHERE queries.name = ?;`
 	result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryName)
