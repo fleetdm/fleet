@@ -13,7 +13,7 @@ func Up_20231004123931(tx *sql.Tx) error {
 		CREATE TABLE foo (
 			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			host_ID INT(10) UNSIGNED NOT NULL,
-			FOREIGN KEY (host_ID) REFERENCES hosts (id) ON DELETE CASCADE,
+			FOREIGN KEY (host_ID) REFERENCES hosts (id)
 			`
 	_, err := tx.Exec(stmt)
 	if err != nil {
