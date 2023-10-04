@@ -922,6 +922,8 @@ type SyncMLCmd struct {
 // IsPremium returns true if the command is available for Fleet premium only.
 func (cmd SyncMLCmd) IsPremium() bool {
 	for _, item := range cmd.Items {
+		// TODO(mna): is it correct to check that in Target, or is it Source? Not
+		// super clear from the MSMDM examples/docs.
 		if item.Target != nil && strings.Contains(*item.Target, "RemoteWipe") {
 			return true
 		}
