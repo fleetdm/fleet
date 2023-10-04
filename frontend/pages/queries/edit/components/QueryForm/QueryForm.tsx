@@ -594,11 +594,15 @@ const QueryForm = ({
             className={`${baseClass}__run`}
             variant="blue-green"
             onClick={() => {
-              queryIdForEdit &&
-                router.push(
-                  PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
-                );
+              queryIdForEdit
+                ? router.push(
+                    PATHS.LIVE_QUERY(queryIdForEdit) +
+                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                  )
+                : router.push(
+                    PATHS.LIVE_NEW_QUERY() +
+                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                  );
             }}
           >
             Live query
@@ -800,11 +804,15 @@ const QueryForm = ({
               className={`${baseClass}__run`}
               variant="blue-green"
               onClick={() => {
-                queryIdForEdit &&
-                  router.push(
-                    PATHS.LIVE_QUERY(queryIdForEdit) +
-                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
-                  );
+                queryIdForEdit
+                  ? router.push(
+                      PATHS.LIVE_QUERY(queryIdForEdit) +
+                        TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                    )
+                  : router.push(
+                      PATHS.LIVE_NEW_QUERY() +
+                        TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                    );
               }}
             >
               Live query

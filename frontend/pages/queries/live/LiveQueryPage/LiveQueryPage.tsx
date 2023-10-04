@@ -163,7 +163,10 @@ const RunQueryPage = ({
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(
-    () => queryId && router.push(PATHS.EDIT_QUERY(queryId)),
+    () =>
+      queryId
+        ? router.push(PATHS.EDIT_QUERY(queryId))
+        : router.push(PATHS.NEW_QUERY()),
     []
   );
   // const params = { id: paramsQueryId };

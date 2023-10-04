@@ -301,7 +301,10 @@ const EditQueryPage = ({
         <div className={`${baseClass}_wrapper`}>
           <div className={`${baseClass}__form`}>
             <div className={`${baseClass}__header-links`}>
-              <BackLink text="Back to report" path={backToQueriesPath()} />
+              <BackLink
+                text={queryId ? "Back to report" : "Back to queries"}
+                path={backToQueriesPath()}
+              />
             </div>
             <QueryForm
               router={router}
