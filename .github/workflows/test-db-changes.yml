@@ -85,7 +85,7 @@ jobs:
 
     - name: Prevent hosts foreign keys
       run: |
-        MATCHES=$(git diff --name-only origin/main | grep "migrations/" | xargs grep -l "REFERENCES hosts(id)")
+        MATCHES=$(git diff --name-only origin/main | grep "migrations/" | xargs grep -i -E 'references\s*hosts\s*\(\s*id\s*\)' )
         if [ -n "$MATCHES" ]; then
           echo "❌ fail: hosts foreign keys are not allowed"
           echo "$MATCHES"
