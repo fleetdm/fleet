@@ -1070,9 +1070,7 @@ CREATE TABLE `query_results` (
   `data` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `query_id` (`query_id`),
-  KEY `host_id` (`host_id`),
-  CONSTRAINT `query_results_ibfk_1` FOREIGN KEY (`query_id`) REFERENCES `queries` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `query_results_ibfk_2` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`)
+  CONSTRAINT `query_results_ibfk_1` FOREIGN KEY (`query_id`) REFERENCES `queries` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
