@@ -276,6 +276,7 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.MinOsqueryVersion = "5.2.1"
 	query.AutomationsEnabled = true
 	query.Logging = "differential"
+	query.DiscardData = true
 
 	err = ds.SaveQuery(context.Background(), query)
 	require.NoError(t, err)

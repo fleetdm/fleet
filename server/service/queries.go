@@ -292,6 +292,11 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 	if p.Logging != nil {
 		query.Logging = *p.Logging
+		if *p.Logging != fleet.LoggingSnapshot {
+			if err := svc.ds.DeleteAllResultsForQuery(ctx, &id); err != nil {
+				return nil, err
+			}
+		}
 	}
 	if p.ObserverCanRun != nil {
 		query.ObserverCanRun = *p.ObserverCanRun
