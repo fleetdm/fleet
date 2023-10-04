@@ -19,7 +19,7 @@ func Up_20230927155121(tx *sql.Tx) error {
 			error TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 			last_fetched TIMESTAMP NOT NULL,
 			data JSON,
-			FOREIGN KEY (query_id) REFERENCES queries(id) ON DELETE CASCADE,
+			FOREIGN KEY (query_id) REFERENCES queries(id) ON DELETE CASCADE
 		);
     `)
 	if err != nil {
