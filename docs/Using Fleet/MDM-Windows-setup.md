@@ -15,7 +15,7 @@ To use Fleet's Windows MDM features you need to have:
 
 ## Turning on Windows MDM
 
-Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows host.
+Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows hosts.
 
 This section will show you how to:
 1. Generate your certificate and key
