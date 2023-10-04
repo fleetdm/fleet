@@ -1495,7 +1495,7 @@ func newSyncMLCmdWithItem(cmdVerb *string, cmdData *string, cmdItem *mdm_types.C
 	return &mdm_types.SyncMLCmd{
 		XMLName: xml.Name{Local: *cmdVerb},
 		Data:    cmdData,
-		Items:   &[]mdm_types.CmdItem{*cmdItem},
+		Items:   []mdm_types.CmdItem{*cmdItem},
 	}
 }
 

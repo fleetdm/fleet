@@ -910,13 +910,23 @@ type ProtoCmdOperation struct {
 
 // Protocol Command
 type SyncMLCmd struct {
-	XMLName xml.Name   `xml:",omitempty"`
-	CmdID   string     `xml:"CmdID"`
-	MsgRef  *string    `xml:"MsgRef,omitempty"`
-	CmdRef  *string    `xml:"CmdRef,omitempty"`
-	Cmd     *string    `xml:"Cmd,omitempty"`
-	Data    *string    `xml:"Data,omitempty"`
-	Items   *[]CmdItem `xml:"Item,omitempty"`
+	XMLName xml.Name  `xml:",omitempty"`
+	CmdID   string    `xml:"CmdID"`
+	MsgRef  *string   `xml:"MsgRef,omitempty"`
+	CmdRef  *string   `xml:"CmdRef,omitempty"`
+	Cmd     *string   `xml:"Cmd,omitempty"`
+	Data    *string   `xml:"Data,omitempty"`
+	Items   []CmdItem `xml:"Item,omitempty"`
+}
+
+// IsPremium returns true if the command is available for Fleet premium only.
+func (cmd SyncMLCmd) IsPremium() bool {
+	for _, item := range cmd.Items {
+		if item.Target != nil && strings.Contains(*item.Target, "RemoteWipe") {
+			return true
+		}
+	}
+	return false
 }
 
 type CmdItem struct {
@@ -1164,7 +1174,7 @@ func (msg *SyncML) SetID(cmdID int) {
 
 // IsValid checks for required fields in the SyncML command
 func (cmd *SyncMLCmd) IsValid() bool {
-	if ((cmd.Items == nil) || (len(*cmd.Items) == 0)) && cmd.Data == nil {
+	if len(cmd.Items) == 0 && cmd.Data == nil {
 		return false
 	}
 
