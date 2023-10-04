@@ -92,6 +92,18 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevi
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
 }
 
+// MDMWindowsDeletePendingCommands deletes pending commands for a given device id.
+func (ds *Datastore) MDMWindowsDeletePendingCommands(ctx context.Context, deviceID string) error {
+	stmt := "DELETE FROM windows_mdm_pending_commands WHERE device_id = ?"
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, deviceID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete MDMWindowsDeletePendingCommands")
+	}
+
+	return nil
+}
+
 // MDMWindowsInsertPendingCommand inserts a new WindowMDMPendingCommand in the database
 func (ds *Datastore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fleet.MDMWindowsPendingCommand) error {
 	stmt := `
@@ -124,8 +136,8 @@ func (ds *Datastore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fl
 	return nil
 }
 
-// MDMWindowsListPendingCommands retrieves all commands for a given device ID from the windows_mdm_pending_commands table
-func (ds *Datastore) MDMWindowsListPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {
+// MDMWindowsGetAndRemovePendingCommands retrieves all commands for a given device ID from the windows_mdm_pending_commands table
+func (ds *Datastore) MDMWindowsGetAndRemovePendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {
 	var commands []*fleet.MDMWindowsPendingCommand
 
 	query := `
@@ -145,12 +157,18 @@ func (ds *Datastore) MDMWindowsListPendingCommands(ctx context.Context, deviceID
             device_id = ?
     `
 
+	// Retrieve commands first
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, deviceID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 
 		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by device id")
+	}
+
+	// Then delete pending commands
+	if err := ds.MDMWindowsDeletePendingCommands(ctx, deviceID); err != nil {
+		return nil, err
 	}
 
 	return commands, nil
@@ -168,9 +186,8 @@ func (ds *Datastore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDM
 		cmd_verb,
 		setting_uri,
 		setting_value,
-		data_type,
 		system_origin,
-		rx_error_code ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		rx_error_code ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -183,7 +200,6 @@ func (ds *Datastore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDM
 		cmd.CmdVerb,
 		cmd.SettingURI,
 		cmd.SettingValue,
-		cmd.DataType,
 		cmd.SystemOrigin,
 		"")
 	if err != nil {
@@ -232,7 +248,6 @@ func (ds *Datastore) MDMWindowsListCommands(ctx context.Context, deviceID string
             cmd_verb,
             setting_uri,
             setting_value,
-            data_type,
             system_origin,
             rx_error_code,
             created_at,

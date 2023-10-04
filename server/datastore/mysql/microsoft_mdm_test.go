@@ -92,11 +92,17 @@ func testMDMWindowsPendingCommand(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertPendingCommand(ctx, pendingCmd)
 	require.ErrorAs(t, err, &ae)
 
-	gotPendingCmds, err := ds.MDMWindowsListPendingCommands(ctx, deviceID)
+	// Getting pending commands first
+	gotPendingCmds, err := ds.MDMWindowsGetAndRemovePendingCommands(ctx, deviceID)
 	require.NoError(t, err)
 	require.NotZero(t, gotPendingCmds)
 	require.NotZero(t, gotPendingCmds[0].CreatedAt)
 	require.Equal(t, gotPendingCmds[0].DeviceID, deviceID)
+
+	// Then double checking that pending commands for the device were actually removed
+	gotPendingCmdsRetry, err := ds.MDMWindowsGetAndRemovePendingCommands(ctx, deviceID)
+	require.NoError(t, err)
+	require.Zero(t, gotPendingCmdsRetry)
 }
 
 func testMDMWindowCommand(t *testing.T, ds *Datastore) {
@@ -115,7 +121,6 @@ func testMDMWindowCommand(t *testing.T, ds *Datastore) {
 		CmdVerb:      fleet.CmdGet,
 		SettingURI:   "./test/uri",
 		SettingValue: "testdata",
-		DataType:     2,
 		SystemOrigin: false,
 	}
 

@@ -1262,7 +1262,8 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*
 	}
 
 	// Getting the list of pending commands
-	pendingCmds, err := svc.ds.MDMWindowsListPendingCommands(ctx, deviceID)
+	// Pending commands will be removed from the DB
+	pendingCmds, err := svc.ds.MDMWindowsGetAndRemovePendingCommands(ctx, deviceID)
 	if err != nil {
 		return nil, fmt.Errorf("getting incoming cmds %v", err)
 	}
@@ -1274,14 +1275,16 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*
 		if (err != nil) || (newCmd == nil) {
 			continue
 		}
+		newCmd.UUID = pendingCmd.CommandUUID
+		newCmd.SystemOrigin = pendingCmd.SystemOrigin
 		cmds = append(cmds, newCmd)
 	}
 
 	return cmds, nil
 }
 
-// getComposedSyncMLMsg returns a valid SyncML message
-func (svc *Service) getComposedSyncMLMsg(ctx context.Context, req *fleet.SyncML, responseOps []*mdm_types.SyncMLCmd) (*fleet.SyncML, error) {
+// createResponseSyncML returns a valid SyncML message
+func (svc *Service) createResponseSyncML(ctx context.Context, req *fleet.SyncML, responseOps []*mdm_types.SyncMLCmd) (*fleet.SyncML, error) {
 	if svc == nil {
 		return nil, fmt.Errorf("service was not initialized")
 	}
@@ -1315,13 +1318,84 @@ func (svc *Service) getComposedSyncMLMsg(ctx context.Context, req *fleet.SyncML,
 		return nil, ctxerr.Wrap(ctx, err, "resolve management endpoint")
 	}
 
-	// Create the SyncML message
-	msg, err := NewSyncMLMessage(sessionID, messageID, deviceID, urlManagementEndpoint, responseOps)
+	// Create the SyncML message with the response operations
+	msg, err := createSyncMLMessage(sessionID, messageID, deviceID, urlManagementEndpoint, responseOps)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of SyncML message")
 	}
 
 	return msg, nil
+}
+
+// storeProtoCmd stores the SyncML protocol command operation for tracking purposes
+func (svc *Service) storeSyncMLCmd(ctx context.Context, msg *mdm_types.SyncML) error {
+	if svc == nil {
+		return fmt.Errorf("service was not initialized")
+	}
+
+	if msg == nil {
+		return fmt.Errorf("syncml msg is invalid")
+	}
+
+	err := msg.IsValidBody()
+	if err != nil {
+		return fmt.Errorf("syncml msg body is invalid %v", err)
+	}
+
+	// Get cmds to be tracked
+	protoCMDs := msg.SyncBody.Raw
+
+	if len(protoCMDs) == 0 {
+		// no cmds to track
+		return nil
+	}
+
+	// Get the DeviceID
+	deviceID, err := msg.GetSource()
+	if err != nil || deviceID == "" {
+		return fmt.Errorf("invalid SyncML message %v", err)
+	}
+
+	// Get SessionID
+	sessionID, err := msg.GetSessionID()
+	if err != nil {
+		return fmt.Errorf("session ID processing error %v", err)
+	}
+
+	// Get MessageID
+	messageID, err := msg.GetMessageID()
+	if err != nil {
+		return fmt.Errorf("message ID processing error %v", err)
+	}
+
+	// Iterate over the operations and store on DB the ones that need to be tracked
+	for _, protoCMD := range protoCMDs {
+		cmdVerb := protoCMD.XMLName.Local
+		if protoCMD.ShouldBeTracked(cmdVerb) {
+
+			// Save the response SyncML protocol commands to the DB
+			// This will help us to track the message status
+
+			newCmd := &fleet.MDMWindowsCommand{
+				CommandUUID:  protoCMD.UUID,
+				DeviceID:     deviceID,
+				SessionID:    sessionID,
+				MessageID:    messageID,
+				CommandID:    protoCMD.CmdID,
+				CmdVerb:      cmdVerb,
+				SettingURI:   protoCMD.GetTargetURI(),
+				SettingValue: protoCMD.GetTargetData(),
+				SystemOrigin: protoCMD.SystemOrigin,
+			}
+
+			err := svc.ds.MDMWindowsInsertCommand(ctx, newCmd)
+			if err != nil {
+				return fmt.Errorf("there was an issue inserting the command %v", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 // getManagementResponse returns a valid SyncML response message
@@ -1356,16 +1430,16 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	resCmds := append(resIncomingCmds, resPendingCmds...)
 
 	// Create the response SyncML message
-	msg, err := svc.getComposedSyncMLMsg(ctx, reqMsg, resCmds)
+	msg, err := svc.createResponseSyncML(ctx, reqMsg, resCmds)
 	if err != nil {
 		return nil, fmt.Errorf("message syncML creation error %v", err)
 	}
 
-	// This is a placeholder for the management response message logic
-
-	// - Processing of incoming protocol commands (Alerts mostly)
-	// - Processing of outgoing protocol commands (Commands queued from biz logic layers)
-	// - Tracking of message acknowledgements through Message queue
+	// Track the response SyncML protocol commands
+	err = svc.storeSyncMLCmd(ctx, msg)
+	if err != nil {
+		return nil, fmt.Errorf("tracking response syncML msg %v", err)
+	}
 
 	return msg, nil
 }
@@ -1596,8 +1670,8 @@ func (svc *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject strin
 }
 
 // MS-MDM Commands helpers
-// NewSyncMLMessage takes input data and returns a SyncML struct
-func NewSyncMLMessage(sessionID string, msgID string, deviceID string, source string, protoCommands []*mdm_types.SyncMLCmd) (*mdm_types.SyncML, error) {
+// createSyncMLMessage takes input data and returns a SyncML struct
+func createSyncMLMessage(sessionID string, msgID string, deviceID string, source string, protoCommands []*mdm_types.SyncMLCmd) (*mdm_types.SyncML, error) {
 	// Sanity check on input
 	if len(sessionID) == 0 || len(msgID) == 0 || len(deviceID) == 0 || len(source) == 0 {
 		return nil, errors.New("invalid parameters")
@@ -1648,11 +1722,6 @@ func NewSyncMLMessage(sessionID string, msgID string, deviceID string, source st
 		msg.AppendCommand(fleet.MDMRaw, *protoCmd)
 	}
 
-	err := msg.IsValidBody()
-	if err != nil {
-		return nil, fmt.Errorf("there was a problem unmarshalling SyncML request: %v", err)
-	}
-
 	// If there was no error, return the SyncML and a nil error
 	return &msg, nil
 }
@@ -1671,7 +1740,7 @@ func newSyncMLCmdWithItem(cmdVerb *string, cmdData *string, cmdItem *mdm_types.C
 	return &mdm_types.SyncMLCmd{
 		XMLName: xml.Name{Local: *cmdVerb},
 		Data:    cmdData,
-		Items:   &[]mdm_types.CmdItem{*cmdItem},
+		Items:   []mdm_types.CmdItem{*cmdItem},
 	}
 }
 

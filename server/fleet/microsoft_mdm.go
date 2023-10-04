@@ -910,13 +910,15 @@ type ProtoCmdOperation struct {
 
 // Protocol Command
 type SyncMLCmd struct {
-	XMLName xml.Name   `xml:",omitempty"`
-	CmdID   string     `xml:"CmdID"`
-	MsgRef  *string    `xml:"MsgRef,omitempty"`
-	CmdRef  *string    `xml:"CmdRef,omitempty"`
-	Cmd     *string    `xml:"Cmd,omitempty"`
-	Data    *string    `xml:"Data,omitempty"`
-	Items   *[]CmdItem `xml:"Item,omitempty"`
+	XMLName      xml.Name  `xml:",omitempty"`
+	CmdID        string    `xml:"CmdID"`
+	MsgRef       *string   `xml:"MsgRef,omitempty"`
+	CmdRef       *string   `xml:"CmdRef,omitempty"`
+	Cmd          *string   `xml:"Cmd,omitempty"`
+	Data         *string   `xml:"Data,omitempty"`
+	Items        []CmdItem `xml:"Item,omitempty"`
+	UUID         string    `xml:"-"`
+	SystemOrigin bool      `xml:"-"`
 }
 
 type CmdItem struct {
@@ -1219,7 +1221,56 @@ func (msg *SyncML) SetID(cmdID int) {
 
 // IsValid checks for required fields in the SyncML command
 func (cmd *SyncMLCmd) IsValid() bool {
-	if ((cmd.Items == nil) || (len(*cmd.Items) == 0)) && cmd.Data == nil {
+	if ((cmd.Items == nil) || (len(cmd.Items) == 0)) && cmd.Data == nil {
+		return false
+	}
+
+	return true
+}
+
+// IsEmpty checks if there are not items in the command
+func (cmd *SyncMLCmd) IsEmpty() bool {
+	if (cmd.Items == nil) || (len(cmd.Items) == 0) {
+		return true
+	}
+
+	return false
+}
+
+// GetTargetURI returns the first protocol commands target URI from the items list
+// This is OK as the protocol commands only have one item when sent from the server
+func (cmd *SyncMLCmd) GetTargetURI() string {
+	if cmd.IsEmpty() {
+		return ""
+	}
+
+	if cmd.Items[0].Target != nil {
+		return *cmd.Items[0].Target
+	}
+
+	return ""
+}
+
+// GetTargetData returns the first protocol commands target data from the items list
+// This is OK as the protocol commands only have one item when sent from the server
+func (cmd *SyncMLCmd) GetTargetData() string {
+	if cmd.IsEmpty() {
+		return ""
+	}
+
+	if cmd.Items[0].Data != nil {
+		return *cmd.Items[0].Data
+	}
+
+	return ""
+}
+
+func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {
+	if cmd.IsEmpty() {
+		return false
+	}
+
+	if (cmdVerb == "") || (cmdVerb == CmdResults) || (cmdVerb == CmdStatus) || (cmd.UUID == "") {
 		return false
 	}
 
@@ -1254,7 +1305,6 @@ type MDMWindowsCommand struct {
 	CmdVerb      string    `db:"cmd_verb"`
 	SettingURI   string    `db:"setting_uri"`
 	SettingValue string    `db:"setting_value"`
-	DataType     uint16    `db:"data_type"`
 	SystemOrigin bool      `db:"system_origin"`
 	ErrorCode    string    `db:"rx_error_code"`
 	CreatedAt    time.Time `db:"created_at"`

@@ -46,7 +46,6 @@ CREATE TABLE windows_mdm_commands (
     cmd_verb        VARCHAR(20)  NOT NULL,
     setting_uri     VARCHAR(255) NOT NULL,
     setting_value   VARCHAR(255) NOT NULL,
-    data_type       SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     system_origin   TINYINT(1) NOT NULL DEFAULT FALSE,
 
     -- this is the error code returned from the MDM Client Stack.
