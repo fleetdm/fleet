@@ -199,6 +199,9 @@ func TestFeaturesCopy(t *testing.T) {
 		clone := f.Copy()
 		require.NotNil(t, clone.DetailQueryOverrides)
 		require.NotSame(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
-		require.Equal(t, f.DetailQueryOverrides["testKey"], clone.DetailQueryOverrides["testKey"])
+		require.Equal(t, f.DetailQueryOverrides["foo"], clone.DetailQueryOverrides["foo"])
+		require.NotSame(t, f.DetailQueryOverrides["foo"], clone.DetailQueryOverrides["foo"])
+		require.Equal(t, f.DetailQueryOverrides["baz"], clone.DetailQueryOverrides["baz"])
+		require.Same(t, f.DetailQueryOverrides["baz"], clone.DetailQueryOverrides["baz"])
 	})
 }

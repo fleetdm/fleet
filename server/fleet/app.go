@@ -10,10 +10,12 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -727,6 +729,18 @@ func (f *Features) Copy() *Features {
 		aq := make(json.RawMessage, len(*f.AdditionalQueries))
 		copy(aq, *f.AdditionalQueries)
 		clone.AdditionalQueries = &aq
+	}
+
+	if f.DetailQueryOverrides != nil {
+		do := make(map[string]*string, len(f.DetailQueryOverrides))
+		for k, v := range f.DetailQueryOverrides {
+			if v == nil {
+				do[k] = nil
+			} else {
+				do[k] = ptr.String(strings.Clone(*v))
+			}
+		}
+		clone.DetailQueryOverrides = do
 	}
 
 	return &clone
