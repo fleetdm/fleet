@@ -6,8 +6,8 @@ import NewTooltipWrapper from ".";
 import "../../index.scss";
 
 interface INewTooltipWrapperProps {
-  children: string;
-  tipContent: string;
+  children: React.ReactNode;
+  tipContent: React.ReactNode;
 }
 
 export default {

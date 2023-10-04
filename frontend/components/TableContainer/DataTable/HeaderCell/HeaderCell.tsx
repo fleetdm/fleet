@@ -1,7 +1,6 @@
 import React from "react";
 
 import classnames from "classnames";
-import NewTooltipWrapper from "components/NewTooltipWrapper";
 
 interface IHeaderCellProps {
   value: string | JSX.Element; // either a string or a NewTooltipWrapper

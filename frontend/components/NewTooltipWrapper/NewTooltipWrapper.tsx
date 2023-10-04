@@ -5,7 +5,7 @@ import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 import { uniqueId } from "lodash";
 
 interface INewTooltipWrapperBase {
-  children: string | JSX.Element;
+  children: React.ReactNode;
   position?: PlacesType;
   isDelayed?: boolean;
   underline?: boolean;
@@ -33,7 +33,7 @@ interface INewTooltipWrapperCustomRender extends INewTooltipWrapperBase {
 
 export interface INewTooltipWrapperTipContent extends INewTooltipWrapperBase {
   customRender?: never;
-  tipContent: string | JSX.Element;
+  tipContent: React.ReactNode;
 }
 
 const baseClass = "component__tooltip-wrapper";
@@ -51,9 +51,7 @@ const NewTooltipWrapper = ({
   className,
   tooltipClass,
   clickable = true,
-}:
-  | INewTooltipWrapperTipContent
-  | INewTooltipWrapperCustomRender): JSX.Element => {
+}: INewTooltipWrapperTipContent | INewTooltipWrapperCustomRender) => {
   const wrapperClassNames = classnames(baseClass, className, {
     // [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
   });
