@@ -16,8 +16,56 @@ This document provides a list of the supported log destinations in Fleet.
 
 Log destinations can be used in Fleet to log:
 - Osquery [status logs](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs).
+
+  
+Example:
+```json
+{
+  "hostIdentifier":"85E0BF4B-E1CD-5AD1-88D1-0DC9220FF6D5",
+  "calendarTime":"Tue Oct  3 20:11:13 2023 UTC",
+  "unixTime":"1696363873",
+  "severity":"0",
+  "filename":"auto_constructed_tables.cpp",
+  "line":"241",
+  "message":"ATC table: tcc_system_entries Registered",
+  "version":"5.9.1"
+}
+```
+
 - Osquery [schedule query result logs](https://osquery.readthedocs.io/en/stable/deployment/logging/#results-logs).
-- Fleet audit logs. 
+
+  
+Example:
+```json
+{
+  "snapshot": [
+    {
+      "model": "USB Keyboard",
+      "vendor": "SIGMACHIP"
+    },
+    {
+      "model": "YubiKey OTP+FIDO+CCID",
+      "vendor": "Yubico"
+    }
+  ],
+  "action": "snapshot",
+  "name": "pack/Global/Get USB device type - 107 - Jul 17 17:47:18.000",
+  "hostIdentifier": "E13932E0-1C5F-5A68-8E58-5D1364C9959F",
+  "calendarTime": "Tue Oct  3 20:53:32 2023 UTC",
+  "unixTime": 1696366412,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "E13932E0-1C5F-5A68-8E58-5D1364C9959F",
+    "hostname": "Nathanaels-MBP.lan"
+  }
+}
+```
+
+- Fleet [audit logs](https://fleetdm.com/docs/using-fleet/audit-logs).
+
+> For global scheduled queries in Fleet, use the naming convention: `pack_global_queryName`. For team-specific scheduled queries, use the naming convention: `pack_team-teamID_queryName`. 
 
 To configure each log destination, you must set the correct logging configuration options in Fleet.
 Check out the reference documentation for:
