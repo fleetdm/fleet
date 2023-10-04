@@ -49,7 +49,7 @@ osascript -e 'tell application "Finder" to set desktop picture to POSIX file "'"
 
 1. Run this fleetctl command:
 ```sh
-fleetctl run-script --script_path=set-wallpaper-to-fleet.sh --host=hostname`
+fleetctl run-script --script-path=set-wallpaper-to-fleet.sh --host=hostname
 ```
 
 > Replace --host flag with your target host's hostname.
