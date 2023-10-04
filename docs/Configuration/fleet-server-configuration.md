@@ -2945,11 +2945,11 @@ This content was moved to [Proxies](http://fleetdm.com/docs/deploy/proxies) on S
 
 <h2 id="configuring-single-sign-on-sso">Configuring single sign-on (SSO)</h2>
 
-This content was moved to [Single sign-on (SSO)](http://fleetdm.com/deploy/single-sign-on-sso) on Sept 6th, 2023.
+This content was moved to [Single sign-on (SSO)](http://fleetdm.com/docs/deploy/single-sign-on-sso) on Sept 6th, 2023.
 
 <h2 id="public-ips-of-devices">Public IPs of devices</h2>
 
-This content was moved to [Public IPs](http://fleetdm.com/docs/deploy/public-ips) on Sept 6th, 2023.
+This content was moved to [Public IPs](http://fleetdm.com/docs/deploy/public-ip) on Sept 6th, 2023.
 
 
 <meta name="pageOrderInSection" value="100">
