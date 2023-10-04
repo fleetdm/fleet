@@ -531,6 +531,8 @@ Use with caution as this may break Fleet ingestion of hosts data.
     detail_query_overrides:
       # null allows to disable the "users" query from running on hosts.
       users: null
+      # "" allows to disable the "disk_encryption_linux" query from running on hosts as well.
+      disk_encryption_linux: ""
       # this replaces the hardcoded "mdm" detail query.
       mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
   ```
