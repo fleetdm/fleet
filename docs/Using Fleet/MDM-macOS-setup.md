@@ -8,10 +8,18 @@ MDM features require Apple's Push Notification service (APNs) to control and sec
 
 > **Note:** you are only required to connect Apple Business Manager (ABM) to Fleet if you are using Automated Device Enrollment AKA Device Enrollment Program (DEP) AKA "Zero-touch."
 
+<<<<<<< HEAD
+* Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scripts, and more.
+
+* Populate the Full Name and Account Name during local account creation with the end user's IdP attributes.
+
+* Require end users to wait for configuration profiles before they can use their new Mac.
+=======
 ## Requirements
 To use Fleet's MDM features you need to have:
 - A [deployed Fleet instance](../Deploying/Introduction.md).
 - A Fleet user with the admin role.
+>>>>>>> a40db252817ed1735e583b2799ae7ccf3bd6452f
 
 ## Apple Push Notification service (APNs)
 Apple uses APNs to authenticate and manage interactions between Fleet and the host.
@@ -45,11 +53,15 @@ Run the following command to download three files and send an email to you with 
 fleetctl generate mdm-apple --email <email> --org <org> 
 ```
 
+<<<<<<< HEAD
+> If you've already configured [single sign-on (SSO) for logging in to Fleet](../Deploy/single-sign-on-sso.md#fleet-sso-configuration), you'll need to create a separate app in your IdP so your end users can't log in to Fleet. In this separate app, use "https://fleetserver.com/api/v1/fleet/mdm/sso/callback" for the SSO URL.
+=======
 ### Step 2: generate an APNs certificate
 1. Log in to or enroll in [Apple Push Certificates Portal](https://identity.apple.com).
 2. Select **Create a Certificate**.
 3. Upload your CSR and input a friendly name, such as "Fleet."
 4. Download the APNs certificate.
+>>>>>>> a40db252817ed1735e583b2799ae7ccf3bd6452f
 
 > **Important:** Take note of the Apple ID you use to sign into Apple Push Certificates Portal. You'll need to use the same Apple ID when renewing your APNs certificate.
 
@@ -140,7 +152,11 @@ Use either of the following methods to confirm that Fleet is set up:
 
 #### Fleetctl CLI:
 
+<<<<<<< HEAD
+This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for you end users.
+=======
 Run the following command. You should see information about the new APNs certificate such as serial number and renewal date. 
+>>>>>>> a40db252817ed1735e583b2799ae7ccf3bd6452f
 
 ```sh
 fleetctl get mdm-apple
@@ -280,7 +296,164 @@ To renew the token:
 4. In your Fleet server, update the environment variable [FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-bm-server-token-bytes)
 5. Restart the Fleet server
 
+<<<<<<< HEAD
+In Fleet, you can customize the macOS Setup Assistant by using an automatic enrollment profile.
+
+To customize the macOS Setup Assistant, we will do the following steps:
+
+1. Create an automatic enrollment profile
+2. Upload the profile to Fleet
+3. Test the custom macOS Setup Assistant
+
+### Step 1: create an automatic enrollment profile
+
+1. Download Fleet's example automatic enrollment profile by navigating to the example [here on GitHub](https://github.com/fleetdm/fleet/blob/main/mdm_profiles/setup_assistant.json) and clicking the download icon.
+
+2. Open the automatic enrollment profile and replace the `profile_name` key with your organization's name.
+
+3. View the the list of macOS Setup Assistant properties (panes) [here in Apple's Device Management documentation](https://developer.apple.com/documentation/devicemanagement/skipkeys) and choose which panes to hide from your end users.
+
+4. In your automatic enrollment profile, edit the `skip_setup_items` array so that it includes the panes you want to hide.
+
+    > You can modify properties other than `skip_setup_items`. These are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/profile).
+
+### Step 2: upload the profile to Fleet
+
+1. Choose which team you want to add the automatic enrollment profile to.
+
+   In this example, let's assume you have a "Workstations" team as your [default team](./MDM-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production. 
+
+   To do this, we'll create a new "Workstations (canary)" team and add the automatic enrollment profile to it. Only hosts that automatically enroll to this team will see the custom macOS Setup Assistant.
+
+2. Create a `workstations-canary-config.yaml` file:
+
+    ```yaml
+    apiVersion: v1
+    kind: team
+    spec:
+      team:
+        name: Workstations (canary)
+        mdm:
+          macos_setup:
+            macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
+        ...
+    ```
+
+    Learn more about team configurations options [here](./configuration-files/README.md#teams).
+
+    If you want to customize the macOS Setup Assistant for hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
+
+    ```yaml
+    apiVersion: v1
+    kind: config
+    spec:
+      mdm:
+        macos_setup:
+          macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
+      ...
+    ```
+
+    Learn more about configuration options for hosts that aren't assigned to a team [here](./configuration-files/README.md#organization-settings).
+
+3. Add an `mdm.macos_setup.macos_setup_assistant` key to your YAML document. This key accepts a path to your automatic enrollment profile.
+
+4. Run the `fleetctl apply -f workstations-canary-config.yml` command to upload the automatic enrollment profile to Fleet.
+
+### Step 3: test the custom macOS Setup Assistant
+
+Testing requires a test Mac that is present in your Apple Business Manager (ABM) account. We will wipe this Mac and use it to test the custom macOS Setup Assistant.
+
+1. Wipe the test Mac by selecting the Apple icon in top left corner of the screen, selecting **System Settings** or **System Preference**, and searching for "Erase all content and settings." Select **Erase All Content and Settings**.
+
+2. In Fleet, navigate to the Hosts page and find your Mac. Make sure that the host's **MDM status** is set to "Pending."
+
+    > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." Learn more about these hosts [here](./MDM-setup.md#pending-hosts).
+
+3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
+
+4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
+
+## Populate the Full Name and Account Name
+
+When an end user unboxes their Mac, they're presented with the **Create a Computer Account** pane where they choose their local Full Name, Account Name, and Password they'll used to login to your Mac.
+
+With Fleet, you can populate the Full Name and Account Name with information from your Identity Provider (IdP).
+
+To populate the Full Name and Account Name, we will do the following steps:
+
+1. Enable end user authentication
+2. Configure your IdP
+3. Edit your macOS Setup Assistant settings
+4. Release the Mac from Await Configuration
+
+### Step 1: enable end user authentication
+
+If you haven't already, follow the steps to enable end user authentication [here](#end-user-authentication-and-eula).
+
+### Step 2: configure your IdP
+
+1. In your IdP, make sure the end user's full name is set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will populate the Account Name with any of these.
+
+2. In your IdP configuration set **Name ID** to the end user's email. Fleet will trim this email and use it to populate the Account Name. For example, a "johndoe@example.com" email turn into a "johndoe" Account Name.
+
+### Step 3: edit your macOS Setup Assistant settings
+
+In Fleet, you control your macOS Setup Assistant settings with an automatic enrollment profile.
+
+Set `await_device_configured` to `true` in your automatic enrollment profile. Learn how to edit your automatic enrollment profile [here](#macos-setup-assistant). 
+
+This will tell the Mac to not allow the user through Setup Assistant until the Mac is released. This way, the Mac has time to get the Full Name and Account Name from your IdP before the **Create a Computer Account** pane.
+
+## Step 4: release the Mac from Await Configuration
+
+Releasing the Mac can be automated using the Fleet API. In this example, we'll release a test Mac manually.
+
+1. Open a freshly wiped test Mac and continue through macOS Setup Assistant.
+
+2. After you click past the **Remote Management** pane, send a request to the [`GET /hosts/identifier/{uuid}` API route](../REST%20API/rest-api.md#get-host-by-identifier). In the response, wait until all profiles in the `"profiles"` array, except for `"Disk encryption"`, have `"status"` set to `"verifying"`.
+
+3. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using the [Fleet API](../REST%20API/rest-api.md#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
+
+4. At this pane, confirm that the Full Name and Account Name are set to the correct values.
+
+## Wait for configuration profiles
+
+Some organizations want to ensure configuration profiles are installed before the end user can use their Mac. 
+
+For example, at the **Create a Computer Account** pane in macOS Setup Assistant, in order to require that the end user enters a password that meets your organization's password policy, a password policy profile must be installed on the Mac. 
+
+We'll use this example and do the following steps:
+
+1. Add a password policy configuration profile
+2. Edit your macOS Setup Assistant settings
+3. Release the Mac from Await Configuration
+
+## Step 1: add a password policy configuration profile
+
+1. Download Fleet's password policy configuration profile [here](https://github.com/fleetdm/fleet/blob/main/mdm_profiles/password_policy.mobileconfig). This password policy requires that an end user's password must be at least 10 characters long.
+
+2. Upload the profile to Fleet. Learn how to upload profiles [here](./MDM-custom-macOS-settings.md#enforce-custom-settings)
+
+## Step 2: edit your macOS Setup Assistant settings
+
+Set `await_device_configured` to `true` in your automatic enrollment profile. Learn how to edit your automatic enrollment profile [here](#macos-setup-assistant).
+
+## Step 3: release the Mac from Await Configuration
+
+1. Open a freshly wiped test Mac and continue through macOS Setup Assistant.
+
+2. After you click past the **Remote Management** pane, send a request to the [`GET /hosts/identifier/{uuid}` API route](../REST%20API/rest-api.md#get-host-by-identifier). In the response, wait until the `"Enforce password length (10 characters)"` profile in the `"profiles"` array has `"status"` set to `"verifying"`. 
+
+3. Send the [Release Device from Await Configuration](https://developer.apple.com/documentation/devicemanagement/release_device_from_await_configuration) MDM command using the [Fleet API](../REST%20API/rest-api.md#run-custom-mdm-command). This will release the Mac and allow you to advance to the **Create a Computer Account** pane.
+
+4. At this pane, try to advance with a password that's 9 characters to confirm that your password must be at least 10 characters long.
+
+<meta name="pageOrderInSection" value="1505">
+<meta name="title" value="MDM macOS setup">
+<meta name="description" value="Customize your macOS setup experience with Fleet Premium by managing user authentication, Setup Assistant panes, and installing bootstrap packages.">
+=======
 <meta name="pageOrderInSection" value="1500">
 <meta name="title" value="macOS setup">
 <meta name="description" value="Learn how to configure Fleet to use Apple's Push Notification service and connect to Apple Business Manager.">
+>>>>>>> a40db252817ed1735e583b2799ae7ccf3bd6452f
 <meta name="navSection" value="Device management">
