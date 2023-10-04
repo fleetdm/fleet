@@ -1207,7 +1207,7 @@ func (svc *Service) processIncomingProtocolCommands(messageID string, deviceID s
 	// - Handle Results/Responses
 
 	// We return a status 200 for all the operations
-	return NewSyncMLCmdStatus(messageID, cmd.Cmd.CmdID, string(cmd.Verb), mdm.CmdStatusOK), nil
+	return NewSyncMLCmdStatus(messageID, cmd.Cmd.CmdID, cmd.Verb, mdm.CmdStatusOK), nil
 }
 
 // processIncomingMDMCmds process the incoming message from the device
@@ -1315,7 +1315,7 @@ func (svc *Service) createResponseSyncML(ctx context.Context, req *fleet.SyncML,
 // storeProtoCmd stores the SyncML protocol command operation for tracking purposes
 func (svc *Service) storeSyncMLCmd(ctx context.Context, msg *mdm_types.SyncML) error {
 	if msg == nil {
-		return fmt.Errorf("syncml msg is invalid")
+		return errors.New("syncml msg is invalid")
 	}
 
 	err := msg.IsValidBody()
@@ -1807,57 +1807,57 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		if len(cmdData) > 0 {
 			rawCmd := newSyncMLNoItem(cmdVerb, cmdData)
 			return rawCmd, nil
-		} else {
-			return nil, errInvalidParameters
 		}
+
+		return nil, errInvalidParameters
 
 	case mdm_types.SFNoFormat:
 		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLNoFormat(cmdVerb, cmdTarget)
 			return rawCmd, nil
-		} else {
-			return nil, errInvalidParameters
 		}
+
+		return nil, errInvalidParameters
 
 	case mdm_types.SFText:
 		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
 			rawCmd := newSyncMLCmdText(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
-		} else {
-			return nil, errInvalidParameters
 		}
+
+		return nil, errInvalidParameters
 
 	case mdm_types.SFXml:
 		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
 			rawCmd := newSyncMLCmdXml(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
-		} else {
-			return nil, errInvalidParameters
 		}
+
+		return nil, errInvalidParameters
 
 	case mdm_types.SFInteger:
 		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
 			rawCmd := newSyncMLCmdInt(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
-		} else {
-			return nil, errInvalidParameters
 		}
+
+		return nil, errInvalidParameters
 
 	case mdm_types.SFBase64:
 		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
 			rawCmd := newSyncMLCmdBase64(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
-		} else {
-			return nil, errInvalidParameters
 		}
+
+		return nil, errInvalidParameters
 
 	case mdm_types.SFBoolean:
 		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
 			rawCmd := newSyncMLCmdBool(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
-		} else {
-			return nil, errInvalidParameters
 		}
+
+		return nil, errInvalidParameters
 	}
 
 	return nil, errInvalidParameters
