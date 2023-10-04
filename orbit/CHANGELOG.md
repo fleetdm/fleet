@@ -1,11 +1,3 @@
-## Orbit 1.17.0 (Sep 28, 2023)
-
-* Updated the image and the overall layout of the migration dialog
-
-* Added a mechanism to retry a Fleet Desktop token when the Fleet server response indicates it has expired or is invalid.
-
-* Upgraded Go version to 1.21.1
-
 ## Orbit 1.16.0 (Sep 6, 2023)
 
 * Updated the default TUF update roots with the newest metadata in the server. (#13381)

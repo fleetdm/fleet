@@ -353,7 +353,7 @@ func ValidatePasswordRequirements(password string) error {
 		return nil
 	}
 
-	return errors.New("Password does not meet required criteria: Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#).")
+	return errors.New("Password does not meet required criteria")
 }
 
 // ValidateEmail checks that the provided email address is valid, this function

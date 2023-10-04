@@ -7,7 +7,7 @@ on:
       - 'orbit/**.go'
 
 env:
-  ORBIT_VERSION: 1.17.0
+  ORBIT_VERSION: 1.16.0
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:

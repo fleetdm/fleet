@@ -863,7 +863,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 
 	if err := fleet.ValidatePasswordRequirements(password); err != nil {
-		return nil, fleet.NewInvalidArgumentError("new_password", "Password does not meet required criteria: Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#).")
+		return nil, fleet.NewInvalidArgumentError("new_password", "Password does not meet required criteria")
 	}
 
 	user.AdminForcedPasswordReset = false
