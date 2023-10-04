@@ -1182,19 +1182,3 @@ func (cmd *SyncMLCmd) IsValid() bool {
 
 	return true
 }
-
-// MDMMicrosoftCommandAuthz is used to check user authorization to read/write a
-// Microsoft MDM command.
-type MDMMicrosoftCommandAuthz struct {
-	TeamID *uint `json:"team_id"` // required for authorization by team
-}
-
-// SetTeamID implements the TeamIDSetter interface.
-func (m *MDMMicrosoftCommandAuthz) SetTeamID(tid *uint) {
-	m.TeamID = tid
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMMicrosoftCommandAuthz) AuthzType() string {
-	return "mdm_microsoft_command"
-}

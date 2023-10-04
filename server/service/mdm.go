@@ -466,11 +466,7 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, devi
 	// (how can gitops run a command?). This complicates a lot of things, as gitops has no read
 	// permissions at all (e.g. HostByIdentifier call in fleetctl, list permission here, etc.).
 
-	// TODO(mna): this doesn't work as it assumes a Microsoft Authz (it could be macOS, we don't know
-	// until we've checked the hosts). I think that now that this is a platform-agnostic endpoint,
-	// authorization would be the same regardless of platform. Confirm this and we can reuse a single
-	// MDMApple/Microsoft/CommandAuthz struct.
-	hosts, err := svc.authorizeAllHostsTeams(ctx, deviceIDs, false, fleet.ActionWrite, &fleet.MDMMicrosoftCommandAuthz{})
+	hosts, err := svc.authorizeAllHostsTeams(ctx, deviceIDs, false, fleet.ActionWrite, &fleet.MDMCommandAuthz{})
 	if err != nil {
 		return nil, err
 	}

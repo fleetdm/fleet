@@ -231,22 +231,6 @@ type EnrolledAPIResult struct {
 // EnrolledAPIResults is a map of enrollments to a per-enrollment API result.
 type EnrolledAPIResults map[string]*EnrolledAPIResult
 
-// MDMAppleCommandAuthz is used to check user authorization to read/write an
-// Apple MDM command.
-type MDMAppleCommandAuthz struct {
-	TeamID *uint `json:"team_id"` // required for authorization by team
-}
-
-// SetTeamID implements the TeamIDSetter interface.
-func (m *MDMAppleCommandAuthz) SetTeamID(tid *uint) {
-	m.TeamID = tid
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleCommandAuthz) AuthzType() string {
-	return "mdm_apple_command"
-}
-
 // MDMAppleHostDetails represents the device identifiers used to ingest an MDM device as a Fleet
 // host pending enrollment.
 // See also https://developer.apple.com/documentation/devicemanagement/authenticaterequest.

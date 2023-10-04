@@ -118,7 +118,7 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 		hostsByUUID[h.UUID] = h
 	}
 
-	var commandAuthz fleet.MDMAppleCommandAuthz
+	var commandAuthz fleet.MDMCommandAuthz
 	for tmID := range teamIDs {
 		commandAuthz.TeamID = &tmID
 		if tmID == 0 {
@@ -207,7 +207,7 @@ func (svc *Service) ListMDMAppleCommands(ctx context.Context, opts *fleet.MDMApp
 	// retrieving the list of commands, this may result in returning less results
 	// than requested, but it's ok - it's expected that the results retrieved
 	// from the datastore will all be authorized for the user.
-	var commandAuthz fleet.MDMAppleCommandAuthz
+	var commandAuthz fleet.MDMCommandAuthz
 	var authzErr error
 	for tmID := range teamIDs {
 		commandAuthz.TeamID = &tmID
@@ -923,7 +923,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	rawBase64Cmd string,
 	deviceIDs []string,
 ) (result *fleet.CommandEnqueueResult, err error) {
-	hosts, err := svc.authorizeAllHostsTeams(ctx, deviceIDs, false, fleet.ActionWrite, &fleet.MDMAppleCommandAuthz{})
+	hosts, err := svc.authorizeAllHostsTeams(ctx, deviceIDs, false, fleet.ActionWrite, &fleet.MDMCommandAuthz{})
 	if err != nil {
 		return nil, err
 	}
@@ -1119,7 +1119,7 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	}
 
 	// Check authorization again based on host info for team-based permissions.
-	if err := svc.authz.Authorize(ctx, fleet.MDMAppleCommandAuthz{
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
 		TeamID: h.TeamID,
 	}, fleet.ActionWrite); err != nil {
 		return err
@@ -2776,7 +2776,7 @@ func (svc *Service) getConfigAppleBMDefaultTeamID(ctx context.Context, appCfg *f
 // the specified authzAction (e.g. fleet.ActionWrite) for all the hosts' teams
 // with the specified authorizer, which is typically a struct that can set a
 // TeamID field and defines an authorization subject, such as
-// fleet.MDMAppleCommandAuthz.
+// fleet.MDMCommandAuthz.
 //
 // On success, the list of hosts is returned (which may be empty, it is up to
 // the caller to return an error if needed when no hosts are found).

@@ -151,3 +151,19 @@ type CommandEnqueueResult struct {
 	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
 	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 }
+
+// MDMCommandAuthz is used to check user authorization to read/write an
+// MDM command.
+type MDMCommandAuthz struct {
+	TeamID *uint `json:"team_id"` // required for authorization by team
+}
+
+// SetTeamID implements the TeamIDSetter interface.
+func (m *MDMCommandAuthz) SetTeamID(tid *uint) {
+	m.TeamID = tid
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (m MDMCommandAuthz) AuthzType() string {
+	return "mdm_command"
+}
