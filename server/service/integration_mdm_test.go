@@ -124,13 +124,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		FleetConfig:    &fleetCfg,
-		MDMStorage:     mdmStorage,
-		DEPStorage:     depStorage,
-		SCEPStorage:    scepStorage,
-		MDMPusher:      mdmPushService,
-		Pool:           redisPool,
-		EnableCachedDS: true,
+		FleetConfig: &fleetCfg,
+		MDMStorage:  mdmStorage,
+		DEPStorage:  depStorage,
+		SCEPStorage: scepStorage,
+		MDMPusher:   mdmPushService,
+		Pool:        redisPool,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
