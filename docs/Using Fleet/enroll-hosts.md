@@ -314,9 +314,27 @@ expiration setting. To configure this setting, in the Fleet UI, head to **Settin
 
 > The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
 
+### Overview
+Google Admin uses organizational units (OUs) to organize devices and users.
+
+One limitation in Google Admin is that extensions can only be configured at the user level, meaning that a user with a MacBook running Chrome, for example, will also get the fleetd Chrome extension.
+
+When deployed on OSs other than ChromeOS, the fleetd Chrome extension will not perform any operation and will not appear in the Chrome toolbar. 
+However, it will appear in the "Manage Extensions" page of Chrome.
+Fleet admins who are comfortable with this situation can skip step 2 below.
+
+To install the fleetd Chrome extension on Google Admin, there are two steps:
+1. Create an OU for all users who have Chromebooks and force-install the fleetd Chrome extension for those users
+2. Create an OU for all non-Chromebook devices and block the fleetd Chrome extension on this OU
+
+> More complex setups may be necessary, depending on the organization's needs, but the basic principle remains the same.
+
+### Step 1: OU for Chromebook users
+Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en) where the extension should be installed. [Add all the relevant users](https://support.google.com/a/answer/182449?hl=en) to this OU.
+
 Visit the Google Admin console. In the navigation menu, visit Devices > Chrome > Apps & Extensions > Users & browsers.
 
-Select the relevant organizational unit, users, or group where you want the fleetd Chrome extension to be installed.
+Select the relevant OU where you want the fleetd Chrome extension to be installed.
 
 > Currently, the Chrome extension can only be installed across the entire organization. The work to enable installation for sub-groups is tracked in https://github.com/fleetdm/fleet/issues/13353. 
 
@@ -329,6 +347,21 @@ Enter the "Extension ID," "Installation URL," and "Policy for extensions" using 
 Under "Installation Policy", select "Force install". Under "Update URL", select "Installation URL (see above)".
 
 > For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
+
+### Step 2: OU to block non-Chromebook devices
+Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en) to house devices where the extension should not be installed. [Add all the relevant devices](https://support.google.com/chrome/a/answer/2978876?hl=en) to this OU.
+
+In the Google Admin console, in the navigation menu, visit Devices > Chrome > Managed Browsers.
+
+Select the relevant OU where you want the fleetd Chrome extension to be blocked.
+
+In the bottom right, click the yellow "+" button and select "Add Chrome app or extension by ID."
+
+Visit your Fleet instance and select Hosts > Add Hosts and select ChromeOS in the popup modal.
+
+Enter the "Extension ID" and "Installation URL" using the data provided in the modal.
+
+Under "Installation Policy", select "Block".
 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which
