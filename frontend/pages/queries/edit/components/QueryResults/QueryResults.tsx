@@ -187,6 +187,9 @@ const QueryResults = ({
     tableData: unknown[],
     tableType: "errors" | "results"
   ) => {
+    console.log("tableHeaders", tableHeaders);
+    console.log("tableData", tableData);
+
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer

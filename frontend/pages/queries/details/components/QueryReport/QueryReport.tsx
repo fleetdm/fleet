@@ -10,6 +10,7 @@ import {
   generateCSVQueryResults,
 } from "utilities/generate_csv";
 import { IQueryReport } from "interfaces/query_report";
+import { humanLastSeen } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -46,13 +47,17 @@ I want to return
 const uiResults = (results: any) => {
   return results.map((result: any) => {
     const obj = {
+      host_id: result.host_id,
       host_name: result.host_name,
-      last_fetched: result.last_fetched,
+      last_fetched: humanLastSeen(result.last_fetched),
     };
     // Object.keys(result.columns).forEach(key => {
     //   obj[key] = result.columns[key];
     // })
-    Object.assign(obj, result.columns);
+    // Object.assign(obj, result.columns);
+    // console.log("obj", obj);
+    // console.log("Object.keys(obj)", Object.keys(obj));
+    // return Object.values(obj);
     console.log("obj", obj);
     return obj;
   });
@@ -127,12 +132,14 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
     );
   };
 
+  console.log("tableHeaders", tableHeaders);
+  console.log("filteredResults", filteredResults);
   const renderTable = () => {
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
           columns={tableHeaders}
-          data={filteredResults || []}
+          data={filteredResults}
           emptyComponent={renderNoResults}
           isLoading={false}
           isClientSidePagination
@@ -142,7 +149,7 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
           isAllPagesSelected={false}
           resultsTitle="results"
           customControl={() => renderTableButtons()}
-          setExportRows={setFilteredResults}
+          // setExportRows={setFilteredResults}
         />
       </div>
     );
