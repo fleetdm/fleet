@@ -1448,6 +1448,11 @@ func (svc *Service) SaveResultLogs(ctx context.Context, results []json.RawMessag
 			return newOsqueryError("getting host ID: " + err.Error())
 		}
 
+		err = svc.ds.DeleteQueryResultsForHost(ctx, host.ID, query.ID)
+		if err != nil {
+			return newOsqueryError("deleting query results for host: " + err.Error())
+		}
+
 		for _, snapshotItem := range result.Snapshot {
 			if rowCount >= 1000 {
 				break
