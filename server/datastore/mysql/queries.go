@@ -503,11 +503,24 @@ func (ds *Datastore) DeleteAllResultsForQuery(ctx context.Context, queryId *uint
 	deleteStmt := fmt.Sprintf(`DELETE FROM %s WHERE query_id = ?`, queryResultsTable.name)
 	result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryId)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "delete %s", queryResultsTable)
+		return ctxerr.Wrapf(ctx, err, "delete %s by query id", queryResultsTable)
 	}
 	rows, _ := result.RowsAffected()
 	if rows != 1 {
 		return ctxerr.Wrap(ctx, notFound(queryResultsTable.name).WithID(*queryId))
+	}
+	return nil
+}
+
+func (ds *Datastore) DeleteAllResultsForQueryByName(ctx context.Context, queryName *string) error {
+	deleteStmt := `DELETE query_results FROM query_results LEFT JOIN queries ON query_results.query_id = queries.id WHERE queries.name = ?;`
+	result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryName)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "delete %s by query name", queryResultsTable)
+	}
+	rows, _ := result.RowsAffected()
+	if rows != 1 {
+		return ctxerr.Wrap(ctx, notFound(queryResultsTable.name).WithName(*queryName))
 	}
 	return nil
 }

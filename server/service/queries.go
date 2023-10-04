@@ -534,6 +534,17 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 				Message: fmt.Sprintf("query payload verification: %s", err),
 			})
 		}
+
+		dbQuery, err := svc.ds.QueryByName(ctx, query.TeamID, query.Name)
+		if err != nil {
+			return ctxerr.Wrap(ctx, &fleet.GatewayError{Message: fmt.Sprintf("fetching saved query: %s", err)})
+		}
+
+		if query.DiscardData || query.Logging != fleet.LoggingSnapshot || query.Query != dbQuery.Query {
+			if err := svc.ds.DeleteAllResultsForQueryByName(ctx, &query.Name); err != nil {
+				return ctxerr.Wrap(ctx, &fleet.GatewayError{Message: fmt.Sprintf("query results deletion: %s", err)})
+			}
+		}
 	}
 	// 3. Apply the queries.
 	vc, ok := viewer.FromContext(ctx)
