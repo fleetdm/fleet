@@ -23,6 +23,11 @@ import {
   ISchedulableQuery,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
+import TooltipWrapper from "components/TooltipWrapper";
+import { Link } from "react-router";
+import Icon from "components/Icon";
+import { IConfig } from "interfaces/config";
+import InfoBanner from "components/InfoBanner";
 
 const baseClass = "save-query-modal";
 export interface ISaveQueryModalProps {
@@ -33,6 +38,8 @@ export interface ISaveQueryModalProps {
   toggleSaveQueryModal: () => void;
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;
+  appConfig?: IConfig;
+  isLoadingAppConfig?: boolean;
 }
 
 const validateQueryName = (name: string) => {
@@ -54,6 +61,8 @@ const SaveQueryModal = ({
   toggleSaveQueryModal,
   backendValidators,
   existingQuery,
+  appConfig,
+  isLoadingAppConfig,
 }: ISaveQueryModalProps): JSX.Element => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -73,14 +82,19 @@ const SaveQueryModal = ({
     setSelectedLoggingType,
   ] = useState<QueryLoggingOption>(existingQuery?.logging ?? "snapshot");
   const [observerCanRun, setObserverCanRun] = useState(false);
+  const [discardData, setDiscardData] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [forceEditDiscardData, setForceEditDiscardData] = useState(false);
 
   const toggleAdvancedOptions = () => {
     setShowAdvancedOptions(!showAdvancedOptions);
   };
+
+  const query_reports_disabled =
+    appConfig?.server_settings?.query_reports_disabled;
 
   useDeepEffect(() => {
     if (name) {
@@ -108,6 +122,7 @@ const SaveQueryModal = ({
         description,
         interval: selectedFrequency,
         observer_can_run: observerCanRun,
+        discard_data: discardData,
         platform: selectedPlatformOptions,
         min_osquery_version: selectedMinOsqueryVersionOptions,
         logging: selectedLoggingType,
@@ -139,6 +154,76 @@ const SaveQueryModal = ({
     [setSelectedPlatformOptions]
   );
 
+  const renderDiscardDataOption = () => {
+    const disable = query_reports_disabled && !forceEditDiscardData;
+    return (
+      <>
+        {["differential", "differential_ignore_removals"].includes(
+          selectedLoggingType
+        ) && (
+          <InfoBanner color="purple-bold-border">
+            <>
+              The <b>Discard data</b> setting is ignored when differential
+              logging is enabled. This <br />
+              query&apos;s results will not be saved in Fleet.
+            </>
+          </InfoBanner>
+        )}
+        <Checkbox
+          name="discardData"
+          onChange={setDiscardData}
+          value={discardData}
+          wrapperClassName={
+            disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
+          }
+        >
+          Discard data
+        </Checkbox>
+        <div className="help-text">
+          {disable ? (
+            <>
+              This setting is ignored because query reports in Fleet have been{" "}
+              <TooltipWrapper
+                // TODO - use JSX once new tooltipwrapper is merged
+                tipContent={
+                  "A Fleet administrator can enable query reports under <br />\
+                  <b>Organization settings > Advanced options > Disable  query reports</b>."
+                }
+                position="bottom"
+              >
+                <>globally disabled.</>
+              </TooltipWrapper>{" "}
+              <Link
+                to={""}
+                onClick={() => {
+                  setForceEditDiscardData(true);
+                }}
+                className={`${baseClass}__edit-anyway`}
+              >
+                <>
+                  Edit anyway
+                  <Icon
+                    name="chevron"
+                    direction="right"
+                    color="core-fleet-blue"
+                    size="small"
+                  />
+                </>
+              </Link>
+            </>
+          ) : (
+            <>
+              The most recent results for each host will not be available in
+              Fleet.
+              <br />
+              Data will still be sent to your log destination if{" "}
+              <b>automations</b> are <b>on</b>.
+            </>
+          )}
+        </div>
+      </>
+    );
+  };
   return (
     <Modal title={"Save query"} onExit={toggleSaveQueryModal}>
       <form
@@ -177,9 +262,9 @@ const SaveQueryModal = ({
           label="Frequency"
           wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
         />
-        <p className="help-text">
-          If automations are on, this is how often your query collects data.
-        </p>
+        <div className="help-text">
+          This is how often your query collects data.
+        </div>
         <Checkbox
           name="observerCanRun"
           onChange={setObserverCanRun}
@@ -188,10 +273,10 @@ const SaveQueryModal = ({
         >
           Observers can run
         </Checkbox>
-        <p className="help-text">
+        <div className="help-text">
           Users with the Observer role will be able to run this query as a live
           query.
-        </p>
+        </div>
         <RevealButton
           isShowing={showAdvancedOptions}
           className={`${baseClass}__advanced-options-toggle`}
@@ -211,12 +296,9 @@ const SaveQueryModal = ({
               multi
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
             />
-            <p className="help-text">
-              If automations are turned on, your query collects data on
-              compatible platforms.
-              <br />
-              If you want more control, override platforms.
-            </p>
+            <div className="help-text">
+              By default, your query collects data on all compatible platforms.
+            </div>
             <Dropdown
               options={MIN_OSQUERY_VERSION_OPTIONS}
               onChange={setSelectedMinOsqueryVersionOptions}
@@ -233,6 +315,7 @@ const SaveQueryModal = ({
               label="Logging"
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
             />
+            {!isLoadingAppConfig && renderDiscardDataOption()}
           </>
         )}
         <div className="modal-cta-wrap">

@@ -114,6 +114,7 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   id: 0,
   interval: 0,
   observer_can_run: false,
+  discard_data: false,
   platform: "",
   min_osquery_version: "",
   automations_enabled: false,

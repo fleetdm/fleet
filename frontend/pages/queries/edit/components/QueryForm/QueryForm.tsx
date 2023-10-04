@@ -34,6 +34,7 @@ import {
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
 import { SelectedPlatformString } from "interfaces/platform";
+import { IConfig } from "interfaces/config";
 import queryAPI from "services/entities/queries";
 
 import { IAceEditor } from "react-ace/lib/types";
@@ -73,6 +74,8 @@ interface IQueryFormProps {
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
   hostId?: number;
+  appConfig?: IConfig;
+  isLoadingAppConfig?: boolean;
   showSaveChangesModal: boolean;
   setShowSaveChangesModal: (bool: boolean) => void;
 }
@@ -122,6 +125,8 @@ const QueryForm = ({
   renderLiveQueryWarning,
   backendValidators,
   hostId,
+  appConfig,
+  isLoadingAppConfig,
   showSaveChangesModal,
   setShowSaveChangesModal,
 }: IQueryFormProps): JSX.Element => {
@@ -814,6 +819,8 @@ const QueryForm = ({
             toggleSaveQueryModal={toggleSaveQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}
+            appConfig={appConfig}
+            isLoadingAppConfig={isLoadingAppConfig}
           />
         )}
         {showSaveChangesModal && (

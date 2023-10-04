@@ -6,6 +6,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { DEFAULT_QUERY } from "utilities/constants";
+import configAPI from "services/entities/config";
 import queryAPI from "services/entities/queries";
 import statusAPI from "services/entities/status";
 import {
@@ -29,6 +30,7 @@ import deepDifference from "utilities/deep_difference";
 
 import BackLink from "components/BackLink";
 import QueryForm from "pages/queries/edit/components/QueryForm";
+import { IConfig } from "interfaces/config";
 
 interface IEditQueryPageProps {
   router: InjectedRouter;
@@ -89,7 +91,7 @@ const EditQueryPage = ({
     setLastEditedQueryPlatforms,
     // setSelectedQueryTargets,
   } = useContext(QueryContext);
-  const { currentUser } = useContext(AppContext);
+  const { currentUser, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   // const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
@@ -101,6 +103,17 @@ const EditQueryPage = ({
     false
   );
   const [showSaveChangesModal, setShowSaveChangesModal] = useState(false);
+
+  const { data: appConfig, isLoading: isLoadingAppConfig } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["config"], () => configAPI.loadAll(), {
+    select: (data: IConfig) => data,
+    onSuccess: (data) => {
+      setConfig(data);
+    },
+  });
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -307,6 +320,8 @@ const EditQueryPage = ({
               isQuerySaving={isQuerySaving}
               isQueryUpdating={isQueryUpdating}
               hostId={parseInt(location.query.host_ids as string, 10)}
+              appConfig={appConfig}
+              isLoadingAppConfig={isLoadingAppConfig}
               showSaveChangesModal={showSaveChangesModal}
               setShowSaveChangesModal={setShowSaveChangesModal}
             />
