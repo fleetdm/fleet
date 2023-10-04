@@ -640,7 +640,7 @@ For MDM support on CX bugs:
 
 For CX support on MDM bugs:
 - Remove the `#g-mdm` label and add `#g-cx` label.
-- Add `~assisting MDM` to clarify the bug’s origin.
+- Add `~assisting g-mdm` to clarify the bug’s origin.
 
 
 Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements) into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary.
