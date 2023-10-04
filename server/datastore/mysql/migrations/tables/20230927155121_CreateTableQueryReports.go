@@ -20,7 +20,6 @@ func Up_20230927155121(tx *sql.Tx) error {
 			last_fetched TIMESTAMP NOT NULL,
 			data JSON,
 			FOREIGN KEY (query_id) REFERENCES queries(id) ON DELETE CASCADE,
-			FOREIGN KEY (host_id) REFERENCES hosts(id)
 		);
     `)
 	if err != nil {
