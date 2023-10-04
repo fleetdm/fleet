@@ -116,7 +116,7 @@ func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u
 }
 
 type SyncMLResponseMsgContainer struct {
-	Data *string
+	Data *fleet.SyncML
 	Err  error
 }
 
@@ -124,12 +124,19 @@ func (r SyncMLResponseMsgContainer) error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (r SyncMLResponseMsgContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	resData := []byte(*r.Data + "\n")
+	xmlRes, err := xml.MarshalIndent(r.Data, "", "\t")
+	if err != nil {
+		logging.WithExtras(ctx, "error with SyncMLResponseMsgContainer", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	xmlRes = append(xmlRes, '\n')
 
 	w.Header().Set("Content-Type", mdm.SyncMLContentType)
-	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
+	w.Header().Set("Content-Length", strconv.Itoa(len(xmlRes)))
 	w.WriteHeader(http.StatusOK)
-	if n, err := w.Write(resData); err != nil {
+	if n, err := w.Write(xmlRes); err != nil {
 		logging.WithExtras(ctx, "err", err, "written", n)
 	}
 }
@@ -1138,19 +1145,21 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 }
 
 // GetMDMWindowsManagementResponse returns a valid SyncML response message
-func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*string, error) {
+func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error) {
 	if reqSyncML == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
-	// TODO - Security checks that need to be implemented
-	// - TLS based auth
-	// - Device auth based on Source/LocURI DeviceID information (this should be present on Enrollment DB)
+	// Checking if the incoming request is trusted
+	err := svc.isTrustedRequest(ctx, reqSyncML)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "management request is not trusted")
+	}
 
 	// Getting the management response message
 	resSyncMLmsg, err := svc.getManagementResponse(ctx, reqSyncML)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "device provisioning information")
+		return nil, ctxerr.Wrap(ctx, err, "management response message")
 	}
 
 	// Token is authorized
@@ -1178,10 +1187,178 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	return htmlBuf.String(), nil
 }
 
-// getManagementResponse returns a valid SyncML response message
-func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*string, error) {
+// isTrustedRequest checks if the incoming request was sent from MDM enrolled device
+func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML) error {
 	if reqSyncML == nil {
+		return fleet.NewInvalidArgumentError("syncml req message", "message is not present")
+	}
+
+	// TODO - Security checks that need to be implemented
+	// - TLS based auth
+	// - Device auth based on Source/LocURI DeviceID information (this should be present on Enrollment DB)
+
+	return nil
+}
+
+// processIncomingProtocolCommands will process the incoming command
+func (svc *Service) processIncomingProtocolCommands(messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
+	if svc == nil {
+		return nil, fmt.Errorf("service was not initialized")
+	}
+
+	// TODO:
+	// - Handle Security Alerts
+	// - Handle Results/Responses
+
+	// We return a status 200 for all the operations
+	return NewSyncMLCmdStatus(messageID, cmd.Cmd.CmdID, string(cmd.Verb), mdm.CmdStatusCode200), nil
+}
+
+// processIncomingMDMCmds process the incoming message from the device
+// It will return the list of operations that need to be sent to the device
+func (svc *Service) processIncomingMDMCmds(deviceID string, reqMsg *fleet.SyncML) ([]*fleet.SyncMLCmd, error) {
+	if svc == nil {
+		return nil, fmt.Errorf("service was not initialized")
+	}
+
+	var responseCmds []*fleet.SyncMLCmd
+
+	// Get the incoming MessageID
+	reqMessageID, err := reqMsg.GetMessageID()
+	if err != nil {
+		return nil, fmt.Errorf("processing incoming msg %v", err)
+	}
+
+	// Acknowledge the message header
+	// msgref is always 0 for the header
+	if err = reqMsg.IsValidHeader(); err == nil {
+		ackMsg := NewSyncMLCmdStatus(reqMessageID, "0", mdm.SyncMLHdrName, mdm.CmdStatusCode200)
+		responseCmds = append(responseCmds, ackMsg)
+	}
+
+	// Now we need to check for any operations that need to be processed
+	protoCMDs := reqMsg.GetOrderedCmds()
+
+	// Iterate over the operations and process them
+	for _, protoCMD := range protoCMDs {
+		protoCmd, err := svc.processIncomingProtocolCommands(reqMessageID, deviceID, protoCMD)
+		if err != nil {
+			return nil, fmt.Errorf("processing incoming msg %v", err)
+		}
+
+		// Append the operations to the response
+		if (protoCmd != nil) && (protoCmd.IsValid()) {
+			responseCmds = append(responseCmds, protoCmd)
+		}
+	}
+
+	return responseCmds, nil
+}
+
+// getPendingMDMCmds returns the list of pending MDM commands for the device
+func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*mdm_types.SyncMLCmd, error) {
+	if svc == nil {
+		return nil, fmt.Errorf("service was not initialized")
+	}
+
+	// Getting the list of pending commands
+	pendingCmds, err := svc.ds.MDMWindowsListPendingCommands(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("getting incoming cmds %v", err)
+	}
+
+	// Converting the pending commands to its target SyncML types
+	var cmds []*mdm_types.SyncMLCmd
+	for _, pendingCmd := range pendingCmds {
+		newCmd, err := NewTypedSyncMLCmd(mdm_types.SyncMLDataType(pendingCmd.DataType), pendingCmd.CmdVerb, pendingCmd.SettingURI, pendingCmd.SettingValue)
+		if (err != nil) || (newCmd == nil) {
+			continue
+		}
+		cmds = append(cmds, newCmd)
+	}
+
+	return cmds, nil
+}
+
+// getComposedSyncMLMsg returns a valid SyncML message
+func (svc *Service) getComposedSyncMLMsg(ctx context.Context, req *fleet.SyncML, responseOps []*mdm_types.SyncMLCmd) (*fleet.SyncML, error) {
+	if svc == nil {
+		return nil, fmt.Errorf("service was not initialized")
+	}
+
+	// Get the DeviceID
+	deviceID, err := req.GetSource()
+	if err != nil || deviceID == "" {
+		return nil, fmt.Errorf("invalid SyncML message %v", err)
+	}
+
+	// Get SessionID
+	sessionID, err := req.GetSessionID()
+	if err != nil {
+		return nil, fmt.Errorf("session ID processing error %v", err)
+	}
+
+	// Get MessageID
+	messageID, err := req.GetMessageID()
+	if err != nil {
+		return nil, fmt.Errorf("message ID processing error %v", err)
+	}
+
+	// Getting the Management endpoint URL
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("appconfig was not available %v", err)
+	}
+
+	urlManagementEndpoint, err := mdm.ResolveWindowsMDMManagement(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "resolve management endpoint")
+	}
+
+	// Create the SyncML message
+	msg, err := NewSyncMLMessage(sessionID, messageID, deviceID, urlManagementEndpoint, responseOps)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creation of SyncML message")
+	}
+
+	return msg, nil
+}
+
+// getManagementResponse returns a valid SyncML response message
+func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.SyncML) (*mdm_types.SyncML, error) {
+	if svc == nil {
+		return nil, fmt.Errorf("service was not initialized")
+	}
+
+	if reqMsg == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
+	}
+
+	// Get the DeviceID
+	deviceID, err := reqMsg.GetSource()
+	if err != nil || deviceID == "" {
+		return nil, fmt.Errorf("invalid SyncML message %v", err)
+	}
+
+	// Process the incoming MDM protocol commands and get the response MDM protocol commands
+	resIncomingCmds, err := svc.processIncomingMDMCmds(deviceID, reqMsg)
+	if err != nil {
+		return nil, fmt.Errorf("message processing error %v", err)
+	}
+
+	// Process the pending operations and get the MDM response protocol commands
+	resPendingCmds, err := svc.getPendingMDMCmds(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("message processing error %v", err)
+	}
+
+	// Combined cmd responses
+	resCmds := append(resIncomingCmds, resPendingCmds...)
+
+	// Create the response SyncML message
+	msg, err := svc.getComposedSyncMLMsg(ctx, reqMsg, resCmds)
+	if err != nil {
+		return nil, fmt.Errorf("message syncML creation error %v", err)
 	}
 
 	// This is a placeholder for the management response message logic
@@ -1190,10 +1367,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.
 	// - Processing of outgoing protocol commands (Commands queued from biz logic layers)
 	// - Tracking of message acknowledgements through Message queue
 
-	// Raw Response
-	responseRaw := ""
-
-	return &responseRaw, nil
+	return msg, nil
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
@@ -1577,7 +1751,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 	errInvalidParameters := errors.New("invalid parameters")
 
 	// Checking if command verb is present
-	if len(cmdVerb) > 0 {
+	if cmdVerb == "" {
 		return nil, errInvalidParameters
 	}
 
@@ -1697,8 +1871,8 @@ func newSyncMLCmdBool(cmdVerb string, cmdTarget string, cmdDataValue string) *md
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
-// newSyncMLCmdStatus creates a new SyncML command with text data
-func newSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode string) *mdm_types.SyncMLCmd {
+// NewSyncMLCmdStatus creates a new SyncML command with text data
+func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode string) *mdm_types.SyncMLCmd {
 	return &mdm_types.SyncMLCmd{
 		XMLName: xml.Name{Local: mdm_types.CmdStatus},
 		MsgRef:  &msgRef,

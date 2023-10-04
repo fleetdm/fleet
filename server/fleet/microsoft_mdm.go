@@ -1087,6 +1087,49 @@ func (msg *SyncML) GetTarget() (string, error) {
 	return "", errors.New("message target is empty")
 }
 
+// GetOrderedCmds returns the commands in the order they are defined in the message.
+func (msg *SyncML) GetOrderedCmds() []ProtoCmdOperation {
+	var cmds []ProtoCmdOperation
+
+	// Helper function to add commands to the cmds slice
+	addCmds := func(cmdsList ProtoCmds, verb string) {
+		for _, cmd := range cmdsList {
+			cmds = append(cmds, ProtoCmdOperation{Verb: verb, Cmd: cmd})
+		}
+	}
+
+	// Process each command type in the order they appear in SyncBody
+	if msg.SyncBody.Add != nil {
+		addCmds(msg.SyncBody.Add, CmdAdd)
+	}
+	if msg.SyncBody.Alert != nil {
+		addCmds(msg.SyncBody.Alert, CmdAlert)
+	}
+	if msg.SyncBody.Atomic != nil {
+		addCmds(msg.SyncBody.Atomic, CmdAtomic)
+	}
+	if msg.SyncBody.Delete != nil {
+		addCmds(msg.SyncBody.Delete, CmdDelete)
+	}
+	if msg.SyncBody.Exec != nil {
+		addCmds(msg.SyncBody.Exec, CmdExec)
+	}
+	if msg.SyncBody.Get != nil {
+		addCmds(msg.SyncBody.Get, CmdGet)
+	}
+	if msg.SyncBody.Replace != nil {
+		addCmds(msg.SyncBody.Replace, CmdReplace)
+	}
+	if msg.SyncBody.Results != nil {
+		addCmds(msg.SyncBody.Results, CmdResults)
+	}
+	if msg.SyncBody.Status != nil {
+		addCmds(msg.SyncBody.Status, CmdStatus)
+	}
+
+	return cmds
+}
+
 type MDMCommandType int
 
 const (

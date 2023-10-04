@@ -6697,22 +6697,53 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	require.Contains(t, resTOCcontent, "OpaqueBlob=")
 }
 
-func (s *integrationMDMTestSuite) TestValidSyncMLRequestNoAuth() {
+func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 	t := s.T()
 
 	// Target Endpoint URL for the management endpoint
 	targetEndpointURL := microsoft_mdm.MDE2ManagementPath
 
+	// Target Device ID
+	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
+
+	// Adding Pending Command to target Device ID
+	pendingCmd := &fleet.MDMWindowsPendingCommand{
+		CommandUUID:  uuid.New().String(),
+		DeviceID:     deviceID,
+		CmdVerb:      fleet.CmdGet,
+		SettingURI:   "./testuri",
+		SettingValue: "testdata",
+		DataType:     2,
+		SystemOrigin: false,
+	}
+
+	err := s.ds.MDMWindowsInsertPendingCommand(context.Background(), pendingCmd)
+	require.NoError(t, err)
+
 	// Preparing the SyncML request
-	requestBytes, err := s.newSyncMLSessionMsg(targetEndpointURL)
+	requestBytes, err := s.newSyncMLSessionMsg(deviceID, targetEndpointURL)
 	require.NoError(t, err)
 
 	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
 
 	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
 
-	// TODO: This should be updated once GetMDMWindowsManagementResponse() is implemented
-	// Checking if SyncML response can be unmarshalled to an golang type
+	// Read response data
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	// Checking if response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Getting Raw Response content
+	resMsg := string(resBytes)
+
+	// Checking response fields
+	require.True(t, s.isXMLTagPresent("Get", resMsg))
+	require.True(t, s.isXMLTagContentPresent("Type", resMsg))
+	require.True(t, s.isXMLTagContentPresent("Format", resMsg))
 }
 
 // ///////////////////////////////////////////////////////////////////////////
@@ -6910,8 +6941,8 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 	return requestBytes, nil
 }
 
-// TODO: Add support to add custom DeviceID when DeviceAuth is in place
-func (s *integrationMDMTestSuite) newSyncMLSessionMsg(managementUrl string) ([]byte, error) {
+// TODO: Add support to add custom DeviceID when device authentication is in place
+func (s *integrationMDMTestSuite) newSyncMLSessionMsg(deviceID string, managementUrl string) ([]byte, error) {
 	if len(managementUrl) == 0 {
 		return nil, errors.New("managementUrl is empty")
 	}
@@ -6927,7 +6958,7 @@ func (s *integrationMDMTestSuite) newSyncMLSessionMsg(managementUrl string) ([]b
 				<LocURI>` + managementUrl + `</LocURI>
 				</Target>
 				<Source>
-				<LocURI>DB257C3A08778F4FB61E2749066C1F27</LocURI>
+				<LocURI>` + deviceID + `</LocURI>
 				</Source>
 			</SyncHdr>
 			<SyncBody>
@@ -6951,7 +6982,7 @@ func (s *integrationMDMTestSuite) newSyncMLSessionMsg(managementUrl string) ([]b
 					<Source>
 					<LocURI>./DevInfo/DevId</LocURI>
 					</Source>
-					<Data>DB257C3A08778F4FB61E2749066C1F27</Data>
+					<Data>` + deviceID + `</Data>
 				</Item>
 				<Item>
 					<Source>

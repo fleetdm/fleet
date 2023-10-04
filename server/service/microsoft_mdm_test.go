@@ -227,7 +227,7 @@ func TestValidSyncMLCmdStatus(t *testing.T) {
 	testCmdRef := "testcmdref"
 	testCmdOrig := "testcmdorig"
 	testStatusCode := "teststatuscode"
-	cmdMsg := newSyncMLCmdStatus(testMsgRef, testCmdRef, testCmdOrig, testStatusCode)
+	cmdMsg := NewSyncMLCmdStatus(testMsgRef, testCmdRef, testCmdOrig, testStatusCode)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
