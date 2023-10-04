@@ -310,7 +310,7 @@ func (e *MDMNotConfiguredError) StatusCode() int {
 }
 
 func (e *MDMNotConfiguredError) Error() string {
-	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet/mobile-device-management"
+	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet/mdm-setup"
 }
 
 // GatewayError is an error type that generates a 502 or 504 status code.
