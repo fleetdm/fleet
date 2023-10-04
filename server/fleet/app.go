@@ -430,7 +430,7 @@ func (c *AppConfig) Copy() *AppConfig {
 
 	featuresClone := c.Features.Copy()
 	if featuresClone != nil {
-		c.Features = *featuresClone
+		clone.Features = *featuresClone
 	}
 
 	if c.AgentOptions != nil {
