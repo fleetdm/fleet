@@ -8,7 +8,7 @@ interface IScriptsProps {}
 
 const Scripts = ({}: IScriptsProps) => {
   return (
-    <Card className={baseClass} includeShadow>
+    <Card className={baseClass} borderRadiusSize="large" includeShadow>
       test
     </Card>
   );

@@ -3,17 +3,17 @@ import classnames from "classnames";
 
 const baseClass = "card";
 
-type BorderRadiusSizes = "small" | "medium" | "large";
-type CardColors = "white" | "gray" | "purple" | "yellow";
+type BorderRadiusSize = "small" | "medium" | "large";
+type CardColor = "white" | "gray" | "purple" | "yellow";
 
 interface ICardProps {
   children?: React.ReactNode;
   /** The size of the border radius. Defaults to `small` */
-  borderRadiusSize?: BorderRadiusSizes;
+  borderRadiusSize?: BorderRadiusSize;
   /** Includes the card shadows. Defaults to `false` */
   includeShadow?: boolean;
   /** The color of the card. Defaults to `white` */
-  color?: CardColors;
+  color?: CardColor;
   className?: string;
 }
 
