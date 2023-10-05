@@ -99,7 +99,7 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 3. In the list of hosts, click on an individual host and click the **macOS settings** item to see the status for a specific setting.
 
 
-<meta name="pageOrderInSection" value="1504">
-<meta name="title" value="MDM custom macOS settings">
+<meta name="pageOrderInSection" value="1505">
+<meta name="title" value="Custom macOS settings">
 <meta name="description" value="Learn how to enforce custom settings on macOS hosts using Fleet's configuration profiles.">
 <meta name="navSection" value="Device management">

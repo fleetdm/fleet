@@ -1074,7 +1074,7 @@ Modifies the Fleet's configuration with the supplied information.
 | webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
-| enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#end-user-authentication). **Requires Fleet Premium license** |
+| enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
@@ -3333,7 +3333,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 Requires the [macadmins osquery extension](https://github.com/macadmins/osquery-extension) which comes bundled
 in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
-Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
+Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 Retrieves the disk encryption key for a host.
 
@@ -3366,7 +3366,7 @@ Retrieves the disk encryption key for a host.
 
 ### Get configuration profiles assigned to a host
 
-Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
+Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 Retrieves a list of the configuration profiles assigned to a host.
 
@@ -3849,7 +3849,7 @@ Deletes the label specified by ID.
 
 ## Mobile device management (MDM)
 
-These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
+These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 - [Add custom macOS setting (configuration profile)](#add-custom-macos-setting-configuration-profile)
 - [List custom macOS settings (configuration profiles)](#list-custom-macos-settings-configuration-profiles)
@@ -7093,7 +7093,7 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;macos_settings                              | object  | body | MacOS-specific settings.                                                                                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
 | &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS devices.                                                                                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication          | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#end-user-authentication).                                                                                      |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication          | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
 
 
 #### Example (add users to a team)

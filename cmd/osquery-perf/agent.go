@@ -551,6 +551,7 @@ func (a *agent) runOrbitLoop() {
 			if err != nil {
 				a.stats.IncrementOrbitErrors()
 				log.Println("orbitClient.GetConfig: ", err)
+				continue
 			}
 			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
 				// there are pending scripts to execute on this host, start a goroutine
@@ -562,6 +563,7 @@ func (a *agent) runOrbitLoop() {
 				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
 					a.stats.IncrementOrbitErrors()
 					log.Println("deviceClient.CheckToken: ", err)
+					continue
 				}
 			}
 		case <-orbitTokenRotationTicker:
@@ -570,6 +572,7 @@ func (a *agent) runOrbitLoop() {
 				if err := orbitClient.SetOrUpdateDeviceToken(*newToken); err != nil {
 					a.stats.IncrementOrbitErrors()
 					log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
+					continue
 				}
 				a.deviceAuthToken = newToken
 				// fleet desktop performs a burst of check token requests after a token is rotated
@@ -579,11 +582,13 @@ func (a *agent) runOrbitLoop() {
 			if err := orbitClient.Ping(); err != nil {
 				a.stats.IncrementOrbitErrors()
 				log.Println("orbitClient.Ping: ", err)
+				continue
 			}
 		case <-fleetDesktopPolicyTicker:
 			if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
 				a.stats.IncrementDesktopErrors()
 				log.Println("deviceClient.NumberOfFailingPolicies: ", err)
+				continue
 			}
 		}
 	}
