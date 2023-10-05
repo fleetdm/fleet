@@ -94,11 +94,71 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevi
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
 }
 
-const (
-	whereBitLockerVerified = `hmdm.is_server = 0 AND hdek.decryptable = 1`
-	whereBitLockerPending  = `hmdm.is_server = 0 AND (hdek.host_id IS NULL OR (hdek.host_id IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable != 1) AND hdek.client_error = ''))`
-	whereBitLockerFailed   = `hmdm.is_server = 0 AND hdek.host_id IS NOT NULL AND hdek.client_error != ''`
-)
+// whereBitLockerStatus returns a string suitable for inclusion within a SQL WHERE clause to filter by
+// the given status. The caller is responsible for ensuring the status is valid. In the case of an invalid
+// status, the function will return the string "FALSE". The caller should also ensure that the query in
+// which this is used joins the following tables with the specified aliases:
+// - host_disk_encryption_keys: hdek
+// - host_mdm: hmdm
+// - host_disks: hd
+func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) string {
+	const (
+		whereNotServer        = `(hmdm.is_server IS NOT NULL AND hmdm.is_server = 0)`
+		whereKeyAvailable     = `(hdek.base64_encrypted IS NOT NULL AND hdek.base64_encrypted != '' AND hdek.decryptable IS NOT NULL AND hdek.decryptable = 1)`
+		whereEncrypted        = `(hd.encrypted IS NOT NULL AND hd.encrypted = 1)`
+		whereHostDisksUpdated = `(hd.updated_at IS NOT NULL AND hdek.updated_at IS NOT NULL AND hd.updated_at >= hdek.updated_at)`
+		whereClientError      = `(hdek.client_error IS NOT NULL AND hdek.client_error != '')`
+		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR))`
+	)
+
+	// TODO: what if windows sends us a key for an already encrypted volumne? could it get stuck
+	// in pending or verifying? should we modify SetOrUpdateHostDiskEncryption to ensure that we
+	// increment the updated_at timestamp on the host_disks table for all encrypted volumes
+	// host_disks if the hdek timestamp is newer? What about SetOrUpdateHostDiskEncryptionKey?
+
+	switch status {
+	case fleet.DiskEncryptionVerified:
+		return whereNotServer + `
+AND NOT ` + whereClientError + `
+AND ` + whereKeyAvailable + `
+AND ` + whereEncrypted + `
+AND ` + whereHostDisksUpdated
+
+	case fleet.DiskEncryptionVerifying:
+		// Possible verifying scenarios:
+		// - we have the key and host_disks already encrypted before the key but hasn't been updated yet
+		// - we have the key and host_disks reported unencrypted during the 1-hour grace period after key was updated
+		return whereNotServer + `
+AND NOT ` + whereClientError + `
+AND ` + whereKeyAvailable + `
+AND (
+	(` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + `)
+	OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
+)`
+
+	case fleet.DiskEncryptionEnforcing:
+		// Possible enforcing scenarios:
+		// - we don't have the key
+		// - we have the key and host_disks reported unencrypted before the key was updated or outside the 1-hour grace period after key was updated
+		return whereNotServer + `
+AND NOT ` + whereClientError + `
+AND (
+	NOT ` + whereKeyAvailable + `
+	OR (` + whereKeyAvailable + `
+		AND (NOT ` + whereEncrypted + `
+			AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `)
+		)
+	)
+)`
+
+	case fleet.DiskEncryptionFailed:
+		return whereNotServer + ` AND ` + whereClientError
+
+	default:
+		level.Debug(ds.logger).Log("msg", "unknown bitlocker status", "status", status)
+		return "FALSE"
+	}
+}
 
 func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
 	enabled, err := ds.getConfigEnableDiskEncryption(ctx, teamID)
@@ -109,19 +169,20 @@ func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *
 		return &fleet.MDMWindowsBitLockerSummary{}, nil
 	}
 
-	// Note verifying, action_required, and removing_enforcement are not applicable to Windows hosts
+	// Note action_required and removing_enforcement are not applicable to Windows hosts
 	sqlFmt := `
 SELECT
-    COUNT(if(%s, 1, NULL)) AS verified,
-    0 AS verifying,
+    COUNT(if((%s), 1, NULL)) AS verified,
+    COUNT(if((%s), 1, NULL)) AS verifying,
     0 AS action_required,
-    COUNT(if(%s, 1, NULL)) AS enforcing,
-    COUNT(if(%s, 1, NULL)) AS failed,
+    COUNT(if((%s), 1, NULL)) AS enforcing,
+    COUNT(if((%s), 1, NULL)) AS failed,
     0 AS removing_enforcement
 FROM
     hosts h
     LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 	LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
+	LEFT JOIN host_disks hd ON h.id = hd.host_id
 WHERE
     h.platform = 'windows' AND hmdm.is_server = 0 AND %s`
 
@@ -133,7 +194,14 @@ WHERE
 	}
 
 	var res fleet.MDMWindowsBitLockerSummary
-	stmt := fmt.Sprintf(sqlFmt, whereBitLockerVerified, whereBitLockerPending, whereBitLockerFailed, teamFilter)
+	stmt := fmt.Sprintf(
+		sqlFmt,
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+		teamFilter,
+	)
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
 		return nil, err
 	}
@@ -168,24 +236,28 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, nil
 	}
 
-	// Note verifying, action_required, and removing_enforcement are not applicable to Windows hosts
+	// Note action_required and removing_enforcement are not applicable to Windows hosts
 	stmt := fmt.Sprintf(`
 SELECT
 	CASE
-		WHEN %s THEN '%s'
-		WHEN %s THEN '%s'
-		WHEN %s THEN '%s'
+		WHEN (%s) THEN '%s'
+		WHEN (%s) THEN '%s'
+		WHEN (%s) THEN '%s'
+		WHEN (%s) THEN '%s'
 	END AS status
 FROM
 	host_mdm hmdm
 	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
+	LEFT JOIN host_disks hd ON hmdm.host_id = hd.host_id
 WHERE
 	hmdm.host_id = ?`,
-		whereBitLockerVerified,
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
 		fleet.DiskEncryptionVerified,
-		whereBitLockerPending,
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
+		fleet.DiskEncryptionVerifying,
+		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
 		fleet.DiskEncryptionEnforcing,
-		whereBitLockerFailed,
+		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
 		fleet.DiskEncryptionFailed,
 	)
 

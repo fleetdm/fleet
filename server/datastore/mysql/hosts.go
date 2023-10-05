@@ -968,9 +968,9 @@ func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOpt
 	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		sql, params = filterHostsByOSSettingsStatus(sql, opt, params, enableDiskEncryption)
+		sql, params = ds.filterHostsByOSSettingsStatus(sql, opt, params, enableDiskEncryption)
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		sql, params = filterHostsByOSSettingsDiskEncryptionStatus(sql, opt, params, enableDiskEncryption)
+		sql, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(sql, opt, params, enableDiskEncryption)
 	}
 	sql, params = filterHostsByMDMBootstrapPackageStatus(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
@@ -1124,7 +1124,7 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	return sql + fmt.Sprintf(` AND EXISTS (%s)`, subquery), append(params, subqueryParams...)
 }
 
-func filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}) {
+func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}) {
 	if !opt.OSSettingsFilter.IsValid() {
 		return sql, params
 	}
@@ -1135,7 +1135,7 @@ func filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		sqlFmt += ` AND h.team_id IS NULL`
 	}
-	sqlFmt += ` AND ((h.platform = 'windows' AND %s) OR (h.platform = 'darwin' AND %s))`
+	sqlFmt += ` AND ((h.platform = 'windows' AND (%s)) OR (h.platform = 'darwin' AND (%s)))`
 
 	var subqueryMacOS string
 	var subqueryParams []interface{}
@@ -1146,20 +1146,22 @@ func filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params
 	case fleet.OSSettingsFailed:
 		subqueryMacOS, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
 		if isDiskEncryptionEnabled {
-			whereWindows = whereBitLockerFailed
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionFailed)
 		}
 	case fleet.OSSettingsPending:
 		subqueryMacOS, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
 		if isDiskEncryptionEnabled {
-			whereWindows = whereBitLockerPending
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing)
 		}
 	case fleet.OSSettingsVerifying:
 		subqueryMacOS, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
-		// Windows hosts cannot be verifying status in the current implementation.
+		if isDiskEncryptionEnabled {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying)
+		}
 	case fleet.OSSettingsVerified:
 		subqueryMacOS, subqueryParams = subqueryHostsMacOSSetttingsStatusVerified()
 		if isDiskEncryptionEnabled {
-			whereWindows = whereBitLockerVerified
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerified)
 		}
 	}
 
@@ -1170,7 +1172,7 @@ func filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params
 	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), append(params, subqueryParams...)
 }
 
-func filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, enableDiskEncryption bool) (string, []interface{}) {
+func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, enableDiskEncryption bool) (string, []interface{}) {
 	if !opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		return sql, params
 	}
@@ -1193,25 +1195,32 @@ func filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListO
 	switch opt.OSSettingsDiskEncryptionFilter {
 	case fleet.DiskEncryptionVerified:
 		if enableDiskEncryption {
-			whereWindows = whereBitLockerVerified
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerified)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultVerified()
+
 	case fleet.DiskEncryptionVerifying:
-		// Windows hosts cannot be verifying status in the current implementation.
+		if enableDiskEncryption {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying)
+		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying()
+
 	case fleet.DiskEncryptionActionRequired:
 		// Windows hosts cannot be action required status in the current implementation.
 		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired()
+
 	case fleet.DiskEncryptionEnforcing:
 		if enableDiskEncryption {
-			whereWindows = whereBitLockerPending
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultEnforcing()
+
 	case fleet.DiskEncryptionFailed:
 		if enableDiskEncryption {
-			whereWindows = whereBitLockerFailed
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionFailed)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultFailed()
+
 	case fleet.DiskEncryptionRemovingEnforcement:
 		// Windows hosts cannot be removing enforcement status in the current implementation.
 		subqueryMacOS, subqueryParams = subqueryFileVaultRemovingEnforcement()

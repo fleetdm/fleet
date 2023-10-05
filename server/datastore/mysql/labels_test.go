@@ -1208,8 +1208,10 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	for _, h := range []*fleet.Host{h1, h2} {
 		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet))
 	}
-	// add verified key for h1
+	// add disk encryption key for h1
 	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1.ID, "test-key", "", ptr.Bool(true)))
+	// add disk encryption for h1
+	require.NoError(t, db.SetOrUpdateHostDisksEncryption(context.Background(), h1.ID, true))
 
 	checkHosts := func(t *testing.T, gotHosts []*fleet.Host, expectedIDs []uint) {
 		require.Len(t, gotHosts, len(expectedIDs))
