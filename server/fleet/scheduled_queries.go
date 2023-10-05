@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -87,20 +86,6 @@ func (sql ScheduledQueryList) Clone() (interface{}, error) {
 		cloned = append(cloned, &newSq)
 	}
 	return cloned, nil
-}
-
-type ScheduledQueryResult struct {
-	QueryName     string            `json:"name,omitempty"`
-	OsqueryHostID string            `json:"hostIdentifier"`
-	Snapshot      []json.RawMessage `json:"snapshot"`
-	LastFetched   uint              `json:"unixTime"`
-}
-
-type ScheduledQueryResultRow struct {
-	QueryID     uint            `db:"query_id"`
-	HostID      uint            `db:"host_id"`
-	Data        json.RawMessage `db:"data"`
-	LastFetched time.Time       `db:"last_fetched"`
 }
 
 type AggregatedStats struct {

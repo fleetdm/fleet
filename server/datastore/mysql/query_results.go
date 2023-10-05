@@ -100,13 +100,32 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 	return nil
 }
 
-func (ds *Datastore) QueryResultRows(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+// TODO(lucas): If we just use this for testing then we can remove it and use ExecAdhocSQL.
+func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
 	selectStmt := `
 		SELECT query_id, host_id, last_fetched, data FROM query_results
 			WHERE query_id = ? AND host_id = ?
 		`
 	results := []*fleet.ScheduledQueryResultRow{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
+	}
+
+	return results, nil
+}
+
+// TODO(lucas): Any chance we can store hostname in the query_results table?
+// (to avoid having to left join hosts).
+func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+	selectStmt := `
+		SELECT qr.query_id, qr.host_id, h.hostname, qr.last_fetched, qr.data
+			FROM query_results qr
+			LEFT JOIN hosts h ON (qr.host_id=h.id)
+			WHERE query_id = ?
+		`
+	results := []*fleet.ScheduledQueryResultRow{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows")
 	}

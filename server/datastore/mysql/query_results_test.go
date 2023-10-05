@@ -110,7 +110,7 @@ func getQueryResultRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Assert that Query1 returns 2 results
-	results, err := ds.QueryResultRows(context.Background(), resultRows[0].QueryID, resultRows[0].HostID)
+	results, err := ds.QueryResultRowsForHost(context.Background(), resultRows[0].QueryID, resultRows[0].HostID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	require.Equal(t, resultRows[0].QueryID, results[0].QueryID)
@@ -123,7 +123,7 @@ func getQueryResultRows(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(resultRows[1].Data), string(results[1].Data))
 
 	// Assert that Query2 returns 1 result
-	results, err = ds.QueryResultRows(context.Background(), resultRow3[0].QueryID, resultRow3[0].HostID)
+	results, err = ds.QueryResultRowsForHost(context.Background(), resultRow3[0].QueryID, resultRow3[0].HostID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, resultRow3[0].QueryID, results[0].QueryID)
@@ -132,7 +132,7 @@ func getQueryResultRows(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(resultRow3[0].Data), string(results[0].Data))
 
 	// Assert that QueryResultRows returns empty slice when no results are found
-	results, err = ds.QueryResultRows(context.Background(), 999, 999)
+	results, err = ds.QueryResultRowsForHost(context.Background(), 999, 999)
 	require.NoError(t, err)
 	require.Len(t, results, 0)
 }
@@ -188,12 +188,12 @@ func testDeleteQueryResultsForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Assert that Query1 returns 0 results
-	results, err := ds.QueryResultRows(context.Background(), query.ID, host.ID)
+	results, err := ds.QueryResultRowsForHost(context.Background(), query.ID, host.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 0)
 
 	// Assert that Query2 returns 1 result
-	results, err = ds.QueryResultRows(context.Background(), query2.ID, host.ID)
+	results, err = ds.QueryResultRowsForHost(context.Background(), query2.ID, host.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, resultRow3[0].QueryID, results[0].QueryID)
@@ -364,7 +364,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Assert that we get the overwritten data (1 result with USB Mouse data)
-	results, err := ds.QueryResultRows(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
+	results, err := ds.QueryResultRowsForHost(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, overwriteRows[0].QueryID, results[0].QueryID)
@@ -373,7 +373,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(overwriteRows[0].Data), string(results[0].Data))
 
 	// Assert that QueryResultRows returns empty slice when no results are found
-	results, err = ds.QueryResultRows(context.Background(), 999, 999)
+	results, err = ds.QueryResultRowsForHost(context.Background(), 999, 999)
 	require.NoError(t, err)
 	require.Len(t, results, 0)
 }

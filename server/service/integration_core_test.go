@@ -7900,3 +7900,273 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 		})
 	}
 }
+
+func (s *integrationTestSuite) TestQueryReports() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	host1Global, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		Hostname:        "foo.local1",
+		OsqueryHostID:   ptr.String("1"),
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "ubuntu",
+	})
+	require.NoError(t, err)
+
+	host2Team1, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("2"),
+		UUID:            "2",
+		Hostname:        "foo.local2",
+		OsqueryHostID:   ptr.String("2"),
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	err = s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{host2Team1.ID})
+	require.NoError(t, err)
+
+	osqueryInfoQuery, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:               "Osquery info",
+		Description:        "osquery_info table",
+		Query:              "select * from osquery_info;",
+		Saved:              true,
+		Interval:           30,
+		AutomationsEnabled: true,
+		DiscardData:        false,
+		TeamID:             nil,
+	})
+	require.NoError(t, err)
+
+	usbDevicesQuery, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:               "USB devices",
+		Description:        "usb_devices table",
+		Query:              "select * from usb_devices;",
+		Saved:              true,
+		Interval:           60,
+		AutomationsEnabled: true,
+		DiscardData:        false,
+		TeamID:             ptr.Uint(team1.ID),
+	})
+	require.NoError(t, err)
+
+	slreq := submitLogsRequest{
+		NodeKey: *host2Team1.NodeKey,
+		LogType: "result",
+		Data: json.RawMessage(`[{
+  "snapshot": [
+    {
+      "class": "239",
+      "model": "HD Pro Webcam C920",
+      "model_id": "0892",
+      "protocol": "",
+      "removable": "1",
+      "serial": "zoobar",
+      "subclass": "2",
+      "usb_address": "3",
+      "usb_port": "1",
+      "vendor": "",
+      "vendor_id": "046d",
+      "version": "0.19"
+    },
+    {
+      "class": "0",
+      "model": "Apple Internal Keyboard / Trackpad",
+      "model_id": "027e",
+      "protocol": "",
+      "removable": "0",
+      "serial": "foobar",
+      "subclass": "0",
+      "usb_address": "8",
+      "usb_port": "5",
+      "vendor": "Apple Inc.",
+      "vendor_id": "05ac",
+      "version": "9.33"
+    }
+  ],
+  "action": "snapshot",
+  "name": "pack/team-` + usbDevicesQuery.TeamIDStr() + `/` + usbDevicesQuery.Name + `",
+  "hostIdentifier": "` + *host2Team1.OsqueryHostID + `",
+  "calendarTime": "Fri Oct  6 17:32:08 2023 UTC",
+  "unixTime": 1696613528,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "` + host2Team1.UUID + `",
+    "hostname": "` + host2Team1.Hostname + `"
+  }
+},
+{
+  "snapshot": [
+    {
+      "build_distro": "10.14",
+      "build_platform": "darwin",
+      "config_hash": "eed0d8296e5f90b790a23814a9db7a127b13498d",
+      "config_valid": "1",
+      "extensions": "active",
+      "instance_id": "7f02ff0f-f8a7-4ba9-a1d2-66836b154f4a",
+      "pid": "95637",
+      "platform_mask": "21",
+      "start_time": "1696611201",
+      "uuid": "` + host2Team1.UUID + `",
+      "version": "5.9.1",
+      "watcher": "95636"
+    }
+  ],
+  "action": "snapshot",
+  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
+  "hostIdentifier": "` + *host2Team1.OsqueryHostID + `",
+  "calendarTime": "Fri Oct  6 18:08:18 2023 UTC",
+  "unixTime": 1696615698,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "` + host2Team1.UUID + `",
+    "hostname": "` + host2Team1.Hostname + `"
+  }
+}
+]`),
+	}
+	slres := submitLogsResponse{}
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+
+	slreq = submitLogsRequest{
+		NodeKey: *host1Global.NodeKey,
+		LogType: "result",
+		Data: json.RawMessage(`[{
+  "snapshot": [
+    {
+      "build_distro": "centos7",
+      "build_platform": "linux",
+      "config_hash": "eed0d8296e5f90b790a23814a9db7a127b13498d",
+      "config_valid": "1",
+      "extensions": "active",
+      "instance_id": "e5799132-85ab-4cfa-89f3-03e0dd3c509a",
+      "pid": "3574",
+      "platform_mask": "9",
+      "start_time": "1696502961",
+      "uuid": "` + host1Global.UUID + `",
+      "version": "5.9.1",
+      "watcher": "3570"
+    }
+  ],
+  "action": "snapshot",
+  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
+  "hostIdentifier": "` + *host1Global.OsqueryHostID + `",
+  "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
+  "unixTime": 1696615984,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
+    "hostname": "` + host1Global.Hostname + `"
+  }
+}]`),
+	}
+	slres = submitLogsResponse{}
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+
+	var gqrr getQueryReportResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.NoError(t, gqrr.Err)
+	require.Equal(t, usbDevicesQuery.ID, gqrr.QueryID)
+	require.Len(t, gqrr.Results, 2)
+	require.Equal(t, host2Team1.ID, gqrr.Results[0].HostID)
+	require.Equal(t, host2Team1.Hostname, gqrr.Results[0].Hostname)
+	require.NotZero(t, gqrr.Results[0].LastFetched)
+	require.Equal(t, map[string]string{
+		"class":       "239",
+		"model":       "HD Pro Webcam C920",
+		"model_id":    "0892",
+		"protocol":    "",
+		"removable":   "1",
+		"serial":      "zoobar",
+		"subclass":    "2",
+		"usb_address": "3",
+		"usb_port":    "1",
+		"vendor":      "",
+		"vendor_id":   "046d",
+		"version":     "0.19",
+	}, gqrr.Results[0].Columns)
+	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
+	require.Equal(t, host2Team1.Hostname, gqrr.Results[1].Hostname)
+	require.NotZero(t, gqrr.Results[1].LastFetched)
+	require.Equal(t, map[string]string{
+		"class":       "0",
+		"model":       "Apple Internal Keyboard / Trackpad",
+		"model_id":    "027e",
+		"protocol":    "",
+		"removable":   "0",
+		"serial":      "foobar",
+		"subclass":    "0",
+		"usb_address": "8",
+		"usb_port":    "5",
+		"vendor":      "Apple Inc.",
+		"vendor_id":   "05ac",
+		"version":     "9.33",
+	}, gqrr.Results[1].Columns)
+
+	gqrr = getQueryReportResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.NoError(t, gqrr.Err)
+	require.Equal(t, osqueryInfoQuery.ID, gqrr.QueryID)
+	require.Len(t, gqrr.Results, 2)
+	require.Equal(t, host1Global.ID, gqrr.Results[0].HostID)
+	require.Equal(t, host1Global.Hostname, gqrr.Results[0].Hostname)
+	require.NotZero(t, gqrr.Results[0].LastFetched)
+	require.Equal(t, map[string]string{
+		"build_distro":   "centos7",
+		"build_platform": "linux",
+		"config_hash":    "eed0d8296e5f90b790a23814a9db7a127b13498d",
+		"config_valid":   "1",
+		"extensions":     "active",
+		"instance_id":    "e5799132-85ab-4cfa-89f3-03e0dd3c509a",
+		"pid":            "3574",
+		"platform_mask":  "9",
+		"start_time":     "1696502961",
+		"uuid":           host1Global.UUID,
+		"version":        "5.9.1",
+		"watcher":        "3570",
+	}, gqrr.Results[0].Columns)
+	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
+	require.Equal(t, host2Team1.Hostname, gqrr.Results[1].Hostname)
+	require.NotZero(t, gqrr.Results[1].LastFetched)
+	require.Equal(t, map[string]string{
+		"build_distro":   "10.14",
+		"build_platform": "darwin",
+		"config_hash":    "eed0d8296e5f90b790a23814a9db7a127b13498d",
+		"config_valid":   "1",
+		"extensions":     "active",
+		"instance_id":    "7f02ff0f-f8a7-4ba9-a1d2-66836b154f4a",
+		"pid":            "95637",
+		"platform_mask":  "21",
+		"start_time":     "1696611201",
+		"uuid":           host2Team1.UUID,
+		"version":        "5.9.1",
+		"watcher":        "95636",
+	}, gqrr.Results[1].Columns)
+}

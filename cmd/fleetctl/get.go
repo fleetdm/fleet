@@ -14,14 +14,13 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	kithttp "github.com/go-kit/kit/transport/http"
-	"gopkg.in/guregu/null.v3"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
+	"gopkg.in/guregu/null.v3"
 )
 
 const (
@@ -451,6 +450,7 @@ func getQueriesCommand() *cli.Command {
 							MinOsqueryVersion:  query.MinOsqueryVersion,
 							AutomationsEnabled: query.AutomationsEnabled,
 							Logging:            query.Logging,
+							DiscardData:        query.DiscardData,
 						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
