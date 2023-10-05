@@ -40,7 +40,40 @@ export interface IScriptResultResponse {
   host_timeout: boolean;
 }
 
+export type IScriptExecutionStatus = "ran" | "pending" | "error";
+
+interface ILastExecution {
+  execution_id: string;
+  executed_at: string;
+  status: IScriptExecutionStatus;
+}
+
+interface IHostScript {
+  scripts: {
+    script_id: number;
+    name: string;
+    last_execution: ILastExecution | null;
+  };
+}
+
+/**
+ * Script response from GET /hosts/:id/scripts
+ */
+export interface IHostScriptsResponse {
+  scripts: IHostScript[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
 export default {
+  // TODO: pagination
+  getHostScripts(id: number) {
+    const { HOST_SCRIPTS } = endpoints;
+    return sendRequest("GET", HOST_SCRIPTS(id));
+  },
+
   getScripts(teamId?: number) {
     const { SCRIPTS } = endpoints;
     const path = teamId
