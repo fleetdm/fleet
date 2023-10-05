@@ -81,8 +81,6 @@ Before assigning an engineering manager to [estimate](https://fleetdm.com/handbo
 
 Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'To be scheduled' column on the "Bugs" board. The product manager then prioritizes the bug into the "Sprint backlog" and assigns the group engineering manager. 
 
-> The story's designer is responsible for ensuring the checklist has been completed, the requirements section is consistent with the Figma, and the group engineering manager has been assigned. 
-
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
 ### Expedited drafting
