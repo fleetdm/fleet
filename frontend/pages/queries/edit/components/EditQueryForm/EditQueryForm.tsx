@@ -54,6 +54,7 @@ import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveQueryModal from "../SaveQueryModal";
 import SaveChangesModal from "../SaveChangesModal";
+import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "edit-query-form";
 
@@ -142,6 +143,7 @@ const EditQueryForm = ({
     lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion,
     lastEditedQueryLoggingType,
+    lastEditedQueryDiscardData,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
@@ -150,6 +152,7 @@ const EditQueryForm = ({
     setLastEditedQueryPlatforms,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryLoggingType,
+    setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
 
   const {
@@ -692,7 +695,7 @@ const EditQueryForm = ({
                   onChange={(value: boolean) =>
                     setLastEditedQueryObserverCanRun(value)
                   }
-                  wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
+                  wrapperClassName={"observer-can-run-wrapper"}
                 >
                   Observers can run
                 </Checkbox>
@@ -703,7 +706,7 @@ const EditQueryForm = ({
               </div>
               <RevealButton
                 isShowing={showAdvancedOptions}
-                className={baseClass}
+                className={"advanced-options-toggle"}
                 hideText={"Hide advanced options"}
                 showText={"Show advanced options"}
                 caretPosition={"after"}
@@ -740,6 +743,16 @@ const EditQueryForm = ({
                     label="Logging"
                     wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
                   />
+                  {!isLoadingAppConfig && (
+                    <DiscardDataOption
+                      {...{
+                        appConfig,
+                        selectedLoggingType: lastEditedQueryLoggingType,
+                        discardData: lastEditedQueryDiscardData,
+                        setDiscardData: setLastEditedQueryDiscardData,
+                      }}
+                    />
+                  )}
                 </div>
               )}
             </div>
