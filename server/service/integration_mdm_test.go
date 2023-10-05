@@ -6973,8 +6973,28 @@ func (s *integrationMDMTestSuite) TestValidSyncMLRequestNoAuth() {
 	// Target Endpoint URL for the management endpoint
 	targetEndpointURL := microsoft_mdm.MDE2ManagementPath
 
+	// Target DeviceID to use
+	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
+
+	// Inserting new device
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            deviceID,
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "upn@domain.com",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+	}
+
+	err := s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
+	require.NoError(t, err)
+
 	// Preparing the SyncML request
-	requestBytes, err := s.newSyncMLSessionMsg(targetEndpointURL)
+	requestBytes, err := s.newSyncMLSessionMsg(deviceID, targetEndpointURL)
 	require.NoError(t, err)
 
 	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
@@ -7366,7 +7386,7 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 }
 
 // TODO: Add support to add custom DeviceID when DeviceAuth is in place
-func (s *integrationMDMTestSuite) newSyncMLSessionMsg(managementUrl string) ([]byte, error) {
+func (s *integrationMDMTestSuite) newSyncMLSessionMsg(deviceID string, managementUrl string) ([]byte, error) {
 	if len(managementUrl) == 0 {
 		return nil, errors.New("managementUrl is empty")
 	}
@@ -7382,7 +7402,7 @@ func (s *integrationMDMTestSuite) newSyncMLSessionMsg(managementUrl string) ([]b
 				<LocURI>` + managementUrl + `</LocURI>
 				</Target>
 				<Source>
-				<LocURI>DB257C3A08778F4FB61E2749066C1F27</LocURI>
+				<LocURI>` + deviceID + `</LocURI>
 				</Source>
 			</SyncHdr>
 			<SyncBody>
@@ -7406,7 +7426,7 @@ func (s *integrationMDMTestSuite) newSyncMLSessionMsg(managementUrl string) ([]b
 					<Source>
 					<LocURI>./DevInfo/DevId</LocURI>
 					</Source>
-					<Data>DB257C3A08778F4FB61E2749066C1F27</Data>
+					<Data>` + deviceID + `</Data>
 				</Item>
 				<Item>
 					<Source>
