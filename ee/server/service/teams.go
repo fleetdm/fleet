@@ -949,7 +949,7 @@ func (svc *Service) editTeamFromSpec(
 			return err
 		}
 	}
-	if oldMacOSDiskEncryption != team.Config.MDM.EnableDiskEncryption {
+	if appCfg.MDM.EnabledAndConfigured && oldMacOSDiskEncryption != team.Config.MDM.EnableDiskEncryption {
 		var act fleet.ActivityDetails
 		if team.Config.MDM.EnableDiskEncryption {
 			act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
