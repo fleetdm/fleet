@@ -13,7 +13,6 @@ import {
   ISelectTeam,
   ISelectTargetsEntity,
   ISelectedTargetsForApi,
-  ISelectedTargetsByType,
 } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 
@@ -44,7 +43,6 @@ interface ISelectTargetsProps {
   baseClass: string;
   queryId?: number | null;
   selectedTargets: ITarget[];
-  selectedTargetsByType?: ISelectedTargetsByType;
   targetedHosts: IHost[];
   targetedLabels: ILabel[];
   targetedTeams: ITeam[];
@@ -383,12 +381,22 @@ const SelectTargets = ({
     }
 
     const { targets_count: total, targets_online: online } = counts;
-    const onlinePercentage = total > 0 ? Math.round((online / total) * 100) : 0;
+    const onlinePercentage = () => {
+      if (total === 0) {
+        return 0;
+      }
+      // If at least 1 host is online, displays <1% instead of 0%
+      const roundPercentage =
+        Math.round((online / total) * 100) === 0
+          ? "<1"
+          : Math.round((online / total) * 100) === 0;
+      return roundPercentage;
+    };
 
     return (
       <>
         <span>{total}</span>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
-        {onlinePercentage}
+        {onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
           tipContent={`Hosts are online if they<br /> have recently checked <br />into Fleet.`}

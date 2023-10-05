@@ -79,7 +79,6 @@ const EditQueryPage = ({
     lastEditedQueryPlatforms,
     lastEditedQueryLoggingType,
     lastEditedQueryMinOsqueryVersion,
-    selectedQueryTargets,
     setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -89,13 +88,9 @@ const EditQueryPage = ({
     setLastEditedQueryLoggingType,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryPlatforms,
-    // setSelectedQueryTargets,
   } = useContext(QueryContext);
   const { currentUser, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
-
-  // const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
-  // const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
 
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -155,7 +150,7 @@ const EditQueryPage = ({
       setLastEditedQueryId(DEFAULT_QUERY.id);
       setLastEditedQueryName(DEFAULT_QUERY.name);
       setLastEditedQueryDescription(DEFAULT_QUERY.description);
-      // setLastEditedQueryBody(DEFAULT_QUERY.query);
+      // Persist lastEditedQueryBody through live query flow instead of resetting to DEFAULT_QUERY.query
       setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
       setLastEditedQueryFrequency(DEFAULT_QUERY.interval);
       setLastEditedQueryLoggingType(DEFAULT_QUERY.logging);

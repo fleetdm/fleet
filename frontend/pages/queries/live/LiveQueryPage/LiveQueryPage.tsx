@@ -23,7 +23,6 @@ import SelectTargets from "components/LiveQuery/SelectTargets";
 
 import RunQuery from "pages/queries/live/screens/RunQuery";
 import useTeamIdParam from "hooks/useTeamIdParam";
-import { ISelectedTargetsByType } from "interfaces/target";
 
 interface IRunQueryPageProps {
   router: InjectedRouter;

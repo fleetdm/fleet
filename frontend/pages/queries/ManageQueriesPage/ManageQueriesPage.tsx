@@ -187,7 +187,7 @@ const ManageQueriesPage = ({
   // Reset selected targets when returned to this page
   useEffect(() => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-  });
+  }, []);
 
   const onCreateQueryClick = () => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
