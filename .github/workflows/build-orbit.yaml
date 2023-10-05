@@ -2,9 +2,15 @@ name: Build, Sign and Notarize Orbit for macOS
 
 on:
   workflow_dispatch: # allow manual action
+  push:
+    paths:
+      # The workflow can be triggered by modifying ORBIT_VERSION env.
+      - '.github/workflows/build-orbit.yml'
   pull_request:
     paths:
       - 'orbit/**.go'
+      # The workflow can be triggered by modifying ORBIT_VERSION env.
+      - '.github/workflows/build-orbit.yml'
 
 env:
   ORBIT_VERSION: 1.17.0
