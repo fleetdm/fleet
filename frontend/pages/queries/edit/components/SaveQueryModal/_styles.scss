@@ -11,23 +11,4 @@
   &__advanced-options-toggle {
     font-weight: $xbold;
   }
-
-  .info-banner {
-    margin-bottom: 1.5rem;
-    &__info {
-      line-height: 21px;
-    }
-  }
-
-  &__disabled-discard-data-checkbox {
-    @include disabled;
-  }
-
-  &__edit-anyway {
-    display: inline-flex;
-    align-items: center;
-    cursor: pointer;
-    font-weight: inherit;
-    font-size: inherit;
-  }
 }

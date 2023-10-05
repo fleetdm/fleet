@@ -23,11 +23,8 @@ import {
   ISchedulableQuery,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
-import TooltipWrapper from "components/TooltipWrapper";
-import { Link } from "react-router";
-import Icon from "components/Icon";
 import { IConfig } from "interfaces/config";
-import InfoBanner from "components/InfoBanner";
+import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
 export interface ISaveQueryModalProps {
@@ -87,14 +84,10 @@ const SaveQueryModal = ({
     backendValidators
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [forceEditDiscardData, setForceEditDiscardData] = useState(false);
 
   const toggleAdvancedOptions = () => {
     setShowAdvancedOptions(!showAdvancedOptions);
   };
-
-  const query_reports_disabled =
-    appConfig?.server_settings?.query_reports_disabled;
 
   useDeepEffect(() => {
     if (name) {
@@ -154,76 +147,6 @@ const SaveQueryModal = ({
     [setSelectedPlatformOptions]
   );
 
-  const renderDiscardDataOption = () => {
-    const disable = query_reports_disabled && !forceEditDiscardData;
-    return (
-      <>
-        {["differential", "differential_ignore_removals"].includes(
-          selectedLoggingType
-        ) && (
-          <InfoBanner color="purple-bold-border">
-            <>
-              The <b>Discard data</b> setting is ignored when differential
-              logging is enabled. This <br />
-              query&apos;s results will not be saved in Fleet.
-            </>
-          </InfoBanner>
-        )}
-        <Checkbox
-          name="discardData"
-          onChange={setDiscardData}
-          value={discardData}
-          wrapperClassName={
-            disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
-          }
-        >
-          <b>Discard data</b>
-        </Checkbox>
-        <div className="help-text">
-          {disable ? (
-            <>
-              This setting is ignored because query reports in Fleet have been{" "}
-              <TooltipWrapper
-                // TODO - use JSX once new tooltipwrapper is merged
-                tipContent={
-                  "A Fleet administrator can enable query reports under <br />\
-                  <b>Organization settings > Advanced options > Disable  query reports</b>."
-                }
-                position="bottom"
-              >
-                <>globally disabled.</>
-              </TooltipWrapper>{" "}
-              <Link
-                to={""}
-                onClick={() => {
-                  setForceEditDiscardData(true);
-                }}
-                className={`${baseClass}__edit-anyway`}
-              >
-                <>
-                  Edit anyway
-                  <Icon
-                    name="chevron"
-                    direction="right"
-                    color="core-fleet-blue"
-                    size="small"
-                  />
-                </>
-              </Link>
-            </>
-          ) : (
-            <>
-              The most recent results for each host will not be available in
-              Fleet.
-              <br />
-              Data will still be sent to your log destination if{" "}
-              <b>automations</b> are <b>on</b>.
-            </>
-          )}
-        </div>
-      </>
-    );
-  };
   return (
     <Modal title={"Save query"} onExit={toggleSaveQueryModal}>
       <form
@@ -315,7 +238,17 @@ const SaveQueryModal = ({
               label="Logging"
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
             />
-            {!isLoadingAppConfig && renderDiscardDataOption()}
+            {!isLoadingAppConfig && (
+              <DiscardDataOption
+                {...{
+                  appConfig,
+                  selectedLoggingType,
+                  discardData,
+                  setDiscardData,
+                }}
+                breakHelpText
+              />
+            )}
           </>
         )}
         <div className="modal-cta-wrap">
