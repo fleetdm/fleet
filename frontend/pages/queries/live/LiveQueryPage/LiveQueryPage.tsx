@@ -76,7 +76,6 @@ const RunQueryPage = ({
     setLastEditedQueryPlatforms,
   } = useContext(QueryContext);
 
-  console.log("selectedQueryTargets", selectedQueryTargets);
   const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
   const [step, setStep] = useState(LIVE_QUERY_STEPS[1]);
   const [targetedHosts, setTargetedHosts] = useState<IHost[]>(
