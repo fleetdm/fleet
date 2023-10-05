@@ -102,7 +102,7 @@ Testing automatic enrollment requires creating a test user in Entra and a freshl
 
 4. In the left-side bar, select **Users > All users** again to refresh the page and confirm that your test user was created.
 
-5. Open your Windows laptop and follow the setup steps. When you reach the **How would you like to set up?** screen, select **Set up for an organization**. If your workstations has Windows 11, select **Set up for work or school**.
+5. Open your Windows laptop and follow the setup steps. When you reach the **How would you like to set up?** screen, select **Set up for an organization**. If your workstation has Windows 11, select **Set up for work or school**.
 
 6. Sign in with your test user's credentials and finish the setup steps.
 
