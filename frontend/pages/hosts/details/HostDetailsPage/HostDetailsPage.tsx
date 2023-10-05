@@ -45,6 +45,7 @@ import {
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
+import { DEFAULT_QUERY } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -519,6 +520,7 @@ const HostDetailsPage = ({
   };
 
   const onQueryHostCustom = () => {
+    setLastEditedQueryBody(DEFAULT_QUERY.query);
     router.push(
       PATHS.NEW_QUERY() + TAGGED_TEMPLATES.queryByHostRoute(host?.id)
     );

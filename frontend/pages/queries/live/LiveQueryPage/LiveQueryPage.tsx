@@ -143,17 +143,6 @@ const RunQueryPage = ({
 
   useEffect(() => {
     detectIsFleetQueryRunnable();
-    if (!queryId) {
-      setLastEditedQueryId(DEFAULT_QUERY.id);
-      setLastEditedQueryName(DEFAULT_QUERY.name);
-      setLastEditedQueryDescription(DEFAULT_QUERY.description);
-      setLastEditedQueryBody(DEFAULT_QUERY.query);
-      setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
-      setLastEditedQueryFrequency(DEFAULT_QUERY.interval);
-      setLastEditedQueryLoggingType(DEFAULT_QUERY.logging);
-      setLastEditedQueryMinOsqueryVersion(DEFAULT_QUERY.min_osquery_version);
-      setLastEditedQueryPlatforms(DEFAULT_QUERY.platform);
-    }
   }, [queryId]);
 
   // Updates title that shows up on browser tabs

@@ -155,7 +155,7 @@ const EditQueryPage = ({
       setLastEditedQueryId(DEFAULT_QUERY.id);
       setLastEditedQueryName(DEFAULT_QUERY.name);
       setLastEditedQueryDescription(DEFAULT_QUERY.description);
-      setLastEditedQueryBody(DEFAULT_QUERY.query);
+      // setLastEditedQueryBody(DEFAULT_QUERY.query);
       setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
       setLastEditedQueryFrequency(DEFAULT_QUERY.interval);
       setLastEditedQueryLoggingType(DEFAULT_QUERY.logging);
