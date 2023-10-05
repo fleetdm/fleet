@@ -36,7 +36,7 @@ Fleet's community programs are rooted in several areas; created to nurture commu
 ### Social media
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
-Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to be involved in.
+Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community).
 
 Here are some links that filter relevant conversations on each platform:
 - [LinkedIn](https://www.linkedin.com/search/results/content/?datePosted=%22past-week%22&keywords=osquery%20OR%20%22fleet%20device%20management%22%20OR%20%22fleetdm%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22fleetdm.com%22&origin=FACETED_SEARCH&sid=oxR)
