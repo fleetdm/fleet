@@ -272,8 +272,8 @@ fleetctl get mdm-apple
 ```
 
 If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password changed.
-To renew the token: 
 
+To renew the token: 
 1. Log in to [business.apple.com](https://business.apple.com)
 2. Select Fleet's MDM server record
 3. Download a new token for that server record
