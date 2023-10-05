@@ -288,7 +288,7 @@ terraform apply
 
 The BYO-VPC configuration can be fully customized similar to the [Terraform root module](https://github.com/fleetdm/fleet/tree/main/terraform).  See the [BYO-VPC reference](https://github.com/fleetdm/fleet/tree/main/terraform/byo-vpc) for a full list of variables.
 
-<meta name="category" value="howto">
+<meta name="category" value="guides">
 <meta name="authorFullName" value="Robert Fairburn">
 <meta name="authorGitHubUsername" value="rfairburn">
 <meta name="publishedOn" value="2023-09-01">
