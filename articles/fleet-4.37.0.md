@@ -17,7 +17,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 _Available in Fleet Premium and Fleet Ultimate_
 
-Fleet adds a significant new feature, allowing IT administrators and security engineers to execute shell scripts across macOS, Windows, and Linux. This addition streamlines processes, offers root-level security control, and enables swift, real-time remediation and investigation. Learn more about Fleet's [cross-platform script execution](introducing-cross-platform-script-execution).
+Fleet adds a significant new feature, allowing IT administrators and security engineers to execute shell scripts across macOS, Windows, and Linux. This addition streamlines processes, offers root-level security control, and enables swift, real-time remediation and investigation. <!-- Learn more about Fleet's [cross-platform script execution](introducing-cross-platform-script-execution). -->
 
 
 ### Vulnerability dashboard

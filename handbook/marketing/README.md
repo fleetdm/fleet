@@ -50,6 +50,10 @@ Here are some topics for social media posts:
 ### Ads
 Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
 
+
+### Events
+It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
+
 ## Responsibilities
 
 ### Optimize ads through experimentation
@@ -114,6 +118,7 @@ Any changes to the current running ads visible to a user, including designs, key
 2. Compare existing ads against the newly proposed ad within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
 3. If your change is approved, Field Marketer makes changes and creates a calendar reminder to check performance two weeks from the date changes were made.
 
+
 ### Engage with the community
 Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
@@ -125,6 +130,18 @@ Here are some links that filter relevant conversations on each platform:
 2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
 3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
 4. If a post is helpful to our audience, reshare it.
+
+### Book an event
+For an event to be considered, booked, and scheduled, we follow the event issue template.
+
+1. Create a [new GitHub issue for the #g-marketing board](https://fleetdm.com/handbook/marketing#contact-us) and select the "Event-preparation" template..
+2. Drag the issue into the "🗓 Ideas for future events" column.  
+
+Once approval has been received, move the event into the "🗓 Planned events" column.
+
+### Review ongoing events
+Check the "🗓 Planned events" column in [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
+
 
 ## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>

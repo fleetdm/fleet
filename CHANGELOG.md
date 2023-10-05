@@ -1,3 +1,9 @@
+## Fleet 4.38.1 (Oct 5, 2023)
+
+### Bug Fixes
+
+* Fixed a bug that would cause live queries to stall if a detail query override was set for a team.
+
 ## Fleet 4.38.0 (Sep 25, 2023)
 
 ### Changes
