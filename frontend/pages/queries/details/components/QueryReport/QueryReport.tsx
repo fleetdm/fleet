@@ -44,22 +44,17 @@ I want to return
   },
 ]
 */
-const uiResults = (results: any) => {
+const tableResults = (results: any) => {
   return results.map((result: any) => {
-    const obj = {
-      host_id: result.host_id,
-      host_name: result.host_name,
+    const hostInfo = {
+      // host_id: result.host_id,
+      Host: result.host_name,
       last_fetched: humanLastSeen(result.last_fetched),
     };
-    // Object.keys(result.columns).forEach(key => {
-    //   obj[key] = result.columns[key];
-    // })
-    // Object.assign(obj, result.columns);
-    // console.log("obj", obj);
-    // console.log("Object.keys(obj)", Object.keys(obj));
-    // return Object.values(obj);
-    console.log("obj", obj);
-    return obj;
+
+    const tableData = { ...hostInfo, ...result.columns };
+    console.log("tableData", tableData);
+    return tableData;
   });
 };
 
@@ -68,17 +63,17 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
 
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<any>(
-    uiResults(queryReport?.results)
+    tableResults(queryReport?.results)
   );
   const [tableHeaders, setTableHeaders] = useState<any>([]);
-  const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
-    queryReport?.results
-  );
+  // const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
+  //   queryReport?.results
+  // );
 
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
       const generatedTableHeaders = generateResultsTableHeaders(
-        queryReport.results
+        tableResults(queryReport.results)
       );
       // Update tableHeaders if new headers are found
       if (generatedTableHeaders !== tableHeaders) {
