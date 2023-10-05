@@ -19,6 +19,13 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#process-the-ceos-email"
   dri: "sampfluger88"
 -
+  task: "Process all \"New requests\" on the #g-ceo kanban board"
+  startedOn: "2023-07-29"
+  frequency: "Daily ⏰"
+  description: "Process and prioritize all new issues and PRs"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#process-new-requests-from-the-g-ceo-kanban-board"
+  dri: "sampfluger88"
+-
   task: "Process the CEO's calendar"
   startedOn: "2023-07-29"
   frequency: "Daily ⏰"

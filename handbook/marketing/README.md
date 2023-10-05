@@ -17,32 +17,21 @@ The Marketing department is directly responsible for growing awareness of Fleet 
 - To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-marketing&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
-- To suggest an idea for social media, an article, a video, or an event, [create an issue (#g-marketing)](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-marketing&projects=&template=custom-request.md&title=Request%3A+_______________________) and concisely suggest why you think it might be a good idea.  The more advanced notice you can provide for the event, the better, in case we can provide swag or other support.
+- To suggest an idea for social media, an ad, an article, a video, or an event, [create an issue (#g-marketing)](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-marketing&projects=&template=custom-request.md&title=Request%3A+_______________________) and concisely suggest why you think it might be a good idea.  The more advanced notice you can provide for the event, the better, in case we can provide swag or other support.
 - If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel:
   - For all urgent questions related to events, video, or social media, mention the Field Marketer.
   - For all urgent questions related to articles or the Fleet community, mention the Community Advocate.
 
+### Proposing new ads
+Any changes to current running ads will need to be approved in 🦢🗣 Design review (#g-website).
+- Add any requests for review to the Design review agenda
+- Existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
+- If changes are approved, make changes and create a calendar reminder to check performance two weeks from the date changes were made. 
+
+
 
 ## Programs
-Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](#events), [community support](#community-support), [social media](#social-media), [conversation-starting](#conversation-starting), [ads](#ads), [video](#video), [articles](#articles), [product-marketing](#product-marketing), [brand](#brand), and [press](#press).
-
-
-### Events
-TODO
-
-### Community support
-Fleet team members participate in these communities:
-- [osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) (`#fleet` channel)
-- [MacAdmins Slack](https://www.macadmins.org/) (`#fleet` channel)
-
-<!-- 
-TODO: drew move this down into the spots where you're doing the weekly check in your ritual's responsibility
-- [Discussions on LinkedIn](https://www.linkedin.com/search/results/all/?keywords=osquery)  
-- [Discussions on Twitter](https://twitter.com/search?q=%22osquery%22%20OR%20%22github.com%2Fosquery%2Fosquery%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22github.com%2Fkolide%2Ffleet%22%20OR%20%22fleetdm%22%20OR%20%22fleet%20device%20management%22%20OR%20%22nanomdm%22%20OR%20%22micromdm%22%20OR%20%22swiftDialog%22%20OR%20%22munki%22&src=typed_query&f=live)
-- [reddit.com/r/sysadmins](https://www.reddit.com/r/sysadmin/)
-- [reddit.com/r/SysAdminBlogs](https://www.reddit.com/r/SysAdminBlogs/)
-- [r/sysadmin Discord](https://discord.gg/sysadmin)
--->
+Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through events, community support, [social media](#social-media), conversation-starting, [ads](#ads), video, and articles.
 
 ### Social media
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
@@ -58,77 +47,92 @@ Here are some topics for social media posts:
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
-### Conversation-starting
-TODO
 
 ### Ads
-TODO
+Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
 
-### Video
-TODO
-
-### Articles
-Everyone is empowered to suggest article ideas and submit drafts. Reach out to a [team member](#team) in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) for questions and updates related to articles.  
-
-### Product marketing
-Fleet's CEO is the directly responsible individual (DRI) for [Fleet's product marketing and strategy](https://fleetdm.com/handbook/company/communications#strategy).
-
-### Brand
-Fleet's CEO is the directly responsible individual (DRI) for [Fleet's brand marketing and strategy](https://fleetdm.com/handbook/company/communications#strategy).
-
-- **Brand resources:** To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
-
-
-
-
-### Press
-From time to time, Fleet is in the news.  Here are a few examples:
-- Computer World: [Fleet announces open-source, cross-platform MDM solution](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html)
-- 9to5Mac: [Apple @ Work Podcast: Fleet announces open-source, cross-platform device management platform](https://9to5mac.com/2023/04/11/fleet-announces-open-source-cross-platform-device-management-platform/)
-- Open Source For U: [Fleet Unveils The First Ever Open Source, Cross-Platform Device Management Platform](https://www.opensourceforu.com/2023/04/fleet-unveils-the-first-ever-open-source-cross-platform-device-management-platform/)
-- Tech Switch: [Fleet announces open-source, cross-platform MDM solution](https://techswitchcf.com/fleet-announces-open-source-cross-platform-mdm-solution/)
-- TechCrunch: [Fleet nabs $20M to enable enterprises to manage their devices](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices)
+### Events
+It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
 ## Responsibilities
 
-### Fufill one-time swag request
-We deliver Fleet swag and osquery stickers for those that request it through community contributions, [Fleet documentation](https://fleetdm.com/docs), and social media posts.
+### Optimize ads through experimentation
+Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
 
-- **Community contributions:** Reach out to the contributor to thank them for their contribution, ask if they would like any swag, and fill out their information in the [Fleet swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit#gid=2028707729).
-  - Typeform integrations automatically populate information within the #help-swag Slack channel for osquery sticker and shirt requests through TypeForm.
-  - Once approved in the sheet, or submitted through [Typeform](https://admin.typeform.com/form/ZfA3sOu0/results#responses), place the order through our Printful account (credentials in 1Password) within 48 hours of submission. If available through the ordering process, add a thank you note for their contribution or request.
-  - When an estimated shipping date is available, notify the requestor by email with an update on shipping, thank them for being a part of the community, and provide the tracking number once shipped.
-  - Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders).
-  - At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
+[**Google Ads**:](https://ads.google.com/home/) Ad experimentation on Google Ads for better click-through rate (CTR)
+1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
+2. Test one headline change for two weeks
+3. Pause the ad with the lower CTR
+4. Duplicate best-performing ad
+5. Test one description change for two weeks
+6. Pause the ad with the lower CTR
+7. Repeat this process
 
+[**LinkedIn**:](https://www.linkedin.com/campaignmanager/) Ad experimentation on LinkedIn Campaign Manager for better click-through rate (CTR)
+1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
+2. Test one intro text change for two weeks
+3. Pause the ad with the lower CTR
+4. Duplicate best-performing ad
+5. Test headline change for two weeks
+6. Pause the ad with the lower CTR
+7. Repeat this process
 
-### Create a press release
-After creating a press release, it is pitched reporters as an exclusive story. If the story is accepted do not share or publicize any information related to the upcoming press release before the announcement. Also, see [What is a press exclusive, and how does it work](https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work) on Quora.
+### Process pending swag requests from the website
+On a weekly basis, Marketing must log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
+To do this:
+1. Go to the ["Orders"](https://www.printful.com/ca/dashboard/default/orders) page in Printful
+2. Look for an order status of "Draft" and click that order.
+3. Copy the address displayed in the draft order. Close the modal.
+4. Under "Order list", there's a search box for customers that you will need to paste the address.
+5. The results should only display one order. Any additional could be duplicate orders or those made in error.
+6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
 
-#### Press release boilerplate
+### Send one-off swag
+There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. We use [Postal](https://www.postal.com/) to fulfill these swag requests. Postal warehouses Fleet swag that is available to send directly. There are two main ways to send swag through Postal: Direct sends and "Magic links".
 
-<blockquote purpose="large-quote"> Fleet gives teams fast, reliable access to data about the production servers, employee laptops, and other devices they manage - no matter the operating system. Users can search for any device data using SQL queries, making it faster to respond to incidents and automate IT. Fleet is also used to monitor vulnerabilities, battery health, and software. It can even monitor endpoint detection and response and mobile device management tools like Crowdstrike, Munki, Jamf, and Carbon Black, to help confirm that those platforms are working how administrators think they are. Fleet is open source software. It's easy to deploy and get started quickly, and it even comes with an enterprise-friendly free tier available under the MIT license.
+**Magic links**: This is a great option to send when we only know the item we'd like to send and want the recipient to fill out their own contact information and shipping details. These links can be used by anyone who has access to the link, so only send to the desired recipient.
 
-IT and security teams love Fleet because of its flexibility and conventions. Instead of secretly collecting as much data as possible, Fleet defaults to privacy and transparency, capturing only the data your organization needs to meet its compliance, security, and management goals, with clearly-defined, flexible limits.   
+- Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
+- For approved items, hover over the item that you would like to send and click the chain icon.
+- Make sure order limit is 1
+- Personalize your magic link page with a customized header or message if you'd like.
+- Continue on to "Review" and "Create MagicLink"
 
-That means better privacy, better device performance, and better data but with less noise. </blockquote>
+**Direct send**: This is a great option to send when we already have the name, address, and email address of the person we are sending an item to.
 
+- Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
+- For approved items, hover over the item that you would like to send and click the paper airplane icon.
+- Choose the "Direct" tab and find an existing contact or create a new one.
+- To create a new contact click the plus sign and fill out the name, email, and shipping address.
+- Select "Configure your item", continue on to "Review", and "Confirm and Send"
 
-### Create branded email campaign
-Create and send branded email blast to multiple recipients in small or large groups. First, base the design on one of our existing [email templates](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/?node-id=3609%3A12552) in Figma. If your Figma boots aren't comfortable (or you don't have edit access), your design could be a Google Drawing, Doc, or just a sketch on paper in a pinch. Bring your content to the #g-website design review for feedback and approval
+### Send swag for community contributions to Fleet
+- Reach out to the contributor to thank them for their contribution
+- Consider sharing the contribution on social media
+- Ask if we could send the contributor any swag
+- If yes, follow the steps of creating a magic link in Postal to send.
 
-- **For small groups:** Use "bcc" so recipients don't see each other's email addresses and send an email manually using Gmail.   (Good for small lists.  This is definitely a "thing that doesn't scale.")
+### Run a new ad or change an existing ad
+Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-website), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
+1. Add your proposal to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
+2. Compare existing ads against the newly proposed ad within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
+3. If your change is approved, Field Marketer makes changes and creates a calendar reminder to check performance two weeks from the date changes were made.
 
-- **For large groups:**  design the email and content. The preferred method is to 
-- Bring your request to the brand team by posting it in [their primary Slack channel](#slack-channels), along with your urgency/timeline. The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
+### Book an event
+For an event to be considered, booked, and scheduled, we follow the event issue template.
 
-  `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
+1. Create a [new GitHub issue for the #g-marketing board](https://fleetdm.com/handbook/marketing#contact-us) and select the "Event-preparation" template..
+2. Drag the issue into the "🗓 Ideas for future events" column.  
 
+Once approval has been received, move the event into the "🗓 Planned events" column.
+
+### Review ongoing events
+Check the "🗓 Planned events" column in [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 
 ## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
-<!-- TODO: Eeplore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
+<!-- TODO: Explore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 <!-- TODO: Slightly later, in another PR, finish processing this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 
 <meta name="maintainedBy" value="mikermcneil">
