@@ -53,7 +53,7 @@ import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveQueryModal from "../SaveQueryModal";
-import SaveChangesModal from "../SaveChangesModal";
+import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "edit-query-form";
@@ -77,8 +77,8 @@ interface IEditQueryFormProps {
   hostId?: number;
   appConfig?: IConfig;
   isLoadingAppConfig?: boolean;
-  showSaveChangesModal: boolean;
-  setShowSaveChangesModal: (bool: boolean) => void;
+  showConfirmSaveChangesModal: boolean;
+  setShowConfirmSaveChangesModal: (bool: boolean) => void;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -128,8 +128,8 @@ const EditQueryForm = ({
   hostId,
   appConfig,
   isLoadingAppConfig,
-  showSaveChangesModal,
-  setShowSaveChangesModal,
+  showConfirmSaveChangesModal,
+  setShowConfirmSaveChangesModal,
 }: IEditQueryFormProps): JSX.Element => {
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -222,8 +222,8 @@ const EditQueryForm = ({
     setShowSaveQueryModal(!showSaveQueryModal);
   };
 
-  const toggleSaveChangesModal = () => {
-    setShowSaveChangesModal(!showSaveChangesModal);
+  const toggleConfirmSaveChangesModal = () => {
+    setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
   };
 
   const onLoad = (editor: IAceEditor) => {
@@ -419,6 +419,7 @@ const EditQueryForm = ({
           platform: lastEditedQueryPlatforms,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
+          discard_data: lastEditedQueryDiscardData,
         });
       }
     }
@@ -613,25 +614,27 @@ const EditQueryForm = ({
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
-  const hasSqlChange = storedQuery && lastEditedQueryBody !== storedQuery.query;
-  const hasSnapshotChange =
+  const currentlySavingQueryResults =
     storedQuery &&
-    lastEditedQueryLoggingType !== "snapshot" &&
-    storedQuery.logging === "snapshot";
-  // Use commented out logic when discard data checkbox is implemented #13470
-  const hasEnabledDiscardData = false;
-  // const hasEnabledDiscardData =
-  //   storedQuery && lastEditedDiscardData && !storedQuery.discardData;
+    !storedQuery.discard_data &&
+    !["differential", "differential_ignore_removals"].includes(
+      storedQuery.logging
+    );
+  const changedSQL = storedQuery && lastEditedQueryBody !== storedQuery.query;
+  const changedLoggingToDifferential = [
+    "differential",
+    "differential_ignore_removals",
+  ].includes(lastEditedQueryLoggingType);
 
-  const confirmChanges = (): boolean => {
-    // Confirm changes if the query has been edited, removed snapshot logging, or enabled discard data
-    return hasSqlChange || hasSnapshotChange || hasEnabledDiscardData;
-  };
+  const enabledDiscardData =
+    storedQuery && lastEditedQueryDiscardData && !storedQuery.discard_data;
 
-  const confirmSqlChange = (): boolean => {
-    // Confirm sql changes message if sql changed but snapshot and enabling discard data has not
-    return !!hasSqlChange && !hasSnapshotChange && !hasEnabledDiscardData;
-  };
+  const confirmChanges =
+    currentlySavingQueryResults &&
+    (!!changedSQL || !!changedLoggingToDifferential || !!enabledDiscardData);
+
+  const showChangedSQLCopy =
+    !!changedSQL && !changedLoggingToDifferential && !enabledDiscardData;
 
   // Global admin, any maintainer, any observer+ on new query
   const renderEditableQueryForm = () => {
@@ -665,7 +668,7 @@ const EditQueryForm = ({
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
             onChange={onChangeQuery}
             handleSubmit={
-              confirmChanges() ? toggleSaveChangesModal : promptSaveQuery
+              confirmChanges ? toggleConfirmSaveChangesModal : promptSaveQuery
             }
             wrapEnabled
             focus={!savedQueryMode}
@@ -785,8 +788,8 @@ const EditQueryForm = ({
                       className="save-loading"
                       variant="brand"
                       onClick={
-                        confirmChanges()
-                          ? toggleSaveChangesModal
+                        confirmChanges
+                          ? toggleConfirmSaveChangesModal
                           : promptSaveQuery()
                       }
                       // Button disabled for team maintainer/admins viewing global queries
@@ -841,12 +844,11 @@ const EditQueryForm = ({
             isLoadingAppConfig={isLoadingAppConfig}
           />
         )}
-        {showSaveChangesModal && (
-          <SaveChangesModal
+        {showConfirmSaveChangesModal && (
+          <ConfirmSaveChangesModal
             onSaveChanges={promptSaveQuery()}
-            toggleSaveChangesModal={toggleSaveChangesModal}
             isUpdating={isQueryUpdating}
-            sqlUpdated={confirmSqlChange()}
+            {...{ toggleConfirmSaveChangesModal, showChangedSQLCopy }}
           />
         )}
       </>

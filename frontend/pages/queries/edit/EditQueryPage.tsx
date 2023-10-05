@@ -102,7 +102,10 @@ const EditQueryPage = ({
   const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
     false
   );
-  const [showSaveChangesModal, setShowSaveChangesModal] = useState(false);
+  const [
+    showConfirmSaveChangesModal,
+    setShowConfirmSaveChangesModal,
+  ] = useState(false);
 
   const { data: appConfig, isLoading: isLoadingAppConfig } = useQuery<
     IConfig,
@@ -243,7 +246,7 @@ const EditQueryPage = ({
     }
 
     setIsQueryUpdating(false);
-    setShowSaveChangesModal(false); // Closes conditionally opened modal when discarding previous results
+    setShowConfirmSaveChangesModal(false); // Closes conditionally opened modal when discarding previous results
 
     return false;
   };
@@ -322,8 +325,8 @@ const EditQueryPage = ({
               hostId={parseInt(location.query.host_ids as string, 10)}
               appConfig={appConfig}
               isLoadingAppConfig={isLoadingAppConfig}
-              showSaveChangesModal={showSaveChangesModal}
-              setShowSaveChangesModal={setShowSaveChangesModal}
+              showConfirmSaveChangesModal={showConfirmSaveChangesModal}
+              setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}
             />
           </div>
         </div>
