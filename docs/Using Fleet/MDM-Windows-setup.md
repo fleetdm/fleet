@@ -6,7 +6,7 @@
 
 Turning on Windows MDM features requires configuring Fleet with a certificate and key. This guide will walk you through how to upload these to Fleet and turn on Windows MDM.
 
-Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Microsoft Entra (formally Microsoft Azure) This guide will also walk you through how to connect Entra to Fleet. 
+Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Microsoft Entra (formerly Microsoft Azure). This guide will also walk you through how to connect Entra to Fleet. 
 
 ## Requirements
 To use Fleet's Windows MDM features you need to have:
