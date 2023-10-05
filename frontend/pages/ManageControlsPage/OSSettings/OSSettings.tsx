@@ -50,7 +50,10 @@ const OSSettings = ({
   );
 
   // MDM is not on so show messaging for user to enable it.
-  if (!config?.mdm.enabled_and_configured) {
+  if (
+    !config?.mdm.enabled_and_configured &&
+    !config?.mdm.windows_enabled_and_configured
+  ) {
     return <TurnOnMdmMessage router={router} />;
   }
 

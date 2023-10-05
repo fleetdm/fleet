@@ -537,21 +537,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
-		var act fleet.ActivityDetails
-		if appConfig.MDM.EnableDiskEncryption.Value {
-			act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
-			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
+	if appConfig.MDM.EnableDiskEncryption.Valid && oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
+		if oldAppConfig.MDM.EnabledAndConfigured {
+			var act fleet.ActivityDetails
+			if appConfig.MDM.EnableDiskEncryption.Value {
+				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
+				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
+				}
+			} else {
+				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
+				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
+				}
 			}
-		} else {
-			act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
-			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
+			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
-		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 		}
 	}
 
@@ -715,8 +717,8 @@ func (svc *Service) validateMDM(
 	}
 
 	// if either macOS or Windows MDM is enabled, this setting can be set.
-	if !oldMdm.AtLeastOnePlatformEnabledAndConfigured() {
-		if mdm.EnableDiskEncryption.Value {
+	if !mdm.AtLeastOnePlatformEnabledAndConfigured() {
+		if mdm.EnableDiskEncryption.Valid && mdm.EnableDiskEncryption.Value != oldMdm.EnableDiskEncryption.Value {
 			invalid.Append("mdm.enable_disk_encryption",
 				`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
 		}

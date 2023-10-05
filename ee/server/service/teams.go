@@ -836,7 +836,7 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 
-	if enableDiskEncryption {
+	if enableDiskEncryption && defaults.MDM.EnabledAndConfigured {
 		if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 		}
@@ -949,7 +949,7 @@ func (svc *Service) editTeamFromSpec(
 			return err
 		}
 	}
-	if oldMacOSDiskEncryption != team.Config.MDM.EnableDiskEncryption {
+	if appCfg.MDM.EnabledAndConfigured && oldMacOSDiskEncryption != team.Config.MDM.EnableDiskEncryption {
 		var act fleet.ActivityDetails
 		if team.Config.MDM.EnableDiskEncryption {
 			act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}

@@ -232,7 +232,7 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	ds.WSTEPStoreCertificateFunc = func(ctx context.Context, name string, crt *x509.Certificate) error {
 		require.Equal(t, "test-client", name)
 		require.Equal(t, "test-client", crt.Subject.CommonName)
-		require.Equal(t, "FleetDM", crt.Subject.OrganizationalUnit[0])
+		require.Equal(t, "Fleet", crt.Subject.OrganizationalUnit[0])
 		return nil
 	}
 
@@ -288,7 +288,7 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	parsedCert, err := x509.ParseCertificate(rawDER)
 	require.NoError(t, err)
 	require.Equal(t, "test-client", parsedCert.Subject.CommonName)
-	require.Equal(t, "FleetDM", parsedCert.Subject.OrganizationalUnit[0])
+	require.Equal(t, "Fleet", parsedCert.Subject.OrganizationalUnit[0])
 }
 
 func TestMDMCommonAuthorization(t *testing.T) {
