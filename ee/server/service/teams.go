@@ -836,7 +836,7 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 
-	if enableDiskEncryption {
+	if enableDiskEncryption && defaults.MDM.EnabledAndConfigured {
 		if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 		}
