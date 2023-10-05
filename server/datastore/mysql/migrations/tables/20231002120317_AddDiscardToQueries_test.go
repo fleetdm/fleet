@@ -18,7 +18,7 @@ func TestUp_20231002120317(t *testing.T) {
 		name, description, query, discard_data
 	) VALUES (?, ?, ?, ?)`
 
-	res, err := db.Exec(insertStmt, "test", "test description", "SELECT 1 from hosts", true)
+	res, err := db.Exec(insertStmt, "test", "test description", "SELECT 1 from hosts", false)
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
 	require.NotNil(t, id)
@@ -33,7 +33,7 @@ func TestUp_20231002120317(t *testing.T) {
 		discard_data
 	FROM queries WHERE id = ?`, id)
 	require.NoError(t, err)
-	require.True(t, query[0].DiscardData)
+	require.False(t, query[0].DiscardData)
 
 	// Insert without discard_data, verify that default is correct
 
@@ -56,5 +56,5 @@ func TestUp_20231002120317(t *testing.T) {
 		discard_data
 	FROM queries WHERE id = ?`, id)
 	require.NoError(t, err)
-	require.False(t, queryNoDiscard[0].DiscardData)
+	require.True(t, queryNoDiscard[0].DiscardData)
 }
