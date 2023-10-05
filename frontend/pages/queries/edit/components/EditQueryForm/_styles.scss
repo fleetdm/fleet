@@ -161,26 +161,6 @@
     }
   }
 
-  &__advanced-options {
-    margin-top: $pad-medium;
-  }
-
-  &__query-observer-can-run-wrapper {
-    margin: 0;
-    margin-top: $pad-large;
-    font-weight: $bold !important; // override checkbox default
-
-    & + p {
-      margin: 0;
-      margin-top: $pad-small;
-    }
-
-    .fleet-checkbox {
-      display: flex;
-      align-items: center;
-    }
-  }
-
   &__button-wrap {
     margin: 0;
     margin-top: $pad-large;

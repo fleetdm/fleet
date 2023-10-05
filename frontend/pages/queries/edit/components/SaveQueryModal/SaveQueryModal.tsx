@@ -192,9 +192,9 @@ const SaveQueryModal = ({
           name="observerCanRun"
           onChange={setObserverCanRun}
           value={observerCanRun}
-          wrapperClassName={`${baseClass}__observer-can-run-wrapper`}
+          wrapperClassName={"observer-can-run-wrapper"}
         >
-          <b>Observers can run</b>
+          Observers can run
         </Checkbox>
         <div className="help-text">
           Users with the Observer role will be able to run this query as a live
@@ -202,7 +202,7 @@ const SaveQueryModal = ({
         </div>
         <RevealButton
           isShowing={showAdvancedOptions}
-          className={`${baseClass}__advanced-options-toggle`}
+          className={"advanced-options-toggle"}
           hideText={"Hide advanced options"}
           showText={"Show advanced options"}
           caretPosition={"after"}

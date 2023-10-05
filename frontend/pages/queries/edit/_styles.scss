@@ -7,6 +7,11 @@
     color: $ui-fleet-black-75;
   }
 
+  .fleet-checkbox {
+    display: flex;
+    align-items: center;
+  }
+
   .form-field {
     &--frequency {
       margin-bottom: 0;
@@ -15,6 +20,15 @@
       margin-bottom: 0;
       margin-top: $pad-large;
     }
+  }
+
+  .advanced-options-toggle {
+    font-weight: $xbold;
+  }
+
+  .observer-can-run-wrapper {
+    margin-bottom: 0;
+    font-weight: bold;
   }
 
   .body-wrap {
