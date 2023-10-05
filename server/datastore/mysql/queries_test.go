@@ -59,11 +59,13 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			MinOsqueryVersion:  "5.2.1",
 			AutomationsEnabled: true,
 			Logging:            "differential",
+			DiscardData:        true,
 		},
 		{
 			Name:        "bar",
 			Description: "do some bars",
 			Query:       "select baz from bar",
+			DiscardData: true,
 		},
 	}
 
@@ -111,6 +113,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			Name:        "trouble",
 			Description: "Look out!",
 			Query:       "select * from time",
+			DiscardData: true,
 		},
 	)
 	err = ds.ApplyQueries(context.Background(), zwass.ID, []*fleet.Query{expectedQueries[2]})
