@@ -12,6 +12,37 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 
 [Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](./REST-API.md#policies) in Fleet. 
 
+These benchmarks are intended to gauge your organization's security posture, rather than the current state of a given host. A host may fail a CIS Benchmark policy despite having the correct settings enabled if there is not a specific policy in place to enforce that setting. For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
+
+```sql
+SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.MCX' AND 
+            name='dontAllowFDEDisable' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.MCX' AND 
+            name='dontAllowFDEDisable' AND 
+            (value != 1 AND value != 'true')
+        )
+      AND EXISTS (
+        SELECT 1 FROM disk_encryption WHERE 
+            user_uuid IS NOT "" AND 
+            filevault_status = 'on' 
+        );  
+```
+
+Two things are being evaluated in this policy:
+
+1. Is FileVault currently enabled?
+2. Is there a profile in place that prevents FileVault from being disabled?
+
+If either of these conditions fails, the host is considered to be failing the policy.
+
 ## Requirements
 
 Following are the requirements to use the CIS Benchmarks in Fleet:
@@ -23,7 +54,7 @@ Following are the requirements to use the CIS Benchmarks in Fleet:
 
 ### MDM required
 Some of the policies created by Fleet use the [managed_policies](https://www.fleetdm.com/tables/managed_policies) table. This checks whether an MDM solution has turned on the setting to enforce the policy.
-Using MDM is the recommended way to manage and enforce CIS Benchmarks. To learn how to set up MDM in Fleet, visit [here](/docs/using-fleet/mdm-setup).
+Using MDM is the recommended way to manage and enforce CIS Benchmarks. To learn how to set up MDM in Fleet, visit [here](/docs/using-fleet/mdm-macos-setup).
 
 ### Fleetd required
 Fleet's CIS Benchmarks require our [osquery manager, Fleetd](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). This is because Fleetd includes tables which are not part of vanilla osquery in order to accomplish auditing the benchmarks.
