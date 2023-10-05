@@ -3894,7 +3894,7 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 
 #### Example
 
-Add a new configuration profile to be applied to a macOS host
+Add a new configuration profile to be applied to macOS hosts
 assigned to a team. Note that in this example the form data specifies`team_id` in addition to
 `profile`.
 
@@ -4161,7 +4161,7 @@ results (i.e., only profiles that are associated with "No team" are listed).
 
 #### Example
 
-Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+Get aggregate status counts of MDM profiles applying to macOS and Windows hosts enrolled to Fleet's MDM that are not assigned to any team.
 
 `GET /api/v1/fleet/mdm/profiles/summary`
 
