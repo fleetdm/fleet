@@ -2,7 +2,7 @@
 
 The Fleet Terraform module is the recommended way to quickly get Fleet up and running in AWS. However, some organizations may already have an existing VPC that they would like leverage to deploy Fleet. This article shows what that would look like, leveraging the module at the bring-your-own VPC (BYO-VPC) level.
 
-## Required Resources
+## Required resources
 
 Starting at the BYO-VPC level has all of the same initial [requirements](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform#bring-your-own-nothing) as the root (BYO-Nothing) Terraform module. We will need to include these in our examle here as well for visibilty:
 
