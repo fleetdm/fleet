@@ -31,7 +31,7 @@ import {
 } from "interfaces/scheduled_query";
 import {
   ISelectTargetsEntity,
-  ISelectedTargets,
+  ISelectedTargetsForApi,
   IPackTargets,
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
@@ -258,7 +258,7 @@ const formatLabelResponse = (response: any): ILabel[] => {
 
 export const formatSelectedTargetsForApi = (
   selectedTargets: ISelectTargetsEntity[]
-): ISelectedTargets => {
+): ISelectedTargetsForApi => {
   const targets = selectedTargets || [];
   // TODO: can flatMap be removed?
   const hostIds = flatMap(targets, filterTarget("hosts"));

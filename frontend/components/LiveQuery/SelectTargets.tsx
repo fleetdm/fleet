@@ -12,7 +12,8 @@ import {
   ISelectLabel,
   ISelectTeam,
   ISelectTargetsEntity,
-  ISelectedTargets,
+  ISelectedTargetsForApi,
+  ISelectedTargetsByType,
 } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 
@@ -43,6 +44,7 @@ interface ISelectTargetsProps {
   baseClass: string;
   queryId?: number | null;
   selectedTargets: ITarget[];
+  selectedTargetsByType?: ISelectedTargetsByType;
   targetedHosts: IHost[];
   targetedLabels: ILabel[];
   targetedTeams: ITeam[];
@@ -67,7 +69,7 @@ interface ITargetsQueryKey {
   scope: string;
   query_id?: number | null;
   query?: string | null;
-  selected?: ISelectedTargets | null;
+  selected?: ISelectedTargetsForApi | null;
 }
 
 const DEBOUNCE_DELAY = 500;

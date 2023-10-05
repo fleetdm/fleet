@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest, { getError } from "services";
 import endpoints from "utilities/endpoints";
-import { ISelectedTargets } from "interfaces/target";
+import { ISelectedTargetsForApi } from "interfaces/target";
 import { AxiosResponse } from "axios";
 import {
   ICreateQueryRequestBody,
@@ -52,7 +52,7 @@ export default {
   }: {
     query: string;
     queryId: number | null;
-    selected: ISelectedTargets;
+    selected: ISelectedTargetsForApi;
   }) => {
     const { LIVE_QUERY } = endpoints;
 

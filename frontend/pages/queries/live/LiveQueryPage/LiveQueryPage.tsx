@@ -23,6 +23,7 @@ import SelectTargets from "components/LiveQuery/SelectTargets";
 
 import RunQuery from "pages/queries/live/screens/RunQuery";
 import useTeamIdParam from "hooks/useTeamIdParam";
+import { ISelectedTargetsByType } from "interfaces/target";
 
 interface IRunQueryPageProps {
   router: InjectedRouter;
@@ -63,6 +64,8 @@ const RunQueryPage = ({
   const {
     selectedQueryTargets,
     setSelectedQueryTargets,
+    selectedQueryTargetsByType,
+    setSelectedQueryTargetsByType,
     setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -74,11 +77,18 @@ const RunQueryPage = ({
     setLastEditedQueryPlatforms,
   } = useContext(QueryContext);
 
+  console.log("selectedQueryTargets", selectedQueryTargets);
   const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
   const [step, setStep] = useState(LIVE_QUERY_STEPS[1]);
-  const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
-  const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
-  const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
+  const [targetedHosts, setTargetedHosts] = useState<IHost[]>(
+    selectedQueryTargetsByType.hosts
+  );
+  const [targetedLabels, setTargetedLabels] = useState<ILabel[]>(
+    selectedQueryTargetsByType.labels
+  );
+  const [targetedTeams, setTargetedTeams] = useState<ITeam[]>(
+    selectedQueryTargetsByType.teams
+  );
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
 
@@ -145,6 +155,19 @@ const RunQueryPage = ({
     detectIsFleetQueryRunnable();
   }, [queryId]);
 
+  useEffect(() => {
+    setSelectedQueryTargetsByType({
+      hosts: targetedHosts,
+      labels: targetedLabels,
+      teams: targetedTeams,
+    });
+  }, [targetedLabels, targetedHosts, targetedTeams]);
+
+  console.log(
+    "LiveQueryPage.tsx: selectedQueryTargetsByType",
+    selectedQueryTargetsByType
+  );
+
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // e.g., Run live query | Discover TLS certificates | Fleet for osquery
@@ -165,6 +188,7 @@ const RunQueryPage = ({
       baseClass,
       queryId,
       selectedTargets: selectedQueryTargets,
+      selectedTargetsByType: selectedQueryTargetsByType,
       targetedHosts,
       targetedLabels,
       targetedTeams,
@@ -172,6 +196,7 @@ const RunQueryPage = ({
       goToQueryEditor,
       goToRunQuery: () => setStep(LIVE_QUERY_STEPS[2]),
       setSelectedTargets: setSelectedQueryTargets,
+      setSelectedTargetsByType: setSelectedQueryTargetsByType,
       setTargetedHosts,
       setTargetedLabels,
       setTargetedTeams,
@@ -181,8 +206,10 @@ const RunQueryPage = ({
     const step2Props = {
       queryId,
       selectedTargets: selectedQueryTargets,
+      selectedTargetsByType: selectedQueryTargetsByType,
       storedQuery,
       setSelectedTargets: setSelectedQueryTargets,
+      setSelectedTargetsByType: setSelectedQueryTargetsByType,
       goToQueryEditor,
       targetsTotalCount,
     };

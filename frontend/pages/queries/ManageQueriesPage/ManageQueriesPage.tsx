@@ -36,6 +36,7 @@ import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
 import ManageAutomationsModal from "./components/ManageAutomationsModal/ManageAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
+import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
@@ -89,7 +90,9 @@ const ManageQueriesPage = ({
     isSandboxMode,
     config,
   } = useContext(AppContext);
-  const { setLastEditedQueryBody } = useContext(QueryContext);
+  const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
+    QueryContext
+  );
 
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -180,6 +183,11 @@ const ManageQueriesPage = ({
       setFilteredQueriesPath(path);
     }
   }, [location, filteredQueriesPath, setFilteredQueriesPath]);
+
+  // Reset selected targets when returned to this page
+  useEffect(() => {
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
+  });
 
   const onCreateQueryClick = () => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
