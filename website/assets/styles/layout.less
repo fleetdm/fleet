@@ -19,18 +19,19 @@ html, body {
   background-position: center 40px;
 }
 
-// Styles for the page header
-[purpose='header-container'] {
+[purpose='header-background'] {
   background: rgba(255, 255, 255, 0.8);
-  border-bottom: 1px solid #FFFFFF;
-  box-shadow: 0px 1px 8px rgba(0, 0, 0, 0.08);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
-
-  // rules for sticky nav transitions
   transition-property: background-color, transform, bottom;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 500ms;
+}
+// Styles for the page header
+[purpose='header-container'] {
+  box-shadow: 0px 1px 8px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid #FFFFFF;
+  // rules for sticky nav transitions
   left: 0;
   right: 0;
   z-index: 199;
