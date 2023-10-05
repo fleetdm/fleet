@@ -1412,9 +1412,25 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	return nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Query Reports
+////////////////////////////////////////////////////////////////////////////////
+
+const (
+	maxQueryReportRows = 1000
+)
+
 func (svc *Service) SaveResultLogs(ctx context.Context, results []json.RawMessage) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return newOsqueryError("getting app config: " + err.Error())
+	}
+	if appConfig.ServerSettings.QueryReportsDisabled {
+		return nil
+	}
 
 	var queryResults []fleet.ScheduledQueryResult
 	for _, raw := range results {
@@ -1439,7 +1455,7 @@ func (svc *Service) SaveResultLogs(ctx context.Context, results []json.RawMessag
 			return newOsqueryError("getting result count for query: " + err.Error())
 		}
 
-		if rowCount >= 1000 {
+		if rowCount >= maxQueryReportRows {
 			continue
 		}
 
@@ -1454,7 +1470,7 @@ func (svc *Service) SaveResultLogs(ctx context.Context, results []json.RawMessag
 		}
 
 		for _, snapshotItem := range result.Snapshot {
-			if rowCount >= 1000 {
+			if rowCount >= maxQueryReportRows {
 				break
 			}
 
