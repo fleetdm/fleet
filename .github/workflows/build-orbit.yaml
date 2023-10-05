@@ -5,12 +5,12 @@ on:
   push:
     paths:
       # The workflow can be triggered by modifying ORBIT_VERSION env.
-      - '.github/workflows/build-orbit.yml'
+      - '.github/workflows/build-orbit.yaml'
   pull_request:
     paths:
       - 'orbit/**.go'
       # The workflow can be triggered by modifying ORBIT_VERSION env.
-      - '.github/workflows/build-orbit.yml'
+      - '.github/workflows/build-orbit.yaml'
 
 env:
   ORBIT_VERSION: 1.17.0
