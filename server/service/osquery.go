@@ -1487,6 +1487,8 @@ func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQu
 // row is saved as a separate ScheduledQueryResultRow. ie. a result could contain
 // many USB Devices or a result could contain all User Accounts on a host.
 func (svc *Service) saveResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint, rowCount int) error {
+	fetchTime := time.Now()
+
 	for _, snapshotItem := range result.Snapshot {
 		if rowCount >= maxQueryReportRows {
 			break
@@ -1496,7 +1498,7 @@ func (svc *Service) saveResultRows(ctx context.Context, result fleet.ScheduledQu
 			QueryID:     queryID,
 			HostID:      hostID,
 			Data:        snapshotItem,
-			LastFetched: time.Unix(int64(result.LastFetched), 0),
+			LastFetched: fetchTime,
 		}
 
 		if _, err := svc.ds.SaveQueryResultRow(ctx, row); err != nil {
