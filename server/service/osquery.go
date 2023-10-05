@@ -1380,7 +1380,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			break
 		}
 
-		err = svc.SaveResultLogs(ctx, results)
+		err = svc.SaveResultLogsToQueryReports(ctx, results)
 		if err != nil {
 			break
 		}
@@ -1420,10 +1420,11 @@ const (
 	maxQueryReportRows = 1000
 )
 
-func (svc *Service) SaveResultLogs(ctx context.Context, results []json.RawMessage) error {
+func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, results []json.RawMessage) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	// Do not insert results if query reports are disabled globally
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return newOsqueryError("getting app config: " + err.Error())
@@ -1441,62 +1442,77 @@ func (svc *Service) SaveResultLogs(ctx context.Context, results []json.RawMessag
 		queryResults = append(queryResults, result)
 	}
 
-	filtered := GetMostRecentResults(queryResults)
+	// Filter results to only the most recent for each query
+	filtered := getMostRecentResults(queryResults)
 
 	for _, result := range filtered {
-
-		query, err := svc.ds.QueryByName(ctx, nil, getQueryNameFromResult(result.QueryName))
-		if err != nil {
-			return newOsqueryError("getting query by Name: " + err.Error())
-		}
-
-		if query.DiscardData {
-			continue
-		}
-
-		rowCount, err := svc.ds.ResultCountForQuery(ctx, query.ID)
-		if err != nil {
-			return newOsqueryError("getting result count for query: " + err.Error())
-		}
-
-		if rowCount >= maxQueryReportRows {
-			continue
-		}
-
-		host, err := svc.ds.HostByIdentifier(ctx, result.OsqueryHostID)
-		if err != nil {
-			return newOsqueryError("getting host ID: " + err.Error())
-		}
-
-		err = svc.ds.DeleteQueryResultsForHost(ctx, host.ID, query.ID)
-		if err != nil {
-			return newOsqueryError("deleting query results for host: " + err.Error())
-		}
-
-		for _, snapshotItem := range result.Snapshot {
-			if rowCount >= maxQueryReportRows {
-				break
-			}
-
-			row := &fleet.ScheduledQueryResultRow{
-				QueryID:     query.ID,
-				HostID:      host.ID,
-				Data:        snapshotItem,
-				LastFetched: time.Unix(int64(result.LastFetched), 0),
-			}
-
-			if _, err := svc.ds.SaveQueryResultRow(ctx, row); err != nil {
-				return newOsqueryError("saving query result row: " + err.Error())
-			}
-
-			rowCount++
+		if err := svc.processResults(ctx, result); err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-func GetMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.ScheduledQueryResult {
+func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQueryResult) error {
+	query, err := svc.ds.QueryByName(ctx, nil, getQueryNameFromResult(result.QueryName))
+	if err != nil {
+		return newOsqueryError("getting query by Name: " + err.Error())
+	}
+
+	// Discard Result if query is marked as discard data or if the query report is full
+	rowCount, err := svc.ds.ResultCountForQuery(ctx, query.ID)
+	if err != nil {
+		return newOsqueryError("getting result count for query: " + err.Error())
+	}
+	if query.DiscardData || rowCount >= maxQueryReportRows {
+		return nil
+	}
+
+	host, err := svc.ds.HostByIdentifier(ctx, result.OsqueryHostID)
+	if err != nil {
+		return newOsqueryError("getting host ID: " + err.Error())
+	}
+
+	// Delete any existing query results for host before inserting new results
+	err = svc.ds.DeleteQueryResultsForHost(ctx, host.ID, query.ID)
+	if err != nil {
+		return newOsqueryError("deleting query results for host: " + err.Error())
+	}
+
+	return svc.saveResultRows(ctx, result, query.ID, host.ID, rowCount)
+}
+
+// The "snapshot" array in a ScheduledQueryResult can contain multiple rows.  Each
+// row is saved as a separate ScheduledQueryResultRow. ie. a result could contain
+// many USB Devices or a result could contain all User Accounts on a host.
+func (svc *Service) saveResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint, rowCount int) error {
+	for _, snapshotItem := range result.Snapshot {
+		if rowCount >= maxQueryReportRows {
+			break
+		}
+
+		row := &fleet.ScheduledQueryResultRow{
+			QueryID:     queryID,
+			HostID:      hostID,
+			Data:        snapshotItem,
+			LastFetched: time.Unix(int64(result.LastFetched), 0),
+		}
+
+		if _, err := svc.ds.SaveQueryResultRow(ctx, row); err != nil {
+			return newOsqueryError("saving query result row: " + err.Error())
+		}
+
+		rowCount++
+	}
+
+	return nil
+}
+
+// Osquery can send multiple results for the same query (ie. if an agent loses
+// network connectivity it will cache multiple results).  Query Reports only
+// save the most recent result for a given query.
+func getMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.ScheduledQueryResult {
 	// Use a map to track the most recent entry for each unique QueryName
 	latestResults := make(map[string]fleet.ScheduledQueryResult)
 
@@ -1520,6 +1536,8 @@ func GetMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.Schedule
 	return filteredResults
 }
 
+// Query names recieved from osqueryd are prefixed so we need
+// to strip the prefix to match the query name in the database
 func getQueryNameFromResult(path string) string {
 	lastSlash := strings.LastIndex(path, "/")
 	if lastSlash == -1 {
