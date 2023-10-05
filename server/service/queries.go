@@ -239,7 +239,6 @@ type modifyQueryResponse struct {
 func (r modifyQueryResponse) error() error { return r.Err }
 
 func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	fmt.Println("howdy")
 	req := request.(*modifyQueryRequest)
 	query, err := svc.ModifyQuery(ctx, req.ID, req.QueryPayload)
 	if err != nil {
@@ -272,9 +271,8 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		query.Description = *p.Description
 	}
 	if p.Query != nil {
-		// TODO: delete the query results
 		query.Query = *p.Query
-		if err := svc.ds.DeleteAllResultsForQuery(ctx, &id); err != nil {
+		if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
 			return nil, err
 		}
 	}
@@ -293,7 +291,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	if p.Logging != nil {
 		query.Logging = *p.Logging
 		if *p.Logging != fleet.LoggingSnapshot {
-			if err := svc.ds.DeleteAllResultsForQuery(ctx, &id); err != nil {
+			if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
 				return nil, err
 			}
 		}
@@ -304,7 +302,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	if p.DiscardData != nil {
 		query.DiscardData = *p.DiscardData
 		if *p.DiscardData == true {
-			if err := svc.ds.DeleteAllResultsForQuery(ctx, &id); err != nil {
+			if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
 				return nil, err
 			}
 		}
@@ -541,7 +539,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		}
 
 		if query.DiscardData || query.Logging != fleet.LoggingSnapshot || query.Query != dbQuery.Query {
-			if err := svc.ds.DeleteAllResultsForQueryByName(ctx, &query.Name); err != nil {
+			if err := svc.ds.DeleteAllResultsForQueryByName(ctx, query.Name); err != nil {
 				return ctxerr.Wrap(ctx, &fleet.GatewayError{Message: fmt.Sprintf("query results deletion: %s", err)})
 			}
 		}
