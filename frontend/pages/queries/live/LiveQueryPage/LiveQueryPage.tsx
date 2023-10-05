@@ -91,12 +91,6 @@ const RunQueryPage = ({
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
 
-  const TAGGED_TEMPLATES = {
-    queryByHostRoute: (hostId: number | undefined | null) => {
-      return `${hostId ? `?host_ids=${hostId}` : ""}`;
-    },
-  };
-
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
   const { data: storedQuery } = useQuery<
@@ -187,7 +181,6 @@ const RunQueryPage = ({
       baseClass,
       queryId,
       selectedTargets: selectedQueryTargets,
-      selectedTargetsByType: selectedQueryTargetsByType,
       targetedHosts,
       targetedLabels,
       targetedTeams,
@@ -195,7 +188,6 @@ const RunQueryPage = ({
       goToQueryEditor,
       goToRunQuery: () => setStep(LIVE_QUERY_STEPS[2]),
       setSelectedTargets: setSelectedQueryTargets,
-      setSelectedTargetsByType: setSelectedQueryTargetsByType,
       setTargetedHosts,
       setTargetedLabels,
       setTargetedTeams,
@@ -205,10 +197,8 @@ const RunQueryPage = ({
     const step2Props = {
       queryId,
       selectedTargets: selectedQueryTargets,
-      selectedTargetsByType: selectedQueryTargetsByType,
       storedQuery,
       setSelectedTargets: setSelectedQueryTargets,
-      setSelectedTargetsByType: setSelectedQueryTargetsByType,
       goToQueryEditor,
       targetsTotalCount,
     };

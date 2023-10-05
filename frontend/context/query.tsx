@@ -28,8 +28,8 @@ type InitialStateType = {
   lastEditedQueryPlatforms: SelectedPlatformString;
   lastEditedQueryMinOsqueryVersion: string;
   lastEditedQueryLoggingType: QueryLoggingOption;
-  selectedQueryTargets: ITarget[];
-  selectedQueryTargetsByType: ISelectedTargetsByType;
+  selectedQueryTargets: ITarget[]; // Mimicks old selectedQueryTargets still used for policies for SelectTargets.tsx and running a live query
+  selectedQueryTargetsByType: ISelectedTargetsByType; // New format by type for cleaner app wide state
   setLastEditedQueryId: (value: number | null) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
