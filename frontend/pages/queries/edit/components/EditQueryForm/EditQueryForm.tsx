@@ -680,10 +680,11 @@ const EditQueryForm = ({
                   placeholder={"Every day"}
                   value={lastEditedQueryFrequency}
                   label={"Frequency"}
-                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+                  wrapperClassName={`${baseClass}__form-field form-field--frequency`}
                 />
-                If automations are on, this is how often your query collects
-                data.
+                <div className="help-text">
+                  This is how often your query collects data.
+                </div>
               </div>
               <div className={`${baseClass}__observers-can-run`}>
                 <Checkbox
@@ -695,10 +696,10 @@ const EditQueryForm = ({
                 >
                   Observers can run
                 </Checkbox>
-                <p>
+                <div className="help-text">
                   Users with the observer role will be able to run this query on
                   hosts where they have access.
-                </p>
+                </div>
               </div>
               <RevealButton
                 isShowing={showAdvancedOptions}
@@ -717,8 +718,12 @@ const EditQueryForm = ({
                     onChange={onChangeSelectPlatformOptions}
                     value={lastEditedQueryPlatforms}
                     multi
-                    wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+                    wrapperClassName={`${baseClass}__form-field form-field--platform`}
                   />
+                  <div className="help-text">
+                    By default, your query collects data on all compatible
+                    platforms.
+                  </div>
                   <Dropdown
                     options={MIN_OSQUERY_VERSION_OPTIONS}
                     onChange={onChangeMinOsqueryVersionOptions}

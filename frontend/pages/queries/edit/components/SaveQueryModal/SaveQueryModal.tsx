@@ -177,7 +177,7 @@ const SaveQueryModal = ({
             disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
           }
         >
-          Discard data
+          <b>Discard data</b>
         </Checkbox>
         <div className="help-text">
           {disable ? (
@@ -260,7 +260,7 @@ const SaveQueryModal = ({
           placeholder={"Every hour"}
           value={selectedFrequency}
           label="Frequency"
-          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+          wrapperClassName={`${baseClass}__form-field form-field--frequency`}
         />
         <div className="help-text">
           This is how often your query collects data.
@@ -271,7 +271,7 @@ const SaveQueryModal = ({
           value={observerCanRun}
           wrapperClassName={`${baseClass}__observer-can-run-wrapper`}
         >
-          Observers can run
+          <b>Observers can run</b>
         </Checkbox>
         <div className="help-text">
           Users with the Observer role will be able to run this query as a live
@@ -294,7 +294,7 @@ const SaveQueryModal = ({
               onChange={onChangeSelectPlatformOptions}
               value={selectedPlatformOptions}
               multi
-              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+              wrapperClassName={`${baseClass}__form-field form-field--platform`}
             />
             <div className="help-text">
               By default, your query collects data on all compatible platforms.
