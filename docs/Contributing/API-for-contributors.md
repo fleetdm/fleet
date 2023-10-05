@@ -9,9 +9,11 @@
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 
-This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
+This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
-Unlike the [Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api), only the Fleet UI, Fleet Desktop, and `fleetctl` clients use the API routes in this document:
+These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and will frequently change to reflect current functionality.
+
+If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
 
 ## Packs
 

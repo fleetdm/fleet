@@ -298,6 +298,17 @@ func (ts *withServer) getConfig() *appConfigResponse {
 	return responseBody
 }
 
+func (ts *withServer) applyTeamSpec(yamlSpec []byte) {
+	var teamSpec any
+	err := yaml.Unmarshal(yamlSpec, &teamSpec)
+	require.NoError(ts.s.T(), err)
+
+	specsReq := map[string]any{
+		"specs": []any{teamSpec},
+	}
+	ts.Do("POST", "/api/latest/fleet/spec/teams", specsReq, http.StatusOK)
+}
+
 func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, string) {
 	t := ts.s.T()
 	auth, res := ts.loginSSOUser(username, password, "/api/v1/fleet/sso", http.StatusOK)
