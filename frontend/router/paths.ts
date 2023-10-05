@@ -76,6 +76,9 @@ export default {
   HOST_DETAILS: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}`;
   },
+  HOST_SCRIPTS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/scripts`;
+  },
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;
   },

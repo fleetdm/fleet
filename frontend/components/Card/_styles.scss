@@ -3,6 +3,10 @@
   border: 1px solid $ui-fleet-black-10;
   padding: $pad-large;
 
+  &__shadow {
+    box-shadow: $box-shadow;
+  }
+
   &__white {
     background-color: $core-white;
   }

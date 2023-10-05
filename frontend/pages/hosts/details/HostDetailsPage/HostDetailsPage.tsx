@@ -47,6 +47,7 @@ import AboutCard from "../cards/About";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
+import ScriptsCard from "../cards/Scripts";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
@@ -614,6 +615,11 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_DETAILS(hostIdFromURL),
     },
     {
+      name: "Scripts",
+      title: "scripts",
+      pathname: PATHS.HOST_SCRIPTS(hostIdFromURL),
+    },
+    {
       name: "Software",
       title: "software",
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
@@ -759,6 +765,9 @@ const HostDetailsPage = ({
                 onUsersTableSearchChange={onUsersTableSearchChange}
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
+            </TabPanel>
+            <TabPanel>
+              <ScriptsCard />
             </TabPanel>
             <TabPanel>
               <SoftwareCard
