@@ -6,9 +6,9 @@
         <div class="d-flex flex-row justify-content-center align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
-            <h4>For teams with thousands of computers</h4>
-            <h1>Untangle your endpoints</h1>
-            <p>Replace the sprawl you inherited with open-source code that works the way you want.</p>
+            <h4>Open-source device management</h4>
+            <h1>Lighter than air</h1>
+            <p>Lightweight management for laptops and servers.<br class="d-sm-block d-none"> Designed for APIs, GitOps, webhooks, YAML, and humans.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
               <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
@@ -19,71 +19,22 @@
     </div>
   </div>
   <%/* Row of logos */%>
-  <div purpose="hero-logos" class="mx-auto d-flex flex-column align-items-center justify-content-center">
-    <%/* >991px logos all on one row */%>
-    <div purpose="logo-column" class="w-100 flex-row d-lg-flex d-none justify-content-between align-items-center">
-      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" class="ml-auto" alt="Snowflake logo" src="/images/logo-snowflake-117x28@2x.png"></a>
-      <a href="#community"><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-110x24@2x.png"></a>
-      <a class="d-block" href="#community"><img purpose="uber-logo" alt="Uber logo" class="" src="/images/logo-uber-70x24@2x.png"></a>
-      <a class="d-block" href="#community"><img purpose="fastly-logo" alt="Fastly logo" class="" src="/images/logo-fastly-75x30@2x.png"></a>
-      <a href="#community"><img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-140x18@2x.png"></a>
-      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="gusto-logo" alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png"></a>
-      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" class="mr-auto" src="/images/logo-segment-112x24@2x.png"></a>
+  <div purpose="hero-logos" style="max-width: 1080px;" class="mx-auto d-flex flex-md-row flex-column align-items-center justify-content-center">
+    <div purpose="logo-column" class="flex-row d-flex justify-content-between align-items-center mb-4 mb-md-0">
+      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" class="ml-md-auto" alt="Snowflake logo" src="/images/logo-snowflake-167x40@2x.png"></a>
+      <a href="#community"><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-color-147x32@2x.png"></a>
+      <a class="d-block" href="#community"><img purpose="uber-logo" alt="Uber logo" class="" src="/images/logo-uber-dark-84x30@2x.png"></a>
     </div>
-    <%/* >576px logos - two rows */%>
-    <div purpose="logo-column" class="d-sm-flex d-none d-lg-none flex-row justify-content-between align-items-start align-items-md-center">
-      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" class="ml-md-auto" alt="Snowflake logo" src="/images/logo-snowflake-117x28@2x.png"></a>
-      <a href="#community"><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-110x24@2x.png"></a>
-      <a class="d-block" href="#community"><img purpose="uber-logo" alt="Uber logo" class="" src="/images/logo-uber-70x24@2x.png"></a>
-      <a class="d-block" href="#community"><img purpose="fastly-logo" alt="Fastly logo" class="" src="/images/logo-fastly-75x30@2x.png"></a>
+    <div purpose="logo-column" class="d-flex flex-row justify-content-between align-items-start align-items-md-center">
+      <a href="#community"><img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-194x24@2x.png"></a>
+      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" class="mr-md-auto" src="/images/logo-segment-139x30@2x.png"></a>
     </div>
-
-    <div purpose="logo-column" class="d-sm-flex d-none d-lg-none flex-row justify-content-between align-items-center mb-0">
-      <a href="#community"><img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-140x18@2x.png"></a>
-      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="gusto-logo" alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png"></a>
-      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" class="mr-md-auto" src="/images/logo-segment-112x24@2x.png"></a>
-    </div>
-
-    <%/* <576px logos - three rows */%>
-    <div purpose="logo-column" class="d-flex d-sm-none flex-row justify-content-center align-items-center">
-      <a class="mr-3" href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" alt="Snowflake logo" src="/images/logo-snowflake-117x28@2x.png"></a>
-      <a class="ml-3" href="#community"><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-110x24@2x.png"></a>
-    </div>
-    <div purpose="logo-column" class="d-flex d-sm-none flex-row justify-content-between align-items-center">
-      <a class="d-block" href="#community"><img class="mx-0" purpose="uber-logo" alt="Uber logo" src="/images/logo-uber-70x24@2x.png"></a>
-      <a class="d-block" href="#community"><img class="mx-auto" purpose="fastly-logo" alt="Fastly logo" src="/images/logo-fastly-75x30@2x.png"></a>
-      <a href="#community"><img class="mx-0" purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-140x18@2x.png"></a>
-    </div>
-    <div purpose="logo-column" class="d-flex d-sm-none flex-row justify-content-center align-items-center mb-0">
-      <a class="mr-3" href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="gusto-logo" alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png"></a>
-      <a class="ml-3" href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" class="mr-md-auto" src="/images/logo-segment-112x24@2x.png"></a>
+    <div purpose="logo-column" class="d-flex flex-row justify-content-between align-items-center">
+      <a purpose="bottom-row-uber-logo" href="#community" target="_blank"><img style="height: 20px; width: auto" alt="Uber logo" src="/images/logo-uber-dark-84x30@2x.png"></a>
     </div>
   </div>
   <%/* Homepage content */%>
   <div purpose="homepage-content" class="container">
-    <%/* Testimonial videos */%>
-    <div purpose="testimonials" class="d-flex flex-md-row flex-column justify-content-center card-deck">
-      <div purpose="testimonial" class="d-flex flex-xl-row flex-column-reverse card" @click="clickOpenVideoModal('austin-anderson')">
-        <div purpose="testimonial-text" class="card-body">
-          <img alt="an opening quotation mark" style="width:18px; margin-bottom: 16px;" src="/images/quote-icon-18x12@2x.png">
-          <p purpose="testimonial-quote">We can build it exactly the way we want it. Which is just not possible on other platforms.</p>
-          <p class="mb-0"><strong>Austin Anderson</strong></p>
-          <p>Cybersecurity team senior manager</p>
-        </div>
-        <div purpose="testimonial-video" class="card-title">
-        </div>
-      </div>
-      <div purpose="testimonial" class="d-flex flex-xl-row flex-column-reverse card" @click="clickOpenVideoModal('nick-fohs')">
-        <div purpose="testimonial-text" class="card-body">
-          <img alt="an opening quotation mark" style="width:18px; margin-bottom: 16px;" src="/images/quote-icon-18x12@2x.png">
-          <p purpose="testimonial-quote">Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.</p>
-          <p class="mb-0"><strong>Nick Fohs</strong></p>
-          <p>Systems and infrastructure manager</p>
-        </div>
-        <div purpose="testimonial-video" class="card-title">
-        </div>
-      </div>
-    </div>
 
     <%/* Device management block */%>
     <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
@@ -135,7 +86,7 @@
 
     <%/* Supported platforms */%>
     <div purpose="supported-platforms" class="d-flex flex-column">
-      <h2>An open API for every endpoint</h2>
+      <h2>Supported platforms</h2>
       <div class="card-deck d-flex flex-row flex-wrap justify-content-center mx-auto">
           <div purpose="supported-platform" class="">
             <img alt="Linux" src="/images/homepage-platform-linux-41x48@2x.png">
@@ -224,7 +175,7 @@
     </div>
 
     <div purpose="homepage-text-block" class="text-center mx-auto">
-      <h2>Open by design</h2>
+      <h2>Open through and through</h2>
       <p>Fleet is dedicated to flexibility, accessibility, and clarity. We think everyone can contribute and that tools should be as easy as possible for everyone to understand.</p>
     </div>
 
@@ -234,7 +185,7 @@
         <div purpose="feature" class="ml-sm-0">
           <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png" class="mx-auto mx-sm-0">
           <h5>Scope transparency</h5>
-          <p>Let end users see the source code for exactly <a href="/docs/using-fleet/fleet-desktop">how they are being monitored</a>, and set clear expectations about what is and isn’t acceptable use of work computers.</p>
+          <p>Fleet champions a user-first transparency model with its open-source software, allowing users to see what's being monitored and how. Read more on Fleet’s <a href="/transparency">transparency</a> page. </p>
         </div>
 
         <div purpose="feature">
@@ -316,12 +267,5 @@
     <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md-990x375@2x.png">
     <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
   </div>
-
-  <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'nick-fohs'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/fs5ULAR4e4A?si=pChZBt_sSNj13goP&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

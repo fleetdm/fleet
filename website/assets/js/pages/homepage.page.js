@@ -8,7 +8,6 @@ parasails.registerPage('homepage', {
     numberOfTweetPages: 0,
     numberOfTweetsPerPage: 0,
     tweetCardWidth: 0,
-    modal: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -32,13 +31,5 @@ parasails.registerPage('homepage', {
         window.HubSpotConversations.widget.open();
       }
     },
-
-    clickOpenVideoModal: function(modalName) {
-      this.modal = modalName;
-    },
-
-    closeModal: function() {
-      this.modal = undefined;
-    }
   }
 });
