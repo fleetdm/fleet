@@ -3851,7 +3851,6 @@ Deletes the label specified by ID.
 
 These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
-- [Add custom macOS setting (configuration profile)](#add-custom-macos-setting-configuration-profile)
 - [Add custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
 - [Download custom OS setting (configuration profile)](#download-custom-os-setting-configuration-profile)
@@ -3878,86 +3877,9 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
 
-### Add custom macOS setting (configuration profile)
-
-> This API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.
-
-Add a configuration profile to enforce custom settings on macOS hosts.
-
-`POST /api/v1/fleet/mdm/apple/profiles`
-
-#### Parameters
-
-| Name                      | Type     | In   | Description                                                                                                   |
-| ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| profile                   | file     | form | **Required.** The .mobileconfig file containing the profile.                                          |
-| team_id                   | string   | form | _Available in Fleet Premium_ The team id for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team.                         |
-
-#### Example
-
-Add a new configuration profile to be applied to a macOS host
-assigned to a team. Note that in this example the form data specifies`team_id` in addition to
-`profile`.
-
-`POST /api/v1/fleet/mdm/apple/profiles`
-
-##### Request headers
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
-Content-Type: application/octet-stream
-
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>PayloadContent</key>
-  <array/>
-  <key>PayloadDisplayName</key>
-  <string>Example profile</string>
-  <key>PayloadIdentifier</key>
-  <string>com.example.profile</string>
-  <key>PayloadType</key>
-  <string>Configuration</string>
-  <key>PayloadUUID</key>
-  <string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
-  <key>PayloadVersion</key>
-  <integer>1</integer>
-</dict>
-</plist>
---------------------------f02md47480und42y--
-
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "profile_id": 42
-}
-```
-
-###### Additional notes
-If the response is `Status: 409 Conflict`, the body may include additional error details in the case
-of duplicate payload display name or duplicate payload identifier.
-
 ### Add custom OS setting (configuration profile)
 
-> `POST /api/v1/fleet/mdm/apple/profiles` API endpoint is deprecated as of Fleet 4.39. It is maintained for backward compatibility. Please use the new API endpoint below.
+> [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.
 
 Add a configuration profile to enforce custom settings on macOS and Windows hosts.
 
@@ -4035,6 +3957,8 @@ of duplicate payload display name or duplicate payload identifier (macOS profile
 
 ### List custom OS settings (configuration profiles)
 
+> [List custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.
+
 Get a list of the configuration profiles in Fleet.
 
 For Fleet Premium, the list can
@@ -4087,6 +4011,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 ### Download custom OS setting (configuration profile)
 
+> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.
+
 `GET /api/v1/fleet/mdm/profiles/{profile_id}`
 
 #### Parameters
@@ -4138,6 +4064,8 @@ solely on the response status code returned by this endpoint.
 ```
 
 ### Delete custom OS setting (configuration profile)
+
+> [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.
 
 `DELETE /api/v1/fleet/mdm/profiles/{profile_id}`
 
@@ -4214,6 +4142,8 @@ Get aggregate status counts of Apple disk encryption profiles applying to macOS 
 ```
 
 ### Get OS settings statistics
+
+> [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.
 
 Get aggregate status counts of all OS settings (configuration profiles and disk encryption) enforced on hosts.
 
