@@ -115,6 +115,7 @@ func (ds *Datastore) QueryByName(
 			min_osquery_version,
 			automations_enabled,
 			logging_type,
+			discard_data,
 			created_at,
 			updated_at
 		FROM queries

@@ -1450,6 +1450,10 @@ func (svc *Service) SaveResultLogs(ctx context.Context, results []json.RawMessag
 			return newOsqueryError("getting query by Name: " + err.Error())
 		}
 
+		if query.DiscardData {
+			continue
+		}
+
 		rowCount, err := svc.ds.ResultCountForQuery(ctx, query.ID)
 		if err != nil {
 			return newOsqueryError("getting result count for query: " + err.Error())
