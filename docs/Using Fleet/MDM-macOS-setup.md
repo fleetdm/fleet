@@ -107,6 +107,7 @@ fleetctl get mdm-apple
 ### Step 1: generate the required files
 - A new APNs certificate. 
 - A new APNs private key.
+
 Run the following command in `fleetctl`. This will download three files and send an email to you with an attached CSR file. You may ignore the SCEP certificate and SCEP key as you do not need these to renew APNs.
 
 ```sh
@@ -261,6 +262,7 @@ Use either of the following methods to see your ABM renewal date and other impor
 #### Fleet UI
 
 1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+
 2. Look at the **Apple Business Manager** section.
 
 #### Fleetctl CLI
@@ -269,8 +271,7 @@ Use either of the following methods to see your ABM renewal date and other impor
 fleetctl get mdm-apple
 ```
 
-If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password 
-
+If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password changed.
 To renew the token: 
 1. Log in to [business.apple.com](https://business.apple.com)
 2. Select Fleet's MDM server record
@@ -281,3 +282,4 @@ To renew the token:
 <meta name="pageOrderInSection" value="1500">
 <meta name="title" value="macOS setup">
 <meta name="description" value="Learn how to configure Fleet to use Apple's Push Notification service and connect to Apple Business Manager.">
+<meta name="navSection" value="Device management">
