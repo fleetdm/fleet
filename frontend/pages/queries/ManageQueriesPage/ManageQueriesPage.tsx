@@ -21,6 +21,7 @@ import {
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import queriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
 import { DEFAULT_QUERY } from "utilities/constants";
@@ -36,7 +37,6 @@ import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
 import ManageAutomationsModal from "./components/ManageAutomationsModal/ManageAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
-import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
