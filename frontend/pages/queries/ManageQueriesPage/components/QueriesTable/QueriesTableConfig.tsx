@@ -183,10 +183,7 @@ const generateTableHeaders = ({
           <TextCell
             value={val}
             emptyCellTooltipText={
-              <>
-                Assign a frequency and turn <strong>automations</strong> on to
-                collect data at an interval.
-              </>
+              <>Assign a frequency to collect data at an interval.</>
             }
           />
         );
