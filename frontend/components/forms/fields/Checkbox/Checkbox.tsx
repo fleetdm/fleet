@@ -5,7 +5,6 @@ import { noop, pick } from "lodash";
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
 import TooltipWrapper from "components/TooltipWrapper";
-import { ITooltipWrapperTipContent } from "components/TooltipWrapper/TooltipWrapper";
 
 const baseClass = "fleet-checkbox";
 
@@ -20,7 +19,7 @@ export interface ICheckboxProps {
   wrapperClassName?: string;
   indeterminate?: boolean;
   parseTarget?: boolean;
-  tooltipContent?: ITooltipWrapperTipContent["tipContent"];
+  tooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
 }
 
