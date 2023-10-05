@@ -41,25 +41,8 @@ Use either of the following methods to generate the necessary files:
 
 Run the following command to download three files and send an email to you with an attached CSR file.
 
-2. Under **End user authentication**, enter your IdP credentials and select **Save**.
-
-> If you've already configured [single sign-on (SSO) for logging in to Fleet](https://fleetdm.com/docs/configuration/fleet-server-configuration#okta-idp-configuration), you'll need to create a separate app in your IdP so your end users can't log in to Fleet. In this separate app, use "https://fleetserver.com/api/v1/fleet/mdm/sso/callback" for the SSO URL.
-
-fleetctl CLI:
-
-1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
-
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    end_user_authentication:
-      identity_provider_name: "Okta"
-      entity_id: "https://fleetserver.com"
-      issuer_url: "https://okta-instance.okta.com/84598y345hjdsshsfg/sso/saml/metadata"
-      metadata_url: "https://okta-instance.okta.com/84598y345hjdsshsfg/sso/saml/metadata"
-  ...
+```sh
+fleetctl generate mdm-apple --email <email> --org <org> 
 ```
 
 ### Step 2: generate an APNs certificate
@@ -97,7 +80,7 @@ Navigate to the **Settings > Integrations > Mobile device management (MDM)** pag
 fleetctl get mdm-apple
 ```
 
-Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
+## Renewing APNs 
 
 > **Important:** Apple requires that APNs certificates are renewed annually. 
 > - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
@@ -121,8 +104,9 @@ Navigate to the **Settings > Integrations > Mobile device management (MDM)** pag
 fleetctl get mdm-apple
 ``` 
 
-If your package is a distribution package should see a `Distribution` file.
-
+### Step 1: generate the required files
+- A new APNs certificate. 
+- A new APNs private key.
 Run the following command in `fleetctl`. This will download three files and send an email to you with an attached CSR file. You may ignore the SCEP certificate and SCEP key as you do not need these to renew APNs.
 
 ```sh
@@ -228,14 +212,8 @@ Use either of the following methods to confirm that Fleet is set up correctly. Y
 
 #### Fleetctl CLI:
 
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    macos_setup:
-      bootstrap_package: https://github.com/organinzation/repository/bootstrap-package.pkg
-  ...
+```sh
+fleetctl get mdm-apple
 ```
 
 ### Step 5: set Fleet to be the MDM server for Macs in ABM
@@ -282,59 +260,24 @@ Use either of the following methods to see your ABM renewal date and other impor
 
 #### Fleet UI
 
-In this example, let's assume you have a "Workstations" team as your [default team](./MDM-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production. 
-
-To do this, we'll create a new "Workstations (canary)" team and add the automatic enrollment profile to it. Only hosts that automatically enroll to this team will see the custom macOS Setup Assistant.
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+2. Look at the **Apple Business Manager** section.
 
 #### Fleetctl CLI
 
-```yaml
-apiVersion: v1
-kind: team
-spec:
-  team:
-    name: Workstations (canary)
-    mdm:
-      macos_setup:
-        macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
-    ...
+```sh
+fleetctl get mdm-apple
 ```
 
-Learn more about team configurations options [here](./configuration-files/README.md#teams).
+If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password 
 
-If you want to customize the macOS Setup Assistant for hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
+To renew the token: 
+1. Log in to [business.apple.com](https://business.apple.com)
+2. Select Fleet's MDM server record
+3. Download a new token for that server record
+4. In your Fleet server, update the environment variable [FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-bm-server-token-bytes)
+5. Restart the Fleet server
 
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    macos_setup:
-      macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
-  ...
-```
-
-Learn more about configuration options for hosts that aren't assigned to a team [here](./configuration-files/README.md#organization-settings).
-
-3. Add an `mdm.macos_setup.macos_setup_assistant` key to your YAML document. This key accepts a path to your automatic enrollment profile.
-
-4. Run the `fleetctl apply -f workstations-canary-config.yml` command to upload the automatic enrollment profile to Fleet.
-
-### Step 3: test the custom macOS Setup Assistant
-
-Testing requires a test Mac that is present in your Apple Business Manager (ABM) account. We will wipe this Mac and use it to test the custom macOS Setup Assistant.
-
-1. Wipe the test Mac by selecting the Apple icon in top left corner of the screen, selecting **System Settings** or **System Preference**, and searching for "Erase all content and settings." Select **Erase All Content and Settings**.
-
-2. In Fleet, navigate to the Hosts page and find your Mac. Make sure that the host's **MDM status** is set to "Pending."
-
-> New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." Learn more about these hosts [here](./MDM-setup.md#pending-hosts).
-
-3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
-
-4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
-
-<meta name="pageOrderInSection" value="1505">
-<meta name="title" value="MDM macOS setup">
-<meta name="description" value="Customize your macOS setup experience with Fleet Premium by managing user authentication, Setup Assistant panes, and installing bootstrap packages.">
-<meta name="navSection" value="Device management">
+<meta name="pageOrderInSection" value="1500">
+<meta name="title" value="macOS setup">
+<meta name="description" value="Learn how to configure Fleet to use Apple's Push Notification service and connect to Apple Business Manager.">
