@@ -48,7 +48,7 @@ resource "aws_route53_record" "main" {
 }
 ```
 
-Additionally, we will have to have a VPC created. The [Terraform AWS VPC Module](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/3.18.1) is one of the easiest ways to get all the necessary pieces quickly, so it will be used in the example.
+Additionally, we will have to have a VPC created. The [Terraform AWS VPC module](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/3.18.1) is one of the easiest ways to get all the necessary pieces quickly, so we'll use this in the example.
 
 ```hcl
 
