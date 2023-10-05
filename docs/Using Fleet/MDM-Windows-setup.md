@@ -108,7 +108,7 @@ Testing automatic enrollment requires creating a test user in Entra and a freshl
 
 7. When you reach the desktop on your Windows workstation, confirm that your workstation was automatically enrolled to Fleet by selecting the carrot (^) in your taskbar and then selecting the Fleet icon. This will navigate you to this workstation's **My device** page.
 
-8. On the **My device** page, below **My device** confirm that your laptop has a **Status** of "Online."
+8. On the **My device** page, below **My device**, confirm that your laptop has a **Status** of "Online".
 
 <meta name="pageOrderInSection" value="1501">
 <meta name="title" value="Windows setup">
